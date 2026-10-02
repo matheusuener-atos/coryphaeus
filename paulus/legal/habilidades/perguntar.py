@@ -54,6 +54,10 @@ TOKENS_RESERVADOS = 1200
 # A virada da I7 (`ia.leitura = "trechos"`): ler o escopo inteiro so quando
 # ele cabe em ~4000 tokens, ou quando a pergunta pede.
 LER_TUDO_ATE = 4000 * CHARS_POR_TOKEN
+# Na nuvem (02/10/2026): o documento que a pergunta aponta vai inteiro até
+# este tamanho (~20 mil tokens). Medido na bateria: com trechos, o contrato de
+# 5 mil caracteres do Wanderson chegou ao modelo sem a cláusula do preço.
+LER_INTEIRO_NUVEM = 60000
 RE_LER_INTEIRO = re.compile(r"\b(leia|ler|le|lendo|analise|analisar|revise|revisar)\b.{0,30}"
                             r"\b(inteir[oa]|todo|toda|completo|completa|integral)\b"
                             r"|\b(documento|contrato|arquivo|processo) (inteiro|todo|completo)\b")
@@ -69,6 +73,9 @@ def _por_trechos(ctx: Contexto, pergunta: str, tamanho: int) -> bool:
     O pedido de ler inteiro continua valendo, e a resposta fica no escritorio.
     """
     if not getattr(ctx, "recuperar", None):
+        return False
+    if (getattr(ctx, "escrita_no_aparelho", None) is None and getattr(ctx, "nuvem", None) is not None
+            and tamanho <= LER_INTEIRO_NUVEM):
         return False
     if getattr(ctx, "escrita_no_aparelho", None) is None:
         if getattr(ctx, "ia", {}).get("leitura", "tudo") != "trechos":
@@ -129,13 +136,24 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     # com a pergunta entram junto com os documentos, com espaco reservado -
     # sem reserva, o acervo lido por inteiro ocupava a janela toda.
     material = getattr(ctx, "material", None)
+    nuvem = getattr(ctx, "nuvem", None)
+    # A triagem da nuvem (src/triagem.py), quando houve: se a pergunta é de
+    # lei, de documento ou das duas, e os artigos que a fundamentam - já
+    # conferidos na base de leis.
+    triagem = getattr(ctx, "triagem", None) or {}
+    dispositivos = [tuple(d) for d in triagem.get("dispositivos") or []]
+    so_lei = triagem.get("assunto") == "lei" and not lidos
+    leis_em_casa = getattr(material, "leis", None) if material is not None else None
+    if so_lei and not dispositivos and leis_em_casa is not None:
+        dispositivos = [(a["codigo"], a["numero"]) for a in leis_em_casa.procurar_assunto(pergunta, limite=2)]
     do_material = material.consultar(pergunta) if material is not None else []
     bloco_material = ""
     # A Biblioteca, M4 (src/biblioteca/camadas.py): com `biblioteca.camadas`,
     # o que ela traz vai em blocos rotulados - LEI, SUMULAS, DOUTRINA,
     # COMUNIDADE, REGRA DA CASA - antes dos documentos, e a camada LEI traz o
     # texto do artigo que a pergunta ou os trechos citam.
-    camadas = _camadas(material, pergunta, do_material, orcamento)
+    camadas = _camadas(material, pergunta, do_material, orcamento, dispositivos=dispositivos,
+                       generoso=nuvem is not None)
     if camadas is not None:
         bloco_material = camadas.texto
         orcamento -= len(bloco_material) + 2
@@ -146,6 +164,15 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
         orcamento -= len(bloco_material) + 2
         ctx.registrar("Achou " + _quantos(len(do_material), "trecho") + " no material de consulta")
     leitura_material = (do_material, bloco_material, camadas)
+
+    # Pergunta de lei, sem documento nenhum pedido: os artigos, e não o Acervo.
+    # Antes, "qual o prazo para contestar?" lia trechos de 19 documentos e
+    # respondia de um PDF sobre confissão (bateria de 02/10/2026).
+    if so_lei:
+        ctx.registrar("A pergunta é de lei: li " + (_quantos(len(dispositivos), "artigo") + " dos códigos guardados"
+                                                    if dispositivos else "os códigos guardados") + ", e não o Acervo")
+        yield from _responder(ctx, pergunta, [], orcamento, material=leitura_material, caminho="lei")
+        return
 
     # HOOK 2: o que ja foi lido uma vez responde de novo sem ler outra vez.
     # Nao respondendo - metadata que falta, dado nao conferido, pergunta que
@@ -161,7 +188,10 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
         escopo = ([d for d in ctx.documentos if d.name in set(quais_em_foco)]
                   if quais_em_foco else ctx.documentos)
         pacote = saber.montar_contexto(pergunta, escopo, em_foco=bool(quais_em_foco))
-        if pacote.responde_sozinho and not do_material and camadas is None:
+        # Na nuvem, o nível 0 não responde sozinho: ele responde uma coisa só,
+        # e "qual o valor? Já foi pago?" saía só com o valor (bateria de
+        # 02/10/2026). O recorte dos documentos (níveis 3 e 4) continua.
+        if pacote.responde_sozinho and not do_material and camadas is None and nuvem is None:
             sinal = {"escalou": False}
             yield from _responder_do_que_ja_se_sabe(ctx, pergunta, pacote, sinal)
             if not sinal["escalou"]:
@@ -193,6 +223,8 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
             # Cabendo, vai inteiro. Nao cabendo - alguem poe oito arquivos em
             # foco - vale escolher trecho DENTRO deles, e nunca sair deles.
             texto = sum(len(h.chunk.text) for h in so_deles)
+            # Na nuvem cabe mais do que na janela do modelo daqui.
+            limite = max(orcamento, LER_INTEIRO_NUVEM) if nuvem is not None else orcamento
             if _por_trechos(ctx, pergunta, texto):
                 escolhidos = ctx.recuperar(pergunta, quais)
                 if escolhidos:
@@ -202,13 +234,13 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
                                           material=leitura_material, caminho="foco", fallback=fallback,
                                           por_trechos=True)
                     return
-            if texto > orcamento:
-                por_documento = max(2, ctx.searcher.quantos_cabem(orcamento) // len(quais))
+            if texto > limite:
+                por_documento = max(2, ctx.searcher.quantos_cabem(limite) // len(quais))
                 escolhidos = ctx.searcher.search(
                     pergunta, top_k=max(top, len(so_deles)), per_doc_limit=por_documento, documentos=quais)
                 dentro = [h for h in escolhidos if h.doc_name in set(quais)]
                 so_deles = dentro or so_deles[:1]
-            yield from _responder(ctx, pergunta, so_deles, orcamento, apenas=quais, material=leitura_material,
+            yield from _responder(ctx, pergunta, so_deles, limite, apenas=quais, material=leitura_material,
                                   caminho="foco", fallback=fallback)
             return
         # Nomeou documento que nao esta aberto: dizer isso e melhor do que
@@ -312,7 +344,7 @@ def _fora_da_cobertura(ctx: Contexto, pergunta: str, do_material, camadas) -> st
     return mapa.linha_de_aviso(area) if area else ""
 
 
-def _camadas(material, pergunta: str, do_material: list, orcamento: int):
+def _camadas(material, pergunta: str, do_material: list, orcamento: int, dispositivos=(), generoso: bool = False):
     """As camadas da Biblioteca (M4), ou None: chave desligada, ou nada a mostrar."""
     chave = getattr(material, "chave", None)
     if material is None or chave is None or not chave("camadas"):
@@ -320,7 +352,8 @@ def _camadas(material, pergunta: str, do_material: list, orcamento: int):
     from biblioteca import camadas as camadas_mod
 
     feitas = camadas_mod.montar(material, getattr(material, "leis", None), pergunta, do_material,
-                                total=min(camadas_mod.TOTAL, max(1200, orcamento // 3)))
+                                total=min(camadas_mod.TOTAL, max(1200, orcamento // 3)), dispositivos=dispositivos,
+                                generoso=generoso)
     return None if feitas.vazia else feitas
 
 
@@ -593,6 +626,7 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     do_aparelho, parcial = yield from _escrever_no_aparelho(ctx, pergunta, contexto, regra, fontes, hits, caminho,
                                                             por_trechos)
     escrito = []
+    da_nuvem = None
     if do_aparelho is not None:
         escrito.append(do_aparelho)
         yield evento("token", t=do_aparelho)
@@ -630,18 +664,45 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
                     fila.sair(vez_aqui)
 
     sem_fundamento = False
-    if com_marcas and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
+    # A resposta da nuvem confere os artigos na base de leis (src/citacoes.py):
+    # o que existe fica e vira fonte; o que não existe leva a frase.
+    leis_da_nuvem = None
+    if da_nuvem is not None and getattr(ctx, "material", None) is not None:
+        leis_da_nuvem = getattr(ctx.material, "leis", None)
+    parou = bool(getattr(ctx, "parar", None) and ctx.parar())
+    conferidas: list = []
+    if com_marcas and escrito and not parou:
         resposta = "".join(escrito)
         if modo != "modelo":
             import citacoes
 
             resposta = citacoes.atribuir(resposta, [h.chunk.text for h in hits])
-        texto, sem_fundamento = yield from _conferir_marcas(ctx, pergunta, hits, orcamento, resposta, regra)
+        texto, sem_fundamento = yield from _conferir_marcas(ctx, pergunta, hits, orcamento, resposta, regra,
+                                                            leis=leis_da_nuvem, conferidas=conferidas)
         escrito = [texto]
-    elif camadas is not None and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
-        texto = _conferir_camadas(ctx, "".join(escrito), camadas, hits, modo)
+    elif camadas is not None and escrito and not parou:
+        texto = _conferir_camadas(ctx, "".join(escrito), camadas, hits, modo, leis=leis_da_nuvem, pergunta=pergunta)
+        conferidas = texto.pop("conferidas", [])
         yield evento("revisao", **texto)
         escrito = [texto["texto"]]
+    elif leis_da_nuvem is not None and escrito and not parou:
+        import citacoes
+
+        rev = citacoes.revisar("".join(escrito), [h.chunk.text for h in hits], leis=leis_da_nuvem, pergunta=pergunta)
+        texto = rev.texto.replace(" " + citacoes.SEM_FONTE, "").replace(citacoes.SEM_FONTE, "")
+        conferidas = rev.conferidas
+        if rev.removidas:
+            ctx.registrar("tirei da resposta o que não confere com a base de leis: " + "; ".join(rev.removidas[:3]))
+        yield evento("revisao", texto=texto, sem_fonte=0, removidas=rev.removidas, marcas=0)
+        escrito = [texto]
+    if conferidas:
+        texto = _fontes_das_conferidas(ctx, "".join(escrito), conferidas, fontes)
+        # As fontes antes do texto: a marca [Tn] nova aponta para uma delas.
+        yield evento("fontes", consultados=consultados, ignorados=ignorados, total_contratos=len(ctx.documentos),
+                     trechos=fontes, apenas=apenas, material=usados_do_material)
+        if texto != "".join(escrito):
+            escrito = [texto]
+            yield evento("revisao", texto=texto, sem_fonte=0, removidas=[], marcas=0)
 
     # C6: a conferencia da saida, a mesma do e-mail.
     if cerca and escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
@@ -674,7 +735,44 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
     yield evento("fim", fontes=fontes, consultados=consultados, ignorados=ignorados)
 
 
-def _conferir_camadas(ctx: Contexto, resposta: str, camadas, hits, modo: str) -> dict:
+def _fontes_das_conferidas(ctx: Contexto, resposta: str, conferidas: list, fontes: list) -> str:
+    """
+    Os artigos que a resposta citou e a base de leis confirmou entram nas
+    fontes, com o texto oficial - e a frase que os cita ganha a marca [Tn]
+    deles, quando ainda não tem marca. Devolve o texto com as marcas.
+    """
+    import citacoes
+    import leis as leis_mod
+    from biblioteca.anotacoes import numero_legivel
+
+    novas: dict[tuple, int] = {}
+    for a in conferidas:
+        fontes.append({"documento": a["citacao"], "trecho": 1, "score": 1.0, "texto": a.get("texto", ""),
+                       "material": True, "lei": True, "origem": "lei", "codigo": a["codigo"], "numero": a["numero"],
+                       "revogado": bool(a.get("revogado")), "onde": "texto guardado nesta máquina",
+                       "conferida": True})
+        novas[(a["codigo"], numero_legivel(a["numero"]))] = len(fontes)
+    ctx.registrar("conferi na base de leis: " + ", ".join(a["citacao"] for a in conferidas[:4]))
+    saida = []
+    for frase in citacoes._frases(resposta):
+        if not citacoes.RE_MARCA.search(frase):
+            for c in citacoes._citacoes_em(frase):
+                if c["tipo"] != "article":
+                    continue
+                d = c.get("dados") or {}
+                codigo = (leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id", ""))
+                          or citacoes._codigo_por_contexto(frase, resposta))
+                indice = novas.get((codigo, numero_legivel(d.get("article", ""))))
+                if indice:
+                    fim = len(frase.rstrip())
+                    corte = fim - 1 if fim and frase[fim - 1] in ".!?" else fim
+                    frase = frase[:corte].rstrip() + f" [T{indice}]" + frase[corte:]
+                    break
+        saida.append(frase)
+    return "".join(saida)
+
+
+def _conferir_camadas(ctx: Contexto, resposta: str, camadas, hits, modo: str, leis=None, pergunta: str = "") -> dict:
     """
     A resposta com as camadas (M4), conferida em codigo: a marca [Tn] de cada
     frase, na ordem das fontes (biblioteca, depois documentos); a citacao de
@@ -688,7 +786,7 @@ def _conferir_camadas(ctx: Contexto, resposta: str, camadas, hits, modo: str) ->
     trechos = list(camadas.trechos) + [camadas_mod.trecho_de_documento(h) for h in hits]
     textos = [t.texto for t in trechos]
     marcada = citacoes.atribuir(resposta, textos)
-    rev = citacoes.revisar(marcada, textos)
+    rev = citacoes.revisar(marcada, textos, leis=leis, pergunta=pergunta)
     texto = rev.texto if modo else rev.texto.replace(" " + citacoes.SEM_FONTE, "")
     texto, corrigidas = camadas_mod.conferir_doutrina(texto, trechos)
     # M6: a obra anterior à redação atual do artigo que ela comenta - só avisa.
@@ -705,10 +803,11 @@ def _conferir_camadas(ctx: Contexto, resposta: str, camadas, hits, modo: str) ->
     if corrigidas:
         ctx.registrar(_quantos(corrigidas, "frase") + " de doutrina dita como lei: atribuí ao autor")
     return {"texto": texto, "sem_fonte": rev.sem_fonte if modo else 0, "removidas": rev.removidas,
-            "marcas": rev.marcas_validas, "doutrina_atribuida": corrigidas}
+            "marcas": rev.marcas_validas, "doutrina_atribuida": corrigidas, "conferidas": rev.conferidas}
 
 
-def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, resposta: str, regra: str):
+def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, resposta: str, regra: str, leis=None,
+                     conferidas=None):
     """
     As tres conferencias da I8 (src/citacoes.py) sobre a resposta ja escrita.
     Devolve (texto conferido, sem fundamento) e emite `revisao` - a tela troca
@@ -716,8 +815,10 @@ def _conferir_marcas(ctx: Contexto, pergunta: str, hits, orcamento: int, respost
     """
     import citacoes
 
-    rev = citacoes.revisar(resposta, [h.chunk.text for h in hits])
-    if rev.refazer and len(hits) > 1:
+    rev = citacoes.revisar(resposta, [h.chunk.text for h in hits], leis=leis, pergunta=pergunta)
+    if conferidas is not None:
+        conferidas.extend(rev.conferidas)
+    if rev.refazer and len(hits) > 1 and leis is None:
         # Regra 2: marca de trecho que nao existe. O modelo pequeno se perde
         # em contexto longo - refaz uma vez, com a metade dos trechos. A
         # numeracao dos que ficam e a mesma: as fontes da tela continuam

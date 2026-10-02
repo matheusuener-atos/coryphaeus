@@ -280,8 +280,10 @@ def main() -> int:
     evs, m, locais = perguntar("qual a multa por atraso no aluguel?")
     mandando = next((d for t, d in evs if t == "nuvem_mandando"), {})
     ida = fake.ultimas("/api/ia/v1/chat/completions")
-    checar(len(ida) == n0 + 1 and ida[-1]["cabecalhos"]["Authorization"] == "Bearer " + SEGREDO and ida[-1]["corpo"]["model"] == "meta-llama/Llama-3.3-70B-Instruct",
-           "a pergunta vai ao portão de paulus.ia.br com o segredo da instalação")
+    # Duas idas: a triagem da pergunta (src/triagem.py) e a resposta.
+    checar(len(ida) == n0 + 2 and all(x["cabecalhos"]["Authorization"] == "Bearer " + SEGREDO and
+                                      x["corpo"]["model"] == "meta-llama/Llama-3.3-70B-Instruct" for x in ida[n0:]),
+           "a pergunta vai ao portão de paulus.ia.br com o segredo da instalação", len(ida) - n0)
     checar(len(api.estado.fila.pendentes) == n_pend and "com o sim do titular" in mandando.get("como", ""), "sem pedido em Aprovações: vai com o sim do titular", mandando)
     enviado = json.dumps(ida[-1]["corpo"], ensure_ascii=False)
     checar(CPF not in enviado and "[CPF 1]" in enviado, "mascarado: o CPF não sai")

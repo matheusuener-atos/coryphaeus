@@ -29,7 +29,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # Quantas palavras do agente, no minimo, fazem dele candidato sem exemplo.
-PALAVRAS_MINIMAS = 1
+# Era 1: o "Extrator de dados para cadastro" tem "crie" entre as palavras, e
+# todo "crie uma tarefa..." ia para ele - que nao tem a ferramenta de tarefa e
+# recusava (bateria de 02/10/2026). Duas palavras, e verbo de sempre nao conta.
+PALAVRAS_MINIMAS = 2
+# O verbo que serve a qualquer pedido nao diz qual especialista chamar.
+GENERICAS = {"crie", "cria", "criar", "faca", "faz", "fazer", "veja", "ver", "mostre", "mostra", "mostrar", "abra",
+             "abre", "abrir", "envie", "envia", "enviar", "mande", "manda", "mandar", "liste", "lista", "listar",
+             "quero", "preciso", "pode", "ajude", "ajuda", "gere", "gera", "gerar", "coloque", "coloca", "ponha",
+             "escreva", "escreve", "escrever", "diga", "fale", "me", "por favor", "novo", "nova"}
 # Semelhanca (palavras em comum / palavras do exemplo) para um exemplo contar.
 SEMELHANCA_EXEMPLO = 0.6
 PALAVRAS_VAZIAS = {"o", "a", "os", "as", "de", "do", "da", "dos", "das", "e", "em", "no", "na", "um", "uma", "que",
@@ -109,7 +117,9 @@ def pontos(pergunta: str, agente) -> tuple[float, str]:
         melhor_exemplo = max(melhor_exemplo, len(p & pe) / len(pe))
     if melhor_exemplo >= SEMELHANCA_EXEMPLO:
         return 1.0 + melhor_exemplo, "exemplo"
-    achadas = [w for w in (agente.quando_usar or {}).get("palavras") or [] if _plano(w) and _plano(w) in plano]
+    achadas = [w for w in (agente.quando_usar or {}).get("palavras") or []
+               if _plano(w) and _plano(w).strip() not in GENERICAS
+               and re.search(r"\b" + re.escape(_plano(w).strip()) + r"\b", plano)]
     if len(achadas) >= PALAVRAS_MINIMAS:
         return 0.5 + 0.1 * len(achadas), "palavras"
     return 0.0, ""

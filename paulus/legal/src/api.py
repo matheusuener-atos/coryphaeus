@@ -138,6 +138,7 @@ import fundamentacao as fundamentacao_mod
 import comunidade as comunidade_mod
 import jurisprudencia as jurisprudencia_mod
 import nuvem as nuvem_mod
+import triagem as triagem_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
 import fila_de_todos
@@ -3817,6 +3818,25 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
 
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
                         cadastros=[f["nome"] for f in estado.cadastros.listar()])
+    # Bateria de 02/10/2026 (src/intencao.py, fim): o que o programa não faz
+    # diz que não faz; "SEMA está errado, o certo é SEMAS - corrija" com o
+    # documento anexado vai ao editor, em qualquer posição do verbo; e "...e
+    # salve no editor" e "se estiver vencida, crie uma tarefa" saem da
+    # pergunta e voltam depois da resposta, como documento e como cartão.
+    acao_depois = None
+    salvar_no_editor = False
+    if lido.tipo == "documentos":
+        fora = intencao.fora_do_alcance(pergunta)
+        if fora:
+            return _so_dizer(trabalho, fora)
+        if intencao.pedido_de_mudanca(pergunta):
+            alvo = (list(payload.apenas or []) or (list(explicito) if len(explicito) == 1 else [])
+                    or (list(citado) if len(citado or []) == 1 else []))
+            if len(alvo) == 1:
+                return _responder_mudar_documento(trabalho, alvo[0], pergunta)
+        salvar_no_editor, pergunta = intencao.salvar_no_editor(pergunta)
+        acao_depois, pergunta = intencao.acao_anexa(pergunta, documentos=estado.searcher.documents,
+                                                   cadastros=[f["nome"] for f in estado.cadastros.listar()])
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
@@ -3881,6 +3901,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # `Conversa - E-mail` e `Conversa - Escrever e-mail`: a mensagem aberta na
     # conversa, e a resposta escrita no lugar da caixa de pedido.
     if lido.tipo == "email":
+        if lido.campos.get("documento"):
+            lido.campos["anexados"] = list(payload.apenas or []) or list(explicito or [])
         return _responder_email(trabalho, lido, pergunta, request)
     # `Conversa - Cadastro`, `- Equipe`, `- Despesa fixa`: a ficha na coluna,
     # preenchida com o que o Acervo (ou o anexo) diz. Com um agente, o cartao
@@ -3909,8 +3931,13 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if agente is not None and lido.tipo != "sobre":
             ferramenta = agente_mod.ferramenta_da_acao(lido.tipo)
             if not agente_mod.pode_usar(agente, ferramenta):
-                agente_mod.registrar_recusa(estado, trabalho, agente, ferramenta, pergunta)
-                return _so_dizer(trabalho, agente_mod.frase_da_recusa(agente, ferramenta))
+                # Escolhido pela regra, e nao pela pessoa: o pedido segue sem
+                # ele (bateria de 02/10/2026 - "crie uma tarefa" era recusado
+                # pelo agente de cadastro). Escolhido pela pessoa, a recusa vale.
+                if agente_como in ("pedido", "arroba"):
+                    agente_mod.registrar_recusa(estado, trabalho, agente, ferramenta, pergunta)
+                    return _so_dizer(trabalho, agente_mod.frase_da_recusa(agente, ferramenta))
+                agente, agente_como = None, ""
         return _responder_sem_documentos(trabalho, lido, pergunta, agente=agente)
 
     # C4: "qual o CPF do cliente Matheus?" responde da ficha, por molde, sem
@@ -3942,13 +3969,38 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     if not plano_mod.liberada(estado):
         return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
 
+    # A triagem na nuvem (src/triagem.py): se a pergunta e de lei, de
+    # documento ou das duas, quais documentos ela pede (pelo nome exato) e os
+    # artigos que a fundamentam. So quando nada na conversa diz qual
+    # documento - anexo, nome na frase ou foco.
+    triagem = None
+    if (envio_nuvem is not None and envio_nuvem.vai_sem_pedir() and not payload.apenas and not explicito
+            and not citado):
+        # A pergunta sobre um caso só do escritório, um anexo do e-mail ou uma
+        # cópia do Drive não sai nem para a triagem: a busca daqui, rápida,
+        # diz de onde a resposta deve vir.
+        provaveis = [str(getattr(h.chunk, "doc_path", "") or "") for h in estado.searcher.search(pergunta, top_k=8)]
+        if not nuvem_mod.motivo_para_ficar(estado, provaveis):
+            triagem = triagem_mod.triar(estado, pergunta, estado.searcher.documents, historico=historico,
+                                        leis=estado.leis)
+        if triagem and triagem["documentos"]:
+            substantivo = intencao.referencia_generica(pergunta)
+            # "a procuração" e ha quatro: a conversa pergunta qual, entre as que a triagem achou.
+            if substantivo and len(triagem["documentos"]) >= 2 and not payload.retomar:
+                return _perguntar_qual_documento(trabalho, pergunta, substantivo, triagem["documentos"])
+            citado = list(triagem["documentos"])
+            trabalho.contexto["documento_em_foco"] = citado
+    de_lei = bool(triagem and triagem["assunto"] == "lei") or intencao.cita_lei(pergunta)
+
     # "Qual o valor do contrato?" sem dizer qual, e o Acervo tem varios: a
     # conversa pergunta qual, em vez de o modelo escolher um e responder como
     # se fosse o unico. So quando nada na conversa diz qual (anexo, foco,
     # nome na frase). Nao olha `tudo`: a pilula "Acervo" do compositor manda
     # `tudo` em toda pergunta, e o cartao nunca aparecia pela tela. Quem vem
-    # do cartao (um documento ou "Em todos") vem com `retomar`.
-    if not payload.apenas and not payload.retomar and not explicito and not citado:
+    # do cartao (um documento ou "Em todos") vem com `retomar`. Pergunta que
+    # cita lei ("na procuração, segundo o art. 105 do CPC") nao e sobre uma
+    # das procuracoes do Acervo (bateria de 02/10/2026, A4).
+    if not payload.apenas and not payload.retomar and not explicito and not citado and not de_lei:
         substantivo = intencao.referencia_generica(pergunta)
         if substantivo:
             nomes = intencao.documentos_do_tipo(substantivo, pergunta, estado.searcher.documents)
@@ -3958,7 +4010,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # Tirou o anexo e perguntou sem nomear documento: antes de ler os
     # dezessete, pergunta onde - so no que a conversa vinha lendo, ou no
     # acervo inteiro. Ler tudo leva minutos, e nao foi o que a pessoa disse.
-    if (payload.sem_anexo and not citado and not payload.tudo
+    if (payload.sem_anexo and not citado and not payload.tudo and not (triagem and triagem["assunto"] == "lei")
             and not intencao.quer_todo_o_acervo(pergunta)):
         trabalho.contexto["documento_em_foco"] = foco_antes
         return _perguntar_onde_procurar(trabalho, pergunta, foco_antes)
@@ -4111,6 +4163,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             ctx.escrita_no_aparelho = escrita_no_aparelho
         if envio_nuvem is not None:
             ctx.nuvem = envio_nuvem
+        if triagem:
+            ctx.triagem = triagem
         if payload.inteiro:
             ctx.ia["leitura"] = "tudo"
         sem_fundamento: dict = {}
@@ -4297,6 +4351,10 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             cobertura["como"]["nuvem"] = envio_nuvem.resumo()
             if envio_nuvem.foi:
                 cobertura["como"]["modelo"] = f"{envio_nuvem.nome_do_provedor} · {envio_nuvem.modelo}"
+        if triagem:
+            cobertura["como"]["triagem"] = {"assunto": triagem["assunto"], "documentos": triagem["documentos"],
+                                            "dispositivos": [f"{c}:{n}" for c, n in triagem["dispositivos"]],
+                                            "tokens": triagem.get("tokens", 0)}
         # D1: onde a resposta foi escrita e por que, quando a pessoa pediu o aparelho.
         # D4: com o seletor na tela, a escolha da pessoa tambem fica dita.
         if payload.aparelho or payload.escolha in aparelho_mod.ESCOLHAS:
@@ -4331,10 +4389,23 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 relacionados = None
         if relacionados:
             cobertura["relacionados"] = relacionados
+        # "...e salve no editor": a resposta vira um rascunho no Editor de
+        # texto, ligado a esta conversa. "Se estiver vencida, crie uma tarefa":
+        # o cartão da tarefa vem embaixo da resposta, e quem confirma é a pessoa.
+        escrito_final = "".join(partes).strip()
+        feito_no_editor = None
+        if salvar_no_editor and escrito_final:
+            feito_no_editor = _resposta_no_editor(trabalho, pergunta, escrito_final, request)
+            if feito_no_editor:
+                oferta = feito_no_editor
+        if acao_depois is not None:
+            oferta = _proposta_da_acao(acao_depois, payload.pergunta.strip())
         trabalho.dizer(
-            "paulus", "".join(partes).strip(),
+            "paulus", escrito_final,
             fontes=fontes, cobertura=_como_pensou(id_, cobertura), segundos=segundos,
             nivel=nivel, inferencia=inferencia, proposta=oferta or {},
+            **({"feito": {"tipo": "editar", "id": feito_no_editor["campos"]["id"],
+                          "nome": feito_no_editor["campos"]["titulo"]}} if feito_no_editor else {}),
         )
         estado.trabalhos.salvar(trabalho)
         # Uma resposta leva cerca de um minuto nesta maquina: quem foi para
@@ -5165,6 +5236,29 @@ def _responder_email(trabalho, lido, pergunta: str, request=None) -> StreamingRe
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+def _documentos_pela_descricao(descricao: str) -> list[str]:
+    """
+    "a procuração da COOBRAMEX" -> os documentos do Acervo cujo nome tem mais
+    palavras da descrição (pelo menos metade delas). Cópias do mesmo arquivo
+    em outro formato contam como candidatos à parte.
+    """
+    palavras = [p for p in re.findall(r"[a-z0-9]{3,}", intencao._plano(descricao))
+                if p not in ("das", "dos", "com", "para", "pra", "que", "este", "esta", "esse", "essa", "documento",
+                             "arquivo")]
+    if not palavras:
+        return []
+    notas = []
+    for d in estado.searcher.documents:
+        nome = intencao._plano(Path(d.name).stem)
+        nota = sum(1 for p in palavras if p in nome)
+        if nota * 2 >= len(palavras):
+            notas.append((nota, d.name))
+    if not notas:
+        return []
+    melhor = max(n for n, _ in notas)
+    return [nome for n, nome in notas if n == melhor]
+
+
 def _escrever_email_novo(trabalho, lido, pergunta: str, request=None) -> StreamingResponse:
     """
     "Escreva um e-mail para a Priscila dizendo que...": o envelope do e-mail
@@ -5191,14 +5285,36 @@ def _escrever_email_novo(trabalho, lido, pergunta: str, request=None) -> Streami
         return _so_dizer(trabalho, texto)
     aprovacao = _passa_por_aprovacao(conta, request)
     para = [{"nome": nome, "email": email}] if email else []
+    # "Envie a procuração da COOBRAMEX por e-mail para...": o documento vai
+    # anexado (bateria de 02/10/2026). Mais de um que pode ser "a procuração",
+    # a conversa diz quais e deixa a escolha no campo Anexos.
+    anexos: list[str] = []
+    sobre_anexo = ""
+    assunto = ""
+    if campos.get("documento"):
+        nomes = list(campos.get("anexados") or []) or _documentos_pela_descricao(campos["documento"])
+        caminhos = {d.name: d.path for d in estado.searcher.documents}
+        nomes = [n for n in nomes if n in caminhos]
+        if len(nomes) == 1:
+            anexos = [caminhos[nomes[0]]]
+            assunto = Path(nomes[0]).stem
+            sobre_anexo = f"Anexei “{nomes[0]}”. "
+        elif nomes:
+            unicos = list(dict.fromkeys(nomes))
+            sobre_anexo = ("Há " + str(len(nomes)) + " documentos que podem ser “" + campos["documento"] + "”: " +
+                           ", ".join("“" + n + "”" for n in unicos[:4]) + (" e outros" if len(unicos) > 4 else "") +
+                           ". Escolha o certo em Anexos. ")
+        else:
+            sobre_anexo = f"Não achei “{campos['documento']}” no Acervo: anexe pelo campo Anexos. "
     texto = (f"Vou escrever o e-mail para {nome or email}. " if para else
-             f"Não achei e-mail de “{quem}” em Cadastros: ponha o endereço no Para. ") + \
+             f"Não achei e-mail de “{quem}” em Cadastros: ponha o endereço no Para. ") + sobre_anexo + \
         "O texto aparece na caixa abaixo para você revisar — " + \
         ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar.")
     uid = "novo-" + uuid.uuid4().hex[:10]
     proposta = {"tipo": "email", "titulo": "Novo e-mail", "porque": lido.porque, "pergunta": pergunta,
                 "campos": {"acao": "escrever", "uid": uid, "pedido": campos.get("pedido", ""), "para": para,
-                           "quem": quem, "conta_id": conta.id, "conta_email": conta.email, "assunto": ""}}
+                           "quem": quem, "conta_id": conta.id, "conta_email": conta.email, "assunto": assunto,
+                           "anexos": anexos}}
 
     def gerar() -> Iterator[str]:
         trabalho.etapas = [Etapa("Preparar o e-mail", estado=CONCLUIDO)]
@@ -5362,6 +5478,81 @@ def _so_dizer(trabalho, texto: str) -> StreamingResponse:
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+def _proposta_da_acao(lido, pergunta: str) -> dict:
+    """
+    O cartão de uma ação de agenda ou tarefa, o mesmo de `_responder_sem_documentos`,
+    para ir embaixo de uma resposta ("...está vencida? Se estiver, crie uma tarefa").
+    """
+    ferramenta = ferramentas.POR_PROPOSTA.get(lido.tipo, "")
+    proposta = {
+        "tipo": lido.tipo, "titulo": lido.titulo, "campos": lido.campos, "porque": lido.porque, "falta": lido.falta,
+        "pergunta": pergunta, "ferramenta": ferramenta,
+        "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
+        "ajuda_do_modelo": [],
+    }
+    if lido.tipo == "agenda" and not lido.falta:
+        _frase_do_agendar(proposta)            # liga a ficha e acha o horário livre
+    return proposta
+
+
+def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None) -> dict | None:
+    """
+    "Resuma a procuração e salve no editor": a resposta vira um rascunho no
+    Editor de texto. Devolve o cartão que abre o rascunho, ou None.
+    """
+    import citacoes
+    import html as _html
+
+    limpo = citacoes.RE_MARCA.sub("", texto).replace(citacoes.SEM_FONTE, "")
+    paragrafos = [" ".join(p.split()) for p in re.split(r"\n\s*\n|\n", limpo) if p.strip()]
+    corpo = "".join("<p>" + _html.escape(p) + "</p>" for p in paragrafos)
+    nomes = list(trabalho.contexto.get("documento_em_foco") or [])
+    base = Path(nomes[0]).stem if len(nomes) == 1 else ""
+    m = re.match(r"(?i)\s*(?:resuma|resume|resumir|fa[çc]a um resumo d[oae]s?|faz um resumo d[oae]s?)\s+(?:o\s+|a\s+|os\s+|as\s+)?(.+)",
+                 pergunta)
+    if m:
+        # "resuma a procuração da COOBRAMEX" -> "Resumo — procuração da COOBRAMEX"
+        titulo = "Resumo — " + (base or m.group(1).strip().rstrip(".?!"))
+    else:
+        titulo = base or titular(pergunta)
+    try:
+        id_ = estado.documentos.criar(titulo[:120], "texto", corpo, None)
+        equipe.marcar_autor(estado.base, "documentos", id_, equipe.quem(request, estado.prefs.dados))
+    except Exception:  # noqa: BLE001 - sem o rascunho, a resposta vale igual
+        return None
+    return {"tipo": "editor_criado", "titulo": titulo, "campos": {"id": id_, "titulo": titulo},
+            "porque": "você pediu para salvar no editor", "pergunta": pergunta}
+
+
+def _responder_mudar_documento(trabalho, nome: str, pergunta: str) -> StreamingResponse:
+    """
+    "SEMA está errado. O certo é SEMAS - corrija no documento" com o documento
+    anexado: o cartão que abre o rascunho no editor e faz a mudança, marcada
+    para manter ou descartar (js/13-editor-na-conversa.js). O arquivo do
+    Acervo não é tocado - o editor trabalha numa cópia.
+    """
+    if not any(d.name == nome for d in estado.searcher.documents):
+        return _so_dizer(trabalho, f"“{nome}” não está entre os documentos abertos, então não tenho onde mudar.")
+    trocas = intencao.trocas_do_pedido(pergunta)
+    texto = (f"Vou abrir “{nome}” no editor, como rascunho, e "
+             + (f"trocar “{trocas[0][0]}” por “{trocas[0][1]}”" if len(trocas) == 1 else "fazer a mudança")
+             + ". A alteração fica marcada para você manter ou descartar; o arquivo original no Acervo não muda.")
+    proposta = {"tipo": "mudar_documento", "titulo": nome, "porque": "um pedido de mudança e o documento desta conversa",
+                "pergunta": pergunta, "campos": {"nome": nome, "pedido": pergunta, "trocas": [list(t) for t in trocas]}}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> StreamingResponse:
     """
     O que nao precisa ler documento nenhum.
@@ -5375,7 +5566,8 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
     """
     def gerar() -> Iterator[str]:
         if lido.tipo == "sobre":
-            texto = _o_que_eu_faco()
+            # "Você consegue alterar documentos?" responde a pergunta feita.
+            texto = intencao.capacidade_perguntada(pergunta) or _o_que_eu_faco()
             trabalho.etapas = [Etapa("Responder", estado=CONCLUIDO)]
             trabalho.estado = CONCLUIDO
             trabalho.dizer("paulus", texto)
@@ -5693,7 +5885,18 @@ def _o_que_eu_faco() -> str:
     """
     grupos = destinos.por_grupo()
 
-    linhas = ["Eu trabalho com o que está nesta máquina. Nada sai daqui.", ""]
+    # Com a nuvem ligada, "nada sai daqui" deixou de ser verdade: o que sai, e
+    # como, é dito (bateria de 02/10/2026).
+    if nuvem_mod.ligada(estado):
+        c = nuvem_mod.config(estado)
+        provedor = nuvem_mod.PROVEDORES.get(c.get("provedor") or "", {}).get("nome", "nuvem")
+        abertura = (f"A IA que escreve as respostas roda na nuvem ({provedor}). Vão só a pergunta e os trechos que ela "
+                    "precisa ler" + (", com CPF, CNPJ, e-mail, telefone e número de processo trocados por marcadores"
+                                     if c.get("mascarar", True) else "")
+                    + "; os seus arquivos ficam nesta máquina.")
+    else:
+        abertura = "Eu trabalho com o que está nesta máquina. Nada sai daqui."
+    linhas = [abertura, ""]
     faltando: list[str] = []
 
     for bloco in grupos:
@@ -5718,6 +5921,12 @@ def _o_que_eu_faco() -> str:
         "do contrato de logística”",
         "  perguntar o que está gravado — “quais compromissos tenho amanhã?”, "
         "“tenho tarefa atrasada?”, “quanto recebi este mês?”",
+        "  perguntar sobre a lei — “qual o prazo para contestar no procedimento comum?”, com o artigo conferido "
+        "no texto dos códigos guardados aqui",
+        "  mudar um documento — anexe e peça “troque SEMA por SEMAS”: a mudança fica marcada no editor, e o "
+        "original não muda",
+        "  mandar um documento por e-mail — “envie a procuração por e-mail para fulano@exemplo.com”",
+        "  salvar uma resposta como documento — “resuma o contrato e salve no editor”",
         "  perguntar como se faz — “como assino um PDF?”, “como conecto meu Gmail?”",
         "  abrir uma tela — “abra o financeiro”",
         "",
@@ -9671,6 +9880,9 @@ class PedidoAoAssistente(BaseModel):
     # O editor aberto ao lado de uma conversa: o pedido e o que foi feito
     # ficam nela, como qualquer outra coisa dita ali.
     trabalho_id: str = ""
+    # O pedido ja esta na conversa (veio de uma pergunta que abriu o editor):
+    # nao entra de novo como fala da pessoa.
+    ja_dito: bool = False
 
 
 class CelulaPlanilha(BaseModel):
@@ -10532,6 +10744,19 @@ _ASPAS = chr(34)
 # --------------------------------------------------------- o assistente
 
 
+INSTRUCAO_EDITOR_INTEIRO = """Voce ajuda um advogado brasileiro a mudar um documento. O documento inteiro
+vem abaixo. Responda so com um objeto JSON, assim:
+{"trocas": [{"de": "trecho copiado do documento", "para": "o texto novo"}], "acrescentar": ""}
+
+- Para mudar o que ja esta escrito, use "trocas". "de" e copiado do documento
+  letra por letra - o menor trecho que deixa claro o lugar (uma palavra, uma
+  frase). Todas as trocas que o pedido pede, uma por lugar diferente.
+- "acrescentar" e so para texto novo que o pedido manda escrever (uma
+  clausula, um paragrafo), e vai para o fim do documento. Sem isso, "".
+- nao invente numero de artigo, de lei, de sumula nem de processo
+- nao invente nome, data, valor nem prazo que nao estejam no documento ou no pedido
+- sem marcacao, sem asteriscos"""
+
 INSTRUCAO_EDITOR = """Voce ajuda um advogado brasileiro a redigir. Responda em
 portugues do Brasil, direto, sem preambulo.
 
@@ -10638,26 +10863,53 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     if not pedido:
         raise HTTPException(status_code=400, detail="diga o que você quer que eu escreva")
 
+    inteiro = documento.para_texto(documento.ler_html(item["corpo"]))
+    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
+
+    # "SEMA está errado, o certo é SEMAS", "troque X por Y": a troca dita na
+    # frase é feita por regra, em todas as ocorrências, sem modelo - e o
+    # editor a aplica no lugar (bateria de 02/10/2026: o pedido escrevia
+    # um parágrafo no fim do documento).
+    if not payload.trecho.strip():
+        trocas = [(de, para) for de, para in intencao.trocas_do_pedido(pedido) if _ocorrencias(inteiro, de)]
+        if trocas:
+            quantas = sum(_ocorrencias(inteiro, de) for de, _ in trocas)
+            frase = ("Troquei " + ", ".join(f"“{de}” por “{para}”" for de, para in trocas) + f" em “{item['titulo']}” ("
+                     + (f"{quantas} ocorrências" if quantas > 1 else "1 ocorrência") + "). A alteração ficou marcada "
+                     "no documento, esperando você manter ou descartar.")
+            if trabalho:
+                if not payload.ja_dito:
+                    trabalho.dizer("pessoa", pedido)
+                trabalho.dizer("paulus", frase, feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
+                estado.trabalhos.salvar(trabalho)
+            return {"sugestao": "; ".join(para for _, para in trocas), "trocas": [{"de": de, "para": para} for de, para in trocas],
+                    "ocorrencias": quantas, "sobre": "", "frase": frase,
+                    "aviso": "Troca feita por regra, letra por letra, em todas as ocorrências. Confira antes de manter."}
+
     disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
+    cliente = estado.cliente_para("redacao", cadastro=item.get("cadastro_id"))
+    na_nuvem = isinstance(cliente, nuvem_mod.ClienteNuvem)
     if payload.trecho.strip():
         contexto = f"Trecho selecionado do documento:\n{payload.trecho[:2500]}"
     else:
-        texto = documento.para_texto(documento.ler_html(item["corpo"]))
-        contexto = f"Documento (início):\n{texto[:2500]}"
-    instrucao = INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}"
+        # O documento inteiro (até o que cabe), e não o começo: o pedido pode
+        # ser sobre a cláusula 9ª.
+        limite = 60000 if na_nuvem else 12000
+        contexto = "Documento" + (" (início)" if len(inteiro) > limite else "") + f":\n{inteiro[:limite]}"
+    instrucao = (INSTRUCAO_EDITOR if payload.trecho.strip() else INSTRUCAO_EDITOR_INTEIRO) + f"\n\nPedido: {pedido}"
 
     # Vindo de uma conversa, o pedido e trabalho dela como qualquer pergunta:
     # a conversa fica "trabalhando" com as etapas a vista, o cartao
     # "Acontecendo agora" da tela inicial mostra o andamento - com barra, quando
     # esta maquina ja mediu quanto le e escreve -, e o botao de parar alcanca.
-    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
     parar = threading.Event()
     if trabalho:
         agora = time.time()
-        trabalho.dizer("pessoa", pedido)
+        if not payload.ja_dito:
+            trabalho.dizer("pessoa", pedido)
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO),
                            Etapa(f"Escrever em “{item['titulo']}”", estado=EXECUTANDO)]
         trabalho.estado = EXECUTANDO
@@ -10679,13 +10931,21 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         trabalho.dizer("paulus", texto, **extras)
         estado.trabalhos.salvar(trabalho)
 
+    aviso = ("Escrito pela IA do PAULUS. Confira nomes, datas, valores e qualquer artigo de lei antes de manter."
+             if na_nuvem else "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
+                              "datas, valores e qualquer artigo de lei antes de aceitar.")
+    regras_da_casa = estado.contextos.bloco(["Regras de redação"])
     try:
-        # No editor entram so as regras de redacao: como o escritorio escreve
-        # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
-        resposta = estado.cliente_para("redacao", cadastro=item.get("cadastro_id")).ask(instrucao, contexto,
-                                     sistema=SISTEMA_EDITOR,
-                                     ensinado=estado.contextos.bloco(["Regras de redação"]),
-                                     parar=parar.is_set)
+        if payload.trecho.strip():
+            # No editor entram so as regras de redacao: como o escritorio escreve
+            # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
+            resposta = cliente.ask(instrucao, contexto, sistema=SISTEMA_EDITOR, ensinado=regras_da_casa,
+                                   parar=parar.is_set)
+        else:
+            # Sem trecho: o documento inteiro, e o que volta e o que trocar
+            # (copiado do documento) ou o que acrescentar no fim.
+            resposta = cliente.ask_json(instrucao, contexto, sistema=SISTEMA_EDITOR + (
+                "\n\n" + regras_da_casa if regras_da_casa.strip() else ""))
     except OllamaError as exc:
         terminar("falhou", f"Não consegui escrever em “{item['titulo']}”: {exc}")
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -10697,8 +10957,33 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         terminar(PAUSADO, f"Parei antes de escrever em “{item['titulo']}”. O documento ficou como estava.")
         raise HTTPException(status_code=409, detail="parei antes de terminar a alteração")
 
+    if not payload.trecho.strip():
+        dados = resposta if isinstance(resposta, dict) else {}
+        trocas = []
+        for t in dados.get("trocas") or []:
+            de, para = (str((t or {}).get("de") or "").strip(), str((t or {}).get("para") or "")) if isinstance(t, dict) else ("", "")
+            # So vale o que esta escrito no documento, letra por letra.
+            if de and de != para and _ocorrencias(inteiro, de) and (de, para) not in trocas:
+                trocas.append((de, para))
+        acrescentar = _limpar_sugestao(str(dados.get("acrescentar") or ""))
+        if trocas:
+            quantas = sum(_ocorrencias(inteiro, de) for de, _ in trocas)
+            frase = (f"Mudei {len(trocas)} trecho{'s' if len(trocas) > 1 else ''} em “{item['titulo']}” ("
+                     + (f"{quantas} ocorrências" if quantas > 1 else "1 ocorrência") + "). A alteração ficou marcada "
+                     "no documento, esperando você manter ou descartar.")
+            terminar(CONCLUIDO, frase, feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
+            avisos.avisar("resposta", "Alteração pronta · " + item["titulo"][:60], frase)
+            return {"sugestao": "; ".join(para for _, para in trocas)[:400],
+                    "trocas": [{"de": de, "para": para} for de, para in trocas], "ocorrencias": quantas,
+                    "sobre": "", "frase": frase, "aviso": aviso}
+        if not acrescentar:
+            detalhe = ("não achei no documento o trecho a mudar. Selecione no texto o trecho que você quer mudar e "
+                       "peça de novo.")
+            terminar("falhou", "Não consegui: " + detalhe)
+            raise HTTPException(status_code=422, detail=detalhe)
+        resposta = acrescentar
+
     sugestao = _limpar_sugestao(resposta)
-    inteiro = documento.para_texto(documento.ler_html(item["corpo"]))
     if _e_o_documento_de_volta(sugestao, inteiro):
         detalhe = ("o modelo devolveu o documento de volta em vez da alteração. "
                    "Selecione no texto o trecho que você quer mudar e peça de "
@@ -10716,11 +11001,22 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     return {
         "sugestao": sugestao,
         "sobre": payload.trecho[:160],
-        "aviso": (
-            "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
-            "datas, valores e qualquer artigo de lei antes de aceitar."
-        ),
+        "aviso": aviso,
     }
+
+
+def _ocorrencias(texto: str, trecho: str) -> int:
+    """
+    Quantas vezes o trecho aparece no texto como palavra inteira: "SEMA" não
+    conta dentro de "SEMAS". Os espaços contam como um só (o texto do editor
+    vem do HTML).
+    """
+    alvo = " ".join((trecho or "").split())
+    if not alvo:
+        return 0
+    padrao = (r"(?<![\w])" if alvo[0].isalnum() else "") + r"\s+".join(map(re.escape, alvo.split())) + \
+        (r"(?![\w])" if alvo[-1].isalnum() else "")
+    return len(re.findall(padrao, texto or ""))
 
 
 def _previsao_de_escrita(caracteres: int) -> float:

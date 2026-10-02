@@ -75,6 +75,12 @@ CURTO = {"lei": "lei", "sumula": "súm.", "doutrina": "dout.", "comunidade": "co
 TETOS = {"lei": 900, "sumula": 400, "doutrina": 1000, "comunidade": 400, "casa": 800, "material": 900}
 TOTAL = 2400
 MAX_ARTIGOS = 2
+# Na nuvem (02/10/2026): até seis artigos, cada um até 2.500 caracteres - o
+# art. 1.015 do CPC, com os treze incisos, tem 1.400.
+MAX_ARTIGOS_NUVEM = 6
+TETO_ARTIGO_NUVEM = 2500
+TETO_LEI_NUVEM = 9000
+TOTAL_NUVEM = 12000
 # Do artigo longo, o começo do caput vai sempre; o resto, a partir do parágrafo
 # ou inciso que a pergunta cita ("art. 26, § 3º": o § 3º fica no fim).
 CAPUT_MINIMO = 260
@@ -146,6 +152,19 @@ def cabeca_da_obra(ficha: dict, nome: str, lugar: str) -> str:
     return ", ".join(p for p in partes if p)
 
 
+def _codigo_unico_da_frase(texto: str) -> str:
+    """
+    O código, quando a frase nomeia um só: "o art. 5º, inciso LXXIV, da
+    Constituição" - o achador não liga o artigo à lei depois do inciso, e o
+    inciso pedido ficava fora do recorte (bateria de 02/10/2026, A9).
+    """
+    import leis as leis_mod
+
+    plano = leis_mod._plano(texto)
+    achados = {codigo for codigo, padrao in leis_mod.CODIGO_NA_FRASE if re.search(padrao, plano)}
+    return achados.pop() if len(achados) == 1 else ""
+
+
 def dispositivos_citados(texto: str) -> list[tuple[str, str]]:
     """(codigo, numero) dos artigos citados COM instrumento, de uma lei que src/leis.py conhece."""
     import leis as leis_mod
@@ -154,9 +173,11 @@ def dispositivos_citados(texto: str) -> list[tuple[str, str]]:
 
     plano = re.sub(r"(?<!\n)\n(?!\n)", " ", texto or "")
     saida = []
+    padrao = _codigo_unico_da_frase(plano)
     for achado in regras_leis.achar(plano):
         d = achado["dados"]
-        codigo = leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id", ""))
+        codigo = leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id", "")) or (
+            padrao if not d.get("instrument_id") else "")
         if d.get("kind") == "article" and codigo:
             par = (codigo, numero_legivel(d.get("article", "")))
             if par not in saida:
@@ -171,9 +192,12 @@ def partes_citadas(texto: str) -> dict[tuple[str, str], tuple[str, str]]:
     from inteligencia.extratores import regras_leis
 
     saida = {}
-    for achado in regras_leis.achar(re.sub(r"(?<!\n)\n(?!\n)", " ", texto or "")):
+    plano = re.sub(r"(?<!\n)\n(?!\n)", " ", texto or "")
+    padrao = _codigo_unico_da_frase(plano)
+    for achado in regras_leis.achar(plano):
         d = achado["dados"]
-        codigo = leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id", ""))
+        codigo = leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id", "")) or (
+            padrao if not d.get("instrument_id") else "")
         if codigo and (d.get("paragraph") or d.get("item")):
             saida[(codigo, numero_legivel(d.get("article", "")))] = (d.get("paragraph", ""), d.get("item", ""))
     return saida
@@ -202,12 +226,22 @@ def recorte_do_artigo(texto: str, parte, limite: int) -> str:
     return caput + " […] " + texto[m.start():m.start() + max(200, limite - len(caput) - 5)]
 
 
-def montar(material, leis, pergunta: str, hits: list, total: int = TOTAL) -> Camadas:
+def montar(material, leis, pergunta: str, hits: list, total: int = TOTAL, dispositivos=(),
+           generoso: bool = False) -> Camadas:
     """
     As camadas da pergunta: os trechos do material (já escolhidos pela busca)
     repartidos pela origem, e os artigos de lei que a pergunta ou esses
     trechos citam. `leis` pode ser None (sem as leis em casa, sem camada LEI).
+
+    `dispositivos` são (codigo, numero) que a triagem da nuvem apontou
+    (src/triagem.py), já conferidos na base. `generoso` é a resposta escrita
+    na nuvem: os tetos daqui foram medidos no 3B deste computador, que se
+    perdia com mais texto; o modelo da nuvem lê os artigos inteiros.
     """
+    tetos = dict(TETOS, lei=TETO_LEI_NUVEM) if generoso else TETOS
+    max_artigos = MAX_ARTIGOS_NUVEM if generoso else MAX_ARTIGOS
+    if generoso:
+        total = max(total, TOTAL_NUVEM)
     por_origem: dict[str, list[Trecho]] = {o: [] for o in ORDEM}
     for h in hits:
         item = material.item_por_nome(h.doc_name) or {"nome": h.doc_name}
@@ -235,19 +269,23 @@ def montar(material, leis, pergunta: str, hits: list, total: int = TOTAL) -> Cam
     # LEI: primeiro o que a pergunta cita; depois o que os trechos citam.
     if leis is not None:
         pedidos = dispositivos_citados(pergunta)
+        pedidos += [tuple(d) for d in dispositivos if tuple(d) not in pedidos]
         partes = partes_citadas(pergunta)
         for trechos in (por_origem["doutrina"], por_origem["comunidade"], por_origem["casa"], por_origem["sumula"]):
             for t in trechos:
                 pedidos += [p for p in t.dispositivos if p not in pedidos]
         for codigo, numero in pedidos:
-            if len([t for t in por_origem["lei"] if t.fonte.get("lei")]) >= MAX_ARTIGOS:
+            if len([t for t in por_origem["lei"] if t.fonte.get("lei")]) >= max_artigos:
                 break
             artigo = leis.artigo(codigo, numero)
-            if not artigo:
+            # "5º" da frase e "5" da triagem são o mesmo artigo: entra uma vez.
+            if not artigo or any(t.fonte.get("codigo") == codigo and t.fonte.get("numero") == artigo["numero"]
+                                 for t in por_origem["lei"]):
                 continue
             cabeca = artigo["citacao"] + (" — REVOGADO: não está em vigor" if artigo["revogado"] else "")
             texto = ("(Revogado) " if artigo["revogado"] and not artigo["texto"].lower().startswith("(revogad") else "") \
-                + recorte_do_artigo(artigo["texto"], partes.get((codigo, numero)), TETOS["lei"] - len(cabeca) - 8)
+                + recorte_do_artigo(artigo["texto"], partes.get((codigo, numero)),
+                                    (TETO_ARTIGO_NUVEM if generoso else TETOS["lei"]) - len(cabeca) - 8)
             fonte = {"documento": artigo["citacao"], "trecho": 1, "score": 1.0, "texto": texto, "material": True,
                      "lei": True, "origem": "lei", "codigo": codigo, "numero": artigo["numero"],
                      "revogado": artigo["revogado"], "onde": artigo.get("contexto") or "texto do Planalto"}
@@ -261,9 +299,9 @@ def montar(material, leis, pergunta: str, hits: list, total: int = TOTAL) -> Cam
     for origem in ORDEM:
         deste = por_origem[origem]
         if not deste:
-            sobra += TETOS[origem]
+            sobra += tetos[origem]
             continue
-        verba = min(TETOS[origem] + sobra, total - usado)
+        verba = min(tetos[origem] + sobra, total - usado)
         partes, gasto = [], 0
         for t in deste:
             # O que veio de outro advogado vai cercado, como todo texto de
@@ -279,7 +317,14 @@ def montar(material, leis, pergunta: str, hits: list, total: int = TOTAL) -> Cam
             escolhidos.append(t)
             gasto += len(pedaco) + 2
         if partes:
-            blocos.append(f"{ROTULO[origem]} — {EXPLICA[origem]}\n\n" + "\n\n".join(partes))
+            explica = EXPLICA[origem]
+            if origem == "lei" and generoso:
+                # Medido na bateria de 02/10/2026: com o art. 206 no bloco, o
+                # modelo da nuvem dizia que o CC "não traz prazo geral" (é o
+                # 205). O bloco diz que foi escolhido por busca.
+                explica += ("; escolhidos por busca, podem não ser os que respondem - se não responderem, responda "
+                            "pelo que você sabe e cite o artigo certo")
+            blocos.append(f"{ROTULO[origem]} — {explica}\n\n" + "\n\n".join(partes))
         usado += gasto
         sobra = max(0, verba - gasto)
     return Camadas(escolhidos, "\n\n".join(blocos))

@@ -360,6 +360,8 @@ def _da_copia_do_drive(estado, caminhos: list[str]) -> bool:
 
 RE_CNPJ = re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}\s*/\s*\d{4}\s*-?\s*\d{2}\b")
 RE_CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}\s*-?\s*\d{2}\b")
+RE_CPF_FORMATADO = re.compile(r"\d{3}\.\d{3}\.\d{3}\s*-\s*\d{2}")
+RE_CNPJ_FORMATADO = re.compile(r"\d{2}\.\d{3}\.\d{3}\s*/\s*\d{4}\s*-\s*\d{2}")
 RE_PROCESSO = re.compile(r"\b\d{7}\s*-\s*\d{2}\s*\.\s*\d{4}\s*\.\s*\d\s*\.\s*\d{2}\s*\.\s*\d{4}\b")
 RE_EMAIL = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
 RE_TELEFONE = re.compile(r"(?:\(\d{2}\)\s*|\b\d{2}\s)9?\d{4}\s*-?\s*\d{4}\b")
@@ -387,8 +389,19 @@ class Mascara:
 
         t = str(texto or "")
         t = RE_PROCESSO.sub(lambda m: self._marcador("PROCESSO", m.group(0)), t)
-        t = RE_CNPJ.sub(lambda m: self._marcador("CNPJ", m.group(0)) if campos_br.cnpj_valido(m.group(0)) else m.group(0), t)
-        t = RE_CPF.sub(lambda m: self._marcador("CPF", m.group(0)) if campos_br.cpf_valido(m.group(0)) else m.group(0), t)
+        # Escrito com a pontuação do documento ("057.648.816-38") ou logo depois
+        # de "CPF"/"CNPJ", é o dado da pessoa mesmo com o dígito verificador
+        # errado - erro de digitação no original não pode deixá-lo sair
+        # (bateria de 02/10/2026). Só o número solto, sem pontuação nem
+        # rótulo, precisa do dígito certo para não pegar qualquer sequência.
+        def _e_dado(m, rotulo: str, formatado, valido) -> bool:
+            return bool(formatado.fullmatch(m.group(0)) or valido(m.group(0))
+                        or re.search(rotulo + r"\W{0,12}(?:n[º°o.]?\W{0,4})?$", t[max(0, m.start() - 24):m.start()], re.I))
+
+        t = RE_CNPJ.sub(lambda m: self._marcador("CNPJ", m.group(0))
+                        if _e_dado(m, "CNPJ", RE_CNPJ_FORMATADO, campos_br.cnpj_valido) else m.group(0), t)
+        t = RE_CPF.sub(lambda m: self._marcador("CPF", m.group(0))
+                       if _e_dado(m, "CPF", RE_CPF_FORMATADO, campos_br.cpf_valido) else m.group(0), t)
         t = RE_EMAIL.sub(lambda m: self._marcador("E-MAIL", m.group(0)), t)
         t = RE_TELEFONE.sub(lambda m: self._marcador("TELEFONE", m.group(0)), t)
         return t
@@ -676,10 +689,20 @@ class Envio:
     def nome_do_provedor(self) -> str:
         return PROVEDORES.get(self.provedor, {}).get("nome", self.provedor)
 
+    def vai_sem_pedir(self) -> bool:
+        """
+        O envio desta conversa sai sem pedir o sim em Aprovações - as mesmas
+        regras de `preparar`. A triagem (src/triagem.py) só vai nesse caso: o
+        que precisa do sim a cada envio não sai antes dele, nem para triar.
+        """
+        if not ligada(self.estado) or not usa(self.estado, "conversa"):
+            return False
+        if bool((self.trabalho.contexto or {}).get("nuvem_liberada")) or self.estado.prefs.pode("modelo_nuvem"):
+            return True
+        return not config(self.estado).get("pedir_cada_envio")
+
     def preparar(self, pergunta: str, contexto: str, regra: str, hits, historico=None) -> dict | None:
         """O pacote, ou None com o motivo de ficar neste computador."""
-        import llama_client
-
         if not ligada(self.estado):
             self.motivo = ("o titular ainda não deu o sim para a nuvem (Configurações › Modelos)" if not consentido(self.estado)
                            else "a nuvem está desligada (ou sem chave) em Configurações › Modelos")
@@ -694,9 +717,15 @@ class Envio:
             return None
         self.mascara = Mascara() if self.mascarar else None
         m = self.mascara
-        mensagens = llama_client.montar_mensagens(m.aplicar(pergunta) if m else pergunta, m.aplicar(contexto) if m else contexto,
-                                                  ensinado=regra, historico=[dict(x, content=m.aplicar(x.get("content", "")) if m else x.get("content", ""))
-                                                                             for x in (historico or [])])
+        # A instrução da nuvem é a dela (src/instrucao_nuvem.py), e não a do 3B
+        # deste computador: com a do 3B o modelo recusava o direito em tese e não
+        # sabia a data de hoje (bateria de 02/10/2026).
+        import instrucao_nuvem
+
+        mensagens = instrucao_nuvem.montar_mensagens(
+            m.aplicar(pergunta) if m else pergunta, m.aplicar(contexto) if m else contexto, ensinado=regra,
+            historico=[dict(x, content=m.aplicar(x.get("content", "")) if m else x.get("content", ""))
+                       for x in (historico or [])])
         self.mensagens = mensagens
         self.caracteres = sum(len(x.get("content", "")) for x in mensagens)
         self.documentos = list(dict.fromkeys(getattr(h, "doc_name", "") for h in hits or [] if getattr(h, "doc_name", "")))

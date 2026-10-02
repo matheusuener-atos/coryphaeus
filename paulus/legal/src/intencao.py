@@ -84,6 +84,11 @@ SOBRE = (
     "o que este programa faz", "o que o paulus faz",
 )
 
+RE_SOBRE_E_PEDIDO = re.compile(
+    r"\bvoce\s+(?:consegue|sabe|pode)\s+(?:me\s+)?(?:dizer|informar|achar|encontrar|verificar|conferir|checar|explicar|"
+    r"calcular|ver|mostrar|listar|resumir|traduzir|ler|analisar|revisar)\s+(?:o|a|os|as|qual|quais|quanto|quando|se|"
+    r"onde|quem|este|esse|esta|essa|isso|isto|do|da|no|na)\b")
+
 DIAS_SEMANA = {
     "segunda": 0, "segunda-feira": 0, "terca": 1, "terca-feira": 1,
     "quarta": 2, "quarta-feira": 2, "quinta": 3, "quinta-feira": 3,
@@ -1123,7 +1128,9 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if not plano:
         return Intencao(tipo="documentos")
 
-    if any(p in plano for p in SOBRE):
+    # "Você consegue me dizer qual o valor do contrato?" é pedido, com
+    # gentileza na frente - não pergunta sobre o programa.
+    if any(p in plano for p in SOBRE) and not RE_SOBRE_E_PEDIDO.search(plano):
         return Intencao(tipo="sobre", porque="pergunta sobre o próprio programa")
 
     # As Configurações pela conversa (T5, src/config_pela_conversa.py):
@@ -1285,3 +1292,224 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
         porque=_porque(verbo, coisa_tarefa or coisa_prazo),
         resumo=alvo,
     )
+
+
+# ------------------------------------------------ bateria de 02/10/2026
+#
+# A bateria de 30 perguntas na IA da nuvem mostrou pedidos que viravam busca
+# nos documentos: "SEMA está errado, o certo é SEMAS - corrija no documento"
+# (o verbo não abria a frase), "a procuração está vencida? Se estiver, crie
+# uma tarefa" (a ação no fim), "resuma a procuração e salve no editor", "rode
+# o script..." e "você consegue alterar documentos?". As regras abaixo leem
+# esses pedidos; quem chama é a conversa (src/api.py).
+
+def cita_lei(texto: str) -> bool:
+    """
+    A frase cita lei: um artigo com a lei ("art. 105 do CPC"), uma lei pelo
+    número, uma súmula, ou um código pelo nome. "Na procuração, segundo o art.
+    105 do CPC" é pergunta de lei - e não "qual das suas procurações?".
+    """
+    from inteligencia.extratores import regras_leis
+
+    for achado in regras_leis.achar(texto or ""):
+        d = achado["dados"]
+        if d.get("kind") in ("law", "precedent") or d.get("instrument_id"):
+            return True
+    import leis as leis_mod
+
+    plano = _plano(texto)
+    return any(re.search(padrao, plano) for _, padrao in leis_mod.CODIGO_NA_FRASE)
+
+
+# O verbo de mudança em qualquer lugar da frase, no imperativo: "SEMA está
+# errado. O certo é SEMAS - corrija no documento pra mim".
+RE_MUDANCA = re.compile(
+    r"\b(corrija|troque|substitua|altere|mude|acrescente|inclua|insira|remova|retire|apague|reescreva|conserte|"
+    r"arrume|ajuste)\b")
+# As que são também a 3a pessoa ("a multa muda depois de 30 dias?"): só valem
+# fora de pergunta.
+RE_MUDANCA_AMBIGUA = re.compile(
+    r"\b(corrige|troca|substitui|altera|muda|acrescenta|insere|remove|retira|apaga|reescreve|conserta|arruma|"
+    r"ajusta)\b")
+RE_ERRADO_CERTO = re.compile(r"\bestao? errad[oa]s?\b.{0,40}\b(?:o|a)\s+(?:certo|certa|correto|correta)\s+(?:e|seria)\b")
+RE_PERGUNTA_DE_CAPACIDADE = re.compile(r"\bvoce\s+(?:consegue|pode|sabe|faz|poderia)\b")
+
+
+def pedido_de_mudanca(texto: str) -> bool:
+    """A frase pede para mudar o texto de um documento (e não pergunta se dá para mudar)."""
+    plano = _plano(texto)
+    pergunta = plano.rstrip().endswith("?")
+    if RE_PERGUNTA_DE_CAPACIDADE.search(plano) and pergunta:
+        return False
+    return bool(RE_MUDANCA.search(plano) or (RE_MUDANCA_AMBIGUA.search(plano) and not pergunta)
+                or RE_ERRADO_CERTO.search(plano) or trocas_do_pedido(texto))
+
+
+_ASPAS_ABRE = "\"“'‘«"
+_ASPAS_FECHA = "\"”'’»"
+# O texto novo entre aspas vai até a aspa que fecha ("Dr. João" tem ponto);
+# sem aspas, até o fim da frase.
+_ATE_O_FIM = (r"(?:[" + _ASPAS_ABRE + r"](?P<paraq>[^" + _ASPAS_FECHA + r"]+)[" + _ASPAS_FECHA + r"]"
+              r"|(?P<para>[^.;!?\n]+))")
+RE_TROQUE_POR = re.compile(
+    r"\b(?:troque|troca|substitua|substitui|mude|muda|altere|altera|corrija|corrige)\s+(?:o\s+|a\s+|os\s+|as\s+)?"
+    r"(?:texto\s+|termo\s+|palavra\s+|nome\s+)?[" + _ASPAS_ABRE + r"]?(?P<de>[^" + _ASPAS_FECHA + r"]+?)[" + _ASPAS_FECHA +
+    r"]?\s+(?:por|para|pelo|pela)\s+" + _ATE_O_FIM, re.I)
+RE_ESTA_ERRADO = re.compile(
+    r"(?:[" + _ASPAS_ABRE + r"](?P<de1>[^" + _ASPAS_FECHA + r"]+)[" + _ASPAS_FECHA + r"]|(?P<de2>[\w./-]+))\s+"
+    r"(?:est[aá]|t[aá])\s+errad[oa]\W+(?:o|a)\s+(?:certo|certa|correto|correta)\s+(?:[eé]|seria)\s+" + _ATE_O_FIM, re.I)
+RE_ONDE_ESTA = re.compile(
+    r"\bonde\s+(?:est[aá]|tem|aparece|diz)\s+[" + _ASPAS_ABRE + r"]?(?P<de>[^," + _ASPAS_FECHA + r"]+?)[" + _ASPAS_FECHA +
+    r"]?\s*,\s*(?:coloque|ponha|escreva|troque por|use)\s+" + _ATE_O_FIM, re.I)
+
+
+def _limpar_para(texto: str) -> str:
+    """O texto novo, sem o resto da frase: "SEMAS - corrija no documento pra mim" -> "SEMAS"."""
+    texto = re.split(r"\s+[-–—]\s+|\s+(?:no|na|em todo|em toda|em todos|nos|nas)\s+(?:o\s+|a\s+)?"
+                     r"(?:documento|texto|arquivo|contrato|procura[cç][aã]o)\b|,", texto)[0]
+    return texto.strip().strip(_ASPAS_ABRE + _ASPAS_FECHA + " ").strip()
+
+
+def trocas_do_pedido(texto: str) -> list[tuple[str, str]]:
+    """
+    As trocas que a frase diz por regra: "troque X por Y", "X está errado, o
+    certo é Y", "onde está X, coloque Y". Sem regra que leia, [] - e o editor
+    pergunta ao modelo.
+    """
+    saida: list[tuple[str, str]] = []
+    for padrao in (RE_ESTA_ERRADO, RE_TROQUE_POR, RE_ONDE_ESTA):
+        for m in padrao.finditer(texto or ""):
+            grupos = m.groupdict()
+            de = (grupos.get("de") or grupos.get("de1") or grupos.get("de2") or "").strip()
+            de = de.strip(_ASPAS_ABRE + _ASPAS_FECHA + " ")
+            para = (grupos.get("paraq") or "").strip() or _limpar_para(grupos.get("para") or "")
+            if de and para and de != para and len(de) <= 200 and (de, para) not in saida:
+                saida.append((de, para))
+        if saida:
+            break
+    return saida
+
+
+# "...e salve no editor", "coloque num documento novo".
+RE_SALVAR_NO_EDITOR = re.compile(
+    r"[,;]?\s*(?:\be\s+)?\b(?:salve|salva|salvar|coloque|coloca|ponha|grave|grava|guarde|guarda|gere|gera|crie|cria|"
+    r"abra|abre|transforme|transforma)\s+(?:isso\s+|isto\s+|o resultado\s+|tudo\s+|o resumo\s+|a minuta\s+)?"
+    r"(?:no|num|em um|em uma|numa|como|em)\s+(?:o\s+|um\s+)?(?:editor|documento novo|novo documento|rascunho|"
+    r"documento do editor|arquivo novo)\b[^.?!]*", re.I)
+
+
+def salvar_no_editor(texto: str) -> tuple[bool, str]:
+    """(a frase pede o resultado no editor, a frase sem esse pedaço)."""
+    m = RE_SALVAR_NO_EDITOR.search(texto or "")
+    if not m:
+        return False, texto
+    resto = (texto[:m.start()] + texto[m.end():]).strip(" ,;")
+    return bool(resto), resto or texto
+
+
+# Uma ação pendurada depois da pergunta: "...está vencida? Se estiver, crie
+# uma tarefa para renovar", "qual o prazo? E anote na agenda".
+RE_CONECTIVO_DA_ACAO = re.compile(
+    r"^(?:(?:e|entao|depois|em seguida|tambem|ai)\s+|(?:se sim|caso positivo|em caso positivo|se for o caso)\W+|"
+    r"(?:se|caso)\s+(?:estiver|for|esteja|seja|tiver|estiverem|forem|houver|vencer|venceu)\b[^,]*,\s*)+")
+
+
+def _sujeito(frase: str) -> str:
+    """"A procuração da COOBRAMEX está vencida?" -> "procuração da COOBRAMEX"."""
+    m = re.match(r"\s*(?:o|a|os|as)\s+(.{3,80}?)\s+(?:est[aá]|est[aã]o|[eé]|foi|venceu|vence|tem|t[eê]m|ainda)\b",
+                 frase or "", re.I)
+    return m.group(1).strip() if m else ""
+
+
+def acao_anexa(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -> tuple[Intencao | None, str]:
+    """
+    (a ação de agenda ou tarefa que vem depois da pergunta, a pergunta sem ela).
+    Só quando a frase tem antes uma pergunta ou afirmação: "crie uma tarefa"
+    sozinho é o `ler` de sempre.
+    """
+    partes = re.split(r"(?<=[?.!;])\s+|,\s+(?=e\s+(?:crie|cria|anote|anota|agende|agenda|marque|marca|"
+                      r"registre|coloque|ponha)\b)", (texto or "").strip())
+    if len(partes) < 2:
+        return None, texto
+    for i in range(1, len(partes)):
+        trecho = partes[i].strip()
+        plano = _plano(trecho)
+        sem_conectivo = RE_CONECTIVO_DA_ACAO.sub("", plano)
+        if sem_conectivo == plano and not re.match(r"(crie|cria|anote|anota|agende|agenda|marque|marca|registre)\b",
+                                                   plano):
+            continue
+        corte = len(trecho) - len(sem_conectivo)
+        acao = ler(trecho[corte:] if corte >= 0 else trecho, hoje, documentos, cadastros)
+        if acao.tipo not in ("tarefa", "agenda"):
+            continue
+        pergunta = " ".join(p.strip() for p in partes[:i]).strip()
+        sujeito = _sujeito(pergunta)
+        if sujeito and acao.titulo and len(acao.titulo.split()) <= 3 and _plano(sujeito) not in _plano(acao.titulo):
+            acao.titulo = f"{acao.titulo} — {sujeito}"
+            acao.campos["titulo"] = acao.titulo
+        acao.porque = "“" + trecho.rstrip(".!?") + "”, depois da resposta"
+        return acao, pergunta
+    return None, texto
+
+
+# O que o programa não faz, dito como não faz - e não "não achei nada nos
+# documentos" (bateria, C8: "rode o script tools/demo/roteiro.py").
+RE_FORA_DO_ALCANCE = re.compile(
+    r"\b(?:rode|roda|rodar|execute|executa|executar|instale|instala|instalar|compile|compila)\b.{0,60}"
+    r"(?:\bscripts?\b|\bprogramas?\b|\bcodigo\b|\bcomandos?\b|\bterminal\b|\bpowershell\b|\bprompt\b|\bpython\b|"
+    r"\.py\b|\.bat\b|\.exe\b|\.ps1\b|\.sh\b)")
+FRASE_FORA_DO_ALCANCE = (
+    "Isso eu não faço: não rodo scripts, programas nem comandos neste computador. O que eu faço aqui é ler os seus "
+    "documentos e os códigos guardados, responder, e preparar ações para você confirmar: agenda, tarefas, e-mail, "
+    "alterações no editor, cadastros e lançamentos.")
+
+
+def fora_do_alcance(texto: str) -> str:
+    return FRASE_FORA_DO_ALCANCE if RE_FORA_DO_ALCANCE.search(_plano(texto)) else ""
+
+
+# "Você consegue alterar documentos?" responde a pergunta feita, e não a lista
+# inteira do que o programa faz (bateria, C5). Só o que o programa faz de verdade.
+CAPACIDADES = (
+    (r"\b(alter|edit|corrig|mud|modific|mexer|reescrev|troc)\w*\b.{0,30}\b(document|contrat|texto|arquivo|procurac|peca)",
+     "Sim. Anexe o documento (ou abra-o no Editor de texto) e peça a mudança, por exemplo: “troque SEMA por SEMAS” "
+     "ou “corrija a data da cláusula 3ª para 10/10/2026”. Eu abro um rascunho no editor, faço a mudança marcada no "
+     "texto e você mantém ou descarta. O arquivo original no Acervo não é alterado."),
+    (r"\b(envi|mand|escrev|respond|encaminh)\w*\b.{0,20}\be-?mails?\b|\be-?mails?\b.{0,20}\b(envi|mand)\w*",
+     "Sim, com a sua conta de e-mail ligada em E-mail › Contas. Peça, por exemplo: “envie a procuração da COOBRAMEX "
+     "por e-mail para fulano@exemplo.com” ou “responda a Priscila confirmando a reunião”. Eu preparo o e-mail, com o "
+     "anexo quando for o caso, e nada sai sem o seu clique em Enviar."),
+    (r"\b(agend|marc|anot)\w*\b.{0,30}\b(reuni|compromiss|audienc|agenda|consulta)",
+     "Sim. Peça, por exemplo: “agende uma reunião amanhã às 10h com a COOBRAMEX”. Eu mostro o dia, os horários "
+     "livres e o compromisso preenchido, e ele só entra na Agenda quando você confirma."),
+    (r"\btarefas?\b|\blembretes?\b",
+     "Sim. Peça, por exemplo: “crie uma tarefa para renovar a procuração até sexta”. A tarefa aparece para você "
+     "conferir e entra na lista quando você confirma."),
+    (r"\b(resum|sintetiz)\w*",
+     "Sim. Anexe ou nomeie o documento e peça “resuma…”. Se quiser o resumo como documento, diga também “e salve no "
+     "editor”: ele vira um rascunho no Editor de texto."),
+    (r"\bassin\w*",
+     "Sim, PDF com o seu certificado digital: anexe o PDF e peça “assine este documento”. O selo aparece ao lado "
+     "para você conferir, e assinar sempre pede o seu sim."),
+    (r"\b(lei|leis|artigo|codigo|direito|prazo|juridic|prescric|recurso)\w*",
+     "Sim. Pergunte, por exemplo: “qual o prazo para contestar no procedimento comum?”. A resposta cita o artigo, e "
+     "o programa confere o artigo no texto dos códigos guardados nesta máquina (CC, CPC, CF, CLT, CDC, CP, CPP, CTN, "
+     "ECA, CTB e Lei do Inquilinato). O que não confere sai da resposta."),
+    (r"\b(rod|execut|instal|compil)\w*\b.{0,30}\b(script|programa|codigo|comando)",
+     FRASE_FORA_DO_ALCANCE),
+    (r"\b(cadastr)\w*",
+     "Sim. Peça, por exemplo: “cadastre o cliente João da Silva, CPF …”, ou anexe um documento e peça o cadastro a "
+     "partir dele. A ficha aparece preenchida para você conferir antes de gravar."),
+)
+
+
+def capacidade_perguntada(texto: str) -> str:
+    """A resposta a "você consegue <X>?", ou "" quando a frase não pergunta algo específico."""
+    plano = _plano(texto)
+    if not RE_PERGUNTA_DE_CAPACIDADE.search(plano):
+        return ""
+    depois = plano[RE_PERGUNTA_DE_CAPACIDADE.search(plano).end():]
+    for padrao, resposta in CAPACIDADES:
+        if re.search(padrao, depois):
+            return resposta
+    return ""

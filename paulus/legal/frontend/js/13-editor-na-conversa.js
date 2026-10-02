@@ -370,11 +370,21 @@ const RE_PEDIDO_DE_MUDANCA = new RegExp(
   "apagu?e|apaga|resum[ae]|encurt[ae]|melhor[ae]|formaliz[ae]|cit[ae]|numer[ae]|renumer[ae]|revis[ae]|" +
   "ajust[ae]|complet[ae]|traduz[ae]?)\\b");
 
+/* E também o imperativo em qualquer lugar da frase, e o "X está errado, o
+   certo é Y" (bateria de 02/10/2026: "SEMA está errado. O certo é SEMAS -
+   corrija no documento" ia para a conversa). A mesma regra de
+   src/intencao.py (pedido_de_mudanca). Antes havia a pílula "No documento /
+   Na conversa" para a pessoa corrigir o destino; ela saiu. */
+const RE_MUDANCA_NO_MEIO = /\b(corrija|troque|substitua|altere|mude|acrescente|inclua|insira|remova|retire|apague|reescreva|conserte|arrume|ajuste)\b/;
+const RE_ERRADO_CERTO = /\besta(o)? errad[oa]s?\b.{0,40}\b(o|a) (certo|certa|correto|correta) (e|seria)\b/;
+const RE_PERGUNTA_DE_CAPACIDADE = /\bvoce (consegue|pode|sabe|faz|poderia)\b/;
+
 function destinoDoPedido(texto) {
-  if (dupla.destino) return dupla.destino;
   const plano = String(texto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (!plano.trim()) return "";
-  return RE_PEDIDO_DE_MUDANCA.test(plano) ? "documento" : "conversa";
+  if (RE_PERGUNTA_DE_CAPACIDADE.test(plano) && plano.trim().endsWith("?")) return "conversa";
+  return RE_PEDIDO_DE_MUDANCA.test(plano) || RE_MUDANCA_NO_MEIO.test(plano) || RE_ERRADO_CERTO.test(plano)
+    ? "documento" : "conversa";
 }
 
 function desenharAtalhosDoEditor() {
@@ -385,35 +395,12 @@ function desenharAtalhosDoEditor() {
     faixa.className = "edl-atalhos";
     $("cartao-campo").before(faixa);
   }
-  faixa.innerHTML = '<div class="visoes edl-destino" role="group" aria-label="Para onde vai o pedido">' +
-    '<button data-edl-destino="documento" title="O pedido muda o documento aberto ao lado">' + ic("edit_note", 16) + "No documento</button>" +
-    '<button data-edl-destino="conversa" title="O pedido é uma pergunta para a conversa">' + ic("forum", 16) + "Na conversa</button></div>" +
-    ATALHOS_DO_EDITOR.map((a) => '<button class="edl-atalho" data-dp-atalho="' + esc(a[1]) + '" title="' + esc(a[1]) + '">' +
+  faixa.innerHTML = ATALHOS_DO_EDITOR.map((a) => '<button class="edl-atalho" data-dp-atalho="' + esc(a[1]) + '" title="' + esc(a[1]) + '">' +
       esc(a[0]) + "</button>").join("");
-  faixa.querySelectorAll("[data-edl-destino]").forEach((b) => {
-    b.onclick = () => {
-      dupla.destino = dupla.destino === b.dataset.edlDestino ? "" : b.dataset.edlDestino;
-      atualizarDestino();
-      $("pedido").focus();
-    };
-  });
   faixa.querySelectorAll("[data-dp-atalho]").forEach((b) => {
     b.onclick = () => pedirNoDocumento(b.dataset.dpAtalho);
   });
-  atualizarDestino();
 }
-
-function atualizarDestino() {
-  const faixa = $("edl-atalhos");
-  if (!faixa) return;
-  // Caixa vazia: o destino de quem escreve com o editor aberto e o documento.
-  const alvo = destinoDoPedido($("pedido").value) || "documento";
-  faixa.querySelectorAll("[data-edl-destino]").forEach((b) => {
-    b.classList.toggle("ativa", b.dataset.edlDestino === alvo);
-  });
-}
-
-$("pedido").addEventListener("input", atualizarDestino);
 
 /* ----------------------------------------------------------- as páginas */
 
@@ -574,13 +561,15 @@ function ligarDupla() {
 
 /* O pedido vira alteração no documento, marcada — e a conversa registra o
    pedido e o que foi feito, como qualquer outra coisa dita nela. */
-async function pedirNoDocumento(pedido) {
+async function pedirNoDocumento(pedido, opcoes) {
   if (!pedido || dupla.ocupada || !dupla.doc) return;
   dupla.ocupada = true;
+  const o = opcoes || {};
   const titulo = dupla.doc.titulo;
   const tid = estado.trabalhoId;
   const centro = $("centro");
-  centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
+  // Vindo de uma pergunta que abriu o editor, o pedido já está na conversa.
+  if (!o.jaDito) centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
   const resposta = document.createElement("div");
   resposta.className = "resposta";
   resposta.innerHTML = cartaoDoPedidoNoDocumento(titulo);
@@ -596,7 +585,7 @@ async function pedirNoDocumento(pedido) {
   try {
     const r = await fetch("/api/documentos/" + docId + "/assistente", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla(), trabalho_id: tid || "" }),
+      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla(), trabalho_id: tid || "", ja_dito: Boolean(o.jaDito) }),
     });
     if (!r.ok) throw new Error(await erroDe(r));
     const sugestao = await r.json();
@@ -614,10 +603,14 @@ async function pedirNoDocumento(pedido) {
     }
 
     dupla.antes = antes;
-    aplicarNaDupla(sugestao);
-    resposta.innerHTML = '<div class="texto">' + esc(sugestao.sobre
-      ? "Troquei o trecho que você selecionou em “" + titulo + "”. A alteração está marcada no documento."
-      : "Escrevi no fim de “" + titulo + "”. A alteração está marcada — confira antes de manter.") + "</div>" +
+    const aplicadas = aplicarNaDupla(sugestao);
+    const frase = (sugestao.trocas || []).length
+      ? (aplicadas ? sugestao.frase || ("Troquei " + plural(aplicadas, "trecho") + " em “" + titulo + "”.")
+        : "Não achei no texto do editor o trecho a trocar. Selecione o trecho e peça de novo.")
+      : sugestao.sobre
+        ? "Troquei o trecho que você selecionou em “" + titulo + "”. A alteração está marcada no documento."
+        : "Escrevi no fim de “" + titulo + "”. A alteração está marcada — confira antes de manter.";
+    resposta.innerHTML = '<div class="texto">' + esc(frase) + "</div>" +
       '<blockquote class="edl-trecho">' + esc(sugestao.sugestao.slice(0, 180)) + "</blockquote>" +
       '<div class="linha-form"><button data-edl-ver="1">Ver no documento</button>' +
       '<button data-edl-desfazer="1">Desfazer</button></div>';
@@ -683,18 +676,79 @@ function acompanharPedidoNoDocumento(resposta, tid) {
 
 async function guardarAlteracaoNoDocumento(id, sugestao) {
   const d = await (await fetch("/api/documentos/" + id)).json();
-  const marca = document.createElement("mark");
-  marca.className = "ed-novo";
-  marca.textContent = sugestao.sugestao;
+  let corpo;
+  if ((sugestao.trocas || []).length) {
+    const caixa = document.createElement("div");
+    caixa.innerHTML = d.corpo || "";
+    aplicarTrocas(caixa, sugestao.trocas);
+    corpo = caixa.innerHTML;
+  } else {
+    const marca = document.createElement("mark");
+    marca.className = "ed-novo";
+    marca.textContent = sugestao.sugestao;
+    corpo = (d.corpo || "") + "<p>" + marca.outerHTML + "</p>";
+  }
   await fetch("/api/documentos/" + id, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: (d.corpo || "") + "<p>" + marca.outerHTML + "</p>", titulo: d.titulo }),
+    body: JSON.stringify({ corpo: corpo, titulo: d.titulo }),
   });
+}
+
+/* As trocas no lugar ("SEMA" por "SEMAS", em todas as ocorrências), cada uma
+   marcada. "SEMA" não conta dentro de "SEMAS": só a palavra inteira. Um
+   trecho que atravessa negrito ou outra marcação não é achado num nó de texto
+   só - fica de fora, e a conta devolvida diz quantas trocas entraram. */
+function aplicarTrocas(raiz, trocas) {
+  let feitas = 0;
+  (trocas || []).forEach((t) => {
+    const de = String(t.de || "").trim();
+    if (!de) return;
+    const partes = de.split(/\s+/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const antes = /[\p{L}\p{N}]/u.test(de[0]) ? "(?<![\\p{L}\\p{N}_])" : "";
+    const depois = /[\p{L}\p{N}]/u.test(de[de.length - 1]) ? "(?![\\p{L}\\p{N}_])" : "";
+    const padrao = new RegExp(antes + partes.join("\\s+") + depois, "gu");
+    const andar = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+    const nos = [];
+    while (andar.nextNode()) nos.push(andar.currentNode);
+    nos.forEach((no) => {
+      if (no.parentNode && no.parentNode.closest && no.parentNode.closest(".ed-novo")) return;
+      const texto = no.nodeValue;
+      padrao.lastIndex = 0;
+      if (!padrao.test(texto)) return;
+      padrao.lastIndex = 0;
+      const pedacos = document.createDocumentFragment();
+      let desde = 0;
+      let m;
+      while ((m = padrao.exec(texto))) {
+        pedacos.appendChild(document.createTextNode(texto.slice(desde, m.index)));
+        const marca = document.createElement("mark");
+        marca.className = "ed-novo";
+        marca.textContent = String(t.para || "");
+        pedacos.appendChild(marca);
+        desde = m.index + m[0].length;
+        feitas += 1;
+      }
+      pedacos.appendChild(document.createTextNode(texto.slice(desde)));
+      no.parentNode.replaceChild(pedacos, no);
+    });
+  });
+  return feitas;
 }
 
 function aplicarNaDupla(sugestao) {
   const folha = $("dp-folha");
   folha.querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
+
+  if ((sugestao.trocas || []).length) {
+    const feitas = aplicarTrocas(folha, sugestao.trocas);
+    if (!feitas) return 0;
+    dupla.pendente = { aviso: sugestao.aviso, resumo: sugestao.frase || sugestao.sugestao.slice(0, 120) };
+    desenharCartaoDaAlteracao();
+    marcarDuplaSuja();
+    const primeira = folha.querySelector(".ed-novo");
+    if (primeira) primeira.scrollIntoView({ behavior: "smooth", block: "center" });
+    return feitas;
+  }
 
   const marca = document.createElement("mark");
   marca.className = "ed-novo";
@@ -716,6 +770,7 @@ function aplicarNaDupla(sugestao) {
   desenharCartaoDaAlteracao();
   marcarDuplaSuja();
   marca.scrollIntoView({ behavior: "smooth", block: "center" });
+  return 1;
 }
 
 function desenharCartaoDaAlteracao() {

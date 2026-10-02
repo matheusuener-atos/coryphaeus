@@ -161,11 +161,13 @@ def main() -> int:
 
     print("\nmascarar")
     m = nuvem.Mascara()
-    t = m.aplicar(f"O cliente, CPF {CPF} (e não 111.222.333-44), da empresa 11.222.333/0001-81, no processo "
+    # 02/10/2026: o número solto com dígito errado fica; com a pontuação do
+    # documento, é CPF mesmo com o dígito errado, e sai (tests/test_bateria_nuvem.py).
+    t = m.aplicar(f"O cliente, CPF {CPF} (e não 11122233344), da empresa 11.222.333/0001-81, no processo "
                   "0001234-56.2024.8.26.0100, e-mail joao@clinica.com.br, telefone (11) 98765-4321. De novo: " + CPF)
     checar("[CPF 1]" in t and "[CNPJ 1]" in t and "[PROCESSO 1]" in t and "[E-MAIL 1]" in t and "[TELEFONE 1]" in t and CPF not in t,
            "CPF, CNPJ, processo, e-mail e telefone viram marcadores", t)
-    checar("111.222.333-44" in t and t.count("[CPF 1]") == 2 and "[CPF 2]" not in t, "o CPF inválido fica; o mesmo CPF é o mesmo marcador")
+    checar("11122233344" in t and t.count("[CPF 1]") == 2 and "[CPF 2]" not in t, "o número solto inválido fica; o mesmo CPF é o mesmo marcador")
     d = nuvem.Desmascarador(m)
     junto = d.entrar("O CPF é [CP") + d.entrar("F 1] e o processo [PROCESSO 1].") + d.fim()
     checar(junto == f"O CPF é {CPF} e o processo 0001234-56.2024.8.26.0100.", "o marcador partido entre dois pedaços volta inteiro", junto)

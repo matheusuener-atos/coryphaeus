@@ -53,6 +53,17 @@ RE_ESCREVER = re.compile(
     r"(?:para|pra|pro|pros|pras|ao|à|a|aos|às)\s+(?P<quem>.+?)(?:(?:\s*[,:]\s*|\s+)(?P<pedido>" + _COMO + r"\b.*))?\s*[.!?]*$",
     re.I)
 RE_ENDERECO = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+# "Envie a procuração da COOBRAMEX por e-mail para fulano@exemplo.com": o
+# e-mail novo com o documento em anexo (bateria de 02/10/2026 - virava busca
+# nos documentos).
+_VERBO_ENVIAR = r"(?:envie|envia|enviar|mande|manda|mandar|encaminhe|encaminha|encaminhar)"
+_PARA = r"(?:para|pra|pro|pros|pras|ao|à|a|aos|às)"
+RE_ENVIAR_DOCUMENTO = re.compile(
+    r"^" + _ENFEITE + _VERBO_ENVIAR + r"\s+(?P<coisa>.+?)\s+(?:por|via)\s+e-?mail\s+" + _PARA + r"\s+(?P<quem>.+?)\s*[.!?]*$",
+    re.I)
+RE_ENVIAR_POR_EMAIL = re.compile(
+    r"^" + _ENFEITE + _VERBO_ENVIAR + r"\s+(?:por|via)\s+e-?mail\s+(?P<coisa>.+?)\s+" + _PARA + r"\s+(?P<quem>.+?)\s*[.!?]*$",
+    re.I)
 # O que nao e nome de remetente: "responda isso", "abra o e-mail aqui".
 _NAO_E_QUEM = {"isso", "isto", "esse", "este", "essa", "esta", "aqui", "ele", "ela", "todos", "tudo", "agora", "depois"}
 # ...nem comeco de frase que nao seja nome: "responda em portugues",
@@ -88,6 +99,16 @@ def ler_pedido(texto: str) -> dict | None:
     if not frase or len(frase) > 400:
         return None
     baixo = frase.lower()
+    m = RE_ENVIAR_DOCUMENTO.match(baixo) or RE_ENVIAR_POR_EMAIL.match(baixo)
+    if m:
+        quem = _limpar_quem(frase[m.start("quem"):m.end("quem")])
+        coisa = frase[m.start("coisa"):m.end("coisa")].strip()
+        achado = RE_ENDERECO.search(quem)
+        endereco = achado.group(0) if achado else ""
+        nome = _limpar_quem(RE_ENDERECO.sub("", quem)) if endereco else quem
+        if coisa and (endereco or _quem_valido(nome)):
+            return {"acao": "escrever", "quem": nome or endereco, "email": endereco, "sobre": "",
+                    "pedido": f"Encaminhar em anexo: {coisa}.", "documento": coisa}
     m = RE_ESCREVER.match(baixo)
     if m:
         quem = _limpar_quem(frase[m.start("quem"):m.end("quem")])

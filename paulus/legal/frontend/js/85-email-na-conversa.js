@@ -361,7 +361,8 @@ async function abrirRespostaNaConversa(alvo, c, o, m) {
     // O e-mail novo: sem mensagem de origem; quem recebe veio da ficha ou da frase.
     emc.resp = {
       uid: c.uid, conta_id: c.conta_id || "", de: c.conta_email || "", sobre: "", novo_email: true,
-      para: (c.para || []).slice(), cc: [], cco: [], assunto: c.assunto || "", corpo: "", corpo_html: "", anexos: [], conferencias: [],
+      // "Envie a procuração por e-mail para...": o documento já vem anexado.
+      para: (c.para || []).slice(), cc: [], cco: [], assunto: c.assunto || "", corpo: "", corpo_html: "", anexos: (c.anexos || []).slice(), conferencias: [],
       pelo_assistente: false, palavras: 0, salvo_em: "", novo: true,
     };
   } else {

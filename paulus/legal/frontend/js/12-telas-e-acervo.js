@@ -929,6 +929,21 @@ function cartaoProposta(d) {
   if (d.tipo === "escopo") return cartaoEscopo(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
+  // Bateria de 02/10/2026: "SEMA está errado, o certo é SEMAS - corrija" com
+  // o documento anexado abre o rascunho no editor e faz a troca, marcada.
+  if (d.tipo === "mudar_documento") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">mudar no editor</span>' +
+      "<b>" + esc(c.nome || "") + "</b></div>" +
+      '<p class="explica">O rascunho abre ao lado com a mudança marcada, para você manter ou descartar. O arquivo ' +
+      "original no Acervo não muda.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="mudar">Abrir e fazer a mudança</button></div></div>';
+  }
+  // "...e salve no editor": a resposta virou um rascunho no Editor de texto.
+  if (d.tipo === "editor_criado") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">salvo no editor</span>' +
+      "<b>" + esc(c.titulo || "") + "</b></div>" +
+      '<div class="linha-form"><button class="primario" data-prop="abrir-rascunho">Abrir no editor</button></div></div>';
+  }
 
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
@@ -1350,6 +1365,27 @@ function camposProposta(d, faltando) {
 
 /* Ligar os botões do cartão. O que vai para o servidor é o que está nos
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
+/* O que os cartões do editor fazem: abrir o rascunho do documento do Acervo
+   e pedir a mudança (o pedido já está na conversa), ou abrir o rascunho que a
+   resposta virou. A conversa chama sozinha quando o cartão chega ao vivo. */
+async function fazerDoCartaoDoEditor(caixa, d) {
+  const c = d.campos || {};
+  const botao = caixa.querySelector("[data-prop]");
+  if (botao) botao.disabled = true;
+  if (d.tipo === "editor_criado") {
+    await mostrarDupla(c.id);
+    if (botao) botao.disabled = false;
+    return;
+  }
+  const novo = await editarDocumentoDoAcervo(c.nome);
+  if (!novo || novo.tipo === "planilha" || !dupla.doc) {
+    if (botao) botao.disabled = false;
+    return;
+  }
+  caixa.innerHTML = '<p class="explica">Abri “' + esc(c.nome || "") + "” no editor ao lado. A mudança aparece marcada no texto.</p>";
+  await pedirNoDocumento(c.pedido || "", { jaDito: true });
+}
+
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
   if (d.tipo === "assinar") return ligarAssinarNaProposta(caixa, d);
@@ -1364,6 +1400,11 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
   if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);
+  if (d.tipo === "mudar_documento" || d.tipo === "editor_criado") {
+    const botao = caixa.querySelector('[data-prop="mudar"], [data-prop="abrir-rascunho"]');
+    if (botao) botao.onclick = () => fazerDoCartaoDoEditor(caixa, d);
+    return;
+  }
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
   ligarBotoesDeDocumento(caixa, d);
