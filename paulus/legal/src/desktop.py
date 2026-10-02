@@ -524,6 +524,59 @@ def _pedido_externo(tipo: str, caminho: str) -> None:
         _JANELA.evaluate_js("setTimeout(function () { perguntarSobreArquivo(" + json.dumps(caminho) + "); }, 0); true")
 
 
+def _comando_do_protocolo() -> str:
+    """
+    O que o Windows roda para "paulus://...": o PAULUS.exe instalado, ou -
+    rodando pelo terminal - o pythonw com este desktop.py. O endereco chega
+    como argumento, e o main() o trata como abrir de novo: o PAULUS aberto
+    vem para a frente.
+    """
+    if os.environ.get("PAULUS_INSTALADO"):
+        exe = Path(__file__).resolve().parents[2] / "PAULUS.exe"
+        return f'"{exe}" "%1"' if exe.exists() else ""
+    py = Path(sys.executable)
+    pythonw = py.with_name("pythonw.exe")
+    return f'"{pythonw if pythonw.exists() else py}" "{Path(__file__).resolve()}" "%1"'
+
+
+def _registrar_protocolo() -> None:
+    """
+    O endereco paulus:// na area do usuario (02/10): a pagina de volta do
+    Google o abre, e o navegador pergunta "Abrir PAULUS?". O instalador
+    registra e a desinstalacao apaga (tools/instalador/Instalador.cs). Rodando
+    pelo terminal, so registra se ninguem registrou ou se o programa
+    registrado sumiu - um PAULUS instalado nunca e trocado pelo de teste.
+    """
+    if sys.platform != "win32":
+        return
+    comando = _comando_do_protocolo()
+    if not comando:
+        return
+    try:
+        import winreg
+
+        chave = r"Software\Classes\paulus"
+        atual = ""
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, chave + r"\shell\open\command") as k:
+                atual = str(winreg.QueryValueEx(k, "")[0] or "")
+        except OSError:
+            pass
+        if atual == comando:
+            return
+        if atual and not os.environ.get("PAULUS_INSTALADO"):
+            registrado = atual.split('"')[1] if atual.startswith('"') else atual.split(" ")[0]
+            if Path(registrado).exists() and Path(registrado).name.lower() == "paulus.exe":
+                return
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, chave) as k:
+            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, "URL:PAULUS")
+            winreg.SetValueEx(k, "URL Protocol", 0, winreg.REG_SZ, "")
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, chave + r"\shell\open\command") as k:
+            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, comando)
+    except OSError:
+        pass                                   # sem o registro, o "Voltar" da pagina segue pelo servidor
+
+
 def _sair_da_pasta_do_programa() -> None:
     """
     Instalado, o programa trabalha na pasta de dados, e nao na do programa.
@@ -617,6 +670,7 @@ def main() -> int:
     except OSError:
         pass
     api.estado.ao_pedido_externo = _pedido_externo
+    _registrar_protocolo()
     if pedido_word:
         def _atender_o_word() -> None:
             try:

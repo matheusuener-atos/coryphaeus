@@ -210,7 +210,18 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
   try { var t = localStorage.getItem("pv-tema"); if (t === "claro" || t === "escuro") raiz.dataset.tema = t; } catch (e) {}
   // Voltar: o PAULUS traz a janela dele para frente; a aba fecha se o
   // navegador deixar (so abas abertas por script podem se fechar).
+  // paulus:// (02/10): o navegador pergunta "Abrir PAULUS?" e o PAULUS
+  // aberto vem para a frente (src/desktop.py). Sem o registro, nada acontece
+  // aqui - e o aviso ao servidor, de sempre, traz a janela do mesmo jeito.
+  var abriu = false;
+  function abrirApp() {
+    if (abriu) return;
+    abriu = true;
+    try { window.location.href = "paulus://voltar"; } catch (e) {}
+  }
   document.getElementById("voltar").onclick = function () {
+    abriu = false;
+    abrirApp();
     fetch("/voltar?state=" + encodeURIComponent(dados.state)).catch(function () {});
     setTimeout(function () { try { window.close(); } catch (e) {} }, 300);
   };
@@ -222,7 +233,7 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
     fetch("/estado?state=" + encodeURIComponent(dados.state)).then(function (r) { return r.json(); }).then(function (d) {
       var selo = document.getElementById("selo"), texto = document.getElementById("selo-texto"), email = document.getElementById("email");
       if (d.email) email.textContent = d.email;
-      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; return; }
+      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; abrirApp(); return; }
       if (d.fase === "erro" || d.fase === "cancelado") {
         texto.textContent = "não conectado"; selo.className = "selo erro";
         var f = document.getElementById("falha"); f.hidden = false;
