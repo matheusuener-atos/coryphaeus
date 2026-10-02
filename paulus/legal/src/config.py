@@ -259,6 +259,9 @@ PADRAO: dict = {
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
     # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
     # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
+    # A IA faz parte da assinatura (src/plano.py): o ultimo plano conhecido,
+    # para valer sem internet ate o fim do ciclo pago.
+    "plano": {"ativo": False, "ate": "", "conferido_em": ""},
     # V5 (docs/PLANO-NUVEM.md): o PAULUS (nuvem) vem primeiro; sem o sim do
     # titular (consentimento, com a versao do termo) nada liga.
     "nuvem": {"ligado": False, "provedor": "paulus", "modelo": "", "mascarar": True, "consentimento": {},

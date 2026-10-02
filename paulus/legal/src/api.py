@@ -807,6 +807,11 @@ class Estado:
 
 
 estado = Estado()
+# A IA faz parte da assinatura (src/plano.py): sem ela vigente, o modelo local
+# nao e chamado - em lugar nenhum. Fora do instalado (terminal, testes), livre.
+import plano as plano_mod  # noqa: E402
+
+LlamaClient.portao = staticmethod(lambda: plano_mod.liberada(estado))
 
 
 @asynccontextmanager
@@ -846,6 +851,14 @@ async def _fila_cheia(request, exc):
     from fastapi.responses import JSONResponse
 
     return JSONResponse(status_code=429, content={"detail": str(exc)})
+
+
+@app.exception_handler(plano_mod.SemPlano)
+async def _sem_plano(request, exc):
+    """Qualquer tela que chamou o modelo sem a assinatura vigente: 402, com a frase de onde assinar."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=402, content={"detail": str(exc), "motivo": "sem_plano"})
 # O porteiro vem antes de tudo: separa a janela local (chave ou cookie da
 # sessao local) de quem chega de fora. Quem chega de fora passa pelo portao
 # do acesso remoto - desligado, ninguem passa.
@@ -3923,6 +3936,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if leitura:
             return _responder_programa(trabalho, leitura, pergunta)
 
+    # Daqui para baixo a resposta e escrita pelo modelo, lendo os documentos.
+    # Sem a assinatura vigente (src/plano.py), a conversa diz onde assinar - o
+    # que a regra responde (navegacao, consultas, agenda) ja passou acima.
+    if not plano_mod.liberada(estado):
+        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+
     # "Qual o valor do contrato?" sem dizer qual, e o Acervo tem varios: a
     # conversa pergunta qual, em vez de o modelo escolher um e responder como
     # se fosse o unico. So quando nada na conversa diz qual (anexo, foco,
@@ -5514,6 +5533,8 @@ def _juiz() -> juizo.Juiz | None:
     motivo: outro `num_ctx` faz o Ollama recarregar o modelo. Vinte segundos
     de paciencia: passou disso, a pergunta segue para os documentos.
     """
+    if not plano_mod.liberada(estado):
+        return None                       # sem a assinatura, so a regra decide
     modelo = estado.modelo_para("juiz")
     opcoes = estado.client.opcoes if modelo == estado.client.model else estado.novo_cliente(modelo).opcoes
     chave = (modelo, opcoes.num_ctx, opcoes.keep_alive)

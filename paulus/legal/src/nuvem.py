@@ -277,6 +277,13 @@ def ativar_paulus(estado, id_token: str, nome: str = "") -> dict:
     if consentido(estado):
         _paulus(estado, "POST", "/api/ia/consentimento", {"aceito": True, "versao": TERMO_VERSAO, "quem": c.get("quem", "")})
     _CONTA_CACHE.update(quando=0.0, dados=None)
+    import plano
+
+    plano.esquecer()
+    # Com a IA so na assinatura (src/plano.py), a conta ativada ja liga a
+    # nuvem: a conversa, os resumos e a redacao vao a ela sem outro passo.
+    if plano.cobranca_ligada():
+        estado.prefs.atualizar({"nuvem": {"ligado": True}})
     return conta_paulus(estado, forcar=True)
 
 
@@ -298,6 +305,9 @@ def sair_paulus(estado) -> None:
         pass  # o segredo some daqui de qualquer jeito
     apagar_chave(estado, "paulus")
     _CONTA_CACHE.update(quando=0.0, dados=None)
+    import plano
+
+    plano.esquecer()
     if config(estado).get("provedor") == "paulus":
         estado.prefs.atualizar({"nuvem": {"ligado": False}})
 

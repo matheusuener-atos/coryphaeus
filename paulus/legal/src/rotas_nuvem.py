@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 
 import nuvem
+import plano
 
 
 class Chave(BaseModel):
@@ -96,6 +97,11 @@ def montar(estado, app, dados_dir) -> None:
     @app.get("/api/nuvem")
     def nuvem_estado() -> dict:
         return _estado_da_tela(estado)
+
+    @app.get("/api/plano")
+    def plano_situacao(forcar: bool = False) -> dict:
+        """A IA faz parte da assinatura (src/plano.py): liberada ou nao, e ate quando."""
+        return {**plano.situacao(estado, forcar=forcar), "cobranca": plano.cobranca_ligada(), "frase": plano.FRASE_SEM_PLANO}
 
     @app.get("/api/nuvem/situacao")
     def nuvem_situacao() -> dict:
@@ -243,12 +249,14 @@ def montar(estado, app, dados_dir) -> None:
     def nuvem_paulus_assinatura() -> dict:
         d = _paulus_ou_400(lambda: nuvem._paulus(estado, "GET", "/api/ia/assinatura"))
         nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
+        plano.esquecer()
         return {"conta": d, "erro": ""}
 
     @app.post("/api/nuvem/paulus/cancelar")
     def nuvem_paulus_cancelar() -> dict:
         d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/assinatura/cancelar", {}))
         nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
+        plano.esquecer()
         return {"conta": d, "erro": ""}
 
     @app.post("/api/nuvem/paulus/recarga")
@@ -263,4 +271,5 @@ def montar(estado, app, dados_dir) -> None:
         d = _paulus_ou_400(lambda: nuvem._paulus(estado, "GET", f"/api/ia/recarga/{pedido}"))
         if d.get("pago"):
             nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
+            plano.esquecer()
         return d

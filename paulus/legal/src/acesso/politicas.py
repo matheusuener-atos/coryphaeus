@@ -429,6 +429,9 @@ _declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "P
           "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "GET /api/nuvem/paulus/assinatura",
           "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}")
 _declarar(PERMITIDO, "GET /api/nuvem/situacao")
+# A IA faz parte da assinatura (src/plano.py): se ela esta liberada, e a frase
+# de onde assinar - sem nada da conta. A tela de fora tambem precisa saber.
+_declarar(PERMITIDO, "GET /api/plano")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")

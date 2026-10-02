@@ -138,6 +138,9 @@ class LlamaClient:
     # Quem chama a conversa pergunta isto antes de mandar `tarefa`: o cliente
     # de mentira dos testes nao conhece o argumento, e nao precisa conhecer.
     aceita_tarefa = True
+    # A IA faz parte da assinatura (src/plano.py): o api.py poe aqui quem diz
+    # se o modelo pode ser chamado. Sem porteiro (testes, scripts), passa.
+    portao = None
 
     def __init__(
         self,
@@ -226,6 +229,11 @@ class LlamaClient:
         # mao (a conversa), passa direto, como antes.
         import fila_modelo
 
+        porteiro = type(self).portao
+        if porteiro is not None and not porteiro():
+            import plano
+
+            raise plano.SemPlano()
         try:
             with fila_modelo.vez_para_o_modelo(parar=parar):
                 return self._chat_na_vez(messages, fmt=fmt, stream=stream, on_token=on_token, on_fase=on_fase,
