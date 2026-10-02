@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "0.9.27",
+      "date": "2026-10-02",
+      "changes": [
+        "A tela de entrar de fora no desenho novo: a marca PAVLVS, o campo Escritório já preenchido com o que se…",
+        "No celular, a tela cabe na área visível: a altura da página passa a ser a do que se vê (dvh), e não a que…"
+      ]
+    },
+    {
       "version": "0.9.26",
       "date": "2026-10-02",
       "changes": [

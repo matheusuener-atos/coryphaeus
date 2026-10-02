@@ -1,12 +1,12 @@
 {
-  "versao": "0.9.26",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.26/PAULUS-0.9.26-instalador.exe",
-  "sha256": "e1564affdb794c8dbc44bf13f61d7cf64d177c356183af3b81775ed04f6a35cd",
-  "tamanho": 101970270,
+  "versao": "0.9.27",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.27/PAULUS-0.9.27-instalador.exe",
+  "sha256": "871fbc2002eb7b317b5ab624972f862f8f2a5620b808d6063e407deb7d01437c",
+  "tamanho": 101981007,
   "publicada": "2026-10-02",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.26",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.27",
   "novidades": [
-    "O celular no desenho novo e a tela inicial mais limpa: até 600 px, a tela Assistente do pacote mobile (marca d'água PAVLVS, atalhos Gravar reunião, Digitalizar, Enviar arquivo e Conversas, a caixa \"Pergunte ao PAVLVS…\" com \"+ Fonte\" e o microfone, o aviso do dia numa faixa no alto), a barra de baixo",
-    "Toda tela tem chamada pela conversa: \"abra a agenda\", \"vá para Agentes\", \"pode abrir a lixeira?\", \"quero ver os avisos\", \"abra o menu mais\" e cada seção de Configurações (Meus dados, Escritório, Modelos, Backup, Lixeira, Aparência, Módulos, Versão, Word, Feedback) levam à tela, mesmo com um document"
+    "A tela de entrar de fora no desenho novo: a marca PAVLVS, o campo Escritório já preenchido com o que se digitou no endereço (uener.paulus.ia.br vem como \"uener\"; trocar leva ao outro escritório), o seletor Google | Código e o botão largo. O código do Authenticator em seis casas, com \"Renova em\" cont",
+    "No celular, a tela cabe na área visível: a altura da página passa a ser a do que se vê (dvh), e não a que conta a barra de endereço como se não existisse - a barra de baixo e a caixa de pedido ficavam cortadas no Chrome do Android. Com o teclado aberto, a página encolhe e a caixa fica acima dele; a "
   ]
 }
