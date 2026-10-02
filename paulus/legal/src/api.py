@@ -468,10 +468,11 @@ class Estado:
         # testes que sobem o servidor sobre os dados reais (tests/test_tela.py)
         # usam: carregar o Whisper para a gravacao parada de verdade derrubava
         # o processo por falta de memoria (02/10; o Whisper tera rodada propria).
+        # Com a chave, a fila de voz nem comeca: o que entrar nela espera.
         if os.environ.get("PAULUS_SEM_VOZ") != "1":
             for id_ in self.gravacoes.pendentes():
                 self.fila_voz.put(id_)
-        threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
+            threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(
             self.base, fila=self.fila, assinaturas=self.assinaturas,

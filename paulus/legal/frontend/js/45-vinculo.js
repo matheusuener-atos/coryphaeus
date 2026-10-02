@@ -69,66 +69,61 @@ function desenharTrava() {
     }
     return;
   }
-  // O desenho "Voce saiu - servidor" (docs/ui, export tela login servidor):
-  // a conta deste servidor, manter aberto e o Google na mesma linha; embaixo,
-  // o que continua funcionando enquanto a janela esta travada.
+  // O desenho "Servidor - Entrar" (02/10/2026): a coluna de 360 px no meio,
+  // como a tela de entrar de fora (frontend/entrar.html) - a conta deste
+  // servidor, manter aberto, o Google no trilho e, embaixo, o que continua
+  // funcionando enquanto a janela esta travada. O codigo e a chave seguem o
+  // mesmo desenho ("Codigo" e "Chave de recuperacao").
   const esperando = e.fase === "aguardando" || e.fase === "trocando" || e.fase === "testando";
   const fora = e.acesso_de_fora || {};
   const foraNoAr = Boolean(fora.ligado && fora.hostname);
-  const saiu = e.saiu && !e.precisa_codigo;
-  const conta = '<div class="trava-conta"><span class="trava-etiqueta">CONTA DESTE SERVIDOR</span><span class="trava-email">' + esc(e.email) + "</span></div>";
-  // O passo do codigo: o desenho "Confirmar codigo - servidor". Sem
-  // internet, o mesmo passo abre o PAVLVS sozinho, sem o Google (src/vinculo.py).
   const recuperacao = Boolean(vinc.porRecuperacao);
   const semNet = Boolean(vinc.semInternet) && !e.precisa_codigo;
   const codigo = e.precisa_codigo || semNet;
   const pronto = Boolean((e.sem_internet || {}).pronto);
-  const entrar = codigo
-    ? '<form class="trava-form trava-form-codigo" id="trava-codigo">' +
-      '<div class="trava-conta"><span class="trava-etiqueta">CONTA</span><span class="trava-conta-linha">' + (semNet ? "" : G_DO_GOOGLE) +
-      '<span class="trava-email">' + esc(e.email) + '</span><button type="button" class="trava-link" id="trava-trocar">' +
-      (semNet ? "Entrar com o Google" : "Trocar") + "</button></span></div>" +
-      '<label class="trava-campo"><span class="trava-etiqueta">' + (recuperacao ? "CÓDIGO DE RECUPERAÇÃO" : "CÓDIGO DO CELULAR") + "</span>" +
-      '<input id="trava-codigo-campo"' + (recuperacao ? ' class="recuperacao" autocomplete="off" maxlength="9" placeholder="xxxx-xxxx"'
-        : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"') + "></label>" +
+  const conta = (rotulo, trocar) => '<div class="trava-grupo"><span class="trava-etiqueta">' + rotulo + "</span>" +
+    '<div class="trava-caixa">' + (semNet ? ic("desktop_windows", 16) : G_DO_GOOGLE) + '<span class="trava-email">' + esc(e.email) + "</span>" +
+    (trocar ? '<button type="button" class="trava-trocar" id="trava-trocar">' + esc(trocar) + "</button>" : "") + "</div></div>";
+  const trilho = (id, texto, google, desligado) => '<button type="' + (google ? "button" : "submit") + '" class="trava-trilho" id="' + id + '"' +
+    (desligado ? " disabled" : "") + '><span class="trava-pastilha">' + (google ? G_DO_GOOGLE : "") + esc(texto) + "</span></button>";
+  let frase, corpo;
+  if (codigo) {
+    frase = recuperacao ? "Use uma das chaves guardadas." : semNet ? "Sem internet: entre com o código do celular." : "Confirme quem você é.";
+    const n = recuperacao ? 0 : 6;
+    corpo = '<form class="trava-form" id="trava-codigo">' +
+      conta("CONTA", recuperacao ? "" : (semNet ? "Entrar com o Google" : "Trocar")) +
+      '<div class="trava-grupo"><div class="trava-rotulo-linha"><span class="trava-etiqueta">' + (recuperacao ? "CHAVE DE RECUPERAÇÃO" : "GOOGLE AUTHENTICATOR") +
+      '</span><span class="trava-renova" id="trava-renova">' + (recuperacao ? "uso único" : "renova em <b>00:30</b>") + "</span></div>" +
+      '<div class="trava-casas' + (recuperacao ? " campo" : "") + '" id="trava-casas" style="--n:' + (n || 6) + '">' +
+      '<input id="trava-codigo-campo"' + (recuperacao ? ' autocomplete="off" maxlength="9" aria-label="Chave de recuperação"'
+        : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos"') + "></div>" +
+      (recuperacao ? '<span class="trava-ajuda">Cada chave funciona uma vez. Depois de entrar, gere novas em Configurações.</span>' : "") + "</div>" +
       '<p class="trava-erro" id="trava-erro"></p>' +
-      '<div class="trava-acoes"><button type="submit" class="trava-principal">Abrir o PAVLVS</button>' +
-      '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o código do celular" : "Usar um código de recuperação") +
-      "</button></div></form>"
-    : '<div class="trava-form">' + conta +
-      '<div class="trava-acoes"><label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") +
-      "><span>Manter aberto neste computador</span></label>" +
-      '<button type="button" class="trava-google" id="trava-google"' + (esperando ? " disabled" : "") + ">" + G_DO_GOOGLE +
-      (esperando ? "Esperando o Google…" : "Entrar com Google") + "</button>" +
-      (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") + "</div>" +
+      trilho("trava-abrir", "Abrir o PAVLVS", false, false) +
+      '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o Google Authenticator" : "Não tenho o celular") + "</button></form>";
+  } else {
+    frase = "Entre para abrir o escritório.";
+    corpo = '<div class="trava-form">' + conta("CONTA DESTE SERVIDOR", "") +
+      '<label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") + '><i aria-hidden="true">' +
+      ic("check", 13) + "</i><span>Manter aberto neste computador</span></label>" +
+      trilho("trava-google", esperando ? "Esperando o Google…" : "Entrar com Google", true, esperando) +
+      (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") +
       '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
-      (pronto
-        ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>'
-        : '<p class="trava-ajuda">Sem internet, o Google não responde. Ligue “Entrar sem internet” em Configurações › Escritório e equipe enquanto estiver online.</p>') +
+      '<div class="trava-grupo trava-enquanto"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
+      '<div class="trava-fora"><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
+      (foraNoAr ? "Acesso de fora funcionando" : "Acesso de fora desligado") + "</span>" +
+      (foraNoAr ? '<span class="trava-mono">' + esc(fora.hostname) + "</span>" : "") + "</div></div>" +
+      (foraNoAr ? '<span class="trava-ajuda centro">A equipe continua entrando por esse endereço enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</span>' : "") +
+      (pronto ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>'
+        : '<span class="trava-ajuda centro">Sem internet, o Google não responde. Ligue “Entrar sem internet” em Configurações › Escritório e equipe enquanto estiver online.</span>') +
       "</div>";
-  const enquanto = codigo ? "" : '<div class="trava-linhas"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
-    '<div class="trava-linha"><span>Acesso de fora</span><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
-    (foraNoAr ? "funcionando" : "desligado") + "</span></div>" +
-    (foraNoAr ? '<div class="trava-linha"><span>Endereço</span><span class="trava-mono">' + esc(fora.hostname) + "</span></div>" : "") + "</div>";
+  }
   const escuro = document.documentElement.dataset.tema === "escuro";
   telaDaTrava().innerHTML =
-    '<header class="trava-topo pywebview-drag-region"><span class="trava-marca">PAVLVS</span><div class="trava-topo-dir"><span class="trava-selo">' +
-    ic("desktop_windows", 16) + "servidor</span>" +
-    '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 18) + "</button></div></header>" +
-    '<main class="trava-corpo"><section class="trava-texto"><span class="trava-rotulo' + (codigo ? " neutro" : "") + '"><i></i>' +
-    (semNet ? "SEM INTERNET" : e.precisa_codigo ? "PASSO 2 DE 2" : saiu ? "SESSÃO ENCERRADA" : "ESCRITÓRIO TRAVADO") + "</span>" +
-    "<h1>" + (semNet ? "Entre com o código do celular" : e.precisa_codigo ? "Confirme que é você" : "Entre para abrir o escritório") + "</h1>" +
-    "<p>" + (semNet ? "Sem internet, o código do Google Authenticator abre o PAVLVS neste computador — o app funciona sem conexão."
-      : e.precisa_codigo ? "Digite o código de 6 dígitos que aparece no app autenticador do seu celular."
-      : "O PAVLVS está travado neste computador. Para usar de novo, entre com a conta vinculada a este servidor.") + "</p>" +
-    '<span class="trava-nota">' + (codigo ? "O código muda a cada 30 segundos." : "Nada dos seus documentos sai deste computador.") + "</span></section>" +
-    '<section class="trava-painel">' + entrar + enquanto + "</section></main>" +
-    '<footer class="trava-pe">' +
-    (foraNoAr ? '<p class="forte">A equipe continua entrando por ' + (codigo ? esc(fora.hostname) : "esse endereço") +
-      " enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</p>" : "") +
-    (codigo ? "<p>Nada dos seus documentos sai deste computador.</p>"
-      : "<p>Esta tela é servida pelo próprio PAVLVS, neste computador. Os documentos e o modelo de IA ficam aqui; o Google só confirma quem está entrando.</p>") +
-    "</footer>";
+    '<header class="trava-topo pywebview-drag-region"><span class="trava-selo">' + ic("desktop_windows", 16) + "servidor</span>" +
+    '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 16) + "</button></header>" +
+    '<main class="trava-corpo">' + (codigo ? '<button type="button" class="trava-voltar" id="trava-voltar">' + ic("arrow_back", 18) + "Voltar</button>" : "") +
+    '<div class="trava-coluna"><div class="trava-marca"><b>PAVLVS</b><p>' + esc(frase) + "</p></div>" + corpo + "</div></main>";
   ligarTrava();
 }
 
@@ -157,10 +152,42 @@ function ligarTrava() {
   if (rec) rec.onclick = () => { vinc.porRecuperacao = !vinc.porRecuperacao; desenharTrava(); };
   const c = document.getElementById("trava-cancelar");
   if (c) c.onclick = async () => { await postVinculo("/api/vinculo/cancelar").catch(() => {}); desenharTrava(); };
+  const v = document.getElementById("trava-voltar");
+  if (v) v.onclick = async () => {
+    vinc.porRecuperacao = false;
+    if (vinc.semInternet) { vinc.semInternet = false; desenharTrava(); return; }
+    await postVinculo("/api/vinculo/cancelar").catch(() => {});
+    desenharTrava();
+  };
   const f = document.getElementById("trava-codigo");
   if (f) {
     const campo = document.getElementById("trava-codigo-campo");
+    // As seis casas: o campo de verdade fica por cima, transparente.
+    const casas = document.getElementById("trava-casas");
+    const desenhar = () => {
+      if (casas.classList.contains("campo")) return;
+      const val = campo.value.replace(/\D/g, "").slice(0, 6);
+      casas.querySelectorAll("span").forEach((x) => x.remove());
+      for (let i = 0; i < 6; i++) {
+        const x = document.createElement("span");
+        x.textContent = val[i] || "";
+        if (i === Math.min(val.length, 5) && document.activeElement === campo) x.classList.add("vez");
+        casas.insertBefore(x, campo);
+      }
+    };
+    campo.addEventListener("input", desenhar);
+    campo.addEventListener("focus", desenhar);
+    campo.addEventListener("blur", desenhar);
+    const renova = () => {
+      const b = document.querySelector("#trava-renova b");
+      if (!b) { clearInterval(vinc.renova); return; }
+      b.textContent = "00:" + String(30 - (Math.floor(Date.now() / 1000) % 30)).padStart(2, "0");
+    };
+    clearInterval(vinc.renova);
+    renova();
+    vinc.renova = setInterval(renova, 1000);
     campo.focus();
+    desenhar();
     f.onsubmit = async (ev) => {
       ev.preventDefault();
       try {
