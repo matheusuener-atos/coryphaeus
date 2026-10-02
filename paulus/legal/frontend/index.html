@@ -87,6 +87,7 @@
 <link rel="stylesheet" href="/css/50-fichas-na-conversa.css">
 <link rel="stylesheet" href="/css/51-config-na-conversa.css">
 <link rel="stylesheet" href="/css/22-responsivo.css">
+<link rel="stylesheet" href="/css/52-celular.css">
 </head>
 <body>
 
@@ -136,6 +137,18 @@
     <button class="trilho-item" id="tema" title="Tema escuro" aria-label="Alternar tema"><span class="ic" id="tema-icone">dark_mode</span></button>
     <button class="trilho-item" data-destino="config" title="Configurações" aria-label="Configurações"><span class="ic">settings</span></button>
     <button class="trilho-item" id="sair-servidor" title="Sair" aria-label="Sair da conta" hidden><span class="ic">logout</span></button>
+  </nav>
+
+  <!-- O CELULAR (js/90-celular.js, css/52-celular.css; pacote "PAULUS -
+       Telas Mobile" de 02/10/2026): sem barra lateral, a navegacao e esta
+       barra de cinco icones - Assistente, Agenda, Acervo, Avisos e Mais (o
+       menu, desenhado com tres linhas). So aparece ate 600 px. -->
+  <nav class="barra-celular" id="barra-celular" aria-label="Navegação">
+    <button type="button" data-destino="conversa" data-cel="assistente" aria-label="Assistente"><span class="ic">forum</span></button>
+    <button type="button" data-destino="calendario" data-cel="agenda" aria-label="Agenda"><span class="ic">event</span></button>
+    <button type="button" data-destino="biblioteca" data-cel="acervo" aria-label="Acervo"><span class="ic">folder</span></button>
+    <button type="button" data-cel="avisos" aria-label="Avisos"><span class="ic">inbox</span><i class="cel-ponto" hidden></i></button>
+    <button type="button" data-cel="mais" aria-label="Mais"><span class="cel-menu" aria-hidden="true"><i></i><i></i><i></i></span></button>
   </nav>
 
   <div class="menu-flutuante" id="menu-flutuante">
@@ -243,10 +256,12 @@
         <div class="ditado-rodape" id="ditado-rodape" hidden><div class="centro"></div></div>
         <div class="compositor" id="compositor">
           <div class="centro">
-            <div class="saudacao-bloco">
+            <div class="saudacao-bloco abrindo">
               <span class="rotulo" id="momento"></span>
               <h1 class="chamada" id="chamada">Olá. Por onde começamos?</h1>
+              <h1 class="chamada chamada-vez" id="chamada-vez" hidden></h1>
               <p class="sub-chamada" id="sub-chamada">É só me dizer o que você precisa — eu leio e respondo aqui mesmo.</p>
+              <p class="sub-chamada sub-vez" id="sub-vez" hidden></p>
             </div>
 
             <div class="aviso-motor" id="aviso-motor" hidden></div>
@@ -259,10 +274,26 @@
               <button type="button" class="emc-atalho" data-emc-atalho="prazos">Achar prazos</button>
               <button type="button" class="emc-atalho" data-emc-atalho="responder">Responder</button>
             </div>
+            <!-- A vez dos avisos e do apoio (js/78-chamada-da-vez.js):  o
+                 titulo da saudacao se reveza com eles. Os avisos nao tem mais faixa propria; #av-dia
+                 continua so como ancora do relogio deles. -->
+            <div id="av-dia" hidden></div>
+            <!-- Celular: o aviso do dia numa faixa no alto, a marca d'agua
+                 quando a tela esta vazia e os atalhos acima da caixa. -->
+            <div class="cel-aviso" id="cel-aviso" hidden></div>
+            <div class="cel-marca" aria-hidden="true">PAVLVS</div>
+            <div class="cel-atalhos" id="cel-atalhos">
+              <button type="button" data-cel-atalho="gravar"><span class="ic">mic</span><span>Gravar reunião</span></button>
+              <button type="button" data-cel-atalho="digitalizar"><span class="ic">photo_camera</span><span>Digitalizar</span></button>
+              <button type="button" data-cel-atalho="enviar"><span class="ic">upload</span><span>Enviar arquivo</span></button>
+              <button type="button" data-cel-atalho="conversas"><span class="ic">history</span><span>Conversas</span></button>
+            </div>
+            <input type="file" id="cel-camera" accept="image/*,application/pdf" capture="environment" hidden>
             <div class="cartao-campo" id="cartao-campo">
               <div class="mencao" id="mencao" hidden></div>
               <textarea id="pedido" rows="1" placeholder="Peça o que precisa dos seus documentos…"></textarea>
               <div class="pilulas">
+                <button type="button" class="cel-fonte" id="cel-fonte" title="Anexar uma fonte: documento do Acervo, do aparelho ou do Drive"><span class="ic ic-18">add</span>Fonte</button>
                 <button class="pilula pilula-anexar" id="anexar" title="Anexar documentos (PDF, DOCX, TXT) — ou digite / para escolher um já aberto"><span class="ic ic-18">attach_file</span><span class="rotulo-botao">Anexar</span></button>
                 <div class="escopo" id="escopo" hidden></div>
                 <button class="pilula pilula-inicio" id="buscar" title="Achar a palavra, sem esperar o assistente"><span class="ic ic-18">search</span><span class="rotulo-botao">Buscar</span></button>
@@ -279,16 +310,6 @@
               <div class="agora-cabeca"><span class="sv-kicker">Acontecendo agora</span></div>
               <div class="agora-cartoes" id="agora-cartoes"></div>
             </div>
-
-            <!-- Avisos do dia (js/53-avisos.js; `Assistente - Avisos` do
-                 pacote de telas): a faixa pequena, um aviso por vez, com a
-                 acao direta, as setas "1 / N" e a seta de abrir a lista no
-                 lugar das conversas. Sem avisos, nao aparece. -->
-            <div class="av-faixa" id="av-dia" hidden></div>
-
-            <!-- O convite para apoiar (js/77-apoiar-convite.js): no maximo uma
-                 vez por mes, so quando ha o que contar do mes. -->
-            <div class="agora ap-convite" id="ap-convite" hidden></div>
 
             <div class="recentes" id="recentes" hidden></div>
             <input type="file" id="arquivos" multiple accept=".pdf,.docx,.txt,.md" hidden>
@@ -307,6 +328,7 @@
          desliza ate a largura dela e mostra a ferramenta. Terminou (salvar,
          assinar, cancelar, fechar), volta a ser o contexto. -->
     <aside class="lateral" id="lateral" data-papel="contexto" hidden>
+      <div class="lado-arrasto pywebview-drag-region"></div>
       <div class="lado-contexto" id="lado-contexto">
         <!-- O cartao do Foco, quando ha um ciclo andando (Conversa - Foco). -->
         <div class="lado-topo" id="lado-topo" hidden></div>
@@ -444,6 +466,7 @@
 <script src="/js/75-nuvem.js"></script>
 <script src="/js/76-word.js"></script>
 <script src="/js/77-apoiar-convite.js"></script>
+<script src="/js/78-chamada-da-vez.js"></script>
 <script src="/js/78-conversa-foco.js"></script>
 <script src="/js/79-conversa-gravando.js"></script>
 <script src="/js/80-visor-ao-lado.js"></script>
@@ -456,6 +479,7 @@
 <script src="/js/87-lancamento-na-conversa.js"></script>
 <script src="/js/88-financeiro-na-conversa.js"></script>
 <script src="/js/89-config-na-conversa.js"></script>
+<script src="/js/90-celular.js"></script>
 <script src="/js/57-ia-em-fundo.js"></script>
 </body>
 </html>

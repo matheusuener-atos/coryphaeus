@@ -1,0 +1,162 @@
+  /* ------------------------------------------------------------ celular */
+  /*
+    O PAULUS no celular (pacote "PAULUS - Telas Mobile", 02/10/2026; js/90-
+    celular.js). Ate 600 px: sem barra lateral, a barra de baixo com cinco
+    icones, e a tela inicial do desenho - a marca d'agua no meio, os atalhos
+    e a caixa de pedido embaixo, o aviso do dia numa faixa no alto.
+
+    As cores sao os tokens do tema: no escuro, os mesmos valores do desenho
+    (#131312, #1a1a18, #222220, #2a2a27, #f2f1ec, #a8a69e, #95938a); no claro,
+    o equivalente. So a marca d'agua e o fundo do Mais tem cor propria.
+  */
+  /* As cores proprias (--cel-*) moram em 00-tokens.css, com as dos temas. */
+
+  /* Fora do celular, nada disto aparece. */
+  .barra-celular, .cel-aviso, .cel-marca, .cel-atalhos, .cel-fonte, .cel-mais { display: none; }
+
+  @media (max-width: 600px) {
+    /* A barra de baixo: 60 px, so icones; o ativo na tinta cheia. */
+    .trilho { display: none; }
+    .barra-celular {
+      order: 3; flex: none; display: flex; height: calc(60px + env(safe-area-inset-bottom, 0px));
+      padding: 0 4px calc(4px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--ink-a08); background: var(--lado-fundo);
+      position: relative; z-index: 45;
+    }
+    .barra-celular button {
+      flex: 1; display: grid; justify-items: center; align-content: center; min-width: 44px; height: auto; padding: 0;
+      border: none; border-radius: 0; background: none; color: var(--ink3); position: relative;
+    }
+    .barra-celular button:hover:not(:disabled) { background: none; border: none; color: var(--ink3); }
+    .barra-celular button .ic { font-size: 22px; width: 22px; height: 22px; }
+    .barra-celular button.ativo, .barra-celular button.ativo:hover:not(:disabled) { background: none; color: var(--ink); }
+    /* Com o Mais ou os Avisos abertos, o destino de baixo apaga - so um aceso. */
+    .barra-celular button.cel-apagado.ativo, .barra-celular.mais-aberto button[data-destino].ativo { color: var(--ink3); }
+    /* O menu: tres linhas desenhadas (o icone nao existe na fonte). */
+    .cel-menu { display: grid; gap: 5px; width: 20px; }
+    .cel-menu i { display: block; height: 1.5px; border-radius: 1px; background: currentColor; }
+    .cel-ponto { position: absolute; top: 14px; left: calc(50% + 6px); width: 7px; height: 7px; border-radius: 50%; background: var(--acc); }
+    /* Dentro de uma conversa, a navegacao e o voltar do cabecalho. */
+    .conversa-col.em-conversa ~ .barra-celular, .corpo:has(.conversa-col.em-conversa) .barra-celular { display: none; }
+
+    /* ---- a tela inicial */
+    .conversa-col.vazia .barra-titulo { display: none; }
+    /* A tela inicial e uma coluna so, sem rolar: o bloco do meio some da
+       hierarquia (display: contents) e cada peca entra na ordem do desenho -
+       aviso, marca (ou a lista, ou os avisos, que rolam no lugar dela),
+       acontecendo agora, atalhos e a caixa. */
+    .conversa-col.vazia .compositor {
+      display: flex; flex-direction: column; padding: 0; overflow: hidden;
+    }
+    .conversa-col.vazia .compositor > .centro { display: contents; }
+    .conversa-col.vazia :is(.saudacao-bloco, #recentes) { display: none; }
+    .conversa-col.vazia .cel-marca {
+      order: 2; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding-bottom: 40px;
+      font: 400 44px/1 var(--serif); letter-spacing: .08em; text-transform: uppercase; color: var(--cel-marca);
+      user-select: none; pointer-events: none; overflow: hidden;
+    }
+    /* A lista de conversas ou o painel de avisos tomam o lugar da marca. */
+    .conversa-col.vazia .compositor:has(#lista-conversas:not([hidden]), #av-painel:not([hidden])) .cel-marca { display: none; }
+    .conversa-col.vazia :is(#lista-conversas, #av-painel):not([hidden]) {
+      order: 2; flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 10px 12px 10px; width: auto;
+    }
+    .conversa-col.vazia #lista-conversas:not([hidden]) { display: block; }
+    .conversa-col.vazia #lista-conversas .lc-cartao { align-content: start; }
+    .conversa-col.vazia #lista-conversas .lc-barra { flex-wrap: wrap; row-gap: 8px; padding: 8px 10px 8px 12px; }
+    .conversa-col.vazia #lista-conversas .lc-busca { order: 3; flex: 1 1 100%; width: auto; }
+    .conversa-col.vazia #lista-conversas .lc-recolher { display: none; }
+    .conversa-col.vazia #lista-conversas .lc-linha { flex-wrap: wrap; row-gap: 4px; padding: 13px 14px; }
+    .conversa-col.vazia #lista-conversas .lc-nome { flex: 1 1 100%; min-width: 0; }
+
+    /* O aviso do dia: a faixa no alto, um aviso so, com a acao e o X. */
+    .conversa-col.vazia .cel-aviso:not([hidden]) {
+      order: 1; display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 8px 8px 12px;
+      border-radius: 14px; border: 1px solid var(--ink-a12); background: var(--surf); cursor: pointer;
+    }
+    .cel-aviso:active { background: var(--sub); }
+    .cel-aviso > i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--ink3); }
+    .cel-aviso > i.atrasado { background: var(--acc); }
+    .cel-aviso > i.metade { background: var(--warnt); }
+    .cel-aviso-texto { display: grid; gap: 1px; flex: 1; min-width: 0; }
+    .cel-aviso-texto b { font: 600 14px var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cel-aviso-texto span { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cel-aviso .cel-aviso-acao {
+      flex: none; display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 10px;
+      background: var(--fill2); border: 1px solid var(--ink-a15); color: var(--ink); font: 600 13px var(--sans);
+      position: relative;
+    }
+    /* O alvo de toque e de 44 px, mesmo com o botao de 32. */
+    .cel-aviso .cel-aviso-acao::after, .cel-aviso .cel-aviso-x::after { content: ""; position: absolute; inset: -6px; }
+    .cel-aviso .cel-aviso-x {
+      width: 32px; height: 32px; flex: none; display: flex; align-items: center; justify-content: center; padding: 0;
+      border: none; background: none; color: var(--ink3); position: relative;
+    }
+    .cel-aviso .cel-aviso-x:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+
+    /* "Acontecendo agora" (lendo, gravando) logo acima dos atalhos. */
+    .conversa-col.vazia #agora { order: 3; margin: 0 12px 10px; }
+    .conversa-col.vazia #agora .agora-cabeca { display: none; }
+
+    /* Os atalhos: cartoes de 124 px que rolam de lado. */
+    .conversa-col.vazia .cel-atalhos {
+      order: 4; flex: none; display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 10px; scrollbar-width: none;
+    }
+    .cel-atalhos::-webkit-scrollbar { display: none; }
+    .cel-atalhos button {
+      flex: none; display: grid; gap: 8px; grid-template-rows: auto auto; justify-items: start; min-width: 124px; height: auto;
+      padding: 12px 14px; box-sizing: border-box; border-radius: 14px; border: 1px solid var(--ink-a12); background: var(--surf);
+      text-align: left;
+    }
+    .cel-atalhos button:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a12); }
+    .cel-atalhos button:active { background: var(--fill); }
+    .cel-atalhos button.ativo { background: var(--fill); }
+    .cel-atalhos .ic { font-size: 18px; width: 18px; height: 18px; color: var(--ink2); }
+    .cel-atalhos button > span:last-child { font: 500 14px var(--sans); color: var(--ink); white-space: nowrap; }
+
+    /* A caixa de pedido: 16 px de raio, o "+ Fonte" e o microfone. A seta de
+       enviar so aparece quando ha o que enviar. */
+    .conversa-col.vazia .cartao-campo {
+      order: 5; margin: 0 12px 10px; padding: 14px 8px 8px 14px; gap: 10px; border-radius: 16px;
+      border-color: var(--ink-a12); background: var(--surf); box-shadow: none;
+    }
+    .conversa-col.vazia .cartao-campo textarea { font: 400 15px/1.5 var(--sans); }
+    .conversa-col.vazia .cartao-campo textarea::placeholder { color: var(--ink3); }
+    .conversa-col.vazia .cartao-campo .pilulas { gap: 6px; }
+    .conversa-col.vazia .cartao-campo :is(.pilula-anexar, .pilula-inicio, .escopo:empty) { display: none; }
+    .conversa-col.vazia .cel-fonte {
+      display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border-radius: 10px;
+      border: none; background: var(--fill); font: 500 14px var(--sans); color: var(--ink); margin-right: auto; position: relative;
+    }
+    .conversa-col.vazia .cel-fonte::after { content: ""; position: absolute; inset: -4px 0; }
+    .conversa-col.vazia .cel-fonte:hover:not(:disabled) { background: var(--fill); border: none; }
+    .conversa-col.vazia .cel-fonte:active { background: var(--fill2); }
+    .conversa-col.vazia .cel-fonte .ic { color: var(--ink2); }
+    .conversa-col.vazia .cartao-campo .ditar { width: 44px; height: 44px; border: none; background: none; color: var(--ink2); }
+    .conversa-col.vazia .cartao-campo .ditar .ic { font-size: 22px; width: 22px; height: 22px; }
+    .conversa-col.vazia .cartao-campo:not(.tem-texto) .enviar:not(.parar) { display: none; }
+    .conversa-col.vazia .cartao-campo.tem-texto .ditar { display: none; }
+
+    /* ---- Mais: o perfil e as Configuracoes, em lista */
+    .cel-mais {
+      position: fixed; inset: 0 0 calc(60px + env(safe-area-inset-bottom, 0px)) 0; z-index: 44;
+      display: block; overflow-y: auto; background: var(--cel-mais); padding: 56px 24px 24px;
+      opacity: 0; pointer-events: none; transition: opacity .2s ease-out;
+    }
+    .cel-mais.aberto { opacity: 1; pointer-events: auto; }
+    .cel-mais-corpo { display: grid; gap: 16px; align-content: start; }
+    .cel-perfil { display: grid; gap: 8px; padding: 0 4px 8px; justify-items: end; text-align: right; }
+    .cel-perfil b { font: 400 36px/1.05 var(--serif); color: var(--ink); letter-spacing: -.01em; }
+    .cel-perfil span { font: 400 13px var(--sans); color: var(--ink3); letter-spacing: .02em; }
+    .cel-grupo { display: grid; }
+    .cel-grupo button {
+      display: flex; align-items: center; gap: 14px; min-height: 46px; height: auto; padding: 0 4px; width: 100%;
+      border: none; border-bottom: 1px solid var(--ink-a06); border-radius: 0; background: none; text-align: left;
+    }
+    .cel-grupo button:hover:not(:disabled) { background: none; border: none; border-bottom: 1px solid var(--ink-a06); }
+    .cel-grupo button:active { opacity: .6; }
+    .cel-grupo button > span:first-child { flex: 1; min-width: 0; font: 400 15px var(--sans); color: var(--cel-item); letter-spacing: -.005em; }
+    .cel-grupo .ic { flex: none; font-size: 16px; width: 16px; height: 16px; color: var(--cel-seta); }
+
+    /* Entre as telas da barra: esmaecimento curto. */
+    .conversa-col.cel-trocando { animation: cel-entra .2s ease-out both; }
+    @keyframes cel-entra { from { opacity: 0; } to { opacity: 1; } }
+  }

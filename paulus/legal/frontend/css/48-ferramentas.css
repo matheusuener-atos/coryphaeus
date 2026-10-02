@@ -15,9 +15,6 @@
   display: inline-flex; align-items: center; justify-content: center;
   font: 800 15px var(--sans); letter-spacing: -.02em; background: var(--mute2);
 }
-.fl-marca.pdf { background: var(--glifo-pdf); font-size: 10px; letter-spacing: .02em; }
-.fl-marca.docx, .fl-marca.doc { background: var(--glifo-word); }
-.fl-marca.xlsx, .fl-marca.xls { background: var(--glifo-excel); }
 .fl-marca.outro { background: var(--fill2); color: var(--ink2); }
 .fl-nome { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .fl-nome b { display: flex; align-items: baseline; min-width: 0; font: 600 15px var(--sans); color: var(--ink); }

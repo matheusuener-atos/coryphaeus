@@ -6,10 +6,6 @@
     esta atrasado (o icone, o selo e o ponto do grupo); o ambar, para a
     conversa que ficou pela metade. O resto e neutro.
   */
-  .av-central-link { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 8px; border: none; border-radius: 6px;
-    background: none; font: 600 12px var(--sans); color: var(--ink2); white-space: nowrap; }
-  .av-central-link:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .av-central-link .ic { color: var(--ink2); }
 
   /* A faixa: 56 px, um aviso por vez. Com mais de um, a borda da folha de
      tras aparece embaixo (a pilha). */
@@ -56,8 +52,11 @@
   .av-marca:hover:not(:disabled) .ag-circulo { border-color: var(--ink); }
   .av-marca:disabled { cursor: default; }
 
-  /* -------------------------------------------- o painel (inicio e Central) */
-  .av-painel-inicio { width: 100%; margin-top: 2px; }
+  /* ------------------------------------------------ o painel da tela inicial */
+  /* Abaixo da caixa de pedido, com o mesmo respiro da lista de conversas
+     que ele substitui - nunca encostado na caixa. */
+  .av-painel-inicio { width: 100%; margin-top: 28px; }
+  .avp-rodape { display: flex; align-items: center; min-height: 48px; padding: 8px 16px; border-top: 1px solid var(--ink-a1); }
   .avp-cartao { display: grid; background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-card); overflow: hidden; }
   .avp-cabeca { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--ink-a1); }
   .avp-conta { font: 500 12px var(--sans); color: var(--ink3); }
@@ -71,7 +70,8 @@
     font: 500 13px var(--sans); color: var(--ink2); text-align: left;
   }
   .avp-tipo:hover:not(:disabled) { background: var(--sub); border-left-color: transparent; color: var(--ink); }
-  .avp-tipo > span { flex: 1; min-width: 0; text-align: left; }
+  .avp-tipo > span:not(.ic) { flex: 1; min-width: 0; text-align: left; }
+  .avp-tipo > .ic { flex: none; }
   .avp-tipo .ic { color: var(--ink3); }
   .avp-tipo small { font: 400 11px var(--mono); color: var(--ink3); }
   .avp-tipo.vazio { color: var(--ink3); }
@@ -87,7 +87,10 @@
   .avp-ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); flex: none; }
   .avp-ponto.acc { background: var(--acc); }
   .avp-ponto.ambar { background: var(--warnt); }
-  .avp-linha { display: flex; align-items: center; gap: 12px; padding: 11px 16px 11px 20px; border-bottom: 1px solid var(--ink-a06); min-width: 0; cursor: pointer; }
+  /* Cada linha em colunas fixas: marcar, icone, o aviso (titulo e tipo),
+     quando, onde e as acoes - as acoes alinhadas a direita na mesma
+     largura, para os botoes ficarem um embaixo do outro. */
+  .avp-linha { display: grid; grid-template-columns: 28px 18px minmax(0, 1fr) 150px 130px 220px; align-items: center; gap: 14px; padding: 11px 16px 11px 20px; border-bottom: 1px solid var(--ink-a06); min-width: 0; cursor: pointer; }
   .avp-linha:hover { background: var(--sub); }
   .avp-linha.avp-atrasada { background: var(--destaque-fundo); }
   .avp-linha.avp-atrasada:hover { background: var(--fill2); }
@@ -99,7 +102,11 @@
   .avp-texto { display: grid; gap: 2px; flex: 1; min-width: 0; }
   .avp-texto b { font: 600 13.5px/1.35 var(--sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .avp-texto small { font: 500 12px/1.4 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .avp-acoes { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .avp-acoes { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex: none; }
+  .avp-col { font: 500 12.5px var(--sans); color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avp-onde { color: var(--ink3); }
+  .avp-atrasada .avp-quando { color: var(--acc); }
+  .avp-linha[data-av-hist] { grid-template-columns: 18px minmax(0, 1fr) auto; }
   .avp-acao { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--ink-a12); background: var(--bg); font: 600 12.5px var(--sans); color: var(--ink); }
   .avp-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
   .avp-abrir { height: 28px; padding: 0 10px; border: none; border-radius: 7px; background: none; font: 500 12.5px var(--sans); color: var(--ink3); }
@@ -109,19 +116,6 @@
   .avp-nota { margin: 0; padding: 12px 16px; font-size: 13px; line-height: 1.5; color: var(--ink2); border-bottom: 1px solid var(--ink-a06); }
   .av-vazio { margin: 0; padding: 28px 0; text-align: center; font-size: 13.5px; color: var(--ink3); }
 
-  /* A Central: a janela de 920 px, a barra em cima, o painel no meio com
-     rolagem propria e o pe com a conta e a selecao. */
-  .dialogo.av-central { width: 920px; }
-  .av-central .dialogo-cabeca { align-items: center; padding-bottom: 18px; border-bottom: 1px solid var(--ink-a08); }
-  .av-central .dialogo-corpo { padding: 0; gap: 0; }
-  .av-central .dialogo-pe { padding: 14px 24px 18px; border-top: 1px solid var(--ink-a08); }
-  .avp-barra-central { display: flex; align-items: center; gap: 12px; flex: none; }
-  .av-central .avp { height: min(56vh, 600px); }
-  .av-central .avp-nav, .av-central .avp-lista { overflow-y: auto; }
-  .av-central .avp-nav { padding: 10px 10px 12px; gap: 2px; }
-  .av-central .avp-tipo { height: 30px; padding: 0 10px; border: none; border-radius: 7px; font-size: 13px; }
-  .av-central .avp-tipo.ativo, .av-central .avp-tipo.ativo:hover:not(:disabled) { background: var(--fill2); border: none; }
-  .av-central .avp-gaveta { padding: 12px 10px 4px; background: none; border: none; font: 500 10px var(--mono); }
   .avp-pe { display: inline-flex; align-items: center; gap: 10px; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); }
 
   /* No celular: o painel vira uma coluna so, e o circulo de marcar tem o
@@ -143,5 +137,39 @@
     .av-marca { width: 44px; height: 44px; margin: -10px -6px -10px -10px; }
     .av-marca .ag-circulo { width: 24px; height: 24px; }
     .avp-linha { flex-wrap: wrap; }
-    .avp-acoes { width: 100%; justify-content: flex-start; padding-left: 38px; }
+    .avp-linha { grid-template-columns: 44px minmax(0, 1fr); row-gap: 6px; }
+    .avp-linha .avp-ic, .avp-linha .avp-col { display: none; }
+    .avp-acoes { grid-column: 2; justify-content: flex-start; }
   }
+
+  /* ------------------------------------------- a vez dos avisos e do apoio */
+  /* js/78-chamada-da-vez.js: o titulo da saudacao se reveza com o apoio e os
+     avisos, esmaecendo na troca. Com a mesma medida da saudacao (720 px,
+     duas linhas equilibradas), os tres textos ocupam o mesmo lugar. O
+     esmaecer e o piscar seguem o "Animacoes reduzidas" do PAULUS
+     (html.sem-animacao), como o resto do app - nao o ajuste do Windows,
+     que nesta maquina vem desligado e apagava a troca. Ao lado, menor, o que o clique faz. O
+     apoio leva o vinho da marca do Apoiar no coracao e na dica. */
+  .saudacao-bloco > * { transition: opacity .7s ease, transform .7s ease; }
+  /* Na abertura, tudo apagado ate a frase final chegar (revelarSaudacao). */
+  .saudacao-bloco.abrindo > * { opacity: 0; }
+  /* Lugar fixo: o bloco da saudacao reserva sempre a altura de um titulo e
+     de uma frase de duas linhas cada. O texto fica no alto, colado; a sobra
+     fica embaixo, antes da caixa de pedido, que nao se mexe. */
+  .conversa-col.vazia .saudacao-bloco { min-height: calc(76px + 8px + 24px + 2 * 1.02 * clamp(34px, 3.4vw, 46px) + 14px + 2 * 1.65 * 16px + 14px + 16px); align-content: start; }
+  .saudacao-bloco.vez-saindo > :is(.chamada, .sub-chamada) { opacity: 0; transform: translateY(4px); }
+  .conversa-col.vazia .compositor.na-vez :is(#chamada, #sub-chamada) { display: none; }
+  .conversa-col:not(.vazia) :is(#chamada-vez, #sub-vez) { display: none; }
+  .chamada-vez { cursor: pointer; }
+  .vez-dica { font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-a25); text-underline-offset: 3px; white-space: nowrap; }
+  .sub-vez { cursor: pointer; }
+  :is(.chamada-vez, .sub-vez):hover ~ .sub-vez .vez-dica, .sub-vez:hover .vez-dica { text-decoration-color: currentColor; }
+
+  /* Com aviso esperando, Aprovacoes pisca devagar. */
+  .pisca-avisos { position: relative; }
+  .pisca-avisos::after {
+    content: ""; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--acc); animation: pisca-avisos 1.6s ease-in-out infinite;
+  }
+  .menu-item.pisca-avisos::after { top: 50%; right: 12px; margin-top: -3.5px; }
+  @keyframes pisca-avisos { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }

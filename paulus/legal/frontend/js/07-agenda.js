@@ -1454,7 +1454,8 @@ function copiarTexto(texto, aviso) {
 function menuNaLinha(botao, itens) {
   document.querySelectorAll(".menu-conversa.menu-novo").forEach((m) => m.remove());
   const menu = document.createElement("div");
-  menu.className = "menu-conversa menu-novo";
+  menu.className = "menu-conversa menu-novo recem";
+  setTimeout(() => menu.classList.remove("recem"), 0);
   const botaoDoItem = (it, i, prefixo) => {
     const classe = [it.perigo ? "perigo" : "", it.atual ? "atual" : ""].filter(Boolean).join(" ");
     return '<button data-' + prefixo + '="' + i + '"' + (classe ? ' class="' + classe + '"' : "") + ">" + esc(it.rotulo) +

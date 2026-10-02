@@ -179,10 +179,12 @@ def test_celular(navegador, base: str) -> None:
         pag.wait_for_timeout(500)
         checar(pag.evaluate("() => document.documentElement.classList.contains('remoto')"), "entrou de fora")
         checar(pag.evaluate(largura) <= 390, "a conversa cabe em 390 px", pag.evaluate(largura))
-        trilho = pag.evaluate("() => { const r = document.getElementById('trilho').getBoundingClientRect(); return {topo: r.top, altura: r.height}; }")
+        # Pacote "PAULUS - Telas Mobile" (02/10/2026): no celular o trilho sai
+        # e a navegacao e a barra de baixo de cinco icones (#barra-celular).
+        trilho = pag.evaluate("() => { const r = document.getElementById('barra-celular').getBoundingClientRect(); return {topo: r.top, altura: r.height}; }")
         checar(trilho["topo"] > 700, "a barra de destinos fica embaixo", trilho)
-        alvos = pag.evaluate("() => [...document.querySelectorAll('.trilho-item')].filter(b => b.offsetParent).map(b => b.getBoundingClientRect().height)")
-        checar(alvos and min(alvos) >= 44, "cada destino tem 44 px de toque", alvos[:3])
+        alvos = pag.evaluate("() => [...document.querySelectorAll('#barra-celular button')].filter(b => b.offsetParent).map(b => Math.min(b.getBoundingClientRect().height, b.getBoundingClientRect().width))")
+        checar(len(alvos) == 5 and min(alvos) >= 44, "cada destino tem 44 px de toque", alvos)
 
         nome = api.estado.searcher.documents[0].name if api.estado.searcher.documents else ""
         if nome:

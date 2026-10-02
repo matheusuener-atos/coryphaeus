@@ -1045,6 +1045,9 @@ function desenharAtividade(itens) {
 }
 
 $("registro-cabeca").onclick = () => {
+  // Como barra da proxima pergunta ("A próxima pergunta lê só…"), ela so
+  // informa: nao abre nem fecha nada (pedido de 02/10).
+  if ($("registro").classList.contains("barra-escopo")) return;
   const aberto = $("registro").classList.toggle("aberto");
   $("atividade").hidden = !aberto;
 };

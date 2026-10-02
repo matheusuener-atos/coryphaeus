@@ -44,8 +44,7 @@ function nomeSemExtensao(nome) {
    nome com a extensao apagada em monoespaco, a linha de baixo e os botoes. */
 function topoDaFerramenta(o) {
   const ext = o.extensao !== undefined ? o.extensao : extensaoDe(o.nome);
-  const marca = o.marca || ("<span class=\"fl-marca " + (["pdf", "docx", "doc", "xlsx", "xls"].includes(ext) ? ext : "outro") + "\">" +
-    (ext === "pdf" ? "PDF" : (ext === "docx" || ext === "doc") ? "W" : (ext === "xlsx" || ext === "xls") ? "X" : ic("description", 18)) + "</span>");
+  const marca = o.marca || ('<span class="fl-marca ' + classeDoTipo(ext ? "x." + ext : "") + '" aria-hidden="true"></span>');
   return '<div class="fl-topo">' + marca +
     '<div class="fl-nome"><b title="' + esc(o.nome) + '"><span class="corta">' + (o.tituloHtml || esc(nomeSemExtensao(o.nome))) + "</span>" +
     (ext ? '<span class="fl-ext">.' + esc(ext) + "</span>" : "") + (o.depoisDoNome || "") + "</b>" +

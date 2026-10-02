@@ -219,10 +219,19 @@
     display: inline-flex; align-items: center; justify-content: center;
     font: 800 11px var(--sans); letter-spacing: -.02em;
   }
-  .glifo.pdf { background: var(--glifo-pdf); font-size: 7px; letter-spacing: .02em; }
-  .glifo.docx, .glifo.doc { background: var(--glifo-word); }
-  .glifo.xlsx, .glifo.xls { background: var(--glifo-excel); }
-  .glifo.outro { background: var(--mute2); font-size: 8px; }
+  /* A miniatura do tipo (js/12-telas-e-acervo.js, tipoDoArquivo): a folha
+     colorida de frontend/img/tipo-*.png, inteira na caixa, sem fundo. Vale
+     para o glifo (20 px) e para a marca do visor (.fl-marca, 32 px). */
+  :is(.glifo, .fl-marca)[class*=" t-"] { border-radius: 0; background: center / contain no-repeat; }
+  :is(.glifo, .fl-marca).t-pdf { background-image: url("/img/tipo-pdf.png"); }
+  :is(.glifo, .fl-marca).t-word { background-image: url("/img/tipo-word.png"); }
+  :is(.glifo, .fl-marca).t-xls { background-image: url("/img/tipo-xls.png"); }
+  :is(.glifo, .fl-marca).t-ppt { background-image: url("/img/tipo-ppt.png"); }
+  :is(.glifo, .fl-marca).t-text { background-image: url("/img/tipo-text.png"); }
+  :is(.glifo, .fl-marca).t-image { background-image: url("/img/tipo-image.png"); }
+  :is(.glifo, .fl-marca).t-record { background-image: url("/img/tipo-record.png"); }
+  :is(.glifo, .fl-marca).t-zip { background-image: url("/img/tipo-zip.png"); }
+  :is(.glifo, .fl-marca).t-doubt { background-image: url("/img/tipo-doubt.png"); }
   .nome-doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .duas-linhas { display: grid; line-height: 1.3; min-width: 0; flex: 1; }
   .duas-linhas b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

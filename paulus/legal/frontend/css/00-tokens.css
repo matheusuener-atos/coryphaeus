@@ -59,6 +59,11 @@
     /* A coluna da direita da conversa: um tom abaixo da superficie, entre ela
        e o fundo (no escuro, #161615 do pacote de telas). */
     --lado-fundo: #f4f3ef;
+    /* O celular (52-celular.css): marca d'agua, fundo do Mais, seta e item da lista. */
+    --cel-marca: #e6e4dd;
+    --cel-mais: #f4f3ef;
+    --cel-seta: #b5b3ab;
+    --cel-item: #2a2a27;
     /* O brilho que corre pela faixa do que esta andando. */
     --brilho: rgba(255,255,255,.5);
     /* O vermelho do botao de fechar a janela. E o do proprio Windows, nos dois
@@ -181,6 +186,10 @@
     --primario-hover: #dcdad3;
     --primario-ink: #161615;
     --lado-fundo: #161615;
+    --cel-marca: #2e2e2b;
+    --cel-mais: #0f0f0e;
+    --cel-seta: #3f3e3a;
+    --cel-item: #e8e6df;
 
     --ink-a06: rgba(242,241,236,.06);
     --ink-a08: rgba(242,241,236,.08);

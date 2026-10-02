@@ -85,15 +85,33 @@ function dataLonga(iso) {
 }
 
 /* O glifo de formato do desenho: PDF, W, X. */
+/* A miniatura do tipo de arquivo (frontend/img/tipo-*.png, o jogo de
+   icones de 02/10/2026): uma folha por familia, e "doubt" para o que nao se
+   conhece. Glifo (20 px), cabecalho do visor (32 px) e abas do editor usam
+   a mesma decisao. */
+const TIPO_POR_EXTENSAO = {
+  pdf: "pdf",
+  doc: "word", docx: "word", odt: "word", rtf: "word",
+  xls: "xls", xlsx: "xls", csv: "xls", ods: "xls",
+  ppt: "ppt", pptx: "ppt", odp: "ppt",
+  txt: "text", md: "text",
+  png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", bmp: "image", tif: "image", tiff: "image", heic: "image", svg: "image",
+  mp3: "record", wav: "record", m4a: "record", ogg: "record", opus: "record", flac: "record", aac: "record", webm: "record", mp4: "record", mov: "record",
+  zip: "zip", rar: "zip", "7z": "zip", tar: "zip", gz: "zip",
+};
+
+function tipoDoArquivo(nome) {
+  const ext = /\.([a-z0-9]{1,5})$/i.exec(nome || "");
+  return (ext && TIPO_POR_EXTENSAO[ext[1].toLowerCase()]) || "doubt";
+}
+
+/* A classe que aponta a imagem (t-pdf, t-word...), inteira. */
+function classeDoTipo(nome) {
+  return "t-" + tipoDoArquivo(nome);
+}
+
 function glifo(nome) {
-  const ext = ((nome || "").split(".").pop() || "").toLowerCase();
-  const conhecidas = ["pdf", "docx", "doc", "xlsx", "xls"];
-  const classe = conhecidas.includes(ext) ? ext : "outro";
-  const texto = ext === "pdf" ? "PDF"
-    : (ext === "docx" || ext === "doc") ? "W"
-    : (ext === "xlsx" || ext === "xls") ? "X"
-    : (ext.slice(0, 3).toUpperCase() || "?");
-  return '<span class="glifo ' + classe + '">' + texto + "</span>";
+  return '<span class="glifo ' + classeDoTipo(nome) + '" aria-hidden="true"></span>';
 }
 
 /* O cabecalho da tela: busca, seletor de visoes e a acao principal. E o

@@ -29,7 +29,8 @@
       position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 72vh; margin: 0;
       border-left: none; border-radius: 16px 16px 0 0; z-index: 40; box-shadow: var(--elev-float);
     }
-    .lado-contexto, .lado-ferramenta { width: 100%; }
+    .lado-contexto, .lado-ferramenta { width: 100%; top: 0; }
+    .lado-arrasto { display: none; }
     .conversa-col.em-conversa .fluxo, .conversa-col.em-conversa > .conversa-rodape { padding-inline: 16px; }
     .conversa-col.em-conversa > .conversa-topo { padding: 16px 16px 0; }
     :root { --margem-lado: 16px; --margem-topo: 16px; }

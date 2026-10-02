@@ -276,16 +276,21 @@
                      a conversa fica com 560 px a esquerda.
      `--lado` e registrada (@property, abaixo) e anima: a coluna desliza ou
      se alarga, e a conversa encolhe junto, no mesmo passo, sem pular. */
+  /* Ela passa direto pela linha da barra de titulo, do alto da janela ao pe
+     (pedido de 02/10: sem a quina em cima). Os 32 px de cima ficam vazios -
+     os botoes da janela (fixos, acima de tudo) e a faixa de arrastar - e o
+     conteudo comeca embaixo deles. */
   .lateral {
-    position: absolute; top: 32px; right: 0; bottom: 0; z-index: 6;
+    position: absolute; top: 0; right: 0; bottom: 0; z-index: 6;
     width: var(--lado); min-width: 0; overflow: hidden;
     background: var(--lado-fundo); border-left: 1px solid var(--ink-a08);
   }
   /* O que esta dentro tem a largura de CHEGADA (--lado-alvo, que nao anima)
      e fica preso a borda direita: enquanto a coluna cresce, ela vai
      mostrando o conteudo da direita para a esquerda, como gaveta. */
+  .lado-arrasto { position: absolute; top: 0; left: 0; right: 0; height: 32px; }
   .lado-contexto, .lado-ferramenta {
-    position: absolute; top: 0; right: 0; bottom: 0; width: var(--lado-alvo);
+    position: absolute; top: 32px; right: 0; bottom: 0; width: var(--lado-alvo);
     display: flex; flex-direction: column; min-height: 0;
   }
   .lado-contexto { overflow-y: auto; }
@@ -691,7 +696,7 @@
   /* Uma linha solta, sem caixa: o ponto verde e a frase em 12,5 px, logo
      acima da caixa de pedido (pacote de telas, `Conversa`). */
   .registro.barra-escopo { padding-bottom: 8px; }
-  .registro.barra-escopo .registro-cabeca { cursor: default; gap: 8px; padding: 0 4px; border: none; border-radius: 0; background: none; font: 500 12.5px var(--sans); }
+  .registro.barra-escopo .registro-cabeca { cursor: default; user-select: text; gap: 8px; padding: 0 4px; border: none; border-radius: 0; background: none; font: 500 12.5px var(--sans); }
   .registro.barra-escopo .registro-cabeca:hover:not(:disabled) { background: none; border: none; }
   .registro.barra-escopo .registro-agora { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .registro.barra-escopo.andando .registro-agora { color: var(--ink); }

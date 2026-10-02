@@ -204,29 +204,12 @@ async function oferecerConviteNaConversa(resposta) {
 
 /* ------------------------------------------------- na tela inicial */
 
+/* Na tela inicial o convite e a chamada (js/78-chamada-da-vez.js): "Ja
+   pensou em apoiar o PAULUS hoje?", com "Apoiar" e "Agora nao". */
 async function desenharConviteNaInicio() {
-  const caixa = $("ap-convite");
-  if (!caixa) return;
-  if (!$("conversa-col").classList.contains("vazia")) { caixa.hidden = true; return; }
-  await carregarConvite(false);
   if (!$("conversa-col").classList.contains("vazia")) return;
-  if (!conviteCabe()) {
-    if (!caixa.hidden && animacoesLigadas() && caixa.firstElementChild) {
-      sairDoAr(caixa, { aoFim: () => { caixa.hidden = true; caixa.innerHTML = ""; } });
-    } else {
-      caixa.hidden = true;
-      caixa.innerHTML = "";
-    }
-    return;
-  }
-  const novo = caixa.hidden;
-  caixa.hidden = false;
-  const redesenhar = () => {
-    caixa.innerHTML = '<div class="agora-cabeca"><span class="sv-kicker">Apoie o PAULUS</span></div>' + cartaoDoConvite("inicio");
-    ligarConvite(caixa, redesenhar, () => desenharConviteNaInicio());
-  };
-  redesenhar();
-  if (novo && animacoesLigadas()) entraConteudo(caixa);
+  await carregarConvite(false);
+  if (typeof atualizarChamadaDaVez === "function") atualizarChamadaDaVez();
 }
 
 (function () {

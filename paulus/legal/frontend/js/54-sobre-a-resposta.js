@@ -207,6 +207,7 @@ function desenharBarra() {
   $("atividade").hidden = true;
   caixa.classList.remove("aberto");
   caixa.classList.add("barra-escopo");
+  $("registro-cabeca").tabIndex = -1;
   const seta = caixa.querySelector(".registro-seta");
   if (seta) seta.hidden = true;
   if (!estado.trabalhoId) { caixa.hidden = true; return; }
