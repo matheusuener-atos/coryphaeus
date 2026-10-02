@@ -1,11 +1,22 @@
 {
-  "versao": "0.9.24",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.24/PAULUS-0.9.24-instalador.exe",
-  "sha256": "66f720658bc164065a02b583e5ef7fde599d304b99c2d1ccec67e131ef9282e3",
-  "tamanho": 101820027,
+  "versao": "0.9.25",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.25/PAULUS-0.9.25-instalador.exe",
+  "sha256": "8292293f63a38e09d0128bbca48f098d53cf3faf2124c3bbe8849315c88e8bf5",
+  "tamanho": 101935474,
   "publicada": "2026-10-01",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.24",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.25",
   "novidades": [
-    "PAVLVS no Word: o atalho \"Word com PAVLVS\" na área de trabalho, o \"Abrir no Word com o PAVLVS\" no botão direito dos .docx e o Abrir no Word do Editor abrem o Word já com a aba e o painel (no Word 2021 a aba só aparecia no documento que traz o PAVLVS)"
+    "O ditado chega ao editor do e-mail: o microfone no rodapé do editor abre o ditado de sempre, o cartão diz que o texto entra no e-mail (\"Pôr no e-mail\", sem o \"Concluir e enviar\" da conversa), e ao concluir o texto entra no fim do e-mail como se digitado — o rascunho se salva sozinho. O plano registr",
+    "A resposta de e-mail sai encadeada: a mensagem aberta guarda o Message-ID e as References, e a resposta (pela conversa e pela caixa) leva In-Reply-To e References com a corrente dela — no Gmail e no Outlook de quem escreveu, ela entra na mesma conversa. Passa por Aprovações com os dois campos. E o E",
+    "A planilha do editor passa a guardar o fundo da célula (uma paleta curta: vermelho, amarelo, verde, cinza), que vai para o XLSX e volta dele na cor mais perto; as três grades pintam. Com isso o \"Destacar atrasados\" da planilha aberta na conversa deixa de ser só da tela: as linhas vencidas e não paga",
+    "A \"Próxima que pede resposta\" do e-mail aberto na conversa passa a ficar nela: a rota nova POST /api/email/conversa/proxima abre a mensagem e grava a fala (\"A próxima que pede resposta: Priscila Almeida, “…”\", com o que a mensagem é por regra) e o cartão na conversa guardada, como o \"abra o e-mail…\"",
+    "A semana da conversa (`Conversa - Agendar`) não empilha mais um compromisso em cima do outro: cada grupo que se sobrepõe no dia divide a largura em faixas e cada bloco pega a primeira livre — o horário proposto, tracejado, entra na conta —, e o que não se sobrepõe continua com a largura toda. Teste ",
+    "O relatório financeiro pela conversa ganha as duas faltas do T4: o prazo médio de recebimento (dias entre o vencimento e o recebimento) no mesmo período do extrato, com o do mês de comparação ao lado — sem três recebimentos com vencimento, diz que não há média em vez de inventar uma —, e cada catego",
+    "Duas faltas do T4: o \"desde\" da ficha passa a valer na folha — quem começa no mês que vem não entra na folha deste nem é candidato a ela (no mês em que começa entra com o valor inteiro: a folha não faz proporcional) —, e o lançamento ganha o \"Cliente · processo\" do desenho: escolhido o cliente, a co",
+    "O e-mail novo pela conversa: \"escreva um e-mail para a Priscila pedindo o comprovante da parcela de setembro\" (ou \"manda um email pra contato@... pedindo...\") abre o envelope na conversa com quem recebe achado na ficha de Cadastros (ou o endereço dito), e o modelo escreve o assunto e o texto só com ",
+    "T5 das telas do Assistente: as Configurações pela conversa — \"troquei de número, agora é (94) 99123-4567. e já liga o papel timbrado\", \"para de me avisar de pausa e coloca o tema claro durante o dia\", \"tira gravações e assinatura do menu\", \"o paulus tá atualizado?\", \"apaguei sem querer o documento B",
+    "T4 das telas do Assistente, terceira parte: Financeiro e Relatório pela conversa — \"como está o financeiro do mês?\" traz os cinco números, o fluxo de seis meses e o que está a receber e a pagar, com a coluna do que precisa de você, o Parecer do mês (o modelo escreve sobre a conta feita aqui), os pap",
+    "T4 das telas do Assistente, segunda parte: Lançamento e Recebimento pela conversa — \"lança a perícia do José Carlos, 2.150 com vencimento dia 8, o boleto tá anexo\" e \"a Rio Fresco pagou a parcela de setembro, 6.036 com os juros\" abrem o lançamento na coluna de 420, lido por regra (valor, dia, quem, ",
+    "T4 das telas do Assistente, primeira parte: Cadastro, Equipe e Despesa fixa pela conversa — a ficha abre na coluna de 420, preenchida por regra (o nome procurado no Acervo com o CPF/CNPJ e o endereço que estão perto dele; a pessoa, a função, o salário e o convite que a frase diz; o contrato anexo li"
   ]
 }

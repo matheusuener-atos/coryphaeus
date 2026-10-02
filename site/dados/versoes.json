@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "0.9.25",
+      "date": "2026-10-01",
+      "changes": [
+        "O ditado chega ao editor do e-mail: o microfone no rodapé do editor abre o ditado de sempre, o cartão diz…",
+        "A resposta de e-mail sai encadeada: a mensagem aberta guarda o Message-ID e as References, e a resposta…",
+        "A planilha do editor passa a guardar o fundo da célula (uma paleta curta: vermelho, amarelo, verde,…",
+        "A \"Próxima que pede resposta\" do e-mail aberto na conversa passa a ficar nela: a rota nova POST…",
+        "A semana da conversa (Conversa - Agendar) não empilha mais um compromisso em cima do outro: cada grupo que…",
+        "O relatório financeiro pela conversa ganha as duas faltas do T4: o prazo médio de recebimento (dias entre…",
+        "Duas faltas do T4: o \"desde\" da ficha passa a valer na folha",
+        "O e-mail novo pela conversa: \"escreva um e-mail para a Priscila pedindo o comprovante da parcela de…",
+        "T5 das telas do Assistente: as Configurações pela conversa",
+        "T4 das telas do Assistente, terceira parte: Financeiro e Relatório pela conversa",
+        "T4 das telas do Assistente, segunda parte: Lançamento e Recebimento pela conversa",
+        "T4 das telas do Assistente, primeira parte: Cadastro, Equipe e Despesa fixa pela conversa"
+      ]
+    },
+    {
       "version": "0.9.24",
       "date": "2026-10-01",
       "changes": [
