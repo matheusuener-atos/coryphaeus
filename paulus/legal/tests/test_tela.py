@@ -105,6 +105,12 @@ def _subir_servidor(porta: int):
     import api
 
     api.estado.porta = porta
+    # Os dados reais podem estar vinculados a uma conta Google sem "manter
+    # aberto": o servidor sobe travado e toda rota responde 423 ate entrar com
+    # o Google. A trava tem teste proprio (test_e5_vinculo); aqui ela fica
+    # aberta so neste processo - nada e gravado nos dados.
+    if getattr(api.estado, "vinculo", None) is not None:
+        api.estado.vinculo.destravado = True
     servidor = uvicorn.Server(
         uvicorn.Config(api.app, host="127.0.0.1", port=porta, log_level="error")
     )
@@ -165,6 +171,10 @@ def test_celular(navegador, base: str) -> None:
         largura = "() => document.documentElement.scrollWidth"
 
         pag.goto(base + "/", wait_until="networkidle")
+        # Com o Google configurado (dados de verdade), ele vem primeiro e o
+        # e-mail e a senha ficam no "Entrar com e-mail e senha".
+        if pag.locator("#usar-senha").is_visible():
+            pag.click("#usar-senha")
         checar(pag.evaluate(largura) <= 390 and pag.locator("#email").is_visible(), "a tela de entrar cabe em 390 px",
                pag.evaluate(largura))
         pag.fill("#email", email)
@@ -416,10 +426,13 @@ def main() -> int:
                 "logo depois do nome do escritorio vem 'Acesso a distancia'",
                 pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
             )
+            # De fabrica vem desligado; nos dados de verdade, com um endereco
+            # ja gravado, vem ligado. O teste confere o que os dados dizem.
+            ja_tem = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("hostname"))
             checar(
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked') === 'false'"
-                                " && !document.getElementById('cx-slug')"),
-                "desligado de fabrica, sem nada para preencher",
+                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == str(ja_tem).lower()
+                and (ja_tem or not pagina.evaluate("() => !!document.getElementById('cx-slug')")),
+                "desligado de fabrica (ou como os dados dizem), sem nada para preencher",
             )
             # Ligado, com o Worker de mentira: so a disponibilidade.
             from types import SimpleNamespace
@@ -428,22 +441,24 @@ def main() -> int:
             provisao_antes = conexao.provisao
             conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst, token="": {"disponivel": True, "motivo": "", "sugestao": ""})
             try:
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
-                pagina.wait_for_selector("#cx-slug", timeout=5000)
-                pagina.fill("#cx-slug", "escritorio-da-tela")
-                pagina.wait_for_timeout(1200)
-                checar(
-                    pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
-                    and "disponível" in pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
-                    "ligado: o endereco, conferido enquanto digita, com o final em destaque",
-                    pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
-                )
-                checar(
-                    pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
-                    "as tres etapas: endereco, conta do titular, confirmar no navegador",
-                )
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
-                pagina.wait_for_timeout(300)
+                # Com um endereco ja gravado (dados de verdade), ligar nao se aplica.
+                if not ja_tem:
+                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                    pagina.wait_for_selector("#cx-slug", timeout=5000)
+                    pagina.fill("#cx-slug", "escritorio-da-tela")
+                    pagina.wait_for_timeout(1200)
+                    checar(
+                        pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
+                        and "disponível" in pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
+                        "ligado: o endereco, conferido enquanto digita, com o final em destaque",
+                        pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
+                    )
+                    checar(
+                        pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
+                        "as tres etapas: endereco, conta do titular, confirmar no navegador",
+                    )
+                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                    pagina.wait_for_timeout(300)
             finally:
                 conexao.provisao = provisao_antes
             pagina.evaluate("() => concluirBoasVindas(true)")
