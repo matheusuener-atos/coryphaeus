@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "0.9.26",
+      "date": "2026-10-02",
+      "changes": [
+        "O celular no desenho novo e a tela inicial mais limpa: até 600 px, a tela Assistente do pacote mobile…",
+        "Toda tela tem chamada pela conversa: \"abra a agenda\", \"vá para Agentes\", \"pode abrir a lixeira?\", \"quero…"
+      ]
+    },
+    {
       "version": "0.9.25",
       "date": "2026-10-01",
       "changes": [
