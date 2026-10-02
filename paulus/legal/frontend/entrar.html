@@ -153,6 +153,14 @@
   .confiar input:checked + i svg { opacity: 1; }
   .confiar input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .link-senha:hover { color: var(--ink); }
+  /* A chave de recuperacao (desenho "Chave de recuperacao"): um campo so,
+     com a borda acesa, e a ajuda embaixo. */
+  .casas.campo { display: block; }
+  .casas.campo span { display: none; }
+  .casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio-forte); outline: none; color: var(--ink); caret-color: var(--ink);
+    font: 400 15px 'Fira Code', monospace; letter-spacing: .14em; text-transform: uppercase; }
+  .ajuda-chave { font: 400 12px/1.5 'Manrope', sans-serif; color: var(--apagado); text-wrap: pretty; }
 
   /* --- no computador: uma coluna de 360 px no meio da tela, a marca em
      cima (56 px) e o formulario 40 px abaixo - o desenho "Escritorio online"
@@ -217,8 +225,9 @@
         <div class="casas" id="casas">
           <input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos" required>
         </div>
+        <span class="ajuda-chave" id="ajuda-chave" hidden>Cada chave funciona uma vez. Depois de entrar, gere novas em Configurações.</span>
       </div>
-      <label class="confiar"><input type="checkbox" id="confiar"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg></i><span>Confiar neste navegador por 30 dias</span></label>
+      <label class="confiar" id="caixa-confiar"><input type="checkbox" id="confiar"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg></i><span>Confiar neste navegador por 30 dias</span></label>
       <p class="erro" id="erro-codigo" role="alert"></p>
       <button type="submit" class="g-trilho" id="entrar"><span class="g-pastilha" id="entrar-texto">Entrar</span></button>
       <button type="button" class="link-senha" id="recuperacao">Não tenho o celular</button>
@@ -436,13 +445,18 @@
     c.maxLength = porRecuperacao ? 9 : 6;
     c.inputMode = porRecuperacao ? "text" : "numeric";
     c.setAttribute("aria-label", porRecuperacao ? "Chave de recuperação de 8 caracteres" : "Código de 6 dígitos");
-    $("quem-titulo").textContent = porRecuperacao ? "Sem o celular? Use uma chave de recuperação." : "Confirme quem você é.";
+    $("quem-titulo").textContent = porRecuperacao ? "Use uma das chaves guardadas." : "Confirme quem você é.";
     $("rotulo-codigo").textContent = porRecuperacao ? "CHAVE DE RECUPERAÇÃO" : "GOOGLE AUTHENTICATOR";
-    $("renova").textContent = porRecuperacao ? "vale uma vez" : "renova em ";
+    $("renova").textContent = porRecuperacao ? "uso único" : "renova em ";
     if (!porRecuperacao) { const b = document.createElement("b"); b.id = "segundos"; $("renova").appendChild(b); relogio(); }
-    $("casas").style.setProperty("--n", porRecuperacao ? 8 : 6);
-    $("recuperacao").textContent = porRecuperacao ? "Entrar com o Authenticator" : "Não tenho o celular";
-    $("entrar-texto").textContent = porRecuperacao ? "Entrar com a chave" : "Entrar";
+    $("casas").classList.toggle("campo", porRecuperacao);
+    $("ajuda-chave").hidden = !porRecuperacao;
+    $("trocar").hidden = porRecuperacao;
+    $("caixa-confiar").hidden = porRecuperacao;
+    if (porRecuperacao) $("confiar").checked = false;
+    c.autocomplete = porRecuperacao ? "off" : "one-time-code";
+    $("recuperacao").textContent = porRecuperacao ? "Usar o Google Authenticator" : "Não tenho o celular";
+    $("entrar-texto").textContent = "Entrar";
     $("erro-codigo").textContent = "";
     desenharCasas();
     c.focus();
