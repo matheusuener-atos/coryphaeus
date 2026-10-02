@@ -464,8 +464,13 @@ class Estado:
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
         self.lixeira = lixeira_mod.Lixeira(self.base, LIXEIRA_DIR)
         self.lixeira.esvaziar_vencidos()
-        for id_ in self.gravacoes.pendentes():
-            self.fila_voz.put(id_)
+        # PAULUS_SEM_VOZ=1: nao retoma as transcricoes pendentes ao subir. Os
+        # testes que sobem o servidor sobre os dados reais (tests/test_tela.py)
+        # usam: carregar o Whisper para a gravacao parada de verdade derrubava
+        # o processo por falta de memoria (02/10; o Whisper tera rodada propria).
+        if os.environ.get("PAULUS_SEM_VOZ") != "1":
+            for id_ in self.gravacoes.pendentes():
+                self.fila_voz.put(id_)
         threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(

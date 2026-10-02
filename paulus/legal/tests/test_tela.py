@@ -31,6 +31,11 @@ from pathlib import Path
 
 RAIZ = Path(__file__).parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
+# O servidor sobe sobre os dados reais: sem retomar as transcricoes paradas
+# deles (carregar o Whisper ali derrubava o teste por falta de memoria).
+import os  # noqa: E402
+
+os.environ.setdefault("PAULUS_SEM_VOZ", "1")
 
 _falhas: list[str] = []
 
