@@ -91,6 +91,67 @@ RESOLVE_C4 = {
                    "com o PAULUS, e o processo pelo número no DataJud. Fica na Biblioteca, no menu.",
 }
 
+# Pedido de 02/10/2026: "garanta que exista chamada para chegarmos em cada
+# tela". As telas e seções que não eram destino do servidor: cada uma com o
+# nome que a pessoa lê, o que faz e os outros nomes pelos quais é chamada.
+# Valem sempre (não dependem da chave C4). O frontend abre cada uma em
+# abrirTelaDaConversa (js/08-destinos.js); "config_<secao>" abre a seção de
+# Configurações de mesmo nome. tests/test_navegacao.py confere que toda tela
+# daqui tem quem a abra lá.
+TELAS_NAVEGAVEIS = {
+    "agentes": ("Agentes",
+                "Os agentes do escritório - assistentes com instruções, fontes e ferramentas próprias - e as tarefas "
+                "de vários passos.",
+                ("agentes", "agente", "meus agentes", "tarefas de varios passos")),
+    "avisos": ("Avisos",
+               "Os avisos do dia: prazos, contas, compromissos e conversas que ficaram pela metade, com o histórico "
+               "do que já foi visto.",
+               ("avisos", "aviso", "meus avisos", "notificacoes", "central de avisos", "lembretes do dia")),
+    "mais": ("Mais",
+             "O menu do perfil e das Configurações. No celular, é o ☰ da barra de baixo.",
+             ("menu", "menu mais", "mais", "menu de configuracoes", "menu do perfil")),
+    "config_perfil": ("Meus dados", "Seus dados e os do escritório, que entram nos documentos que o PAULUS gera.",
+                      ("meus dados", "meu perfil", "perfil", "dados pessoais", "meu cadastro")),
+    "config_vinculos": ("Escritório e equipe", "O escritório, a equipe e o que cada pessoa pode fazer.",
+                        ("escritorio", "equipe", "escritorio e equipe", "minha equipe", "usuarios")),
+    "config_assistente": ("Assistente e modelo", "Como o assistente responde e o modelo que ele usa.",
+                          ("assistente e modelo", "configuracoes do assistente", "ajustes do assistente")),
+    "config_modelos": ("Modelos", "Os modelos de linguagem desta máquina: baixar, trocar e medir.",
+                       ("modelos", "modelos de linguagem", "modelos de ia", "modelo de ia")),
+    "config_backup": ("Backup", "A cópia de segurança de tudo o que o escritório guarda neste computador.",
+                      ("backup", "copia de seguranca", "backups")),
+    "config_lixeira": ("Lixeira", "O que foi apagado fica aqui por 30 dias, com o caminho para voltar.",
+                       ("lixeira", "itens apagados", "apagados", "arquivos apagados")),
+    "config_aparencia": ("Aparência", "Tema, avisos do Windows e animações.",
+                         ("aparencia", "tema", "aparencia e avisos", "modo escuro", "modo claro")),
+    "config_menu": ("Módulos", "O que aparece no menu desta máquina.",
+                    ("modulos", "modulo", "modulos do menu")),
+    "config_plano": ("Apoio e versão", "A versão instalada, as atualizações e a licença.",
+                     ("versao", "apoio e versao", "atualizacoes", "atualizacao", "sobre o paulus", "sobre")),
+    "config_word": ("Word", "O PAVLVS dentro do Word: o painel que confere citações e insere trechos.",
+                    ("word", "suplemento do word", "paulus no word", "complemento do word")),
+    "config_feedback": ("Feedback", "Mandar uma sugestão ou um problema para quem faz o PAULUS.",
+                        ("feedback", "enviar feedback", "sugestao", "reportar problema")),
+}
+
+# Outros nomes de telas que já existiam, ditos do jeito que se fala.
+APELIDOS_EXTRAS = {
+    "conversa": ("inicio", "tela inicial", "pagina inicial", "assistente", "chat", "conversa"),
+    "editor": ("editor de documentos", "editor de texto", "editor"),
+    "apoiar": ("apoiar", "apoio", "apoiar o projeto", "doacao", "doar"),
+    "calendario": ("agenda", "calendario", "minha agenda"),
+    "biblioteca": ("acervo", "meus documentos", "documentos do escritorio"),
+    "caixa": ("email", "e mail", "emails", "caixa de entrada", "meus emails"),
+    "gravacoes": ("gravacoes", "gravacao", "minhas gravacoes", "reunioes gravadas"),
+    "assinar": ("assinatura", "assinar", "assinaturas", "assinar documento"),
+    "config": ("configuracoes", "configuracao", "ajustes", "preferencias"),
+}
+
+# Palavras que acompanham o nome da tela sem fazer parte dele: "a seção de
+# Backup", "a lixeira do PAULUS".
+SOBRA_DA_NAVEGACAO = {"paulus", "pavlvs", "sistema", "programa", "secao", "sessao", "area", "parte", "de",
+                      "do", "da", "dos", "das", "e", "nas", "nos", "ele", "ela", "isso", "logo"}
+
 NAO_E_TELA = ("busca e apreensao", "mandado de busca", "busca pessoal", "busca domiciliar", "busca de bens")
 
 # A tela que mora dentro de outra: com as duas na frase ("as Publicações da
@@ -127,6 +188,8 @@ def nome_da_tela(id_: str, ampliado: bool = False) -> str:
         return TELAS_C4[id_][0]
     if id_ in NOMES_NO_MENU:
         return NOMES_NO_MENU[id_]
+    if id_ in TELAS_NAVEGAVEIS:
+        return TELAS_NAVEGAVEIS[id_][0]
     d = destinos.obter(id_)
     return d.nome if d else TELAS_EXTRAS.get(id_, id_)
 
@@ -136,7 +199,8 @@ def telas_conhecidas(ampliado: bool = True) -> list[str]:
     Na ordem do menu: com dois nomes iguais ("Agenda"), vence o primeiro.
     Sem `ampliado` (a chave `conversa.roteamento` desligada), só as de antes.
     """
-    return [d.id for d in destinos.DESTINOS] + list(TELAS_EXTRAS) + (list(TELAS_C4) if ampliado else [])
+    return ([d.id for d in destinos.DESTINOS] + list(TELAS_EXTRAS) + (list(TELAS_C4) if ampliado else [])
+            + list(TELAS_NAVEGAVEIS))
 
 
 # ----------------------------------------------------------------- sinais
@@ -197,13 +261,14 @@ INTERROGATIVAS = (
 VERBOS_IR = (
     "abra", "abre", "abrir", "va", "vai", "ir", "leve", "leva", "entre",
     "entrar", "acesse", "acessar", "mostre", "mostra", "mostrar", "exiba",
-    "exibe", "exibir", "quero", "abrir", "me",
+    "exibe", "exibir", "quero", "abrir", "me", "volte", "voltar", "volta", "veja", "ver", "vamos", "bora",
+    "navegue", "navegar", "levar", "leve", "ir",
 )
 PREENCHIMENTO = {
     "o", "a", "os", "as", "de", "do", "da", "dos", "das", "para", "pra", "pro",
     "no", "na", "em", "tela", "pagina", "aba", "me", "meu", "minha", "meus",
     "minhas", "por", "favor", "pf", "voce", "pode", "poderia", "consegue",
-    "ai", "ali", "aqui", "agora", "ver", "um", "uma",
+    "ai", "ali", "aqui", "agora", "ver", "um", "uma", "ao", "aos", "ate",
 }
 
 _ABERTURA = (r"^(?:(?:e|mas|entao|ok|oi|ola|bom dia|boa tarde|boa noite|por favor)[, ]+)?"
@@ -816,7 +881,7 @@ def texto_da_tela(id_: str, telas: dict[str, TelaDoMapa], ampliado: bool = False
     d = destinos.obter(id_)
     nome = nome_da_tela(id_, ampliado)
     resolve = (RESOLVE_C4.get(id_) or (TELAS_C4.get(id_) or ("", ""))[1]) if ampliado else ""
-    resolve = resolve or (d.resolve if d else "")
+    resolve = resolve or (d.resolve if d else "") or (TELAS_NAVEGAVEIS.get(id_) or ("", ""))[1]
     linhas = [f"{nome}: {resolve}" if resolve else nome + "."]
     tela = telas.get(id_)
     if tela and tela.faz:
@@ -866,18 +931,59 @@ class Candidato:
 def _ler_ir(plano: str, telas, ampliado: bool = False) -> Candidato | None:
     """'abra o financeiro': verbo de ir, e o resto da frase é o nome de uma tela."""
     palavras = _palavras(plano)
+    # A gentileza que vem antes do verbo: "pode abrir a agenda?", "por favor,
+    # me leve ao financeiro".
+    while palavras and palavras[0] in GENTILEZA_ANTES_DO_VERBO and palavras[0] not in VERBOS_IR:
+        palavras = palavras[1:]
     if not palavras or palavras[0] not in VERBOS_IR:
         return None
     resto = [p for p in palavras if p not in VERBOS_IR and p not in PREENCHIMENTO]
-    if not resto or len(resto) > 4:
+    if not resto or len(resto) > 5:
         return None
-    alvo = " ".join(resto)
+    # "a seção de Backup do PAULUS": tentar também sem o que só acompanha o
+    # nome. Sem nada sobrando ("abra o sistema"), não é tela.
+    enxuto = [p for p in resto if p not in SOBRA_DA_NAVEGACAO]
+    alvos = {" ".join(resto)} | ({" ".join(enxuto)} if enxuto else set())
     for id_ in telas_conhecidas(ampliado):
-        apelidos = telas[id_].apelidos if id_ in telas else []
-        nomes = {_plano(nome_da_tela(id_, ampliado))} | {_plano(a) for a in apelidos}
-        if alvo in nomes or " ".join(_palavras(alvo)) in {" ".join(_palavras(n)) for n in nomes}:
+        if any(n in alvos for n in _nomes_da_tela(id_, telas, ampliado)):
             return Candidato("ir", id_, id_, f"abrir a tela {nome_da_tela(id_, ampliado)}", forte=True)
     return None
+
+
+# Antes do verbo de ir, o que é só gentileza: "pode abrir", "você pode me levar".
+GENTILEZA_ANTES_DO_VERBO = {"pode", "poderia", "consegue", "voce", "por", "favor", "ok", "entao", "e", "agora",
+                            "oi", "ola", "preciso", "gostaria", "queria"}
+
+
+def _nomes_da_tela(id_: str, telas, ampliado: bool) -> set[str]:
+    """Todos os jeitos de chamar a tela, já sem acento e sem as palavras de enchimento."""
+    apelidos = list(telas[id_].apelidos if id_ in telas else [])
+    apelidos += list((TELAS_NAVEGAVEIS.get(id_) or ("", "", ()))[2]) + list(APELIDOS_EXTRAS.get(id_, ()))
+    nomes = set()
+    for n in [nome_da_tela(id_, ampliado)] + apelidos:
+        ps = [p for p in _palavras(_plano(n)) if p not in PREENCHIMENTO]
+        if ps:
+            nomes.add(" ".join(ps))
+            enxuto = [p for p in ps if p not in SOBRA_DA_NAVEGACAO]
+            if enxuto:
+                nomes.add(" ".join(enxuto))
+    return nomes
+
+
+def navegar(frase: str, ampliado: bool = True) -> "Leitura | None":
+    """
+    Só a navegação, só por regra: "abra a agenda", "vá para Agentes", "pode
+    abrir a lixeira?". Vale mesmo com um documento em foco - a frase inteira
+    é o nome de uma tela, então não é pergunta sobre o documento. Antes, com
+    um anexo na caixa, "abra a agenda" ia ler o anexo (pedido de 02/10).
+    """
+    plano = _plano(frase).strip()
+    c = _ler_ir(plano, mapa_para(ampliado), ampliado) if plano else None
+    if not c:
+        return None
+    leitura = Leitura("ir", c.destino, chave=c.chave, ampliado=ampliado)
+    leitura.porque = f"você pediu para abrir {nome_da_tela(c.destino, ampliado)}"
+    return leitura
 
 
 def _ler_consultas(plano: str) -> list[Candidato]:

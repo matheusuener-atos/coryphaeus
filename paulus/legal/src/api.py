@@ -3810,6 +3810,26 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 tipo="exibir", titulo=alvo[0], campos={"nome": alvo[0], "nomes": alvo[:4]},
                 porque="você pediu para abrir os documentos anexados",
             )
+    # 02/10: "abra a agenda", "vá para Agentes", "pode abrir a lixeira?" com
+    # um documento anexado ou em foco iam ler o documento - a camada do
+    # programa so olha sem anexo. A navegacao e so regra e exige que a frase
+    # inteira seja o nome de uma tela; com um documento nomeado na frase, e
+    # dele que se fala. Quem escolheu "Procurar nos documentos" no cartao do
+    # programa (documentos=true) ja respondeu que nao e a tela.
+    if lido.tipo == "documentos" and not explicito and not payload.documentos:
+        navegacao = programa.navegar(pergunta, ampliado=consulta_cadastro.ligado(estado.prefs.dados))
+        if navegacao:
+            return _responder_programa(trabalho, navegacao, pergunta)
+    # "Assine este documento" com o anexo (ou o documento da conversa): o
+    # leitor so reconhece o pedido quando a frase da o nome do arquivo.
+    if lido.tipo == "documentos" and intencao.RE_PEDIDO_ASSINAR.search(intencao._plano(pergunta)):
+        alvo = list(payload.apenas or []) or list(citado or [])
+        if len(alvo) == 1:
+            lido = intencao.Intencao(
+                tipo="assinar", titulo=alvo[0],
+                campos={"nome": alvo[0], "nao_pdf": not alvo[0].lower().endswith(".pdf")},
+                porque="“" + pergunta.strip().rstrip(".!?") + "” e o documento desta conversa",
+            )
     # C4 (chave conversa.roteamento): "como funciona o acesso de fora?" e
     # "o que você faz" caem os dois em intencao.SOBRE; com uma tela citada, a
     # resposta e a explicacao dela, e nao a lista de tudo o que o programa faz.

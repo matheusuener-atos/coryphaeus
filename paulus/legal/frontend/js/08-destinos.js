@@ -149,9 +149,26 @@ const TELAS_DA_CONVERSA = {
   busca: { nome: "Buscar em tudo", local: false, abrir: () => abrirBusca() },
   leis: { nome: "Códigos de lei", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("assistente"); } },
   acesso: { nome: "Acesso de fora", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("acesso"); } },
+  // 02/10 (src/programa.py, TELAS_NAVEGAVEIS): toda tela tem quem a abra.
+  // Os avisos moram na tela inicial, no lugar da lista de conversas.
+  avisos: { nome: "Avisos", local: false, abrir: () => { $("nova").click(); setTimeout(() => abrirAvisosNaInicio(""), 60); } },
+  // O menu do perfil e das Configuracoes: no celular, a tela Mais; no
+  // computador, Configuracoes (o mesmo conteudo, em colunas).
+  mais: { nome: "Mais", local: false, abrir: () => {
+    if (typeof abrirMaisCelular === "function" && celularNaTela()) return abrirMaisCelular();
+    marcarDestino("config"); mostrarConfig("perfil");
+  } },
 };
 
 function abrirTelaDaConversa(id) {
+  // "config_backup", "config_lixeira"...: a secao de Configuracoes com esse
+  // nome. Configuracoes so mudam na janela do escritorio.
+  if (/^config_[a-z]+$/.test(id)) {
+    const deForaCfg = typeof acessoDeFora !== "undefined" && !acessoDeFora.local;
+    if (deForaCfg && typeof telaSoNoEscritorio === "function") return telaSoNoEscritorio({ nome: "Configurações" });
+    marcarDestino("config");
+    return mostrarConfig(id.slice(7));
+  }
   const t = TELAS_DA_CONVERSA[id];
   if (!t) return abrirDestino(id);
   const deFora = typeof acessoDeFora !== "undefined" && !acessoDeFora.local;

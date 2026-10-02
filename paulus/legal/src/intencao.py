@@ -682,6 +682,11 @@ def _verbo_de_comando(plano: str) -> str:
     muleta ("aí, marca uma reunião").
     """
     palavras = re.findall(r"[a-z0-9]+", plano)
+    # "Nova tarefa: ligar para o João", "novo compromisso amanhã às 10h": o
+    # adjetivo na frente faz o papel do verbo (pedido de 02/10).
+    if len(palavras) >= 2 and palavras[0] in ("nova", "novo") and palavras[1] in (
+            "tarefa", "lembrete", "pendencia", "compromisso", "reuniao", "audiencia", "prazo", "consulta", "visita"):
+        return palavras[0]
     for posicao, palavra in enumerate(palavras[:6]):
         if palavra in VERBOS_AGENDA:
             if all(anterior in ENFEITE for anterior in palavras[:posicao]):
@@ -713,7 +718,7 @@ def _titulo_do_pedido(texto: str, data_bruta: str) -> str:
         if limpo == antes:
             break
 
-    limpo = re.sub(r"(?i)^\s*(" + "|".join(VERBOS_AGENDA) + r")\b", " ", limpo)
+    limpo = re.sub(r"(?i)^\s*(" + "|".join(VERBOS_AGENDA) + r"|nova|novo)\b", " ", limpo)
     # "pode marcar": o verbo de comando pode vir no infinitivo depois do "pode".
     limpo = re.sub(r"(?i)^\s*(anotar|marcar|agendar|colocar|adicionar|criar|registrar)\b",
                    " ", limpo)
