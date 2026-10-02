@@ -120,7 +120,7 @@ def test_na_conversa() -> None:
 
     anota = Anota()
     api.estado.client = anota
-    api.estado.cliente_para = lambda tarefa: anota
+    api.estado.cliente_para = lambda tarefa, **k: anota
     api.estado.saber.ligada = False
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)

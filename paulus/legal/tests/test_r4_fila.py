@@ -146,7 +146,7 @@ def test_duas_pessoas() -> None:
 
     lento = Lento()
     api.estado.client = lento
-    api.estado.cliente_para = lambda tarefa: lento
+    api.estado.cliente_para = lambda tarefa, **k: lento
     # O documento vai para a pasta do Acervo: ao subir, o servidor rele a
     # pasta e monta o indice de novo.
     Path(api.estado.pasta).mkdir(parents=True, exist_ok=True)

@@ -37,8 +37,17 @@
 //
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
+//
+// A nuvem do PAULUS (worker/ia.js): /api/ia/*, o portao ate o DeepInfra com o
+// medidor de tokens, a assinatura do plano e a recarga. Desligada sem
+// IA_ATIVA. A assinatura e a recarga da nuvem nunca contam como apoio: o
+// aviso do Mercado Pago passa primeiro por avisoDaIA.
 
 import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
+import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
+
+// O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
+export { ContaIA } from "./ia.js";
 
 // Guardado por pouco mais de um ano.
 const KV_VALIDADE_S = 400 * 24 * 60 * 60;
@@ -64,6 +73,13 @@ export default {
         return await atenderTunel(request, env, url, { dentroDoLimite });
       } catch (erro) {
         return json({ erro: "falha no servidor do acesso de fora" }, 500);
+      }
+    }
+    if (ehRotaDaIA(url)) {
+      try {
+        return await atenderIA(request, env, url, ctx, { dentroDoLimite, chamarMP });
+      } catch (erro) {
+        return json({ erro: "falha no servidor da nuvem" }, 500);
       }
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
@@ -236,6 +252,8 @@ async function situacaoDoPix(id, env) {
 
 /* O Pix pago: a situacao privada, a contribuicao do mes e, se autorizado, o mural. */
 async function pixPago(env, id, order) {
+  // A recarga da nuvem (worker/ia.js) nao e apoio, mesmo consultada por aqui.
+  if (String((order && order.external_reference) || "").startsWith("ia-")) return;
   await guardar(env, "pix:" + id, { situacao: order.status, pago: true, valor: order.total_amount });
   const g = (await lerGuardado(env, "pix:" + id)) || {};
   await contribuicao(env, "pix-" + id, Number(order.total_amount) || Number(g.valor) || 0, g.quando);
@@ -290,14 +308,16 @@ async function registrarAviso(tipo, id, env) {
   if (!id) return;
   if (tipo === "order") {
     const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
-    if (r.ok && r.dados.status === "processed") await pixPago(env, id, r.dados);
+    if (r.ok && !(await avisoDaIA(env, "order", r.dados, chamarMP)) && r.dados.status === "processed") await pixPago(env, id, r.dados);
   } else if (tipo === "subscription_preapproval" || tipo === "preapproval") {
     const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "GET");
-    if (r.ok) await guardar(env, "assinatura:" + id, { situacao: r.dados.status, valor: (r.dados.auto_recurring || {}).transaction_amount });
+    if (r.ok && !(await avisoDaIA(env, "preapproval", r.dados, chamarMP))) {
+      await guardar(env, "assinatura:" + id, { situacao: r.dados.status, valor: (r.dados.auto_recurring || {}).transaction_amount });
+    }
   } else if (tipo === "subscription_authorized_payment") {
     // Cada cobranca mensal da assinatura.
     const r = await chamarMP(env, "/authorized_payments/" + encodeURIComponent(id), "GET");
-    if (r.ok) await cobrancaPaga(env, r.dados);
+    if (r.ok && !(await avisoDaIA(env, "cobranca", r.dados, chamarMP))) await cobrancaPaga(env, r.dados);
   } else if (tipo === "payment") {
     // A contribuicao unica no cartao (Checkout Pro, feita no site).
     const r = await chamarMP(env, "/v1/payments/" + encodeURIComponent(id), "GET");

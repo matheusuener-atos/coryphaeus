@@ -67,7 +67,7 @@ def test_api() -> None:
     antes_exec, antes_prefs = habilidade.executar, dict(api.estado.prefs.dados.get("conversa") or {})
     antes_cliente = api.estado.cliente_para
     habilidade.executar = executar_devagar
-    api.estado.cliente_para = lambda tarefa: ClienteLento("Parecer de teste: o mês fechou no azul.")
+    api.estado.cliente_para = lambda tarefa, **k: ClienteLento("Parecer de teste: o mês fechou no azul.")
     antes_ollama = api.check_ollama
     api.check_ollama = lambda modelo: (True, "")
     api.estado.prefs.dados["conversa"] = {**antes_prefs, "execucao": True, "superficies": True}
@@ -100,7 +100,7 @@ def test_api() -> None:
         checar(any(tp == "resultado" and d.get("parecer") == res.get("parecer") for tp, d in de_novo),
                "depois de reabrir, o resultado volta do registro em disco")
         # parar
-        api.estado.cliente_para = lambda tarefa: ClienteLento("não devia chegar", 3)
+        api.estado.cliente_para = lambda tarefa, **k: ClienteLento("não devia chegar", 3)
         e2 = _pedir(base, "POST", "/api/ia/parecer", {"dados": {"quando": ""}})
         time.sleep(0.8)
         _pedir(base, "POST", f"/api/execucoes/{e2['execucao_id']}/parar", {})
@@ -116,7 +116,7 @@ def test_api() -> None:
         except Exception as exc:  # noqa: BLE001
             checar("409" in str(exc), "com a chave desligada, a rota recusa", str(exc))
         api.estado.prefs.dados["conversa"] = {**antes_prefs, "execucao": True, "superficies": True}
-        api.estado.cliente_para = lambda tarefa: ClienteLento("Cláusula nova escrita pelo assistente de teste.", 2.5)
+        api.estado.cliente_para = lambda tarefa, **k: ClienteLento("Cláusula nova escrita pelo assistente de teste.", 2.5)
         test_tela(base, api, res)
     finally:
         habilidade.executar = antes_exec
