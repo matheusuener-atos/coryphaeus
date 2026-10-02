@@ -217,11 +217,30 @@ def test_http() -> None:
     checar(r.status_code == 200 and not r.json()["vinculado"], "desvincular (aberto): sim")
 
 
+def test_sem_consentimento() -> None:
+    """02/10: destravar so confirma quem e - o Google nao deve pedir consentimento toda vez."""
+    print("\no login so de identidade nao forca o consentimento")
+    import urllib.parse as u
+
+    import correio_oauth
+
+    so = dict(u.parse_qsl(u.urlparse(correio_oauth.url_autorizacao(
+        "google", "id", "http://127.0.0.1:1/", "s", "d", login_hint="tita@x.com",
+        escopos="openid email profile", incremental=True, so_identidade=True)).query))
+    checar("prompt" not in so and "access_type" not in so and so.get("login_hint") == "tita@x.com",
+           "destravar: sem prompt nem access_type, com a conta como dica", so)
+    gmail = dict(u.parse_qsl(u.urlparse(correio_oauth.url_autorizacao(
+        "google", "id", "http://127.0.0.1:1/", "s", "d")).query))
+    checar(gmail.get("prompt") == "consent" and gmail.get("access_type") == "offline",
+           "o Gmail continua pedindo o consentimento (precisa do refresh token)", gmail)
+
+
 def main() -> int:
     print("=" * 55)
     print("  E5 - o PAULUS do servidor vinculado a conta Google")
     print("=" * 55)
     try:
+        test_sem_consentimento()
         test_http()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
