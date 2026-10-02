@@ -101,19 +101,11 @@ def _permissoes(escopos: str) -> list[tuple[str, str, str]]:
 
 # rotulo, tom, titulo, texto, nota, dica
 TEXTOS = {
-    "sucesso": ("CONECTADO", "ok", "Conta %%PROVEDOR%% conectada.",
-                "Em alguns segundos, e-mails, agenda e arquivos autorizados começam a aparecer no escritório.",
-                "Nada dos seus documentos sai deste computador.", "ou feche esta aba"),
+    "sucesso": ("CONECTADO", "ok", "Conta %%PROVEDOR%% conectada.", "", "", "Já pode fechar esta aba."),
     # So quem e (o vinculo do PAVLVS, destravar): nenhuma permissao pedida.
-    "entrou": ("LOGIN RECEBIDO", "ok", "Login recebido.",
-               "O PAVLVS confere a sua conta em alguns segundos e segue de onde você estava.",
-               "Já pode fechar esta aba.", "ou feche esta aba"),
-    "negado": ("NÃO CONECTADO", "aviso", "A conexão não foi autorizada.",
-               "As permissões não foram aceitas no %%PROVEDOR%%. Volte ao PAVLVS para tentar de novo.",
-               "Nada foi alterado.", ""),
-    "expirado": ("LINK EXPIRADO", "erro", "Este login expirou.",
-                 "O link vale uma única vez, só para o login que o PAVLVS abriu, e por poucos minutos. Volte ao PAVLVS para abrir outro.",
-                 "Nada foi alterado.", ""),
+    "entrou": ("LOGIN RECEBIDO", "ok", "Login recebido.", "", "", "Já pode fechar esta aba."),
+    "negado": ("NÃO CONECTADO", "aviso", "A conexão não foi autorizada.", "", "", "Nada foi alterado."),
+    "expirado": ("LINK EXPIRADO", "erro", "Este login expirou.", "", "", "Volte ao PAVLVS e abra outro."),
 }
 
 
@@ -142,7 +134,6 @@ def pagina(estado: str, *, provedor: str = "Google", escopos: str = "", detalhe:
                 for icone, nome, desc in perms) + "</div></div>")
     elif detalhe:
         painel = f'<div class="grupo"><span class="etiqueta">DETALHE</span><div class="caixa detalhe">{esc(detalhe)}</div></div>'
-    dica = (dica + ". " if dica else "") + ("O andamento fica em Configurações › Conexões." if perms else texto)
     tema = "claro" if tema == "claro" else "escuro"
     dados = json.dumps({"state": state if estado == "sucesso" else "", "tema": tema})
     return (PAGINA.replace("%%FONTES%%", _fontes_css())
@@ -173,7 +164,7 @@ PAGINA = """<!doctype html>
 [data-tema="claro"]{--bg:#faf9f6;--surf:#fff;--fill2:#e9e8e3;--ink:#1c1c1a;--ink3:#6b6b65;--apagado:#9a9a93;--marca-dagua:#8a8a86;--marca-sub:#a8a69e;
 --fio:rgba(28,28,26,.12);--fio2:rgba(28,28,26,.1);--fio3:rgba(28,28,26,.08);--ok:#2f6b42;--erro:#a3322b;color-scheme:light}
 *{box-sizing:border-box}html,body{margin:0}
-body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;
+body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22vh 24px 48px;padding-top:22dvh;
 background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 .coluna{width:100%;max-width:360px;display:grid;gap:40px}
 .topo{display:grid;gap:14px;text-align:center}

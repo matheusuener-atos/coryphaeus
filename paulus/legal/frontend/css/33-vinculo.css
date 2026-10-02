@@ -14,7 +14,10 @@
   .trava-tema { width: 36px; height: 36px; border: 0; background: transparent; color: var(--mute2); display: flex; align-items: center;
     justify-content: center; cursor: pointer; padding: 0; }
   .trava-tema:hover { color: var(--ink); }
-  .trava-corpo { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+  /* A marca no mesmo ponto das outras telas de entrada: 22% da janela,
+     descontada a barra de 56 px de cima. */
+  .trava-corpo { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: calc(22vh - 56px) 24px 48px; padding-top: calc(22dvh - 56px); }
   .trava-voltar { position: absolute; top: 0; left: 28px; display: flex; align-items: center; gap: 6px; height: 44px; border: 0; background: none;
     padding: 0; font: 500 13px var(--sans); color: var(--ink3); cursor: pointer; }
   .trava-voltar:hover { color: var(--ink); }
@@ -68,7 +71,7 @@
   .trava-casas span.vez { border-color: var(--ink3); }
   .trava-casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; background: none; }
   .trava-casas.campo { display: block; }
-  .trava-casas.campo input { position: static; display: block; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px; background: var(--surf);
+  .trava-casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px; background: var(--surf);
     border: 1px solid var(--ink-a25); outline: none; color: var(--ink); font: 400 15px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
 
   /* O botao Google em pilula do assistente de configuracao (js/23-boas-vindas.js). */

@@ -97,7 +97,7 @@ function desenharTrava() {
       '<div class="trava-casas' + (recuperacao ? " campo" : "") + '" id="trava-casas" style="--n:' + (n || 6) + '">' +
       '<input id="trava-codigo-campo"' + (recuperacao ? ' autocomplete="off" maxlength="9" aria-label="Chave de recuperação"'
         : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos"') + "></div>" +
-      (recuperacao ? '<span class="trava-ajuda">Cada chave funciona uma vez. Depois de entrar, gere novas em Configurações.</span>' : "") + "</div>" +
+      (recuperacao ? '<span class="trava-ajuda">Cada chave vale uma vez.</span>' : "") + "</div>" +
       '<p class="trava-erro" id="trava-erro"></p>' +
       trilho("trava-abrir", "Abrir o PAVLVS", false, false) +
       '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o Google Authenticator" : "Não tenho o celular") + "</button></form>";
@@ -113,9 +113,7 @@ function desenharTrava() {
       '<div class="trava-fora"><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
       (foraNoAr ? "Acesso de fora funcionando" : "Acesso de fora desligado") + "</span>" +
       (foraNoAr ? '<span class="trava-mono">' + esc(fora.hostname) + "</span>" : "") + "</div></div>" +
-      (foraNoAr ? '<span class="trava-ajuda centro">A equipe continua entrando por esse endereço enquanto o PAVLVS estiver aberto aqui. Não feche o programa.</span>' : "") +
-      (pronto ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>'
-        : '<span class="trava-ajuda centro">Sem internet, o Google não responde. Ligue “Entrar sem internet” em Configurações › Escritório e equipe enquanto estiver online.</span>') +
+      (pronto ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>' : "") +
       "</div>";
   }
   const escuro = document.documentElement.dataset.tema === "escuro";

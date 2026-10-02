@@ -60,11 +60,15 @@
   [hidden] { display: none !important; }
 
   /* --- 1. o escritorio e o jeito de entrar */
-  .marca { flex: 1 0 auto; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 18px; padding: 0 32px; text-align: center; }
+  /* A marca tem lugar fixo em todas as telas de entrada (02/10): o alto dela
+     a 22% da altura da janela, medidos do topo. O formulario vem depois e
+     cresce para baixo - trocar de tela nao a tira do lugar. No celular, o
+     formulario fica no pe; no computador, logo abaixo da marca. */
+  .marca { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 18px; padding: 22vh 32px 32px; padding-top: 22dvh; text-align: center; }
   .marca b { font: 400 44px/1 'EB Garamond', Georgia, serif; letter-spacing: .08em; text-transform: uppercase; color: var(--marca); }
   .marca p { margin: 0; font: 400 14px/1.55 'Manrope', sans-serif; color: var(--marca-sub); text-wrap: pretty; }
-  .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; }
+  .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; margin-top: auto; }
   .rotulo { font: 400 11px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
   .escritorio { display: grid; gap: 6px; }
   .escritorio label { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
@@ -167,8 +171,9 @@
      de mesa. No celular, a marca no meio e o formulario embaixo. */
   @media (min-width: 601px) {
     .tela { max-width: none; }
-    .passo { justify-content: center; align-items: center; gap: 40px; padding: 48px 24px; }
-    .passo .marca { flex: none; min-height: 0; gap: 14px; padding: 0; }
+    .passo { justify-content: flex-start; align-items: center; gap: 40px; padding: 0 24px 48px; }
+    .passo .marca { flex: none; min-height: 0; gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
+    .passo .baixo { margin-top: 0; }
     .passo .marca b { font-size: 56px; }
     .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
     .voltar { top: 28px; left: 28px; }
@@ -225,7 +230,7 @@
         <div class="casas" id="casas">
           <input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos" required>
         </div>
-        <span class="ajuda-chave" id="ajuda-chave" hidden>Cada chave funciona uma vez. Depois de entrar, gere novas em Configurações.</span>
+        <span class="ajuda-chave" id="ajuda-chave" hidden>Cada chave vale uma vez.</span>
       </div>
       <label class="confiar" id="caixa-confiar"><input type="checkbox" id="confiar"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg></i><span>Confiar neste navegador por 30 dias</span></label>
       <p class="erro" id="erro-codigo" role="alert"></p>
