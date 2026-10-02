@@ -122,44 +122,57 @@
   .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); text-align: center; }
   .erro:empty { display: none; }
 
-  /* --- 2. o codigo (e a chave de recuperacao) */
-  .cabeca { flex: none; display: flex; align-items: center; height: 50px; padding: 0 8px; position: relative; }
-  .cabeca button { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: none;
-    color: var(--ink3); cursor: pointer; padding: 0; }
-  .cabeca svg { width: 22px; height: 22px; }
-  .cabeca h1 { position: absolute; left: 60px; right: 60px; margin: 0; text-align: center; font: 500 15px 'Manrope', sans-serif;
-    color: var(--ink3); pointer-events: none; }
-  .corpo-codigo { flex: 1 0 auto; display: grid; align-content: start; gap: 0; padding: 30px 24px 0; }
-  .quem { display: flex; align-items: flex-start; gap: 14px; padding: 0 4px 24px; border-bottom: 1px solid var(--fio2); }
-  .quem svg { width: 22px; height: 22px; flex: none; margin-top: 4px; }
-  .quem div { display: grid; gap: 2px; min-width: 0; }
-  .quem b { font: 500 16px 'Manrope', sans-serif; color: var(--ink); }
-  .quem span { font: 400 14px 'Manrope', sans-serif; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .qual { display: flex; align-items: center; gap: 10px; margin: 28px 4px 14px; font: 400 14px 'Manrope', sans-serif; color: var(--ink2); }
-  .qual svg { width: 16px; height: 16px; flex: none; }
-  .casas { position: relative; display: flex; justify-content: center; gap: 6px; }
-  .casas span { width: 36px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+  /* --- 2. o codigo (e a chave de recuperacao), no desenho "Codigo" */
+  .passo { position: relative; max-width: none; overflow: visible; }
+  .voltar { position: absolute; top: 20px; left: 16px; z-index: 1; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0;
+    border: 0; background: none; color: var(--ink3); font: 500 13px 'Manrope', sans-serif; cursor: pointer; }
+  .voltar svg { width: 18px; height: 18px; }
+  .voltar:hover { color: var(--ink); }
+  .conta { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio); }
+  .conta .g-ic { width: 16px; height: 16px; flex: none; }
+  .conta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .trocar { flex: none; border: 0; background: none; padding: 10px 0; color: var(--apagado); font: 500 12px 'Manrope', sans-serif; cursor: pointer; }
+  .trocar:hover { color: var(--ink); }
+  .rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; }
+  .renova { font: 400 11px 'Fira Code', monospace; color: var(--apagado); }
+  .renova b { font-weight: 400; color: var(--ink3); }
+  .casas { position: relative; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 8px; }
+  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
     background: var(--surf); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
   .casas span.vez { border-color: var(--fio-forte); }
   /* O campo de verdade fica por cima das casas, transparente: o teclado do
      celular, o colar e o preenchimento do codigo pelo SMS funcionam. */
   .casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px;
     color: transparent; caret-color: transparent; background: none; }
-  .linha-codigo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 4px 0; min-height: 44px; }
-  .renova { font: 400 13px 'Manrope', sans-serif; color: var(--ink3); }
-  .renova b { font: 500 13px 'Fira Code', monospace; color: var(--ink2); }
-  .link { border: 0; background: none; padding: 10px 0; color: var(--ink2); font: 500 13.5px 'Manrope', sans-serif; cursor: pointer; text-align: right; }
-  .link:hover { color: var(--ink); }
-  .confiar { display: flex; align-items: center; gap: 10px; margin: 8px 4px 0; min-height: 44px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
-  .confiar input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink2); }
-  .pe-codigo { flex: none; display: grid; gap: 14px; padding: 24px 20px 28px; }
+  .confiar { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--fio2); cursor: pointer; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .confiar input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .confiar i { width: 16px; height: 16px; flex: none; border-radius: 4px; background: var(--fill2); border: 1px solid var(--fio-forte);
+    display: flex; align-items: center; justify-content: center; }
+  .confiar i svg { width: 13px; height: 13px; fill: var(--ink); opacity: 0; }
+  .confiar input:checked + i svg { opacity: 1; }
+  .confiar input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .link-senha:hover { color: var(--ink); }
+
+  /* --- no computador: uma coluna de 360 px no meio da tela, a marca em
+     cima (56 px) e o formulario 40 px abaixo - o desenho "Escritorio online"
+     de mesa. No celular, a marca no meio e o formulario embaixo. */
+  @media (min-width: 601px) {
+    .tela { max-width: none; }
+    .passo { justify-content: center; align-items: center; gap: 40px; padding: 48px 24px; }
+    .passo .marca { flex: none; min-height: 0; gap: 14px; padding: 0; }
+    .passo .marca b { font-size: 56px; }
+    .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
+    .voltar { top: 28px; left: 28px; }
+    .g-trilho:hover .g-pastilha { background: #303030; }
+  }
 </style>
 </head>
 <body>
 <div class="tela">
 
   <!-- 1. O escritorio e o jeito de entrar (Google | Codigo) -->
-  <section id="entrar-senha" class="tela" style="max-width:none;overflow:visible">
+  <section id="entrar-senha" class="tela passo">
     <div class="marca">
       <b>PAVLVS</b>
       <p>O mesmo escritório, de onde você estiver.</p>
@@ -188,32 +201,27 @@
   </section>
 
   <!-- 2. O codigo do app autenticador, ou a chave de recuperacao -->
-  <section id="entrar-codigo" class="tela" style="max-width:none;overflow:visible" hidden>
-    <div class="cabeca">
-      <button type="button" id="voltar" aria-label="Voltar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7.83 13 5.6 5.6L12 20l-8-8 8-8 1.43 1.4-5.6 5.6H20v2Z"/></svg></button>
-      <h1 id="titulo-codigo">Código</h1>
+  <section id="entrar-codigo" class="tela passo" hidden>
+    <button type="button" class="voltar" id="voltar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7.83 13 5.6 5.6L12 20l-8-8 8-8 1.43 1.4-5.6 5.6H20v2Z"/></svg>Voltar</button>
+    <div class="marca">
+      <b>PAVLVS</b>
+      <p id="quem-titulo">Confirme quem você é.</p>
     </div>
-    <form id="form-codigo" autocomplete="off" style="display:contents">
-      <div class="corpo-codigo">
-        <div class="quem">
-          <svg viewBox="0 0 48 48" aria-hidden="true" id="quem-marca"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
-          <div><b id="quem-titulo">Confirme quem você é</b><span id="quem-email"></span></div>
-        </div>
-        <div class="qual"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2.6" stroke-linecap="round"><path d="M12 3v8" stroke="#4285F4"/><path d="M12 13v8" stroke="#34A853"/><path d="m4.2 7.5 6.9 4" stroke="#EA4335"/><path d="m12.9 12.5 6.9 4" stroke="#FBBC04"/><path d="m4.2 16.5 6.9-4" stroke="#34A853"/><path d="m12.9 11.5 6.9-4" stroke="#4285F4"/></g></svg><span id="rotulo-codigo">Código do Google Authenticator</span></div>
+    <form id="form-codigo" class="baixo" autocomplete="off">
+      <div class="escritorio">
+        <span class="rotulo">CONTA</span>
+        <div class="conta"><svg class="g-ic" viewBox="0 0 48 48" aria-hidden="true" id="quem-marca"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span id="quem-email"></span><button type="button" class="trocar" id="trocar">Trocar</button></div>
+      </div>
+      <div class="escritorio">
+        <div class="rotulo-linha"><span class="rotulo" id="rotulo-codigo">GOOGLE AUTHENTICATOR</span><span class="renova" id="renova">renova em <b id="segundos">00:30</b></span></div>
         <div class="casas" id="casas">
           <input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos" required>
         </div>
-        <div class="linha-codigo">
-          <span class="renova" id="renova">Renova em <b id="segundos">00:30</b></span>
-          <button type="button" class="link" id="recuperacao">Não tenho o celular</button>
-        </div>
-        <label class="confiar"><input type="checkbox" id="confiar">Confiar neste navegador por 30 dias</label>
-        <p class="erro" id="erro-codigo" role="alert" style="margin-top:8px"></p>
       </div>
-      <div class="pe-codigo">
-        <p class="ajuda" id="nota-codigo">O código muda a cada 30 segundos.</p>
-        <button type="submit" class="principal" id="entrar">Entrar</button>
-      </div>
+      <label class="confiar"><input type="checkbox" id="confiar"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg></i><span>Confiar neste navegador por 30 dias</span></label>
+      <p class="erro" id="erro-codigo" role="alert"></p>
+      <button type="submit" class="g-trilho" id="entrar"><span class="g-pastilha" id="entrar-texto">Entrar</span></button>
+      <button type="button" class="link-senha" id="recuperacao">Não tenho o celular</button>
     </form>
   </section>
 </div>
@@ -334,7 +342,7 @@
   // "Renova em 00:18": o codigo do autenticador vale 30 s.
   function relogio() {
     const s = 30 - (Math.floor(Date.now() / 1000) % 30);
-    $("segundos").textContent = "00:" + String(s).padStart(2, "0");
+    if ($("segundos")) $("segundos").textContent = "00:" + String(s).padStart(2, "0");
   }
   relogio();
   setInterval(relogio, 1000);
@@ -428,18 +436,19 @@
     c.maxLength = porRecuperacao ? 9 : 6;
     c.inputMode = porRecuperacao ? "text" : "numeric";
     c.setAttribute("aria-label", porRecuperacao ? "Chave de recuperação de 8 caracteres" : "Código de 6 dígitos");
-    $("titulo-codigo").textContent = porRecuperacao ? "Chave de recuperação" : "Código";
-    $("quem-titulo").textContent = porRecuperacao ? "Sem o celular?" : "Confirme quem você é";
-    $("rotulo-codigo").textContent = porRecuperacao ? "Chave de recuperação" : "Código do Google Authenticator";
-    $("renova").style.visibility = porRecuperacao ? "hidden" : "";
+    $("quem-titulo").textContent = porRecuperacao ? "Sem o celular? Use uma chave de recuperação." : "Confirme quem você é.";
+    $("rotulo-codigo").textContent = porRecuperacao ? "CHAVE DE RECUPERAÇÃO" : "GOOGLE AUTHENTICATOR";
+    $("renova").textContent = porRecuperacao ? "vale uma vez" : "renova em ";
+    if (!porRecuperacao) { const b = document.createElement("b"); b.id = "segundos"; $("renova").appendChild(b); relogio(); }
+    $("casas").style.setProperty("--n", porRecuperacao ? 8 : 6);
     $("recuperacao").textContent = porRecuperacao ? "Entrar com o Authenticator" : "Não tenho o celular";
-    $("nota-codigo").textContent = porRecuperacao ? "Cada chave de recuperação vale uma vez." : "O código muda a cada 30 segundos.";
-    $("entrar").textContent = porRecuperacao ? "Entrar com a chave" : "Entrar";
+    $("entrar-texto").textContent = porRecuperacao ? "Entrar com a chave" : "Entrar";
     $("erro-codigo").textContent = "";
     desenharCasas();
     c.focus();
   });
 
+  $("trocar").addEventListener("click", () => $("voltar").click());
   $("voltar").addEventListener("click", () => {
     pendente = ""; $("codigo").value = ""; $("erro-codigo").textContent = "";
     passo("entrar");
