@@ -70,7 +70,7 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
 - `GET /api/admin/materiais` -> `{materiais: [{id, slug, tipo: "artigo"|"modelo"|"tabela", titulo, areas, licenca,
   autor, oab, enviado, situacao: "fila"|"ajustes"|"publicado"|"recusado", palavras, texto, resumo,
   varredura: {cpf, cnpj, processo, nomes}}]}`
-- `GET /api/admin/nfse` -> `{config: {auto, email}, emissor: {ligado, falta}, fatos: [{k, v}],
+- `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, fatos: [{k, v}],
   notas: [{id, quando, tipo: "mensalidade"|"recarga pix", cliente, doc, valor, nota: "pendente"|"emitida"|"cancelada"|"erro",
   numero, erro}]}`. `emissor.ligado` = existe `NFSE_CASA_TOKEN` (a ponte da casa, abaixo); o fato
   "Emissor" diz "PAULUS da casa · última conexão <data>", "PAULUS da casa · nunca conectou" ou
@@ -122,7 +122,7 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `plano.editar` | `{id, valor, tokens}` | dono, financeiro |
 | `plano.criar` | `{id, nome, valor, tokens}` | dono, financeiro |
 | `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |
-| `nfse.config` | `{auto, email}` | dono, financeiro |
+| `nfse.config` | `{auto, email, mail}` | dono, financeiro |
 | `nfse.emitir` | `{ids: [id]}` | dono, financeiro - sempre falha com "a emissão é feita na tela \"Notas do PAVLVS\" do PAULUS da casa": o painel nao emite |
 | `equipe.papel` | `{email, papel}` | dono |
 
@@ -149,7 +149,14 @@ Rotas:
   situacao: "ativa"|"cortesia"|"cancelada"|"vencida"|"pendente", ajustado: bool, tomador: {nome, documento,
   email, telefone, logradouro, numero, complemento, bairro, cep, cmun, uf, inscricao_municipal}}]}`.
   O `tomador` vem do cadastro da conta (nome_escritorio, documento so digitos, e-mail da conta
-  Google, telefone) fundido com o ajuste em `nfse:tomador:<conta>` no KV; o ajuste vence.
+  Google, telefone e o `endereco` do cadastro: logradouro, numero, complemento, bairro, cep, cmun, uf)
+  fundido com o ajuste em `nfse:tomador:<conta>` no KV; o ajuste vence, campo a campo. Conta
+  cadastrada antes do endereco vem com esses campos vazios (a casa completa pelo ajuste).
+  O cadastro do site (`POST /api/ia/site/cadastro`, worker/ia.js) recebe
+  `endereco: {cep (8 digitos), logradouro, numero, complemento?, bairro, cidade, uf, cmun (7 digitos ou "")}`,
+  obrigatorio para cadastro novo e para conta que ja tem endereco; conta antiga sem endereco continua
+  aceita sem ele (se mandar, e conferido). A pagina preenche rua/bairro/cidade/UF e o `cmun` (IBGE)
+  pela ViaCEP; sem ela, a pessoa digita e o `cmun` fica vazio.
 - `POST /api/nfse-casa/clientes/:id` `{tomador: {...}}` -> o cliente (como acima). So os campos
   enviados mudam; `""` apaga o ajuste daquele campo (volta o do cadastro). Conferido:
   documento CPF/CNPJ com digito verificador, `cep` 8 digitos, `cmun` 7 digitos (IBGE), `uf`
@@ -157,16 +164,26 @@ Rotas:
   conta inexistente: 404. **Nao altera o cadastro original da conta** (o que o cliente
   preencheu em /cadastro): grava so o ajuste em `nfse:tomador:<conta>`.
 - `GET /api/nfse-casa/pagamentos` -> `{pagamentos: [{id, conta, cliente, tipo: "mensalidade"|"recarga pix",
-  valor, quando, nota: "pendente"|"emitida"|"cancelada"|"erro", numero}], config: {auto, email}}`, mais novos
-  primeiro. `config` e a escolha do painel (Notas fiscais): emitir ao confirmar / mandar ao cliente.
+  valor, quando, nota: "pendente"|"emitida"|"cancelada"|"erro", numero}], config: {auto, email, mail}}`, mais novos
+  primeiro. `config` e a escolha do painel (Notas fiscais, gravada em `admin:nfse:config` pela acao
+  `nfse.config`): emitir ao confirmar / mandar ao PAULUS do cliente / mandar tambem por e-mail.
 - `POST /api/nfse-casa/notas` `{id, conta, pagamento?, numero, chave, competencia: "AAAA-MM", valor (reais),
-  descricao, ambiente: "producao"|"producao_restrita", emitida_em, pdf_b64, xml_b64}` -> `{ok: true}`.
+  descricao, ambiente: "producao"|"producao_restrita", emitida_em, pdf_b64, xml_b64, email?: bool}` -> `{ok: true}`
+  (com `email: true`, `{ok: true, email: "enviado"|"sem RESEND_API_KEY"|"sem e-mail do cliente"|"falhou: <motivo>"}`).
+  Com `email: true` (padrao false) e `RESEND_API_KEY`, manda pelo Resend, do remetente de sempre
+  (`EMAIL_DE` ou `PAVLVS <contato@paulus.ia.br>`), ao e-mail do tomador ajustado pela casa ou, sem ele,
+  ao e-mail da conta: assunto "Sua NFS-e de <mes por extenso>/<ano> — PAVLVS", corpo com numero, valor e
+  competencia (e "ambiente de testes, sem valor fiscal" em `producao_restrita`), PDF e XML anexos
+  (`NFS-e <numero>.pdf/.xml`). Falha no e-mail nao falha a nota (a nota ja esta gravada). Reenviar com
+  `email: true` manda de novo.
   `id` = id da nota na casa (`[A-Za-z0-9_.-]{1,64}`). A meta vai em `nfse:nota:<conta>:<id>`, o PDF em
   `nfse:nota-pdf:<conta>:<id>` e o XML em `nfse:nota-xml:<conta>:<id>` (base64). Cada arquivo ate 2 MB
   (senao 413). Com `pagamento`, marca `admin:nfse:<pagamento>` com `nota: "emitida"` e o `numero`.
   Reenviar o mesmo `id` substitui. Conta que nao existe: 404; campo invalido: 400.
-- `POST /api/nfse-casa/notas/:id/cancelada` `{conta}` -> `{ok: true}`; marca `cancelada` na meta (e o
-  pagamento ligado vira `nota: "cancelada"`). Nota inexistente: 404.
+- `POST /api/nfse-casa/notas/:id/cancelada` `{conta, email?: bool, substituta?: {numero}}` -> `{ok: true}`
+  (com `email: true`, mais o campo `email` como acima); marca `cancelada` na meta (e o pagamento ligado
+  vira `nota: "cancelada"`); `substituta.numero` fica na meta (`substituta`). Com `email: true`, manda um
+  aviso curto do cancelamento, sem anexos, dizendo a nota substituta quando vier. Nota inexistente: 404.
 
 O PAULUS do cliente busca as proprias notas em `worker/ia.js`, com o segredo da
 instalacao (`Authorization: Bearer pia_<conta>_...`, como as outras `/api/ia/*`):

@@ -373,8 +373,15 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
     "entrar pelo site abre a conta, sem cadastro, sem plano e sem instalação", entrou);
 
   const base = { id_token: "token-novo", nome_escritorio: "Nova Advocacia", documento: "529.982.247-25", telefone: "(91) 98888-7777",
-    oab: "OAB/PA 12.345", aceite: true };
+    oab: "OAB/PA 12.345", aceite: true,
+    endereco: { cep: "66.010-000", logradouro: "  Av. Presidente\u0000 Vargas ", numero: "100", complemento: "", bairro: "Campina", cidade: "Belém", uf: "pa", cmun: "1501402" } };
   const erro = async (mudanca) => (await corpoDe(await ia("POST", "/api/ia/site/cadastro", { ...base, ...mudanca }))).erro || "";
+  checar((await erro({ endereco: undefined })).includes("endereço"), "cadastro novo sem endereço é recusado");
+  checar((await erro({ endereco: { ...base.endereco, cep: "6601" } })).includes("CEP"), "CEP sem 8 dígitos é recusado");
+  checar((await erro({ endereco: { ...base.endereco, numero: " " } })).includes("número"), "endereço sem número é recusado");
+  checar((await erro({ endereco: { ...base.endereco, bairro: "" } })).includes("bairro"), "endereço sem bairro é recusado");
+  checar((await erro({ endereco: { ...base.endereco, uf: "XX" } })).includes("UF"), "UF inexistente é recusada");
+  checar((await erro({ endereco: { ...base.endereco, cmun: "150140" } })).includes("IBGE"), "código IBGE com 6 dígitos é recusado");
   checar((await erro({ documento: "111.111.111-11" })).includes("CPF ou CNPJ"), "CPF com dígito errado é recusado");
   checar((await erro({ telefone: "98888-7777" })).includes("DDD"), "telefone sem DDD é recusado");
   checar((await erro({ oab: "12345" })).includes("UF"), "OAB sem a UF é recusada");
@@ -397,6 +404,22 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
     "cartão aceito: o plano Advogado vale, com 12 milhões de tokens", { plano: situacao.plano, ciclo: situacao.ciclo });
   checar(situacao.cadastro && situacao.cadastro.documento === "52998224725" && situacao.cadastro.oab === "PA 12345" && situacao.nome === "Nova Advocacia",
     "o cadastro fica na conta, conferido e normalizado", situacao.cadastro);
+  const end = situacao.cadastro.endereco || {};
+  checar(end.cep === "66010000" && end.logradouro === "Av. Presidente Vargas" && end.uf === "PA" && end.cmun === "1501402" && end.cidade === "Belém" && end.complemento === "",
+    "o endereço fica no cadastro, limpo (CEP só dígitos, UF maiúscula, código IBGE)", end);
+
+  // A conta antiga, cadastrada antes do endereço, continua valendo sem ele.
+  donos["token-antigo"] = { sub: "666", email: "antiga@advocacia.com.br" };
+  await ia("POST", "/api/ia/site/entrar", { id_token: "token-antigo" });
+  const contaSemEndereco = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "666");
+  const guardada = contaSemEndereco.dados.get("conta");
+  guardada.cadastro = { nome_escritorio: "Antiga Advocacia", documento: "52998224725", telefone: "91988887777", oab: "PA 12345", termos: "2026-10-02" };
+  contaSemEndereco.dados.set("conta", guardada);
+  const antiga = await ia("POST", "/api/ia/site/cadastro", { ...base, id_token: "token-antigo", endereco: undefined, nome_escritorio: "Antiga Advocacia" });
+  const antigaCorpo = await corpoDe(antiga);
+  checar(antiga.status === 200 && antigaCorpo.cadastro && !antigaCorpo.cadastro.endereco, "conta antiga sem endereço: o cadastro continua aceito sem ele", antigaCorpo);
+  const antigaRuim = await ia("POST", "/api/ia/site/cadastro", { ...base, id_token: "token-antigo", endereco: { ...base.endereco, cep: "1" } });
+  checar(antigaRuim.status === 400, "mas, se mandar o endereço, ele é conferido");
 
   // Trocar de plano: o valor muda no Mercado Pago, os tokens na renovação.
   let troca = await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "ouro" });
