@@ -1494,7 +1494,7 @@
     h += '<div class="passo"><span class="passo-cab rotulo"><span>1 · Cloudflare Access</span><span style="color:' + (acc ? "var(--ok)" : "var(--ink3)") + '">' + (acc ? "ok" : "pendente") + "</span></span>" +
       '<div class="selo"><span class="selo-esq"><span class="selo-icone' + (acc ? "" : " neutro") + '">' + ic(acc ? "check" : "shield") + "</span><span>" + esc(acc ? s.access.email : "Entrada pelo e-mail da equipe") + '</span></span><span class="selo-dir"><b>PAULUS.IA.BR/ADMIN</b><span>verificação do Cloudflare</span></span></div>';
     if (!acc) h += '<button type="button" class="btn-duplo largo" data-a="recarregar"' + attrDis(desligado(cA), cA.falta) + "><span>" + ic("shield") + "Entrar pelo Cloudflare Access</span></button>" + (desligado(cA) ? '<p class="erro-campo">' + esc(cA.falta) + "</p>" : "");
-    h += '<span class="nota-campo">O Access confere o seu e-mail @paulus.ia.br com um código de uso único antes de a página carregar. Só quem está na lista da equipe chega aqui.</span></div>';
+    h += '<span class="nota-campo">O Access confere o seu e-mail com um código de uso único antes de a página carregar. Só quem está na lista da equipe chega aqui.</span></div>';
     // passo 2
     h += '<div class="passo' + (acc ? "" : " depois") + '"><span class="passo-cab rotulo"><span>2 · GitHub</span><span style="color:' + (gh ? "var(--ok)" : "var(--ink3)") + '">' + (gh ? "ok" : acc ? "pendente" : "depois do passo 1") + "</span></span>" +
       '<div class="selo"><span class="selo-esq"><span class="selo-icone' + (gh ? "" : " neutro") + '">' + ic(gh ? "check" : "lock") + "</span><span>" + esc(gh ? s.github.login : "Login social do GitHub") + '</span></span><span class="selo-dir"><b>GITHUB</b><span>coryphaeus · colaborador</span></span></div>';
