@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Desenvolvimento aberto — PAVLVS</title>
+<title>Desenvolvimento — PAVLVS</title>
 <meta name="description" content="A evolução do PAVLVS mês a mês: as versões publicadas e o que mudou em cada uma.">
 <link rel="canonical" href="https://paulus.ia.br/desenvolvimento/">
-<meta name="theme-color" content="#f6f6f4">
+<meta name="theme-color" content="#131312">
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='escuro'?'dark':'light')}catch(e){}</script>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=close,dark_mode,expand_less,expand_more,light_mode,menu&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=close,dark_mode,light_mode,menu&display=block">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="stylesheet" href="../assets/paginas.css">
 </head>
@@ -22,42 +22,42 @@
 <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 
 <header class="topo">
-  <a class="marca" href="../" aria-label="PAVLVS — página inicial"><span>PAVLVS</span></a>
+  <a class="marca" href="../" aria-label="PAVLVS — página inicial">PAVLVS</a>
   <nav class="nav" id="nav-principal" aria-label="Principal">
     <a href="../">Plataforma</a>
     <a href="../desenvolvimento/" aria-current="page">Desenvolvimento</a>
-    <a href="../cadastro/">Assinar</a>
     <a href="../materiais/">Materiais</a>
+    <a href="../cadastro/">Assinar</a>
+    <a href="../en/" lang="en" hreflang="en">English</a>
+    <a class="btn-duplo pequeno" href="../escritorio/"><span>Acessar escritório</span></a>
   </nav>
   <div class="acoes">
-    <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">dark_mode</span></button>
+    <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
     <button type="button" class="btn-icone so-celular" data-menu aria-expanded="false" aria-controls="nav-principal" aria-label="Menu"><span class="icon" aria-hidden="true">menu</span></button>
   </div>
 </header>
 
-<main id="conteudo" class="pg">
-  <section class="pg-hero" aria-labelledby="t-dev">
-    <span class="pg-rotulo">Software livre</span>
-    <h1 id="t-dev">Desenvolvimento aberto</h1>
-    <p>Acompanhe a evolução do PAVLVS: as versões publicadas, mês a mês, e o que mudou em cada uma.</p>
-    <span class="italico">Software livre, desenvolvimento contínuo.</span>
+<main id="conteudo">
+  <section class="hero" aria-labelledby="t-dev">
+    <div class="col-720">
+      <h1 id="t-dev">O que mudou, mês a mês.</h1>
+      <p>Cada versão publicada e o que ela trouxe. Os PAVLVS instalados recebem a versão nova sozinhos, pela atualização automática.</p>
+    </div>
   </section>
 
-  <nav class="dv-periodo" id="dv-periodo" aria-label="Navegar por período" hidden></nav>
-  <div class="dv-linha" id="dv-linha"><p class="pg-vazio">Carregando o histórico…</p></div>
-
-  <section class="pg-sobre" aria-labelledby="t-sobre">
-    <h2 id="t-sobre">Sobre estes dados</h2>
-    <div>
-      <p class="pg-texto">Cada versão aparece no mês em que foi publicada, com as mudanças descritas nas notas daquela versão. Os PAVLVS instalados recebem a versão nova pela atualização automática.</p>
-    </div>
+  <section class="secao" aria-label="Versões publicadas">
+    <div class="col-720 versoes" id="dv-linha"><p class="vazio">Carregando o histórico…</p></div>
   </section>
 </main>
 
-<footer class="pg-rodape">
-  <a class="nome" href="../">PAVLVS</a>
-  <span id="dv-atualizado"></span>
-  <span>© 2026 Atos · Software livre</span>
+<footer class="rodape">
+  <span>© 2026 Atos</span>
+  <nav aria-label="Rodapé">
+    <a href="../politica-de-privacidade/">Privacidade</a>
+    <a href="../termos-de-uso/">Termos</a>
+    <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
+    <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
+  </nav>
 </footer>
 
 <script src="../assets/site.js" defer></script>

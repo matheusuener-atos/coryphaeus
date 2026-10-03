@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,14 +8,14 @@
 <link rel="canonical" href="https://paulus.ia.br/terms-of-use/">
 <link rel="alternate" hreflang="en" href="https://paulus.ia.br/terms-of-use/">
 <link rel="alternate" hreflang="pt-BR" href="https://paulus.ia.br/termos-de-uso/">
-<meta name="theme-color" content="#f6f6f4">
+<meta name="theme-color" content="#131312">
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='escuro'?'dark':'light')}catch(e){}</script>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=close,dark_mode,light_mode,menu&display=block">
 <link rel="stylesheet" href="../assets/site.css">
 </head>
@@ -23,31 +23,29 @@
 <a class="skip" href="#conteudo">Skip to content</a>
 
 <header class="topo">
-  <a class="marca" href="../en/" aria-label="PAVLVS — home">
-    <span>PAVLVS</span>
-  </a>
+  <a class="marca" href="../en/" aria-label="PAVLVS — home">PAVLVS</a>
   <nav class="nav" id="nav-principal" aria-label="Main">
-    <a href="../en/">Home</a>
-    <a href="../privacy-policy/">Privacy Policy</a>
-    <a href="../terms-of-use/" aria-current="page">Terms of Use</a>
-    <a href="mailto:contato@paulus.ia.br">Contact</a>
+    <a href="../en/">Platform</a>
+    <a href="../desenvolvimento/">Development</a>
+    <a href="../materiais/">Resources</a>
+    <a href="../cadastro/">Subscribe</a>
     <a href="../termos-de-uso/" lang="pt-BR" hreflang="pt-BR">Português</a>
+    <a class="btn-duplo pequeno" href="../en/office/"><span>Open your office</span></a>
   </nav>
   <div class="acoes">
-    <button type="button" class="btn-icone" data-alternar-tema aria-label="Toggle theme"><span class="icon" aria-hidden="true">dark_mode</span></button>
+    <button type="button" class="btn-icone" data-alternar-tema aria-label="Toggle theme"><span class="icon" aria-hidden="true">light_mode</span></button>
     <button type="button" class="btn-icone so-celular" data-menu aria-expanded="false" aria-controls="nav-principal" aria-label="Menu"><span class="icon" aria-hidden="true">menu</span></button>
   </div>
 </header>
 
 <main id="conteudo">
-<header class="doc-cabeca">
-  <span class="rotulo">PAVLVS — AI legal assistant</span>
+<header class="doc-cabeca"><div>
   <h1>Terms of Use</h1>
   <p class="lead">The rules for using PAULUS (PAULUS Legal; app name on Google: PAVLVS). By installing or using the program, you agree to these terms and to the <a href="../privacy-policy/" style="color:var(--ink)">Privacy Policy</a>.</p>
   <span class="data">Last updated: October 2, 2026 · English version of the <a href="../termos-de-uso/" lang="pt-BR">Termos de uso</a> (Portuguese).</span>
-</header>
+</div></header>
 
-<div class="doc">
+<div class="doc"><div class="doc-grade">
   <nav class="sumario" aria-label="On this page">
     <p>On this page</p>
     <ol>
@@ -146,21 +144,17 @@
     <h2 id="contact">13. Contact</h2>
     <p>Questions about these terms: <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>.</p>
   </article>
-</div>
+</div></div>
 </main>
 
 <footer class="rodape">
-  <a class="marca" href="../en/" aria-label="PAVLVS — home"><span>PAVLVS</span></a>
+  <span>© 2026 Atos</span>
   <nav aria-label="Footer">
-    <a href="../en/">Home</a>
-    <a class="forte" href="../privacy-policy/">Privacy Policy</a>
-    <a class="forte" href="../terms-of-use/">Terms of Use</a>
-    <a class="forte" href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
+    <a href="../privacy-policy/">Privacy</a>
+    <a href="../terms-of-use/">Terms</a>
+    <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
+    <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
   </nav>
-  <div class="base">
-    <span>Not legal advice, and it can be wrong. Check every answer against the original document.</span>
-    <span>© 2026 Atos · Open source · Built on Coryphaeus</span>
-  </div>
 </footer>
 
 <script src="../assets/site.js" defer></script>

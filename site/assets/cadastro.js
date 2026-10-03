@@ -48,13 +48,12 @@
     var proximo = c.plano_proximo ? c.plano_proximo.id : "";
     $("cd-planos").innerHTML = estado.planos.map(function (p) {
       var on = p.id === estado.escolhido;
-      var selo = p.id === atual ? "seu plano" : p.id === proximo ? "a partir da renovação" : "";
-      return '<button type="button" class="cd-plano' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-plano="' + esc(p.id) + '"' +
-        (travado ? " disabled" : "") + ">" +
-        '<span class="cd-plano-nome">' + esc(p.nome) + (selo ? ' <em class="cd-selo">' + selo + "</em>" : "") + "</span>" +
-        '<span class="cd-plano-valor">' + brl(p.valor) + "<small>/mês</small></span>" +
-        '<span class="cd-plano-tokens">' + milhoes(p.tokens) + "</span>" +
-        '<span class="cd-plano-uso">' + perguntas(p.tokens) + "</span></button>";
+      var selo = p.id === atual ? "seu plano" : p.id === proximo ? "na renovação" : "";
+      return '<button type="button" class="plano' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-plano="' + esc(p.id) + '"' +
+        (travado ? " disabled" : "") + ' title="' + esc(perguntas(p.tokens)) + '">' +
+        '<span class="plano-radio" aria-hidden="true"></span>' +
+        '<span class="plano-nome"><b>' + esc(p.nome) + (selo ? "<em>" + selo + "</em>" : "") + "</b><small>" + milhoes(p.tokens) + " por mês</small></span>" +
+        '<span class="plano-valor">' + brl(p.valor) + "</span></button>";
     }).join("");
     $("cd-planos").querySelectorAll("[data-plano]").forEach(function (b) {
       b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); desenharTroca(); };
@@ -108,13 +107,13 @@
       var d = await pedir("/api/ia/planos");
       estado.planos = d.planos || [];
       if (d.recarga) {
-        $("cd-recarga").textContent = "Os tokens valem por ciclo de um mês. Uma pergunta sobre documentos gasta, em média, uns 3.500 tokens. " +
+        $("cd-recarga").textContent = "Uma pergunta sobre documentos gasta, em média, 3.500 tokens. Os tokens valem por um mês. " +
           "Se acabarem antes, a recarga de " + milhoes(d.recarga.tokens) + " sai por " + brl(d.recarga.valor) + ", no Pix, e não vence na renovação.";
       }
       desenharPlanos();
       atualizarBotao();
     } catch (e) {
-      $("cd-planos").innerHTML = '<p class="pg-vazio">Não consegui ler os planos agora: ' + esc(e.message) + ". Tente de novo em instantes.</p>";
+      $("cd-planos").innerHTML = '<p class="nota-campo" style="padding:16px 14px">Não consegui ler os planos agora: ' + esc(e.message) + ". Tente de novo em instantes.</p>";
     }
   }
 
@@ -123,7 +122,7 @@
   function mostrarConta(conta) {
     estado.conta = conta;
     $("cd-conta-texto").innerHTML = "Entrou como <b>" + esc(conta.email) + "</b>. " +
-      '<button type="button" class="cd-trocar" id="cd-trocar">Usar outra conta</button>';
+      '<button type="button" class="trocar" id="cd-trocar">Usar outra conta</button>';
     $("cd-trocar").onclick = sair;
     $("cd-google").hidden = true;
     var c = conta.cadastro || {};
@@ -187,7 +186,9 @@
       ux_mode: "popup",
       context: "signup",
     });
-    google.accounts.id.renderButton($("cd-google"), { theme: "outline", size: "large", text: "continue_with", shape: "pill", locale: "pt-BR" });
+    // O botao e o do Google (so ele entrega a identidade), no tema escuro e na largura da coluna.
+    var claro = document.documentElement.getAttribute("data-theme") === "light";
+    google.accounts.id.renderButton($("cd-google"), { theme: claro ? "outline" : "filled_black", size: "large", text: "continue_with", shape: "rectangular", width: 360, locale: "pt-BR" });
   }
 
   /* ------------------------------------------------------- o formulario */

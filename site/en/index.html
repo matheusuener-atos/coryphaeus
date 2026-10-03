@@ -1,114 +1,224 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAVLVS — AI legal assistant</title>
-<meta name="description" content="PAVLVS (PAULUS Legal) is a Windows program for law offices: documents, email, calendar and an AI assistant that reads the office's documents and cites the source.">
+<meta name="description" content="PAVLVS (PAULUS Legal) is an AI legal assistant installed on the law office's computer: documents, email, calendar, recordings, signatures and approvals. Nothing leaves without your approval.">
 <link rel="canonical" href="https://paulus.ia.br/en/">
 <link rel="alternate" hreflang="en" href="https://paulus.ia.br/en/">
 <link rel="alternate" hreflang="pt-BR" href="https://paulus.ia.br/">
-<meta name="theme-color" content="#f6f6f4">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PAVLVS — AI legal assistant">
+<meta property="og:description" content="The whole law office, with an AI in a cloud of its own.">
+<meta property="og:url" content="https://paulus.ia.br/en/">
+<meta property="og:image" content="https://paulus.ia.br/assets/paulus-icone-512.png">
+<meta property="og:locale" content="en_US">
+<meta name="theme-color" content="#131312">
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='escuro'?'dark':'light')}catch(e){}</script>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=close,dark_mode,light_mode,menu&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=archive,arrow_upward,auto_awesome,calendar_month,check,close,contacts,dark_mode,description,draw,forum,inventory_2,light_mode,mail,menu,mic,payments,play_arrow,self_improvement,verified,work&display=block">
 <link rel="stylesheet" href="../assets/site.css">
 </head>
 <body>
 <a class="skip" href="#conteudo">Skip to content</a>
 
 <header class="topo">
-  <a class="marca" href="./" aria-label="PAVLVS — home">
-    <span>PAVLVS</span>
-  </a>
+  <a class="marca" href="../en/" aria-label="PAVLVS — home">PAVLVS</a>
   <nav class="nav" id="nav-principal" aria-label="Main">
-    <a href="./" aria-current="page">Home</a>
-    <a href="#google">Google account</a>
-    <a href="../privacy-policy/">Privacy Policy</a>
-    <a href="mailto:contato@paulus.ia.br">Contact</a>
+    <a href="../en/" aria-current="page">Platform</a>
+    <a href="../desenvolvimento/">Development</a>
+    <a href="../materiais/">Resources</a>
+    <a href="../cadastro/">Subscribe</a>
     <a href="../" lang="pt-BR" hreflang="pt-BR">Português</a>
+    <a class="btn-duplo pequeno" href="../en/office/"><span>Open your office</span></a>
   </nav>
   <div class="acoes">
-    <button type="button" class="btn-icone" data-alternar-tema aria-label="Toggle theme"><span class="icon" aria-hidden="true">dark_mode</span></button>
+    <button type="button" class="btn-icone" data-alternar-tema aria-label="Toggle theme"><span class="icon" aria-hidden="true">light_mode</span></button>
     <button type="button" class="btn-icone so-celular" data-menu aria-expanded="false" aria-controls="nav-principal" aria-label="Menu"><span class="icon" aria-hidden="true">menu</span></button>
   </div>
 </header>
 
 <main id="conteudo">
-<header class="doc-cabeca">
-  <span class="rotulo">PAVLVS — AI legal assistant</span>
-  <h1>The whole law office, with an AI that stays on your machine.</h1>
-  <p class="lead">PAVLVS (PAULUS Legal) is a Windows program for Brazilian law offices. It brings together the office's documents, email, calendar, recordings, finances and an AI assistant. The AI is part of a subscription and runs in the PAULUS cloud: only the question and the excerpts it needs are sent, with personal data masked, and the office's files stay on its own computer. Without internet, a local model answers as a backup.</p>
-  <span class="data">No account or sign-in is needed to read this page or to download the program. The program is in Portuguese; this page explains it in English.</span>
-</header>
 
-<div class="doc">
-  <nav class="sumario" aria-label="On this page">
-    <p>On this page</p>
-    <ol>
-      <li><a href="#what">What PAVLVS does</a></li>
-      <li><a href="#privacy">Your documents stay where they are</a></li>
-      <li><a href="#google">Why PAVLVS asks for access to your Google account</a></li>
-      <li><a href="#download">Download</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ol>
-  </nav>
-
-  <article class="texto">
-    <h2 id="what">What PAVLVS does</h2>
-    <ul>
-      <li><strong>Archive (Acervo):</strong> reads the office's PDFs, Word and Excel files in the folders you choose, and answers questions about them, citing the page.</li>
-      <li><strong>Email:</strong> your inbox inside the program; the assistant drafts replies, and nothing is sent without your approval.</li>
-      <li><strong>Calendar and deadlines:</strong> appointments, tasks, procedural deadlines counted in business days, and court publications for your bar number.</li>
-      <li><strong>Recordings:</strong> records a meeting, transcribes it locally and turns the action items into tasks.</li>
-      <li><strong>Services, clients, finances and signatures:</strong> the office's cases, contacts, billable hours and digital signatures in one place.</li>
-      <li><strong>Approvals:</strong> the AI proposes, you approve. Anything that leaves the machine — an email, a document sent to Drive — waits for your yes.</li>
-    </ul>
-
-    <h2 id="privacy">Your documents stay where they are</h2>
-    <p>PAVLVS is installed on the office computer, where documents are read and indexed. The AI is part of a subscription: with it, answers are written in the cloud, which only turns on after the office's principal says yes — through the PAULUS plan (the question and the excerpts it needs pass through paulus.ia.br to DeepInfra, which runs the model, and are not stored) or with the office's own DeepInfra, Anthropic or OpenAI API key, with CPF, CNPJ and case numbers masked and nothing from email. Without internet, or when the month's quota runs out, a local model running through Ollama answers as a backup; without the subscription, the program works without AI. No PAVLVS server keeps your messages, documents or client data.</p>
-
-    <h2 id="google">Why PAVLVS asks for access to your Google account</h2>
-    <p>When you connect a Gmail account to the Email module, Google shows the consent screen of the app <strong>PAVLVS — Assistente jurídico de IA local</strong>. PAVLVS requests the account's email address and access to Gmail (scope <code>https://mail.google.com/</code>) only to show your inbox and the messages you open, to suggest calendar deadlines found in messages, and to send the replies you approve.</p>
-    <p>Optional, each one only when you connect it in Settings › Connections:</p>
-    <ul>
-      <li><strong>Google Calendar</strong> (scope <code>calendar.events</code>): copy your appointments there — title, date, time, duration and place — and create their Google Meet room.</li>
-      <li><strong>Google Drive, upload</strong> (scope <code>drive.file</code>, which only sees what PAVLVS created): upload the documents you approve to a PAULUS folder in your Drive.</li>
-      <li><strong>Google Drive, read-only</strong> (scope <code>drive.readonly</code>): let you choose Drive folders and keep a local copy of them in the Archive, so you can search those documents on your computer. PAVLVS never writes, moves or deletes anything in your Drive with this access.</li>
-    </ul>
-    <div class="caixa destaque">
-      <p>Google data is not used for advertising, not sold, not used to train AI models and not shared with third parties. PAVLVS's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Full details in the <a href="../privacy-policy/">Privacy Policy</a>.</p>
+<section id="platform" class="hero" aria-labelledby="t-platform">
+  <div class="col-720">
+    <h1 id="t-platform">The whole law office, with an AI in a cloud of its own.</h1>
+    <p>Reads contracts and answers with the source, schedules deadlines, writes, signs, handles email and billing. The files stay on your computer, and whatever leaves the office — an email, a signed document — waits for your yes.</p>
+    <div class="botoes">
+      <a class="btn-duplo" href="https://github.com/matheusuener-atos/coryphaeus/releases/latest"><span><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 2.2 6.5 1.3v6.3H0zM7.3 1.2 16 0v7.6H7.3zM0 8.4h6.5v6.3L0 13.8zM7.3 8.4H16V16l-8.7-1.2z"/></svg>Download for Windows</span></a>
+      <a class="link-mudo" href="../cadastro/">Subscribe · from R$ 150/month</a>
     </div>
-    <p>You can turn it off at any time: remove the account in PAVLVS and revoke access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+    <span class="mono-linha">personal data masked · sources in the answers · nothing leaves without your yes</span>
+    <span class="nota-pe">The program is in Portuguese, for Brazilian law offices; this page explains it in English.</span>
+  </div>
+</section>
 
-    <h2 id="download">Download</h2>
-    <p>PAVLVS is open-source software for Windows; the AI assistant is by subscription. Download the installer from the project's <a href="https://github.com/matheusuener-atos/coryphaeus/releases/latest">latest release on GitHub</a>; the source code is at <a href="https://github.com/matheusuener-atos/coryphaeus">github.com/matheusuener-atos/coryphaeus</a>.</p>
+<section class="secao" aria-label="PAVLVS in use">
+  <div class="demo-moldura" data-demo="en" role="img" aria-label="Animation: a question about yesterday's meeting, the answer citing the recording as its source, the transcript, the AI summary and the request to approve two tasks in the Calendar."></div>
+</section>
 
-    <h2 id="contact">Contact</h2>
-    <p>Matheus Uener Silva — <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a> — São Félix do Xingu/PA, Brazil.</p>
-  </article>
-</div>
+<section class="secao" aria-labelledby="t-rules">
+  <div class="col regras">
+    <h2 id="t-rules" class="titulo">Four rules that do not change.</h2>
+    <div>
+      <div class="regra"><span class="num">01</span><h3>The files stay here.</h3><p>Documents, the index and the backup model stay on the office's machine. Without internet, a local model answers.</p></div>
+      <div class="regra"><span class="num">02</span><h3>Nothing leaves without your yes.</h3><p>Sending email, signing, and moving or deleting files go through the Approvals queue before they happen.</p></div>
+      <div class="regra"><span class="num">03</span><h3>Sources for everything.</h3><p>An answer about your documents shows the file, the page and the passage it came from. The model can be wrong: the source is there for you to check.</p></div>
+      <div class="regra"><span class="num">04</span><h3>Pay only for the AI.</h3><p>The program works in full without paying; the AI is by subscription.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="modules" class="secao" aria-labelledby="t-modules">
+  <div class="col">
+    <div class="cabeca-secao">
+      <h2 id="t-modules" class="titulo">Twelve modules. One conversation.</h2>
+      <p class="texto-lead">Each module works on its own and talks to the others: a deadline found in a contract becomes a Calendar suggestion, and a Billing charge goes out as an email, once approved.</p>
+    </div>
+    <ul class="modulos">
+      <li class="modulo"><span class="icon" aria-hidden="true">forum</span><h3>Assistant</h3><p>Ask in plain language. The answer cites the passage and opens the document on the right page.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">work</span><h3>Matters</h3><p>Each case is a folder with files, team, steps, deadlines and an AI summary.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">mic</span><h3>Recordings</h3><p>Meetings transcribed on this machine. The summary comes from the text; the audio never leaves the computer.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">calendar_month</span><h3>Calendar</h3><p>Appointments, deadlines and tasks. Deadlines in contracts and emails become suggestions.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">inventory_2</span><h3>Library</h3><p>The documents in your folders, read and indexed here. PDF, DOCX, TXT and MD.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">description</span><h3>Documents</h3><p>Editor and spreadsheet with the AI alongside: the office's clauses, legal codes, formulas in Portuguese.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">mail</span><h3>Email</h3><p>An inbox with what the AI understood, deadlines detected and drafts ready to approve.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">draw</span><h3>Signing</h3><p>PDFs signed with your A1 certificate, one by one or in batches. The certificate never leaves the machine.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">payments</span><h3>Billing</h3><p>Fees, expenses, statements and reports. A charge goes out as an email, after your yes.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">contacts</span><h3>Contacts</h3><p>Clients, team and fixed expenses. The parties' details filled into documents.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">verified</span><h3>Approvals</h3><p>Email, signatures and files wait for your yes. Approval rules say what goes out without asking.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">self_improvement</span><h3>Focus</h3><p>Focus cycles, breaks and the rhythm of the week, so the work fits in the day.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="secao" aria-label="Approvals and recordings">
+  <div class="col duas">
+    <div class="bloco">
+      <div class="bloco-texto">
+        <h2 class="titulo">The AI proposes. You approve.</h2>
+        <p class="texto-lead">Emails, signatures and file moves go into a queue. You see what will go out, whether it can be undone, and decide.</p>
+      </div>
+      <figure class="painel" style="margin:0" aria-label="Illustration: the Approvals queue with four requests">
+        <div class="painel-cab"><span class="rotulo">Approvals</span><span class="verde">4 waiting</span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">mail</span><span class="txt"><b>Email to Priscila Almeida</b><small>Signed power of attorney · 1 attachment · 1.5 MB</small></span><span class="par"><span class="mini">Decline</span><span class="mini cheia">Approve</span></span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">draw</span><span class="txt"><b>Sign amendment — room 402</b><small>e-CPF A1 · page 12 · seal in the footer</small></span><span class="par"><span class="mini">Decline</span><span class="mini cheia">Approve</span></span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">payments</span><span class="txt"><b>Fee invoice — Cooperative</b><small>R$ 4,800.00 · due in 10 days · goes out by email</small></span><span class="par"><span class="mini">Decline</span><span class="mini cheia">Approve</span></span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">archive</span><span class="txt"><b>Move 14 files to Clients › Cooperative</b><small>Organize folders · can be undone</small></span><span class="par"><span class="mini">Decline</span><span class="mini cheia">Approve</span></span></div>
+      </figure>
+    </div>
+    <div class="bloco">
+      <div class="bloco-texto">
+        <h2 class="titulo">Record the meeting. Action items become tasks.</h2>
+        <p class="texto-lead">Transcription on this machine, with the minute of each passage. The AI writes the summary from the text, and the action items become Calendar tasks. None of the audio leaves the computer.</p>
+      </div>
+      <figure class="painel" style="margin:0" aria-label="Illustration: a transcribed recording, with summary and action items">
+        <div class="painel-cab"><span class="rotulo">Recording · 28:14</span><span>Meeting · Supplier A</span></div>
+        <div class="painel-trecho"><span class="rotulo">12:40</span><span>We can make it up in the amendment, in two installments, if you waive the penalty.</span></div>
+        <div class="painel-nota"><span class="rotulo">Summary</span><span>The supplier offers two installments in exchange for waiving the penalty. They will send the proposal in writing.</span></div>
+        <div class="painel-nota"><span class="rotulo">Action items · 2</span><span>Send the draft amendment by Friday · Check whether the waiver needs the Cooperative's consent.</span></div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="privacy" class="secao" aria-labelledby="t-privacy">
+  <div class="col" style="display:grid;gap:48px">
+    <div class="centro">
+      <h2 id="t-privacy" class="titulo">Your documents stay where they are.</h2>
+      <p class="texto-lead">The files stay on the office's computer. Only the question and the excerpts the AI needs to read are sent, with CPF, CNPJ and case numbers masked, and the text is not stored anywhere else. No server of ours keeps your documents or messages.</p>
+      <a class="link-mudo" href="../privacy-policy/">Privacy policy</a>
+    </div>
+    <div class="duas meio">
+      <div class="bloco-texto">
+        <span class="rotulo">When PAVLVS goes online</span>
+        <p class="texto-lead">Only for what you use. The AI is part of the subscription: answers are written in the PAULUS cloud, which only turns on after the office's principal says yes — the text passes through this website to DeepInfra, which runs the model, and is not stored. Without internet, or when the month's quota runs out, a local model (Ollama) answers as a backup. Without the subscription, the program works without AI.</p>
+      </div>
+      <dl class="fatos">
+        <div><dt>AI</dt><dd>PAULUS cloud (DeepInfra), or the office's own API key · nothing from email</dd></div>
+        <div><dt>Email</dt><dd>directly with your provider</dd></div>
+        <div><dt>Laws and rulings</dt><dd>Planalto · STJ and DataJud, when you ask</dd></div>
+        <div><dt>Models</dt><dd>download of the ones you choose (language, voice and translation)</dd></div>
+        <div><dt>New version</dt><dd>one check a day · can be turned off</dd></div>
+        <div><dt>Payment</dt><dd>Mercado Pago, through this website</dd></div>
+        <div><dt>Legal basis</dt><dd>LGPD · Law No. 13,709/2018</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- Google account: required by the verification of the OAuth app "PAVLVS" -->
+<section id="google-account" class="secao" aria-labelledby="t-google">
+  <div class="col duas meio">
+    <div class="bloco-texto">
+      <h2 id="t-google" class="titulo">Why PAULUS asks for access to your Google account.</h2>
+      <p class="texto-lead">When you connect a Gmail account to the Email module, Google shows the consent screen of the app <strong style="color:var(--ink);font-weight:500">PAVLVS — Assistente jurídico de IA local</strong>. PAULUS requests the account's email address and access to Gmail (<code>https://mail.google.com/</code>) for three things only: to show your inbox and the messages you open, which come straight from Gmail to your computer; to turn deadlines found in messages into Calendar suggestions; and to prepare and send the replies you approve, through the Approvals queue. Archiving, deleting, marking as read or starred are also your actions.</p>
+      <p class="texto-lead">Optional, each one only when you connect it in Settings › Connections: Google Calendar (<code>calendar.events</code>), to copy your appointments there and create their Google Meet room; Google Drive (<code>drive.file</code>, which only sees what PAULUS created), to upload the documents you approve to a PAULUS folder; and Drive read-only (<code>drive.readonly</code>), to keep in the Library a local copy of the folders you choose.</p>
+      <p class="texto-lead">Google data is not used for advertising, not sold, not used to train AI models and not shared with third parties. The use and transfer to any other app of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. The authorization is encrypted by your Windows account. To turn it off, remove the account in PAULUS and revoke access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. See the <a href="../privacy-policy/">Privacy policy</a> and the <a href="../terms-of-use/">Terms of use</a>.</p>
+    </div>
+    <div class="painel servicos" aria-label="What PAVLVS asks Google for">
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M2 6.5v11A1.5 1.5 0 0 0 3.5 19H6V9.8l6 4.5 6-4.5V19h2.5a1.5 1.5 0 0 0 1.5-1.5v-11"/><path fill="#EA4335" d="M12 14.3 2 6.8V6a1.5 1.5 0 0 1 2.4-1.2L12 10.5l7.6-5.7A1.5 1.5 0 0 1 22 6v.8z"/><path fill="#34A853" d="M18 9.8V19h2.5a1.5 1.5 0 0 0 1.5-1.5V6.8z"/><path fill="#FBBC04" d="M6 9.8V19H3.5A1.5 1.5 0 0 1 2 17.5V6.8z"/></svg><b>Gmail</b><span>read and send, with Approvals</span></div>
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="#fff"/><path fill="#1A73E8" d="M3 7h18V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"/><path fill="#4285F4" d="M3 7h4v4H3zM17 7h4v4h-4z"/><path fill="#34A853" d="M3 17h4v4H3z"/><path fill="#FBBC04" d="M17 17v4h2a2 2 0 0 0 2-2v-2z"/><path fill="#EA4335" d="M17 11h4v6h-4z"/><path fill="#188038" d="M7 17h10v4H7z"/><text x="12" y="15.6" font-family="Arial" font-size="7" font-weight="700" fill="#1A73E8" text-anchor="middle">31</text></svg><b>Calendar</b><span>create and update events · optional</span></div>
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#00832D" d="M14 12l2.4 2.7 3.2 2V7.3l-3.2 2z"/><path fill="#0066DA" d="M2 15.5V19a1.5 1.5 0 0 0 1.5 1.5H7v-5z"/><path fill="#E94235" d="M7 3.5 2 8.5h5z"/><path fill="#2684FC" d="M2 8.5h5v7H2z"/><path fill="#00AC47" d="M19.6 5l-3.2 2.3v9.4l3.2 2.3c.5.4 1.4 0 1.4-.6V5.6c0-.6-.9-1-1.4-.6z"/><path fill="#00AC47" d="M14 12v3.5H7v5h7.5A1.5 1.5 0 0 0 16 19v-4.3z"/><path fill="#FFBA00" d="M14 3.5H7v5h7v3.5l2.4-2.7V5A1.5 1.5 0 0 0 14 3.5z"/></svg><b>Meet</b><span>room for appointments · optional</span></div>
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0066DA" d="M3.6 18.8l1.1 1.9c.2.4.6.7 1 .9l3.9-6.7H1.8c0 .4.1.9.4 1.3z"/><path fill="#00AC47" d="M12 8.2 8.1 1.4c-.4.2-.8.5-1 .9L1.8 13.9c-.3.4-.4.9-.4 1.3h7.8z"/><path fill="#EA4335" d="M18.3 21.6c.4-.2.8-.5 1-.9l.5-.8 2.3-4c.3-.4.4-.9.4-1.3h-7.8l1.7 3.2z"/><path fill="#00832D" d="M12 8.2l3.9-6.8c-.4-.2-.8-.3-1.3-.3H9.4c-.5 0-.9.1-1.3.3z"/><path fill="#2684FC" d="M14.9 14.9H9.1l-3.9 6.7c.4.2.8.3 1.3.3h11c.5 0 .9-.1 1.3-.3z"/><path fill="#FFBA00" d="M18.3 7.9l-2.6-4.6c-.2-.4-.6-.7-1-.9L12 8.2l2.9 6.7h7.8c0-.4-.1-.9-.4-1.3z"/></svg><b>Drive</b><span>upload what you approve · read the folders you choose · optional</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="download" class="secao" aria-labelledby="t-download">
+  <div class="col duas meio">
+    <div class="bloco" style="gap:22px">
+      <div class="bloco-texto">
+        <h2 id="t-download" class="titulo">Install, point to the folder, ask.</h2>
+        <p class="texto-lead">The installer brings PAULUS and, if missing, Ollama, the engine of the local backup model. On first launch, the setup assistant tests the machine and suggests the local model that fits it. The AI comes with the subscription: <a href="../cadastro/">subscribe here</a> and sign in to PAULUS with the same Google account, in Settings › Models. Without it, the program works in full, without AI.</p>
+      </div>
+      <div style="display:grid;gap:14px">
+        <a class="btn-duplo largo" href="https://github.com/matheusuener-atos/coryphaeus/releases/latest"><span><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 2.2 6.5 1.3v6.3H0zM7.3 1.2 16 0v7.6H7.3zM0 8.4h6.5v6.3L0 13.8zM7.3 8.4H16V16l-8.7-1.2z"/></svg>Download for Windows</span></a>
+        <div class="links-miudos">
+          <a href="https://github.com/matheusuener-atos/coryphaeus/releases/latest">Release notes and SHA-256</a>
+          <a href="https://github.com/matheusuener-atos/coryphaeus">Source code</a>
+        </div>
+        <p class="nota-pe">The installer is not digitally signed yet. If Windows warns you, click More info and then Run anyway. macOS and Linux coming soon.</p>
+      </div>
+    </div>
+    <dl class="fatos">
+      <div><dt>System</dt><dd>Windows 10 or 11 · 64-bit</dd></div>
+      <div><dt>Memory</dt><dd>8 GB · 16 GB recommended</dd></div>
+      <div><dt>Disk</dt><dd>6 GB free for the model and index</dd></div>
+      <div><dt>Graphics card</dt><dd>optional · speeds up larger models</dd></div>
+      <div><dt>Certificate</dt><dd>e-CPF A1 (.pfx) to sign</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="final" aria-labelledby="t-final">
+  <h2 id="t-final" class="titulo">See PAULUS running on your contracts.</h2>
+  <div class="botoes">
+    <a class="btn-duplo" href="mailto:contato@paulus.ia.br"><span><span class="icon" aria-hidden="true">mail</span>Talk to us</span></a>
+    <a class="link-mudo" href="https://github.com/matheusuener-atos/coryphaeus" style="display:inline-flex;align-items:center;gap:7px"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>View the code</a>
+  </div>
+  <span class="nota-pe">PAVLVS is not legal advice and it can be wrong. Check every answer against the original document. Contact: Matheus Uener Silva — contato@paulus.ia.br — São Félix do Xingu/PA, Brazil.</span>
+</section>
+
 </main>
 
 <footer class="rodape">
-  <a class="marca" href="./" aria-label="PAVLVS — home"><span>PAVLVS</span></a>
+  <span>© 2026 Atos</span>
   <nav aria-label="Footer">
-    <a href="./">Home</a>
-    <a class="forte" href="../privacy-policy/">Privacy Policy</a>
-    <a class="forte" href="../terms-of-use/">Terms of Use</a>
-    <a class="forte" href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
+    <a href="../privacy-policy/">Privacy</a>
+    <a href="../terms-of-use/">Terms</a>
+    <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
+    <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
   </nav>
-  <div class="base">
-    <span>Not legal advice, and it can be wrong. Check every answer against the original document.</span>
-    <span>© 2026 Atos · Open source · Built on Coryphaeus</span>
-  </div>
 </footer>
 
 <script src="../assets/site.js" defer></script>
+<script src="../assets/demo.js" defer></script>
 </body>
 </html>
