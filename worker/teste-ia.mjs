@@ -412,6 +412,13 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
 
   // Depois, o PAULUS instalado entra com a mesma conta Google e já encontra o plano.
   const ativou = await corpoDe(await ia("POST", "/api/ia/ativar", { id_token: "token-novo", instalacao_id: "inst-nova-0001" }));
+  const pacote = await corpoDe(await ia("POST", "/api/ia/recarga", { pacote: "2" }, ativou.segredo));
+  checar(pacote.valor === "100.00" && pacote.tokens === 10000, "a recarga do dobro: R$ 100 pelo dobro de tokens", pacote);
+  mpOrders.get(pacote.id).status = "processed";
+  mpOrders.get(pacote.id).total_amount = "100.00";
+  const creditada = await corpoDe(await ia("GET", "/api/ia/recarga/" + pacote.id, null, ativou.segredo));
+  checar(creditada.pago && creditada.conta.recargas[0].tokens === 10000, "paga, entram os tokens do pacote", creditada.conta && creditada.conta.recargas);
+  checar((await ia("POST", "/api/ia/recarga", { pacote: "7" }, ativou.segredo)).status === 400, "pacote que não existe é recusado");
   checar(ativou.conta.plano_vigente && ativou.conta.plano.id === "plus" && ativou.conta.instalacoes === 1,
     "o PAULUS instalado entra com a mesma conta e já tem o plano", ativou.conta);
 

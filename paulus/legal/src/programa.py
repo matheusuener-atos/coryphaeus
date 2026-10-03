@@ -98,6 +98,11 @@ RESOLVE_C4 = {
 # Configurações de mesmo nome. tests/test_navegacao.py confere que toda tela
 # daqui tem quem a abra lá.
 TELAS_NAVEGAVEIS = {
+    "consumo": ("Plano e consumo",
+                "Quanto o escritório usa da IA no ciclo, quem da equipe usa, os limites de uso, o plano e a recarga de "
+                "tokens.",
+                ("plano e consumo", "consumo", "consumo de tokens", "consumo da ia", "tokens", "meus tokens",
+                 "meu plano", "limites de uso", "limite de tokens", "recarga de tokens", "upgrade do plano")),
     "agentes": ("Agentes",
                 "Os agentes do escritório - assistentes com instruções, fontes e ferramentas próprias - e as tarefas "
                 "de vários passos.",

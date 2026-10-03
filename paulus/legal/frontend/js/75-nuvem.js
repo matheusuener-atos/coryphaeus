@@ -251,8 +251,9 @@ async function ativarNuvemPaulus(redesenhar) {
   } catch (err) { avisoCert(err.message, { tom: "erro" }); }
 }
 
-async function recarregarNuvem(redesenhar) {
-  const p = await nuvemPost("/api/nuvem/paulus/recarga", {});
+async function recarregarNuvem(redesenhar, pacote) {
+  // `pacote`: a recarga rapida de Plano e consumo ("0.5", "1", "2"); sem ele, a de sempre.
+  const p = await nuvemPost("/api/nuvem/paulus/recarga", pacote ? { pacote: pacote } : {});
   if (!p) return;
   let parar = false;
   const html = '<div class="nuvem-pix">' + (p.qr_code_base64 ? '<img alt="QR do Pix" src="data:image/png;base64,' + esc(p.qr_code_base64) + '">' : "") +

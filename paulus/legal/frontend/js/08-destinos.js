@@ -32,6 +32,13 @@ const NOVOS_DESTINOS = {
     resolve: "Os especialistas que o escritório escreve para a conversa, com os testes e a medida de cada um.",
     precisa: [],
   },
+  // Plano e consumo (js/91-plano-consumo.js): quanto a equipe usa da IA,
+  // os limites e o plano. So na janela do escritorio.
+  consumo: {
+    id: "consumo", nome: "Plano e consumo", pronta: true, abre: "consumo",
+    resolve: "Quanto o escritório usa da IA, quem usa, os limites de uso, o plano e a recarga.",
+    precisa: [],
+  },
   // B1: a Biblioteca (js/57-biblioteca.js) - obras e lembretes, as leis e
   // as súmulas que vêm com o PAULUS, e os tribunais. O id "biblioteca" já é
   // do Acervo no registro de destinos.
@@ -110,6 +117,7 @@ function abrirDestino(id) {
   if (d.abre === "servicos") return mostrarServicos("pastas");
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "agentes") return mostrarAgentes();
+  if (d.abre === "consumo") return mostrarConsumo();
   if (d.abre === "contexto") return mostrarBibliotecaContexto();
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return voltarAoAssistente();

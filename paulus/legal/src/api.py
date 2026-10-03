@@ -3982,7 +3982,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         provaveis = [str(getattr(h.chunk, "doc_path", "") or "") for h in estado.searcher.search(pergunta, top_k=8)]
         if not nuvem_mod.motivo_para_ficar(estado, provaveis):
             triagem = triagem_mod.triar(estado, pergunta, estado.searcher.documents, historico=historico,
-                                        leis=estado.leis)
+                                        leis=estado.leis, trabalho_id=trabalho.id,
+                                        pessoa=rotas_do_acesso.pessoa(request))
         if triagem and triagem["documentos"]:
             substantivo = intencao.referencia_generica(pergunta)
             # "a procuração" e ha quatro: a conversa pergunta qual, entre as que a triagem achou.

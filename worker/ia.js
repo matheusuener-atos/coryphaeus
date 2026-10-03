@@ -83,6 +83,10 @@ export function numeros(env) {
     planos: lerPlanos(env, planoValor, planoTokens),
     recargaValor: n(env.IA_RECARGA_VALOR, 50),
     recargaTokens: n(env.IA_RECARGA_TOKENS, 10000000),
+    // Os pacotes da recarga rapida (02/10/2026): metade, a recarga de sempre e
+    // o dobro, no mesmo preco por token.
+    recargas: [0.5, 1, 2].map((f) => ({ id: String(f), tokens: Math.round(n(env.IA_RECARGA_TOKENS, 10000000) * f),
+      valor: Math.round(n(env.IA_RECARGA_VALOR, 50) * f * 100) / 100 })),
     maxSaida: n(env.IA_MAX_SAIDA, 4000),
     maxEntradaCaracteres: n(env.IA_MAX_ENTRADA_CARACTERES, 240000),
     porMinuto: n(env.IA_POR_MINUTO, 40),
@@ -108,7 +112,7 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   }
   if (p === "/api/ia/planos" && m === "GET") {
     const n = numeros(env);
-    return json({ planos: n.planos, recarga: { valor: n.recargaValor, tokens: n.recargaTokens } });
+    return json({ planos: n.planos, recarga: { valor: n.recargaValor, tokens: n.recargaTokens }, recargas: n.recargas });
   }
   // A pagina de cadastro do site (site/cadastro): o id_token do Google a cada
   // pedido, sem segredo de instalacao - quem assina pelo site ainda nao
@@ -528,7 +532,9 @@ async function criarRecarga(request, env, conta, id, mp) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) return json({ erro: "e-mail inválido" }, 400);
   if (!atual.plano_vigente) return json({ erro: "a recarga é para quem tem o plano em dia: assine antes" }, 409);
   const n = numeros(env);
-  const valor = n.recargaValor.toFixed(2);
+  const pacote = n.recargas.find((x) => x.id === String(d.pacote || "1")) || n.recargas.find((x) => x.id === "1");
+  if (d.pacote && !n.recargas.some((x) => x.id === String(d.pacote))) return json({ erro: "esse pacote de recarga não existe" }, 400);
+  const valor = pacote.valor.toFixed(2);
   const r = await mp(env, "/v1/orders", "POST", {
     type: "online",
     total_amount: valor,
@@ -541,7 +547,7 @@ async function criarRecarga(request, env, conta, id, mp) {
   const pagamento = ((r.dados.transactions || {}).payments || [])[0] || {};
   const meio = pagamento.payment_method || {};
   return json({
-    id: r.dados.id, valor, tokens: n.recargaTokens, vence_em_minutos: 30,
+    id: r.dados.id, valor, tokens: pacote.tokens, vence_em_minutos: 30,
     qr_code: meio.qr_code || "", qr_code_base64: meio.qr_code_base64 || "", ticket_url: meio.ticket_url || "",
   });
 }
@@ -712,8 +718,12 @@ export class ContaIA {
     if (acao === "creditar") {
       conta.recargas = conta.recargas || [];
       if (conta.recargas.some((r) => r.pedido === d.pedido)) return [this.resumo(conta, n, agora), null];
-      conta.extra = (conta.extra || 0) + n.recargaTokens;
-      conta.recargas = [...conta.recargas, { pedido: d.pedido, tokens: n.recargaTokens, valor: d.valor, quando: new Date(agora).toISOString() }].slice(-50);
+      // Os tokens pelo valor pago, no preco por token da recarga: vale para
+      // qualquer pacote, e para o Pix criado antes dos pacotes.
+      const pago = Number(d.valor) || 0;
+      const tokens = pago > 0 ? Math.round((pago / n.recargaValor) * n.recargaTokens) : n.recargaTokens;
+      conta.extra = (conta.extra || 0) + tokens;
+      conta.recargas = [...conta.recargas, { pedido: d.pedido, tokens, valor: d.valor, quando: new Date(agora).toISOString() }].slice(-50);
       return [this.resumo(conta, n, agora), conta];
     }
     return [{ ok: false, erro: "ação desconhecida", status: 400 }, null];
@@ -822,6 +832,7 @@ export class ContaIA {
       planos: n.planos,
       cadastro_completo: Boolean(conta.cadastro),
       recarga: { valor: n.recargaValor, tokens: n.recargaTokens },
+      recargas_pacotes: n.recargas,
       ciclo: c ? { inicio: c.inicio, fim: c.fim, tokens: c.tokens, usados: c.usados, origem: c.origem } : null,
       tokens: {
         do_ciclo: doCiclo,

@@ -42,6 +42,8 @@ class Consentimento(BaseModel):
 
 class Email(BaseModel):
     email: str = ""
+    # O pacote da recarga rapida (worker/ia.js: "0.5", "1", "2"); vazio, o de sempre.
+    pacote: str = ""
     # O plano escolhido na tela (worker/ia.js: advogado, escritorio, plus); vazio, o da conta.
     plano: str = ""
 
@@ -274,7 +276,32 @@ def montar(estado, app, dados_dir) -> None:
     @app.post("/api/nuvem/paulus/recarga")
     def nuvem_paulus_recarga(payload: Email) -> dict:
         email = payload.email.strip() or str((estado.prefs.dados.get("vinculo") or {}).get("email") or "")
-        return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/recarga", {"email": email}))
+        corpo = {"email": email, **({"pacote": payload.pacote.strip()} if payload.pacote.strip() else {})}
+        return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/recarga", corpo))
+
+    # ------------------------------------------------ Plano e consumo (src/consumo.py)
+
+    @app.get("/api/consumo")
+    def consumo_painel(forcar: bool = False) -> dict:
+        """Quanto o escritorio gasta (a conta do Worker), quem gasta (o registro daqui) e os limites."""
+        import consumo
+
+        conta = _conta(estado, forcar=forcar)
+        return {**conta, "painel": consumo.painel(estado), "cobranca": plano.cobranca_ligada(),
+                "ligada": nuvem.ligada(estado), "ativa": bool(nuvem.chave(estado, "paulus"))}
+
+    @app.get("/api/consumo/pessoa/{conta_id}")
+    def consumo_pessoa(conta_id: int, dias: int = 31) -> dict:
+        import consumo
+
+        return {"conta_id": conta_id, "dias": consumo.historico(estado, conta_id, dias=max(1, min(dias, 120)))}
+
+    @app.post("/api/consumo/limites")
+    def consumo_limites(payload: dict) -> dict:
+        """Os limites de uso: diario e mensal do escritorio e de cada pessoa. 0 = sem limite."""
+        import consumo
+
+        return {"limites": consumo.guardar_limites(estado, payload or {}), "painel": consumo.painel(estado)}
 
     @app.get("/api/nuvem/paulus/recarga/{pedido}")
     def nuvem_paulus_recarga_situacao(pedido: str) -> dict:

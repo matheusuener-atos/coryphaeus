@@ -643,6 +643,36 @@ def caminhos_de(estado, servico=None, cadastro=None, caminhos=()) -> list[str]:
     return saida
 
 
+def quem_envia(estado, pessoa=None) -> dict:
+    """
+    De quem e o envio, para Plano e consumo (src/consumo.py): a conta da
+    equipe que fez o pedido de fora, ou a janela do escritorio (conta 0).
+    """
+    p = pessoa
+    if p is None:
+        try:
+            import equipe
+
+            p = equipe.pessoa_da_vez()
+        except Exception:  # noqa: BLE001 - sem a sessao, a janela do escritorio
+            p = None
+    if p:
+        return {"conta_id": int(p.get("conta_id") or 0), "nome": str(p.get("nome") or "")}
+    import consumo
+
+    return {"conta_id": 0, "nome": consumo.nome_da_janela(estado)}
+
+
+def limite_atingido(estado, quem: dict) -> str:
+    """O limite de uso que impede este envio (src/consumo.py), ou ""."""
+    try:
+        import consumo
+
+        return consumo.motivo_do_limite(estado, int(quem.get("conta_id") or 0))
+    except Exception:  # noqa: BLE001 - na duvida sobre o limite, o envio segue
+        return ""
+
+
 def registrar_envio(estado, mensagens: list[dict], linha: dict) -> None:
     """A linha do registro de envios, e o texto exato que saiu ao lado."""
     pasta = _pasta(estado) / "envios"
@@ -709,6 +739,14 @@ class Envio:
             return None
         if not usa(self.estado, "conversa"):
             self.motivo = "a conversa está desligada da nuvem em Configurações › Modelos"
+            return None
+        # Plano e consumo: de quem e a pergunta, e se o limite dela (ou do
+        # escritorio) ainda deixa ir a nuvem.
+        self.quem = quem_envia(self.estado, self.pessoa)
+        self.pergunta = " ".join(str(pergunta or "").split())[:140]
+        limite = limite_atingido(self.estado, self.quem)
+        if limite:
+            self.motivo = limite
             return None
         caminhos = [str(getattr(h.chunk, "doc_path", "") or "") for h in hits or []]
         motivo = motivo_para_ficar(self.estado, caminhos)
@@ -797,7 +835,9 @@ class Envio:
             "envio": self.id, "tarefa": "conversa", "trabalho_id": self.trabalho.id, "titulo": self.trabalho.titulo,
             "provedor": self.provedor, "modelo": self.modelo, "caracteres": self.caracteres, "documentos": self.documentos,
             "mascarados": dict(self.mascara.contagem) if self.mascara else {}, "como": self.como or "aprovado em Aprovações",
-            "pedido_id": self.pedido_id, "de_fora": self.pessoa is not None, **self.uso})
+            "pedido_id": self.pedido_id, "de_fora": self.pessoa is not None,
+            "pessoa": getattr(self, "quem", None) or quem_envia(self.estado, self.pessoa),
+            "pergunta": getattr(self, "pergunta", ""), **self.uso})
 
     def resumo(self) -> dict:
         return {"onde": "nuvem" if self.foi else "computador", "provedor": self.nome_do_provedor, "modelo": self.modelo,
@@ -876,6 +916,9 @@ class ClienteNuvem:
     def _motivo(self) -> str:
         if not usa(self.estado, self.tarefa):
             return "a nuvem não está ligada para esta tarefa"
+        limite = limite_atingido(self.estado, quem_envia(self.estado))
+        if limite:
+            return limite
         m = motivo_para_ficar(self.estado, self.caminhos)
         return ("o texto " + m) if m else ""
 
@@ -905,7 +948,7 @@ class ClienteNuvem:
             "envio": uuid.uuid4().hex[:12], "tarefa": self.tarefa, "titulo": TAREFAS.get(self.tarefa, self.tarefa),
             "provedor": self.provedor, "modelo": self.modelo, "caracteres": caracteres, "documentos": [],
             "mascarados": dict(mascara.contagem) if mascara else {}, "como": "com o sim do titular de " + _data_do_sim(self.estado),
-            **uso})
+            "pessoa": quem_envia(self.estado), "pergunta": TAREFAS.get(self.tarefa, self.tarefa), **uso})
         self.ultima = {"prompt_eval_count": uso.get("tokens_entrada", 0), "eval_count": uso.get("tokens_saida", 0),
                        "truncou": False, "nuvem": {"onde": "nuvem", "provedor": PROVEDORES.get(self.provedor, {}).get("nome", ""),
                                                    "modelo": self.modelo, **uso}}

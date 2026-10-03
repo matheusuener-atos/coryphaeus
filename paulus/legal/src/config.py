@@ -262,6 +262,10 @@ PADRAO: dict = {
     # A IA faz parte da assinatura (src/plano.py): o ultimo plano conhecido,
     # para valer sem internet ate o fim do ciclo pago.
     "plano": {"ativo": False, "ate": "", "conferido_em": ""},
+    # Os limites de uso da IA da nuvem (src/consumo.py, tela Plano e consumo):
+    # tokens por dia e por mes do escritorio e, por pessoa da equipe (conta_id
+    # -> {diario, mensal}). 0 = sem limite.
+    "limites_ia": {"diario": 0, "mensal": 0, "pessoas": {}},
     # V5 (docs/PLANO-NUVEM.md): o PAULUS (nuvem) vem primeiro; sem o sim do
     # titular (consentimento, com a versao do termo) nada liga.
     "nuvem": {"ligado": False, "provedor": "paulus", "modelo": "", "mascarar": True, "consentimento": {},

@@ -120,7 +120,7 @@ def conferir(dados: dict, nomes: list[str], leis=None) -> dict:
             "dispositivos": dispositivos[:MAX_DISPOSITIVOS]}
 
 
-def triar(estado, pergunta: str, documentos, historico=None, leis=None) -> dict | None:
+def triar(estado, pergunta: str, documentos, historico=None, leis=None, trabalho_id: str = "", pessoa=None) -> dict | None:
     """
     {"assunto", "documentos", "dispositivos", "tokens"} ou None (sem nuvem, sem
     internet, resposta que não é JSON). Mascarado e registrado como todo envio.
@@ -128,6 +128,9 @@ def triar(estado, pergunta: str, documentos, historico=None, leis=None) -> dict 
     import nuvem
 
     if not nuvem.usa(estado, "conversa"):
+        return None
+    quem = nuvem.quem_envia(estado, pessoa)
+    if nuvem.limite_atingido(estado, quem):
         return None
     caminhos = [str(getattr(d, "path", "") or "") for d in documentos or []]
     # O nome de um documento que não pode sair (caso só do escritório, anexo do
@@ -159,7 +162,8 @@ def triar(estado, pergunta: str, documentos, historico=None, leis=None) -> dict 
         bruto = mascara.desfazer(bruto)
     try:
         nuvem.registrar_envio(estado, mensagens, {
-            "envio": uuid.uuid4().hex[:12], "tarefa": "conversa", "titulo": "Triagem da pergunta",
+            "envio": uuid.uuid4().hex[:12], "tarefa": "conversa", "titulo": "Triagem da pergunta", "trabalho_id": trabalho_id,
+            "pessoa": quem, "pergunta": " ".join(str(pergunta or "").split())[:140],
             "provedor": provedor, "modelo": modelo, "caracteres": sum(len(x["content"]) for x in mensagens),
             "documentos": [], "mascarados": dict(mascara.contagem) if mascara else {},
             "como": "com o sim do titular de " + nuvem._data_do_sim(estado), **uso})
