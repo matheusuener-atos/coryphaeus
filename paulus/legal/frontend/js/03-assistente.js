@@ -1977,9 +1977,6 @@ async function lerResposta(r, v) {
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
         if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirTelaDaConversa(id), 700); }
-        // O pedido de apoio, no maximo uma vez por mes, depois de uma leitura
-        // (pacote de telas, `Conversa - Apoiar`; js/77-apoiar-convite.js).
-        if (aqui() && fontesAtuais.length && typeof oferecerConviteNaConversa === "function") oferecerConviteNaConversa(resposta);
       }
     }
   }

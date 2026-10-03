@@ -1,20 +1,16 @@
-/* ------------------------------------------- a vez dos avisos e do apoio */
+/* ------------------------------------------------- a vez dos avisos */
 /*
-   Na tela inicial, avisos e o convite para apoiar nao tem cartao nem botao
-   proprio: o titulo da saudacao se reveza com eles. A saudacao entra, fica
-   alguns segundos, da lugar a um assunto, volta, e o proximo assunto entra -
-   sempre com a caixa de pedido no lugar. No fim da frase de baixo, o que o
-   clique faz ("Clique aqui para apoiar.", "Clique aqui para visualizar.");
-   o clique no titulo ou na frase leva la.
+   Na tela inicial, os avisos nao tem cartao nem botao proprio: o titulo da
+   saudacao se reveza com eles. A saudacao entra, fica alguns segundos, da
+   lugar ao assunto, volta - sempre com a caixa de pedido no lugar. No fim da
+   frase de baixo, o que o clique faz ("Clique aqui para visualizar."); o
+   clique no titulo ou na frase leva la.
 
-     - apoio (js/77-apoiar-convite.js): "Já pensou em apoiar o PAULUS hoje?";
-       vem primeiro, logo ao entrar. Some para quem ja apoia;
      - avisos (js/53-avisos.js): "Você tem novos avisos." - o clique abre o
        painel no lugar da lista. Enquanto houver aviso, Aprovacoes pisca.
 
    Escrevendo na caixa, o revezamento para na saudacao. A frase de baixo usa
-   os numeros de verdade (o primeiro aviso da fila, o que o PAULUS fez no
-   mes), nunca texto de exemplo.
+   o primeiro aviso da fila de verdade, nunca texto de exemplo.
 */
 
 const vez = { assunto: "", fila: 0, relogio: 0 };
@@ -25,24 +21,17 @@ const VEZ_TROCA_MS = 700;
 function assuntosDaVez() {
   if (!$("conversa-col").classList.contains("vazia") || avs.naInicio) return [];
   const lista = [];
-  if (typeof jaApoiaEsteMes === "function" && !jaApoiaEsteMes()) lista.push("apoio");
   if (avs.ligado && (avs.avisos || []).length) lista.push("avisos");
   return lista;
 }
 
-function frasesDaVez(assunto) {
-  if (assunto === "avisos") {
-    const fila = filaDaFaixa(avs.avisos);
-    const a = fila[0];
-    const quando = a.quando ? " (" + a.quando + ")" : "";
-    const resto = restoDaFaixa(fila, a);
-    return [fila.length === 1 ? "Você tem um aviso novo." : "Você tem novos avisos.", "Clique aqui para visualizar.",
-      a.titulo + quando + (resto ? ", " + resto : "") + "."];
-  }
-  const n = convite.numeros || {};
-  const feito = n.documentos || n.lancamentos ? fraseDoConvite("inicio") + " " : "";
-  return ["Já pensou em apoiar o PAULUS hoje?", "Clique aqui para apoiar.",
-    feito + "Ele roda na sua máquina, sem assinatura nem cobrança por uso."];
+function frasesDaVez() {
+  const fila = filaDaFaixa(avs.avisos);
+  const a = fila[0];
+  const quando = a.quando ? " (" + a.quando + ")" : "";
+  const resto = restoDaFaixa(fila, a);
+  return [fila.length === 1 ? "Você tem um aviso novo." : "Você tem novos avisos.", "Clique aqui para visualizar.",
+    a.titulo + quando + (resto ? ", " + resto : "") + "."];
 }
 
 /* Troca o que o bloco da saudacao mostra, com o esmaecer de sempre. */
@@ -91,7 +80,7 @@ function passoDaVez() {
   }
 }
 
-/* Chamada quando os avisos ou o convite mudam: sem assunto valido, volta a
+/* Chamada quando os avisos mudam: sem assunto valido, volta a
    saudacao na hora; o mesmo assunto tem a frase de baixo refeita. */
 function atualizarChamadaDaVez() {
   const lista = assuntosDaVez();
@@ -107,7 +96,6 @@ function atualizarChamadaDaVez() {
   if (!titulo) return;
   const irAoAssunto = () => {
     if (vez.assunto === "avisos") { abrirAvisosNaInicio(""); mostrarNaVez(""); }
-    else if (vez.assunto === "apoio") abrirDestino("apoiar");
   };
   titulo.onclick = irAoAssunto;
   $("sub-vez").onclick = irAoAssunto;
@@ -118,8 +106,8 @@ function atualizarChamadaDaVez() {
 })();
 
 /* A abertura: a saudacao aparece uma vez so, ja com a frase final, e o
-   revezamento comeca a contar dali - a saudacao fica uns segundos e o
-   primeiro assunto (o apoio) entra. */
+   revezamento comeca a contar dali - a saudacao fica uns segundos e os
+   avisos, quando houver, entram. */
 function revelarSaudacao() {
   if (vez.revelada) return;
   vez.revelada = true;

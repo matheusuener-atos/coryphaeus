@@ -24,7 +24,7 @@ As politicas:
 O que nao se encaixou com clareza numa linha da tabela do contrato ficou
 bloqueado, num grupo proprio no fim, e esta listado no PROGRESSO para
 revisao: financeiro, relatorios, foco, servicos (gravar), gravacoes (gravar),
-upload de arquivo, importar para o editor, apoio.
+upload de arquivo, importar para o editor.
 """
 
 from __future__ import annotations
@@ -352,10 +352,6 @@ _declarar(BLOQUEADO,
           "DELETE /api/gravacoes/{id_}", "POST /api/gravacoes/{id_}/audio/salvar", "POST /api/gravacoes/{id_}/corrigir",
           "POST /api/gravacoes/{id_}/exportar", "POST /api/gravacoes/{id_}/marcadores",
           "DELETE /api/gravacoes/{id_}/marcadores/{indice}",
-          "POST /api/apoio/pix", "POST /api/apoio/pix/recuperar", "GET /api/apoio/pix/{id_}",
-          "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
-          "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura",
-          "GET /api/apoio/neste-mes",
           # Pacote de telas (`Conversa - Gravando`): as sugestoes e os pontos
           # do caso enquanto a gravacao anda - gravar e coisa do escritorio.
           "POST /api/gravacoes/sugerir", "POST /api/gravacoes/pontos")

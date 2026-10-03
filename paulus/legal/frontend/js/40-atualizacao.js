@@ -3,7 +3,7 @@
    A versao nova do PAULUS (src/atualizacao.py): o programa ve uma vez por
    dia, em paulus.ia.br/atualizacao.json, se ha versao nova - se a pessoa
    deixou ligado. Com "Avisar antes de instalar", a faixa do topo avisa e
-   Configuracoes › Apoio e versao baixa (conferindo o SHA-256) e instala: o
+   Configuracoes › Versao baixa (conferindo o SHA-256) e instala: o
    instalador abre no modo atualizar, fecha o PAULUS, troca o programa e
    abre a versao nova. Sem o aviso, baixa sozinho e instala ao fechar.
 */
@@ -37,7 +37,7 @@ function tamanhoAtu(bytes) {
   return (mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : Math.round(mb) + " MB").replace(".", ",");
 }
 
-/* O cartao Versao de Configuracoes › Apoio e versao. */
+/* O cartao Versao de Configuracoes › Versao. */
 function blocoAtualizacao() {
   const d = atu.dados;
   const r = cfg.rascunho || {};

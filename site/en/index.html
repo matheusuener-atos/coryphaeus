@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PAVLVS — Local AI legal assistant</title>
-<meta name="description" content="PAVLVS (PAULUS Legal) is a free Windows program for law offices: documents, email, calendar and an AI assistant that runs on the office's own computer.">
+<title>PAVLVS — AI legal assistant</title>
+<meta name="description" content="PAVLVS (PAULUS Legal) is a Windows program for law offices: documents, email, calendar and an AI assistant that reads the office's documents and cites the source.">
 <link rel="canonical" href="https://paulus.ia.br/en/">
 <link rel="alternate" hreflang="en" href="https://paulus.ia.br/en/">
 <link rel="alternate" hreflang="pt-BR" href="https://paulus.ia.br/">
@@ -41,9 +41,9 @@
 
 <main id="conteudo">
 <header class="doc-cabeca">
-  <span class="rotulo">PAVLVS — Local AI legal assistant</span>
+  <span class="rotulo">PAVLVS — AI legal assistant</span>
   <h1>The whole law office, with an AI that stays on your machine.</h1>
-  <p class="lead">PAVLVS (PAULUS Legal) is a free Windows program for Brazilian law offices. It brings together the office's documents, email, calendar, recordings, finances and an AI assistant — and the AI model runs on the office's own computer, not in the cloud.</p>
+  <p class="lead">PAVLVS (PAULUS Legal) is a Windows program for Brazilian law offices. It brings together the office's documents, email, calendar, recordings, finances and an AI assistant. The AI is part of a subscription and runs in the PAULUS cloud: only the question and the excerpts it needs are sent, with personal data masked, and the office's files stay on its own computer. Without internet, a local model answers as a backup.</p>
   <span class="data">No account or sign-in is needed to read this page or to download the program. The program is in Portuguese; this page explains it in English.</span>
 </header>
 
@@ -71,7 +71,7 @@
     </ul>
 
     <h2 id="privacy">Your documents stay where they are</h2>
-    <p>PAVLVS is installed on the office computer and its AI model runs there, through Ollama. Questions, documents and answers are not sent to any AI service on the internet — unless the office's principal turns on the optional cloud and says yes, either through the PAULUS plan (the text passes through paulus.ia.br to DeepInfra, which runs the model, and is not stored) or with the office's own DeepInfra, Anthropic or OpenAI API key, with CPF, CNPJ and case numbers masked and nothing from email — and no PAVLVS server keeps your messages, documents or client data.</p>
+    <p>PAVLVS is installed on the office computer, where documents are read and indexed. The AI is part of a subscription: with it, answers are written in the cloud, which only turns on after the office's principal says yes — through the PAULUS plan (the question and the excerpts it needs pass through paulus.ia.br to DeepInfra, which runs the model, and are not stored) or with the office's own DeepInfra, Anthropic or OpenAI API key, with CPF, CNPJ and case numbers masked and nothing from email. Without internet, or when the month's quota runs out, a local model running through Ollama answers as a backup; without the subscription, the program works without AI. No PAVLVS server keeps your messages, documents or client data.</p>
 
     <h2 id="google">Why PAVLVS asks for access to your Google account</h2>
     <p>When you connect a Gmail account to the Email module, Google shows the consent screen of the app <strong>PAVLVS — Assistente jurídico de IA local</strong>. PAVLVS requests the account's email address and access to Gmail (scope <code>https://mail.google.com/</code>) only to show your inbox and the messages you open, to suggest calendar deadlines found in messages, and to send the replies you approve.</p>
@@ -87,7 +87,7 @@
     <p>You can turn it off at any time: remove the account in PAVLVS and revoke access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
 
     <h2 id="download">Download</h2>
-    <p>PAVLVS is free software for Windows. Download the installer from the project's <a href="https://github.com/matheusuener-atos/coryphaeus/releases/latest">latest release on GitHub</a>; the source code is at <a href="https://github.com/matheusuener-atos/coryphaeus">github.com/matheusuener-atos/coryphaeus</a>.</p>
+    <p>PAVLVS is open-source software for Windows; the AI assistant is by subscription. Download the installer from the project's <a href="https://github.com/matheusuener-atos/coryphaeus/releases/latest">latest release on GitHub</a>; the source code is at <a href="https://github.com/matheusuener-atos/coryphaeus">github.com/matheusuener-atos/coryphaeus</a>.</p>
 
     <h2 id="contact">Contact</h2>
     <p>Matheus Uener Silva — <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a> — São Félix do Xingu/PA, Brazil.</p>
@@ -105,7 +105,7 @@
   </nav>
   <div class="base">
     <span>Not legal advice, and it can be wrong. Check every answer against the original document.</span>
-    <span>© 2026 Atos · Free software · Built on Coryphaeus</span>
+    <span>© 2026 Atos · Open source · Built on Coryphaeus</span>
   </div>
 </footer>
 

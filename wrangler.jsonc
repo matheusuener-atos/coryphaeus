@@ -8,7 +8,8 @@
 {
   "name": "paulus",
   "compatibility_date": "2026-09-25",
-  // As rotas /api/* (pagamento do "Apoiar o projeto"); o resto e o site.
+  // As rotas /api/* (a nuvem do PAULUS, o acesso de fora, a calibracao e o
+  // aviso do Mercado Pago do plano); o resto e o site.
   "main": "worker/index.js",
   "assets": {
     "directory": "./site",
@@ -24,8 +25,9 @@
   // <escritorio>.paulus.ia.br do acesso de fora sao dos tuneis de cada
   // escritorio, e o Worker nunca faz proxy deles (worker/index.js recusa).
   //
-  // O que o webhook do Mercado Pago confirmou: Pix pago, assinatura ativa.
-  // So situacao, valor e data - nenhum dado de cartao ou de pessoa.
+  // APOIOS: o nome ficou do antigo "Apoiar o projeto" (removido em 02/10/2026);
+  // hoje guarda so a calibracao (prefixo "calibracao:"). Renomear o binding
+  // perderia o que esta guardado.
   "kv_namespaces": [
     { "binding": "APOIOS", "id": "c8011a70799b40b0b3215f4a01b2d28c" },
     // O acesso de fora (worker/tunel.js): os escritorios conectados e os

@@ -294,11 +294,3 @@ h2 { font-size: clamp(30px, 3.4vw, 48px); line-height: 1.08; letter-spacing: -.0
 .rolagem .tabela-doc tr:first-child th, .rolagem .tabela-doc tr:first-child td { border-top: 0; }
 
 .vh { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-
-/* apoiadores */
-.apoio { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surf); min-width: 0; }
-.apoio-nome { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.selo { padding: 3px 9px; border-radius: 6px; background: var(--accbg); color: var(--acc); font-weight: 600; font-size: 11.5px; white-space: nowrap; }
-.selo.fundador { background: var(--btn); color: var(--btnt); }
-.selo.apoiador { background: var(--fill); color: var(--ink2); }
-.apoio.mais { background: transparent; border-style: dashed; font-size: 13px; color: var(--ink2); }

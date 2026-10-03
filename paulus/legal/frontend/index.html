@@ -54,7 +54,6 @@
 <link rel="stylesheet" href="/css/16-cadastros.css">
 <link rel="stylesheet" href="/css/17-configuracoes.css">
 <link rel="stylesheet" href="/css/18-foco.css">
-<link rel="stylesheet" href="/css/19-apoiar.css">
 <link rel="stylesheet" href="/css/20-vinculo.css">
 <link rel="stylesheet" href="/css/21-dialogos.css">
 <link rel="stylesheet" href="/css/23-acervo-editorial.css">
@@ -109,7 +108,7 @@
 
   <!-- O trilho: 64 px, um icone por destino (docs/ui/01-shell.md). Passar o
        mouse abre o menu com os nomes por cima do conteudo, sem deslocar nada.
-       Servicos, Gravacoes e Apoiar estao no desenho mas ainda nao tem motor:
+       Servicos e Gravacoes estao no desenho mas ainda nao tem motor:
        clicar explica o que falta. -->
   <nav class="trilho" id="trilho" aria-label="Destinos">
     <span class="trilho-logo" id="trilho-logo" title="PAULUS Legal">P</span>
@@ -133,7 +132,6 @@
     <button class="trilho-item" data-destino="aprovacoes" title="Aprovações" aria-label="Aprovações"><span class="ic">verified</span><span class="conta" hidden></span></button>
     <button class="trilho-item" data-destino="agentes" title="Agentes" aria-label="Agentes"><span class="ic">school</span></button>
     <span class="trilho-vazio"></span>
-    <button class="trilho-item apoiar" data-destino="apoiar" title="Apoiar o projeto" aria-label="Apoiar o projeto"><span class="ic">favorite</span></button>
     <button class="trilho-item" id="tema" title="Tema escuro" aria-label="Alternar tema"><span class="ic" id="tema-icone">dark_mode</span></button>
     <button class="trilho-item" data-destino="config" title="Configurações" aria-label="Configurações"><span class="ic">settings</span></button>
     <button class="trilho-item" id="sair-servidor" title="Sair" aria-label="Sair da conta" hidden><span class="ic">logout</span></button>
@@ -188,7 +186,6 @@
       </div>
 
       <span class="menu-divisa"></span>
-      <button class="menu-item apoiar" data-destino="apoiar"><span class="caixa-ic"><span class="ic">favorite</span></span><span class="rotulo-botao">Apoiar o projeto</span></button>
       <button class="menu-item" id="tema-menu"><span class="caixa-ic"><span class="ic" id="tema-menu-icone">dark_mode</span></span><span class="rotulo-botao" id="tema-rotulo">Tema escuro</span></button>
       <button class="menu-item" data-destino="config"><span class="caixa-ic"><span class="ic">settings</span></span><span class="rotulo-botao">Configurações</span></button>
       <button class="menu-item" id="sair-servidor-menu" hidden><span class="caixa-ic"><span class="ic">logout</span></span><span class="rotulo-botao">Sair</span></button>
@@ -274,7 +271,7 @@
               <button type="button" class="emc-atalho" data-emc-atalho="prazos">Achar prazos</button>
               <button type="button" class="emc-atalho" data-emc-atalho="responder">Responder</button>
             </div>
-            <!-- A vez dos avisos e do apoio (js/78-chamada-da-vez.js):  o
+            <!-- A vez dos avisos (js/78-chamada-da-vez.js):  o
                  titulo da saudacao se reveza com eles. Os avisos nao tem mais faixa propria; #av-dia
                  continua so como ancora do relogio deles. -->
             <div id="av-dia" hidden></div>
@@ -394,7 +391,6 @@
 <script src="/js/06-cadastros.js"></script>
 <script src="/js/07-agenda.js"></script>
 <script src="/js/08-destinos.js"></script>
-<script src="/js/09-apoiar.js"></script>
 <script src="/js/10-servicos.js"></script>
 <script src="/js/11-gravacoes.js"></script>
 <script src="/js/12-telas-e-acervo.js"></script>
@@ -465,7 +461,6 @@
 <script src="/js/74-autonomia.js"></script>
 <script src="/js/75-nuvem.js"></script>
 <script src="/js/76-word.js"></script>
-<script src="/js/77-apoiar-convite.js"></script>
 <script src="/js/78-chamada-da-vez.js"></script>
 <script src="/js/78-conversa-foco.js"></script>
 <script src="/js/79-conversa-gravando.js"></script>

@@ -365,8 +365,7 @@ function sairDoAr(el, opcoes) {
   animacao.oncancel = fim;
 }
 
-/* A PILULA DAS VISOES DESLIZA. Trocar de visao (Contribuir / Quem ja apoia,
-   Mes / Semana / Tarefas...) redesenha a tela inteira, e a pilula saltava.
+/* A PILULA DAS VISOES DESLIZA. Trocar de visao (Mes / Semana / Tarefas...) redesenha a tela inteira, e a pilula saltava.
    Agora, no clique, guarda-se onde ela estava; quando a barra (a mesma, ou a
    redesenhada no mesmo lugar) mostra a nova ativa, uma pilula de passagem
    anda da antiga ate a nova. Nada muda no que cada tela faz. */
@@ -511,7 +510,6 @@ function alternarLateralAnimada(abrir) {
 /* A tela passa da postura de inicio para a de conversa: a coluna do texto
    ganha a medida de prosa e o painel da direita entra. */
 function entrarNaConversa() {
-  if (typeof apoio !== "undefined") apoio.naTela = false;
   $("centro").classList.add("prosa");
   $("conversa-col").classList.add("em-conversa");
   $("conversa-titulo").classList.add("renomeavel");

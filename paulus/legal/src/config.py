@@ -285,7 +285,7 @@ PADRAO: dict = {
     "atualizacoes": {"verificar": True, "avisar_antes": True, "ultima_consulta": "", "erro": ""},
     # Os modulos do menu (assistente de configuracao, passo Modulos, e
     # Configuracoes › Modulos). Desligado some do menu desta maquina; o
-    # Assistente, Apoiar e Configuracoes ficam sempre.
+    # Assistente e Configuracoes ficam sempre.
     "modulos": {"servicos": True, "gravacoes": True, "agenda": True, "acervo": True, "documentos": True,
                 "assinatura": True, "email": True, "financeiro": True, "cadastros": True, "aprovacoes": True,
                 "foco": True},

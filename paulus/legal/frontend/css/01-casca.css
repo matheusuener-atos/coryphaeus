@@ -95,7 +95,6 @@
   .trilho-item .ic { font-size: 20px; width: 20px; height: 20px; }
   .trilho-item:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .trilho-item.ativo { background: var(--fill2); color: var(--ink); }
-  .trilho-item.apoiar { color: var(--acc); }
   .trilho-item.adiante { opacity: .45; }
   .trilho-risco { width: 26px; height: 1px; background: var(--ink-a08); margin: 7px 0; flex: none; }
   .trilho-vazio { flex: 1; }
@@ -235,7 +234,6 @@
   }
   .menu-item:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .menu-item.ativo { background: var(--fill2); color: var(--ink); font-weight: 600; }
-  .menu-item.apoiar { color: var(--acc); }
   .menu-item.adiante { opacity: .45; }
   /* O icone do menu cai EXATAMENTE sobre o do trilho: 10 px de recuo do menu
      mais 12 px do item mais metade de 20 poem o centro do glifo nos mesmos

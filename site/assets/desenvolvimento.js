@@ -1,5 +1,5 @@
 /* PAULUS - Desenvolvimento aberto: a linha do tempo mes a mes.
-   Le /api/public/desenvolvimento (versoes e apoio consolidado). Abre os
+   Le /api/public/desenvolvimento (as versoes publicadas). Abre os
    dois meses mais recentes e o ano atual; os anos anteriores ficam
    recolhidos com um resumo. #2026-09 abre o mes; #v0-9-3, a versao. */
 (function () {
@@ -14,7 +14,6 @@
     if (texto != null) e.textContent = texto;
     return e;
   }
-  function brl(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   function dataBR(s) { var p = String(s).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
   function idVersao(v) { return 'v' + String(v).replace(/\./g, '-'); }
   function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
@@ -41,7 +40,7 @@
 
     linha.textContent = '';
     if (!anos.length) {
-      linha.appendChild(el('p', 'pg-vazio', 'Ainda não há versões nem contribuições registradas.'));
+      linha.appendChild(el('p', 'pg-vazio', 'Ainda não há versões publicadas.'));
       return;
     }
     anos.forEach(function (ano) {
@@ -65,7 +64,7 @@
   }
 
   function mes(m, ano) {
-    var exp = abertos.has(m.month), c = m.contributions || {}, n = m.releases.length;
+    var exp = abertos.has(m.month), n = m.releases.length;
     var art = el('article', 'dv-mes');
     art.id = m.month;
     var marco = el('button', 'dv-mes-marco');
@@ -80,18 +79,6 @@
     art.appendChild(marco);
 
     var corpo = el('div', 'dv-mes-corpo');
-    var apoio = el('div', 'dv-apoio');
-    apoio.appendChild(el('span', 'pg-rotulo p', 'Apoio ao projeto'));
-    var nums = el('div', 'numeros');
-    var total = el('span');
-    total.appendChild(el('strong', null, brl(c.total)));
-    total.appendChild(document.createTextNode(' em contribuições recebidas'));
-    nums.appendChild(total);
-    nums.appendChild(el('span', null, plural(c.count || 0, 'contribuição', 'contribuições')));
-    nums.appendChild(el('span', null, c.itcdPaid != null ? 'ITCD recolhido ' + brl(c.itcdPaid) : 'ITCD: aguardando apuração'));
-    apoio.appendChild(nums);
-    corpo.appendChild(apoio);
-
     if (exp) {
       m.releases.forEach(function (r) {
         var v = el('div', 'dv-versao');

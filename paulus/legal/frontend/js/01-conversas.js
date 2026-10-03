@@ -161,7 +161,6 @@ $("compositor").addEventListener("scroll", () => {
 }, { passive: true });
 
 $("nova").onclick = () => {
-  if (typeof apoio !== "undefined") apoio.naTela = false;
   fecharEditorNaConversa();
   largarInscricao("");
   if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId);

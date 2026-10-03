@@ -21,7 +21,7 @@ const acessoCfg = { contas: null, sessoes: [], disponivel: true };
 */
 const DESTINOS_SO_NO_ESCRITORIO = new Set([
   "config", "assinar", "certificado", "financeiro", "relatorios", "foco", "conexoes", "organizar",
-  "habilidades", "maquina", "apoiar",
+  "habilidades", "maquina",
 ]);
 const FRASE_SO_NO_ESCRITORIO = "Disponível só no computador do escritório";
 

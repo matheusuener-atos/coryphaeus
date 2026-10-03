@@ -142,14 +142,13 @@
     .avp-acoes { grid-column: 2; justify-content: flex-start; }
   }
 
-  /* ------------------------------------------- a vez dos avisos e do apoio */
-  /* js/78-chamada-da-vez.js: o titulo da saudacao se reveza com o apoio e os
+  /* ------------------------------------------------- a vez dos avisos */
+  /* js/78-chamada-da-vez.js: o titulo da saudacao se reveza com os
      avisos, esmaecendo na troca. Com a mesma medida da saudacao (720 px,
-     duas linhas equilibradas), os tres textos ocupam o mesmo lugar. O
+     duas linhas equilibradas), os dois textos ocupam o mesmo lugar. O
      esmaecer e o piscar seguem o "Animacoes reduzidas" do PAULUS
      (html.sem-animacao), como o resto do app - nao o ajuste do Windows,
-     que nesta maquina vem desligado e apagava a troca. Ao lado, menor, o que o clique faz. O
-     apoio leva o vinho da marca do Apoiar no coracao e na dica. */
+     que nesta maquina vem desligado e apagava a troca. Ao lado, menor, o que o clique faz. */
   .saudacao-bloco > * { transition: opacity .7s ease, transform .7s ease; }
   /* Na abertura, tudo apagado ate a frase final chegar (revelarSaudacao). */
   .saudacao-bloco.abrindo > * { opacity: 0; }

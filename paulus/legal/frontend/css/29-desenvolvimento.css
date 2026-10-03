@@ -36,11 +36,6 @@
   .dev-titulo { display: grid; gap: 8px; }
   .dev-titulo h2 { margin: 0; font: 400 30px/1.1 var(--serif); color: var(--ink); }
   .dev-titulo p { margin: 0; font-size: 15px; line-height: 1.65; color: var(--ink2); text-wrap: pretty; }
-  .dev-apoio { display: grid; gap: 6px; padding: 14px 16px; border-radius: 12px; background: var(--fill); }
-  .dev-apoio-grade { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 18px; font-size: 13.5px; }
-  .dev-apoio-grade span { color: var(--ink2); }
-  .dev-apoio-grade b { font-weight: 600; color: var(--ink); }
-  .dev-apoio small { font-size: 12px; color: var(--ink3); }
   .dev-versoes { display: grid; gap: 14px; }
   .dev-versoes > p { margin: 0; font-size: 14px; color: var(--ink2); }
   .dev-versao { display: grid; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a08); }

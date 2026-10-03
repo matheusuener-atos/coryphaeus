@@ -1,9 +1,9 @@
 /* ------------------------------------------------ desenvolvimento aberto */
 /*
    A20 (docs/ui/desenvolvimento): como o PAVLVS evoluiu, mes a mes. Os dados
-   sao os publicos do site (/api/publico/desenvolvimento): versoes e apoio
-   consolidado. Nada do usuario vai ou vem. Sem internet, a ultima copia.
-   Abre pela tela Apoiar e por Configuracoes > Apoio e versao.
+   sao os publicos do site (/api/publico/desenvolvimento): as versoes. Nada
+   do usuario vai ou vem. Sem internet, a ultima copia. Abre por
+   Configuracoes > Versao.
 
    Barra de periodo: o ano com setas e os doze meses; ponto = mes com versao;
    mes sem registro fica apagado e desabilitado. Abre no mes mais recente.
@@ -15,12 +15,12 @@ const MESES_DEV = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "
 
 async function mostrarDesenvolvimento() {
   abrirTela("Desenvolvimento aberto", { cheia: true });
-  marcarDestino("apoiar");
+  marcarDestino("config");
   $("conversa-titulo").textContent = "Desenvolvimento aberto";
-  $("conversa-meta").textContent = "Software livre · as versões e o apoio da comunidade, mês a mês";
-  $("acoes-tela").innerHTML = '<button class="com-icone" id="dev-voltar">' + ic("arrow_back", 16) + "Apoiar o projeto</button>";
+  $("conversa-meta").textContent = "Software livre · as versões, mês a mês";
+  $("acoes-tela").innerHTML = '<button class="com-icone" id="dev-voltar">' + ic("arrow_back", 16) + "Configurações</button>";
   $("nav-tela").innerHTML = "";
-  $("dev-voltar").onclick = () => mostrarApoiar("contribuir");
+  $("dev-voltar").onclick = () => mostrarConfig("plano");
   desenharDesenvolvimento();
   try {
     const r = await fetch("/api/publico/desenvolvimento");
@@ -37,7 +37,6 @@ async function mostrarDesenvolvimento() {
   if ($("dev-tela")) desenharDesenvolvimento();
 }
 
-function brlDev(v) { return (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 function dataDev(s) { const [y, m, d] = String(s).split("-"); return d + "/" + m + "/" + y; }
 function maiusculaDev(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
@@ -49,7 +48,7 @@ function desenharDesenvolvimento() {
       ? '<p class="dev-vazio">Não consegui ler o histórico em paulus.ia.br: ' + esc(dev.erro) + ". Confira a internet e abra de novo.</p>"
       : '<p class="dev-vazio">Lendo o histórico…</p>';
   } else if (!d.meses.length) {
-    corpo = '<p class="dev-vazio">Ainda não há versões nem contribuições registradas.</p>';
+    corpo = '<p class="dev-vazio">Ainda não há versões registradas.</p>';
   } else {
     corpo = barraDoPeriodo() + mesDev();
   }
@@ -59,12 +58,9 @@ function desenharDesenvolvimento() {
     : "";
   $("centro").innerHTML = '<div class="acervo sem-painel dev-tela" id="dev-tela"><div class="acervo-principal sv-principal"><div class="sv-medida">' +
     '<header class="dev-topo"><h1>Como o PAVLVS evoluiu, mês a mês</h1>' +
-    "<p>Escolha um mês para ver as versões publicadas e o apoio que a comunidade deu ao projeto naquele período. Os valores são sempre consolidados; nenhum dado de apoiador aparece aqui.</p></header>" +
+    "<p>Escolha um mês para ver as versões publicadas e o que mudou em cada uma.</p></header>" +
     corpo +
-    '<section class="dev-sobre"><h3>Sobre estes dados</h3>' +
-    "<p>As contribuições apresentadas nesta página são voluntárias e apoiam a continuidade, manutenção e desenvolvimento do PAVLVS. Elas não estão vinculadas à aquisição de funcionalidades, licenças ou serviços.</p>" +
-    "<p>Os valores financeiros são apresentados de forma consolidada. Nenhuma informação pessoal dos apoiadores é publicada nesta página.</p>" +
-    "<p>Os valores de ITCD apresentados correspondem aos recolhimentos efetivamente registrados.</p>" + rodape + "</section>" +
+    '<section class="dev-sobre">' + rodape + "</section>" +
     "</div></div></div>";
   ligarDesenvolvimento();
 }
@@ -96,16 +92,9 @@ function mesDev() {
   const m = dev.dados.meses.find((x) => x.month === dev.sel);
   if (!m) return "";
   const nome = MESES_DEV[+m.month.slice(5) - 1];
-  const c = m.contributions || {};
   const n = m.releases.length;
-  const qtd = c.count || 0;
   const frase = "Em " + nome + " de " + m.month.slice(0, 4) + ", " +
-    (n ? "foram publicadas " + n + (n === 1 ? " versão" : " versões") + " do PAVLVS" : "não houve publicação de versão") +
-    ". No mesmo período, o projeto recebeu " + qtd + (qtd === 1 ? " contribuição voluntária" : " contribuições voluntárias") + ", somando " + brlDev(c.total) + ".";
-  const itcd = c.itcdPaid != null ? brlDev(c.itcdPaid) + " recolhido" : "aguardando apuração";
-  const notaItcd = c.itcdPaid != null
-    ? "O ITCD é o imposto estadual sobre doações. Este é o valor efetivamente recolhido sobre as contribuições do mês."
-    : "O ITCD é o imposto estadual sobre doações. O valor aparece aqui só depois de apurado e recolhido.";
+    (n ? "foram publicadas " + n + (n === 1 ? " versão" : " versões") + " do PAVLVS." : "não houve publicação de versão.");
   const instalada = dev.dados.versao_instalada;
   const versoes = m.releases.map((r) => {
     const itens = (r.changes || []).map((x) => {
@@ -120,10 +109,6 @@ function mesDev() {
       (r.version === instalada ? '<span class="dev-selo">é a sua versão</span>' : "") + "</div><ul>" + itens + "</ul></div>";
   }).join("");
   return '<section class="dev-selecionado"><div class="dev-titulo"><h2>' + maiusculaDev(nome) + " de " + m.month.slice(0, 4) + "</h2><p>" + esc(frase) + "</p></div>" +
-    '<div class="dev-apoio"><span class="rotulo">Apoio ao projeto neste mês</span><div class="dev-apoio-grade">' +
-    "<span>Contribuições recebidas</span><b>" + brlDev(c.total) + "</b>" +
-    "<span>Quantidade</span><b>" + qtd + (qtd === 1 ? " contribuição" : " contribuições") + "</b>" +
-    "<span>ITCD</span><b>" + itcd + "</b></div><small>" + notaItcd + "</small></div>" +
     '<div class="dev-versoes"><span class="rotulo">' + (n ? "O que mudou no PAVLVS" : "Versões") + "</span>" + versoes +
     (n ? "" : "<p>Nenhuma versão foi publicada neste mês. O desenvolvimento segue entre uma versão e outra; as mudanças aparecem na próxima publicação.</p>") +
     "</div></section>";

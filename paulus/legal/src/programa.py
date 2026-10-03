@@ -55,7 +55,6 @@ LIMIAR = 0.55
 TELAS_EXTRAS = {
     "servicos": "Serviços",
     "gravacoes": "Gravações",
-    "apoiar": "Apoiar o projeto",
 }
 
 # C4 (chave `conversa.roteamento`): lugares do programa que não são destino do
@@ -126,8 +125,8 @@ TELAS_NAVEGAVEIS = {
                          ("aparencia", "tema", "aparencia e avisos", "modo escuro", "modo claro")),
     "config_menu": ("Módulos", "O que aparece no menu desta máquina.",
                     ("modulos", "modulo", "modulos do menu")),
-    "config_plano": ("Apoio e versão", "A versão instalada, as atualizações e a licença.",
-                     ("versao", "apoio e versao", "atualizacoes", "atualizacao", "sobre o paulus", "sobre")),
+    "config_plano": ("Versão", "A versão instalada, as atualizações e a licença.",
+                     ("versao", "atualizacoes", "atualizacao", "sobre o paulus", "sobre")),
     "config_word": ("Word", "O PAVLVS dentro do Word: o painel que confere citações e insere trechos.",
                     ("word", "suplemento do word", "paulus no word", "complemento do word")),
     "config_feedback": ("Feedback", "Mandar uma sugestão ou um problema para quem faz o PAULUS.",
@@ -138,7 +137,6 @@ TELAS_NAVEGAVEIS = {
 APELIDOS_EXTRAS = {
     "conversa": ("inicio", "tela inicial", "pagina inicial", "assistente", "chat", "conversa"),
     "editor": ("editor de documentos", "editor de texto", "editor"),
-    "apoiar": ("apoiar", "apoio", "apoiar o projeto", "doacao", "doar"),
     "calendario": ("agenda", "calendario", "minha agenda"),
     "biblioteca": ("acervo", "meus documentos", "documentos do escritorio"),
     "caixa": ("email", "e mail", "emails", "caixa de entrada", "meus emails"),

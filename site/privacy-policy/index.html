@@ -41,10 +41,10 @@
 
 <main id="conteudo">
 <header class="doc-cabeca">
-  <span class="rotulo">PAVLVS — Local AI legal assistant</span>
+  <span class="rotulo">PAVLVS — AI legal assistant</span>
   <h1>Privacy Policy</h1>
   <p class="lead">How PAULUS (PAULUS Legal; app name on Google: PAVLVS) accesses, uses, stores and protects data — especially data from your Google account and Gmail.</p>
-  <span class="data">Last updated: October 1, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
+  <span class="data">Last updated: October 2, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
 </header>
 
 <div class="doc">
@@ -75,8 +75,8 @@
     <h2 id="summary">Summary</h2>
     <div class="caixa">
       <ul style="margin:0">
-        <li>PAULUS is a <strong>desktop program for Windows</strong> that runs on the law office's own computer. Its AI model also runs there, locally — unless the office's principal turns on the <a href="#cloud">cloud</a>, which comes turned off.</li>
-        <li><strong>No PAULUS server receives your messages, documents or client data.</strong> Our only server is the one behind this website, and it only receives something from you if you choose to support the project (see <a href="#other">Other internet access</a>).</li>
+        <li>PAULUS is a <strong>desktop program for Windows</strong> that runs on the law office's own computer. The AI is part of a subscription: with it, answers are written in the <a href="#cloud">cloud</a>, which comes turned off and only turns on after the office's principal says yes, and a local model answers as a backup without internet or when the quota runs out. Without the subscription, the program works without AI.</li>
+        <li><strong>No PAULUS server receives your messages, documents or client data.</strong> Our only server is the one behind this website, and it only receives something from you in the optional features: the cloud through the PAULUS plan, where the text passes through and is not stored (see <a href="#cloud">Cloud</a>), model calibration (see <a href="#other">Other internet access</a>) and remote access (see <a href="#remote">Remote access</a>).</li>
         <li>If you connect a Google account, PAULUS accesses the <strong>account's email address</strong> and your <strong>Gmail messages</strong> to show your inbox, suggest deadlines for your calendar, and send the replies you approve.</li>
         <li>If you also connect <strong>Google Calendar</strong> or <strong>Google Drive</strong> (each one only when you ask), PAULUS copies your appointments to your Google Calendar, creates their Google Meet rooms, sends to your Drive the documents you approve and, if you authorize Drive reading, keeps a local copy of the Drive folders you choose.</li>
         <li>Google data is <strong>not used for advertising, not sold, not used to train AI models, and not shared with third parties</strong>.</li>
@@ -96,8 +96,8 @@
     <h2 id="how-it-works">How PAULUS works</h2>
     <ul>
       <li>PAULUS is installed on and runs on the office's computer (Windows).</li>
-      <li>The AI model runs locally through Ollama at the internal address <code>127.0.0.1</code> — that is, on the machine itself. Questions, documents and the assistant's answers are not sent to any AI service on the internet, unless the office's principal turns on the cloud (see <a href="#cloud">Cloud</a>).</li>
-      <li>No part of the program sends usage data, documents or messages to us. The two exceptions are actions you take, described in <a href="#other">Other internet access</a>: supporting the project and sending feedback.</li>
+      <li>The local AI model runs through Ollama at the internal address <code>127.0.0.1</code> — that is, on the machine itself — and, with the subscription, answers as a backup. Questions, documents and the assistant's answers only go to an AI service on the internet through the cloud, which only turns on after the office's principal says yes (see <a href="#cloud">Cloud</a>).</li>
+      <li>No part of the program sends usage data, documents or messages to us. The exception is an action you take, described in <a href="#other">Other internet access</a>: sending feedback.</li>
     </ul>
 
     <h2 id="google-data">Google data PAULUS accesses</h2>
@@ -157,7 +157,7 @@
 
     <h2 id="sharing">Sharing</h2>
     <p>We do not share, sell or transfer Google data, or any other data you handle in PAULUS, to third parties. The necessary exchange is with <strong>your own email provider</strong>, to read and send your messages — for example Google, when the account is Gmail — and, if you connect them, with <strong>your own Google Calendar and Google Drive</strong>, where the appointments and documents you chose go, and from where the Drive folders you chose are copied.</p>
-    <p>The only exception outside email is voluntary: if you <strong>support the project</strong>, the receipt email and the amount go to Mercado Pago, which processes the payment (see below). Google data never enters that request.</p>
+    <p>Outside email there are two exceptions, both voluntary and described in <a href="#cloud">Cloud</a>: if the principal turns the cloud on, the text sent goes to the model provider; and, if the office <strong>subscribes to the PAULUS (cloud) plan</strong>, the payer's email and the amount go to Mercado Pago, which processes the payment. Google data never enters the payment.</p>
     <p>When you send an approved message, it goes to the recipients you chose, as in any email program.</p>
 
     <h2 id="other">Other internet access</h2>
@@ -167,11 +167,10 @@
       <li><strong>Court publications (optional):</strong> if you turn on the daily check of court publications, PAULUS queries the public API of Brazil's national judicial electronic gazette (<code>comunicaapi.pje.jus.br</code>) with only the lawyer's bar number (OAB) and state.</li>
       <li><strong>WhatsApp Web:</strong> if you want, the program opens WhatsApp Web inside it. You then use WhatsApp's service directly, subject to WhatsApp's terms and privacy policy.</li>
       <li><strong>Other email providers</strong> (Microsoft or other): the same rules of this policy apply — messages travel only between your computer and the provider.</li>
-      <li><strong>New version:</strong> once a day, PAULUS reads the file <code>paulus.ia.br/atualizacao.json</code> to know whether there is a new version. That read is all: no document, office data, name or email goes with it (the website, like any website, sees the internet address of whoever accesses it). If there is a new version, the official installer is downloaded from the project's GitHub and checked by SHA-256 before opening. The check comes on and can be turned off in the setup assistant or in Settings › Support and version.</li>
+      <li><strong>New version:</strong> once a day, PAULUS reads the file <code>paulus.ia.br/atualizacao.json</code> to know whether there is a new version. That read is all: no document, office data, name or email goes with it (the website, like any website, sees the internet address of whoever accesses it). If there is a new version, the official installer is downloaded from the project's GitHub and checked by SHA-256 before opening. The check comes on and can be turned off in the setup assistant or in Settings › Version.</li>
       <li><strong>Model downloads:</strong> the first time you use them, PAULUS downloads the speech model for Recordings (Whisper, from the public Hugging Face repository) and the email translation packages (from <code>argos-net.com</code>). Language models are downloaded when you ask, in Settings › Models, from Ollama's public registry (<code>registry.ollama.ai</code>). The installer may download Ollama from ollama.com, Cloudflare's <code>cloudflared</code> from its official GitHub (the remote-access program, off until the office turns it on), and Microsoft's WebView2. These are file downloads only; no document, audio, text or data of yours is sent.</li>
       <li><strong>Model calibration (optional, off by default):</strong> if you turn on "Participate in calibration", the program sends to <code>paulus.ia.br</code> this machine's measurements — processor, memory, the two measured speeds and how many words per second each model writes and reads — and downloads other machines' measurements, to better estimate how long each model takes. Nothing from the office is sent: no document, name or email. The screen shows exactly what is sent beforehand. Turning it off stops sending immediately.</li>
-      <li><strong>Open development:</strong> when you open that screen, the program reads the public version history and the monthly aggregated support at <code>paulus.ia.br/api/public/desenvolvimento</code>. It is read-only: nothing of yours is sent.</li>
-      <li><strong>Supporting the project (optional):</strong> if you choose to support it, the amount and the receipt email go to the website, which passes the request to Mercado Pago. The card is typed only on Mercado Pago's page, never in the program or on the website. The website keeps for up to 400 days only the payment status, the amount, the date and a fingerprint of the email (a SHA-256 hash; the address itself is not stored).</li>
+      <li><strong>Open development:</strong> when you open that screen, the program reads the public version history at <code>paulus.ia.br/api/public/desenvolvimento</code>. It is read-only: nothing of yours is sent.</li>
       <li><strong>Feedback (optional):</strong> in Settings › Feedback, PAULUS opens an email addressed to <code>contato@paulus.ia.br</code> with what you wrote. You review it before it is sent, and sending goes through the Approvals queue like any email.</li>
       <li><strong>Links that open in the browser:</strong> some buttons only open a page in your browser — for example Google sign-in, the Ollama download page and the new-meeting page of Google Meet or Microsoft Teams. What happens there follows each site's rules.</li>
     </ul>
@@ -226,7 +225,7 @@
       <li><strong>To revoke at Google:</strong> go to <a href="https://myaccount.google.com/permissions">https://myaccount.google.com/permissions</a>, choose <strong>PAVLVS</strong> and remove access. From then on the program can no longer read or send messages with that account.</li>
       <li>Files you saved on the computer yourself (for example, downloaded attachments) remain in the folders where you saved them until you delete them.</li>
       <li>Messages remain in your Gmail account, managed by Google.</li>
-      <li>To ask us to delete any data we hold (only the project-support data described above), write to <code>contato@paulus.ia.br</code>.</li>
+      <li>From the former project support, which has been removed from PAULUS, the website may still hold, unpublished: each payment's status, amount, date and email fingerprint, which delete themselves within 400 days of the contribution; and each month's total and the names on the former supporters page, until they are deleted. To ask us to delete any data we hold, write to <code>contato@paulus.ia.br</code>.</li>
     </ul>
 
     <h2 id="rights">Your rights (LGPD)</h2>
@@ -255,7 +254,7 @@
   </nav>
   <div class="base">
     <span>Not legal advice, and it can be wrong. Check every answer against the original document.</span>
-    <span>© 2026 Atos · Free software · Built on Coryphaeus</span>
+    <span>© 2026 Atos · Open source · Built on Coryphaeus</span>
   </div>
 </footer>
 

@@ -191,13 +191,13 @@ let preId;
   checar(av.status === 200, "o aviso da assinatura é aceito");
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c.plano_vigente && c.tokens.restantes === 10000 && c.assinatura.situacao === "authorized", "assinatura ativa abre o ciclo com a cota do plano", c);
-  checar(![...guardados.keys()].some((k) => k.startsWith("assinatura:") || k.startsWith("contrib:")), "a assinatura da nuvem não vira apoio (nada no KV do apoio)", [...guardados.keys()]);
+  checar(guardados.size === 0, "a assinatura da nuvem não grava nada no KV APOIOS", [...guardados.keys()]);
   // A primeira cobrança (logo depois) só confirma o ciclo aberto.
   await worker.fetch(aviso("cob-1", "subscription_authorized_payment"), env, ctx);
   await Promise.all(pendentes.splice(0));
   const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c2.ciclo.inicio === c.ciclo.inicio && c2.tokens.restantes === 10000, "a primeira cobrança não abre um segundo ciclo", c2.ciclo);
-  checar(![...guardados.keys()].some((k) => k.startsWith("contrib:")), "a cobrança do plano não conta como apoio do mês");
+  checar(guardados.size === 0, "a cobrança do plano não grava nada no KV APOIOS");
 }
 
 // ------------------------------------------------ chamar
@@ -270,14 +270,13 @@ let preId;
   await Promise.all(pendentes.splice(0));
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c.tokens.da_recarga === 5000 && c.tokens.restantes === 5200 && c.recargas.length === 1, "o Pix pago põe os tokens da recarga", c.tokens);
-  checar(![...guardados.keys()].some((k) => k.startsWith("pix:") || k.startsWith("contrib:")), "a recarga não vira apoio");
+  checar(guardados.size === 0, "a recarga não grava nada no KV APOIOS");
   // Conferir de novo (o PAULUS pergunta) não credita duas vezes.
   await ia("GET", "/api/ia/recarga/" + d.id, null, segredo);
   const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c2.tokens.da_recarga === 5000, "o mesmo Pix não credita duas vezes");
-  // A rota do apoio também não conta a recarga.
-  await worker.fetch(new Request("https://paulus.ia.br/api/mp/pix/" + d.id), env, ctx);
-  checar(![...guardados.keys()].some((k) => k.startsWith("contrib:")), "nem consultada pela rota do Pix do apoio");
+  // A antiga rota do Pix do apoio saiu.
+  checar((await worker.fetch(new Request("https://paulus.ia.br/api/mp/pix/" + d.id), env, ctx)).status === 404, "a rota do Pix do apoio não existe mais");
   // Gasta do ciclo e depois da recarga.
   await (await ia("POST", "/api/ia/v1/chat/completions", pergunta, segredo)).text();
   await Promise.all(pendentes.splice(0));
@@ -347,12 +346,12 @@ let preId;
 checar(usoDoFim('data: {"choices":[]}\n\ndata: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3}}\n\ndata: [DONE]').entrada === 7, "lê o uso da última linha");
 checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
 
-// ------------------------------------------------ o apoio continua igual
+// ------------------------------------------------ aviso que não é da nuvem
 {
   mpOrders.set("ORDAPOIO1", { id: "ORDAPOIO1", status: "processed", external_reference: "apoio-pix-abc", total_amount: "40.00" });
-  await worker.fetch(aviso("ORDAPOIO1", "order"), env, ctx);
+  const r = await worker.fetch(aviso("ORDAPOIO1", "order"), env, ctx);
   await Promise.all(pendentes.splice(0));
-  checar([...guardados.keys()].some((k) => k.startsWith("contrib:")), "o Pix do apoio continua contando como apoio");
+  checar(r.status === 200 && guardados.size === 0, "o aviso de um Pix que não é da nuvem (o antigo apoio) é aceito e ignorado");
 }
 
 function aviso(dataId, tipo, ts = Date.now()) {

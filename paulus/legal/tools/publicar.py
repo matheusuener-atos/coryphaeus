@@ -164,7 +164,7 @@ def notas_da_release(v: str, novidades: list[str], sha: str) -> str:
     itens = "\n".join(f"- {n}" for n in novidades)
     return (
         f"**Para atualizar:** quem tem o PAULUS 0.9.2 ou mais novo recebe esta versão pelo próprio programa "
-        f"(Configurações › Apoio e versão). Para instalar do zero, baixe `PAULUS-{v}-instalador.exe` e abra; os dados "
+        f"(Configurações › Versão). Para instalar do zero, baixe `PAULUS-{v}-instalador.exe` e abra; os dados "
         f"do escritório ficam.\n\n**O que mudou**\n{itens}\n\n"
         "**Aviso do Windows:** o instalador ainda não tem assinatura digital. Na primeira vez, o Windows pode mostrar "
         "\"O Windows protegeu o computador\": clique em **Mais informações** e depois em **Executar assim mesmo**.\n\n"

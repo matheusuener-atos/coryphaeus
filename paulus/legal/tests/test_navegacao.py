@@ -58,7 +58,7 @@ def test_regra() -> None:
                f"abra {nome}", leitura and leitura.destino)
     apelidos = {
         "vá para agentes": "agentes", "pode abrir a lixeira?": "config_lixeira", "quero ver os avisos": "avisos",
-        "abra o menu mais": "mais", "abra o editor de documentos": "editor", "quero apoiar o PAULUS": "apoiar",
+        "abra o menu mais": "mais", "abra o editor de documentos": "editor",
         "abra a seção de backup do PAULUS": "config_backup", "me leve aos meus dados": "config_perfil",
         "volte para o início": "conversa", "vamos para o financeiro": "financeiro", "abra o e-mail": "caixa",
         "abra a agenda": "calendario", "abra o acervo": "biblioteca", "abra as gravações": "gravacoes",
@@ -107,7 +107,7 @@ def test_api() -> None:
         "agende na reunião": "agenda", "agende uma reunião amanhã às 10h": "agenda",
         "nova tarefa: ligar para o João": "tarefa", "abra a agenda": "programa", "vá para agentes": "programa",
         "quero ver os avisos": "programa", "abra o menu mais": "programa", "pode abrir a lixeira?": "programa",
-        "quero apoiar o PAULUS": "programa", "abra o editor de documentos": "programa",
+        "abra o editor de documentos": "programa",
     }
     try:
         for apenas in ([], ["Contrato A.docx"]):

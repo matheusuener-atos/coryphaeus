@@ -424,23 +424,16 @@ def test_tela(api, ids) -> None:
             erros: list[str] = []
             pag.on("pageerror", lambda x: erros.append(str(x)))
             pag.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="networkidle")
-            # Ao entrar: a saudacao, depois o apoio (primeiro assunto), a
-            # saudacao de novo e os avisos - sempre com a caixa de pedido.
+            # Ao entrar: a saudacao, depois os avisos - sempre com a caixa de
+            # pedido. O convite para apoiar saiu (02/10/2026).
             topo_saudacao = pag.evaluate("() => Math.round(document.getElementById('cartao-campo').getBoundingClientRect().top)")
-            pag.wait_for_function("() => vez.assunto === 'apoio'", timeout=8000)
-            pag.wait_for_timeout(900)
-            pag.screenshot(path=str(CAPTURAS / "t2-apoio.png"))
-            topo_apoio = pag.evaluate("() => Math.round(document.getElementById('cartao-campo').getBoundingClientRect().top)")
-            checar(topo_apoio == topo_saudacao, "a caixa de pedido não se mexe na troca", (topo_saudacao, topo_apoio))
-            linhas = pag.evaluate("() => { const q = (s) => document.querySelector('#chamada-vez ' + s).getBoundingClientRect(); return !!document.querySelector('#sub-vez .vez-dica') && !document.querySelector('#chamada-vez .ic, #chamada-vez .vez-dica'); }")
-            checar(linhas, "título só com a frase, sem coração; a dica na frase de baixo")
-            apoio = pag.evaluate("() => [document.getElementById('chamada-vez').textContent + ' | ' + document.getElementById('sub-vez').textContent, document.getElementById('cartao-campo').offsetParent !== null]")
-            checar("apoiar o PAULUS" in apoio[0] and "Clique aqui para apoiar." in apoio[0] and apoio[1],
-                   "logo ao entrar, o título pede apoio, com 'Clique aqui para apoiar.' embaixo e a caixa de pedido", apoio)
-            pag.wait_for_function("() => vez.assunto === ''", timeout=12000)
-            checar(pag.evaluate("() => document.getElementById('chamada').offsetParent !== null"), "depois volta a saudação")
             pag.wait_for_function("() => vez.assunto === 'avisos'", timeout=12000)
             pag.evaluate("() => clearTimeout(vez.relogio)")
+            pag.wait_for_timeout(900)
+            topo_avisos = pag.evaluate("() => Math.round(document.getElementById('cartao-campo').getBoundingClientRect().top)")
+            checar(topo_avisos == topo_saudacao, "a caixa de pedido não se mexe na troca", (topo_saudacao, topo_avisos))
+            checar(pag.evaluate("() => !!document.querySelector('#sub-vez .vez-dica') && !document.querySelector('#chamada-vez .ic, #chamada-vez .vez-dica')"),
+                   "título só com a frase; a dica na frase de baixo")
             pag.wait_for_timeout(400)
             do_servidor = _pedir(base, "GET", "/api/central-avisos/hoje")["avisos"]
             atrasados = [a for a in do_servidor if a["grupo"] == "atrasado"]

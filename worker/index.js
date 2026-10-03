@@ -1,37 +1,17 @@
-// O Worker do paulus.ia.br: o site (pasta site/) e as rotas de pagamento
-// do "Apoiar o projeto" no Mercado Pago.
+// O Worker do paulus.ia.br: o site (pasta site/), a nuvem do PAULUS, o
+// acesso de fora e a calibracao dos modelos.
 //
 // O Access Token do Mercado Pago so existe aqui, como segredo do Worker
 // (npx wrangler secret put MP_ACCESS_TOKEN) - nunca no programa que roda na
-// maquina de cada usuario, onde qualquer um poderia le-lo.
+// maquina de cada usuario, onde qualquer um poderia le-lo. Ele serve so a
+// nuvem do PAULUS (a assinatura do plano e a recarga, em worker/ia.js).
 //
-//   POST /api/mp/pix          cria o Pix (Orders API) e devolve o QR
-//   GET  /api/mp/pix/:id      a situacao do Pix (pago ou nao)
-//   POST /api/mp/pix/recuperar  os Pix pagos de um e-mail nas datas dadas
-//   POST /api/mp/assinatura   cria a assinatura no cartao e devolve o link
-//                             da pagina do Mercado Pago onde se poe o cartao
-//   GET  /api/mp/assinatura/:id  se a assinatura ja foi ativada (cartao posto)
-//   POST /api/mp/assinatura/:id/valor        muda o valor mensal  } so com a
-//   POST /api/mp/assinatura/:id/interromper  cancela a assinatura } chave dela
-//   POST /api/mp/assinatura/:id/pagamentos   as cobrancas mensais }
-//   POST /api/mp/aviso        o webhook do Mercado Pago (assinatura conferida)
-//   POST /api/mp/cartao       contribuicao unica no cartao (Checkout Pro), do site
+//   POST /api/mp/aviso        o webhook do Mercado Pago (assinatura conferida);
+//                             o que ele confirma vai para avisoDaIA
 //   POST /api/calibracao      medidas de maquina e modelo, de quem escolheu
 //                             participar (so numeros; veja receberCalibracao)
 //   GET  /api/calibracao      todas as medidas, para o programa estimar melhor
-//   GET  /api/public/desenvolvimento  versoes e apoio consolidado, mes a mes
-//   GET  /api/public/apoiadores       o mural: so nome e desde quando
-//
-// O que o webhook confirma fica no KV APOIOS (so situacao, valor e data): o
-// Pix pago depois de fechado o pop-up e a assinatura concluida no navegador
-// aparecem para o programa na proxima consulta. As rotas que criam cobranca
-// passam pelo limite LIMITE (10 por minuto por endereco de internet).
-//
-// A parte publica e montada separada da privada: cada contribuicao
-// confirmada vira uma chave "contrib:AAAA-MM:<id>" com so o valor, e cada
-// nome autorizado vira "mural:<impressao do e-mail>" com so nome e mes. As
-// rotas /api/public/* leem so essas chaves - nada de e-mail, id do Mercado
-// Pago, forma ou valor individual sai delas.
+//   GET  /api/public/desenvolvimento  as versoes publicadas, mes a mes
 //
 // Todo o resto e o site estatico.
 //
@@ -40,8 +20,13 @@
 //
 // A nuvem do PAULUS (worker/ia.js): /api/ia/*, o portao ate o DeepInfra com o
 // medidor de tokens, a assinatura do plano e a recarga. Desligada sem
-// IA_ATIVA. A assinatura e a recarga da nuvem nunca contam como apoio: o
-// aviso do Mercado Pago passa primeiro por avisoDaIA.
+// IA_ATIVA. O aviso do Mercado Pago e entregue a avisoDaIA, que reconhece a
+// assinatura e a recarga pela referencia; o que nao for da nuvem e ignorado.
+//
+// O KV APOIOS guarda hoje so a calibracao (chave "calibracao:todas"). O nome
+// vem do antigo "Apoiar o projeto", que saiu; o binding ficou com o nome para
+// nao pedir configuracao nova no Cloudflare. As chaves antigas do apoio que
+// ainda estiverem la ("pix:", "assinatura:", "cartao:") vencem sozinhas.
 
 import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
 import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
@@ -49,13 +34,7 @@ import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
 
-// Guardado por pouco mais de um ano.
-const KV_VALIDADE_S = 400 * 24 * 60 * 60;
-
 const MP = "https://api.mercadopago.com";
-const VALOR_MINIMO = 5;
-const VALOR_MAXIMO = 50000;
-const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // O aviso do Mercado Pago mais velho que isto e recusado (repeticao).
 const AVISO_VALIDADE_MS = 10 * 60 * 1000;
 
@@ -85,26 +64,6 @@ export default {
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
       if (url.pathname === "/api/public/desenvolvimento" && request.method === "GET") return await publicoEmCache(request, ctx, () => desenvolvimento(request, env));
-      if (url.pathname === "/api/public/apoiadores" && request.method === "GET") return await publicoEmCache(request, ctx, () => apoiadores(env));
-      const criando = request.method === "POST" && ["/api/mp/pix", "/api/mp/assinatura", "/api/mp/cartao"].includes(url.pathname);
-      if (criando && !(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-      if (url.pathname === "/api/mp/pix" && request.method === "POST") return await criarPix(request, env);
-      if (url.pathname === "/api/mp/cartao" && request.method === "POST") return await criarCartao(request, env);
-      if (url.pathname === "/api/mp/pix/recuperar" && request.method === "POST") {
-        if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-        return await recuperarPix(request, env);
-      }
-      const pix = url.pathname.match(/^\/api\/mp\/pix\/([A-Za-z0-9_-]{6,64})$/);
-      if (pix && request.method === "GET") return await situacaoDoPix(pix[1], env);
-      if (url.pathname === "/api/mp/assinatura" && request.method === "POST") return await criarAssinatura(request, env);
-      const ass = url.pathname.match(/^\/api\/mp\/assinatura\/([A-Za-z0-9_-]{6,64})$/);
-      if (ass && request.method === "GET") return await situacaoDaAssinatura(ass[1], env);
-      const mudar = url.pathname.match(/^\/api\/mp\/assinatura\/([A-Za-z0-9_-]{6,64})\/(valor|interromper|pagamentos)$/);
-      if (mudar && request.method === "POST") {
-        if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-        if (mudar[2] === "pagamentos") return await pagamentosDaAssinatura(mudar[1], request, env);
-        return mudar[2] === "valor" ? await mudarValor(mudar[1], request, env) : await interromper(mudar[1], request, env);
-      }
       if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env, ctx);
       if (url.pathname === "/api/calibracao" && request.method === "POST") {
         if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
@@ -113,7 +72,7 @@ export default {
       if (url.pathname === "/api/calibracao" && request.method === "GET") return await entregarCalibracao(env);
       return json({ erro: "rota não existe" }, 404);
     } catch (erro) {
-      return json({ erro: "falha no servidor de pagamento" }, 500);
+      return json({ erro: "falha no servidor" }, 500);
     }
   },
 
@@ -139,58 +98,12 @@ async function dentroDoLimite(request, env) {
   return success;
 }
 
-/* Guarda somando ao que ja havia (a impressao do e-mail, gravada na criacao,
-   continua quando o pagamento e confirmado). */
-async function guardar(env, chave, dados) {
-  if (!env.APOIOS) return;
-  const antes = (await lerGuardado(env, chave)) || {};
-  await env.APOIOS.put(chave, JSON.stringify({ ...antes, ...dados, quando: new Date().toISOString() }), { expirationTtl: KV_VALIDADE_S });
-}
-
-/* A impressao (SHA-256) do e-mail: da para conferir quem pagou sem guardar
-   o e-mail em si. O Mercado Pago nao devolve o e-mail do pagador do Pix. */
-async function impressaoDoEmail(email) {
-  const resumo = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(email || "").trim().toLowerCase()));
-  return [...new Uint8Array(resumo)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function lerGuardado(env, chave) {
-  if (!env.APOIOS) return null;
-  const bruto = await env.APOIOS.get(chave);
-  try {
-    return bruto ? JSON.parse(bruto) : null;
-  } catch {
-    return null;
-  }
-}
-
 async function lerPedido(request) {
   try {
     return await request.json();
   } catch {
     return null;
   }
-}
-
-/* O valor e o e-mail que chegam do programa: conferidos aqui, porque a rota
-   e publica - quem chamar direto nao escolhe valor fora da faixa. */
-function conferir(pedido) {
-  const valor = Math.round(Number(pedido && pedido.valor) * 100) / 100;
-  const email = String((pedido && pedido.email) || "").trim().toLowerCase();
-  if (!Number.isFinite(valor) || valor < VALOR_MINIMO || valor > VALOR_MAXIMO) {
-    return { erro: `o valor precisa estar entre R$ ${VALOR_MINIMO} e R$ ${VALOR_MAXIMO}` };
-  }
-  if (!RE_EMAIL.test(email) || email.length > 120) return { erro: "e-mail inválido" };
-  return { valor, email, mural: nomeDoMural(pedido && pedido.mural) };
-}
-
-/* O nome que a pessoa autorizou publicar no mural ("" = nao aparecer). Texto
-   simples, uma linha, ate 60 letras: nada de marcacao nem de endereco. */
-function nomeDoMural(bruto) {
-  if (typeof bruto !== "string") return "";
-  const nome = bruto.replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
-  if (/https?:|www\.|@/i.test(nome)) return "";
-  return nome;
 }
 
 async function chamarMP(env, caminho, metodo, corpo) {
@@ -206,255 +119,30 @@ async function chamarMP(env, caminho, metodo, corpo) {
   return { ok: resposta.ok, status: resposta.status, dados };
 }
 
-// ------------------------------------------------------------------ Pix
-
-async function criarPix(request, env) {
-  const c = conferir(await lerPedido(request));
-  if (c.erro) return json({ erro: c.erro }, 400);
-  const valor = c.valor.toFixed(2);
-  const r = await chamarMP(env, "/v1/orders", "POST", {
-    type: "online",
-    total_amount: valor,
-    external_reference: "apoio-pix-" + crypto.randomUUID().slice(0, 18),
-    processing_mode: "automatic",
-    transactions: {
-      payments: [{ amount: valor, payment_method: { id: "pix", type: "bank_transfer" }, expiration_time: "PT30M" }],
-    },
-    payer: { email: c.email },
-  });
-  if (!r.ok) return json({ erro: "o Mercado Pago recusou criar o Pix", status: r.status }, 502);
-  const pagamento = ((r.dados.transactions || {}).payments || [])[0] || {};
-  const meio = pagamento.payment_method || {};
-  // Para achar este Pix de novo pelo e-mail (recuperar), sem guardar o e-mail.
-  // O nome do mural so vai para o mural quando o Pix for pago.
-  await guardar(env, "pix:" + r.dados.id, { pago: false, valor, emails: [await impressaoDoEmail(c.email)], mural: c.mural });
-  return json({
-    id: r.dados.id,
-    situacao: r.dados.status,
-    valor,
-    qr_code: meio.qr_code || "",
-    qr_code_base64: meio.qr_code_base64 || "",
-    ticket_url: meio.ticket_url || "",
-    vence_em_minutos: 30,
-  });
-}
-
-async function situacaoDoPix(id, env) {
-  const guardado = await lerGuardado(env, "pix:" + id);
-  if (guardado && guardado.pago) return json({ id, situacao: guardado.situacao, pago: true, fonte: "aviso" });
-  const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
-  if (!r.ok) return json({ erro: "não achei esse Pix", status: r.status }, r.status === 404 ? 404 : 502);
-  // "processed" e a order paga; "action_required" ainda espera o Pix.
-  const pago = r.dados.status === "processed";
-  if (pago) await pixPago(env, id, r.dados);
-  return json({ id, situacao: r.dados.status, detalhe: r.dados.status_detail, pago });
-}
-
-/* O Pix pago: a situacao privada, a contribuicao do mes e, se autorizado, o mural. */
-async function pixPago(env, id, order) {
-  // A recarga da nuvem (worker/ia.js) nao e apoio, mesmo consultada por aqui.
-  if (String((order && order.external_reference) || "").startsWith("ia-")) return;
-  await guardar(env, "pix:" + id, { situacao: order.status, pago: true, valor: order.total_amount });
-  const g = (await lerGuardado(env, "pix:" + id)) || {};
-  await contribuicao(env, "pix-" + id, Number(order.total_amount) || Number(g.valor) || 0, g.quando);
-  await noMural(env, g.mural, (g.emails || [])[0], g.quando);
-}
-
-/* A data de um instante no horario de Brasilia, "dd/mm/aaaa". */
-function dataBrasilia(iso) {
-  const ms = Date.parse(iso || "");
-  if (!Number.isFinite(ms)) return "";
-  const d = new Date(ms - 3 * 60 * 60 * 1000).toISOString().slice(0, 10).split("-");
-  return `${d[2]}/${d[1]}/${d[0]}`;
-}
-
-/* Os Pix pagos que o programa perdeu (de uma versao que nao guardava o
-   numero): so os do e-mail E das datas que o programa ja conhece - quem so
-   sabe o e-mail de alguem nao descobre as doacoes dele. */
-async function recuperarPix(request, env) {
-  const pedido = (await lerPedido(request)) || {};
-  const emails = [...new Set((pedido.emails || []).map((e) => String(e || "").trim().toLowerCase()).filter((e) => RE_EMAIL.test(e)))].slice(0, 3);
-  const datas = new Set((pedido.datas || []).map((d) => String(d || "").trim()).filter((d) => /^\d{2}\/\d{2}\/\d{4}$/.test(d)).slice(0, 20));
-  if (!emails.length || !datas.size || !env.APOIOS) return json({ pix: [] });
-  // O Mercado Pago nao devolve o e-mail do pagador: vale a impressao gravada
-  // quando o Pix foi criado.
-  const impressoes = await Promise.all(emails.map(impressaoDoEmail));
-  const achados = [];
-  const lista = await env.APOIOS.list({ prefix: "pix:", limit: 1000 });
-  for (const chave of lista.keys) {
-    const guardado = await lerGuardado(env, chave.name);
-    if (!guardado || !guardado.pago || !datas.has(dataBrasilia(guardado.quando))) continue;
-    if (!(guardado.emails || []).some((e) => impressoes.includes(e))) continue;
-    achados.push({ id: chave.name.slice(4), valor: Number(guardado.valor) || 0, data: guardado.quando });
-  }
-  return json({ pix: achados });
-}
-
-/* "authorized" e a assinatura com cartao posto e ativa; "pending" ainda
-   espera a pessoa terminar na pagina do Mercado Pago. */
-async function situacaoDaAssinatura(id, env) {
-  const guardado = await lerGuardado(env, "assinatura:" + id);
-  if (guardado && guardado.situacao !== "pending") return json({ id, ...guardado, ativa: guardado.situacao === "authorized", fonte: "aviso" });
-  const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "GET");
-  if (!r.ok) return json({ erro: "não achei essa assinatura", status: r.status }, r.status === 404 ? 404 : 502);
-  const situacao = r.dados.status;
-  if (situacao !== "pending") await guardar(env, "assinatura:" + id, { situacao, valor: (r.dados.auto_recurring || {}).transaction_amount });
-  return json({ id, situacao, ativa: situacao === "authorized" });
-}
+// ---------------------------------------------------------------- aviso
 
 /* O que o aviso diz, conferido na fonte: o aviso so traz o id - a situacao
-   vem do Mercado Pago, com o token, e so entao e guardada. */
+   vem do Mercado Pago, com o token, e so entao vai para a nuvem
+   (avisoDaIA), que sabe se a referencia e dela. */
 async function registrarAviso(tipo, id, env) {
   if (!id) return;
   if (tipo === "order") {
     const r = await chamarMP(env, "/v1/orders/" + encodeURIComponent(id), "GET");
-    if (r.ok && !(await avisoDaIA(env, "order", r.dados, chamarMP)) && r.dados.status === "processed") await pixPago(env, id, r.dados);
+    if (r.ok) await avisoDaIA(env, "order", r.dados, chamarMP);
   } else if (tipo === "subscription_preapproval" || tipo === "preapproval") {
     const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "GET");
-    if (r.ok && !(await avisoDaIA(env, "preapproval", r.dados, chamarMP))) {
-      await guardar(env, "assinatura:" + id, { situacao: r.dados.status, valor: (r.dados.auto_recurring || {}).transaction_amount });
-    }
+    if (r.ok) await avisoDaIA(env, "preapproval", r.dados, chamarMP);
   } else if (tipo === "subscription_authorized_payment") {
     // Cada cobranca mensal da assinatura.
     const r = await chamarMP(env, "/authorized_payments/" + encodeURIComponent(id), "GET");
-    if (r.ok && !(await avisoDaIA(env, "cobranca", r.dados, chamarMP))) await cobrancaPaga(env, r.dados);
-  } else if (tipo === "payment") {
-    // A contribuicao unica no cartao (Checkout Pro, feita no site).
-    const r = await chamarMP(env, "/v1/payments/" + encodeURIComponent(id), "GET");
-    const ref = String((r.dados && r.dados.external_reference) || "");
-    if (r.ok && r.dados.status === "approved" && ref.startsWith("apoio-cartao-")) {
-      const g = (await lerGuardado(env, "cartao:" + ref)) || {};
-      await contribuicao(env, "cartao-" + id, Number(r.dados.transaction_amount) || 0, r.dados.date_approved);
-      await noMural(env, g.mural, (g.emails || [])[0], r.dados.date_approved);
-    }
+    if (r.ok) await avisoDaIA(env, "cobranca", r.dados, chamarMP);
   }
 }
-
-/* Uma cobranca mensal paga: conta no mes dela; o nome, se autorizado quando
-   a assinatura foi criada, entra no mural. */
-async function cobrancaPaga(env, f) {
-  const pagamento = (f && f.payment) || {};
-  if (pagamento.status !== "approved" || !f.id) return;
-  const quando = f.debit_date || f.date_created || "";
-  await contribuicao(env, "cobranca-" + f.id, Number(f.transaction_amount) || 0, quando);
-  const g = (await lerGuardado(env, "assinatura:" + (f.preapproval_id || ""))) || {};
-  await noMural(env, g.mural, (g.emails || [])[0], quando);
-}
-
-// -------------------------------------------------------- cartao, uma vez
-
-/* A contribuicao unica no cartao, feita no site: o Checkout Pro do Mercado
-   Pago. O cartao e digitado na pagina do Mercado Pago; volta para /apoiar. */
-async function criarCartao(request, env) {
-  const c = conferir(await lerPedido(request));
-  if (c.erro) return json({ erro: c.erro }, 400);
-  const ref = "apoio-cartao-" + crypto.randomUUID().slice(0, 18);
-  const volta = (s) => "https://paulus.ia.br/apoiar/?cartao=" + s;
-  const r = await chamarMP(env, "/checkout/preferences", "POST", {
-    items: [{ id: "apoio", title: "Contribuição voluntária ao PAVLVS", quantity: 1, currency_id: "BRL", unit_price: c.valor }],
-    payer: { email: c.email },
-    external_reference: ref,
-    back_urls: { success: volta("aprovado"), pending: volta("pendente"), failure: volta("recusado") },
-    auto_return: "approved",
-    payment_methods: { excluded_payment_types: [{ id: "ticket" }, { id: "bank_transfer" }, { id: "atm" }], installments: 1 },
-    statement_descriptor: "PAVLVS",
-  });
-  if (!r.ok) return json({ erro: "o Mercado Pago recusou abrir o pagamento", status: r.status }, 502);
-  await guardar(env, "cartao:" + ref, { valor: c.valor, emails: [await impressaoDoEmail(c.email)], mural: c.mural });
-  return json({ link: r.dados.init_point || "" });
-}
-
-// ----------------------------------------------------------- assinatura
-
-async function criarAssinatura(request, env) {
-  const pedido = await lerPedido(request);
-  const c = conferir(pedido);
-  if (c.erro) return json({ erro: c.erro }, 400);
-  // O apoio no cartao e sempre mensal.
-  const r = await chamarMP(env, "/preapproval", "POST", {
-    reason: "Apoio mensal ao PAULUS",
-    external_reference: "apoio-assinatura-" + crypto.randomUUID().slice(0, 18),
-    payer_email: c.email,
-    auto_recurring: {
-      frequency: 1,
-      frequency_type: "months",
-      transaction_amount: c.valor,
-      currency_id: "BRL",
-    },
-    // Quem assina pelo site volta para a pagina Apoiar; pelo programa, para o inicio.
-    back_url: pedido && pedido.origem === "site" ? "https://paulus.ia.br/apoiar/?assinatura=voltou" : "https://paulus.ia.br/",
-    status: "pending",
-  });
-  if (!r.ok) return json({ erro: "o Mercado Pago recusou criar a assinatura", status: r.status }, 502);
-  await guardar(env, "assinatura:" + r.dados.id, { situacao: r.dados.status, valor: c.valor, emails: [await impressaoDoEmail(c.email)], mural: c.mural });
-  // A chave da assinatura: so quem a recebeu (o programa de quem assinou)
-  // consegue depois diminuir o valor ou interromper.
-  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", chave: await chaveDaAssinatura(env, r.dados.id) });
-}
-
-async function chaveDaAssinatura(env, id) {
-  return hmacHex(env.MP_WEBHOOK_SECRET || env.MP_ACCESS_TOKEN, "assinatura:" + id);
-}
-
-async function chaveConfere(env, id, chave) {
-  return typeof chave === "string" && igual(await chaveDaAssinatura(env, id), chave.toLowerCase());
-}
-
-/* Diminuir (ou mudar) o valor da assinatura. */
-async function mudarValor(id, request, env) {
-  const pedido = (await lerPedido(request)) || {};
-  if (!(await chaveConfere(env, id, pedido.chave))) return json({ erro: "essa assinatura não é desta instalação" }, 403);
-  const valor = Math.round(Number(pedido.valor) * 100) / 100;
-  if (!Number.isFinite(valor) || valor < VALOR_MINIMO || valor > VALOR_MAXIMO) {
-    return json({ erro: `o valor precisa estar entre R$ ${VALOR_MINIMO} e R$ ${VALOR_MAXIMO}` }, 400);
-  }
-  const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "PUT", {
-    auto_recurring: { transaction_amount: valor, currency_id: "BRL" },
-  });
-  if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor", status: r.status }, 502);
-  await guardar(env, "assinatura:" + id, { situacao: r.dados.status, valor });
-  return json({ id, situacao: r.dados.status, valor });
-}
-
-/* As cobrancas mensais da assinatura (as "faturas" do Mercado Pago), para o
-   extrato de apoio: data, valor e se foi paga. */
-async function pagamentosDaAssinatura(id, request, env) {
-  const pedido = (await lerPedido(request)) || {};
-  if (!(await chaveConfere(env, id, pedido.chave))) return json({ erro: "essa assinatura não é desta instalação" }, 403);
-  const r = await chamarMP(env, "/authorized_payments/search?preapproval_id=" + encodeURIComponent(id) + "&limit=100", "GET");
-  if (!r.ok) return json({ erro: "o Mercado Pago não devolveu as cobranças", status: r.status }, 502);
-  const resultados = (r.dados && r.dados.results) || [];
-  // As cobrancas pagas antes de existir o total do mes entram nele agora.
-  for (const f of resultados) await cobrancaPaga(env, { ...f, preapproval_id: id });
-  const pagamentos = resultados.map((f) => {
-    const pagamento = f.payment || {};
-    return {
-      id: String(f.id || ""),
-      data: f.debit_date || f.date_created || "",
-      valor: Number(f.transaction_amount) || 0,
-      situacao: pagamento.status || f.status || "",
-      pago: pagamento.status === "approved",
-    };
-  });
-  return json({ id, pagamentos });
-}
-
-/* Interromper: a assinatura e cancelada no Mercado Pago - nada mais e cobrado. */
-async function interromper(id, request, env) {
-  const pedido = (await lerPedido(request)) || {};
-  if (!(await chaveConfere(env, id, pedido.chave))) return json({ erro: "essa assinatura não é desta instalação" }, 403);
-  const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "PUT", { status: "cancelled" });
-  if (!r.ok) return json({ erro: "o Mercado Pago recusou interromper", status: r.status }, 502);
-  await guardar(env, "assinatura:" + id, { situacao: "cancelled" });
-  return json({ id, situacao: "cancelled" });
-}
-
-// ---------------------------------------------------------------- aviso
 
 /* O webhook: so aceita aviso com a assinatura do Mercado Pago certa
    (HMAC-SHA256 do "manifest" com a chave secreta do webhook). Aceito, a
-   situacao e buscada no Mercado Pago e guardada no KV - depois da resposta,
-   para o Mercado Pago nao esperar. */
+   situacao e buscada no Mercado Pago e entregue a nuvem - depois da
+   resposta, para o Mercado Pago nao esperar. */
 async function receberAviso(request, url, env, ctx) {
   const assinatura = request.headers.get("x-signature") || "";
   const requestId = request.headers.get("x-request-id") || "";
@@ -504,34 +192,6 @@ function mesBrasilia(iso) {
   return new Date((Number.isFinite(ms) ? ms : Date.now()) - 3 * 60 * 60 * 1000).toISOString().slice(0, 7);
 }
 
-/* Uma contribuicao confirmada, no mes dela. A chave e o id do pagamento: o
-   mesmo aviso repetido nao conta duas vezes. So o valor vai junto. */
-async function contribuicao(env, id, valor, quando) {
-  if (!env.APOIOS || !id || !(valor > 0)) return;
-  await env.APOIOS.put(`contrib:${mesBrasilia(quando)}:${id}`, "1", { metadata: { v: Math.round(valor * 100) / 100 } });
-}
-
-/* O nome autorizado entra no mural uma vez por pessoa (pela impressao do
-   e-mail), com o mes da primeira contribuicao; o nome mais recente vale. */
-async function noMural(env, nome, impressao, quando) {
-  if (!env.APOIOS || !nome || !impressao) return;
-  const chave = "mural:" + impressao;
-  const antes = env.APOIOS.getWithMetadata ? (await env.APOIOS.getWithMetadata(chave)).metadata : null;
-  const desde = (antes && antes.desde) || mesBrasilia(quando);
-  await env.APOIOS.put(chave, "1", { metadata: { nome, desde } });
-}
-
-async function listar(env, prefixo) {
-  const chaves = [];
-  let cursor;
-  do {
-    const pagina = await env.APOIOS.list({ prefix: prefixo, cursor, limit: 1000 });
-    chaves.push(...pagina.keys);
-    cursor = pagina.list_complete ? undefined : pagina.cursor;
-  } while (cursor);
-  return chaves;
-}
-
 async function arquivoDoSite(request, env, caminho) {
   try {
     const r = await env.ASSETS.fetch(new Request(new URL(caminho, request.url)));
@@ -542,7 +202,7 @@ async function arquivoDoSite(request, env, caminho) {
 }
 
 /* A resposta publica fica 15 minutos no cache da borda: a pagina e o
-   programa podem pedir a vontade sem ler o KV inteiro a cada vez. */
+   programa podem pedir a vontade sem montar tudo a cada vez. */
 async function publicoEmCache(request, ctx, montar) {
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const chave = new Request(new URL(request.url).toString(), { method: "GET" });
@@ -559,57 +219,20 @@ async function publicoEmCache(request, ctx, montar) {
   return resposta;
 }
 
-/* Os Pix pagos antes de existir o total do mes entram nele uma vez. */
-async function migrarContribuicoes(env) {
-  if (!env.APOIOS || (await env.APOIOS.get("migracao:contrib-1"))) return;
-  for (const k of await listar(env, "pix:")) {
-    const g = await lerGuardado(env, k.name);
-    if (g && g.pago) await contribuicao(env, "pix-" + k.name.slice(4), Number(g.valor) || 0, g.quando);
-  }
-  await env.APOIOS.put("migracao:contrib-1", new Date().toISOString());
-}
-
 /* Mes a mes: as versoes publicadas (site/dados/versoes.json, montado das
-   releases) e o apoio consolidado - soma e quantidade, nunca um valor
-   individual. O ITCD so aparece quando o recolhimento esta registrado em
-   site/dados/itcd.json; sem registro, null. */
+   releases). */
 async function desenvolvimento(request, env) {
-  await migrarContribuicoes(env);
   const versoes = (await arquivoDoSite(request, env, "/dados/versoes.json")) || {};
-  const itcd = (await arquivoDoSite(request, env, "/dados/itcd.json")) || {};
   const meses = {};
-  const mes = (m) => (meses[m] = meses[m] || { month: m, contributions: { total: 0, count: 0, itcdPaid: null }, releases: [] });
+  const mes = (m) => (meses[m] = meses[m] || { month: m, releases: [] });
   for (const r of versoes.releases || []) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || "")) mes(r.date.slice(0, 7)).releases.push(r);
   }
-  if (env.APOIOS) {
-    for (const k of await listar(env, "contrib:")) {
-      const m = k.name.slice(8, 15);
-      if (!/^\d{4}-\d{2}$/.test(m)) continue;
-      const c = mes(m).contributions;
-      c.total = Math.round((c.total + (Number(k.metadata && k.metadata.v) || 0)) * 100) / 100;
-      c.count += 1;
-    }
-  }
-  for (const m of Object.values(meses)) {
-    const pago = itcd[m.month];
-    m.contributions.itcdPaid = typeof pago === "number" ? pago : null;
-    m.releases.sort((a, b) => b.date.localeCompare(a.date));
-  }
+  for (const m of Object.values(meses)) m.releases.sort((a, b) => b.date.localeCompare(a.date));
   return {
     atualizadoEm: mesBrasilia().slice(0, 7) + "-" + new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(8, 10),
     meses: Object.values(meses).sort((a, b) => b.month.localeCompare(a.month)),
   };
-}
-
-/* O mural: so nome e mes, de quem autorizou. */
-async function apoiadores(env) {
-  if (!env.APOIOS) return { apoiadores: [] };
-  const lista = (await listar(env, "mural:"))
-    .map((k) => ({ name: String((k.metadata && k.metadata.nome) || ""), since: String((k.metadata && k.metadata.desde) || "") }))
-    .filter((a) => a.name && /^\d{4}-\d{2}$/.test(a.since));
-  lista.sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name, "pt-BR"));
-  return { apoiadores: lista };
 }
 
 // ------------------------------------------------------------ calibracao

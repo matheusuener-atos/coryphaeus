@@ -41,7 +41,7 @@ SECOES = {
     "aprendizado": ("Biblioteca", "nada sai desta máquina"),
     "aparencia": ("Aparência e avisos", "tema, avisos e atalhos"),
     "menu": ("Módulos", "desligar só tira do menu"),
-    "plano": ("Apoio e versão", "software livre, licença MIT"),
+    "plano": ("Versão", "software livre, licença MIT"),
     "lixeira": ("Lixeira", "30 dias para voltar"),
 }
 

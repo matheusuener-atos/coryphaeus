@@ -507,7 +507,7 @@ def main() -> int:
               return largos;
             }"""
             destinos = pagina.evaluate("() => DESTINOS.map(d => ({id: d.id, nome: d.nome}))")
-            # Servicos, Gravacoes e Apoiar sao so da casca, sem par no servidor.
+            # Servicos e Gravacoes sao so da casca, sem par no servidor.
             do_servidor = {d["id"] for d in destinos}
             destinos += [{"id": i, "nome": i} for i in casca["destinos"] if i not in do_servidor]
             com_compositor = []
@@ -916,7 +916,7 @@ def main() -> int:
             checar(pagina.evaluate("() => typeof aprovarMarcados === 'function' && !!document.getElementById('ap-fila')"),
                    "a fila de Aprovacoes responde ao Ctrl+Enter")
 
-            # "Novidades da versao" mora em Apoio e versao desde fd658f7.
+            # "Novidades da versao" mora em Configuracoes > Versao desde fd658f7.
             pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('plano'); }")
             pagina.wait_for_timeout(1800)
             pagina.evaluate("() => document.querySelector('[data-cfg-novidades]').click()")
@@ -1095,35 +1095,10 @@ def main() -> int:
                 "a semana traz os habitos e o parecer",
             )
 
-            print("\nApoiar o projeto: contribuir e quem ja apoia")
-            # O coracao do trilho abre a tela do desenho (A14); o pagamento nao
-            # existe e a tela diz isso, em vez do aviso generico de antes.
-            pagina.evaluate("() => abrirDestino('apoiar')")
-            pagina.wait_for_timeout(900)
-            # Desde f814227: duas formas (Pix uma vez, cartao todo mes) e os
-            # valores numa linha so - quatro valores e o Outro.
-            grades = pagina.evaluate(
-                "() => [...document.querySelectorAll('#apoio-tela .cfg-valores')]"
-                ".map(g => getComputedStyle(g).gridTemplateColumns.split(' ').length)"
-            )
-            checar(grades == [2, 5], f"as duas formas lado a lado e os cinco valores numa linha (achou {grades})")
+            print("\no apoio saiu do PAULUS (02/10/2026)")
             checar(
-                pagina.evaluate("() => !!document.querySelector('#apoio-tela .apoio-previa')"),
-                "a previa da lista de apoiadores aparece",
-            )
-            pagina.evaluate("() => document.querySelector('[data-apoio-visao=lista]').click()")
-            pagina.wait_for_timeout(600)
-            # A lista e a publica de paulus.ia.br/apoiadores, nunca uma de
-            # exemplo; a tela diz de onde vem, com ou sem internet.
-            checar(
-                pagina.evaluate("() => { const t = document.getElementById('apoio-tela').innerText;"
-                                " return t.includes('Quem mantém o PAULUS gratuito') && t.includes('paulus.ia.br/apoiadores')"
-                                " && !!document.querySelector('#apoio-tela .apoio-lista'); }"),
-                "Quem ja apoia mostra a lista publica do site",
-            )
-            checar(
-                pagina.evaluate("() => apoio.publicar === false"),
-                "aparecer na lista vem desligado",
+                pagina.evaluate("() => !document.querySelector('[data-destino=apoiar]') && typeof mostrarApoiar === 'undefined'"),
+                "nem o coracao no menu nem a tela Apoiar",
             )
 
             print("\no escritorio e um so: a equipe entra por convite (E4)")

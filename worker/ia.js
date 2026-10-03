@@ -397,7 +397,7 @@ async function situacaoDaRecarga(env, conta, id, pedido, mp) {
 }
 
 /* O aviso do Mercado Pago (worker/index.js, registrarAviso) que e da nuvem:
-   true quando tratou (e o apoio nao deve contar), false quando nao e daqui. */
+   true quando tratou, false quando nao e daqui (e entao o aviso e ignorado). */
 export async function avisoDaIA(env, tipo, dados, mp) {
   if (!env.CONTAS_IA) return false;
   const ref = String((dados && dados.external_reference) || "");

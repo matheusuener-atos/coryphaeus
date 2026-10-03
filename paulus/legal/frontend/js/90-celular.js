@@ -120,7 +120,7 @@ const CEL_GRUPOS = [
   [["Assistente e modelo", "config_assistente"], ["Modelos", "config_modelos"], ["Módulos", "config_menu"],
     ["Conexões", "conexoes"], ["Desempenho", "desempenho"]],
   [["Biblioteca", "config_aprendizado"], ["Backup", "config_backup"], ["Lixeira", "config_lixeira"]],
-  [["Aparência", "config_aparencia"], ["Apoiar o PAVLVS", "apoiar"], ["Versão", "config_plano"]],
+  [["Aparência", "config_aparencia"], ["Versão", "config_plano"]],
 ];
 
 async function carregarPerfilDoCelular() {

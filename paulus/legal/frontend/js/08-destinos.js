@@ -8,7 +8,7 @@
 
 /*
    O trilho e o menu sao os do desenho (docs/ui/01-shell.md): onze destinos
-   fixos mais Servicos, Gravacoes e Apoiar, que ainda nao tem motor. O
+   fixos mais Servicos e Gravacoes, que ainda nao tem motor. O
    registro do servidor (/api/destinos) continua sendo quem diz o que esta
    pronto; os destinos antigos que o desenho fundiu em visoes de outros ficam
    alcancaveis por uma lista no fim do menu, ate cada tela ser refeita.
@@ -39,11 +39,6 @@ const NOVOS_DESTINOS = {
     id: "contexto", nome: "Biblioteca", pronta: true, abre: "contexto",
     resolve: "O que o PAULUS consulta para responder: obras, lembretes, a Constituição, os códigos, as súmulas e os tribunais.",
     precisa: [],
-  },
-  apoiar: {
-    id: "apoiar", nome: "Apoiar o projeto", pronta: false, abre: "apoiar",
-    resolve: "Contribuir com o software livre que faz o PAULUS existir.",
-    precisa: ["pagamento por Pix ou cartão", "a lista de apoiadores"],
   },
 };
 
@@ -114,7 +109,6 @@ function abrirDestino(id) {
 
   if (d.abre === "servicos") return mostrarServicos("pastas");
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
-  if (d.abre === "apoiar") return mostrarApoiar("contribuir");
   if (d.abre === "agentes") return mostrarAgentes();
   if (d.abre === "contexto") return mostrarBibliotecaContexto();
   if (!d.pronta) return telaAdiante(d);

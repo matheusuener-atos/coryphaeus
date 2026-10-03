@@ -41,7 +41,6 @@ from pydantic import BaseModel
 import requests
 
 import aprovacoes as fila_aprovacoes
-import apoio
 import assinatura
 import traducao
 import certificado
@@ -138,6 +137,7 @@ import fundamentacao as fundamentacao_mod
 import comunidade as comunidade_mod
 import jurisprudencia as jurisprudencia_mod
 import nuvem as nuvem_mod
+import publico as publico_mod
 import triagem as triagem_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
@@ -8371,11 +8371,9 @@ def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
     return destino
 
 
-# Onde ficavam, ate 27/09/2026, o certificado de conformidade e o extrato de
-# apoio. O que ja esta la continua abrindo; o novo vai para o Acervo
-# (_pasta_no_acervo).
+# Onde ficava, ate 27/09/2026, o certificado de conformidade. O que ja esta
+# la continua abrindo; o novo vai para o Acervo (_pasta_no_acervo).
 CONFORMIDADE_DIR = DADOS_DIR / "conformidade"
-APOIO_DIR = DADOS_DIR / "apoio"
 
 
 def _pasta_no_acervo(*partes: str) -> Path:
@@ -8402,7 +8400,7 @@ def _pdf_conhecido(caminho: str) -> Path:
         raise HTTPException(status_code=404, detail="arquivo não encontrado") from None
     if alvo.suffix.lower() != ".pdf" or not alvo.is_file():
         raise HTTPException(status_code=404, detail="arquivo não encontrado")
-    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve(), APOIO_DIR.resolve()]
+    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve()]
     conhecidos = {Path(d.path).resolve() for d in estado.searcher.documents}
     if alvo in conhecidos or any(r == alvo.parent or r in alvo.parents for r in raizes):
         return alvo
@@ -9247,154 +9245,22 @@ def email_reescrever(payload: dict) -> dict:
     return {"sugestao": texto, "pedido": pedido}
 
 
-# ------------------------------------------------------ apoiar o projeto
-
-
-@app.post("/api/apoio/pix")
-def apoio_pix(payload: dict) -> dict:
-    """O Pix de apoio: o site (Worker) cria no Mercado Pago e devolve o QR."""
-    try:
-        return apoio.criar_pix(float(payload.get("valor") or 0), str(payload.get("email", "")), str(payload.get("mural") or ""))
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail="valor inválido") from exc
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.post("/api/apoio/pix/recuperar")
-def apoio_pix_recuperar(payload: dict) -> dict:
-    """Os Pix pagos que o historico desta maquina perdeu (versao antiga)."""
-    try:
-        return apoio.recuperar_pix([str(e) for e in payload.get("emails") or []], [str(d) for d in payload.get("datas") or []])
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/api/apoio/pix/{id_}")
-def apoio_pix_situacao(id_: str) -> dict:
-    try:
-        return apoio.situacao_do_pix(id_)
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/api/apoio/assinatura/{id_}")
-def apoio_assinatura_situacao(id_: str) -> dict:
-    try:
-        return apoio.situacao_da_assinatura(id_)
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/api/apoio/neste-mes")
-def apoio_neste_mes() -> dict:
-    """
-    O que o convite para apoiar diz (pacote de telas, `Assistente - Apoiar`):
-    quantos documentos o PAULUS leu para responder neste mes (os citados nas
-    respostas e os mostrados na conversa) e quantos lancamentos foram
-    montados no Financeiro. Conta feita aqui, com o que esta gravado; nada
-    sai da maquina.
-    """
-    hoje = date.today()
-    inicio = hoje.replace(day=1).isoformat()
-    lidos: set[str] = set()
-    resumos = [r for g in estado.trabalhos.listar().get("grupos", []) for r in g.get("trabalhos", [])]
-    for resumo in resumos:
-        t = estado.trabalhos.obter(resumo.get("id", ""))
-        if not t:
-            continue
-        for m in t.mensagens:
-            if m.autor != "paulus" or str(m.em or "")[:10] < inicio:
-                continue
-            for f in m.fontes or []:
-                nome = (f or {}).get("documento") if isinstance(f, dict) else None
-                if nome and not (f or {}).get("material"):
-                    lidos.add(nome)
-            feito = m.feito or {}
-            if feito.get("tipo") == "exibir" and feito.get("nome"):
-                lidos.add(feito["nome"])
-    lancamentos = estado.base.um(
-        "SELECT COUNT(*) AS n FROM lancamentos WHERE criado_em >= ?", (inicio,)) or {"n": 0}
-    import calendar
-    ultimo = calendar.monthrange(hoje.year, hoje.month)[1]
-    return {"mes": hoje.strftime("%Y-%m"), "documentos": len(lidos), "lancamentos": int(lancamentos["n"] or 0),
-            "faltam_dias": ultimo - hoje.day}
+# ------------------------------------------------- o que o site publica
 
 
 @app.get("/api/publico/{qual}")
 def publico_do_site(qual: str) -> dict:
     """
-    O historico (desenvolvimento) e o mural (apoiadores) que o site publica,
-    para a tela Desenvolvimento aberto e o "Quem ja apoia". So leitura; a
-    ultima copia fica em dados/publico para quando nao houver internet. A
-    versao instalada vai junto, para a tela marcar "e a sua versao".
+    O historico de versoes que o site publica, para a tela Desenvolvimento
+    aberto. So leitura; a ultima copia fica em dados/publico para quando nao
+    houver internet. A versao instalada vai junto, para a tela marcar "e a
+    sua versao".
     """
     try:
-        dados = apoio.publico(qual, DADOS_DIR / "publico")
-    except apoio.ErroDeApoio as exc:
+        dados = publico_mod.publico(qual, DADOS_DIR / "publico")
+    except publico_mod.ErroDoSite as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {**dados, "versao_instalada": VERSAO}
-
-
-@app.post("/api/apoio/extrato")
-def apoio_extrato(payload: dict) -> dict:
-    """
-    O "PAVLVS - Extrato de contribuicoes" em PDF: os Pix confirmados nesta
-    maquina (a tela manda) e as cobrancas do cartao, consultadas no Mercado
-    Pago agora. Gravado no Acervo, para baixar pela janela de sempre.
-    """
-    import extrato_apoio
-
-    pix = [p for p in (payload.get("pix") or []) if isinstance(p, dict)][:500]
-    cobrancas: list = []
-    # A assinatura de agora e as ja interrompidas: as cobrancas de todas.
-    for ass in [a for a in (payload.get("assinaturas") or []) if isinstance(a, dict)][:20]:
-        if not (ass.get("id") and ass.get("chave")):
-            continue
-        try:
-            cobrancas += apoio.pagamentos_da_assinatura(str(ass["id"]), str(ass["chave"])).get("pagamentos", [])
-        except apoio.ErroDeApoio as exc:
-            raise HTTPException(status_code=502, detail=f"não consegui as cobranças do cartão: {exc}") from exc
-    # Sem nome ou e-mail na tela Apoiar, valem os de Configuracoes > Meus dados.
-    pessoa = estado.prefs.dados.get("pessoa") or {}
-    nome = str(payload.get("nome") or "").strip() or str(pessoa.get("nome") or "").strip()
-    email = str(payload.get("email") or "").strip() or str(pessoa.get("email") or "").strip()
-    try:
-        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=nome[:80], email=email[:120],
-                                      pix=pix, cobrancas=cobrancas)
-    except (OSError, ValueError) as exc:
-        raise HTTPException(status_code=500, detail=f"não consegui montar o extrato: {exc}") from exc
-    estado.recarregar_em_segundo_plano()
-    return {"caminho": str(caminho), "nome": caminho.name}
-
-
-@app.post("/api/apoio/assinatura/{id_}/valor")
-def apoio_assinatura_valor(id_: str, payload: dict) -> dict:
-    try:
-        return apoio.mudar_valor(id_, str(payload.get("chave", "")), float(payload.get("valor") or 0))
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail="valor inválido") from exc
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.post("/api/apoio/assinatura/{id_}/interromper")
-def apoio_assinatura_interromper(id_: str, payload: dict) -> dict:
-    try:
-        return apoio.interromper(id_, str(payload.get("chave", "")))
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.post("/api/apoio/assinatura")
-def apoio_assinatura(payload: dict) -> dict:
-    """A assinatura no cartao: devolve o link da pagina do Mercado Pago."""
-    try:
-        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")), str(payload.get("mural") or ""))
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail="valor inválido") from exc
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/api/email/traduzir")

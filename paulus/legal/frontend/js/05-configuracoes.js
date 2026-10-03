@@ -36,7 +36,7 @@ const CFG_SECOES = [
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
-  ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
+  ["plano", "Versão", "O PAULUS é software livre, com licença MIT."],
   ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
 ];
 
@@ -420,7 +420,7 @@ async function mostrarNovidades() {
       b.itens.map((x) => "<li>" + negrito(x) + "</li>").join("") + "</ul></div>").join("");
   await dialogo({
     titulo: "Novidades da versão",
-    contexto: "Configurações › Apoio e versão",
+    contexto: "Configurações › Versão",
     html: html,
     confirmar: "Fechar",
     larga: true,
@@ -1060,7 +1060,7 @@ function escolherTema(escolha) {
 function secaoModulos() {
   const m = (cfg.rascunho || {}).modulos || {};
   const linhas = MODULOS_BV.map(([id, , nome, desc]) => ligaCfg("modulos." + id, nome, desc, m[id] !== false)).join("");
-  return aberturaCfg() + cartaoCfg("No menu", metaCfg("o Assistente, Apoiar e Configurações ficam sempre"),
+  return aberturaCfg() + cartaoCfg("No menu", metaCfg("o Assistente e Configurações ficam sempre"),
     '<div class="cfg-sub">' + linhas + "</div>");
 }
 
@@ -1157,8 +1157,7 @@ function secaoFeedback() {
   return aberturaCfg() + caderno + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
 }
 
-/* Todo feedback vai para o endereço do projeto - o mesmo do extrato de apoio
-   (src/extrato_apoio.py) e das páginas públicas. */
+/* Todo feedback vai para o endereço do projeto - o mesmo das páginas públicas. */
 const FEEDBACK_PARA = "contato@paulus.ia.br";
 
 function assuntoDoFeedback() {
@@ -1197,15 +1196,14 @@ async function enviarFeedback() {
   telaEscrever({ para: FEEDBACK_PARA, assunto: assuntoDoFeedback(), corpo: corpoDoFeedback() });
 }
 
-/* --------------------------------------------------------- apoio e versao */
+/* --------------------------------------------------------------- versao */
 
 function secaoPlano() {
-  const apoiar = '<p class="cfg-texto">Sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento, por Pix ou cartão.</p>' +
-    '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-apoiar="contribuir">' + ic("favorite", 16) + "Apoiar o projeto</button>" +
-    '<button data-cfg-apoiar="lista">Quem já apoia</button><button data-cfg-apoiar="desenvolvimento">Desenvolvimento aberto</button></div>';
+  const desenvolvimento = '<p class="cfg-texto">As versões publicadas do PAVLVS e o que mudou em cada uma, mês a mês.</p>' +
+    '<div class="cfg-botoes"><button data-cfg-desenvolvimento="1">Desenvolvimento aberto</button></div>';
   return aberturaCfg() +
-    cartaoCfg("Apoiar o projeto", "", apoiar) +
-    cartaoCfg("Versão e atualização", "", blocoAtualizacao());
+    cartaoCfg("Versão e atualização", "", blocoAtualizacao()) +
+    cartaoCfg("Desenvolvimento aberto", "", desenvolvimento);
 }
 
 /* ------------------------------------------------------------- lixeira */
@@ -1349,7 +1347,7 @@ function ligarConfig() {
     desenharConfig();
     carregarUsuario();
   });
-  clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); b.dataset.cfgApoiar === "desenvolvimento" ? mostrarDesenvolvimento() : mostrarApoiar(b.dataset.cfgApoiar); });
+  clique("[data-cfg-desenvolvimento]", () => mostrarDesenvolvimento());
   if (cfg.secao === "vinculos" && typeof ligarEquipeCfg === "function") ligarEquipeCfg();
   if (cfg.secao === "backup" && typeof ligarBackupCfg === "function") ligarBackupCfg();
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
