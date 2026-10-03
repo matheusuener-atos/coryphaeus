@@ -204,11 +204,14 @@ function textoDoProximo() {
   const modo = modoDoEscopo();
   if (modo === "foco") return estado.foco.length === 1 ? "A próxima pergunta lê só “" + estado.foco[0] + "”" : "A próxima pergunta lê os " + plural(estado.foco.length, "documento") + " da conversa";
   if (modo === "perguntar") return "Na próxima pergunta, eu pergunto onde procurar";
+  if (modo === "criativo") return "Modo criativo: a próxima pergunta não lê documento, o Paulus responde pelo que sabe";
   return "A próxima pergunta procura em todo o Acervo" + (estado.contratos ? " · " + plural(estado.contratos, "documento") : "");
 }
 
 function desenharBarra() {
   if (!painelNovo()) return;
+  // O agente agora e pilula na caixa da pergunta (js/92-entrevista.js).
+  if (typeof desenharPilulaAgente === "function") desenharPilulaAgente();
   const caixa = $("registro");
   if (!caixa) return;
   const agora = $("registro-agora");
@@ -227,7 +230,7 @@ function desenharBarra() {
   // Pacote de telas (`Conversa - Carregando`): com a resposta andando, a
   // barra continua dizendo onde a proxima pergunta procura - o que acontece
   // agora, e o Parar, moram no cartao de trabalho e no botao de enviar.
-  agora.innerHTML = andando ? esc(textoDoProximo()) : esc(textoDoProximo()) + barraDoAgente();
+  agora.innerHTML = esc(textoDoProximo());
   const parar = agora.querySelector("[data-barra-parar]");
   if (parar) parar.onclick = (e) => { e.stopPropagation(); pararResposta(); };
   const sel = agora.querySelector("[data-barra-agente]");

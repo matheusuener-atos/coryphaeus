@@ -161,9 +161,15 @@ function campoDaPergunta(q, d, i) {
   const datalist = lista.length ? '<datalist id="' + idLista + '">' + lista.map((n) => '<option value="' + esc(n) + '">').join("") + "</datalist>" : "";
   if (q.tipo === "texto_longo") return '<textarea class="ent-campo" name="' + nome + '" rows="3"></textarea>';
   if (q.tipo === "data") return '<input class="ent-campo ent-curto" type="date" name="' + nome + '">';
+  // Dinheiro com "R$" na frente; quantidade com a unidade depois (ha, sacas/ha,
+  // anos...). Sem unidade conhecida, o campo fica sem rótulo.
   if (q.tipo === "valor") {
     return '<span class="ent-valor"><span>R$</span><input class="ent-campo ent-curto" type="text" inputmode="decimal" name="' + nome +
       '" placeholder="0,00"></span>';
+  }
+  if (q.tipo === "numero") {
+    return '<span class="ent-valor"><input class="ent-campo ent-curto" type="text" inputmode="decimal" name="' + nome + '">' +
+      (q.unidade ? "<span>" + esc(q.unidade) + "</span>" : "") + "</span>";
   }
   return '<input class="ent-campo" type="text" name="' + nome + '"' + (idLista ? ' list="' + idLista + '"' : "") +
     (q.tipo === "parte" ? ' placeholder="nome da pessoa ou empresa"' : q.tipo === "documento" ? ' placeholder="nome do documento no Acervo"' : "") +
@@ -220,7 +226,9 @@ function respostasDoCartao(caixa, d) {
     }
     const campo = f.querySelector('[name="q' + i + '"]');
     let v = campo ? campo.value.trim() : "";
-    if (v && q.tipo === "valor") v = "R$ " + v;
+    if (v && q.tipo === "valor" && !/R\$/i.test(v)) v = "R$ " + v;
+    // "410" com a unidade "ha" vira "410 ha"; quem já escreveu a unidade (ou outra) fica como escreveu.
+    if (v && q.tipo === "numero" && q.unidade && /^[\d.,\s]+$/.test(v)) v = v + " " + q.unidade;
     if (v && q.tipo === "data") { const [a, m, dd] = v.split("-"); if (dd) v = dd + "/" + m + "/" + a; }
     if (v) saida.push({ id: q.id, modo: "valor", resposta: v });
   });
@@ -344,3 +352,84 @@ function ligarLevarAoEditor(caixa, d) {
     if (typeof fazerDoCartaoDoEditor === "function") fazerDoCartaoDoEditor(caixa, feito.proposta);
   };
 }
+
+/* ------------------------------------------------------------ a pílula do agente
+
+   O agente da próxima pergunta (A2) saiu da barra de cima da caixa e virou
+   pílula dentro dela, como a profundidade: o nome do agente (o escolhido, ou
+   o que a regra sugeriu pelo pedido), e o menu com "Sem agente" e os
+   ativos. Sem agente ativo no escritório, a pílula não aparece. */
+function desenharPilulaAgente() {
+  const ativos = estado.agentesAtivos || [];
+  let b = document.getElementById("pilula-agente");
+  if (!ativos.length) { if (b) b.remove(); return; }
+  if (!b) {
+    const ancora = document.getElementById("pilula-profundidade") || document.getElementById("pilula-nuvem") || document.getElementById("ditar");
+    if (!ancora) return;
+    b = document.createElement("button");
+    b.type = "button";
+    b.id = "pilula-agente";
+    b.className = "pilula pilula-agente";
+    b.setAttribute("aria-haspopup", "menu");
+    b.onclick = (e) => { e.stopPropagation(); document.getElementById("menu-agente") ? fecharMenuAgente() : abrirMenuAgente(); };
+    ancora.parentNode.insertBefore(b, ancora);
+  }
+  const vez = typeof agenteDaVez === "function" ? agenteDaVez() : null;
+  const revisao = !vez && !estado.agenteDecisao && (estado.agentesEmRevisao || []).length;
+  b.classList.toggle("ativa", Boolean(vez));
+  b.title = vez ? "Agente da próxima pergunta: " + vez.nome + (estado.agenteDecisao ? "" : " (escolhido pelo pedido)") + ". Clique para trocar."
+    : revisao ? "“" + estado.agentesEmRevisao[0].nome + "” precisa de revisão: não escolhi sozinho. Clique para escolher."
+      : "Sem agente. Clique para escolher um agente do escritório.";
+  b.innerHTML = ic("hub", 18) + '<span class="rotulo-botao">' + esc(vez ? vez.nome : "Agente") + "</span>" +
+    (revisao ? '<span class="pilula-alerta" data-barra-revisao="1" aria-label="agente precisa de revisão"></span>' : "");
+}
+
+function abrirMenuAgente() {
+  fecharMenuAgente();
+  const b = document.getElementById("pilula-agente");
+  if (!b) return;
+  const ativos = estado.agentesAtivos || [];
+  const vez = typeof agenteDaVez === "function" ? agenteDaVez() : null;
+  const menu = document.createElement("div");
+  menu.id = "menu-agente";
+  menu.className = "menu-profundidade";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("data-barra-agente", "1");
+  const item = (slug, nome, extra, on) => '<button type="button" role="menuitemradio" class="mp-nivel' + (on ? " on" : "") +
+    '" aria-checked="' + on + '" data-agente-op="' + esc(slug) + '"><span class="mp-texto"><b>' + esc(nome) + "</b>" +
+    (extra ? "<span>" + esc(extra) + "</span>" : "") + "</span></button>";
+  menu.innerHTML = '<div class="mp-cabeca"><b>Agente da próxima pergunta</b><small>Sem escolher, o Paulus usa o agente que o pedido indicar.</small></div>' +
+    item("nenhum", "Sem agente", "", !vez) +
+    ativos.map((a) => item(a.slug, a.nome, a.precisa_revisao ? "precisa de revisão" : (a.descricao || ""), Boolean(vez && vez.slug === a.slug))).join("");
+  document.body.appendChild(menu);
+  const r = b.getBoundingClientRect();
+  const largura = Math.min(340, window.innerWidth - 16);
+  menu.style.width = largura + "px";
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - largura - 8)) + "px";
+  const acima = r.top - 16, abaixo = window.innerHeight - r.bottom - 16;
+  menu.style.maxHeight = Math.max(160, Math.min(520, Math.max(acima, abaixo))) + "px";
+  const altura = menu.offsetHeight;
+  menu.style.top = (acima >= altura || acima >= abaixo ? Math.max(8, r.top - altura - 8) : r.bottom + 8) + "px";
+  b.setAttribute("aria-expanded", "true");
+  menu.querySelectorAll("[data-agente-op]").forEach((x) => {
+    x.onclick = () => {
+      estado.agenteDecisao = x.dataset.agenteOp || "nenhum";
+      fecharMenuAgente();
+      desenharPilulaAgente();
+      const p = document.getElementById("pedido");
+      if (p) p.focus();
+    };
+  });
+}
+
+function fecharMenuAgente() {
+  const m = document.getElementById("menu-agente");
+  if (m) m.remove();
+  const b = document.getElementById("pilula-agente");
+  if (b) b.setAttribute("aria-expanded", "false");
+}
+
+document.addEventListener("click", (e) => {
+  if (document.getElementById("menu-agente") && !e.target.closest("#menu-agente") && !e.target.closest("#pilula-agente")) fecharMenuAgente();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") fecharMenuAgente(); });

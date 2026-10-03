@@ -1166,6 +1166,9 @@ class Pergunta(BaseModel):
     # "Perguntar antes de trabalhar", desligado na caixa: o pedido de trabalho
     # executa direto. Nulo: o que esta em Configuracoes (profundidade.entrevista).
     perguntar: bool | None = None
+    # A pilula "Modo criativo": a pergunta nao le documento nenhum - o Paulus
+    # responde pelo que ele mesmo sabe, na nuvem (`_responder_criativo`).
+    criativo: bool = False
 
 
 class Busca(BaseModel):
@@ -3884,6 +3887,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                                        forcar_execucao=payload.perguntar is False)
         trabalho.registrar("O trabalho em etapas ficou para o caminho de sempre: " + motivo,
                            mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
+    # Modo criativo: nada de busca nos documentos - o direito em tese, a
+    # redacao, as ideias, pelo que o modelo da nuvem sabe. As acoes (agenda,
+    # tarefa, e-mail...) e o pedido de trabalho ja passaram acima.
+    if payload.criativo and lido.tipo == "documentos" and agente is None and not payload.apenas:
+        return _responder_criativo(trabalho, request, dono, nivel_prof, envio_nuvem, pergunta, historico)
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
@@ -6223,6 +6231,100 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
         yield etapas_sse()
         yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
         yield _sse("oferta", oferta)
+
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+INSTRUCAO_CRIATIVO = ("MODO CRIATIVO: nesta pergunta o programa NÃO leu documento nenhum do escritório - de "
+                      "propósito. Responda pelo que você sabe: o direito em tese, a prática, a redação, as ideias e "
+                      "alternativas. Não diga que procurou nos documentos nem cite arquivo; se a resposta depender do "
+                      "que está num documento do escritório, diga que é preciso lê-lo (sair do modo criativo).")
+
+
+def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergunta: str, historico) -> StreamingResponse:
+    """
+    O modo criativo (a pilula de escopo): a pergunta vai direto ao modelo da
+    nuvem, sem busca e sem trecho de documento, com a instrucao da nuvem, o
+    nivel de profundidade e os pares de antes da conversa. Sem a nuvem, diz
+    por que - o modelo deste computador so responde lendo documentos.
+    """
+    import time
+
+    pessoa = rotas_do_acesso.pessoa(request)
+    if envio_nuvem is None:
+        return _so_dizer(trabalho, "O modo criativo responde pela nuvem, e esta pergunta ficou neste computador. "
+                                   "Ligue a pílula “Nuvem”, ou escolha o Acervo na pílula de escopo.")
+    motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, pessoa, [])
+    if motivo:
+        return _so_dizer(trabalho, "O modo criativo responde pela nuvem, e " + motivo + ".")
+    if not plano_mod.liberada(estado):
+        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+    id_ = trabalho.id
+    trabalho.etapas = [Etapa("Responder pelo que sei", estado=EXECUTANDO)]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def gerar() -> Iterator[str]:
+        try:
+            yield from _gerar()
+        finally:
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                trabalho.etapas[0].estado = PAUSADO
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar() -> Iterator[str]:
+        import instrucao_nuvem
+
+        inicio = time.time()
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("pensando", {"texto": "Respondendo pelo que sei…"})
+        regra = (estado.contextos.bloco() or "").strip()
+        regra = (regra + "\n\n" + INSTRUCAO_CRIATIVO + "\n\n" + profundidade_mod.INSTRUCAO_RESPOSTA[nivel.id]).strip()
+        mensagens = instrucao_nuvem.montar_mensagens(pergunta, "", ensinado=regra, historico=historico)
+        mascara = nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None
+        modelo = profundidade_mod.modelo_do_nivel(estado.prefs.dados, nivel, nuvem_mod.config(estado).get("modelo") or "")
+        partes: list[str] = []
+        ponte = Ponte(lambda empurrar: nuvem_mod.chamada(
+            estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="criativo", pergunta=pergunta, mascara=mascara,
+            on_token=empurrar, max_tokens=profundidade_mod.SAIDA_RESPOSTA.get(nivel.id, 3000), parar=parar.is_set,
+            modelo=modelo, profundidade=nivel.id), parar=parar.is_set)
+        try:
+            for pedaco in ponte:
+                partes.append(pedaco)
+                yield _sse("token", {"t": pedaco})
+        except nuvem_mod.ErroNuvem as exc:
+            trabalho.etapas[0].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem não respondeu: " + str(exc)})
+            return
+        segundos = round(time.time() - inicio, 1)
+        texto = "".join(partes).strip()
+        _, uso = ponte.resultado or ("", {})
+        como = {"caminho": "criativo", "modelo": f"{uso.get('provedor', 'nuvem')} · {uso.get('modelo', modelo)}",
+                "profundidade": {"nivel": nivel.id, "nome": nivel.nome},
+                "nuvem": {"onde": "nuvem", "provedor": uso.get("provedor", ""), "modelo": uso.get("modelo", modelo),
+                          "tokens_entrada": uso.get("tokens_entrada", 0), "tokens_saida": uso.get("tokens_saida", 0)},
+                "escopo": {"apenas": [], "tudo": False, "sem_anexo": False, "criativo": True}}
+        interrompida = parar.is_set()
+        trabalho.etapas[0].estado = PAUSADO if interrompida else CONCLUIDO
+        trabalho.estado = PAUSADO if interrompida else CONCLUIDO
+        if texto:
+            trabalho.dizer("paulus", texto, segundos=segundos, cobertura={"como": como}, interrompida=interrompida)
+        estado.trabalhos.salvar(trabalho)
+        if interrompida:
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(texto)})
+            return
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
 
     if rotas_execucoes.ligada(estado, "execucao"):
         return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())

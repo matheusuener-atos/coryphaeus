@@ -304,6 +304,19 @@ def test_conferir() -> None:
     checar("Área rural" in b and "DECIDA" in b and "SEM RESPOSTA" in b and "galpão" in b and "foro da comarca" in b,
            "o briefing leva respostas, o 'decida por mim', o 'não sei', a explicação e as premissas", b)
     checar(len(e["respostas"]) == 3, "resposta a pergunta que não existe é ignorada")
+    un = entrevista.conferir({"decisao": "perguntar", "perguntas": [
+        {"pergunta": "Qual é a área total a ser arrendada em hectares?", "porque": "define o preço", "tipo": "valor"},
+        {"pergunta": "Quantas sacas por hectare o arrendatário pagará?", "porque": "remuneração", "tipo": "valor"},
+        {"pergunta": "Qual o valor da multa?", "porque": "define a multa", "tipo": "valor"},
+        {"pergunta": "Prazo?", "porque": "prazo mínimo", "tipo": "numero", "unidade": "anos"}]}, adv, 1)
+    checar([(q["tipo"], q["unidade"]) for q in un["perguntas"]] == [("numero", "ha"), ("numero", "sacas/ha"), ("valor", "R$"),
+                                                                    ("numero", "anos")],
+           "quantidade não é dinheiro: a unidade certa (ha, sacas/ha, anos); R$ só no valor",
+           [(q["tipo"], q["unidade"]) for q in un["perguntas"]])
+    ab = entrevista.conferir({"decisao": "executar", "trabalho": "Contrato de arrendamento rural",
+                              "abertura": "Para criar o contrato, precisamos definir alguns pontos adicionais."}, adv, 1)
+    checar(ab["abertura"].startswith("Perfeito, já tenho o necessário") and "contrato de arrendamento rural" in ab["abertura"],
+           "executar não abre dizendo que falta definir algo", ab["abertura"])
 
 
 # ------------------------------------------------------------ pela rota
@@ -522,6 +535,21 @@ def main() -> int:
                               "profundidade": "advogado"})
     checar(fake.etapas(n0) == ["entrevista", "plano", "redacao"], "texto livre é resposta: nova análise e execução", fake.etapas(n0))
     checar("receber e dar quitação" in json.dumps(fake.chamadas[n0]["corpo"], ensure_ascii=False), "a explicação vai à análise")
+
+    print("\nmodo criativo: sem ler documento")
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(nova(), {"pergunta": "Quais as teses de defesa mais comuns numa ação de despejo?", "nuvem": True,
+                                "criativo": True, "profundidade": "advogado"})
+    etapas = fake.etapas(n0)
+    checar(etapas == ["resposta"], "uma chamada só, sem triagem nem busca", etapas)
+    enviado = json.dumps(fake.chamadas[-1]["corpo"], ensure_ascii=False)
+    checar("MODO CRIATIVO" in enviado and "PROFUNDIDADE: Advogado" in enviado and "minuta-anterior" not in enviado,
+           "a instrução do modo criativo e do nível, sem trecho de documento")
+    ultima = t["mensagens"][-1]
+    checar(ultima["autor"] == "paulus" and "Resposta comum da nuvem" in ultima["texto"]
+           and ultima["cobertura"]["como"]["caminho"] == "criativo", "a resposta fica, marcada como criativa", ultima.get("cobertura"))
+    evs, t = perguntar(nova(), {"pergunta": "Quais as teses de defesa numa ação de despejo?", "nuvem": False, "criativo": True})
+    checar("nuvem" in t["mensagens"][-1]["texto"], "sem a nuvem, diz por quê", t["mensagens"][-1]["texto"])
 
     print("\npedir o sim a cada envio: o caminho de sempre")
     api.estado.prefs.dados["nuvem"]["pedir_cada_envio"] = True

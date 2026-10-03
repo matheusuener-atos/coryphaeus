@@ -92,3 +92,9 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
   .ent-nivel { margin-left: 0; width: 100%; }
 }
 .ent-confira { margin: 8px 0 0; font: 500 12px var(--sans); color: var(--ink3); line-height: 1.4; }
+
+/* A pílula do agente (js/92-entrevista.js) */
+.pilula-agente { gap: 6px; position: relative; }
+.pilula-agente.ativa { background: var(--fill); }
+.pilula-alerta { width: 7px; height: 7px; border-radius: 50%; background: var(--warnt); }
+.proposta.entrevista.respondida { opacity: .85; }

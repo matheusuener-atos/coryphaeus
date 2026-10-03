@@ -39,7 +39,24 @@ import re
 import unicodedata
 import uuid
 
-TIPOS = ("escolha", "multipla", "texto", "texto_longo", "data", "valor", "sim_nao", "parte", "documento")
+TIPOS = ("escolha", "multipla", "texto", "texto_longo", "data", "valor", "numero", "sim_nao", "parte", "documento")
+# "valor" é dinheiro (R$). Medido em 03/10: o modelo marcava "quantas sacas por
+# hectare" e "a área em hectares" como valor, e a tela punha "R$" na frente.
+# Quantidade é "numero", com a unidade dela.
+RE_DINHEIRO = re.compile(r"r\$|reais|\bvalor\b|pre[cç]o|aluguel|quantia|montante|multa|honor[aá]rio|sal[aá]rio|"
+                         r"\bcusto|pagamento|indeniza", re.IGNORECASE)
+UNIDADES = ((r"sacas?\s+(?:de\s+\w+\s+)?por\s+hectare|sacas?/ha", "sacas/ha"), (r"hectares?|\bha\b", "ha"),
+            (r"sacas?", "sacas"), (r"toneladas?", "t"), (r"\banos?\b", "anos"), (r"\bmeses\b|\bm[eê]s\b", "meses"),
+            (r"\bdias?\b", "dias"), (r"percentual|porcentagem|%", "%"), (r"cabe[cç]as", "cabeças"),
+            (r"metros quadrados|m²|m2", "m²"))
+
+
+def unidade_de(texto: str) -> str:
+    """A unidade que a própria pergunta diz ("Qual a área em hectares?" -> "ha"), ou ""."""
+    for padrao, unidade in UNIDADES:
+        if re.search(padrao, str(texto or ""), re.IGNORECASE):
+            return unidade
+    return ""
 # O que a tela já oferece em toda pergunta: o modelo não repete como opção.
 _OPCOES_DA_TELA = re.compile(r"^(outr[oa]s?|outra coisa|nao sei|n[aã]o sei|decida por mim|quero explicar|"
                              r"prefiro explicar|depende|nenhum[a]?|n/?a)\b", re.IGNORECASE)
@@ -163,8 +180,9 @@ relevantes) ou "baixo" (ajuste fino - melhor virar premissa).
 "Outro", "Não sei", "Decida por mim" nem "Quero explicar": a tela já oferece em toda pergunta.
 - "sugestao": a opção que você recomendaria, se houver uma claramente melhor (copiada de "opcoes").
 - tipo: "escolha" (uma opção), "multipla" (várias - por exemplo, situações especiais a prever), "texto" \
-(curto), "texto_longo", "data", "valor" (em reais), "sim_nao", "parte" (uma pessoa ou empresa), \
-"documento" (um documento do Acervo do escritório).
+(curto), "texto_longo", "data", "valor" (só dinheiro, em reais), "numero" (uma quantidade com unidade: hectares, sacas por \
+hectare, anos, %; diga a unidade em "unidade"), "sim_nao", "parte" (uma pessoa ou empresa), "documento" \
+(um documento do Acervo do escritório).
 - Linguagem de colega, não de formulário.
 - Nas rodadas seguintes, só o que as respostas fizeram surgir (consequências, pontos novos). Resposta "não \
 sei" num ponto decisivo: pode perguntar de novo UMA vez, explicando em "porque" a consequência de cada \
@@ -352,6 +370,13 @@ def conferir(dados: dict | None, nivel, rodada: int, ja_perguntadas=()) -> dict:
                 "pessoa": "parte"}.get(tipo, tipo)
         if tipo not in TIPOS:
             tipo = "texto"
+        unidade = _curto(q.get("unidade"), 16)
+        if tipo == "valor" and not RE_DINHEIRO.search(texto) and (unidade or unidade_de(texto)):
+            tipo = "numero"
+        if tipo == "numero":
+            unidade = unidade if unidade and not re.fullmatch(r"(?i)r\$|reais", unidade) else unidade_de(texto)
+        else:
+            unidade = "R$" if tipo == "valor" else ""
         opcoes = []
         for o in q.get("opcoes") or []:
             o = _curto(o, 80)
@@ -372,7 +397,7 @@ def conferir(dados: dict | None, nivel, rodada: int, ja_perguntadas=()) -> dict:
             qid += "_"
         ids.add(qid)
         perguntas.append({"id": qid, "pergunta": texto, "porque": porque, "tipo": tipo, "opcoes": opcoes[:6],
-                          "sugestao": sugestao})
+                          "sugestao": sugestao, "unidade": unidade})
         vistas.add(_plano(texto))
         if len(perguntas) >= nivel.perguntas_max:
             break
@@ -380,13 +405,22 @@ def conferir(dados: dict | None, nivel, rodada: int, ja_perguntadas=()) -> dict:
     decisao = "perguntar" if decisao.startswith("pergunt") else "executar"
     if not perguntas or rodada > nivel.rodadas_max:
         decisao = "executar"
+    abertura = _curto(dados.get("abertura"), 400)
     if decisao == "executar":
         perguntas = []
+        # Medido em 03/10: o modelo decidiu executar e abriu com "precisamos
+        # definir alguns pontos adicionais" - e a redação veio logo embaixo.
+        # Abertura que pergunta não vale quando não há pergunta.
+        if "?" in abertura or re.search(r"(?i)precis\w*\s+(?:de\s+)?(?:definir|esclarecer|saber|entender|considerar)|"
+                                         r"pontos?\s+(?:adicionais|importantes)|mais informa", abertura):
+            trabalho = _curto(dados.get("trabalho"), 90)
+            abertura = "Perfeito, já tenho o necessário. Vou estruturar " + (
+                ("o " + trabalho[:1].lower() + trabalho[1:]) if trabalho else "o trabalho") + " com essas condições."
     return {
         "decisao": decisao,
         "trabalho": _curto(dados.get("trabalho"), 90),
         "entendimento": _curto(dados.get("entendimento"), 400),
-        "abertura": _curto(dados.get("abertura"), 400),
+        "abertura": abertura,
         "titulo": _curto(dados.get("titulo"), 80),
         "perguntas": perguntas,
         "premissas": [_curto(p, 200) for p in (dados.get("premissas") or []) if _curto(p, 200)][:5],

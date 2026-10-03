@@ -2108,8 +2108,10 @@ async function carregarAbertos() {
    - "foco": o documento que esta conversa vinha lendo;
    - "acervo": todos os documentos abertos;
    - "perguntar": sem escolher — a pergunta que não nomeia documento volta
-     com um cartão perguntando onde. */
-const MODOS_DO_ESCOPO = ["foco", "acervo", "perguntar"];
+     com um cartão perguntando onde;
+   - "criativo": sem ler documento nenhum — o Paulus responde pelo que ele
+     mesmo sabe (direito em tese, redação, ideias), na nuvem. */
+const MODOS_DO_ESCOPO = ["foco", "acervo", "perguntar", "criativo"];
 
 function definirEscopo(nomes) {
   const lista = Array.isArray(nomes) ? nomes : (nomes ? [nomes] : []);
@@ -2134,7 +2136,7 @@ function modoDoEscopo() {
 }
 
 function alternarModoDoEscopo() {
-  const ordem = (estado.foco || []).length ? MODOS_DO_ESCOPO : ["acervo", "perguntar"];
+  const ordem = (estado.foco || []).length ? MODOS_DO_ESCOPO : ["acervo", "perguntar", "criativo"];
   estado.modoEscopo = ordem[(ordem.indexOf(modoDoEscopo()) + 1) % ordem.length];
   desenharEscopo();
   // C3: o modo e da conversa, e fica no servidor.
@@ -2149,6 +2151,7 @@ function escopoDoEnvio() {
     apenas: modo === "foco" ? estado.foco.slice() : [],
     tudo: modo === "acervo",
     sem_anexo: modo === "perguntar",
+    criativo: modo === "criativo",
   };
 }
 
@@ -2181,13 +2184,18 @@ function desenharEscopo() {
       ? ((estado.foco.length === 1 ? glifo(estado.foco[0]) : ic("description", 18)) + "<b>" + esc(nomeDoFoco()) + "</b>")
       : modo === "perguntar"
         ? ic("help", 18) + "<b>Pergunto onde procurar</b>"
-        : ic("folder", 18) + "<b>" + total + "</b>";
-    const ordem = (estado.foco || []).length ? "o documento da conversa, todo o Acervo, ou perguntar onde procurar" : "todo o Acervo, ou perguntar onde procurar";
+        : modo === "criativo"
+          ? ic("auto_awesome", 18) + "<b>Modo criativo</b>"
+          : ic("folder", 18) + "<b>" + total + "</b>";
+    const ordem = (estado.foco || []).length ? "o documento da conversa, todo o Acervo, perguntar onde procurar ou o modo criativo"
+      : "todo o Acervo, perguntar onde procurar ou o modo criativo";
     const agora = modo === "foco"
       ? "A próxima pergunta lê só " + (estado.foco.length === 1 ? "“" + estado.foco[0] + "”" : "os documentos da conversa: " + estado.foco.join(", "))
       : modo === "perguntar"
         ? "A próxima pergunta que não nomear documento volta com um cartão perguntando onde procurar"
-        : "A próxima pergunta procura em todo o Acervo";
+        : modo === "criativo"
+          ? "A próxima pergunta não lê documento: o Paulus responde pelo que ele mesmo sabe, na nuvem"
+          : "A próxima pergunta procura em todo o Acervo";
     caixa.innerHTML = '<span class="escopo-acervo escopo-livre" id="escopo-modo" role="button" tabindex="0" title="' +
       esc(agora + ". Clique para alternar entre " + ordem + ".") + '">' + rotulo + "</span>";
     const botao = $("escopo-modo");

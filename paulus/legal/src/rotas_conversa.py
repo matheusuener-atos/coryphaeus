@@ -23,7 +23,7 @@ import unicodedata
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-MODOS = ("foco", "acervo", "perguntar")
+MODOS = ("foco", "acervo", "perguntar", "criativo")
 # O resultado da busca: o bastante para a lista, sem varrer para sempre.
 LIMITE_BUSCA = 200
 
