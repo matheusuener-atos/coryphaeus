@@ -25,9 +25,8 @@
   "Mobile - Escritorio online" (02/10/2026) e nos passos `Codigo` e `Chave de
   recuperacao` do pacote "PAULUS - Telas Mobile".
 
-  1. O escritorio: o campo vem com o que a pessoa digitou no endereco
-     (uener.paulus.ia.br -> "uener"). Trocar e confirmar leva ao endereco do
-     outro escritorio - e o que o app vai pedir a quem o baixar.
+  1. Sem campo de escritorio (03/10): quem chega aqui ja esta no endereco
+     dele (uener.paulus.ia.br); escolher o escritorio e em paulus.ia.br/escritorio.
   2. "Entrar com Google", travado ate a verificacao contra robos (Turnstile)
      passar. O widget da Cloudflare fica escondido ("interaction-only": so
      aparece se pedir um toque) e o estado vai para um selo proprio
@@ -84,7 +83,6 @@
   .escritorio label:focus-within { border-color: var(--fio-forte); }
   .escritorio input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; outline: none;
     font: 400 14px 'Fira Code', monospace; color: var(--ink); }
-  .escritorio .sufixo { flex: none; font: 400 13px 'Fira Code', monospace; color: var(--apagado); }
   /* "Entrar com Google": o trilho com a pastilha dentro (guia de 02/10),
      travado ate a verificacao contra robos passar. */
   .g-trilho { display: flex; width: 100%; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2);
@@ -197,11 +195,6 @@
       <p data-es-frase>O mesmo escritório, de onde você estiver.</p>
     </div>
     <form id="form-senha" class="baixo" autocomplete="on">
-      <div class="escritorio">
-        <span class="rotulo">ESCRITÓRIO</span>
-        <label><input id="escritorio" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="go"
-          aria-label="Endereço do escritório"><span class="sufixo" id="sufixo">.paulus.ia.br</span></label>
-      </div>
       <button type="button" class="g-trilho" id="google" disabled><span class="g-pastilha"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar com Google</span></button>
       <!-- E-mail e senha: so no escritorio sem o Google configurado. -->
       <div class="campos" id="por-senha" hidden>
@@ -258,26 +251,6 @@
   let config = { google: false, so_google: false };
   const $ = (id) => document.getElementById(id);
 
-  // O escritorio: o que a pessoa digitou no endereco. uener.paulus.ia.br ->
-  // "uener" com ".paulus.ia.br" ao lado. Fora do paulus.ia.br (a rede do
-  // escritorio, o teste), o endereco inteiro, sem sufixo.
-  const DOMINIO = ".paulus.ia.br";
-  const host = location.hostname;
-  const doPaulus = host.endsWith(DOMINIO);
-  const nome = doPaulus ? host.slice(0, -DOMINIO.length) : host;
-  $("escritorio").value = nome;
-  $("sufixo").hidden = !doPaulus;
-  // Trocar o escritorio leva ao endereco dele (o que o app vai pedir a quem o
-  // baixar). So nome valido: letras, numeros e hifen.
-  function irAoEscritorio() {
-    const v = $("escritorio").value.trim().toLowerCase();
-    if (!doPaulus || !v || v === nome) return false;
-    if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(v)) { $("erro-senha").textContent = "o nome do escritório tem só letras, números e hífen"; return true; }
-    location.assign("https://" + v + DOMINIO + "/entrar");
-    return true;
-  }
-  $("escritorio").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (!irAoEscritorio()) $("escritorio").blur(); } });
-  $("escritorio").addEventListener("change", irAoEscritorio);
 
   // O jeito de entrar: o Google (o desenho) ou, so no escritorio que deixa,
   // e-mail e senha - sozinhos quando o Google nao foi configurado, ou por
@@ -424,7 +397,6 @@
 
   $("form-senha").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (document.activeElement === $("escritorio") && irAoEscritorio()) return;
     if (modo === "google") return entrarComGoogle();
     const b = $("continuar-senha");
     b.disabled = true; $("erro-senha").textContent = "";

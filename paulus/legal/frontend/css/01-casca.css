@@ -23,6 +23,15 @@
   }
   .botao-janela:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .botao-janela.fechar:hover:not(:disabled) { background: var(--fechar); color: var(--fechar-ink); border: none; }
+  /* O botao de tema das telas sem barra do programa (a trava do servidor, o
+     assistente de boas-vindas): dentro da janela, ele e mais um botao dela,
+     colado a esquerda do minimizar - mesma altura, mesma largura, mesmo
+     fundo ao passar o mouse. No navegador, fica onde a tela o pos. */
+  html.com-janela :is(.trava-tema, .bv-tema) {
+    position: fixed; top: 0; right: calc(3 * 46px); z-index: 140; width: 46px; height: 32px; margin: 0;
+    border: none; border-radius: 0; background: none; color: var(--ink2);
+  }
+  html.com-janela :is(.trava-tema, .bv-tema):hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   /* Seis pixels em cada lado, oito nos cantos: e o que o Windows usa, e o
      bastante para pegar sem atrapalhar o que esta embaixo. */
   .bordas-janela > i { position: fixed; z-index: 141; display: block; }
