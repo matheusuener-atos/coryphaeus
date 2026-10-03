@@ -37,7 +37,7 @@
 .mp-perguntar small { font: 500 12px var(--sans); color: var(--ink3); line-height: 1.4; }
 
 /* O módulo de perguntas */
-.proposta.entrevista { border-left: 3px solid var(--acc); }
+
 .ent-nivel { margin-left: auto; font: 500 11.5px var(--sans); color: var(--ink3); }
 .ent-entendi { margin-top: -4px; }
 .ent-perguntas { display: flex; flex-direction: column; gap: 14px; margin: 12px 0 4px; }
@@ -73,7 +73,7 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
 .proposta.entrevista.enviada { opacity: .7; }
 .proposta.entrevista.adiada .ent-perguntas { opacity: .75; }
 .ent-adiada { margin: 8px 0 0; }
-.proposta.entrevista.respondida { border-left-color: var(--ink-a2); }
+
 .ent-resumo { margin: 4px 0 0; padding-left: 18px; font: 500 12.5px var(--sans); color: var(--ink2); }
 
 /* O trabalho pronto */
