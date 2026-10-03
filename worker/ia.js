@@ -45,7 +45,7 @@ const MAX_SEGREDOS = 3;
 const RESERVA_VENCE_MS = 15 * 60 * 1000;
 // Depois do fim do ciclo, com a assinatura ativa, a cobranca do mes pode
 // atrasar uns dias no Mercado Pago: o plano continua valendo nesse intervalo.
-const TOLERANCIA_MS = 5 * 24 * 3600 * 1000;
+export const TOLERANCIA_MS = 5 * 24 * 3600 * 1000;
 // Portugues tem ~4 caracteres por token; 3 estima para cima (a reserva e teto).
 const CARACTERES_POR_TOKEN = 3;
 
@@ -109,6 +109,12 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   if (p === "/api/ia/ativar" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
     return ativar(request, env, deps);
+  }
+  // O cupom da pagina Assinar: vale? quanto fica? (sem conta: so o codigo e o plano)
+  if (p === "/api/ia/cupom" && m === "GET") {
+    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+    const r = await conferirCupom(env, url.searchParams.get("codigo"), url.searchParams.get("plano"));
+    return json(r.erro ? { ok: false, erro: r.erro } : { ok: true, ...r.cupom, valor: r.valor, valor_cheio: r.valor_cheio });
   }
   if (p === "/api/ia/planos" && m === "GET") {
     const n = numeros(env);
@@ -303,7 +309,8 @@ async function completar(request, env, ctx, conta) {
     const dado = await up.json();
     const u = dado.usage || {};
     const real = (Number(u.prompt_tokens) || entrada) + (Number(u.completion_tokens) || 0);
-    const fim = await conta.pedir("liquidar", { reserva: reserva.id, tokens: real });
+    const fim = await conta.pedir("liquidar", { reserva: reserva.id, tokens: real, entrada: Number(u.prompt_tokens) || entrada,
+      saida: Number(u.completion_tokens) || 0, modelo });
     dado.paulus = { tokens: real, restantes: fim.restantes };
     return json(dado);
   }
@@ -325,7 +332,7 @@ async function completar(request, env, ctx, conta) {
     const u = usoDoFim(cauda);
     const real = u ? u.entrada + u.saida : entrada + pedacos;
     try {
-      await conta.pedir("liquidar", { reserva: reserva.id, tokens: real });
+      await conta.pedir("liquidar", { reserva: reserva.id, tokens: real, entrada: u ? u.entrada : entrada, saida: u ? u.saida : pedacos, modelo });
     } finally {
       avisar();
     }
@@ -367,12 +374,12 @@ async function completar(request, env, ctx, conta) {
 
 async function assinar(request, env, conta, id, mp) {
   const d = (await lerJSON(request)) || {};
-  return criarAssinatura(env, conta, id, mp, { email: d.email, plano: d.plano, origem: "" });
+  return criarAssinatura(env, conta, id, mp, { email: d.email, plano: d.plano, origem: "", cupom: d.cupom });
 }
 
 /* A assinatura mensal do plano escolhido: o link da pagina do Mercado Pago
    onde a pessoa poe o cartao. Sem plano no pedido, o da conta (ou o padrao). */
-async function criarAssinatura(env, conta, id, mp, { email, plano, origem }) {
+async function criarAssinatura(env, conta, id, mp, { email, plano, origem, cupom }) {
   const atual = await conta.pedir("resumo");
   // Sem e-mail no pedido, o da conta Google da nuvem (o pagador recebe o recibo nele).
   const para = String(email || atual.email || "").trim().toLowerCase();
@@ -381,18 +388,29 @@ async function criarAssinatura(env, conta, id, mp, { email, plano, origem }) {
   const n = numeros(env);
   if (plano && !n.planos.some((x) => x.id === plano)) return json({ erro: "esse plano não existe" }, 400);
   const escolhido = planoDe(n, plano || (atual.plano || {}).id);
+  // O cupom (painel admin): o valor com desconto pelos meses combinados; depois
+  // deles, a renovacao volta ao valor cheio (avisoDaIA, cupom_voltar).
+  let comCupom = null;
+  let valor = escolhido.valor;
+  if (cupom) {
+    const c = await conferirCupom(env, cupom, escolhido.id);
+    if (c.erro) return json({ erro: c.erro }, 400);
+    comCupom = { codigo: c.cupom.codigo, desconto: c.cupom.desconto, meses: c.cupom.meses, brinde: c.cupom.brinde, valor_cheio: escolhido.valor, cobrados: 0 };
+    valor = c.valor;
+  }
   const r = await mp(env, "/preapproval", "POST", {
-    reason: "PAULUS - plano " + escolhido.nome,
+    reason: "PAULUS - plano " + escolhido.nome + (comCupom ? " (cupom " + comCupom.codigo + ")" : ""),
     external_reference: "ia-assinatura-" + id,
     payer_email: para,
-    auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: escolhido.valor, currency_id: "BRL" },
+    auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: valor, currency_id: "BRL" },
     // Quem assina pelo site volta para a pagina de cadastro, que diz o que fazer em seguida.
     back_url: origem === "site" ? "https://paulus.ia.br/cadastro/?voltou=1" : "https://paulus.ia.br/",
     status: "pending",
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou criar a assinatura", status: r.status }, 502);
-  await conta.pedir("assinatura", { plano: escolhido.id, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor: escolhido.valor } });
-  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido });
+  await conta.pedir("assinatura", { plano: escolhido.id, cupom: comCupom, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
+  if (comCupom) await usarCupom(env, comCupom.codigo);
+  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido, valor, cupom: comCupom });
 }
 
 /* Trocar de plano com a assinatura ativa: o Mercado Pago passa a cobrar o
@@ -412,6 +430,42 @@ async function trocarPlano(env, conta, mp, plano) {
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor da assinatura", status: r.status }, 502);
   return json(await conta.pedir("plano_proximo", { plano: novo.id, valor: novo.valor }));
+}
+
+// ------------------------------------------------------------- o cupom
+//
+// Criado no painel admin (worker/admin.js) e guardado no KV APOIOS em
+// "admin:cupom:<CODIGO>": {codigo, desconto (%), meses, brinde (tokens),
+// limite (0 = sem), usos, validade (ISO), planos [id], ativo}.
+
+export async function lerCupom(env, codigo) {
+  const c = String(codigo || "").trim().toUpperCase();
+  if (!/^[A-Z0-9-]{3,24}$/.test(c) || !env.APOIOS) return null;
+  try {
+    return JSON.parse((await env.APOIOS.get("admin:cupom:" + c)) || "null");
+  } catch {
+    return null;
+  }
+}
+
+/* {cupom, valor, valor_cheio} ou {erro}. */
+export async function conferirCupom(env, codigo, plano) {
+  const c = await lerCupom(env, codigo);
+  if (!c || !c.ativo) return { erro: "esse cupom não existe ou está pausado" };
+  if (c.validade && Date.parse(c.validade) < Date.now()) return { erro: "esse cupom venceu" };
+  if (c.limite && (c.usos || 0) >= c.limite) return { erro: "esse cupom chegou ao limite de usos" };
+  const n = numeros(env);
+  const p = n.planos.find((x) => x.id === plano) || planoDe(n, plano);
+  if (Array.isArray(c.planos) && c.planos.length && !c.planos.includes(p.id)) return { erro: "esse cupom não vale para o plano " + p.nome };
+  const valor = Math.round(p.valor * (1 - Math.min(100, Math.max(0, Number(c.desconto) || 0)) / 100) * 100) / 100;
+  return { cupom: { codigo: c.codigo, desconto: Number(c.desconto) || 0, meses: Number(c.meses) || 1, brinde: Number(c.brinde) || 0 }, valor, valor_cheio: p.valor };
+}
+
+async function usarCupom(env, codigo) {
+  const c = await lerCupom(env, codigo);
+  if (!c) return;
+  c.usos = (c.usos || 0) + 1;
+  await env.APOIOS.put("admin:cupom:" + c.codigo, JSON.stringify(c));
 }
 
 // ------------------------------------------------------- o site (cadastro)
@@ -499,7 +553,7 @@ async function atenderSite(request, env, p, deps) {
     if (c.erro) return json({ erro: c.erro }, 400);
     await conta.pedir("cadastro", { cadastro: { ...c.cadastro, quando: new Date().toISOString() } });
     if (!d.plano) return json(await conta.pedir("ler_cadastro"));
-    return criarAssinatura(env, conta, id, deps.chamarMP, { email: dono.email, plano: String(d.plano), origem: "site" });
+    return criarAssinatura(env, conta, id, deps.chamarMP, { email: dono.email, plano: String(d.plano), origem: "site", cupom: d.cupom });
   }
   return json({ erro: "rota não existe" }, 404);
 }
@@ -563,6 +617,29 @@ async function situacaoDaRecarga(env, conta, id, pedido, mp) {
   return json({ id: pedido, pago: true, conta: feito });
 }
 
+/* Cada pagamento confirmado vira uma linha da fila de notas fiscais do painel
+   (worker/admin.js, Notas fiscais): "admin:nfse:<id>". */
+async function anotarPagamento(env, p) {
+  if (!env.APOIOS) return;
+  const chave = "admin:nfse:" + p.id;
+  if (await env.APOIOS.get(chave)) return;
+  await env.APOIOS.put(chave, JSON.stringify({ ...p, quando: new Date().toISOString(), nota: "pendente" }));
+}
+
+/* Os ultimos avisos tratados, para a Visao geral do painel: so o id da conta,
+   o tipo, a situacao e o valor ("admin:avisos", os 50 mais novos). */
+async function anotarAviso(env, a) {
+  if (!env.APOIOS) return;
+  let lista = [];
+  try {
+    lista = JSON.parse((await env.APOIOS.get("admin:avisos")) || "[]");
+  } catch {
+    lista = [];
+  }
+  lista.unshift({ ...a, quando: new Date().toISOString() });
+  await env.APOIOS.put("admin:avisos", JSON.stringify(lista.slice(0, 50)));
+}
+
 /* O aviso do Mercado Pago (worker/index.js, registrarAviso) que e da nuvem:
    true quando tratou, false quando nao e daqui (e entao o aviso e ignorado). */
 export async function avisoDaIA(env, tipo, dados, mp) {
@@ -572,12 +649,15 @@ export async function avisoDaIA(env, tipo, dados, mp) {
     const m = ref.match(/^ia-recarga-([0-9a-f]{24})-/);
     if (!m) return false;
     if (dados.status === "processed") await medidor(env, m[1]).pedir("creditar", { pedido: String(dados.id), valor: Number(dados.total_amount) || 0 });
+    if (dados.status === "processed") await anotarPagamento(env, { id: String(dados.id), conta: m[1], tipo: "recarga pix", valor: Number(dados.total_amount) || 0 });
+    await anotarAviso(env, { conta: m[1], tipo: "order · pix", status: String(dados.status || ""), valor: Number(dados.total_amount) || 0 });
     return true;
   }
   if (tipo === "preapproval") {
     const m = ref.match(/^ia-assinatura-([0-9a-f]{24})$/);
     if (!m) return false;
     await medidor(env, m[1]).pedir("assinatura", { assinatura: { id: String(dados.id), situacao: dados.status, valor: (dados.auto_recurring || {}).transaction_amount } });
+    await anotarAviso(env, { conta: m[1], tipo: "preapproval", status: String(dados.status || ""), valor: Number((dados.auto_recurring || {}).transaction_amount) || 0 });
     return true;
   }
   if (tipo === "cobranca") {
@@ -586,8 +666,17 @@ export async function avisoDaIA(env, tipo, dados, mp) {
     const m = String((pre.ok && pre.dados && pre.dados.external_reference) || "").match(/^ia-assinatura-([0-9a-f]{24})$/);
     if (!m) return false;
     const pagamento = dados.payment || {};
+    await anotarAviso(env, { conta: m[1], tipo: "authorized_payment", status: String(pagamento.status || dados.status || ""), valor: Number(dados.transaction_amount) || 0 });
     if (pagamento.status === "approved" && dados.id) {
-      await medidor(env, m[1]).pedir("renovar", { cobranca: String(dados.id), quando: dados.debit_date || dados.date_created || "" });
+      const r = await medidor(env, m[1]).pedir("renovar", { cobranca: String(dados.id), quando: dados.debit_date || dados.date_created || "",
+        valor: Number(dados.transaction_amount) || 0 });
+      await anotarPagamento(env, { id: String(dados.id), conta: m[1], tipo: "mensalidade", valor: Number(dados.transaction_amount) || 0 });
+      // O cupom acabou: a proxima cobranca volta ao valor cheio do plano.
+      if (r && r.cupom && r.cupom.voltar && pre.dados && pre.dados.id) {
+        const v = await mp(env, "/preapproval/" + encodeURIComponent(pre.dados.id), "PUT",
+          { auto_recurring: { transaction_amount: r.cupom.valor_cheio, currency_id: "BRL" } });
+        if (v.ok) await medidor(env, m[1]).pedir("cupom_voltou", {});
+      }
     }
     return true;
   }
@@ -616,13 +705,29 @@ export class ContaIA {
     const d = await request.json();
     const c = (await this.state.storage.get("conta")) || null;
     const [resposta, nova] = this.fazer(d.acao, c, d, d.numeros || numeros(this.env || {}));
-    if (nova) await this.state.storage.put("conta", nova);
+    const conta = nova || c;
+    // O painel admin precisa saber que contas existem (um Durable Object nao
+    // se lista): cada conta se anota uma vez no KV, na primeira vez que e usada.
+    if (conta && conta.id && !conta.indexado && this.env && this.env.APOIOS) {
+      try {
+        await this.env.APOIOS.put("admin:conta:" + conta.id, JSON.stringify({ id: conta.id, criada: conta.criada || "" }));
+        conta.indexado = true;
+        await this.state.storage.put("conta", conta);
+      } catch {
+        // sem o KV agora: anota na proxima
+      }
+    } else if (nova) {
+      await this.state.storage.put("conta", nova);
+    }
     return new Response(JSON.stringify(resposta), { headers: { "content-type": "application/json" } });
   }
 
   /* -> [resposta, conta nova (ou null se nada mudou)]. Sem I/O: o teste chama direto. */
   fazer(acao, c, d, n) {
     const agora = this.agora();
+    if ((acao === "ativar" || acao === "abrir") && c && c.desvinculado) {
+      return [{ ok: false, erro: "esta conta Google foi desvinculada da nuvem do PAULUS; fale com contato@paulus.ia.br", status: 403 }, null];
+    }
     if (acao === "ativar") {
       const conta = c || { id: d.id, criada: new Date(agora).toISOString(), segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [] };
       conta.dono = d.dono;
@@ -669,7 +774,7 @@ export class ContaIA {
       const r = (conta.reservas || {})[d.reserva];
       if (!r) return [{ ok: false, restantes: this.restantes(conta, n, agora) }, null];
       delete conta.reservas[d.reserva];
-      this.gastar(conta, Math.max(0, Math.round(Number(d.tokens) || 0)));
+      this.gastar(conta, Math.max(0, Math.round(Number(d.tokens) || 0)), { entrada: d.entrada, saida: d.saida, modelo: d.modelo });
       return [{ ok: true, restantes: this.restantes(conta, n, agora) }, conta];
     }
     if (acao === "cadastro") {
@@ -688,11 +793,17 @@ export class ContaIA {
     if (acao === "assinatura") {
       // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
       if (d.plano) conta.plano = d.plano;
+      if (d.cupom !== undefined) conta.cupom = d.cupom || null;
       const antes = conta.assinatura || {};
       conta.assinatura = { ...antes, ...d.assinatura, desde: antes.desde || new Date(agora).toISOString() };
       // Cartao posto e aceito: o primeiro ciclo comeca agora; a cobranca do
       // Mercado Pago, que vem em seguida, so confirma (renovar e idempotente).
       if (conta.assinatura.situacao === "authorized" && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "assinatura");
+      // O brinde do cupom entra uma vez, quando a assinatura fica ativa.
+      if (conta.assinatura.situacao === "authorized" && conta.cupom && conta.cupom.brinde > 0 && !conta.cupom.brinde_dado) {
+        conta.extra = (conta.extra || 0) + Math.round(conta.cupom.brinde);
+        conta.cupom.brinde_dado = true;
+      }
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "renovar") {
@@ -700,6 +811,9 @@ export class ContaIA {
       if (conta.cobrancas.includes(d.cobranca)) return [this.resumo(conta, n, agora), null];
       conta.cobrancas = [...conta.cobrancas, d.cobranca].slice(-36);
       const quando = Date.parse(d.quando || "") || agora;
+      conta.pagamentos = [...(conta.pagamentos || []), { tipo: "assinatura", ref: d.cobranca,
+        valor: Number(d.valor) || (conta.assinatura || {}).valor || planoDe(n, conta.plano).valor, quando: new Date(quando).toISOString() }].slice(-60);
+      if (conta.cupom) conta.cupom.cobrados = (conta.cupom.cobrados || 0) + 1;
       // A primeira cobranca logo depois da assinatura e a do ciclo que acabou
       // de abrir; as outras abrem o ciclo seguinte.
       const aberto = this.cicloAberto(conta, agora);
@@ -724,8 +838,22 @@ export class ContaIA {
       const tokens = pago > 0 ? Math.round((pago / n.recargaValor) * n.recargaTokens) : n.recargaTokens;
       conta.extra = (conta.extra || 0) + tokens;
       conta.recargas = [...conta.recargas, { pedido: d.pedido, tokens, valor: d.valor, quando: new Date(agora).toISOString() }].slice(-50);
+      conta.pagamentos = [...(conta.pagamentos || []), { tipo: "recarga", ref: d.pedido, valor: pago, quando: new Date(agora).toISOString() }].slice(-60);
       return [this.resumo(conta, n, agora), conta];
     }
+    if (acao === "cupom_voltou") {
+      if (conta.cupom) conta.cupom.voltou = true;
+      return [this.resumo(conta, n, agora), conta];
+    }
+    // O que o PAULUS instalado conta da conta Google dele (so o nome dos
+    // servicos ligados) e a confirmacao de que cumpriu a ordem do painel.
+    if (acao === "google_relatar") {
+      const escopos = (Array.isArray(d.escopos) ? d.escopos : []).map(String).filter((x) => /^[a-z.:\/_-]{2,60}$/i.test(x)).slice(0, 10);
+      conta.google = escopos.length ? { escopos, conferido: new Date(agora).toISOString() } : null;
+      if (d.aplicado && conta.google_pendente && conta.google_pendente.id === d.aplicado) delete conta.google_pendente;
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao.startsWith("admin_")) return this.fazerAdmin(acao, conta, d, n, agora);
     return [{ ok: false, erro: "ação desconhecida", status: 400 }, null];
   }
 
@@ -764,7 +892,7 @@ export class ContaIA {
   }
 
   /* Do ciclo primeiro; o que passar, da recarga. */
-  gastar(conta, tokens) {
+  gastar(conta, tokens, det = {}) {
     const c = conta.ciclo || { tokens: 0, usados: 0 };
     const doCiclo = Math.min(tokens, Math.max(0, c.tokens - c.usados));
     c.usados += doCiclo;
@@ -775,11 +903,46 @@ export class ContaIA {
     c.usados += resto - daRecarga;
     if (conta.ciclo) conta.ciclo = c;
     // O uso de cada dia, para a tela dizer "hoje" e "nos ultimos 7 dias".
-    const dia = new Date(this.agora() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+    // Entrada e saida separadas, o turno (manha, tarde, noite, no horario de
+    // Brasilia) e o modelo: o painel admin conta o custo por eles.
+    const brt = new Date(this.agora() - 3 * 3600 * 1000);
+    const dia = brt.toISOString().slice(0, 10);
+    const hora = brt.getUTCHours();
+    const turno = hora < 12 ? 0 : hora < 18 ? 1 : 2;
+    const saida = Math.max(0, Math.min(tokens, Math.round(Number(det.saida) || 0)));
+    const entrada = tokens - saida;
     conta.uso = conta.uso || [];
-    const ultimo = conta.uso[conta.uso.length - 1];
-    if (ultimo && ultimo.dia === dia) ultimo.tokens += tokens;
-    else conta.uso = [...conta.uso, { dia, tokens }].slice(-62);
+    let u = conta.uso[conta.uso.length - 1];
+    if (!u || u.dia !== dia) {
+      u = { dia, tokens: 0 };
+      conta.uso = [...conta.uso, u].slice(-62);
+    }
+    u.tokens += tokens;
+    u.entrada = (u.entrada || 0) + entrada;
+    u.saida = (u.saida || 0) + saida;
+    u.turnos = u.turnos || [0, 0, 0];
+    u.turnos[turno] += tokens;
+    u.turnos_saida = u.turnos_saida || [0, 0, 0];
+    u.turnos_saida[turno] += saida;
+    if (det.modelo) {
+      u.modelos = u.modelos || {};
+      const m = String(det.modelo).slice(0, 80);
+      u.modelos[m] = u.modelos[m] || { entrada: 0, saida: 0 };
+      u.modelos[m].entrada += entrada;
+      u.modelos[m].saida += saida;
+    }
+    // O mes inteiro, que nao sai depois de 62 dias (o "2026" do painel).
+    const mes = dia.slice(0, 7);
+    conta.uso_mes = conta.uso_mes || {};
+    const um = (conta.uso_mes[mes] = conta.uso_mes[mes] || { entrada: 0, saida: 0, modelos: {} });
+    um.entrada += entrada;
+    um.saida += saida;
+    if (det.modelo) {
+      const m = String(det.modelo).slice(0, 80);
+      um.modelos[m] = um.modelos[m] || { entrada: 0, saida: 0 };
+      um.modelos[m].entrada += entrada;
+      um.modelos[m].saida += saida;
+    }
   }
 
   limparReservas(conta, agora) {
@@ -843,6 +1006,52 @@ export class ContaIA {
       },
       recargas: (conta.recargas || []).slice(-10).reverse(),
       instalacoes: (conta.segredos || []).length,
+      // A ordem do painel para o PAULUS instalado: que servicos do Google
+      // continuam ligados (o resto ele desliga; nenhum: revoga o acesso todo).
+      google_pendente: conta.google_pendente || null,
+      cupom: conta.cupom ? { codigo: conta.cupom.codigo, desconto: conta.cupom.desconto, meses: conta.cupom.meses,
+        cobrados: conta.cupom.cobrados || 0, valor_cheio: conta.cupom.valor_cheio,
+        voltar: !conta.cupom.voltou && (conta.cupom.cobrados || 0) >= conta.cupom.meses } : null,
     };
+  }
+
+  /* As acoes do painel admin (worker/admin.js). Nenhuma mexe em dinheiro no
+     Mercado Pago - isso e do admin.js; aqui so o que a conta guarda. */
+  fazerAdmin(acao, conta, d, n, agora) {
+    if (acao === "admin_detalhe") {
+      return [{
+        ...this.resumo(conta, n, agora), id: conta.id, criada: conta.criada || "", cadastro: conta.cadastro || null,
+        instalacoes_lista: (conta.segredos || []).map((x) => ({ instalacao: x.instalacao, hash8: String(x.hash).slice(0, 8), criado: x.criado })),
+        pagamentos: conta.pagamentos || [], uso: conta.uso || [], uso_mes: conta.uso_mes || {}, google: conta.google || null,
+        desvinculado: conta.desvinculado || null, plano_id: conta.plano || null,
+      }, null];
+    }
+    if (acao === "admin_creditar") {
+      const tokens = Math.max(0, Math.min(1e9, Math.round(Number(d.tokens) || 0)));
+      conta.extra = (conta.extra || 0) + tokens;
+      conta.recargas = [...(conta.recargas || []), { pedido: "cortesia-" + agora, tokens, valor: 0, quando: new Date(agora).toISOString(), cortesia: true, por: d.por || "" }].slice(-50);
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "admin_apagar_segredo") {
+      const antes = (conta.segredos || []).length;
+      conta.segredos = (conta.segredos || []).filter((x) => String(x.hash).slice(0, 8) !== String(d.hash8));
+      return [{ ...this.resumo(conta, n, agora), apagados: antes - conta.segredos.length }, conta];
+    }
+    if (acao === "admin_google") {
+      conta.google_pendente = { id: "g" + agora, ligados: (d.ligados || []).map(String).slice(0, 10), quando: new Date(agora).toISOString() };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "admin_desvincular") {
+      // A conta Google sai da nuvem: as instalacoes param (o segredo some) e
+      // a mesma conta Google nao entra de novo. Plano, tokens e historico ficam.
+      conta.desvinculado = { quando: new Date(agora).toISOString(), por: d.por || "", email: (conta.dono || {}).email || "" };
+      conta.segredos = [];
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "admin_assinatura_cancelada") {
+      if (conta.assinatura) conta.assinatura = { ...conta.assinatura, situacao: "cancelled" };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    return [{ ok: false, erro: "ação desconhecida", status: 400 }, null];
   }
 }

@@ -30,6 +30,7 @@
 
 import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
 import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
+import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas } from "./admin.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
@@ -39,8 +40,10 @@ const MP = "https://api.mercadopago.com";
 const AVISO_VALIDADE_MS = 10 * 60 * 1000;
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, envOriginal, ctx) {
     const url = new URL(request.url);
+    // Os planos publicados pelo painel admin (KV) valem no lugar de IA_PLANOS.
+    const env = url.pathname.startsWith("/api/") ? await comPlanosDoPainel(envOriginal) : envOriginal;
     // O Worker nunca atende <escritorio>.paulus.ia.br: esse trafego e do tunel
     // de cada escritorio, direto da Cloudflare ao computador dele. Se uma rota
     // curinga um dia apontar para ca por engano, nada passa por aqui.
@@ -52,6 +55,13 @@ export default {
         return await atenderTunel(request, env, url, { dentroDoLimite });
       } catch (erro) {
         return json({ erro: "falha no servidor do acesso de fora" }, 500);
+      }
+    }
+    if (ehRotaDoAdmin(url)) {
+      try {
+        return await atenderAdmin(request, env, url, ctx, { dentroDoLimite, chamarMP });
+      } catch (erro) {
+        return json({ erro: "falha no servidor do painel" }, 500);
       }
     }
     if (ehRotaDaIA(url)) {
@@ -79,8 +89,12 @@ export default {
   // O Cron Trigger diario (wrangler.jsonc): libera os enderecos do acesso de
   // fora que nunca conectaram em 7 dias ou estao parados ha mais de 180.
   // Sem TUNEL_ATIVO e sem o KV, nao faz nada.
-  async scheduled(controller, env, ctx) {
-    ctx.waitUntil(limparEscritorios(env));
+  // O Cron de cada minuto manda a proxima leva das campanhas do painel admin
+  // (50 por minuto; sem RESEND_API_KEY, nada).
+  async scheduled(controller, envOriginal, ctx) {
+    const env = await comPlanosDoPainel(envOriginal);
+    if (controller && controller.cron === "* * * * *") ctx.waitUntil(enviarCampanhas(env));
+    else ctx.waitUntil(limparEscritorios(env));
   },
 };
 

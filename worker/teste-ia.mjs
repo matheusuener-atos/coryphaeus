@@ -121,6 +121,10 @@ const env = {
     list: async ({ prefix }) => ({ list_complete: true, keys: [...guardados.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })) }),
   },
 };
+// O painel admin (worker/admin.js) guarda no APOIOS so chaves "admin:" e
+// nenhum dado pessoal: o indice das contas e a fila de notas fiscais (conta,
+// tipo, valor). Nada com e-mail ou nome.
+const soAdminSemPessoa = () => [...guardados.entries()].every(([k, v]) => k.startsWith("admin:") && !/@|dono|escritorio\.com/i.test(String(v)));
 const donos = { "token-do-dono": { sub: "1234567890", email: "dono@escritorio.com.br" }, "token-cortesia": { sub: "999", email: "fundador@paulus.ia.br" } };
 const deps = { chamarMP, donoDoToken: async (e, t) => donos[t] || null };
 const pendentes = [];
@@ -191,13 +195,13 @@ let preId;
   checar(av.status === 200, "o aviso da assinatura é aceito");
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c.plano_vigente && c.tokens.restantes === 10000 && c.assinatura.situacao === "authorized", "assinatura ativa abre o ciclo com a cota do plano", c);
-  checar(guardados.size === 0, "a assinatura da nuvem não grava nada no KV APOIOS", [...guardados.keys()]);
+  checar(soAdminSemPessoa(), "a assinatura da nuvem só grava no KV APOIOS o que é do painel, sem dado pessoal", [...guardados.keys()]);
   // A primeira cobrança (logo depois) só confirma o ciclo aberto.
   await worker.fetch(aviso("cob-1", "subscription_authorized_payment"), env, ctx);
   await Promise.all(pendentes.splice(0));
   const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c2.ciclo.inicio === c.ciclo.inicio && c2.tokens.restantes === 10000, "a primeira cobrança não abre um segundo ciclo", c2.ciclo);
-  checar(guardados.size === 0, "a cobrança do plano não grava nada no KV APOIOS");
+  checar(soAdminSemPessoa() && [...guardados.keys()].includes("admin:nfse:cob-1"), "a cobrança do plano entra na fila de notas fiscais, sem dado pessoal", [...guardados.keys()]);
 }
 
 // ------------------------------------------------ chamar
@@ -270,7 +274,7 @@ let preId;
   await Promise.all(pendentes.splice(0));
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c.tokens.da_recarga === 5000 && c.tokens.restantes === 5200 && c.recargas.length === 1, "o Pix pago põe os tokens da recarga", c.tokens);
-  checar(guardados.size === 0, "a recarga não grava nada no KV APOIOS");
+  checar(soAdminSemPessoa() && [...guardados.keys()].includes("admin:nfse:" + d.id), "a recarga entra na fila de notas fiscais, sem dado pessoal", [...guardados.keys()]);
   // Conferir de novo (o PAULUS pergunta) não credita duas vezes.
   await ia("GET", "/api/ia/recarga/" + d.id, null, segredo);
   const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
@@ -349,9 +353,10 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
 // ------------------------------------------------ aviso que não é da nuvem
 {
   mpOrders.set("ORDAPOIO1", { id: "ORDAPOIO1", status: "processed", external_reference: "apoio-pix-abc", total_amount: "40.00" });
+  const antes = guardados.size;
   const r = await worker.fetch(aviso("ORDAPOIO1", "order"), env, ctx);
   await Promise.all(pendentes.splice(0));
-  checar(r.status === 200 && guardados.size === 0, "o aviso de um Pix que não é da nuvem (o antigo apoio) é aceito e ignorado");
+  checar(r.status === 200 && guardados.size === antes, "o aviso de um Pix que não é da nuvem (o antigo apoio) é aceito e ignorado");
 }
 
 // ------------------------------------------------ os planos e o cadastro pelo site

@@ -44,7 +44,9 @@
   // A limpeza diaria do acesso de fora (worker/tunel.js, limparEscritorios):
   // libera os enderecos que nunca conectaram em 7 dias ou estao parados ha
   // mais de 180. Sem TUNEL_ATIVO e sem o KV ESCRITORIOS ela nao faz nada.
-  "triggers": { "crons": ["17 6 * * *"] },
+  // O de cada minuto manda a proxima leva das campanhas do painel admin
+  // (worker/admin.js, enviarCampanhas; uma leitura do KV quando nao ha nada).
+  "triggers": { "crons": ["17 6 * * *", "* * * * *"] },
   // A sitekey do Turnstile e publica (vai na pagina de /conectar e na tela de
   // entrar de cada escritorio). O widget "PAULUS" vale para paulus.ia.br e
   // todos os subdominios. O secret do widget e segredo do Worker
@@ -63,7 +65,15 @@
   // minuto. IA_CORTESIA: o SHA-256 dos e-mails Google com o plano de cortesia
   // (o do fundador, para testar) - o resumo, e nao o e-mail, porque este
   // arquivo e publico.
-  "vars": { "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20",
+  //
+  // O painel admin (worker/admin.js, worker/admin-api.md): ACCESS_TEAM e
+  // ACCESS_AUD sao do Cloudflare Access que protege /admin e /api/admin (sem
+  // eles o painel fica fechado); GITHUB_CLIENT_ID e do OAuth App "PAVLVS
+  // Admin" (o secret e segredo: GITHUB_CLIENT_SECRET); ADMIN_EQUIPE e a lista
+  // inicial da equipe com o papel de cada um. RESEND_API_KEY (segredo) liga o
+  // envio de e-mail; NFSE_EMISSOR fica vazio ate escolher o emissor.
+  "vars": { "ACCESS_TEAM": "", "ACCESS_AUD": "", "GITHUB_CLIENT_ID": "", "ADMIN_EQUIPE": "[]", "NFSE_EMISSOR": "",
+    "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20",
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
     "IA_ATIVA": "1", "IA_MODELOS": "meta-llama/Llama-3.3-70B-Instruct,Qwen/Qwen2.5-72B-Instruct",
     "IA_PLANO_VALOR": "300", "IA_PLANO_TOKENS": "30000000", "IA_RECARGA_VALOR": "50", "IA_RECARGA_TOKENS": "10000000",

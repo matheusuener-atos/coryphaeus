@@ -12,7 +12,7 @@
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   var CHAVE = "pv-cadastro-token";
   var $ = function (id) { return document.getElementById(id); };
-  var estado = { planos: [], escolhido: "escritorio", token: "", conta: null };
+  var estado = { planos: [], escolhido: "escritorio", token: "", conta: null, cupom: null };
 
   function brl(v) { return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }); }
   function milhoes(t) { return (t / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " milhões de tokens"; }
@@ -56,7 +56,7 @@
         '<span class="plano-valor">' + brl(p.valor) + "</span></button>";
     }).join("");
     $("cd-planos").querySelectorAll("[data-plano]").forEach(function (b) {
-      b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); desenharTroca(); };
+      b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); desenharTroca(); if ($("cd-cupom").value.trim()) conferirCupom(); };
     });
   }
 
@@ -99,7 +99,31 @@
 
   function atualizarBotao() {
     var p = estado.planos.filter(function (x) { return x.id === estado.escolhido; })[0];
-    $("cd-pagar-texto").textContent = p ? "Assinar o " + p.nome + " · " + brl(p.valor) + "/mês" : "Ir para o pagamento";
+    var c = estado.cupom && estado.cupom.plano === estado.escolhido ? estado.cupom : null;
+    $("cd-pagar-texto").textContent = p ? "Assinar o " + p.nome + " · " + brl(c ? c.valor : p.valor) + "/mês" : "Ir para o pagamento";
+  }
+
+  /* O cupom (criado no painel admin): o Worker diz se vale para o plano e
+     quanto fica; a cobranca usa o mesmo calculo (worker/ia.js, conferirCupom). */
+  var esperaCupom = null;
+  async function conferirCupom() {
+    var codigo = $("cd-cupom").value.trim().toUpperCase();
+    var nota = $("cd-cupom-nota");
+    estado.cupom = null;
+    if (!codigo) { nota.hidden = true; atualizarBotao(); return; }
+    try {
+      var d = await pedir("/api/ia/cupom?codigo=" + encodeURIComponent(codigo) + "&plano=" + encodeURIComponent(estado.escolhido));
+      if ($("cd-cupom").value.trim().toUpperCase() !== codigo) return;
+      if (!d.ok) throw new Error(d.erro || "esse cupom não vale");
+      estado.cupom = { codigo: codigo, plano: estado.escolhido, valor: d.valor };
+      var texto = d.desconto ? brl(d.valor) + "/mês nos primeiros " + d.meses + (d.meses === 1 ? " mês" : " meses") + " (" + d.desconto + "% de desconto); depois, " + brl(d.valor_cheio) + "/mês." : "Cupom válido.";
+      if (d.brinde) texto += " Mais " + milhoes(d.brinde) + " de brinde quando o cartão for confirmado.";
+      nota.textContent = texto;
+    } catch (e) {
+      nota.textContent = e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".";
+    }
+    nota.hidden = false;
+    atualizarBotao();
   }
 
   async function carregarPlanos() {
@@ -216,6 +240,7 @@
       var r = await pedir("/api/ia/site/cadastro", {
         id_token: estado.token, nome_escritorio: $("cd-nome").value, documento: $("cd-documento").value,
         telefone: $("cd-telefone").value, oab: $("cd-oab").value, aceite: true, plano: estado.escolhido,
+        cupom: estado.cupom && estado.cupom.plano === estado.escolhido ? estado.cupom.codigo : "",
       });
       if (!r.link) throw new Error("o Mercado Pago não devolveu a página de pagamento");
       window.location.href = r.link;
@@ -249,6 +274,7 @@
     iniciarGoogle();
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
+    $("cd-cupom").addEventListener("input", function () { clearTimeout(esperaCupom); esperaCupom = setTimeout(conferirCupom, 500); });
     $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });
     var guardado = "";

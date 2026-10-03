@@ -30,6 +30,7 @@
 .caixa-campo.mono input { font: 400 14px var(--mono); }
 .caixa-campo .sufixo { flex: none; font: 400 13px var(--mono); color: var(--ink3); }
 .nota-campo { font-size: 12px; line-height: 1.5; color: var(--ink3); text-wrap: pretty; }
+.rotulo .opcional { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink3); }
 .nota-campo a { color: var(--ink2); border-bottom: 1px solid var(--line); }
 .nota-centro { justify-self: center; text-align: center; }
 .erro-campo { font-size: 12.5px; line-height: 1.5; color: var(--erro); }
