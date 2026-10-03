@@ -42,6 +42,8 @@ class Consentimento(BaseModel):
 
 class Email(BaseModel):
     email: str = ""
+    # O plano escolhido na tela (worker/ia.js: advogado, escritorio, plus); vazio, o da conta.
+    plano: str = ""
 
 
 def _estado_da_tela(estado) -> dict:
@@ -243,7 +245,8 @@ def montar(estado, app, dados_dir) -> None:
     @app.post("/api/nuvem/paulus/assinar")
     def nuvem_paulus_assinar(payload: Email) -> dict:
         email = payload.email.strip() or str((estado.prefs.dados.get("vinculo") or {}).get("email") or "")
-        return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/assinar", {"email": email}))
+        corpo = {"email": email, **({"plano": payload.plano.strip()} if payload.plano.strip() else {})}
+        return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/assinar", corpo))
 
     @app.get("/api/nuvem/paulus/assinatura")
     def nuvem_paulus_assinatura() -> dict:

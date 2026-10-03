@@ -49,11 +49,38 @@ const TOLERANCIA_MS = 5 * 24 * 3600 * 1000;
 // Portugues tem ~4 caracteres por token; 3 estima para cima (a reserva e teto).
 const CARACTERES_POR_TOKEN = 3;
 
+// Os planos (02/10/2026). O "escritorio" e o de antes: quem ja assinava fica
+// nele, com o valor e os tokens de IA_PLANO_VALOR e IA_PLANO_TOKENS. IA_PLANOS
+// (JSON, [{id, nome, valor, tokens}]) troca a lista inteira sem mexer no codigo.
+export const PLANO_PADRAO = "escritorio";
+
+function lerPlanos(env, valor, tokens) {
+  try {
+    const l = JSON.parse(env.IA_PLANOS || "");
+    const ok = Array.isArray(l) && l.length && l.every((p) => p && /^[a-z0-9-]{2,24}$/.test(p.id) && p.nome && Number(p.valor) > 0 && Number(p.tokens) > 0);
+    if (ok && l.some((p) => p.id === PLANO_PADRAO)) return l.map((p) => ({ id: p.id, nome: String(p.nome), valor: Number(p.valor), tokens: Number(p.tokens) }));
+  } catch {
+    // sem a lista (ou quebrada): a de fabrica
+  }
+  return [
+    { id: "advogado", nome: "Advogado", valor: 150, tokens: 12000000 },
+    { id: PLANO_PADRAO, nome: "Escritório", valor, tokens },
+    { id: "plus", nome: "Escritório Plus", valor: 550, tokens: 60000000 },
+  ];
+}
+
+export function planoDe(n, id) {
+  return n.planos.find((p) => p.id === id) || n.planos.find((p) => p.id === PLANO_PADRAO) || n.planos[0];
+}
+
 export function numeros(env) {
   const n = (v, padrao) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : padrao);
+  const planoValor = n(env.IA_PLANO_VALOR, 300);
+  const planoTokens = n(env.IA_PLANO_TOKENS, 30000000);
   return {
-    planoValor: n(env.IA_PLANO_VALOR, 300),
-    planoTokens: n(env.IA_PLANO_TOKENS, 30000000),
+    planoValor,
+    planoTokens,
+    planos: lerPlanos(env, planoValor, planoTokens),
     recargaValor: n(env.IA_RECARGA_VALOR, 50),
     recargaTokens: n(env.IA_RECARGA_TOKENS, 10000000),
     maxSaida: n(env.IA_MAX_SAIDA, 4000),
@@ -78,6 +105,17 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   if (p === "/api/ia/ativar" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
     return ativar(request, env, deps);
+  }
+  if (p === "/api/ia/planos" && m === "GET") {
+    const n = numeros(env);
+    return json({ planos: n.planos, recarga: { valor: n.recargaValor, tokens: n.recargaTokens } });
+  }
+  // A pagina de cadastro do site (site/cadastro): o id_token do Google a cada
+  // pedido, sem segredo de instalacao - quem assina pelo site ainda nao
+  // instalou o PAULUS.
+  if (p.startsWith("/api/ia/site/") && m === "POST") {
+    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+    return atenderSite(request, env, p, deps);
   }
   const quem = await autenticar(request, env);
   if (quem.erro) return json({ erro: quem.erro }, quem.status);
@@ -320,23 +358,117 @@ async function completar(request, env, ctx, conta) {
 
 async function assinar(request, env, conta, id, mp) {
   const d = (await lerJSON(request)) || {};
+  return criarAssinatura(env, conta, id, mp, { email: d.email, plano: d.plano, origem: "" });
+}
+
+/* A assinatura mensal do plano escolhido: o link da pagina do Mercado Pago
+   onde a pessoa poe o cartao. Sem plano no pedido, o da conta (ou o padrao). */
+async function criarAssinatura(env, conta, id, mp, { email, plano, origem }) {
   const atual = await conta.pedir("resumo");
   // Sem e-mail no pedido, o da conta Google da nuvem (o pagador recebe o recibo nele).
-  const email = String(d.email || atual.email || "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) return json({ erro: "e-mail inválido" }, 400);
+  const para = String(email || atual.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para) || para.length > 120) return json({ erro: "e-mail inválido" }, 400);
   if (atual.assinatura && atual.assinatura.situacao === "authorized") return json({ erro: "a assinatura já está ativa" }, 409);
   const n = numeros(env);
+  if (plano && !n.planos.some((x) => x.id === plano)) return json({ erro: "esse plano não existe" }, 400);
+  const escolhido = planoDe(n, plano || (atual.plano || {}).id);
   const r = await mp(env, "/preapproval", "POST", {
-    reason: "PAULUS na nuvem - plano mensal",
+    reason: "PAULUS - plano " + escolhido.nome,
     external_reference: "ia-assinatura-" + id,
-    payer_email: email,
-    auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: n.planoValor, currency_id: "BRL" },
-    back_url: "https://paulus.ia.br/",
+    payer_email: para,
+    auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: escolhido.valor, currency_id: "BRL" },
+    // Quem assina pelo site volta para a pagina de cadastro, que diz o que fazer em seguida.
+    back_url: origem === "site" ? "https://paulus.ia.br/cadastro/?voltou=1" : "https://paulus.ia.br/",
     status: "pending",
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou criar a assinatura", status: r.status }, 502);
-  await conta.pedir("assinatura", { assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor: n.planoValor } });
-  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "" });
+  await conta.pedir("assinatura", { plano: escolhido.id, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor: escolhido.valor } });
+  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido });
+}
+
+// ------------------------------------------------------- o site (cadastro)
+
+const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+// A versao dos termos e da politica que a pessoa aceita no cadastro.
+export const TERMOS_VERSAO = "2026-10-02";
+
+function soDigitos(t) {
+  return String(t || "").replace(/\D/g, "");
+}
+
+export function cpfValido(d) {
+  if (!/^\d{11}$/.test(d) || /^(\d)\1+$/.test(d)) return false;
+  for (const k of [9, 10]) {
+    let s = 0;
+    for (let i = 0; i < k; i++) s += Number(d[i]) * (k + 1 - i);
+    if ((s * 10) % 11 % 10 !== Number(d[k])) return false;
+  }
+  return true;
+}
+
+export function cnpjValido(d) {
+  if (!/^\d{14}$/.test(d) || /^(\d)\1+$/.test(d)) return false;
+  for (const k of [12, 13]) {
+    const pesos = k === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const s = pesos.reduce((t, p, i) => t + Number(d[i]) * p, 0);
+    const dv = s % 11 < 2 ? 0 : 11 - (s % 11);
+    if (dv !== Number(d[k])) return false;
+  }
+  return true;
+}
+
+/* "OAB/PA 12.345", "12345-PA", "pa 12345" -> "PA 12345"; "" se nao for. */
+export function oabNormal(t) {
+  const s = String(t || "").toUpperCase().replace(/OAB/g, " ").replace(/[^A-Z0-9]/g, " ").trim();
+  const uf = (s.match(/\b([A-Z]{2})\b/) || [])[1] || "";
+  const numero = (s.replace(/\b[A-Z]{2}\b/, " ").replace(/\s+/g, "").match(/^(\d{3,7})([A-Z])?$/) || []);
+  if (!UFS.includes(uf) || !numero[1]) return "";
+  return uf + " " + numero[1] + (numero[2] || "");
+}
+
+/* O cadastro conferido, ou {erro}. */
+export function conferirCadastro(d) {
+  const nome = String(d.nome_escritorio || "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim();
+  if (nome.length < 2 || nome.length > 80) return { erro: "diga o nome do escritório (ou o seu, se trabalha sozinho)" };
+  const documento = soDigitos(d.documento);
+  if (!(documento.length === 11 ? cpfValido(documento) : cnpjValido(documento))) return { erro: "o CPF ou CNPJ não confere" };
+  const telefone = soDigitos(d.telefone);
+  if (telefone.length < 10 || telefone.length > 13) return { erro: "o telefone precisa do DDD" };
+  const oab = oabNormal(d.oab);
+  if (!oab) return { erro: "a OAB vai com a UF e o número, por exemplo: PA 12345" };
+  if (d.aceite !== true) return { erro: "é preciso aceitar os termos de uso e a política de privacidade" };
+  return { cadastro: { nome_escritorio: nome, documento, telefone, oab, termos: TERMOS_VERSAO } };
+}
+
+async function atenderSite(request, env, p, deps) {
+  const d = (await lerJSON(request)) || {};
+  const dono = await (deps.donoDoToken || donoDoToken)(env, d.id_token);
+  if (!dono) return json({ erro: "a confirmação do Google venceu: entre com o Google de novo" }, 401);
+  const id = (await sha256("conta-ia:" + dono.sub)).slice(0, 24);
+  const conta = medidor(env, id);
+  const cortesias = String(env.IA_CORTESIA || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  // Entrar abre a conta (a mesma que o PAULUS instalado usa, pela conta Google), sem segredo de instalacao.
+  const aberta = await conta.pedir("abrir", { id, dono, cortesia: cortesias.includes(await sha256(dono.email)) });
+  if (p === "/api/ia/site/entrar") return json(aberta);
+  if (p === "/api/ia/site/situacao") {
+    const a = aberta.assinatura;
+    const mp = deps.chamarMP;
+    if (a && a.id && mp) {
+      const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "GET");
+      if (r.ok && r.dados && r.dados.status && r.dados.status !== a.situacao) {
+        await conta.pedir("assinatura", { assinatura: { ...a, situacao: r.dados.status } });
+      }
+    }
+    return json(await conta.pedir("ler_cadastro"));
+  }
+  if (p === "/api/ia/site/cadastro") {
+    const c = conferirCadastro(d);
+    if (c.erro) return json({ erro: c.erro }, 400);
+    await conta.pedir("cadastro", { cadastro: { ...c.cadastro, quando: new Date().toISOString() } });
+    if (!d.plano) return json(await conta.pedir("ler_cadastro"));
+    return criarAssinatura(env, conta, id, deps.chamarMP, { email: dono.email, plano: String(d.plano), origem: "site" });
+  }
+  return json({ erro: "rota não existe" }, 404);
 }
 
 async function situacaoDaAssinatura(env, conta, mp) {
@@ -468,6 +600,15 @@ export class ContaIA {
       this.vigente(conta, n, agora);
       return [this.resumo(conta, n, agora), conta];
     }
+    if (acao === "abrir") {
+      // O cadastro pelo site: a mesma conta (pela conta Google), sem segredo
+      // de instalacao - o PAULUS instalado entra depois, com o "ativar".
+      const conta = c || { id: d.id, criada: new Date(agora).toISOString(), segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [] };
+      conta.dono = d.dono;
+      conta.cortesia = Boolean(d.cortesia);
+      this.vigente(conta, n, agora);
+      return [{ ...this.resumo(conta, n, agora), cadastro: conta.cadastro || null }, conta];
+    }
     if (!c) return [{ ok: false, erro: "conta não existe", status: 401 }, null];
     const conta = c;
     this.limparReservas(conta, agora);
@@ -496,7 +637,15 @@ export class ContaIA {
       this.gastar(conta, Math.max(0, Math.round(Number(d.tokens) || 0)));
       return [{ ok: true, restantes: this.restantes(conta, n, agora) }, conta];
     }
+    if (acao === "cadastro") {
+      conta.cadastro = d.cadastro;
+      conta.nome = d.cadastro.nome_escritorio || conta.nome || "";
+      return [{ ...this.resumo(conta, n, agora), cadastro: conta.cadastro }, conta];
+    }
+    if (acao === "ler_cadastro") return [{ ...this.resumo(conta, n, agora), cadastro: conta.cadastro || null }, null];
     if (acao === "assinatura") {
+      // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
+      if (d.plano) conta.plano = d.plano;
       const antes = conta.assinatura || {};
       conta.assinatura = { ...antes, ...d.assinatura, desde: antes.desde || new Date(agora).toISOString() };
       // Cartao posto e aceito: o primeiro ciclo comeca agora; a cobranca do
@@ -535,7 +684,10 @@ export class ContaIA {
   }
 
   abrirCiclo(conta, n, inicio, origem, cobranca = "") {
-    conta.ciclo = { inicio: new Date(inicio).toISOString(), fim: new Date(maisUmMes(inicio)).toISOString(), tokens: n.planoTokens, usados: 0, origem };
+    // Os tokens do plano da conta; sem plano escolhido (quem assinava antes
+    // dos tres planos), o Escritorio.
+    const tokens = planoDe(n, conta.plano).tokens;
+    conta.ciclo = { inicio: new Date(inicio).toISOString(), fim: new Date(maisUmMes(inicio)).toISOString(), tokens, usados: 0, origem };
     if (cobranca) conta.ciclo.cobranca = cobranca;
   }
 
@@ -623,7 +775,9 @@ export class ContaIA {
       consentimento: conta.consentimento || null,
       assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde } : null,
       plano_vigente: vigente,
-      plano: { valor: n.planoValor, tokens: n.planoTokens },
+      plano: planoDe(n, conta.plano),
+      planos: n.planos,
+      cadastro_completo: Boolean(conta.cadastro),
       recarga: { valor: n.recargaValor, tokens: n.recargaTokens },
       ciclo: c ? { inicio: c.inicio, fim: c.fim, tokens: c.tokens, usados: c.usados, origem: c.origem } : null,
       tokens: {

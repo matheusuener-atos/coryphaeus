@@ -14,7 +14,7 @@
 
    Nada sai antes do sim do titular, dado uma vez, com o termo lido. */
 
-const nuvemTela = { dados: null, situacao: null, conta: null, erroConta: "", modelos: [], envios: [], aqui: false, guardando: false };
+const nuvemTela = { dados: null, situacao: null, conta: null, erroConta: "", modelos: [], envios: [], aqui: false, guardando: false, plano: "" };
 
 async function carregarNuvem() {
   try {
@@ -68,12 +68,24 @@ function painelDoPlano(d) {
     "<div><dt>Da recarga</dt><dd>" + esc(tokens(t.da_recarga || 0)) + "</dd></div>" +
     "<div><dt>" + (a.situacao === "authorized" ? "Renova em" : "Vale até") + "</dt><dd>" + esc(vigente && ciclo.fim ? dataNuvem(ciclo.fim) : "—") + "</dd></div>" +
     "</dl></div>");
-  linhas.push('<p class="cfg-explica">' + esc(c.email) + " · " + esc(situacao) +
-    (vigente ? "" : " · o plano não está em dia: as respostas são escritas neste computador") +
+  const nomeDoPlano = (c.plano || {}).nome ? " · plano " + c.plano.nome : "";
+  linhas.push('<p class="cfg-explica">' + esc(c.email) + esc(nomeDoPlano) + " · " + esc(situacao) +
+    (vigente ? "" : " · sem o plano em dia, o PAULUS funciona sem IA") +
     ". A recarga não vence na renovação; o ciclo gasta primeiro os tokens do plano.</p>");
   const botoes = [];
   if (!c.cortesia && a.situacao !== "authorized") {
-    botoes.push('<button class="primario" data-nuvem-assinar="1">Assinar · R$ ' + esc(String((c.plano || {}).valor || 300)) + "/mês</button>");
+    // Os tres planos (worker/ia.js): o escolhido vai na assinatura. O mesmo
+    // da pagina paulus.ia.br/cadastro.
+    const planos = c.planos || [];
+    if (!nuvemTela.plano) nuvemTela.plano = (c.plano || {}).id || "escritorio";
+    const escolhido = planos.find((p) => p.id === nuvemTela.plano) || c.plano || {};
+    if (planos.length > 1) {
+      linhas.push('<div class="nuvem-planos" role="radiogroup" aria-label="Plano">' + planos.map((p) =>
+        '<button type="button" class="nuvem-plano-op' + (p.id === escolhido.id ? " on" : "") + '" role="radio" aria-checked="' + (p.id === escolhido.id) +
+        '" data-nuvem-plano="' + esc(p.id) + '"><b>' + esc(p.nome) + "</b><span>R$ " + esc(String(p.valor)) + "/mês</span><small>" +
+        esc(tokens(p.tokens)) + " tokens por mês</small></button>").join("") + "</div>");
+    }
+    botoes.push('<button class="primario" data-nuvem-assinar="1">Assinar o ' + esc(escolhido.nome || "plano") + " · R$ " + esc(String(escolhido.valor || "")) + "/mês</button>");
   }
   if (vigente) botoes.push('<button class="com-icone" data-nuvem-recarga="1">' + ic("payments", 16) + "Recarregar " + esc(tokens((c.recarga || {}).tokens)) +
     " · R$ " + esc(String((c.recarga || {}).valor || "")) + " no Pix</button>");
@@ -296,8 +308,11 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
     const r = await nuvemPost("/api/nuvem/consentimento", { aceito: false });
     if (r) { nuvemTela.dados = r; await carregarNuvem(); redesenhar(); }
   });
+  raiz.querySelectorAll("[data-nuvem-plano]").forEach((b) => {
+    b.onclick = () => { nuvemTela.plano = b.dataset.nuvemPlano; redesenhar(); };
+  });
   clique("[data-nuvem-assinar]", async () => {
-    const r = await nuvemPost("/api/nuvem/paulus/assinar", {});
+    const r = await nuvemPost("/api/nuvem/paulus/assinar", { plano: nuvemTela.plano });
     if (!r) return;
     if (!r.link) { avisoCert("o Mercado Pago não devolveu a página da assinatura", { tom: "erro" }); return; }
     window.open(r.link, "_blank");

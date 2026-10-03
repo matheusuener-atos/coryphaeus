@@ -354,6 +354,61 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar(r.status === 200 && guardados.size === 0, "o aviso de um Pix que não é da nuvem (o antigo apoio) é aceito e ignorado");
 }
 
+// ------------------------------------------------ os planos e o cadastro pelo site
+{
+  donos["token-novo"] = { sub: "555", email: "nova@advocacia.com.br" };
+  const planos = await corpoDe(await ia("GET", "/api/ia/planos"));
+  checar(planos.planos.map((p) => p.id).join() === "advogado,escritorio,plus" && planos.planos[1].tokens === 10000,
+    "três planos; o Escritório é o de antes (IA_PLANO_TOKENS)", planos.planos);
+
+  let r = await ia("POST", "/api/ia/site/entrar", { id_token: "vencido" });
+  checar(r.status === 401, "sem o Google confirmado, o site não entra");
+  const entrou = await corpoDe(await ia("POST", "/api/ia/site/entrar", { id_token: "token-novo" }));
+  checar(entrou.ok && entrou.email === "nova@advocacia.com.br" && entrou.cadastro === null && !entrou.plano_vigente && entrou.instalacoes === 0,
+    "entrar pelo site abre a conta, sem cadastro, sem plano e sem instalação", entrou);
+
+  const base = { id_token: "token-novo", nome_escritorio: "Nova Advocacia", documento: "529.982.247-25", telefone: "(91) 98888-7777",
+    oab: "OAB/PA 12.345", aceite: true };
+  const erro = async (mudanca) => (await corpoDe(await ia("POST", "/api/ia/site/cadastro", { ...base, ...mudanca }))).erro || "";
+  checar((await erro({ documento: "111.111.111-11" })).includes("CPF ou CNPJ"), "CPF com dígito errado é recusado");
+  checar((await erro({ telefone: "98888-7777" })).includes("DDD"), "telefone sem DDD é recusado");
+  checar((await erro({ oab: "12345" })).includes("UF"), "OAB sem a UF é recusada");
+  checar((await erro({ aceite: false })).includes("aceitar"), "sem aceitar os termos, não cadastra");
+  checar((await erro({ plano: "ouro" })) === "esse plano não existe", "plano que não existe é recusado");
+
+  const antes = mpPreapprovals.size;
+  r = await ia("POST", "/api/ia/site/cadastro", { ...base, plano: "advogado" });
+  const assinou = await corpoDe(r);
+  const pre = [...mpPreapprovals.values()].at(-1);
+  checar(r.status === 200 && assinou.link && mpPreapprovals.size === antes + 1 && pre.auto_recurring.transaction_amount === 150,
+    "o cadastro com o plano Advogado cria a assinatura de R$ 150 no Mercado Pago", assinou);
+  const pedidoMP = mpPedidos.filter((x) => x.caminho === "/preapproval" && x.metodo === "POST").at(-1).corpo;
+  checar(pedidoMP.back_url === "https://paulus.ia.br/cadastro/?voltou=1" && pedidoMP.payer_email === "nova@advocacia.com.br",
+    "quem assina pelo site volta para a página de cadastro; o recibo vai ao e-mail do Google", pedidoMP);
+
+  pre.status = "authorized";
+  const situacao = await corpoDe(await ia("POST", "/api/ia/site/situacao", { id_token: "token-novo" }));
+  checar(situacao.plano_vigente && situacao.plano.id === "advogado" && situacao.ciclo.tokens === 12000000,
+    "cartão aceito: o plano Advogado vale, com 12 milhões de tokens", { plano: situacao.plano, ciclo: situacao.ciclo });
+  checar(situacao.cadastro && situacao.cadastro.documento === "52998224725" && situacao.cadastro.oab === "PA 12345" && situacao.nome === "Nova Advocacia",
+    "o cadastro fica na conta, conferido e normalizado", situacao.cadastro);
+
+  // Depois, o PAULUS instalado entra com a mesma conta Google e já encontra o plano.
+  const ativou = await corpoDe(await ia("POST", "/api/ia/ativar", { id_token: "token-novo", instalacao_id: "inst-nova-0001" }));
+  checar(ativou.conta.plano_vigente && ativou.conta.plano.id === "advogado" && ativou.conta.instalacoes === 1,
+    "o PAULUS instalado entra com a mesma conta e já tem o plano", ativou.conta);
+
+  // Quem assinava antes dos três planos fica no Escritório.
+  const { numeros } = await import("./ia.js");
+  const medidorAntigo = objeto("conta-de-antes-dos-planos").o;
+  const contaAntiga = { id: "x", segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [],
+    assinatura: { id: "pre-velha", situacao: "authorized", valor: 300 } };
+  medidorAntigo.abrirCiclo(contaAntiga, numeros(env), relogio, "assinatura");
+  const resumoAntigo = medidorAntigo.resumo(contaAntiga, numeros(env), relogio);
+  checar(resumoAntigo.plano.id === "escritorio" && contaAntiga.ciclo.tokens === 10000 && resumoAntigo.plano_vigente,
+    "quem assinava antes dos três planos fica no Escritório, com os mesmos tokens", resumoAntigo.plano);
+}
+
 function aviso(dataId, tipo, ts = Date.now()) {
   const requestId = "4ed4fa2b-0b31-42ec-a62f-ad793c486c59";
   const id = /^[A-Z0-9]+$/.test(dataId) && /[A-Z]/.test(dataId) ? dataId.toLowerCase() : dataId;

@@ -112,6 +112,14 @@
 .nuvem-numeros dt { font-size: 12px; color: var(--ink2); }
 .nuvem-numeros dd { margin: 0; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .nuvem-sem-sim { border-left: 3px solid var(--acc); }
+/* Os tres planos, para escolher antes de assinar (o mesmo de paulus.ia.br/cadastro) */
+.nuvem-planos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 4px 0; }
+.nuvem-plano-op { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px;
+  background: transparent; color: var(--ink); cursor: pointer; }
+.nuvem-plano-op:hover { border-color: var(--ink); }
+.nuvem-plano-op.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.nuvem-plano-op span { font-family: var(--serif); font-size: 20px; font-variant-numeric: tabular-nums; }
+.nuvem-plano-op small { font-size: 12px; color: var(--ink2); }
 .nuvem-termo p { margin: 0 0 10px; line-height: 1.5; }
 .nuvem-pix { display: grid; gap: 8px; justify-items: center; text-align: center; }
 .nuvem-pix img { width: 200px; height: 200px; image-rendering: pixelated; border-radius: 6px; background: var(--papel); }

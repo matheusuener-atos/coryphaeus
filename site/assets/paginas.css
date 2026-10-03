@@ -80,3 +80,45 @@
 .mt-item p { margin: 6px 0 0; max-width: 70ch; color: var(--ink2); }
 .mt-meta { font-size: 14px; color: var(--ink3) !important; }
 .mt-pe { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+
+/* A pagina de cadastro (cadastro/index.html, assets/cadastro.js): os planos
+   em cartoes escolhiveis e os passos numerados - entrar, o escritorio, pagar. */
+.cd-titulo { margin: 0; font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; }
+.cd-planos { border-top: 1px solid var(--line); padding: clamp(32px, 5vw, 56px) 0; display: grid; gap: 20px; }
+.cd-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.cd-plano { display: grid; gap: 6px; text-align: left; padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--surf); color: var(--ink); font: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.cd-plano:hover:not(:disabled) { border-color: var(--ink); }
+.cd-plano.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.cd-plano:disabled { cursor: default; opacity: .7; }
+.cd-plano:disabled.on { opacity: 1; }
+.cd-plano-nome { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+.cd-plano-valor { font-family: var(--serif); font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cd-plano-valor small { font-family: var(--sans); font-size: 14px; color: var(--ink3); margin-left: 2px; }
+.cd-plano-tokens { font-size: 15px; font-weight: 600; }
+.cd-plano-uso { font-size: 13px; color: var(--ink3); }
+.cd-nota { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink3); max-width: 68ch; text-wrap: pretty; }
+.cd-nota a, .cd-aceite a { color: var(--ink); text-underline-offset: 3px; }
+.cd-passos { border-top: 1px solid var(--line); padding: clamp(32px, 5vw, 56px) 0 clamp(56px, 8vw, 96px); display: grid; gap: 36px; }
+.cd-passo { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 16px; align-items: start; margin: 0; }
+.cd-passo[hidden] { display: none !important; }
+.cd-num { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--mono); font-size: 13px; color: var(--ink2); }
+.cd-num.cd-ok { background: var(--btn); color: var(--btnt); border-color: var(--btn); }
+.cd-corpo { display: grid; gap: 14px; max-width: 720px; }
+.cd-texto { margin: 0; font-size: 15px; line-height: 1.6; color: var(--ink2); }
+.cd-trocar { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.cd-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 14px; }
+.cd-campo { display: grid; gap: 6px; font-size: 13px; color: var(--ink2); }
+.cd-largo { grid-column: 1 / -1; }
+.cd-campo input { height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surf); color: var(--ink); font: 500 15px var(--sans); }
+.cd-campo input:focus { outline: none; border-color: var(--ink); }
+.cd-aceite { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink2); line-height: 1.5; }
+.cd-aceite input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--ink); }
+.cd-acoes { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.cd-acoes .btn .icon { font-size: 18px; }
+.cd-acoes .cd-nota { flex: 1 1 260px; }
+.cd-erro { margin: 0; font-size: 14px; color: var(--acc); }
+@media (max-width: 720px) {
+  .cd-passo { grid-template-columns: minmax(0, 1fr); }
+  .cd-num { display: none; }
+}
+.cd-acoes .btn { white-space: normal; }
