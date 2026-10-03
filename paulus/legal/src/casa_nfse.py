@@ -3,7 +3,7 @@ As notas do PAVLVS: a NFS-e que o PAVLVS emite para quem assina o PAULUS.
 
 Roda no PAULUS "da casa" (o do servidor do escritório do dono), numa tela à
 parte ("Notas do PAVLVS"), e nunca nos PAULUS dos clientes: só aparece com
-PAULUS_CASA_PAVLVS=1 no ambiente ou "casa_pavlvs": true no config.json da
+PAULUS_CASA_PAVLVS=1 no ambiente ou "casa_pavlvs": true no preferencias.json da
 pasta de dados.
 
 É o mesmo emissor dos escritórios (src/nfse/), numa instância SEPARADA:

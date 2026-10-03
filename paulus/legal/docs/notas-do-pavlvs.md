@@ -14,9 +14,12 @@ próprios. O emissor do escritório continua como está.
 1. No Worker: `npx wrangler secret put NFSE_CASA_TOKEN` (uma chave longa e
    aleatória). Confira que a aplicação do Cloudflare Access cobre só `/admin*`
    e `/api/admin*`: a ponte `/api/nfse-casa/*` fica fora dela.
-2. No servidor: ligue a tela com `PAULUS_CASA_PAVLVS=1` no ambiente de quem
-   abre o PAULUS, ou `"casa_pavlvs": true` no `config.json` da pasta de dados.
-   Reabra o PAULUS.
+2. No servidor, ligue a tela de um destes dois jeitos e reabra o PAULUS:
+   - no Prompt de Comando da conta que abre o PAULUS: `setx PAULUS_CASA_PAVLVS 1`
+     (vale para os programas abertos depois; o lançador do PAULUS passa adiante);
+   - ou, com o PAULUS fechado, acrescente `"casa_pavlvs": true` ao
+     `preferencias.json` da pasta de dados — no PAULUS instalado,
+     `%LOCALAPPDATA%\PAULUS\dados\preferencias.json`.
 3. Na tela: certificado A1 do CNPJ do PAVLVS e a senha (uma linha);
    **Parâmetros**: inscrição municipal, endereço, regime, código do serviço,
    NBS, IBS/CBS (o contador diz; os da advocacia não servem) e a **chave da
