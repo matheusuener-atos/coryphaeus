@@ -23,6 +23,8 @@
 //   POST /api/ia/recarga           o Pix da recarga (QR)
 //   GET  /api/ia/recarga/:id       pago? se sim, os tokens entram
 //   POST /api/ia/sair              apaga o segredo desta instalacao
+//   GET  /api/ia/nfse              as NFS-e emitidas para a conta (pela casa)
+//   GET  /api/ia/nfse/:id/pdf|xml  o arquivo de uma delas
 //
 // Todas, menos ativar, com o segredo da instalacao (Authorization: Bearer
 // pia_<conta>_<64 hex>). A conta vem escrita no segredo; quem confere e o
@@ -159,7 +161,65 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   }
   const rec = p.match(/^\/api\/ia\/recarga\/([A-Za-z0-9_-]{6,64})$/);
   if (rec && m === "GET") return situacaoDaRecarga(env, conta, quem.id, rec[1], mp);
+  // As NFS-e que o PAULUS da casa emitiu para esta conta (worker/nfse-casa.js).
+  if (p === "/api/ia/nfse" && m === "GET") return json({ notas: await notasDoCliente(env, quem.id) });
+  const nf = p.match(/^\/api\/ia\/nfse\/([A-Za-z0-9_.-]{1,64})\/(pdf|xml)$/);
+  if (nf && m === "GET") return arquivoDoCliente(env, quem.id, nf[1], nf[2]);
   return json({ erro: "rota não existe" }, 404);
+}
+
+// --------------------------------------------- as NFS-e da conta
+// Gravadas pela ponte da casa (worker/nfse-casa.js) em "nfse:nota:<conta>:<id>"
+// e os arquivos em "nfse:nota-pdf:..." e "nfse:nota-xml:..." (base64).
+
+/* As notas da conta, para GET /api/ia/nfse (sem os arquivos). */
+async function notasDoCliente(env, conta) {
+  if (!env.APOIOS) return [];
+  const notas = [];
+  const chaves = [];
+  let cursor;
+  do {
+    const lista = await env.APOIOS.list({ prefix: "nfse:nota:" + conta + ":", cursor });
+    for (const k of lista.keys) chaves.push(k.name);
+    cursor = lista.list_complete ? undefined : lista.cursor;
+  } while (cursor);
+  for (const k of chaves) {
+    const x = await lerKV(env, k);
+    if (!x || x.conta !== conta) continue;
+    notas.push({ id: x.id, numero: x.numero, competencia: x.competencia, valor: x.valor, descricao: x.descricao, emitida_em: x.emitida_em, ambiente: x.ambiente, cancelada: Boolean(x.cancelada) });
+  }
+  notas.sort((a, b) => String(b.emitida_em).localeCompare(String(a.emitida_em)));
+  return notas;
+}
+
+/* O PDF ou o XML de uma nota da conta, como Response; 404 se nao houver. */
+async function arquivoDoCliente(env, conta, id, tipo) {
+  if (!env.APOIOS || !/^[A-Za-z0-9_.-]{1,64}$/.test(id) || !["pdf", "xml"].includes(tipo)) return json({ erro: "não encontrado" }, 404);
+  const meta = await lerKV(env, "nfse:nota:" + conta + ":" + id);
+  if (!meta || meta.conta !== conta) return json({ erro: "essa nota não existe" }, 404);
+  const b64 = await env.APOIOS.get("nfse:nota-" + tipo + ":" + conta + ":" + id);
+  if (!b64) return json({ erro: "essa nota não tem " + tipo.toUpperCase() }, 404);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const nome = "NFS-e " + (meta.numero || id) + "." + tipo;
+  return new Response(bytes, {
+    status: 200,
+    headers: {
+      "content-type": tipo === "pdf" ? "application/pdf" : "application/xml",
+      "content-disposition": 'attachment; filename="' + nome.replace(/[^A-Za-z0-9 ._-]/g, "_") + '"',
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function lerKV(env, chave) {
+  try {
+    const v = await env.APOIOS.get(chave);
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
 }
 
 // ------------------------------------------------------------ utilidades

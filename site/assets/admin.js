@@ -208,7 +208,7 @@
     var t = dadosDe("tuneis"); if (t) c.tuneis = (t.tuneis || []).filter(function (x) { return x.estado === "inactive" || x.estado === "down"; }).length;
     var r = dadosDe("renovacoes"); if (r) c.renovacoes = (r.abertas || []).length;
     var m = dadosDe("materiais"); if (m) c.materiais = (m.materiais || []).filter(function (x) { return x.situacao === "fila"; }).length;
-    var n = dadosDe("nfse"); if (n) c.nfse = (n.notas || []).filter(function (x) { return x.nota !== "emitida"; }).length;
+    var n = dadosDe("nfse"); if (n) c.nfse = (n.notas || []).filter(function (x) { return x.nota !== "emitida" && x.nota !== "cancelada"; }).length;
     c.alteracoes = E.pendentes.length;
     return c;
   }
@@ -775,11 +775,11 @@
 
   /* ---------- 11. Notas fiscais ---------- */
   TELAS_RENDER.nfse = function () {
-    var h = cab("Notas fiscais (NFS-e)", "Cada pagamento confirmado pelo Mercado Pago, a cobrança mensal ou o Pix da recarga, vira uma NFS-e do prestador. Emitida, o PDF e o XML seguem para o cliente.");
+    var h = cab("Notas fiscais (NFS-e)", "Cada pagamento confirmado pelo Mercado Pago, a cobrança mensal ou o Pix da recarga, entra aqui. A NFS-e é emitida na tela Notas do PAVLVS do PAULUS da casa, não neste painel; emitida, o PDF e o XML chegam ao PAULUS do cliente.");
     var est = estadoLeitura(["nfse"], "nfse"); if (est) return h + est;
     h += erroRecente("nfse", "nfse");
-    var d = dadosDe("nfse"), emissor = d.emissor && d.emissor.ligado === false ? d.emissor : cfg("nfse"), off = desligado(emissor);
-    var podeC = pode("nfse.config"), podeE = pode("nfse.emitir");
+    var d = dadosDe("nfse"), emissor = d.emissor && d.emissor.ligado === false ? d.emissor : cfg("nfse");
+    var podeC = pode("nfse.config");
     h += falta(emissor);
     var c = d.config || {}, pc = ultimaNaFila("nfse.config");
     var atual = pc ? pc.dados || c : c;
@@ -790,22 +790,20 @@
     }).join("") + "</div>" +
       '<dl class="fatos-p f110 alto">' + (d.fatos || []).map(function (f) { return fato(f.k, f.v); }).join("") + "</dl></div>";
     var ns = d.notas || [];
-    var pend = ns.filter(function (n) { return n.nota !== "emitida"; });
-    var naFilaNota = function (id) { return E.pendentes.some(function (p) { return p.tipo === "nfse.emitir" && p.dados && (p.dados.ids || []).indexOf(id) >= 0; }); };
+    var pend = ns.filter(function (n) { return n.nota !== "emitida" && n.nota !== "cancelada"; });
     var cols = "96px minmax(160px,1fr) 90px 170px 120px";
     var linhas = ns.map(function (n) {
       var cor = { emitida: "var(--ok)", pendente: "var(--atencao)", erro: "var(--erro)" }[n.nota] || "var(--ink3)";
-      var txt = n.nota === "emitida" ? "NFS-e " + (n.numero || "") : n.nota === "erro" ? "erro · " + (n.erro || "") : "aguardando emissão";
-      var fila = naFilaNota(n.id);
-      var bt = n.nota === "emitida" || !podeE ? "<span></span>" : '<button type="button" class="mini" style="justify-self:end" data-a="nfseEmitir" data-id="' + esc(n.id) + '"' + attrDis(off || fila, off ? emissor.falta : "já está na fila de alterações") + ">" + (fila ? "Na fila" : n.nota === "erro" ? "Tentar de novo" : "Emitir") + "</button>";
+      var txt = n.nota === "emitida" ? "NFS-e " + (n.numero || "") : n.nota === "cancelada" ? "NFS-e " + (n.numero || "") + " cancelada" : n.nota === "erro" ? "erro · " + (n.erro || "") : "aguardando emissão";
+      // O painel nao emite: quem emite e o PAULUS da casa (Notas do PAVLVS).
+      var bt = n.nota === "emitida" || n.nota === "cancelada" ? "<span></span>" : '<small class="c-ink3" style="justify-self:end;font-size:11px">emitir no PAULUS da casa</small>';
       return '<div class="grade-linha p10"><span class="cel-nome" style="gap:1px"><span class="num c-ink2">' + esc(quando(n.quando)) + '</span><span class="num c-ink3" style="font-size:10.5px">' + esc(n.tipo) + "</span></span>" +
         '<span class="cel-nome" style="gap:1px"><b class="corta" style="font-size:13px">' + esc(n.cliente) + '</b><small style="font-size:11px">' + esc(n.doc || "") + "</small></span>" +
         '<span class="num dir">' + esc(brl(n.valor)) + '</span><span class="sit" style="color:' + cor + '" title="' + esc(txt) + '"><i></i><span class="corta">' + esc(txt) + "</span></span>" + bt + "</div>";
     }).join("") || '<p class="vazio-linha">Nenhum pagamento ainda.</p>';
-    var algumaFora = pend.some(function (n) { return !naFilaNota(n.id); });
     h += '<div class="painel">' + grade(cols, 680, '<span>Pagamento</span><span>Cliente</span><span class="dir">Valor</span><span>Nota</span><span></span>', linhas) +
       '<div class="pe-painel"><span style="flex:1">' + (pend.length ? pend.length + (pend.length === 1 ? " pagamento sem nota" : " pagamentos sem nota") : "Todos os pagamentos têm nota") + "</span>" +
-      (pend.length && podeE ? '<button type="button" class="mini cheia" data-a="nfseEmitirTodas"' + attrDis(off || !algumaFora, off ? emissor.falta : "já estão na fila de alterações") + ">" + ic("receipt_long") + "Emitir as pendentes</button>" : "") + "</div></div>";
+      (pend.length ? '<small class="c-ink3">emitir na tela Notas do PAVLVS do PAULUS da casa</small>' : "") + "</div></div>";
     return h;
   };
 
@@ -973,7 +971,7 @@
   function rapidas() {
     var c = contagens(), l = [];
     l.push({ icon: "campaign", t: "E-mails › Nova campanha", d: "público, conteúdo e disparo em 3 passos", ir: function () { U.emails.aba = "nova"; U.emails.passo = 1; irPara("emails"); } });
-    if (pode("nfse.emitir")) l.push({ icon: "receipt_long", t: "Notas fiscais › Emitir as pendentes", d: c.nfse != null ? c.nfse + " pagamentos sem nota" : "pagamentos sem nota", ir: function () { irPara("nfse"); } });
+    if (pode("nfse.emitir")) l.push({ icon: "receipt_long", t: "Notas fiscais › Pagamentos sem nota", d: c.nfse != null ? c.nfse + " pagamentos sem nota" : "pagamentos sem nota", ir: function () { irPara("nfse"); } });
     l.push({ icon: "publish", t: "Confirmar alterações › Commitar e pushar", d: c.alteracoes + " pendentes", ir: function () { irPara("alteracoes"); } });
     if (pode("cupom.criar")) l.push({ icon: "local_offer", t: "Cupons › Novo cupom", d: "desconto por meses, brinde em tokens", ir: function () { irPara("cupons"); setTimeout(function () { var i = $("cupom-codigo"); if (i) i.focus(); }, 60); } });
     l.push({ icon: "dns", t: "Túneis › Perto de apagar", d: "os que a limpeza diária vai pegar", ir: function () { U.tuneis.filtro = "risco"; irPara("tuneis"); } });

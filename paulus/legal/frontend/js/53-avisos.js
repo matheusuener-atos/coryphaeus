@@ -260,6 +260,19 @@ async function abrirAviso(a) {
   if (d.tela === "nfse" && typeof abrirNotaFiscal === "function") return abrirNotaFiscal(d.id);
   if (d.tela === "conversa") return abrirTrabalho(d.id);
   if (d.tela === "foco") return abrirDestino("foco");
+  // A NFS-e que o PAVLVS emitiu para o escritorio: abrir e baixar o PDF.
+  if (d.tela === "nfse_recebida" && d.url) return baixarDoAviso(d.url);
+}
+
+/* A acao "baixar" de um aviso (a NFS-e recebida: Download e XML): o arquivo
+   vem da rota, como anexo, sem perguntar - baixar nao muda nada. */
+function baixarDoAviso(url) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /* A acao direta sempre pergunta antes, com o que ela faz em palavras. E a
@@ -267,6 +280,7 @@ async function abrirAviso(a) {
 async function fazerAcaoDoAviso(a, i) {
   const x = (a.acoes || [])[i];
   if (!x) return;
+  if (x.tipo === "baixar" && x.url) { baixarDoAviso(x.url); return; }
   const ok = await confirmar({
     titulo: x.propoe ? "Propor: " + x.pergunta : x.pergunta,
     contexto: "Avisos › " + a.tipo_rotulo,

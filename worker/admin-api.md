@@ -71,8 +71,10 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   autor, oab, enviado, situacao: "fila"|"ajustes"|"publicado"|"recusado", palavras, texto, resumo,
   varredura: {cpf, cnpj, processo, nomes}}]}`
 - `GET /api/admin/nfse` -> `{config: {auto, email}, emissor: {ligado, falta}, fatos: [{k, v}],
-  notas: [{id, quando, tipo: "mensalidade"|"recarga pix", cliente, doc, valor, nota: "pendente"|"emitida"|"erro",
-  numero, erro}]}`
+  notas: [{id, quando, tipo: "mensalidade"|"recarga pix", cliente, doc, valor, nota: "pendente"|"emitida"|"cancelada"|"erro",
+  numero, erro}]}`. `emissor.ligado` = existe `NFSE_CASA_TOKEN` (a ponte da casa, abaixo); o fato
+  "Emissor" diz "PAULUS da casa · última conexão <data>", "PAULUS da casa · nunca conectou" ou
+  "ponte desligada (falta NFSE_CASA_TOKEN)". O painel nao emite nota.
 - `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo}], matriz: [{acao, dono, financeiro, suporte}]}`
 - `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], cupons: [...], planos: [...],
   materiais: [...]}` (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
@@ -121,7 +123,56 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `plano.criar` | `{id, nome, valor, tokens}` | dono, financeiro |
 | `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |
 | `nfse.config` | `{auto, email}` | dono, financeiro |
-| `nfse.emitir` | `{ids: [id]}` | dono, financeiro |
+| `nfse.emitir` | `{ids: [id]}` | dono, financeiro - sempre falha com "a emissão é feita na tela \"Notas do PAVLVS\" do PAULUS da casa": o painel nao emite |
 | `equipe.papel` | `{email, papel}` | dono |
 
 Ver contas, tokens e receita, mandar e-mails e lembretes: todos os papeis.
+
+## Ponte da NFS-e (PAULUS da casa)
+
+Quem emite as NFS-e dos assinantes e o PAULUS da casa (tela "Notas do PAVLVS",
+no servidor do dono). Codigo em `worker/nfse-casa.js`; teste em
+`worker/teste-nfse-casa.mjs`.
+
+- Prefixo `/api/nfse-casa/`, **fora** do Cloudflare Access (que cobre so `/admin*`
+  e `/api/admin*`) e fora da sessao do GitHub.
+- Porta: `Authorization: Bearer <NFSE_CASA_TOKEN>` (segredo do Worker:
+  `npx wrangler secret put NFSE_CASA_TOKEN`; o mesmo valor vai na configuracao do
+  PAULUS da casa). Comparacao em tempo constante. Sem o segredo no Worker: 503
+  `{erro: "a ponte da NFS-e não está configurada (NFSE_CASA_TOKEN)"}`; token errado ou
+  ausente: 401. Cada chamada valida grava `admin:nfse-casa:visto` = ISO de agora.
+
+Rotas:
+
+- `GET /api/nfse-casa/ping` -> `{ok: true, hora, contas: n}`.
+- `GET /api/nfse-casa/clientes` -> `{clientes: [{id, nome, email, telefone, oab, plano: {id, nome, valor} | null,
+  situacao: "ativa"|"cortesia"|"cancelada"|"vencida"|"pendente", ajustado: bool, tomador: {nome, documento,
+  email, telefone, logradouro, numero, complemento, bairro, cep, cmun, uf, inscricao_municipal}}]}`.
+  O `tomador` vem do cadastro da conta (nome_escritorio, documento so digitos, e-mail da conta
+  Google, telefone) fundido com o ajuste em `nfse:tomador:<conta>` no KV; o ajuste vence.
+- `POST /api/nfse-casa/clientes/:id` `{tomador: {...}}` -> o cliente (como acima). So os campos
+  enviados mudam; `""` apaga o ajuste daquele campo (volta o do cadastro). Conferido:
+  documento CPF/CNPJ com digito verificador, `cep` 8 digitos, `cmun` 7 digitos (IBGE), `uf`
+  sigla valida, `email` com @, telefone com DDD; textos limpos e cortados. Erro: 400 `{erro}`;
+  conta inexistente: 404. **Nao altera o cadastro original da conta** (o que o cliente
+  preencheu em /cadastro): grava so o ajuste em `nfse:tomador:<conta>`.
+- `GET /api/nfse-casa/pagamentos` -> `{pagamentos: [{id, conta, cliente, tipo: "mensalidade"|"recarga pix",
+  valor, quando, nota: "pendente"|"emitida"|"cancelada"|"erro", numero}], config: {auto, email}}`, mais novos
+  primeiro. `config` e a escolha do painel (Notas fiscais): emitir ao confirmar / mandar ao cliente.
+- `POST /api/nfse-casa/notas` `{id, conta, pagamento?, numero, chave, competencia: "AAAA-MM", valor (reais),
+  descricao, ambiente: "producao"|"producao_restrita", emitida_em, pdf_b64, xml_b64}` -> `{ok: true}`.
+  `id` = id da nota na casa (`[A-Za-z0-9_.-]{1,64}`). A meta vai em `nfse:nota:<conta>:<id>`, o PDF em
+  `nfse:nota-pdf:<conta>:<id>` e o XML em `nfse:nota-xml:<conta>:<id>` (base64). Cada arquivo ate 2 MB
+  (senao 413). Com `pagamento`, marca `admin:nfse:<pagamento>` com `nota: "emitida"` e o `numero`.
+  Reenviar o mesmo `id` substitui. Conta que nao existe: 404; campo invalido: 400.
+- `POST /api/nfse-casa/notas/:id/cancelada` `{conta}` -> `{ok: true}`; marca `cancelada` na meta (e o
+  pagamento ligado vira `nota: "cancelada"`). Nota inexistente: 404.
+
+O PAULUS do cliente busca as proprias notas em `worker/ia.js`, com o segredo da
+instalacao (`Authorization: Bearer pia_<conta>_...`, como as outras `/api/ia/*`):
+
+- `GET /api/ia/nfse` -> `{notas: [{id, numero, competencia, valor, descricao, emitida_em, ambiente, cancelada}]}`
+  so da conta autenticada.
+- `GET /api/ia/nfse/:id/pdf` e `GET /api/ia/nfse/:id/xml` -> os bytes (`application/pdf` /
+  `application/xml`, `Content-Disposition: attachment; filename="NFS-e <numero>.pdf"`); 404 se a nota
+  nao for da conta ou nao tiver o arquivo.

@@ -1050,6 +1050,11 @@ rotas_nuvem.montar(estado, app, DADOS_DIR)
 import rotas_nfse  # noqa: E402
 
 rotas_nfse.montar(estado, app, DADOS_DIR)
+# As NFS-e que o PAVLVS emitiu para este escritorio, buscadas no Worker
+# (src/nfse_recebidas.py, rotas em src/rotas_nfse_recebidas.py).
+import rotas_nfse_recebidas  # noqa: E402
+
+rotas_nfse_recebidas.montar(estado, app)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

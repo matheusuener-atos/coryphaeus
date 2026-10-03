@@ -15,6 +15,9 @@
 //
 // Todo o resto e o site estatico.
 //
+// A ponte da NFS-e (worker/nfse-casa.js): /api/nfse-casa/*, o PAULUS da casa
+// le clientes e pagamentos e devolve as notas emitidas. Com NFSE_CASA_TOKEN.
+//
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
 //
@@ -31,6 +34,7 @@
 import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
 import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
 import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas } from "./admin.js";
+import { atenderCasa, ehRotaDaCasa } from "./nfse-casa.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
@@ -55,6 +59,15 @@ export default {
         return await atenderTunel(request, env, url, { dentroDoLimite });
       } catch (erro) {
         return json({ erro: "falha no servidor do acesso de fora" }, 500);
+      }
+    }
+    // A ponte da NFS-e com o PAULUS da casa: fora do Access e da sessao do
+    // GitHub, com o segredo NFSE_CASA_TOKEN (worker/nfse-casa.js).
+    if (ehRotaDaCasa(url)) {
+      try {
+        return await atenderCasa(request, env, url);
+      } catch (erro) {
+        return json({ erro: "falha no servidor da ponte da NFS-e" }, 500);
       }
     }
     if (ehRotaDoAdmin(url)) {
