@@ -86,9 +86,11 @@ function desenharTrava() {
     (trocar ? '<button type="button" class="trava-trocar" id="trava-trocar">' + esc(trocar) + "</button>" : "") + "</div></div>";
   const trilho = (id, texto, google, desligado) => '<button type="' + (google ? "button" : "submit") + '" class="trava-trilho" id="' + id + '"' +
     (desligado ? " disabled" : "") + '><span class="trava-pastilha">' + (google ? G_DO_GOOGLE : "") + esc(texto) + "</span></button>";
-  let frase, corpo;
+  let frase, corpo, tela;
   if (codigo) {
-    frase = recuperacao ? "Use uma das chaves guardadas." : semNet ? "Sem internet: entre com o código do celular." : "Confirme quem você é.";
+    tela = recuperacao ? "chave" : semNet ? "trava_sem_internet" : "trava_codigo";
+    frase = recuperacao ? "Use uma das chaves de recuperação que você guardou. Cada uma vale uma vez." : semNet
+      ? "Sem internet, o código do celular abre o PAULUS neste computador." : "Falta confirmar que é você: digite o código do Google Authenticator.";
     const n = recuperacao ? 0 : 6;
     corpo = '<form class="trava-form" id="trava-codigo">' +
       conta("CONTA", recuperacao ? "" : (semNet ? "Entrar com o Google" : "Trocar")) +
@@ -102,7 +104,8 @@ function desenharTrava() {
       trilho("trava-abrir", "Abrir o PAVLVS", false, false) +
       '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o Google Authenticator" : "Não tenho o celular") + "</button></form>";
   } else {
-    frase = "Entre para abrir o escritório.";
+    tela = "trava";
+    frase = "Entre com a sua conta para abrir o escritório.";
     corpo = '<div class="trava-form">' + conta("CONTA DESTE SERVIDOR", "") +
       '<label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") + '><i aria-hidden="true">' +
       ic("check", 13) + "</i><span>Manter aberto neste computador</span></label>" +
@@ -117,12 +120,26 @@ function desenharTrava() {
       "</div>";
   }
   const escuro = document.documentElement.dataset.tema === "escuro";
+  // O alto ("Paulus está te esperando." e a frase) sobrevive ao redesenho:
+  // a tela e refeita a cada mudanca de estado, e a saudacao so troca quando
+  // muda o passo (js/entrada-saudacao.js).
+  const antes = telaDaTrava().querySelector(".trava-marca");
   telaDaTrava().innerHTML =
     '<header class="trava-topo pywebview-drag-region"><span class="trava-selo">' + ic("desktop_windows", 16) + "servidor</span>" +
     '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 16) + "</button></header>" +
     '<main class="trava-corpo">' + (codigo ? '<button type="button" class="trava-voltar" id="trava-voltar">' + ic("arrow_back", 18) + "Voltar</button>" : "") +
-    '<div class="trava-coluna"><div class="trava-marca"><b>PAVLVS</b><p>' + esc(frase) + "</p></div>" + corpo + "</div></main>";
+    '<div class="trava-coluna"><div class="trava-marca abrindo"><h1 data-es-titulo>Paulus está te esperando.</h1><p data-es-frase>' + esc(frase) +
+    "</p></div>" + corpo + "</div></main>";
+  const marca = telaDaTrava().querySelector(".trava-marca");
+  if (antes) marca.replaceWith(antes);
+  saudarNaTrava(antes || marca, tela);
   ligarTrava();
+}
+
+function saudarNaTrava(bloco, tela) {
+  if (typeof EntradaSaudacao === "undefined") { bloco.classList.remove("abrindo"); return; }
+  if (!bloco.dataset.aberto) { bloco.dataset.aberto = "1"; EntradaSaudacao.abrir(bloco, tela); }
+  else EntradaSaudacao.trocar(bloco, tela);
 }
 
 function ligarTrava() {

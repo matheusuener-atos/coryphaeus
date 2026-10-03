@@ -81,7 +81,9 @@ _declarar(PUBLICO,
           "GET /api/acesso/convite/{codigo}", "POST /api/acesso/convite/{codigo}/aceitar",
           "POST /api/acesso/convite/{codigo}/confirmar", "GET /api/acesso/convite/{codigo}/google",
           # entrar com o Google (E3a)
-          "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno")
+          "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno",
+          # a frase das telas de entrar (src/saudacao.py): so a hora, o dia e o calendario
+          "GET /api/saudacao/entrada")
 
 # Sem sessao, de fora, so isto passa - a tela de entrar e o que ELA carrega
 # (acesso-remoto/v0, R2). O resto da casca espera o login: toda rota /api/*
@@ -91,7 +93,9 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
               ("POST", "/api/acesso/entrar/codigo"),
               # entrar com o Google (E3a): ir ao Google e voltar dele
-              ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno")}
+              ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno"),
+              # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)
+              ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js")}
 
 
 def pagina_do_convite(caminho: str) -> bool:

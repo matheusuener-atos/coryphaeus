@@ -23,8 +23,17 @@
   .trava-voltar:hover { color: var(--ink); }
   .trava-coluna { width: 100%; max-width: 360px; display: grid; gap: 40px; }
   .trava-marca { display: grid; gap: 14px; text-align: center; }
-  .trava-marca b { font: 400 56px/1 var(--serif); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
-  .trava-marca p { margin: 0; font: 400 14px/1.55 var(--sans); color: var(--mute2); text-wrap: pretty; }
+  /* "Paulus está te esperando." na serifa, claro, e a frase do banco das telas de entrar
+     (js/entrada-saudacao.js): o jeito da saudacao do assistente - o bloco nasce apagado e
+     aparece devagar; ao trocar de passo, a frase sai e a nova entra. */
+  .trava-marca h1 { margin: 0; font: 400 44px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .trava-marca p { margin: 0; font: 400 15px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
+  .trava-marca > * { transition: opacity .7s ease, transform .7s ease; }
+  .trava-marca.abrindo > * { opacity: 0; }
+  .trava-marca.saindo > p { opacity: 0; transform: translateY(4px); }
+  html.sem-animacao .trava-marca > * { transition: none; }
+  /* O titulo passa da coluna de 360 px para caber numa linha; no celular, quebra. */
+  @media (min-width: 520px) { .trava-marca h1 { margin: 0 -60px; } }
   .trava-form { display: grid; gap: 14px; margin: 0; }
   .trava-grupo { display: grid; gap: 6px; }
   .trava-enquanto { margin-top: 6px; }
@@ -49,10 +58,8 @@
   .trava-pastilha svg { width: 16px; height: 16px; flex: none; }
   /* Sobre e apertado: as cores do desenho (#303030 e #333330 no escuro);
      no claro, um passo mais fundo que a pastilha. */
-  .trava { --trava-sobre: #e0dad0; --trava-ativa: #d9d3c8; }
-  [data-tema="escuro"] .trava { --trava-sobre: #303030; --trava-ativa: #333330; }
-  .trava-trilho:hover:not(:disabled) .trava-pastilha { background: var(--trava-sobre); }
-  .trava-trilho:active:not(:disabled) .trava-pastilha { background: var(--trava-ativa); }
+  .trava-trilho:hover:not(:disabled) .trava-pastilha { background: var(--pastilha-sobre); }
+  .trava-trilho:active:not(:disabled) .trava-pastilha { background: var(--pastilha-ativa); }
   .trava-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .trava-trilho:disabled { opacity: .55; cursor: default; }
   .trava-fora { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 14px; border-radius: 10px;

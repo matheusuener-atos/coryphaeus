@@ -66,8 +66,16 @@
      formulario fica no pe; no computador, logo abaixo da marca. */
   .marca { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
     gap: 18px; padding: 22vh 32px 32px; padding-top: 22dvh; text-align: center; }
-  .marca b { font: 400 44px/1 'EB Garamond', Georgia, serif; letter-spacing: .08em; text-transform: uppercase; color: var(--marca); }
-  .marca p { margin: 0; font: 400 14px/1.55 'Manrope', sans-serif; color: var(--marca-sub); text-wrap: pretty; }
+  /* O alto de toda tela de entrar (03/10): "Paulus est\u00e1 te esperando." na serifa, claro, e a frase
+     do banco embaixo (js/entrada-saudacao.js) - o jeito da saudacao do assistente: o bloco nasce
+     apagado e aparece devagar; ao trocar de passo, a frase sai e a nova entra. PAVLVS e a marca;
+     Paulus, o agente. */
+  .marca h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .marca p { margin: 0; max-width: 360px; font: 400 15px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
+  .marca > * { transition: opacity .7s ease, transform .7s ease; }
+  .marca.abrindo > * { opacity: 0; }
+  .marca.saindo > p { opacity: 0; transform: translateY(4px); }
+  @media (prefers-reduced-motion: reduce) { .marca > * { transition: none; } }
   .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; margin-top: auto; }
   .rotulo { font: 400 11px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
   .escritorio { display: grid; gap: 6px; }
@@ -171,7 +179,7 @@
     .passo { justify-content: flex-start; align-items: center; gap: 40px; padding: 0 24px 48px; }
     .passo .marca { flex: none; min-height: 0; gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
     .passo .baixo { margin-top: 0; }
-    .passo .marca b { font-size: 56px; }
+    .passo .marca h1 { font-size: 44px; }
     .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
     .voltar { top: 28px; left: 28px; }
     .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
@@ -184,9 +192,9 @@
 
   <!-- 1. O escritorio e o jeito de entrar (Google | Codigo) -->
   <section id="entrar-senha" class="tela passo">
-    <div class="marca">
-      <b>PAVLVS</b>
-      <p>O mesmo escritório, de onde você estiver.</p>
+    <div class="marca abrindo" id="marca-entrar">
+      <h1 data-es-titulo>Paulus está te esperando.</h1>
+      <p data-es-frase>O mesmo escritório, de onde você estiver.</p>
     </div>
     <form id="form-senha" class="baixo" autocomplete="on">
       <div class="escritorio">
@@ -214,9 +222,9 @@
   <!-- 2. O codigo do app autenticador, ou a chave de recuperacao -->
   <section id="entrar-codigo" class="tela passo" hidden>
     <button type="button" class="voltar" id="voltar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7.83 13 5.6 5.6L12 20l-8-8 8-8 1.43 1.4-5.6 5.6H20v2Z"/></svg>Voltar</button>
-    <div class="marca">
-      <b>PAVLVS</b>
-      <p id="quem-titulo">Confirme quem você é.</p>
+    <div class="marca abrindo" id="marca-codigo">
+      <h1 data-es-titulo>Paulus está te esperando.</h1>
+      <p data-es-frase id="quem-titulo">Falta confirmar que é você: digite o código do Google Authenticator.</p>
     </div>
     <form id="form-codigo" class="baixo" autocomplete="off">
       <div class="escritorio">
@@ -238,6 +246,7 @@
   </section>
 </div>
 
+<script src="/js/entrada-saudacao.js"></script>
 <script>
 (function () {
   "use strict";
@@ -284,6 +293,7 @@
     $("usar-senha").hidden = !(config.google && !config.so_google);
     $("usar-senha").textContent = senha ? "Entrar com Google" : "Entrar com e-mail e senha";
     $("erro-senha").textContent = "";
+    if (!$("entrar-senha").hidden) saudar($("marca-entrar"), senha ? "senha" : "entrar");
   }
   $("google").addEventListener("click", () => entrarComGoogle());
   $("usar-senha").addEventListener("click", () => { escolher(modo === "senha" ? "google" : "senha"); if (modo === "senha") $("email").focus(); });
@@ -300,9 +310,18 @@
     novoRobo();
   });
 
+  // "Paulus está te esperando." e a frase de cada passo (js/entrada-saudacao.js).
+  function saudar(bloco, tela) {
+    if (!window.EntradaSaudacao || !bloco) { if (bloco) bloco.classList.remove("abrindo"); return; }
+    if (bloco.dataset.aberto) EntradaSaudacao.trocar(bloco, tela);
+    else { bloco.dataset.aberto = "1"; EntradaSaudacao.abrir(bloco, tela); }
+  }
+
   function passo(qual) {
     $("entrar-senha").hidden = qual !== "entrar";
     $("entrar-codigo").hidden = qual !== "codigo";
+    if (qual === "entrar") saudar($("marca-entrar"), modo === "senha" ? "senha" : "entrar");
+    else saudar($("marca-codigo"), porRecuperacao ? "chave" : "codigo");
     if (qual === "codigo") { desenharCasas(); $("codigo").focus(); }
   }
 
@@ -448,7 +467,7 @@
     c.maxLength = porRecuperacao ? 9 : 6;
     c.inputMode = porRecuperacao ? "text" : "numeric";
     c.setAttribute("aria-label", porRecuperacao ? "Chave de recuperação de 8 caracteres" : "Código de 6 dígitos");
-    $("quem-titulo").textContent = porRecuperacao ? "Use uma das chaves guardadas." : "Confirme quem você é.";
+    saudar($("marca-codigo"), porRecuperacao ? "chave" : "codigo");
     $("rotulo-codigo").textContent = porRecuperacao ? "CHAVE DE RECUPERAÇÃO" : "GOOGLE AUTHENTICATOR";
     $("renova").textContent = porRecuperacao ? "uso único" : "renova em ";
     if (!porRecuperacao) { const b = document.createElement("b"); b.id = "segundos"; $("renova").appendChild(b); relogio(); }

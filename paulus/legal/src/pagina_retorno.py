@@ -138,12 +138,28 @@ def pagina(estado: str, *, provedor: str = "Google", escopos: str = "", detalhe:
     elif detalhe:
         painel = f'<div class="grupo"><span class="etiqueta">DETALHE</span><div class="caixa detalhe">{esc(detalhe)}</div></div>'
     tema = "claro" if tema == "claro" else "escuro"
+    # O alto de toda tela de entrar (03/10): "Paulus está te esperando." e a
+    # frase do banco das telas de entrar (src/saudacao.py), com o mesmo
+    # aparecer devagar da saudacao do assistente. Escolhida aqui: a pagina vem
+    # de outra porta e nao pergunta nada ao app.
+    try:
+        import saudacao
+        from datetime import datetime
+
+        tela = {"sucesso": "google_ok" if perms else "google_entrou", "negado": "google_negado"}.get(estado, "google_expirado")
+        s = saudacao.saudar_entrada(tela, datetime.now(), provedor=provedor)
+        titulo_alto, frase = s["titulo"], s["subtitulo"]
+        # A frase do banco ja diz o que fazer (fechar a aba, abrir outro login).
+        dica = ""
+    except Exception:  # noqa: BLE001 - sem o banco, a frase fixa de cada estado
+        titulo_alto, frase = "Paulus está te esperando.", titulo + (" " + dica if dica else "")
     dados = json.dumps({"state": state if estado == "sucesso" else "", "tema": tema})
     return (PAGINA.replace("%%FONTES%%", _fontes_css())
             .replace("%%TEMA%%", tema)
             .replace("%%TOM%%", tom)
             .replace("%%ROTULO%%", esc(rotulo))
-            .replace("%%TITULO%%", esc(titulo))
+            .replace("%%ALTO%%", esc(titulo_alto))
+            .replace("%%TITULO%%", esc(frase))
             .replace("%%TEXTO%%", esc(texto))
             .replace("%%NOTA%%", esc(nota))
             .replace("%%PAINEL%%", painel)
@@ -162,17 +178,20 @@ PAGINA = """<!doctype html>
 <title>PAULUS</title>
 <style>
 %%FONTES%%
-[data-tema="escuro"]{--bg:#131312;--surf:#1a1a18;--fill2:#2a2a27;--ink:#f2f1ec;--ink3:#95938a;--apagado:#6f6e68;--marca-dagua:#8a8982;--marca-sub:#6f6e68;
+[data-tema="escuro"]{--bg:#131312;--surf:#1a1a18;--fill2:#2a2a27;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#95938a;--apagado:#6f6e68;--marca-dagua:#8a8982;--marca-sub:#6f6e68;
 --fio:rgba(242,241,236,.12);--fio2:rgba(242,241,236,.1);--fio3:rgba(242,241,236,.08);--ok:#7fbf8e;--erro:#f0a19c;--sobre:#303030;--ativa:#333330;color-scheme:dark}
-[data-tema="claro"]{--bg:#faf9f6;--surf:#fff;--fill2:#e9e8e3;--ink:#1c1c1a;--ink3:#6b6b65;--apagado:#9a9a93;--marca-dagua:#8a8a86;--marca-sub:#a8a69e;
+[data-tema="claro"]{--bg:#faf9f6;--surf:#fff;--fill2:#e9e8e3;--ink:#1c1c1a;--ink2:#5c5b56;--ink3:#6b6b65;--apagado:#9a9a93;--marca-dagua:#8a8a86;--marca-sub:#a8a69e;
 --fio:rgba(28,28,26,.12);--fio2:rgba(28,28,26,.1);--fio3:rgba(28,28,26,.08);--ok:#2f6b42;--erro:#a3322b;--sobre:#e2e1db;--ativa:#dcdbd5;color-scheme:light}
 *{box-sizing:border-box}html,body{margin:0}
 body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22vh 24px 48px;padding-top:22dvh;
 background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 .coluna{width:100%;max-width:360px;display:grid;gap:40px}
 .topo{display:grid;gap:14px;text-align:center}
-.topo b{font:400 56px/1 'EB Garamond',Georgia,serif;letter-spacing:.08em;text-transform:uppercase;color:var(--marca-dagua)}
-.topo p{margin:0;font:400 14px/1.55 'Manrope',sans-serif;color:var(--marca-sub);text-wrap:pretty}
+.topo h1{margin:0;font:400 44px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;color:var(--ink);text-wrap:balance}
+.topo p{margin:0;font:400 15px/1.6 'Manrope',sans-serif;color:var(--ink2);text-wrap:pretty}
+.topo>*{transition:opacity .7s ease,transform .7s ease}.topo.abrindo>*{opacity:0}
+@media (prefers-reduced-motion:reduce){.topo>*{transition:none}}
+@media (min-width:520px){.topo h1{margin:0 -60px}}
 .form{display:grid;gap:14px}.grupo{display:grid;gap:6px}
 .etiqueta{font:400 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.18em;color:var(--apagado)}
 .caixa{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;background:var(--surf);border:1px solid var(--fio)}
@@ -194,12 +213,12 @@ background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans
 font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
 .trilho:hover .pastilha{background:var(--sobre)}.trilho:active .pastilha{background:var(--ativa)}
 .trilho:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}
-.dica{justify-self:center;font:400 12px/1.5 'Manrope',sans-serif;color:var(--apagado);text-align:center;text-wrap:pretty}
+.dica:empty{display:none}.dica{justify-self:center;font:400 12px/1.5 'Manrope',sans-serif;color:var(--apagado);text-align:center;text-wrap:pretty}
 </style>
 </head>
 <body>
 <div class="coluna">
-<div class="topo"><b>PAVLVS</b><p id="titulo">%%TITULO%%</p></div>
+<div class="topo abrindo" id="topo"><h1>%%ALTO%%</h1><p id="titulo">%%TITULO%%</p></div>
 <div class="form">
 %%PAINEL%%
 <button type="button" class="trilho" id="voltar"><span class="pastilha">Voltar ao PAVLVS</span></button>
@@ -209,6 +228,8 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
 <script>
 (function () {
   var dados = %%DADOS%%;
+  // O alto aparece devagar, como a saudacao do assistente.
+  requestAnimationFrame(function () { requestAnimationFrame(function () { document.getElementById("topo").classList.remove("abrindo"); }); });
   var raiz = document.documentElement;
   try { var t = localStorage.getItem("pv-tema"); if (t === "claro" || t === "escuro") raiz.dataset.tema = t; } catch (e) {}
   // Voltar: o PAULUS traz a janela dele para frente; a aba fecha se o

@@ -38,6 +38,9 @@
     --paper: #fbfaf6;
     --fill: #f2f1ee;
     --fill2: #e8e2d8;
+    /* a pastilha do botao de moldura dupla, ao passar o mouse e ao apertar (as telas de entrar) */
+    --pastilha-sobre: #e0dad0;
+    --pastilha-ativa: #d9d3c8;
     --act: #e4e2db;
     --ink: #1c1c1a;
     --ink2: #6b6b65;
@@ -169,6 +172,8 @@
     --paper: #232322;
     --fill: #222220;
     --fill2: #2a2a27;
+    --pastilha-sobre: #303030;
+    --pastilha-ativa: #333330;
     --act: #34322c;
     --ink: #f2f1ec;
     --ink2: #a8a69e;

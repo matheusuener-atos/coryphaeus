@@ -54,8 +54,16 @@
   .tela { width: 100%; max-width: 440px; height: 100%; display: flex; flex-direction: column; overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom, 0px); }
   .marca { flex: none; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 22vh 32px 32px; padding-top: 22dvh; text-align: center; }
-  .marca b { font: 400 44px/1 'EB Garamond', Georgia, serif; letter-spacing: .08em; text-transform: uppercase; color: var(--marca); }
-  .marca p { margin: 0; font: 400 14px/1.55 'Manrope', sans-serif; color: var(--marca-sub); text-wrap: pretty; }
+  /* O alto de toda tela de entrar (03/10): "Paulus est\u00e1 te esperando." na serifa, claro, e a frase
+     do banco embaixo (js/entrada-saudacao.js) - o jeito da saudacao do assistente: o bloco nasce
+     apagado e aparece devagar; ao trocar de passo, a frase sai e a nova entra. PAVLVS e a marca;
+     Paulus, o agente. */
+  .marca h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .marca p { margin: 0; max-width: 360px; font: 400 15px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
+  .marca > * { transition: opacity .7s ease, transform .7s ease; }
+  .marca.abrindo > * { opacity: 0; }
+  .marca.saindo > p { opacity: 0; transform: translateY(4px); }
+  @media (prefers-reduced-motion: reduce) { .marca > * { transition: none; } }
   .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; margin-top: auto; }
   .baixo form, .baixo section { display: grid; gap: 14px; margin: 0; }
 
@@ -151,7 +159,7 @@
   @media (min-width: 601px) {
     .tela { max-width: none; align-items: center; gap: 40px; padding: 0 24px 48px; }
     .marca { gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
-    .marca b { font-size: 56px; }
+    .marca h1 { font-size: 44px; }
     .baixo { width: 100%; max-width: 360px; padding: 0; margin-top: 0; }
     .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
     .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
@@ -160,9 +168,9 @@
 </head>
 <body>
 <div class="tela">
-  <div class="marca">
-    <b>PAVLVS</b>
-    <p id="frase">Abrindo o convite…</p>
+  <div class="marca abrindo" id="marca">
+    <h1 data-es-titulo>Paulus está te esperando.</h1>
+    <p data-es-frase id="frase">Este é o seu convite para o PAVLVS do escritório.</p>
   </div>
 
   <div class="baixo">
@@ -255,6 +263,7 @@
   </div>
 </div>
 
+<script src="/js/entrada-saudacao.js"></script>
 <script>
 (function () {
   "use strict";
@@ -270,14 +279,20 @@
   if (/android|iphone|ipad|ipod/i.test(navigator.userAgent)) document.documentElement.classList.add("celular");
   if (/iphone|ipad|ipod/i.test(navigator.userAgent)) $("lojas").prepend($("loja-iphone"));
 
-  function frase(texto) { $("frase").textContent = texto; }
+  // "Paulus está te esperando." e a frase de cada passo (js/entrada-saudacao.js).
+  function frase(tela, extras) {
+    const bloco = $("marca");
+    if (!window.EntradaSaudacao) { bloco.classList.remove("abrindo"); return; }
+    if (bloco.dataset.aberto) EntradaSaudacao.trocar(bloco, tela, extras);
+    else { bloco.dataset.aberto = "1"; EntradaSaudacao.abrir(bloco, tela, extras); }
+  }
   function mostrar(qual) {
     ["erro-convite", "passo-senha", "passo-app", "passo-fim", "passo-liberado"].forEach((id) => { $(id).hidden = id !== qual; });
     // Cada passo comeca do alto (o botao de antes podia estar la embaixo).
     document.querySelector(".tela").scrollTop = 0;
   }
-  function convidou(texto) {
-    frase(texto);
+  function convidou() {
+    frase("convite_erro");
     mostrar("erro-convite");
   }
 
@@ -355,14 +370,14 @@
       // Seguranca "simples": sem autenticador - a conta ja esta pronta.
       $("liberado-email").textContent = d.email || "";
       $("marca-liberado").innerHTML = G;
-      frase("Pronto: a sua conta está ativa.");
+      frase("convite_pronto");
       mostrar("passo-liberado");
       return;
     }
     $("qr").innerHTML = d.qr_svg || "";
     $("chave").textContent = String(d.segredo || "").replace(/(.{4})/g, "$1 ").trim();
     $("otpauth").href = d.otpauth || "#";
-    frase("Adicione a conta ao autenticador.");
+    frase("convite_autenticador");
     mostrar("passo-app");
   }
 
@@ -375,7 +390,7 @@
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.detail || "a volta do Google venceu; abra o convite de novo");
       mostrarQr(d);
-    }).catch((err) => { $("erro-convite-texto").textContent = err.message; convidou("Este convite não serve."); });
+    }).catch((err) => { $("erro-convite-texto").textContent = err.message; convidou(); });
   }
 
   $("google").addEventListener("click", async () => {
@@ -395,13 +410,12 @@
     const d = await r.json().catch(() => ({}));
     if (!r.ok) {
       $("erro-convite-texto").textContent = d.detail || "este convite não existe";
-      convidou("Este convite não serve.");
+      convidou();
       return;
     }
     convite = d;
     const primeiro = String(d.nome || "").split(" ")[0];
-    frase((primeiro ? primeiro + ", este é o seu convite" : "Este é o seu convite") + " para o PAVLVS " +
-      (d.escritorio ? "de " + d.escritorio : "do escritório") + ".");
+    frase("convite", { nome: primeiro, escritorio: d.escritorio || "" });
     $("email").textContent = d.email;
     $("usuario").value = d.email;
     $("marca-conta").innerHTML = d.google ? G : ENVELOPE;
@@ -423,7 +437,7 @@
     mostrarRobo(d.turnstile_sitekey);
   }).catch(() => {
     $("erro-convite-texto").textContent = "não consegui abrir o convite; recarregue a página";
-    convidou("O convite não abriu.");
+    convidou();
   });
 
   $("form-senha").addEventListener("submit", async (e) => {
@@ -450,7 +464,7 @@
       const lista = $("codigos");
       lista.textContent = "";
       (d.codigos_recuperacao || []).forEach((c) => { const x = document.createElement("code"); x.textContent = c; lista.appendChild(x); });
-      frase("Pronto: a sua conta está ativa.");
+      frase("convite_pronto");
       mostrar("passo-fim");
     } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; $("codigo").select(); }
   });

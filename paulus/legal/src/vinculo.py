@@ -388,7 +388,8 @@ ESTATICOS = ("/css/", "/js/", "/img/", "/fontes/", "/marca/")
 def passa_travado(metodo: str, caminho: str) -> bool:
     if caminho == "/" or caminho in ("/fontes.css", "/favicon.ico") or caminho.startswith(ESTATICOS):
         return metodo in ("GET", "HEAD")
-    if caminho in ("/api/status", "/api/preferencias", "/api/acesso/eu"):
+    # A frase da tela de entrar (src/saudacao.py): so hora, dia e calendario.
+    if caminho in ("/api/status", "/api/preferencias", "/api/acesso/eu", "/api/saudacao/entrada"):
         return metodo in ("GET", "HEAD")
     # O "Perguntar ao PAULUS" do Explorer com a janela travada: o pedido so
     # traz a janela para frente; o arquivo espera ate alguem entrar (a tela

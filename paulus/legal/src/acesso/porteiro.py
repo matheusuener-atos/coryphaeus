@@ -19,10 +19,18 @@ from acesso.chave import CABECALHO, COOKIE, ChaveLocal
 
 PAGINA_RECUSADA = """<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>PAULUS</title>
-<style>body{font-family:system-ui,sans-serif;background:#f4f1ea;color:#171716;display:grid;place-items:center;min-height:100vh;margin:0}
-main{max-width:30rem;padding:2rem}h1{font-family:Georgia,serif;font-weight:500;font-size:1.6rem;margin:0 0 .6rem}
-p{line-height:1.5;color:#4a4843}</style></head><body><main><h1>Este endereço não abre fora da janela do PAULUS</h1>
-<p>O PAULUS só atende a janela do próprio programa, neste computador. Abra o PAULUS pelo atalho do Windows.</p>
+<link rel="stylesheet" href="/fontes.css">
+<style>:root{--bg:#131312;--ink:#f2f1ec;--ink2:#a8a69e;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#faf9f6;--ink:#1c1c1a;--ink2:#5c5b56;color-scheme:light}}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:400 15px/1.6 'Manrope',system-ui,sans-serif;
+display:flex;justify-content:center;padding:22vh 24px 48px;box-sizing:border-box}
+main{max-width:360px;display:grid;gap:14px;text-align:center;align-content:start}
+h1{margin:0;font:400 44px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;text-wrap:balance}
+p{margin:0;color:var(--ink2);text-wrap:pretty}
+main>*{animation:aparece .7s ease both}@keyframes aparece{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){main>*{animation:none}}</style></head>
+<body><main><h1>Paulus está te esperando.</h1>
+<p>Este endereço só abre na janela do PAULUS, neste computador. Abra o PAULUS pelo atalho do Windows.</p>
 </main></body></html>"""
 
 

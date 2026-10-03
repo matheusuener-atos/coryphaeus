@@ -206,8 +206,12 @@ def escolher(frases: list[dict], ctx: Contexto, recentes: list[str], *, sorteio:
     A frase: das que servem, a camada mais forte que ainda tenha frase fora das
     `recentes`; uma situacao forte nunca cede. Devolve {id, texto} ou None.
     """
+    return _escolher(frases, ctx.condicoes(), ctx.marcas(), recentes, sorteio=sorteio, limite=limite)
+
+
+def _escolher(frases: list[dict], conds: dict[str, set[str]], marcas: dict[str, str], recentes: list[str], *,
+              sorteio: random.Random | None = None, limite: int = 0) -> dict | None:
     r = sorteio or random.Random()
-    conds, marcas = ctx.condicoes(), ctx.marcas()
     servem = [f for f in frases if serve(f, conds, marcas)]
     if limite:
         servem = [f for f in servem if len(preencher(f["texto"], marcas)) <= limite]
@@ -242,6 +246,56 @@ def saudar(ctx: Contexto, recentes: list[str], banco: dict | None = None, sortei
         conversa = {"id": c.get("id"), "titulo": c.get("titulo")} if c else None
     return {"titulo": titulo["texto"], "subtitulo": sub["texto"], "ids": [titulo["id"], sub["id"]],
             "conversa": conversa, "condicoes": {k: sorted(v) for k, v in conds.items()}}
+
+
+# ------------------------------------------------- as telas de entrada (03/10)
+#
+# O titulo de toda tela de entrar e "Paulus está te esperando." - PAVLVS e a
+# marca; Paulus, o agente. Embaixo, uma frase do banco proprio
+# (config/saudacoes_entrada.json), escolhida pela mesma regra da saudacao,
+# so com o momento, o dia e o calendario: a tela de entrar abre para quem
+# ainda nao entrou (de fora, pela internet), entao nada do escritorio - nome,
+# prazo, conversa - entra na escolha. Cada frase diz em que telas vale; as de
+# codigo, chave e erro sao serias e sem variacao de tom.
+
+BANCO_ENTRADA = Path(__file__).resolve().parent.parent / "config" / "saudacoes_entrada.json"
+TITULO_ENTRADA = "Paulus está te esperando."
+TELAS_ENTRADA = ("entrar", "senha", "codigo", "chave", "convite", "convite_erro", "convite_autenticador", "convite_pronto",
+                 "trava", "trava_codigo", "trava_sem_internet", "google_ok", "google_entrou", "google_negado", "google_expirado", "fora_da_janela")
+_BANCO_ENTRADA_CACHE: dict = {}
+
+
+def carregar_entrada(caminho: Path = BANCO_ENTRADA) -> dict:
+    if not _BANCO_ENTRADA_CACHE.get(str(caminho)):
+        _BANCO_ENTRADA_CACHE[str(caminho)] = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    return _BANCO_ENTRADA_CACHE[str(caminho)]
+
+
+def _marca_limpa(valor: str, n: int = 40) -> str:
+    """O que a tela manda para preencher a frase (o nome do convidado, o provedor): curto e so texto."""
+    return re.sub(r"[<>{}\"\\]", "", str(valor or "")).strip()[:n]
+
+
+def saudar_entrada(tela: str, agora: datetime, recentes: list[str] | None = None, *, nome: str = "", provedor: str = "",
+                   escritorio: str = "",
+                   banco: dict | None = None, sorteio: random.Random | None = None) -> dict:
+    """O titulo e a frase de uma tela de entrar. `tela` fora da lista vale como "entrar"."""
+    banco = banco or carregar_entrada()
+    tela = tela if tela in TELAS_ENTRADA else "entrar"
+    cal, feriado = calendario_de(agora.date())
+    conds = {"momento": {momento_de(agora.hour)}, "dia": {dia_de(agora.date())}, "calendario": cal,
+             "chegada": set(), "situacao": set()}
+    nome = _marca_limpa(nome).split(" ")[0] if nome else ""
+    marcas = {"feriado": feriado, "nome": nome, "provedor": _marca_limpa(provedor, 20), "escritorio": _marca_limpa(escritorio, 60)}
+    frases = [f for f in banco["subtitulos"] if tela in (f.get("telas") or []) and serve(f, conds, marcas)]
+    # A que diz mais (o nome e o escritorio no convite) vence a geral.
+    if frases:
+        mais = max(len(set(RE_MARCA.findall(f["texto"]))) for f in frases)
+        frases = [f for f in frases if len(set(RE_MARCA.findall(f["texto"]))) == mais]
+    escolha = _escolher(frases, conds, marcas, list(recentes or []), sorteio=sorteio, limite=LIMITE_TITULO * 2)
+    if escolha is None:
+        escolha = {"id": "e-reserva", "texto": banco.get("reserva", {}).get(tela) or "Entre com a sua conta para continuar."}
+    return {"titulo": banco.get("titulo") or TITULO_ENTRADA, "subtitulo": escolha["texto"], "ids": [escolha["id"]], "tela": tela}
 
 
 # ------------------------------------------------------------------ servidor
@@ -301,6 +355,13 @@ def contexto_do_escritorio(estado, agora: datetime, pessoa: dict | None, ultima_
 
 
 def montar(estado, app, pessoa_de) -> None:
+    @app.get("/api/saudacao/entrada")
+    def rota_saudacao_entrada(tela: str = "entrar", recentes: str = "", nome: str = "", provedor: str = "",
+                              escritorio: str = "") -> dict:
+        """A frase das telas de entrar: sem sessao e sem nada do escritorio (so a hora, o dia e o calendario)."""
+        return saudar_entrada(tela, datetime.now(), [x for x in recentes.split(",") if x][:40], nome=nome, provedor=provedor,
+                              escritorio=escritorio)
+
     @app.get("/api/saudacao")
     def rota_saudacao(request: Request, recentes: str = "", ultima_abertura: str = "", ultima_conversa: str = "",
                       conversa_aberta_em: str = "", agora: str = "") -> dict:
