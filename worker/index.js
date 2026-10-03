@@ -39,6 +39,10 @@ import { atenderCasa, ehRotaDaCasa } from "./nfse-casa.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
+// O emissor de NFS-e da nuvem (worker/nfse/emissor.js). So a classe do Durable
+// Object e exportada (o binding EMISSOR_NFSE pede); as rotas ainda nao estao
+// ligadas aqui (worker/nfse/api.js, atenderEmissor).
+export { EmissorNFSe } from "./nfse/emissor.js";
 
 const MP = "https://api.mercadopago.com";
 // O aviso do Mercado Pago mais velho que isto e recusado (repeticao).

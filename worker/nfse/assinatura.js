@@ -23,6 +23,9 @@ const ALGORITMOS = {
   sha256: { assinatura: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256", resumo: "http://www.w3.org/2001/04/xmlenc#sha256", hash: "SHA-256" },
 };
 
+/** sha1 | sha256 -> o nome do hash no WebCrypto. */
+export const ALGORITMOS_HASH = { sha1: "SHA-1", sha256: "SHA-256" };
+
 const utf8 = new TextEncoder();
 
 export function b64(bytes) {

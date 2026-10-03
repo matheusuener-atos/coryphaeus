@@ -84,6 +84,12 @@
     "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "d64e139883ea6f7246380d9c3c9c35a5bdef62163e768d103527cc4c003fd04f" },
   // O medidor da nuvem: um Durable Object por conta (worker/ia.js, ContaIA).
   // SQLite, o tipo que o plano gratis da Cloudflare aceita.
-  "durable_objects": { "bindings": [{ "name": "CONTAS_IA", "class_name": "ContaIA" }] },
-  "migrations": [{ "tag": "v1-contas-ia", "new_sqlite_classes": ["ContaIA"] }]
+  //
+  // O emissor de NFS-e da nuvem (worker/nfse/emissor.js, EmissorNFSe): uma
+  // instancia so (idFromName("pavlvs")), SQLite. O certificado e a chave da
+  // NFS-e ficam cifrados nele com o segredo NFSE_CHAVE_MESTRA (npx wrangler
+  // secret put NFSE_CHAVE_MESTRA; openssl rand -base64 32). As rotas ainda nao
+  // estao ligadas (worker/nfse/api.js).
+  "durable_objects": { "bindings": [{ "name": "CONTAS_IA", "class_name": "ContaIA" }, { "name": "EMISSOR_NFSE", "class_name": "EmissorNFSe" }] },
+  "migrations": [{ "tag": "v1-contas-ia", "new_sqlite_classes": ["ContaIA"] }, { "tag": "v2-emissor-nfse", "new_sqlite_classes": ["EmissorNFSe"] }]
 }

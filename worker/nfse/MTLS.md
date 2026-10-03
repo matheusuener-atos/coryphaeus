@@ -99,10 +99,10 @@ export default {
 No Worker principal (wrangler.jsonc), o service binding:
 
 ```jsonc
-"services": [ { "binding": "NFSE_MTLS", "service": "paulus-nfse-mtls" } ]
+"services": [ { "binding": "SEFIN_MTLS", "service": "paulus-nfse-mtls" } ]
 ```
 
-e a chamada: `env.NFSE_MTLS.fetch("https://interno/", { method: "POST", headers: { "x-nfse-url": url }, body })`.
+e a chamada: `env.SEFIN_MTLS.fetch("https://interno/", { method: "POST", headers: { "x-nfse-url": url }, body })`.
 
 Pela API, desligar o `*.workers.dev` do auxiliar:
 `POST /accounts/{account_id}/workers/scripts/paulus-nfse-mtls/subdomain` com `{"enabled": false}`
@@ -118,3 +118,15 @@ Token de conta (Account API Token ou User API Token restrito à conta), só:
 | Account › Workers Scripts › Edit | `PUT /workers/scripts/paulus-nfse-mtls` e o `subdomain` |
 
 Nenhuma permissão de zona é necessária (o auxiliar não tem rota).
+
+## 5. Como o emissor usa (fase 2)
+
+`worker/nfse/sefin.js`, `fetchPeloMtls(env)`: todo pedido à Sefin/ADN sai por
+`env.SEFIN_MTLS.fetch("https://interno/", {method, headers: {..., "x-nfse-url": url}, body})`.
+Qualquer erro do `fetch` (tempo esgotado, conexão caída) é tratado como
+"sem resposta": o emissor CONSULTA a DPS antes de qualquer reenvio. O
+auxiliar pode responder `x-nfse-nao-chegou: 1` quando recusa o destino sem
+abrir conexão (aí o pedido certamente não chegou e a nota vai para a fila).
+O binding `SEFIN_MTLS` ainda NÃO está no wrangler.jsonc: entra quando o
+auxiliar existir (sem ele, `podeEmitir` passa, mas o envio vai para a fila
+com "sem conexão com a Sefin configurada").

@@ -12,7 +12,7 @@
 // Qualquer outro caminho vai para o Worker do site, como sempre.
 
 import site from "../index.js";
-export { ContaIA } from "../index.js";
+export { ContaIA, EmissorNFSe } from "../index.js";
 import { lerPfx } from "./pfx.js";
 import { assinar, b64, importarChave } from "./assinatura.js";
 import { deGzipB64, gzipB64 } from "./gzip.js";

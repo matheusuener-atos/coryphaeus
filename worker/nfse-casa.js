@@ -194,6 +194,15 @@ function bytesDoBase64(b64) {
 async function receberNota(request, env) {
   const d = await lerJSON(request);
   if (!d) return json({ erro: "pedido inválido" }, 400);
+  const r = await guardarNotaDoCliente(env, d);
+  return json(r.corpo, r.status);
+}
+
+/* A nota emitida no lugar onde o app do cliente a busca (nfse:nota*, o
+   contrato de POST /api/nfse-casa/notas). Exportada para o emissor da nuvem
+   (worker/nfse/emissor.js) gravar nas MESMAS chaves. Devolve {status, corpo}. */
+export async function guardarNotaDoCliente(env, d) {
+  const json = (corpo, status = 200) => ({ corpo, status });
   const id = String(d.id || "");
   const conta = String(d.conta || "");
   if (!RE_NOTA.test(id)) return json({ erro: "o id da nota vai com letras, números, ponto, _ ou - (até 64)" }, 400);
@@ -224,19 +233,25 @@ async function receberNota(request, env) {
   await env.APOIOS.put("nfse:nota:" + base, JSON.stringify(meta));
   if (pagamento) await marcarPagamento(env, pagamento, { nota: "emitida", numero: meta.numero, nota_id: id, erro: "" });
   if (d.email !== true) return json({ ok: true });
+  const email = await mandarNotaPorEmail(env, meta, pdf.b64, xml.b64);
+  return json({ ok: true, email });
+}
+
+/* O e-mail "Sua NFS-e de ..." com o PDF e o XML (base64) anexos. Exportada
+   para o emissor da nuvem (depoisDeEmitir). Nunca lanca (veja mandarEmail). */
+export async function mandarNotaPorEmail(env, meta, pdfB64, xmlB64) {
   const anexos = [];
-  const arquivo = "NFS-e " + (meta.numero || id).replace(/[^A-Za-z0-9_.-]/g, "");
-  if (pdf.b64) anexos.push({ nome: arquivo + ".pdf", b64: pdf.b64 });
-  if (xml.b64) anexos.push({ nome: arquivo + ".xml", b64: xml.b64 });
+  const arquivo = "NFS-e " + String(meta.numero || meta.id).replace(/[^A-Za-z0-9_.-]/g, "");
+  if (pdfB64) anexos.push({ nome: arquivo + ".pdf", b64: pdfB64 });
+  if (xmlB64) anexos.push({ nome: arquivo + ".xml", b64: xmlB64 });
   const linhas = [
     "Segue a NFS-e da sua assinatura do PAVLVS, com o PDF e o XML anexos.",
-    "Número: " + (meta.numero || "—") + "\nValor: " + brl(meta.valor) + "\nCompetência: " + mesAno(competencia),
+    "Número: " + (meta.numero || "—") + "\nValor: " + brl(meta.valor) + "\nCompetência: " + mesAno(meta.competencia),
   ];
-  if (ambiente === "producao_restrita") linhas.push("Esta nota foi emitida no ambiente de testes, sem valor fiscal.");
-  const email = await mandarEmail(env, conta, {
-    assunto: "Sua NFS-e de " + mesAno(competencia) + " — PAVLVS", titulo: "Sua NFS-e de " + mesAno(competencia), texto: linhas.join("\n\n"), anexos,
+  if (meta.ambiente === "producao_restrita") linhas.push("Esta nota foi emitida no ambiente de testes, sem valor fiscal.");
+  return mandarEmail(env, meta.conta, {
+    assunto: "Sua NFS-e de " + mesAno(meta.competencia) + " — PAVLVS", titulo: "Sua NFS-e de " + mesAno(meta.competencia), texto: linhas.join("\n\n"), anexos,
   });
-  return json({ ok: true, email });
 }
 
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -251,7 +266,7 @@ function brl(v) {
 /* Manda o e-mail da nota ao e-mail do tomador (o ajuste da casa) ou, sem ele,
    ao da conta. Devolve "enviado" | "sem RESEND_API_KEY" | "sem e-mail do
    cliente" | "falhou: <motivo>"; nunca lanca. */
-async function mandarEmail(env, contaId, { assunto, titulo, texto, anexos }) {
+export async function mandarEmail(env, contaId, { assunto, titulo, texto, anexos }) {
   if (!env.RESEND_API_KEY) return "sem RESEND_API_KEY";
   try {
     const ajuste = (await kvJSON(env, "nfse:tomador:" + contaId)) || {};
@@ -268,7 +283,7 @@ async function mandarEmail(env, contaId, { assunto, titulo, texto, anexos }) {
   }
 }
 
-async function marcarPagamento(env, pagamento, campos) {
+export async function marcarPagamento(env, pagamento, campos) {
   const chave = "admin:nfse:" + pagamento;
   const x = await kvJSON(env, chave);
   if (!x) return;
@@ -277,6 +292,15 @@ async function marcarPagamento(env, pagamento, campos) {
 
 async function cancelarNota(request, env, id) {
   const d = (await lerJSON(request)) || {};
+  const r = await avisarNotaCancelada(env, id, d);
+  return json(r.corpo, r.status);
+}
+
+/* A nota cancelada (ou substituida) no app do cliente: o contrato de POST
+   /api/nfse-casa/notas/:id/cancelada. Exportada para o emissor da nuvem.
+   d: {conta, email?, substituta?: {numero}}. Devolve {status, corpo}. */
+export async function avisarNotaCancelada(env, id, d) {
+  const json = (corpo, status = 200) => ({ corpo, status });
   const conta = String(d.conta || "");
   if (!RE_CONTA.test(conta)) return json({ erro: "conta inválida" }, 400);
   const chave = "nfse:nota:" + conta + ":" + id;
