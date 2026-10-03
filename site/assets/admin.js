@@ -2075,20 +2075,20 @@
     if (erroLeitura) h += '<p class="erro-campo">Não consegui conferir a sessão: ' + esc(erroLeitura) + "</p>";
     if (E.erroVolta) h += '<p class="erro-campo" role="alert">' + esc(E.erroVolta) + "</p>";
     // passo 1
-    h += '<div class="passo"><span class="passo-cab rotulo"><span>1 · Cloudflare Access</span><span style="color:' + (acc ? "var(--ok)" : "var(--ink3)") + '">' + (acc ? "ok" : "pendente") + "</span></span>" +
+    h += '<div class="passo">' +
       '<div class="selo"><span class="selo-esq"><span class="selo-icone' + (acc ? "" : " neutro") + '">' + ic(acc ? "check" : "shield") + "</span><span>" + esc(acc ? s.access.email : "Entrada pelo e-mail da equipe") + '</span></span><span class="selo-dir"><b>PAULUS.IA.BR/ADMIN</b><span>verificação do Cloudflare</span></span></div>';
     if (!acc) h += '<button type="button" class="btn-duplo largo" data-a="recarregar"' + attrDis(desligado(cA), cA.falta) + "><span>" + ic("shield") + "Entrar pelo Cloudflare Access</span></button>" + (desligado(cA) ? '<p class="erro-campo">' + esc(cA.falta) + "</p>" : "");
     h += '<span class="nota-campo">O Access confere o seu e-mail com um código de uso único antes de a página carregar. Só quem está na lista da equipe chega aqui.</span></div>';
     // passo 2
-    h += '<div class="passo' + (acc ? "" : " depois") + '"><span class="passo-cab rotulo"><span>2 · GitHub</span><span style="color:' + (gh ? "var(--ok)" : "var(--ink3)") + '">' + (gh ? "ok" : acc ? "pendente" : "depois do passo 1") + "</span></span>" +
+    h += '<div class="passo' + (acc ? "" : " depois") + '">' +
       '<div class="selo"><span class="selo-esq"><span class="selo-icone' + (gh ? "" : " neutro") + '">' + ic(gh ? "check" : "lock") + "</span><span>" + esc(gh ? s.github.login : "Login social do GitHub") + '</span></span><span class="selo-dir"><b>GITHUB</b><span>coryphaeus · colaborador</span></span></div>';
     if (acc && !gh) h += '<button type="button" class="btn-duplo largo" data-a="github"' + attrDis(desligado(cG), cG.falta) + "><span>" + GITHUB_SVG + "Entrar com o GitHub</span></button>" + (desligado(cG) ? '<p class="erro-campo">' + esc(cG.falta) + "</p>" : "");
-    h += '<span class="nota-campo">O login social confirma que a conta do GitHub tem escrita no repositório: é ela que assina o "commitar e pushar".</span></div>';
+    h += "</div>";
     if (acc && gh) {
       if (s.pronto) h += '<button type="button" class="btn-duplo largo" data-a="entrarPainel" id="entrar-painel"><span>Entrar no painel' + ic("arrow_forward", "s18") + "</span></button>";
       else h += '<p class="erro-campo">' + (s.papel ? "A sessão ainda não está pronta. Recarregue a página." : "O e-mail " + esc(s.access.email) + " não está na equipe do painel.") + "</p>";
     }
-    h += '<span class="nota-campo nota-centro">As duas sessões valem por 24 horas. Sair do painel encerra as duas.</span></div>';
+    h += "</div>";
     pintar($("entrada-col"), h);
   }
 
