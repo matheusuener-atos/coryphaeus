@@ -20,6 +20,13 @@ class Parametros(BaseModel):
     prestador: dict | None = None
     token_ponte: str = ""
     enviar_sozinho: bool | None = None
+    mandar_email: bool | None = None
+
+
+class Motivo(BaseModel):
+    motivo: str = ""
+    texto: str = ""
+    ajustes: dict = {}
 
 
 class Emitir(BaseModel):
@@ -164,6 +171,22 @@ def montar(estado, app, dados_dir) -> None:
         try:
             return casa().enviar(id_)
         except (ValueError, casa_nfse.ErroPonte) as exc:
+            erro(exc)
+
+    @app.post("/api/casa-nfse/notas/{id_}/cancelar")
+    def casa_nota_cancelar(id_: int, payload: Motivo) -> dict:
+        _nota(id_)
+        try:
+            return casa().cancelar(id_, payload.motivo, payload.texto, quem="titular")
+        except ValueError as exc:
+            erro(exc)
+
+    @app.post("/api/casa-nfse/notas/{id_}/substituir")
+    def casa_nota_substituir(id_: int, payload: Motivo) -> dict:
+        _nota(id_)
+        try:
+            return casa().substituir(id_, payload.motivo, payload.texto, payload.ajustes, quem="titular")
+        except ValueError as exc:
             erro(exc)
 
     @app.post("/api/casa-nfse/producao/liberar")

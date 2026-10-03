@@ -42,8 +42,16 @@ próprios. O emissor do escritório continua como está.
   tentado de novo em 6 h). "Enviar PDF e XML ao cliente" manda a nota ao app
   dele logo depois de emitir. Os dois só valem com o PAULUS da casa ligado.
 
-## O que não faz (ainda)
+- **Cancelar**: motivo da tabela oficial e a descrição (15 a 255 caracteres),
+  dentro do prazo do município. O app do cliente é avisado.
+- **Substituir**: uma nota nova no lugar da antiga, com o que estava errado
+  corrigido (tomador, valor, descrição, competência); a Sefin cancela a antiga
+  sozinha. No Simples, tomador, valor e competência não mudam (E0061). A
+  substituta vai ao app do cliente, ligada ao mesmo pagamento.
+- **E-mail**: "Mandar também por e-mail" (nos Parâmetros ou no painel) manda
+  o PDF e o XML anexos ao e-mail fiscal do cliente, pelo Resend do Worker.
 
-- cancelar ou substituir nota por esta tela (o emissor sabe; falta o botão);
-- mandar a nota por e-mail (vai ao app do cliente);
-- emitir com o servidor desligado: o pagamento espera na lista do painel.
+## O que não faz
+
+- emitir com o servidor desligado: o pagamento espera na lista do painel e
+  sai na primeira rodada depois que ele ligar (até 5 min).

@@ -120,11 +120,15 @@ function desenharCasaNfse() {
         '<button class="cn-mini" data-cn="imprimir" data-id="' + n.id + '" title="Imprimir">' + ic("print", 16) + "</button>" +
         '<a class="cn-mini" href="/api/casa-nfse/notas/' + n.id + '/xml" title="Baixar o XML">' + ic("code", 16) + "XML</a>" +
         '<button class="cn-mini" data-cn="enviar" data-id="' + n.id + '"' + (n.conta ? "" : ' disabled title="nota sem conta de assinante"') + ">" +
-        ic("send", 16) + (n.enviada_em ? "Reenviar" : "Enviar ao cliente") + "</button>"
-      : '<span class="cfg-explica">' + esc(n.erro || "") + "</span>";
+        ic("send", 16) + (n.enviada_em ? "Reenviar" : "Enviar ao cliente") + "</button>" +
+        '<button class="cn-mini" data-cn="substituir" data-id="' + n.id + '" title="Emitir uma nota que substitui esta">' + ic("swap_horiz", 16) + "Substituir</button>" +
+        '<button class="cn-mini perigo" data-cn="cancelar" data-id="' + n.id + '" title="Cancelar no Sistema Nacional">' + ic("block", 16) + "Cancelar</button>"
+      : (n.estado === "cancelada" || n.estado === "substituida"
+        ? '<a class="cn-mini" href="/api/casa-nfse/notas/' + n.id + '/xml" title="Baixar o XML">' + ic("code", 16) + "XML</a>"
+        : '<span class="cfg-explica">' + esc(n.erro || "") + "</span>");
     return "<tr><td>" + esc(n.numero || "—") + "</td><td><b>" + esc(n.cliente) + "</b><small>" + esc(cnDoc(n.documento)) + "</small></td><td>" +
       esc(cnCompetencia(n.competencia)) + '</td><td class="cn-num">' + esc(n.valor) + "</td><td>" + esc(n.estado_rotulo) +
-      (n.ambiente !== "producao" ? " <small>(testes)</small>" : "") + (n.enviada_em ? "<small>enviada " + esc(cnData(n.enviada_em)) + "</small>" : "") +
+      (n.ambiente !== "producao" ? " <small>(testes)</small>" : "") + (n.enviada_em ? "<small>enviada " + esc(cnData(n.enviada_em)) + (n.email ? " · e-mail: " + esc(n.email) : "") + "</small>" : "") +
       '</td><td class="cn-acoes-linha">' + acoes + "</td></tr>";
   }).join("");
   const lista = '<section class="cfg-cartao cn-bloco"><h3>Notas emitidas</h3>' + (linhas
@@ -165,6 +169,10 @@ async function cnAcao(acao, el) {
       await cnDialogoClientes();
     } else if (acao === "parametros") {
       await cnDialogoParametros();
+    } else if (acao === "cancelar") {
+      await cnDialogoCancelar(Number(el.dataset.id));
+    } else if (acao === "substituir") {
+      await cnDialogoSubstituir(Number(el.dataset.id));
     }
   } catch (err) {
     avisoCert(err.message, { tom: "erro" });
@@ -411,6 +419,8 @@ async function cnDialogoParametros() {
     cnCampo("token_ponte", ponte.configurada ? "Chave da ponte (gravada em " + cnData(ponte.gravado_em) + "; preencha só para trocar)" : "Chave da ponte (NFSE_CASA_TOKEN)", "", ' type="password"') +
     '<label class="dialogo-marcar"><input type="checkbox" data-cn-campo="enviar_sozinho"' + (d.enviar_sozinho ? " checked" : "") +
     "><span>Enviar a nota ao app do cliente assim que for emitida</span></label>" +
+    '<label class="dialogo-marcar"><input type="checkbox" data-cn-campo="mandar_email"' + (d.mandar_email ? " checked" : "") +
+    "><span>Mandar também por e-mail (PDF e XML anexos; precisa da RESEND_API_KEY no Worker)</span></label>" +
     "<h4 class=\"cn-sub\">Produção</h4>" +
     (d.producao_liberada
       ? '<p class="dialogo-dica">Em produção: as notas valem de verdade.</p><div class="cfg-botoes"><button type="button" data-cn-amb="voltar">Voltar para o ambiente de testes</button></div>'
@@ -444,3 +454,77 @@ async function cnDialogoParametros() {
 }
 
 casaNfseDisponivel();
+
+/* ----------------------------------------------- cancelar e substituir */
+
+function cnMotivos(tipo) {
+  const m = ((cn.dados || {}).motivos || {})[tipo] || {};
+  const o = {};
+  Object.entries(m).forEach(([k, v]) => { o[k] = k + " – " + v; });
+  return o;
+}
+
+async function cnDialogoCancelar(id) {
+  const n = ((cn.dados || {}).notas || []).find((x) => x.id === id);
+  if (!n) return;
+  const html = '<p class="dialogo-dica">NFS-e nº ' + esc(n.numero) + " · " + esc(n.cliente) + " · " + esc(n.valor) +
+    (n.ambiente === "producao" ? "" : " · ambiente de testes") + ". O cancelamento vai ao Sistema Nacional e não se desfaz; " +
+    "o município tem um prazo para cancelar. Depois do prazo, o caminho é Substituir.</p>" +
+    cnEscolha("motivo", "Motivo (tabela oficial)", cnMotivos("cancelamento"), "1") +
+    cnCampo("texto", "Descreva o motivo (15 a 255 caracteres)", "", ' maxlength="255"') +
+    (n.enviada_em ? '<p class="dialogo-dica">O app do cliente é avisado de que a nota foi cancelada.</p>' : "") +
+    '<p class="cn-erro-dialogo" hidden></p>';
+  const fazer = async () => {
+    const raiz = $("veu-dialogo");
+    const v = cnValores(raiz);
+    cnErroNoDialogo("");
+    const ok = raiz.querySelector('[data-dialogo="confirmar"]');
+    if (ok) { ok.disabled = true; ok.textContent = "Cancelando…"; }
+    try {
+      const r = await cnPost("/api/casa-nfse/notas/" + id + "/cancelar", v);
+      dialogoAberto.fechar({ ok: true });
+      avisoCert("NFS-e nº " + r.numero + " cancelada" + (r.aviso ? "; " + r.aviso : ""), { tom: "ok" });
+      await carregarCasaNfse();
+    } catch (err) {
+      cnErroNoDialogo(err.message);
+      if (ok) { ok.disabled = false; ok.textContent = "Cancelar a nota"; }
+    }
+  };
+  await dialogo({ titulo: "Cancelar a NFS-e nº " + n.numero, contexto: "Notas do PAVLVS", html, classe: "cn-dialogo",
+    confirmar: "Cancelar a nota", cancelar: "Voltar", perigo: true, aoConfirmar: fazer });
+}
+
+async function cnDialogoSubstituir(id) {
+  const n = ((cn.dados || {}).notas || []).find((x) => x.id === id);
+  if (!n) return;
+  const valor = String(n.valor || "").replace(/[^0-9,]/g, "");
+  const html = '<p class="dialogo-dica">Sai uma nota nova no lugar da nº ' + esc(n.numero) + ", e a Sefin cancela a antiga sozinha. " +
+    "Corrija abaixo o que estava errado; o resto vem da nota original.</p>" +
+    cnEscolha("motivo", "Motivo (tabela oficial)", cnMotivos("substituicao"), "01") +
+    cnCampo("texto", "Descrição do motivo (15 a 255 caracteres; obrigatória no motivo 99)", "", ' maxlength="255"') +
+    '<h4 class="cn-sub">Tomador</h4>' + cnCamposTomador(n.tomador || {}, "ajustes.tomador.") +
+    '<h4 class="cn-sub">Serviço</h4>' +
+    cnDuas(cnCampo("ajustes.valor", "Valor (R$)", valor), cnCampo("ajustes.competencia", "Competência", (n.competencia || "").slice(0, 7), ' type="month"')) +
+    cnCampo("ajustes.descricao", "Descrição", n.descricao) +
+    '<p class="dialogo-dica">No Simples Nacional, a substituta não pode mudar o tomador, o valor nem a competência (regra E0061).</p>' +
+    '<p class="cn-erro-dialogo" hidden></p>';
+  const fazer = async () => {
+    const raiz = $("veu-dialogo");
+    const v = cnValores(raiz);
+    if (v.ajustes && v.ajustes.competencia) v.ajustes.competencia = v.ajustes.competencia + "-01";
+    cnErroNoDialogo("");
+    const ok = raiz.querySelector('[data-dialogo="confirmar"]');
+    if (ok) { ok.disabled = true; ok.textContent = "Emitindo…"; }
+    try {
+      const r = await cnPost("/api/casa-nfse/notas/" + id + "/substituir", v);
+      dialogoAberto.fechar({ ok: true });
+      avisoCert("NFS-e nº " + r.numero + " emitida no lugar da nº " + n.numero + (r.aviso ? "; " + r.aviso : ""), { tom: "ok" });
+      await carregarCasaNfse();
+    } catch (err) {
+      cnErroNoDialogo(err.message);
+      if (ok) { ok.disabled = false; ok.textContent = "Emitir a substituta"; }
+    }
+  };
+  await dialogo({ titulo: "Substituir a NFS-e nº " + n.numero, contexto: "Notas do PAVLVS", html, larga: true, classe: "cn-dialogo",
+    confirmar: "Emitir a substituta", aoConfirmar: fazer });
+}

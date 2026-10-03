@@ -31,3 +31,4 @@
 .cn-cliente-linha { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .cn-aviso { color: var(--warnt); }
 .cn-form { margin-top: 8px; }
+.cn-mini.perigo { color: var(--warnt); }

@@ -459,7 +459,7 @@ _declarar(PERMITIDO, "GET /api/casa-nfse/disponivel")
 _declarar(TITULAR, "GET /api/casa-nfse", "GET /api/casa-nfse/municipios", "POST /api/casa-nfse/certificado", "POST /api/casa-nfse/certificado/remover",
           "POST /api/casa-nfse/parametros", "POST /api/casa-nfse/testar", "GET /api/casa-nfse/clientes",
           "POST /api/casa-nfse/clientes/{conta}", "GET /api/casa-nfse/pagamentos", "POST /api/casa-nfse/emitir",
-          "GET /api/casa-nfse/notas/{id_}/pdf", "GET /api/casa-nfse/notas/{id_}/xml", "POST /api/casa-nfse/notas/{id_}/enviar",
+          "GET /api/casa-nfse/notas/{id_}/pdf", "GET /api/casa-nfse/notas/{id_}/xml", "POST /api/casa-nfse/notas/{id_}/enviar", "POST /api/casa-nfse/notas/{id_}/cancelar", "POST /api/casa-nfse/notas/{id_}/substituir",
           "POST /api/casa-nfse/producao/liberar", "POST /api/casa-nfse/producao/voltar")
 # --- V1-V7 (docs/PLANO-NUVEM.md): o termo, o sim do titular, a conta do PAULUS
 # (nuvem), o plano e a recarga - tudo da janela do escritorio. De fora, so a

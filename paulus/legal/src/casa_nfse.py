@@ -98,6 +98,7 @@ class Casa:
         self.site = os.environ.get("PAULUS_SITE", "https://paulus.ia.br").rstrip("/")
         # O teste troca a ponte HTTP por uma função (metodo, caminho, corpo) -> (status, dados).
         self.ponte_local = None
+        self._ultima_resposta: dict = {}
 
     # ------------------------------------------------------------- a ponte
 
@@ -144,6 +145,7 @@ class Casa:
                 dados = {}
         if status >= 400:
             raise ErroPonte(str((dados or {}).get("erro") or f"paulus.ia.br respondeu com erro ({status})"))
+        self._ultima_resposta = dados or {}
         return dados or {}
 
     # ------------------------------------------------------------ clientes
@@ -162,7 +164,8 @@ class Casa:
         # Os dois interruptores do painel (Notas fiscais): emitir sozinho ao
         # confirmar o pagamento e mandar a nota ao app do cliente.
         if isinstance(d.get("config"), dict):
-            self.prefs.atualizar({"painel": {"auto": bool(d["config"].get("auto")), "email": bool(d["config"].get("email"))}})
+            self.prefs.atualizar({"painel": {"auto": bool(d["config"].get("auto")), "email": bool(d["config"].get("email")),
+                                             "mail": bool(d["config"].get("mail"))}})
         return d.get("pagamentos") or []
 
     def _enviar_depois(self) -> bool:
@@ -237,6 +240,8 @@ class Casa:
         token = dados.pop("token_ponte", "")
         if "enviar_sozinho" in dados:
             self.prefs.atualizar({"enviar_sozinho": bool(dados.pop("enviar_sozinho"))})
+        if "mandar_email" in dados:
+            self.prefs.atualizar({"mandar_email": bool(dados.pop("mandar_email"))})
         if token:
             self.guardar_token(token)
         prest = dados.get("prestador")
@@ -356,11 +361,106 @@ class Casa:
             "competencia": (r.get("competencia") or "")[:7], "valor": int(nota.get("centavos") or 0) / 100,
             "descricao": r.get("descricao") or "", "ambiente": nota["ambiente"],
             "emitida_em": nota.get("dh_proc") or nota.get("atualizado_em") or _agora(),
-            "pdf_b64": base64.b64encode(pdf).decode("ascii"), "xml_b64": base64.b64encode(xml).decode("ascii")})
+            "pdf_b64": base64.b64encode(pdf).decode("ascii"), "xml_b64": base64.b64encode(xml).decode("ascii"),
+            "email": self._mandar_email()})
         env = dict(self.prefs.dados.get("enviadas") or {})
         env[str(nota_id)] = _agora()
-        self.prefs.atualizar({"enviadas": env})
+        resp = self._ultima_resposta or {}
+        emails = dict(self.prefs.dados.get("emails") or {})
+        if resp.get("email"):
+            emails[str(nota_id)] = resp["email"]
+        self.prefs.atualizar({"enviadas": env, "emails": emails})
         return self.nota_para_tela(nota)
+
+    def _mandar_email(self) -> bool:
+        return bool(self.prefs.dados.get("mandar_email") or (self.prefs.dados.get("painel") or {}).get("mail"))
+
+    # ------------------------------------------------- cancelar e substituir
+
+    def motivos(self) -> dict:
+        from nfse import tabelas
+
+        return {"cancelamento": tabelas.dominio("motivo_cancelamento"), "substituicao": tabelas.dominio("motivo_substituicao")}
+
+    def _avisar_cancelada(self, nota: dict, substituta: dict | None = None) -> str:
+        """Diz ao Worker que a nota não vale mais (o app do cliente deixa de oferecê-la). Falha não desfaz o cancelamento."""
+        v = (self.prefs.dados.get("vinculos") or {}).get(str(nota["id"])) or {}
+        if not v.get("conta") or str(nota["id"]) not in (self.prefs.dados.get("enviadas") or {}):
+            return ""
+        corpo = {"conta": v["conta"], "email": self._mandar_email()}
+        if substituta:
+            corpo["substituta"] = {"numero": substituta.get("numero_nfse") or ""}
+        try:
+            self.ponte("POST", f"/api/nfse-casa/notas/{nota['id']}/cancelada", corpo)
+            return "o app do cliente foi avisado"
+        except ErroPonte as exc:
+            return f"não consegui avisar o app do cliente: {exc}"
+
+    def cancelar(self, nota_id: int, motivo: str, texto: str, quem: str) -> dict:
+        from nfse.cliente import CertificadoInvalido, NaoChegou, ProducaoBloqueada, SemResposta
+        from nfse.notas import CANCELADA
+
+        e = self.emissor
+        ev = e.eventos.criar_cancelamento_pavlvs(nota_id, str(motivo or ""), texto, quem)
+        try:
+            ev = e.eventos.enviar(ev["id"], quem)
+        except (CertificadoInvalido, ProducaoBloqueada, SemResposta, NaoChegou, RuntimeError) as exc:
+            raise ValueError(f"o cancelamento não saiu: {exc}") from exc
+        nota = e.notas.obter(nota_id)
+        if nota["estado"] != CANCELADA:
+            frases = "; ".join(x.get("frase", "") for x in (ev.get("rejeicao") or []))
+            raise ValueError("a Sefin não confirmou o cancelamento: " + (frases or ev.get("ultimo_erro") or "sem resposta ainda"))
+        r = self.nota_para_tela(nota)
+        r["aviso"] = self._avisar_cancelada(nota)
+        return r
+
+    def substituir(self, nota_id: int, motivo: str, texto: str, ajustes: dict, quem: str) -> dict:
+        """A nota substituta: os dados da original com os ajustes do pop-up; a Sefin cancela a original sozinha."""
+        from nfse.cliente import CertificadoInvalido, ProducaoBloqueada
+        from nfse.notas import APROVADA, EMITIDA
+
+        e = self.emissor
+        original = e.notas.obter(nota_id)
+        if not original or original.get("origem") != ORIGEM:
+            raise ValueError("só a nota do PAVLVS se substitui por aqui")
+        nova = e.eventos.criar_substituta(nota_id, str(motivo or ""), texto, quem)
+        e.base.escrever("UPDATE nfse_notas SET origem = ? WHERE id = ?", (ORIGEM, nova["id"]))
+        mudar = {}
+        a = dict(ajustes or {})
+        if a.get("tomador"):
+            mudar["tomador"] = a["tomador"]
+        for k in ("valor", "descricao", "competencia"):
+            if a.get(k):
+                mudar[k] = str(a[k])
+        if mudar:
+            e.notas.atualizar(nova["id"], mudar, quem=quem, gravar_no_cadastro=False)
+        nova = e.notas.conferir(nova["id"])
+        if nova["erros"]:
+            e.notas.descartar(nova["id"], quem=quem)
+            raise ValueError("a nota substituta não passou na conferência: " + "; ".join(nova["erros"][:4]))
+        vinc = dict(self.prefs.dados.get("vinculos") or {})
+        vinc[str(nova["id"])] = dict(vinc.get(str(nota_id)) or {})
+        self.prefs.atualizar({"vinculos": vinc})
+        e.notas.mudar_estado(nova["id"], APROVADA, quem, "Notas do PAVLVS: substituta emitida pelo titular na tela",
+                             aprovado_por=quem, aprovado_em=_agora())
+        try:
+            nova = e.envio.emitir(nova["id"], quem)
+        except (CertificadoInvalido, ProducaoBloqueada) as exc:
+            raise ValueError(str(exc)) from exc
+        if nova["estado"] != EMITIDA:
+            frases = "; ".join(x.get("frase", "") for x in (nova.get("rejeicao") or []))
+            raise ValueError("a Sefin não aceitou a substituta: " + (frases or nova.get("ultimo_erro") or nova["estado_rotulo"]))
+        r = self.nota_para_tela(nova)
+        avisos = [self._avisar_cancelada(e.notas.obter(nota_id), nova)]
+        foi = str(nota_id) in (self.prefs.dados.get("enviadas") or {})
+        if (vinc.get(str(nova["id"])) or {}).get("conta") and (self._enviar_depois() or foi):
+            try:
+                self.enviar(nova["id"])
+                avisos.append("a substituta foi ao app do cliente")
+            except (ErroPonte, ValueError) as exc:
+                avisos.append(f"a substituta não foi ao app do cliente: {exc}")
+        r["aviso"] = "; ".join(x for x in avisos if x)
+        return r
 
     # ------------------------------------------------------------- produção
 
@@ -388,11 +488,13 @@ class Casa:
         t = (n.get("rascunho") or {}).get("tomador") or {}
         return {"id": n["id"], "estado": n["estado"], "estado_rotulo": n["estado_rotulo"], "numero": n.get("numero_nfse") or "",
                 "chave": n.get("chave") or "", "cliente": t.get("nome") or n.get("tomador_nome") or "",
-                "documento": t.get("documento") or "", "valor": n["valor"],
+                "documento": t.get("documento") or "", "valor": n["valor"], "tomador": t,
                 "competencia": ((n.get("rascunho") or {}).get("competencia") or "")[:7],
                 "descricao": (n.get("rascunho") or {}).get("descricao") or "", "ambiente": n["ambiente"],
                 "quando": n.get("dh_proc") or n.get("atualizado_em") or "", "erro": n.get("ultimo_erro") or "",
-                "conta": v.get("conta") or "", "enviada_em": (self.prefs.dados.get("enviadas") or {}).get(str(n["id"])) or ""}
+                "conta": v.get("conta") or "", "enviada_em": (self.prefs.dados.get("enviadas") or {}).get(str(n["id"])) or "",
+                "email": (self.prefs.dados.get("emails") or {}).get(str(n["id"])) or "",
+                "substitui_id": n.get("substitui_id"), "substituida_por_id": n.get("substituida_por_id")}
 
     def para_tela(self) -> dict:
         e = self.emissor
@@ -403,6 +505,7 @@ class Casa:
         return {**tela, "notas": notas, "ponte": {"configurada": bool(ponte.get("token")), "gravado_em": ponte.get("gravado_em", ""),
                                                   "site": self.site},
                 "enviar_sozinho": bool(self.prefs.dados.get("enviar_sozinho")),
+                "mandar_email": bool(self.prefs.dados.get("mandar_email")), "motivos": self.motivos(),
                 "painel": self.prefs.dados.get("painel") or {},
                 "automaticas": self.prefs.dados.get("automaticas") or {},
                 "producao_liberada": e.producao_liberada(), "ultimo_teste": self.prefs.dados.get("ultimo_teste") or {}}

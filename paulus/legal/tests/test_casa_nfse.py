@@ -39,6 +39,7 @@ SENHA = "senha-do-a1-pavlvs"
 class WorkerFalso:
     def __init__(self) -> None:
         self.notas: list[dict] = []
+        self.canceladas: list[tuple] = []
         self.config = {"auto": False, "email": False}
         self.pagamentos = [{"id": "p1", "conta": "c1", "cliente": "ACME Advogados", "tipo": "mensalidade",
                             "valor": 300, "nota": "pendente", "quando": "2026-09-05T10:00:00Z"}]
@@ -60,6 +61,9 @@ class WorkerFalso:
             return 200, {"pagamentos": self.pagamentos, "config": self.config}
         if caminho == "/api/nfse-casa/notas":
             self.notas.append(corpo)
+            return 200, {"ok": True, "email": "enviado" if corpo.get("email") else ""}
+        if caminho.startswith("/api/nfse-casa/notas/") and caminho.endswith("/cancelada"):
+            self.canceladas.append((caminho.split("/")[4], corpo))
             return 200, {"ok": True}
         return 404, {"erro": "rota não existe"}
 
@@ -175,6 +179,34 @@ def main() -> int:
         auto = casa.prefs.dados["automaticas"]
         checar("dados fiscais" in auto["p3"]["erro"], "o p3 fica anotado com o motivo", auto.get("p3"))
         checar(casa.rodada_automatica() == [], "a segunda rodada não emite de novo")
+
+        print("\ncancelar e substituir")
+        alvo = feitos[0]["id"]
+        w.config["mail"] = True
+        casa.pagamentos()
+        r = local.post(f"/api/casa-nfse/notas/{alvo}/cancelar", json={"motivo": "1", "texto": "curto"})
+        checar(r.status_code == 400 and "15 a 255" in r.json()["detail"], "motivo curto é recusado", r.text[:200])
+        r = local.post(f"/api/casa-nfse/notas/{alvo}/cancelar", json={"motivo": "1", "texto": "Valor da recarga lançado em duplicidade"})
+        checar(r.status_code == 200 and r.json()["estado"] == "cancelada", "cancelada no Sistema Nacional", r.text[:300])
+        checar(w.canceladas and w.canceladas[-1][0] == str(alvo) and w.canceladas[-1][1]["email"] is True,
+               "o Worker é avisado (com o e-mail ligado no painel)", w.canceladas[-1:])
+        checar(local.post(f"/api/casa-nfse/notas/{alvo}/cancelar", json={"motivo": "1", "texto": "Valor da recarga lançado em duplicidade"}).status_code == 400,
+               "cancelar de novo é recusado")
+        antes = len(w.notas)
+        r = local.post(f"/api/casa-nfse/notas/{n['id']}/substituir", json={
+            "motivo": "01", "texto": "", "ajustes": {"valor": "320,00", "descricao": "Assinatura do PAULUS — setembro/2026 (corrigida)"}})
+        sub = r.json()
+        checar(r.status_code == 200 and sub["estado"] == "emitida" and sub["valor"] == "R$ 320,00", "a substituta sai com o valor corrigido", r.text[:300])
+        orig = casa.emissor.notas.obter(n["id"])
+        checar(orig["estado"] == "substituida", "a original fica substituída", orig["estado"])
+        checar(w.canceladas[-1][0] == str(n["id"]) and w.canceladas[-1][1].get("substituta", {}).get("numero") == sub["numero"],
+               "o Worker sabe que foi substituída, e por qual", w.canceladas[-1:])
+        checar(len(w.notas) == antes + 1 and w.notas[-1]["pagamento"] == "p1" and w.notas[-1]["conta"] == "c1",
+               "a substituta vai ao app do cliente, ligada ao mesmo pagamento")
+        t = local.get("/api/casa-nfse").json()
+        checar(any(x["id"] == sub["id"] and x["email"] == "enviado" for x in t["notas"]), "a lista mostra que o e-mail foi")
+        checar(local.post(f"/api/casa-nfse/notas/{n['id']}/substituir", json={"motivo": "01"}).status_code == 400,
+               "nota já substituída não se substitui de novo")
 
         print("\nprodução")
         r = local.post("/api/casa-nfse/producao/liberar")
