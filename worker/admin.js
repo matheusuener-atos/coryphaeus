@@ -688,8 +688,8 @@ export function htmlDoEmail({ titulo = "", texto = "", botao = "", link = "", pr
     (pre ? '<div style="display:none;max-height:0;overflow:hidden">' + esc(pre) + "</div>" : "") +
     '<div style="max-width:560px;margin:0 auto;padding:32px 24px">' +
     // A marca em EB Garamond (site/assets/pavlvs-marca.png): o e-mail não carrega fonte da internet.
-    '<div style="margin-bottom:24px"><img src="https://paulus.ia.br/assets/pavlvs-marca.png" width="120" height="22" alt="PAVLVS" ' +
-    'style="display:block;border:0;font:400 18px Georgia,serif;letter-spacing:.12em;color:#1c1c1a"></div>' +
+    '<div style="margin-bottom:24px"><img src="https://paulus.ia.br/assets/pavlvs-marca.png?v=2" width="120" height="22" alt="PAVLVS" ' +
+    'style="display:block;border:0;font:400 18px Georgia,serif;letter-spacing:.12em;color:#8a8982"></div>' +
     (titulo ? '<h1 style="margin:0 0 18px;font:400 26px/1.2 Georgia,serif;color:#1c1c1a">' + esc(titulo) + "</h1>" : "") + paragrafos +
     (botao && link ? '<p style="margin:24px 0"><a href="' + esc(link) + '" style="display:inline-block;padding:10px 22px;border-radius:8px;background:#2a2a27;color:#f2f1ec;font:500 14px Arial,sans-serif;text-decoration:none">' + esc(botao) + "</a></p>" : "") +
     '<p style="margin:32px 0 0;padding-top:14px;border-top:1px solid #e2e1db;font:400 12px Arial,sans-serif;color:#77766f">PAVLVS · Este e-mail é automático e não recebe respostas. Dúvidas ou para não receber mais avisos: contato@paulus.ia.br</p>' +
