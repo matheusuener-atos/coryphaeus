@@ -72,7 +72,7 @@ def _perguntar(segredo: str) -> tuple[int, dict]:
 
 def situacao(estado, forcar: bool = False) -> dict:
     """{ligada, email, motivo}: este PAULUS é o da casa? Guarda a resposta 30 min (sim) ou 10 min (não)."""
-    if os.environ.get("PAULUS_CASA_PAVLVS") == "1":
+    if os.environ.get("PAULUS_CASA_PAVLVS") == "1":  # só para testes e demonstração
         return {"ligada": True, "email": "", "motivo": ""}
     segredo = _segredo(estado)
     if not segredo:

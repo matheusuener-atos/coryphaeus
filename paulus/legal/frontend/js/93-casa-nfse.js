@@ -2,7 +2,7 @@
 /*
    A tela "Notas do PAVLVS" (src/casa_nfse.py): a NFS-e que o PAVLVS emite
    para quem assina o PAULUS. Só existe no PAULUS da casa (o do servidor do
-   dono, com PAULUS_CASA_PAVLVS=1); nos escritórios o botão do trilho nem
+   dono, ligado à nuvem com uma conta da equipe do painel); nos escritórios o botão do trilho nem
    aparece. Pelo túnel, só o titular.
 
    No alto: Emitir NFS-e, Clientes, Parâmetros e Testar comunicação. Depois o
