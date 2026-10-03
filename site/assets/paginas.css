@@ -6,8 +6,14 @@
 .entrada { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 72px 24px 120px; }
 .entrada-col { width: 100%; max-width: 360px; display: grid; gap: 40px; }
 .entrada-marca { display: grid; gap: 14px; text-align: center; }
-.entrada-marca .logo { font: 400 56px/1 var(--serif); letter-spacing: .08em; text-transform: uppercase; color: var(--marca-d); }
-.entrada-marca p { font-size: 14px; line-height: 1.55; color: var(--mute); text-wrap: pretty; }
+/* O alto das telas de entrar, como no programa: "Paulus está te esperando." na
+   serifa, claro, e a frase embaixo, aparecendo devagar. PAVLVS e a marca;
+   Paulus, o agente. */
+.entrada-marca .logo { margin: 0 -60px; font: 400 44px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+.entrada-marca p { font-size: 15px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
+.entrada-marca > * { animation: entrada-aparece .7s ease both; }
+@keyframes entrada-aparece { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .entrada-marca > * { animation: none; } }
 .campos { display: grid; gap: 14px; }
 .campo { display: grid; gap: 6px; }
 .campo > .rotulo { display: block; }
@@ -110,7 +116,7 @@
 
 @media (max-width: 640px) {
   .entrada { padding: 48px 20px 88px; justify-content: flex-start; }
-  .entrada-marca .logo { font-size: 48px; }
+  .entrada-marca .logo { margin: 0; font-size: 38px; }
   .voltar-site { left: 16px; top: 16px; }
   .versao { grid-template-columns: 64px minmax(0, 1fr); gap: 6px 16px; }
   .versao .quando { grid-column: 1 / -1; padding: 0; }

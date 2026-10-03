@@ -23,8 +23,8 @@
   <a class="voltar-site" href="../"><span class="icon s18" aria-hidden="true">arrow_back</span>Voltar ao site</a>
   <div class="entrada-col">
     <div class="entrada-marca">
-      <h1 class="logo">PAVLVS</h1>
-      <p>Acesse o seu escritório.</p>
+      <h1 class="logo">Paulus está te esperando.</h1>
+      <p id="es-frase">Acesse o seu escritório.</p>
     </div>
     <form class="campos" id="es-form" novalidate>
       <label class="campo"><span class="rotulo">Escritório</span>
@@ -38,6 +38,13 @@
 </main>
 
 <script src="../assets/site.js" defer></script>
+<script>
+(function () {
+  // A frase de baixo pela hora do dia, como nas telas de entrar do programa.
+  var h = new Date().getHours(), f = document.getElementById("es-frase");
+  if (f) f.textContent = (h >= 5 && h < 12 ? "Bom dia. " : h >= 12 && h < 18 ? "Boa tarde. " : "Boa noite. ") + "Acesse o seu escritório.";
+})();
+</script>
 <script>
 (function () {
   var campo = document.getElementById("es-nome"), erro = document.getElementById("es-erro");

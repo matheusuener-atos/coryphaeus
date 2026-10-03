@@ -23,8 +23,8 @@
   <a class="voltar-site" href="../"><span class="icon s18" aria-hidden="true">arrow_back</span>Back to the website</a>
   <div class="entrada-col">
     <div class="entrada-marca">
-      <h1 class="logo">PAVLVS</h1>
-      <p>Open your office.</p>
+      <h1 class="logo">Paulus is waiting for you.</h1>
+      <p id="es-frase">Open your office.</p>
     </div>
     <form class="campos" id="es-form" novalidate>
       <label class="campo"><span class="rotulo">Office</span>
@@ -38,6 +38,13 @@
 </main>
 
 <script src="../../assets/site.js" defer></script>
+<script>
+(function () {
+  // A frase de baixo pela hora do dia, como nas telas de entrar do programa.
+  var h = new Date().getHours(), f = document.getElementById("es-frase");
+  if (f) f.textContent = (h >= 5 && h < 12 ? "Good morning. " : h >= 12 && h < 18 ? "Good afternoon. " : "Good evening. ") + "Open your office.";
+})();
+</script>
 <script>
 (function () {
   var campo = document.getElementById("es-nome"), erro = document.getElementById("es-erro");
