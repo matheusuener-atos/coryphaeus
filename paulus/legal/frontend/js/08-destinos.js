@@ -39,13 +39,6 @@ const NOVOS_DESTINOS = {
     resolve: "Quanto o escritório usa da IA, quem usa, os limites de uso, o plano e a recarga.",
     precisa: [],
   },
-  // As notas do PAVLVS (js/93-casa-nfse.js): só no PAULUS da casa; o botão
-  // do trilho fica escondido nos escritórios.
-  pavlvs: {
-    id: "pavlvs", nome: "Notas Admin", pronta: true, abre: "pavlvs",
-    resolve: "A NFS-e que o PAVLVS emite para quem assina o PAULUS.",
-    precisa: [],
-  },
   // B1: a Biblioteca (js/57-biblioteca.js) - obras e lembretes, as leis e
   // as súmulas que vêm com o PAULUS, e os tribunais. O id "biblioteca" já é
   // do Acervo no registro de destinos.
@@ -125,7 +118,6 @@ function abrirDestino(id) {
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "agentes") return mostrarAgentes();
   if (d.abre === "consumo") return mostrarConsumo();
-  if (d.abre === "pavlvs") return mostrarNotasPavlvs();
   if (d.abre === "contexto") return mostrarBibliotecaContexto();
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return voltarAoAssistente();

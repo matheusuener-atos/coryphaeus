@@ -162,6 +162,27 @@ def main() -> int:
     r = local.get("/api/nfse-recebidas/nao-tem/pdf")
     checar(r.status_code == 404, "nota que não existe: 404", r.status_code)
 
+    print("\nPDF ainda não gerado na nuvem: o PAULUS desenha do XML")
+    from nfse import danfse
+
+    original = danfse.gerar
+    danfse.gerar = lambda xml: b"%PDF-desenhado:" + xml
+    try:
+        worker_antes = worker.__class__.__call__
+
+        def so_xml(self, metodo, url, cabecalhos, corpo, stream):
+            if url.endswith("/api/ia/nfse/n-1/pdf"):
+                url = url.replace("/n-1/pdf", "/sem-pdf")
+            return worker_antes(self, metodo, url, cabecalhos, corpo, stream)
+
+        worker.__class__.__call__ = so_xml
+        r = local.get("/api/nfse-recebidas/n-1/pdf")
+        checar(r.status_code == 200 and r.content == b"%PDF-desenhado:" + XML, "sem PDF na nuvem, o PDF sai do XML",
+               (r.status_code, r.content[:40]))
+    finally:
+        worker.__class__.__call__ = worker_antes
+        danfse.gerar = original
+
     print("\nsem rede")
     worker.fora = True
     nfse_recebidas._cache["quando"] = 0.0

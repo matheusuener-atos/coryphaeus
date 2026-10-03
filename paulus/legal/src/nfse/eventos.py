@@ -137,26 +137,6 @@ class Eventos:
             raise ValueError("só a nota de teste do assistente se cancela sem Aprovações")
         return self._cancelamento_sem_fila(nota_id, motivo, texto, quem, "teste do assistente: cancelamento pedido")
 
-    def criar_cancelamento_pavlvs(self, nota_id: int, motivo: str, texto: str, quem: str = "titular") -> dict:
-        """O cancelamento das Notas Admin (casa_nfse.py): o titular pede na tela, sem Aprovações."""
-        nota = self.notas.obter(nota_id)
-        if not nota or nota["estado"] != EMITIDA:
-            raise ValueError("só se cancela nota emitida")
-        if nota.get("origem") != "pavlvs":
-            raise ValueError("só a nota do PAVLVS se cancela por aqui")
-        if motivo not in tabelas.dominio("motivo_cancelamento"):
-            raise ValueError("escolha o motivo da tabela oficial: 1 – Erro na emissão, 2 – Serviço não prestado, 9 – Outros")
-        texto = " ".join(str(texto or "").split())
-        if not 15 <= len(texto) <= 255:
-            raise ValueError("descreva o motivo com 15 a 255 caracteres (regra do leiaute do evento)")
-        prazo = self.prazo_de_cancelamento(nota)
-        if not prazo["dentro"]:
-            raise ValueError(prazo["frase"])
-        abertos = [e for e in self.da_nota(nota_id) if e["tipo"] == CANCELAMENTO and e["estado"] not in (REJEITADO,)]
-        if abertos:
-            raise ValueError("já há um pedido de cancelamento desta nota")
-        return self._cancelamento_sem_fila(nota_id, motivo, texto, quem, f"Notas Admin: cancelamento pedido (motivo {motivo})")
-
     def _cancelamento_sem_fila(self, nota_id: int, motivo: str, texto: str, quem: str, passo: str) -> dict:
         agora = _agora()
         ev_id = self.base.escrever(

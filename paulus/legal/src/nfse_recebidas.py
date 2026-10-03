@@ -1,7 +1,7 @@
 """
 PAULUS - As NFS-e que o PAVLVS emitiu para este escritório (a assinatura).
 
-Quem emite é o PAULUS da casa (tela "Notas Admin", no servidor do dono);
+Quem emite é a nuvem (paulus.ia.br/admin › Notas fiscais);
 a nota fica no Worker (worker/nfse-casa.js) e este PAULUS a busca com o
 segredo da instalação da nuvem (src/nuvem.py):
 
@@ -78,7 +78,17 @@ def arquivo(estado, id_: str, tipo: str) -> tuple[bytes, str, str]:
     """(bytes, nome do arquivo, content-type) do PDF ou do XML. LookupError se não houver."""
     if tipo not in ("pdf", "xml") or not _RE_ID.match(str(id_ or "")):
         raise LookupError("essa nota não existe")
-    dados, ctype = nuvem.paulus_bytes(estado, f"/api/ia/nfse/{id_}/{tipo}")
+    try:
+        dados, ctype = nuvem.paulus_bytes(estado, f"/api/ia/nfse/{id_}/{tipo}")
+    except LookupError:
+        if tipo != "pdf":
+            raise
+        # O PDF é gerado na nuvem num pedido separado e pode ainda não estar
+        # lá: o PAULUS desenha o DANFSe a partir do XML (src/nfse/danfse.py).
+        from nfse import danfse
+
+        xml, _ = nuvem.paulus_bytes(estado, f"/api/ia/nfse/{id_}/xml")
+        dados, ctype = danfse.gerar(xml), "application/pdf"
     nota = next((n for n in listar(estado) if n["id"] == id_), None)
     numero = (nota or {}).get("numero") or id_
     nome = f"NFS-e {re.sub(r'[^A-Za-z0-9._-]', '_', numero)}.{tipo}"
