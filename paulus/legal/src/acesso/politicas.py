@@ -256,7 +256,7 @@ _declarar(BLOQUEADO,
           "PUT /api/acesso/contas/{conta_id}/permissoes", "PUT /api/acesso/contas/{conta_id}/seguranca",
           "PUT /api/acesso/seguranca-padrao",
           # o vinculo do PAULUS a conta Google (E5): so na janela do servidor
-          "GET /api/vinculo", "POST /api/vinculo/entrar", "POST /api/vinculo/cancelar", "POST /api/vinculo/codigo",
+          "GET /api/vinculo", "POST /api/vinculo/entrar", "POST /api/vinculo/cancelar", "POST /api/vinculo/codigo", "POST /api/vinculo/esquecer-codigo",
           "POST /api/vinculo/travar", "POST /api/vinculo/manter-aberto", "POST /api/vinculo/desvincular",
           "POST /api/vinculo/sem-internet", "POST /api/vinculo/sem-internet/ligar",
           "POST /api/vinculo/sem-internet/confirmar", "POST /api/vinculo/sem-internet/desligar",

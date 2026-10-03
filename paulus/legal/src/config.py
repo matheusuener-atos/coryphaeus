@@ -323,7 +323,9 @@ PADRAO: dict = {
     # (src/vinculo.py, E5). Vinculado, abre travado - salvo manter_aberto.
     "vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
                 # entrar sem internet com o codigo proprio do servidor (src/vinculo.py)
-                "offline": {"segredo": "", "ultimo_passo": 0, "recuperacao": []}},
+                "offline": {"segredo": "", "ultimo_passo": 0, "recuperacao": []},
+                # "Nao pedir o codigo neste computador por 30 dias": a conta e ate quando
+                "codigo_confiado": {"conta_id": 0, "email": "", "ate": 0}},
     "pessoa": {
         "nome": "",
         "cpf": "",

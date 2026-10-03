@@ -203,6 +203,29 @@ def test_http() -> None:
     novo = vinculo_mod.Vinculo(api.estado.prefs, api.estado.acesso_de_fora.contas, lambda: {"client_id": "x"})
     checar(not novo.travado(), "e o 'manter aberto' volta a valer")
 
+    print("  não pedir o código neste computador por 30 dias")
+    local.post("/api/vinculo/travar")
+    local.post("/api/vinculo/entrar", json={"finalidade": "destravar"})
+    r = local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][1], "confiar": True})
+    ate = r.json().get("codigo_confiado_ate", "")
+    checar(r.status_code == 200 and not r.json()["travado"] and ate[:10] == time.strftime("%Y-%m-%d", time.localtime(time.time() + 30 * 86400)),
+           "com a caixa marcada, abre e guarda a dispensa por 30 dias", ate)
+    local.post("/api/vinculo/travar")
+    e = local.post("/api/vinculo/entrar", json={"finalidade": "destravar"}).json()
+    checar(not e["travado"] and not e["precisa_codigo"], "na próxima entrada com o Google, o código não é pedido", e)
+    e = local.post("/api/vinculo/esquecer-codigo").json()
+    checar(e["codigo_confiado_ate"] == "", "“Pedir o código de novo” desfaz a dispensa", e.get("codigo_confiado_ate"))
+    local.post("/api/vinculo/travar")
+    e = local.post("/api/vinculo/entrar", json={"finalidade": "destravar"}).json()
+    checar(e["travado"] and e["precisa_codigo"], "e o código volta a ser pedido", e)
+    prefs_v = api.estado.prefs.dados["vinculo"]
+    r = local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][2], "confiar": True})
+    prefs_v["codigo_confiado"]["ate"] = time.time() - 1
+    local.post("/api/vinculo/travar")
+    e = local.post("/api/vinculo/entrar", json={"finalidade": "destravar"}).json()
+    checar(e["precisa_codigo"] and e["codigo_confiado_ate"] == "", "passados os 30 dias, o código volta", e)
+    local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][3]})
+
     print("  de fora")
     import segredos
 

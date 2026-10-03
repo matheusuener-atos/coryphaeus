@@ -100,6 +100,10 @@ function desenharTrava() {
       '<input id="trava-codigo-campo"' + (recuperacao ? ' autocomplete="off" maxlength="9" aria-label="Chave de recuperação"'
         : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos"') + "></div>" +
       (recuperacao ? '<span class="trava-ajuda">Cada chave vale uma vez.</span>' : "") + "</div>" +
+      // "Nao pedir o codigo neste computador por 30 dias": so com o Google
+      // (o mesmo do "Confiar neste navegador" de quem entra de fora).
+      (!recuperacao && !semNet ? '<label class="trava-manter"><input type="checkbox" id="trava-confiar"' + (vinc.confiarCodigo ? " checked" : "") +
+        '><i aria-hidden="true">' + ic("check", 13) + "</i><span>Não pedir o código neste computador por 30 dias</span></label>" : "") +
       '<p class="trava-erro" id="trava-erro"></p>' +
       trilho("trava-abrir", "Abrir o PAVLVS", false, false) +
       '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o Google Authenticator" : "Não tenho o celular") + "</button></form>";
@@ -147,6 +151,8 @@ function ligarTrava() {
   if (t) t.onclick = () => { alternarTema(); desenharTrava(); };
   const m = document.getElementById("trava-manter");
   if (m) m.onchange = () => { vinc.manterAoEntrar = m.checked; };
+  const cf = document.getElementById("trava-confiar");
+  if (cf) cf.onchange = () => { vinc.confiarCodigo = cf.checked; };
   const b = document.getElementById("trava-google");
   if (b) b.onclick = async () => {
     const manter = document.getElementById("trava-manter");
@@ -207,7 +213,9 @@ function ligarTrava() {
       ev.preventDefault();
       try {
         const semNet = vinc.semInternet && !(vinc.estado || {}).precisa_codigo;
-        await postVinculo(semNet ? "/api/vinculo/sem-internet" : "/api/vinculo/codigo", { codigo: campo.value.trim() });
+        const confiar = document.getElementById("trava-confiar");
+        await postVinculo(semNet ? "/api/vinculo/sem-internet" : "/api/vinculo/codigo",
+          semNet ? { codigo: campo.value.trim() } : { codigo: campo.value.trim(), confiar: Boolean(confiar && confiar.checked) });
         vinc.semInternet = false;
         await aoDestravar();
       } catch (err) { document.getElementById("trava-erro").textContent = err.message; campo.select(); }
@@ -296,6 +304,11 @@ function cartaoDoVinculo() {
       ? "o PAULUS abre sem pedir o Google neste computador"
       : "o PAULUS abre travado e pede o Google a cada abertura", e.manter_aberto, false)
       .replace('class="ag-toggle', 'data-vinc-manter="1" class="ag-toggle') + "</div>" +
+    (e.codigo_confiado_ate
+      ? '<div class="cfg-linhas">' + chaveCfg("Código do celular", "dispensado neste computador até " +
+          new Date(e.codigo_confiado_ate).toLocaleDateString("pt-BR")) + "</div>" +
+        '<div class="cfg-botoes"><button data-vinc-esquecer-codigo="1">Pedir o código de novo</button></div>'
+      : "") +
     blocoSemInternet(e) +
     '<div class="acesso-pe"><button class="com-icone" data-vinc-travar="1">' + ic("logout", 16) + "Sair</button>" +
     '<button class="perigo" data-vinc-desvincular="1">Desvincular</button>' +
@@ -343,6 +356,13 @@ function ligarVinculoCfg() {
     redesenhar();
   });
   clique("[data-vinc-travar]", () => sairDoServidor());
+  clique("[data-vinc-esquecer-codigo]", async () => {
+    try {
+      vinc.estado = await postVinculo("/api/vinculo/esquecer-codigo", {});
+      avisoCert("O código do celular volta a ser pedido neste computador.");
+    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    if (typeof desenharConfig === "function") desenharConfig();
+  });
   clique("[data-vinc-sn-ligar]", async () => {
     try {
       const r = await fetch("/api/vinculo/sem-internet/ligar", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });

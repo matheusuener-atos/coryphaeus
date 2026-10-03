@@ -50,6 +50,12 @@ from pydantic import BaseModel
 import correio_oauth
 
 
+# "Nao pedir o codigo neste computador por 30 dias" (03/10): o mesmo prazo do
+# "Confiar neste navegador" de quem entra de fora.
+CONFIAR_CODIGO_S = 30 * 24 * 3600
+SEM_CONFIANCA = {"conta_id": 0, "email": "", "ate": 0}
+
+
 def _exp_do_id_token(token: str) -> float:
     try:
         meio = token.split(".")[1]
@@ -132,6 +138,8 @@ class Vinculo:
             "fase": e.get("fase", ""), "mensagem": self.erro or e.get("mensagem", ""),
             "url": e.get("url", ""), "finalidade": self.finalidade,
             "precisa_codigo": bool(self._conta_do_codigo),
+            # Ate quando o codigo do celular esta dispensado neste computador ("" sem dispensa).
+            "codigo_confiado_ate": self._confiado_ate_iso(),
             "google_recente": bool(self.id_token_valido()),
             "saiu": bool(d.get("saiu")),
             "sem_internet": self.sem_internet(),
@@ -217,7 +225,11 @@ class Vinculo:
         if self.finalidade == "confirmar":
             return {"email": email, "nome": nome}
         conta = self._conta_de_titular(email)
-        if conta:
+        if conta and self._codigo_confiado(conta):
+            # "Nao pedir o codigo neste computador por 30 dias", marcado da
+            # ultima vez: o Google basta ate a data.
+            self._abrir()
+        elif conta:
             # A conta de titular dessa pessoa tem o autenticador: o codigo do
             # celular vem depois do Google, como de fora.
             self._conta_do_codigo = conta["id"]
@@ -347,14 +359,40 @@ class Vinculo:
         except Exception:  # noqa: BLE001 - sem o banco das contas, fica so o Google
             return None
 
-    def codigo(self, codigo: str) -> None:
+    def codigo(self, codigo: str, confiar: bool = False) -> None:
         if not self._conta_do_codigo:
             raise ErroVinculo("entre com o Google antes")
         # Sem sessao de fora aqui: "hash" vazio nao marca sessao nenhuma.
         if not self.contas.confirmar_de_novo({"conta_id": self._conta_do_codigo, "hash": ""}, codigo):
             raise ErroVinculo("o código não confere; digite o que aparece agora no celular")
+        if confiar:
+            self.prefs.atualizar({"vinculo": {"codigo_confiado": {
+                "conta_id": self._conta_do_codigo, "email": str(self.dados().get("email") or "").lower(),
+                "ate": self.relogio() + CONFIAR_CODIGO_S}}})
         self._conta_do_codigo = 0
         self._abrir()
+
+    def _codigo_confiado(self, conta: dict) -> bool:
+        """O codigo foi dispensado neste computador para esta conta, e o prazo nao venceu."""
+        c = self.dados().get("codigo_confiado") or {}
+        try:
+            return (int(c.get("conta_id") or 0) == int(conta["id"]) and str(c.get("email") or "") == str(conta["email"]).lower()
+                    and float(c.get("ate") or 0) > self.relogio())
+        except (TypeError, ValueError, KeyError):
+            return False
+
+    def _confiado_ate_iso(self) -> str:
+        c = self.dados().get("codigo_confiado") or {}
+        try:
+            ate = float(c.get("ate") or 0)
+        except (TypeError, ValueError):
+            return ""
+        if ate <= self.relogio() or str(c.get("email") or "") != str(self.dados().get("email") or "").lower():
+            return ""
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(ate))
+
+    def esquecer_codigo_confiado(self) -> None:
+        self.prefs.atualizar({"vinculo": {"codigo_confiado": dict(SEM_CONFIANCA)}})
 
     def cancelar(self) -> None:
         if self.entrada:
@@ -382,6 +420,7 @@ class Vinculo:
         if self.travado():
             raise ErroVinculo("destrave antes")
         self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
+                                          "codigo_confiado": dict(SEM_CONFIANCA),
                                           "offline": dict(OFFLINE_VAZIO)}})
         self.destravado = False
         self._id_token, self._id_token_exp = "", 0.0
@@ -418,6 +457,7 @@ class Pedido(BaseModel):
 
 class Codigo(BaseModel):
     codigo: str
+    confiar: bool = False
 
 
 class Ligar(BaseModel):
@@ -455,9 +495,16 @@ def montar(app, vinculo: Vinculo) -> None:
     def vinculo_codigo(dados: Codigo, request: Request) -> dict:
         so_local(request)
         try:
-            vinculo.codigo(dados.codigo)
+            vinculo.codigo(dados.codigo, dados.confiar)
         except ErroVinculo as exc:
             falhar(exc)
+        return vinculo.estado()
+
+    @app.post("/api/vinculo/esquecer-codigo")
+    def vinculo_esquecer_codigo(request: Request) -> dict:
+        """Volta a pedir o codigo do celular neste computador (desfaz o "nao pedir por 30 dias")."""
+        so_local(request)
+        vinculo.esquecer_codigo_confiado()
         return vinculo.estado()
 
     @app.post("/api/vinculo/sem-internet")
