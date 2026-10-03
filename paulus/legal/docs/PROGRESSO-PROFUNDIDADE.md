@@ -43,7 +43,14 @@ básica e começava a produzir antes de entender o pedido. Duas camadas:
   reescrita, com benfeitorias indenizáveis e garantia definidas. A reescrita
   inventou "20 sacas" quando a revisão pediu "o valor exato" — agora dado não
   informado não é defeito (fica [●]), por instrução e por regra
-  (`RE_DADO_FALTANTE`).
+  (`RE_DADO_FALTANTE`). Medido de novo: Juiz em 197 s, sem número inventado.
+- **Extensão**: o Llama 70B escreve curto (600–700 palavras num contrato,
+  mesmo com a extensão esperada e "todas as seções do plano" na instrução).
+  O Qwen 72B, no mesmo pedido, escreveu 814 palavras e mais completo
+  (qualificação, assinaturas, testemunhas), mas em markdown e com marcadores
+  inventados ("[CPF 3]") — a regra limpa (`limpar_texto`): sem "####"/"**", e
+  marcador que a máscara não criou vira [●]. O modelo padrão continua o de
+  Configurações › Modelos; `profundidade.modelos` escolhe outro por nível.
 
 ## O limite que ficou (e a alavanca)
 

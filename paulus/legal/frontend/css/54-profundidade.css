@@ -91,3 +91,4 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
   .ent-acoes button { flex: 1 1 auto; }
   .ent-nivel { margin-left: 0; width: 100%; }
 }
+.ent-confira { margin: 8px 0 0; font: 500 12px var(--sans); color: var(--ink3); line-height: 1.4; }

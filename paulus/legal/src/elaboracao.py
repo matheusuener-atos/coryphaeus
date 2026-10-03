@@ -38,7 +38,7 @@ Você está produzindo um trabalho profissional para o escritório (peça, contr
 Entregue o trabalho pronto para uso, completo para o tipo de documento e para o nível pedido - não um \
 modelo genérico.
 - Dado que não foi informado (nomes, CPF, endereços, valores, datas, números de processo) fica como [●] no \
-texto. Nunca invente esses dados.
+texto. Nunca invente esses dados, nem marcadores como [CPF 3] ou [E-MAIL 2]: campo a preencher é sempre [●].
 - Fundamente com os dispositivos legais certos, com número e lei (por exemplo: "art. 95 do Estatuto da \
 Terra (Lei 4.504/1964)"). Não ponha entre aspas texto de lei que você não tenha recebido.
 - Use a forma do documento: títulos, cláusulas numeradas, parágrafos, pedidos - o que aquele tipo pede.
@@ -147,6 +147,27 @@ RE_DADO_FALTANTE = re.compile(
     r"percentual|montante|matr[ií]cula)\b", re.IGNORECASE)
 
 
+# Os marcadores da máscara (src/nuvem.py) têm este formato; um que a máscara
+# não criou foi inventado pelo modelo (o Qwen 72B pôs "[CPF 3]" na testemunha,
+# 03/10) e, se a máscara um dia tiver esse número, viraria o CPF de outra
+# pessoa. Vira [●].
+RE_MARCADOR = re.compile(r"\[(?:CPF|CNPJ|E-MAIL|TELEFONE|PROCESSO) \d{1,3}\]")
+
+
+def limpar_texto(texto: str, mascara=None) -> str:
+    """
+    O texto final, como a conversa e o editor mostram: os dados de volta, sem
+    marcador inventado, sem markdown (cabeçalho "####" e negrito "**") - a
+    instrução pede texto simples, e nem todo modelo obedece.
+    """
+    t = mascara.desfazer(texto) if mascara is not None else str(texto or "")
+    t = RE_MARCADOR.sub("[●]", t)
+    t = re.sub(r"(?m)^[ \t]{0,3}#{1,6}[ \t]*", "", t)
+    t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)
+    t = re.sub(r"__(.+?)__", r"\1", t)
+    return t.strip()
+
+
 def problemas_da_revisao(dados: dict | None) -> tuple[list[dict], bool]:
     """Os problemas conferidos e se é para refazer (só com algum alto ou médio)."""
     lista = []
@@ -247,8 +268,15 @@ def elaborar(estado, *, trabalho, pedido: str, briefing: str, nivel, documentos=
         return
 
     yield ("etapa", {"id": "redacao", "titulo": TITULOS["redacao"], "estado": "executando", "detalhe": ""})
+    # Medido em 03/10: com "redija o trabalho completo", o Llama 70B resumia um
+    # plano de 24 pontos em 8 cláusulas curtas. Pedir cada seção do plano,
+    # com parágrafos, é o que faz o texto chegar à extensão do nível.
+    fechamento = ("\n\nAgora redija o trabalho completo: TODAS as seções do PLANO, na ordem, cada uma desenvolvida "
+                  "com caput e os parágrafos ou incisos que ela pede (prazos, procedimentos, consequências). Não "
+                  "resuma nenhuma seção nem junte duas numa só."
+                  if plano else "\n\nAgora redija o trabalho completo.")
     pedido_redacao = (base + ("\n\nANÁLISE:\n" + analise if analise else "") + ("\n\nPLANO:\n" + plano if plano else "")
-                      + "\n\nAgora redija o trabalho completo.")
+                      + fechamento)
     rascunho = yield from transmitir("redacao", pedido_redacao, nivel.saida_tokens)
     feitas.append("redacao")
     yield ("etapa", {"id": "redacao", "titulo": TITULOS["redacao"], "estado": "concluido", "detalhe": ""})
@@ -291,6 +319,11 @@ def elaborar(estado, *, trabalho, pedido: str, briefing: str, nivel, documentos=
                             + (f" ({len(problemas)} ajuste(s) fino(s) nas notas)" if problemas else "")})
         yield ("etapa", {"id": "revisao", "titulo": TITULOS["revisao"], "estado": "concluido",
                          "detalhe": (f"{altos} corrigido(s)" if revisao.get("refeito") else "sem correção necessária")})
-    texto = mascara.desfazer(final_mascarado) if mascara else final_mascarado
-    yield ("fim", {"texto": texto.strip(), "tokens": tokens, "revisao": revisao, "etapas": feitas,
+    texto = limpar_texto(final_mascarado, mascara)
+    # O que foi para a tela veio cru (com "####" e "**", se o modelo pôs); a
+    # versão limpa toma o lugar dela.
+    bruto = mascara.desfazer(final_mascarado).strip() if mascara else final_mascarado.strip()
+    if texto != bruto:
+        yield ("substituir", {"texto": texto})
+    yield ("fim", {"texto": texto, "tokens": tokens, "revisao": revisao, "etapas": feitas,
                    "modelo": info["modelo"], "provedor": info["provedor"]})

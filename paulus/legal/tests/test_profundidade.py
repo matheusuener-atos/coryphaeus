@@ -109,7 +109,7 @@ def etapa_da_chamada(corpo: dict) -> str:
             return "revisao"
         if "Reescreva o TEXTO inteiro" in ultima:
             return "reescrita"
-        if ultima.rstrip().endswith("Agora redija o trabalho completo."):
+        if "Agora redija o trabalho completo" in ultima:
             return "redacao"
     return "resposta"
 
@@ -288,6 +288,13 @@ def test_conferir() -> None:
     checar(not elaboracao.problemas_da_revisao({"problemas": [
         {"gravidade": "alta", "o_que": "falta o valor do aluguel", "correcao": "inserir o valor"}]})[1],
         "só dado faltante: não reescreve")
+    import nuvem
+
+    m = nuvem.Mascara()
+    m.aplicar("CPF 529.982.247-25")
+    limpo = elaboracao.limpar_texto("#### CLÁUSULA 1\n**Partes**: [CPF 1] e a testemunha [CPF 3].", m)
+    checar(limpo == "CLÁUSULA 1\nPartes: 529.982.247-25 e a testemunha [●].",
+           "texto final sem markdown, com o dado de volta e o marcador inventado em [●]", limpo)
     e = entrevista.novo_estado("contrato de arrendamento", "advogado")
     entrevista.aplicar(e, c)
     entrevista.juntar_respostas(e, [{"id": qs[0]["id"], "resposta": "Área rural"}, {"id": qs[1]["id"], "modo": "decida"},
