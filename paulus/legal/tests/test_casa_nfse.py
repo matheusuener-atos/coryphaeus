@@ -39,6 +39,9 @@ SENHA = "senha-do-a1-pavlvs"
 class WorkerFalso:
     def __init__(self) -> None:
         self.notas: list[dict] = []
+        self.config = {"auto": False, "email": False}
+        self.pagamentos = [{"id": "p1", "conta": "c1", "cliente": "ACME Advogados", "tipo": "mensalidade",
+                            "valor": 300, "nota": "pendente", "quando": "2026-09-05T10:00:00Z"}]
         self.tomadores = {"c1": {"nome": "ACME Advogados", "documento": CNPJ_TOMADOR, "email": "acme@exemplo.com.br",
                                  "logradouro": "Rua 1", "numero": "10", "bairro": "Centro", "cep": "74000000", "cmun": GOIANIA}}
 
@@ -54,8 +57,7 @@ class WorkerFalso:
             self.tomadores[k].update(corpo["tomador"])
             return 200, {"cliente": {"id": k, "tomador": self.tomadores[k]}}
         if caminho == "/api/nfse-casa/pagamentos":
-            return 200, {"pagamentos": [{"id": "p1", "conta": "c1", "cliente": "ACME Advogados", "tipo": "mensalidade",
-                                         "valor": 300, "nota": "pendente"}]}
+            return 200, {"pagamentos": self.pagamentos, "config": self.config}
         if caminho == "/api/nfse-casa/notas":
             self.notas.append(corpo)
             return 200, {"ok": True}
@@ -156,6 +158,23 @@ def main() -> int:
         n3 = local.post("/api/casa-nfse/emitir", json={"tomador": tom, "valor": "10,00", "descricao": "Avulsa"}).json()
         r = local.post(f"/api/casa-nfse/notas/{n3['id']}/enviar")
         checar(r.status_code == 400 and "conta" in r.json()["detail"], "sem conta de assinante, não envia (e diz)")
+
+        print("\nemitir ao confirmar o pagamento (interruptores do painel)")
+        local.post("/api/casa-nfse/parametros", json={"enviar_sozinho": False})
+        w.pagamentos += [{"id": "p2", "conta": "c1", "cliente": "ACME", "tipo": "recarga pix", "valor": 50, "nota": "pendente",
+                          "quando": "2026-10-02T10:00:00Z"},
+                         {"id": "p3", "conta": "c9", "cliente": "Sem dados", "tipo": "mensalidade", "valor": 150, "nota": "pendente",
+                          "quando": "2026-10-02T10:00:00Z"}]
+        checar(casa.rodada_automatica() == [], "com o painel desligado, nada sai sozinho")
+        w.config = {"auto": True, "email": True}
+        antes = len(w.notas)
+        feitos = casa.rodada_automatica()
+        checar([f["estado"] for f in feitos] == ["emitida"], "só o p2 sai (p1 já tem nota; p3 sem dados fiscais)", feitos)
+        checar(len(w.notas) == antes + 1 and w.notas[-1]["pagamento"] == "p2" and w.notas[-1]["competencia"] == "2026-10",
+               "com 'enviar ao cliente' ligado no painel, vai ao app", w.notas[-1:])
+        auto = casa.prefs.dados["automaticas"]
+        checar("dados fiscais" in auto["p3"]["erro"], "o p3 fica anotado com o motivo", auto.get("p3"))
+        checar(casa.rodada_automatica() == [], "a segunda rodada não emite de novo")
 
         print("\nprodução")
         r = local.post("/api/casa-nfse/producao/liberar")

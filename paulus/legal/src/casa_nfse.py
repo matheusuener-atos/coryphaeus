@@ -158,7 +158,77 @@ class Casa:
         return self.ponte("POST", f"/api/nfse-casa/clientes/{conta}", {"tomador": limpo}).get("cliente") or {}
 
     def pagamentos(self) -> list[dict]:
-        return self.ponte("GET", "/api/nfse-casa/pagamentos").get("pagamentos") or []
+        d = self.ponte("GET", "/api/nfse-casa/pagamentos")
+        # Os dois interruptores do painel (Notas fiscais): emitir sozinho ao
+        # confirmar o pagamento e mandar a nota ao app do cliente.
+        if isinstance(d.get("config"), dict):
+            self.prefs.atualizar({"painel": {"auto": bool(d["config"].get("auto")), "email": bool(d["config"].get("email"))}})
+        return d.get("pagamentos") or []
+
+    def _enviar_depois(self) -> bool:
+        return bool(self.prefs.dados.get("enviar_sozinho") or (self.prefs.dados.get("painel") or {}).get("email"))
+
+    # ------------------------------------------------- emitir sozinho (painel)
+
+    def rodada_automatica(self, agora: float | None = None) -> list[dict]:
+        """
+        "Emitir ao confirmar o pagamento", ligado no painel: cada pagamento
+        pendente cujo cliente tem os dados fiscais completos vira nota. O que
+        falha fica anotado e só é tentado de novo 6 h depois; o pagamento que
+        já tem nota aqui nunca é emitido de novo.
+        """
+        agora = agora or time.time()
+        try:
+            pags = self.pagamentos()
+        except ErroPonte:
+            return []
+        if not (self.prefs.dados.get("painel") or {}).get("auto"):
+            return []
+        if not self.emissor.pode_emitir()[0]:
+            return []
+        ja = {v.get("pagamento") for v in (self.prefs.dados.get("vinculos") or {}).values() if v.get("pagamento")}
+        tentativas = dict(self.prefs.dados.get("automaticas") or {})
+        pendentes = [p for p in pags if p.get("nota") == "pendente" and str(p.get("id")) not in ja
+                     and agora - float((tentativas.get(str(p.get("id"))) or {}).get("t") or 0) > 6 * 3600]
+        if not pendentes:
+            return []
+        try:
+            clientes = {c["id"]: c for c in self.clientes()}
+        except ErroPonte:
+            return []
+        feitos = []
+        for p in pendentes[:20]:
+            pid = str(p["id"])
+            c = clientes.get(p.get("conta"))
+            tom = (c or {}).get("tomador") or {}
+            falta = [k for k in ("nome", "documento", "logradouro", "bairro", "cep", "cmun") if not tom.get(k)]
+            if not c or falta:
+                tentativas[pid] = {"t": agora, "erro": "faltam dados fiscais do cliente: " + ", ".join(falta or ["conta"])}
+                continue
+            mensal = p.get("tipo") == "mensalidade"
+            try:
+                n = self.emitir({"conta": p["conta"], "pagamento": pid, "tomador": tom,
+                                 "valor": f"{float(p.get('valor') or 0):.2f}".replace(".", ","),
+                                 "descricao": "Assinatura do PAULUS — plano mensal" if mensal else "Recarga de uso do PAULUS (nuvem)",
+                                 "competencia": str(p.get("quando") or "")[:7] + "-01" if p.get("quando") else ""}, quem="PAULUS (automático)")
+                tentativas[pid] = {"t": agora, "nota": n["id"], "estado": n["estado"]}
+                feitos.append(n)
+            except ValueError as exc:
+                tentativas[pid] = {"t": agora, "erro": str(exc)[:300]}
+        self.prefs.atualizar({"automaticas": tentativas})
+        return feitos
+
+    def ligar_rotina(self, intervalo: int = 300) -> None:
+        def laco():
+            time.sleep(30)
+            while True:
+                try:
+                    self.rodada_automatica()
+                except Exception:  # noqa: BLE001 - a rotina nunca derruba o PAULUS
+                    log.exception("casa_nfse: rodada automática")
+                time.sleep(intervalo)
+
+        threading.Thread(target=laco, daemon=True, name="casa-nfse-rotina").start()
 
     # ----------------------------------------------------------- parâmetros
 
@@ -248,7 +318,7 @@ class Casa:
             nota = e.envio.emitir(nota["id"], quem)
         except (CertificadoInvalido, ProducaoBloqueada) as exc:
             raise ValueError(str(exc)) from exc
-        if nota["estado"] == EMITIDA and conta and self.prefs.dados.get("enviar_sozinho"):
+        if nota["estado"] == EMITIDA and conta and self._enviar_depois():
             try:
                 self.enviar(nota["id"])
             except (ErroPonte, ValueError) as exc:
@@ -333,5 +403,7 @@ class Casa:
         return {**tela, "notas": notas, "ponte": {"configurada": bool(ponte.get("token")), "gravado_em": ponte.get("gravado_em", ""),
                                                   "site": self.site},
                 "enviar_sozinho": bool(self.prefs.dados.get("enviar_sozinho")),
+                "painel": self.prefs.dados.get("painel") or {},
+                "automaticas": self.prefs.dados.get("automaticas") or {},
                 "producao_liberada": e.producao_liberada(), "ultimo_teste": self.prefs.dados.get("ultimo_teste") or {}}
 

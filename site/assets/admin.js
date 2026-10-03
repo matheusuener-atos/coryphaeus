@@ -783,7 +783,7 @@
     h += falta(emissor);
     var c = d.config || {}, pc = ultimaNaFila("nfse.config");
     var atual = pc ? pc.dados || c : c;
-    var OP = [["auto", "Emitir ao confirmar o pagamento", "assim que o aviso authorized_payment ou o Pix processado chegar"], ["email", "Enviar PDF e XML ao cliente", "para o e-mail da conta Google, junto do recibo do Mercado Pago"]];
+    var OP = [["auto", "Emitir ao confirmar o pagamento", "o PAULUS da casa emite até 5 min depois, se os dados fiscais do cliente estiverem completos (com ele ligado)"], ["email", "Enviar PDF e XML ao cliente", "no PAULUS dele, como aviso com Download e XML, logo depois de emitir"]];
     h += '<div class="duas-col"><div class="painel">' + OP.map(function (o) {
       var on = !!atual[o[0]], mud = pc && !!c[o[0]] !== on;
       return '<button type="button" class="linha-btn" role="switch" aria-checked="' + on + '" data-a="nfseCfg" data-k="' + o[0] + '"' + (podeC ? "" : ' disabled title="o papel ' + esc(E.sessao.papel) + ' não muda a NFS-e"') + '><span class="txt2"><b>' + esc(o[1]) + "</b><small>" + esc(o[2]) + (mud ? ' · <span class="c-atencao">na fila</span>' : "") + "</small></span>" + sw(on) + "</button>";

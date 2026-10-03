@@ -45,6 +45,13 @@ def montar(estado, app, dados_dir) -> None:
             estado.casa_nfse = casa_nfse.Casa(Path(dados_dir))
         return estado.casa_nfse
 
+    # O "emitir ao confirmar o pagamento" do painel roda a cada 5 min, só no
+    # PAULUS da casa. O teste desliga para controlar cada passo.
+    import os
+
+    if casa_nfse.ligada(estado.prefs.dados) and not os.environ.get("PAULUS_NFSE_SEM_FILA"):
+        casa().ligar_rotina()
+
     def erro(exc: Exception, status: int = 400):
         raise HTTPException(status_code=status, detail=str(exc)) from exc
 
