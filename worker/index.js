@@ -16,7 +16,8 @@
 // Todo o resto e o site estatico.
 //
 // A ponte da NFS-e (worker/nfse-casa.js): /api/nfse-casa/*, o PAULUS da casa
-// le clientes e pagamentos e devolve as notas emitidas. Com NFSE_CASA_TOKEN.
+// le clientes e pagamentos e devolve as notas emitidas. A porta e o segredo
+// da instalacao de uma conta da equipe do painel (dono ou financeiro).
 //
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
@@ -62,7 +63,7 @@ export default {
       }
     }
     // A ponte da NFS-e com o PAULUS da casa: fora do Access e da sessao do
-    // GitHub, com o segredo NFSE_CASA_TOKEN (worker/nfse-casa.js).
+    // GitHub, com o segredo da instalacao de uma conta da equipe (worker/nfse-casa.js).
     if (ehRotaDaCasa(url)) {
       try {
         return await atenderCasa(request, env, url);

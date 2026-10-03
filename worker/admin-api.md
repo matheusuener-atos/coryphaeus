@@ -72,9 +72,10 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   varredura: {cpf, cnpj, processo, nomes}}]}`
 - `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, fatos: [{k, v}],
   notas: [{id, quando, tipo: "mensalidade"|"recarga pix", cliente, doc, valor, nota: "pendente"|"emitida"|"cancelada"|"erro",
-  numero, erro}]}`. `emissor.ligado` = existe `NFSE_CASA_TOKEN` (a ponte da casa, abaixo); o fato
-  "Emissor" diz "PAULUS da casa · última conexão <data>", "PAULUS da casa · nunca conectou" ou
-  "ponte desligada (falta NFSE_CASA_TOKEN)". O painel nao emite nota.
+  numero, erro}]}`. `emissor.ligado` = a nuvem esta ligada (`IA_ATIVA` e `CONTAS_IA`; a ponte da
+  casa, abaixo, nao tem segredo proprio); o fato "Emissor" diz
+  "PAULUS da casa · <e-mail> · última conexão dd/mm/aaaa hh:mm", "PAULUS da casa · ainda não conectou"
+  ou "ponte desligada: a nuvem do PAULUS está desligada (IA_ATIVA)". O painel nao emite nota.
 - `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo}], matriz: [{acao, dono, financeiro, suporte}]}`
 - `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], cupons: [...], planos: [...],
   materiais: [...]}` (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
@@ -136,15 +137,23 @@ no servidor do dono). Codigo em `worker/nfse-casa.js`; teste em
 
 - Prefixo `/api/nfse-casa/`, **fora** do Cloudflare Access (que cobre so `/admin*`
   e `/api/admin*`) e fora da sessao do GitHub.
-- Porta: `Authorization: Bearer <NFSE_CASA_TOKEN>` (segredo do Worker:
-  `npx wrangler secret put NFSE_CASA_TOKEN`; o mesmo valor vai na configuracao do
-  PAULUS da casa). Comparacao em tempo constante. Sem o segredo no Worker: 503
-  `{erro: "a ponte da NFS-e não está configurada (NFSE_CASA_TOKEN)"}`; token errado ou
-  ausente: 401. Cada chamada valida grava `admin:nfse-casa:visto` = ISO de agora.
+- Porta: sem chave propria. A casa manda `Authorization: Bearer <segredo da instalacao>`,
+  o mesmo `pia_<conta>_...` que todo PAULUS ativado na nuvem ja usa em `/api/ia/*`
+  (`autenticar` em worker/ia.js). Depois, o Worker le o e-mail dessa conta (o Google com
+  que ela foi ativada) e confere se ele esta na equipe do painel (`admin:equipe` no KV;
+  sem ela, `ADMIN_EQUIPE`) com papel `dono` ou `financeiro` (e-mails comparados em
+  minusculas, sem espacos). Ou seja: basta o dono (ou o financeiro) ativar a nuvem no
+  PAULUS da casa com o proprio Google; nao ha segredo para criar nem colar.
+  - nuvem desligada (`IA_ATIVA` != "1" ou sem `CONTAS_IA`/`APOIOS`): 503 com o que falta;
+  - segredo ausente ou invalido: 401 `{erro: "não autorizado"}`;
+  - conta valida fora da equipe (ou com papel `suporte`): 403
+    `{erro: "esta conta do PAULUS não é da equipe do painel (dono ou financeiro)", motivo: "fora_da_equipe"}`.
+  Cada chamada valida grava `admin:nfse-casa:visto` = `{quando: ISO, email}` (JSON; o painel
+  ainda le o formato antigo, so a ISO).
 
 Rotas:
 
-- `GET /api/nfse-casa/ping` -> `{ok: true, hora, contas: n}`.
+- `GET /api/nfse-casa/ping` -> `{ok: true, hora, contas: n, email, papel}` (o e-mail e o papel de quem entrou).
 - `GET /api/nfse-casa/clientes` -> `{clientes: [{id, nome, email, telefone, oab, plano: {id, nome, valor} | null,
   situacao: "ativa"|"cortesia"|"cancelada"|"vencida"|"pendente", ajustado: bool, tomador: {nome, documento,
   email, telefone, logradouro, numero, complemento, bairro, cep, cmun, uf, inscricao_municipal}}]}`.

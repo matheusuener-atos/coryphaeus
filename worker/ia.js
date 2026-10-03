@@ -261,7 +261,7 @@ export function medidor(env, id) {
   };
 }
 
-async function autenticar(request, env) {
+export async function autenticar(request, env) {
   const cab = request.headers.get("authorization") || "";
   const segredo = cab.startsWith("Bearer ") ? cab.slice(7).trim() : "";
   const m = segredo.match(RE_SEGREDO);
