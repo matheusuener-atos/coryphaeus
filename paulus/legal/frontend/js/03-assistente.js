@@ -508,7 +508,7 @@ function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
   // N14: o que o agente fez sozinho volta com o "Desfazer" (o próprio botão diz se já foi desfeito).
   if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
-        p.tipo === "entrevista" || p.tipo === "levar_ao_editor" ||
+        p.tipo === "entrevista" || p.tipo === "levar_ao_editor" || p.tipo === "preparo" || p.tipo === "clausula" ||
         p.tipo === "editor_criado" || (p.tipo === "mudar_documento" && ultima) ||
         (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) || p.tipo === "config" ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";

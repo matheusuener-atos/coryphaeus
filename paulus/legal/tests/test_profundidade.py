@@ -100,6 +100,10 @@ def etapa_da_chamada(corpo: dict) -> str:
         return "entrevista"
     if "Você faz a triagem" in sistema:
         return "triagem"
+    if "CLÁUSULA POR CLÁUSULA" in sistema:
+        return "clausula"
+    if "Planeje o trabalho em SEÇÕES" in ultima:
+        return "plano_secoes"
     if "TRABALHO JURÍDICO" in sistema:
         if ultima.rstrip().endswith("O que precisa estar no documento por causa disso."):
             return "analise"
@@ -126,6 +130,19 @@ class Nuvem:
         if etapa == "entrevista":
             dados = self.entrevistas.pop(0) if self.entrevistas else {"decisao": "executar", "abertura": "Perfeito."}
             pedacos = [json.dumps(dados, ensure_ascii=False)]
+        elif etapa == "plano_secoes":
+            pedacos = [json.dumps({"titulo_documento": "Contrato de arrendamento rural", "unidade": "cláusula",
+                                   "secoes": [{"titulo": "Do objeto", "objetivo": "a área arrendada e o uso"},
+                                              {"titulo": "Do preço", "objetivo": "o preço do arrendamento e o pagamento"}],
+                                   "leis": [{"nome": "Estatuto da Terra (Lei 4.504/1964)", "codigo": ""},
+                                            {"nome": "Código Civil", "codigo": "cc"}]}, ensure_ascii=False)]
+        elif etapa == "clausula":
+            ultima = (corpo.get("messages") or [{}])[-1].get("content", "")
+            titulo = ultima.rsplit("Primeira linha: ", 1)[-1].strip()
+            ajustada = " (ajustada)" if "AJUSTES PEDIDOS" in ultima else ""
+            pedacos = [titulo + "\nTexto da cláusula" + ajustada + ", com o arrendatário CPF [CP", "F 1] e [●].\n###PON",
+                       'TOS###\n{"pontos": [{"ponto": "Prazo de pagamento", "atual": "30 dias", "alternativas": ["15 dias", '
+                       '"na colheita"]}], "aviso": ""}']
         elif etapa == "triagem":
             pedacos = ['{"assunto": "lei", "documentos": [], "em_tese": "", "dispositivos": []}']
         elif etapa == "analise":
@@ -356,6 +373,14 @@ def main() -> int:
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     (pasta / "minuta-anterior.txt").write_text("MINUTA ANTERIOR. Arrendatário CPF " + CPF + ". Prazo de 3 anos.", encoding="utf-8")
+    (pasta / "modelo arrendamento soja.txt").write_text(
+        "CONTRATO DE ARRENDAMENTO RURAL\n\nCLÁUSULA 2ª – DO PREÇO\n\nO preço do arrendamento será pago em dinheiro, "
+        "anualmente, até o fim da colheita, corrigido pelo índice escolhido pelas partes.", encoding="utf-8")
+    (pasta / "estatuto da terra.txt").write_text(
+        "LEI Nº 4.504, DE 30 DE NOVEMBRO DE 1964 - Estatuto da Terra\n" + "\n".join(
+            f"Art. {n}. Disposição {n} sobre o imóvel rural." for n in range(1, 10))
+        + "\nArt. 95. O preço do arrendamento não pode ser superior a 15% do valor cadastral do imóvel, pago em dinheiro.\n",
+        encoding="utf-8")
     api.estado.recarregar()
 
     situacao = local.get("/api/nuvem/situacao").json()
@@ -431,21 +456,70 @@ def main() -> int:
     pessoa = [m for m in t["mensagens"] if m["autor"] == "pessoa"][-1]
     checar("Área rural" in pessoa["texto"], "a resposta da pessoa fica legível na conversa")
 
-    print("\n'Decida por mim': executa (Advogado: planeja e redige)")
+    print("\n'Decida por mim': o plano das cláusulas, antes de redigir")
     n0 = len(fake.chamadas)
     evs, t = perguntar(tid, {"pergunta": "Decida por mim o que faltar.", "nuvem": True, "profundidade": "advogado",
                              "entrevista": {"id": prop2["entrevista_id"], "acao": "decidir", "respostas": []}})
-    checar(fake.etapas(n0) == ["plano", "redacao"], "sem nova entrevista: plano e redação", fake.etapas(n0))
-    redacao = json.dumps(fake.chamadas[-1]["corpo"], ensure_ascii=False)
-    checar("DECIDA" in redacao and "benfeitorias" in redacao and "PLANO:" in redacao,
-           "a redação recebe o que decidir, o definido e o plano")
-    checar(CPF not in json.dumps([c["corpo"] for c in fake.chamadas[n0:]], ensure_ascii=False), "nenhuma etapa leva o CPF")
+    checar(fake.etapas(n0) == ["plano_secoes"], "sem nova entrevista: só o plano das cláusulas", fake.etapas(n0))
+    prep = next((d for k, d in evs if k == "proposta"), {})
+    checar(prep.get("tipo") == "preparo" and prep["secoes"][0] == "QUALIFICAÇÃO DAS PARTES"
+           and prep["secoes"][1] == "CLÁUSULA 1ª – DO OBJETO", "a qualificação das partes primeiro, e as cláusulas numeradas",
+           prep.get("secoes"))
+    frase = t["mensagens"][-1]["texto"]
+    checar("cláusula por cláusula, juntos, começando pela qualificação das partes" in frase and "compilo tudo num documento só" in frase,
+           "diz que vamos fazer cláusula por cláusula, juntos, e compilar no fim", frase)
+    checar("Estatuto da Terra" in frase and "modelo já feito" in frase, "pede a lei que falta e um modelo", frase)
+    leis = {l["nome"]: l["na_biblioteca"] for l in prep["leis"]}
+    checar(leis.get("Estatuto da Terra (Lei 4.504/1964)") is False, "o Estatuto da Terra não está na Biblioteca", leis)
+    checar("modelo arrendamento soja.txt" in prep.get("modelos_acervo", []), "oferece o modelo do Acervo", prep.get("modelos_acervo"))
+    checar(t["contexto"]["entrevista"]["fase"] == "preparo", "a conversa espera o começo")
+
+    print("\ncláusula por cláusula")
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid, {"pergunta": "Pode começar pela qualificação das partes.", "nuvem": True, "profundidade": "advogado",
+                             "apenas": ["estatuto da terra.txt"],
+                             "entrevista": {"id": prep["entrevista_id"], "acao": "comecar", "modelos": ["modelo arrendamento soja.txt"]}})
+    checar(fake.etapas(n0) == ["clausula"], "uma chamada: a qualificação das partes", fake.etapas(n0))
+    tokens = "".join(d["t"] for k, d in evs if k == "token")
+    checar("###" not in tokens and "pontos" not in tokens and tokens.startswith("QUALIFICAÇÃO DAS PARTES"),
+           "à tela vai só a cláusula, sem o JSON dos pontos", tokens[:120])
+    c1 = next((d for k, d in evs if k == "oferta"), {})
+    checar(c1.get("tipo") == "clausula" and c1.get("indice") == 0 and c1.get("total") == 3
+           and c1["pontos"][0]["alternativas"] == ["15 dias", "na colheita"], "o cartão: Aprovar, Corrigir e os pontos ajustáveis", c1)
+    checar(CPF not in json.dumps(fake.chamadas[-1]["corpo"], ensure_ascii=False), "a cláusula vai mascarada")
+    checar(sorted(t["contexto"]["entrevista"]["materiais"]) == ["estatuto da terra.txt", "modelo arrendamento soja.txt"],
+           "a lei anexada e o modelo escolhido ficam como material", t["contexto"]["entrevista"]["materiais"])
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid, {"pergunta": "Aprovada", "nuvem": True, "profundidade": "advogado",
+                             "entrevista": {"id": c1["entrevista_id"], "acao": "aprovar", "secao": c1["secao"]}})
+    c2 = next((d for k, d in evs if k == "oferta"), {})
+    pedido_c2 = fake.chamadas[-1]["corpo"]["messages"][-1]["content"]
+    checar(c2.get("indice") == 1 and c2["titulo"] == "CLÁUSULA 1ª – DO OBJETO" and "SEÇÕES JÁ APROVADAS" in pedido_c2,
+           "aprovada, vem a próxima, com as aprovadas junto", c2.get("titulo"))
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid, {"pergunta": "Corrigir", "nuvem": True, "profundidade": "advogado",
+                             "entrevista": {"id": c2["entrevista_id"], "acao": "corrigir", "secao": c2["secao"],
+                                            "pontos": [{"ponto": "Prazo de pagamento", "escolha": "na colheita"}],
+                                            "pedido": "inclua a reserva legal"}})
+    c2b = next((d for k, d in evs if k == "oferta"), {})
+    pedido = fake.chamadas[-1]["corpo"]["messages"][-1]["content"]
+    checar(c2b.get("secao") == c2["secao"] and c2b.get("versao") == 2 and "na colheita" in pedido and "reserva legal" in pedido
+           and "VERSÃO ANTERIOR" in pedido, "corrigir refaz a mesma cláusula com os pontos e o pedido livre", c2b.get("versao"))
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid, {"pergunta": "ok", "nuvem": True, "profundidade": "advogado"})
+    c3 = next((d for k, d in evs if k == "oferta"), {})
+    pedido_c3 = fake.chamadas[-1]["corpo"]["messages"][-1]["content"]
+    checar(c3.get("titulo") == "CLÁUSULA 2ª – DO PREÇO", "'ok' na caixa aprova e segue", c3.get("titulo"))
+    checar("LEI ANEXADA" in pedido_c3 and "Art. 95" in pedido_c3 and "MODELO «modelo arrendamento soja.txt»" in pedido_c3,
+           "a cláusula do preço leva o artigo da lei anexada e o trecho do modelo sobre o preço")
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid, {"pergunta": "Aprovada", "nuvem": True, "profundidade": "advogado",
+                             "entrevista": {"id": c3["entrevista_id"], "acao": "aprovar", "secao": c3["secao"]}})
     final = t["mensagens"][-1]
-    checar(final["texto"].count("CONTRATO DE ARRENDAMENTO RURAL") == 1 and "[●]" in final["texto"],
-           "o texto redigido fica na conversa", final["texto"][:120])
-    como = (final.get("cobertura") or {}).get("como") or {}
-    checar(como.get("profundidade", {}).get("nivel") == "advogado" and como["profundidade"].get("etapas") == ["plano", "redacao"]
-           and como["profundidade"].get("tokens") == 300, "o 'como' diz o nível, as etapas e os tokens", como.get("profundidade"))
+    checar(fake.etapas(n0) == [], "a última aprovada: compila, sem chamar o modelo (Advogado não revisa)", fake.etapas(n0))
+    checar(final["texto"].startswith("CONTRATO DE ARRENDAMENTO RURAL") and "QUALIFICAÇÃO DAS PARTES" in final["texto"]
+           and "(ajustada)" in final["texto"] and final["texto"].index("CLÁUSULA 1ª") < final["texto"].index("CLÁUSULA 2ª"),
+           "o documento compilado, na ordem, com a versão corrigida", final["texto"][:200])
     checar((final.get("proposta") or {}).get("tipo") == "levar_ao_editor", "o cartão para levar ao editor")
     checar(t["contexto"]["entrevista"]["status"] == "executada", "a entrevista se fecha")
 
@@ -470,20 +544,25 @@ def main() -> int:
     tid2 = nova()
     evs, t = perguntar(tid2, {"pergunta": "Elabore uma contestação completa para a ação de cobrança contra o arrendatário CPF " + CPF,
                               "nuvem": True, "profundidade": "juiz"})
-    checar(fake.etapas(n0) == ["entrevista", "plano", "redacao", "revisao", "reescrita"],
-           "entender, planejar, redigir, revisar e reescrever", fake.etapas(n0))
+    prep2 = next((d for k, d in evs if k == "proposta"), {})
+    checar(fake.etapas(n0) == ["entrevista", "plano_secoes"] and prep2.get("tipo") == "preparo", "entender e planejar as seções",
+           fake.etapas(n0))
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid2, {"pergunta": "Faça tudo de uma vez.", "nuvem": True, "profundidade": "juiz"})
+    checar(fake.etapas(n0) == ["plano", "redacao", "revisao", "reescrita"],
+           "'faça tudo de uma vez' na caixa: planejar, redigir, revisar e reescrever", fake.etapas(n0))
     tipos = [k for k, _ in evs]
     checar("reescrevendo" in tipos and tipos.index("reescrevendo") < tipos.index("fim"), "a tela é avisada antes da versão revista")
     final = t["mensagens"][-1]["texto"]
-    checar(final.startswith("Perfeito. Já tenho o necessário.") and "CONTRATO REVISTO" in final and "ARRENDAMENTO RURAL." not in final
-           and CPF in final, "fica a versão revista, com a abertura e o CPF de volta", final[:160])
+    checar(final.startswith("Faço tudo de uma vez, como você pediu. Com honestidade") and "CONTRATO REVISTO" in final
+           and "ARRENDAMENTO RURAL." not in final and CPF in final, "honesto sobre o que se perde; a versão revista, com o CPF", final[:160])
     tokens = "".join(d["t"] for k, d in evs if k == "token")
     checar("[CPF 1]" not in tokens and CPF in tokens, "o que chega à tela traz o CPF, e não o marcador")
     rev = t["mensagens"][-1]["cobertura"]["como"]["profundidade"]["revisao"]
     checar(rev.get("refeito") is True and len(rev.get("problemas") or []) == 2, "a revisão fica registrada", rev)
     checar(CPF not in json.dumps([c["corpo"] for c in fake.chamadas[n0:]], ensure_ascii=False), "o CPF do pedido não sai em etapa nenhuma")
     titulos = [e["titulo"] for e in t["etapas"]]
-    checar(titulos == ["Entender o pedido", "Planejar a estrutura", "Redigir", "Revisar criticamente"], "as etapas na tela", titulos)
+    checar(titulos[-3:] == ["Planejar a estrutura", "Redigir", "Revisar criticamente"], "as etapas na tela", titulos)
     entradas = [c["corpo"].get("max_tokens") for c in fake.chamadas[n0:] if c["etapa"] in ("redacao", "reescrita")]
     checar(entradas == [7000, 7000], "o teto do Juiz na redação", entradas)
 
@@ -491,17 +570,25 @@ def main() -> int:
     fake.entrevistas = [{"decisao": "executar", "abertura": "Certo."}]
     fake.revisao = {"problemas": [], "refazer": False}
     n0 = len(fake.chamadas)
-    evs, t = perguntar(nova(), {"pergunta": "Faça um parecer sobre usucapião extrajudicial de imóvel rural", "nuvem": True,
-                                "profundidade": "ministro"})
-    checar(fake.etapas(n0) == ["entrevista", "analise", "plano", "redacao", "revisao"], "análise, plano, redação e revisão",
-           fake.etapas(n0))
-    checar("reescrevendo" not in [k for k, _ in evs], "sem problema alto ou médio, não reescreve")
-    checar("Lidas:" not in t["mensagens"][-1]["texto"] and t["mensagens"][-1]["texto"].startswith("Certo."), "o texto final")
-
-    print("\nEstagiário sem perguntar antes: só redige")
+    tid5 = nova()
+    evs, t = perguntar(tid5, {"pergunta": "Faça um parecer sobre usucapião extrajudicial de imóvel rural", "nuvem": True,
+                              "profundidade": "ministro"})
+    prep5 = next((d for k, d in evs if k == "proposta"), {})
+    checar(prep5.get("unidade") == "seção", "parecer vai seção por seção", prep5.get("unidade"))
     n0 = len(fake.chamadas)
-    evs, t = perguntar(nova(), {"pergunta": "Redija uma notificação extrajudicial para o inquilino", "nuvem": True,
-                                "profundidade": "estagiario", "perguntar": False})
+    evs, t = perguntar(tid5, {"pergunta": "Faça tudo de uma vez.", "nuvem": True, "profundidade": "ministro",
+                              "entrevista": {"id": prep5["entrevista_id"], "acao": "tudo"}})
+    checar(fake.etapas(n0) == ["analise", "plano", "redacao", "revisao"], "análise, plano, redação e revisão", fake.etapas(n0))
+    checar("reescrevendo" not in [k for k, _ in evs], "sem problema alto ou médio, não reescreve")
+
+    print("\nEstagiário sem perguntar antes: o plano; de uma vez, só redige")
+    n0 = len(fake.chamadas)
+    tid6 = nova()
+    evs, t = perguntar(tid6, {"pergunta": "Redija uma notificação extrajudicial para o inquilino", "nuvem": True,
+                              "profundidade": "estagiario", "perguntar": False})
+    checar(fake.etapas(n0) == ["plano_secoes"], "sem entrevista, direto ao plano", fake.etapas(n0))
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid6, {"pergunta": "faça tudo de uma vez", "nuvem": True, "profundidade": "estagiario"})
     checar(fake.etapas(n0) == ["redacao"], "uma chamada só", fake.etapas(n0))
     checar(fake.chamadas[-1]["corpo"].get("max_tokens") == 2000, "com o teto do Estagiário")
 
@@ -533,7 +620,7 @@ def main() -> int:
     n0 = len(fake.chamadas)
     evs, t = perguntar(tid3, {"pergunta": "só ad judicia, com poderes para receber e dar quitação", "nuvem": True,
                               "profundidade": "advogado"})
-    checar(fake.etapas(n0) == ["entrevista", "plano", "redacao"], "texto livre é resposta: nova análise e execução", fake.etapas(n0))
+    checar(fake.etapas(n0) == ["entrevista", "plano_secoes"], "texto livre é resposta: nova análise e o plano", fake.etapas(n0))
     checar("receber e dar quitação" in json.dumps(fake.chamadas[n0]["corpo"], ensure_ascii=False), "a explicação vai à análise")
 
     print("\nmodo criativo: sem ler documento")

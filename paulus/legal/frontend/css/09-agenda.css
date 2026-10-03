@@ -252,7 +252,7 @@
   /* A linha aberta e a de toda lista do sistema (.tabela-linha.aberta): fundo
      --bg, fio de 3 px a esquerda, a seta virada e sem fio embaixo - o que ela
      revela traz o proprio fio. */
-  .ag-linha.aberta { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); border-bottom-color: transparent; }
+  .ag-linha.aberta { background: var(--bg); border-bottom-color: transparent; }
   .ag-linha .ag-texto { flex: 1; min-width: 0; display: grid; gap: 3px; }
   .ag-linha .ag-texto b { font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ag-linha.aberta .ag-texto b { font-weight: 600; }

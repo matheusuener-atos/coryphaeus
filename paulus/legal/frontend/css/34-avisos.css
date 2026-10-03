@@ -95,7 +95,7 @@
   .avp-linha.avp-atrasada { background: var(--destaque-fundo); }
   .avp-linha.avp-atrasada:hover { background: var(--fill2); }
   .avp-linha.av-visto .avp-texto b { color: var(--ink2); font-weight: 500; }
-  .avp-linha.escolhida { background: var(--fill); box-shadow: inset 2px 0 0 var(--ink); }
+  .avp-linha.escolhida { background: var(--fill); }
   .avp-linha.av-saindo { animation: av-sai .24s cubic-bezier(.4,0,1,1) forwards; pointer-events: none; }
   @keyframes av-sai { to { opacity: 0; transform: translateX(-6px); } }
   .avp-ic { display: inline-flex; flex: none; color: var(--ink3); }

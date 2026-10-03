@@ -142,6 +142,7 @@ import triagem as triagem_mod
 import profundidade as profundidade_mod
 import entrevista as entrevista_mod
 import elaboracao as elaboracao_mod
+import clausulas as clausulas_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
 import fila_de_todos
@@ -3799,7 +3800,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # coisa, segue o caminho de sempre - e as perguntas ficam para depois.
     pendente = entrevista_mod.aberta(trabalho.contexto)
     if agente is None and (payload.entrevista is not None or (
-            pendente and not payload.retomar and not payload.apenas
+            pendente and not payload.retomar and (not payload.apenas or pendente.get("fase") == "preparo")
             and not entrevista_mod.parece_outro_assunto(pergunta, pendente.get("pedido", "")))):
         return _seguir_entrevista(trabalho, payload, pergunta, pendente, request, dono, nivel_prof)
 
@@ -5964,6 +5965,8 @@ def _seguir_entrevista(trabalho, payload: Pergunta, pergunta: str, pendente, req
         return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
     # O nivel desta mensagem vale: a pessoa pode ter subido no meio da entrevista.
     pendente["nivel"] = nivel.id
+    if pendente.get("fase") in ("preparo", "clausulas"):
+        return _seguir_clausulas(trabalho, payload, pergunta, pendente, request, dono, nivel)
     acao = str(e.get("acao") or "") if payload.entrevista is not None else "explicar"
     if payload.entrevista is not None:
         entrevista_mod.juntar_respostas(pendente, e.get("respostas") or [], str(e.get("explicacao") or ""))
@@ -5983,6 +5986,208 @@ def _seguir_entrevista(trabalho, payload: Pergunta, pergunta: str, pendente, req
             break
     return _responder_trabalho(trabalho, request, dono, nivel, pendente, forcar_execucao=acao in ("continuar", "decidir"),
                                mensagem_nova="" if payload.entrevista is not None else pergunta)
+
+
+def _modelos_no_acervo(estado_e: dict, plano: dict) -> list[str]:
+    """Documentos do Acervo que parecem do mesmo tipo de trabalho, para usar como modelo (até 4, pelo nome)."""
+    genericas = {"contrato", "contratos", "termo", "acordo", "peticao", "inicial", "rural", "urbano", "simples", "completo",
+                 "minuta", "documento"}
+    alvo = (estado_e.get("trabalho") or "") + " " + (plano.get("titulo_documento") or "")
+    palavras = {w for w in re.findall(r"[a-z]{5,}", clausulas_mod._plano_txt(alvo)) if w not in genericas}
+    if not palavras:
+        return []
+    achados = [d.name for d in estado.searcher.documents
+               if any(w[:7] in clausulas_mod._plano_txt(d.name) for w in palavras)]
+    return achados[:4]
+
+
+def _seguir_clausulas(trabalho, payload: Pergunta, pergunta: str, estado_e: dict, request, dono: str, nivel):
+    """
+    O trabalho junto, cláusula por cláusula (src/clausulas.py). Ações do cartão:
+    "comecar" (com os anexos e o modelo escolhido do Acervo), "aprovar",
+    "corrigir" (os pontos e o pedido livre) e "tudo" (o resto de uma vez - a
+    tela já disse o que se perde). Texto livre: "ok", "pode seguir" aprova;
+    "faça tudo de uma vez" faz o resto; o resto corrige a cláusula da vez.
+    """
+    import time
+
+    e = payload.entrevista or {}
+    acao = str(e.get("acao") or "")
+    texto_livre = "" if payload.entrevista is not None else pergunta
+    if not acao:
+        if clausulas_mod.RE_TUDO.search(texto_livre):
+            acao = "tudo"
+        elif estado_e.get("fase") == "preparo":
+            acao = "comecar"
+            if texto_livre:
+                estado_e["explicacoes"].append(texto_livre[:4000])
+        elif clausulas_mod.RE_APROVA.search(texto_livre):
+            acao = "aprovar"
+        else:
+            acao = "corrigir"
+    nomes = {d.name for d in estado.searcher.documents}
+    if acao in ("comecar", "tudo"):
+        novos = [n for n in list(payload.apenas or []) + [str(x) for x in (e.get("modelos") or [])] if n in nomes]
+        estado_e["materiais"] = list(dict.fromkeys(list(estado_e.get("materiais") or []) + novos))
+    # O cartão de antes fica respondido.
+    for m in reversed(trabalho.mensagens):
+        pr = m.proposta or {}
+        if pr.get("entrevista_id") == estado_e["id"] and pr.get("tipo") in ("preparo", "clausula") and not pr.get("respondida"):
+            pr["respondida"] = True
+            pr["acao"] = acao
+            break
+    if acao == "tudo":
+        estado_e["fase"] = "pronto"
+        return _responder_trabalho(trabalho, request, dono, nivel, estado_e, forcar_execucao=True, modo="tudo")
+    plano = estado_e["plano"]
+    estado_e.setdefault("clausulas", {})
+    atual = int(estado_e.get("atual") or 0)
+    ajustes = None
+    if acao == "aprovar":
+        sid = str(e.get("secao") or plano["secoes"][atual]["id"])
+        if sid in estado_e["clausulas"]:
+            estado_e["clausulas"][sid]["status"] = "aprovada"
+    elif acao == "corrigir":
+        sid = str(e.get("secao") or plano["secoes"][atual]["id"])
+        anterior = (estado_e["clausulas"].get(sid) or {}).get("texto", "")
+        pontos = [{"ponto": _curto_txt(x.get("ponto"), 80), "escolha": _curto_txt(x.get("escolha"), 300)}
+                  for x in (e.get("pontos") or []) if isinstance(x, dict)]
+        ajustes = {"anterior": anterior, "pontos": pontos, "pedido": str(e.get("pedido") or texto_livre or "").strip()[:3000]}
+        atual = next((i for i, x in enumerate(plano["secoes"]) if x["id"] == sid), atual)
+    estado_e["fase"] = "clausulas"
+    indice = atual if acao == "corrigir" else clausulas_mod.proxima(estado_e)
+    pessoa = rotas_do_acesso.pessoa(request)
+    id_ = trabalho.id
+    unidade = plano["unidade"]
+    total = len(plano["secoes"])
+    trabalho.contexto["entrevista"] = estado_e
+    trabalho.etapas = [Etapa("Compilar o documento" if indice is None else
+                             f"Redigir {clausulas_mod.rotulo(plano, indice).split(' – ')[0].lower()} ({indice + 1} de {total})",
+                             estado=EXECUTANDO)]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def gerar() -> Iterator[str]:
+        try:
+            yield from _gerar()
+        finally:
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                trabalho.etapas[0].estado = PAUSADO
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar() -> Iterator[str]:
+        inicio = time.time()
+        como = {"caminho": "clausulas", "profundidade": {"nivel": nivel.id, "nome": nivel.nome, "etapas": ["clausulas"]}}
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        if indice is None:
+            yield from _compilar(inicio, como)
+            return
+        rot = clausulas_mod.rotulo(plano, indice)
+        yield _sse("pensando", {"texto": ("Refazendo " if ajustes else "Redigindo ") + rot.split(" – ")[0].lower() + "…"})
+        gen = clausulas_mod.redigir(estado, trabalho=trabalho, estado_e=estado_e, nivel=nivel, indice=indice, ajustes=ajustes,
+                                    pessoa=pessoa, parar=parar.is_set)
+        escrito: list[str] = []
+        resultado = None
+        try:
+            while True:
+                try:
+                    _tipo, dados = next(gen)
+                except StopIteration as fim:
+                    resultado = fim.value
+                    break
+                if parar.is_set():
+                    break
+                escrito.append(dados["t"])
+                yield _sse("token", dados)
+        except nuvem_mod.ErroNuvem as exc:
+            trabalho.etapas[0].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem parou no meio da " + unidade + ": " + str(exc)})
+            return
+        segundos = round(time.time() - inicio, 1)
+        if parar.is_set() or resultado is None:
+            trabalho.etapas[0].estado = PAUSADO
+            trabalho.estado = PAUSADO
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(escrito)})
+            return
+        sid = plano["secoes"][indice]["id"]
+        versao = int((estado_e["clausulas"].get(sid) or {}).get("versao") or 0) + 1
+        estado_e["clausulas"][sid] = {"texto": resultado["texto"], "pontos": resultado["pontos"], "aviso": resultado["aviso"],
+                                      "status": "proposta", "versao": versao}
+        estado_e["atual"] = indice
+        if "".join(escrito).strip() != resultado["texto"]:
+            yield _sse("substituir", {"texto": resultado["texto"]})
+        cartao = {"tipo": "clausula", "titulo": rot, "campos": {}, "porque": "", "falta": "",
+                  "pergunta": estado_e.get("pedido", ""), "entrevista_id": estado_e["id"], "secao": sid,
+                  "indice": indice, "total": total, "unidade": unidade, "versao": versao,
+                  "pontos": resultado["pontos"], "aviso": resultado["aviso"], "nivel_nome": nivel.nome}
+        trabalho.etapas[0].estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", resultado["texto"], proposta=cartao, segundos=segundos, cobertura={"como": como})
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+        yield _sse("oferta", cartao)
+
+    def _compilar(inicio, como) -> Iterator[str]:
+        texto = clausulas_mod.compilar(estado_e)
+        estado_e["status"] = "executada"
+        estado_e["fase"] = "pronto"
+        problemas: list[dict] = []
+        if "revisao" in nivel.etapas:
+            yield _sse("pensando", {"texto": "Revisando o documento inteiro…"})
+            try:
+                mensagens = [{"role": "system", "content": elaboracao_mod._sistema(nivel)},
+                             {"role": "user", "content": elaboracao_mod._base_do_pedido(estado_e.get("pedido", ""),
+                                                                                          entrevista_mod.briefing(estado_e), ())
+                              + "\n\nTEXTO:\n" + texto + "\n\n" + elaboracao_mod.REVISAO.format(rigor="")}]
+                bruto, _uso = nuvem_mod.chamada(estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="revisao",
+                                                pergunta=estado_e.get("pedido", ""), json_mode=True, max_tokens=2000,
+                                                parar=parar.is_set, profundidade=nivel.id,
+                                                mascara=nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None)
+                problemas = elaboracao_mod.problemas_da_revisao(elaboracao_mod._ler_json(bruto))[0]
+            except nuvem_mod.ErroNuvem:
+                problemas = []
+        conferir = []
+        try:
+            import citacoes
+
+            rev = citacoes.revisar(texto, [], leis=estado.leis, pergunta=estado_e.get("pedido", ""))
+            conferir = [" ".join(str(r).split())[:160] for r in (rev.removidas or [])
+                        if re.search(r"(?i)\bart(?:igo)?s?\b\.?", str(r))][:8]
+        except Exception:  # noqa: BLE001
+            conferir = []
+        segundos = round(time.time() - inicio, 1)
+        oferta = {"tipo": "levar_ao_editor", "titulo": plano.get("titulo_documento") or estado_e.get("trabalho") or "Trabalho",
+                  "campos": {}, "porque": "", "falta": "", "pergunta": estado_e.get("pedido", ""), "nivel_nome": nivel.nome,
+                  "etapas": ["clausulas"] + (["revisao"] if "revisao" in nivel.etapas else []),
+                  "revisao": {"problemas": problemas, "refeito": False}, "conferir": conferir,
+                  "secoes": len(plano["secoes"]), "unidade": unidade}
+        trabalho.etapas[0].estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, segundos=segundos, cobertura={"como": como}, proposta=oferta)
+        estado.trabalhos.salvar(trabalho)
+        avisos.avisar("resposta", "Documento compilado · " + (trabalho.titulo or "Conversa")[:60], texto[:140])
+        yield _sse("token", {"t": texto})
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+        yield _sse("oferta", oferta)
+
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _curto_txt(v, n: int) -> str:
+    return " ".join(str(v or "").split())[:n].strip()
 
 
 def _historico_antes(trabalho, ate: int) -> list[dict]:
@@ -6008,8 +6213,24 @@ def _documentos_do_trabalho(nomes, limite: int) -> list[tuple[str, str]]:
     return saida
 
 
+def _cabe_clausula_por_clausula(estado_e: dict) -> bool:
+    """
+    Redigir junto, clausula por clausula, vale para o trabalho a PRODUZIR. Revisar
+    o contrato anexado ("revise este contrato") continua de uma vez, como antes.
+    """
+    pedido = estado_e.get("pedido", "")
+    revisao = (bool(estado_e.get("anexos")) and entrevista_mod.RE_REVISAR.search(pedido)
+               and not entrevista_mod.RE_PRODUZIR.search(pedido))
+    return not revisao
+
+
+FRASE_TUDO_DE_UMA_VEZ = ("Faço tudo de uma vez, como você pediu. Com honestidade: sem a sua aprovação em cada cláusula, "
+                         "o que estiver fora da sua estratégia só aparece no fim, e o texto feito de uma vez costuma sair "
+                         "menos cuidadoso. Confira com atenção.")
+
+
 def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, forcar_execucao: bool = False,
-                        mensagem_nova: str = "", salvar_no_editor: bool = False):
+                        mensagem_nova: str = "", salvar_no_editor: bool = False, modo: str = ""):
     """
     Entender, e so entao executar. Uma rodada da entrevista (src/entrevista.py)
     decide se pergunta - o modulo de perguntas vai como cartao, e a conversa
@@ -6021,7 +6242,8 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
     id_ = trabalho.id
     pessoa = rotas_do_acesso.pessoa(request)
     historico = _historico_antes(trabalho, int(estado_e.get("inicio") or 0))
-    documentos = _documentos_do_trabalho(estado_e.get("anexos") or [], nivel.documento_caracteres)
+    documentos = _documentos_do_trabalho(list(estado_e.get("anexos") or []) + list(estado_e.get("materiais") or []),
+                                         nivel.documento_caracteres)
     perguntar_antes = (profundidade_mod.entrevista_ligada(estado.prefs.dados) and not forcar_execucao)
     trabalho.contexto["entrevista"] = estado_e
     trabalho.contexto["profundidade"] = nivel.id
@@ -6052,6 +6274,60 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
                         etapa.estado = PAUSADO
                 trabalho.estado = PAUSADO
                 estado.trabalhos.salvar(trabalho)
+
+    def _gerar_preparo(inicio, como, avaliacao) -> Iterator[str]:
+        """O plano das seções e o cartão "antes de começar": a lei que falta, o modelo, Começar ou tudo de uma vez."""
+        trabalho.etapas.append(Etapa("Planejar as cláusulas", estado=EXECUTANDO))
+        yield etapas_sse()
+        yield _sse("pensando", {"texto": "Planejando as cláusulas…"})
+        ponte = Ponte(lambda _e: clausulas_mod.planejar(
+            estado, trabalho=trabalho, pedido=estado_e.get("pedido", ""), briefing=entrevista_mod.briefing(estado_e),
+            nivel=nivel, pessoa=pessoa, parar=parar.is_set), parar=parar.is_set)
+        for _ in ponte:
+            pass
+        plano = ponte.resultado
+        if parar.is_set():
+            trabalho.estado = PAUSADO
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "escreveu": False})
+            return
+        if not plano:
+            trabalho.etapas[-1].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem não respondeu ao planejar as cláusulas; tente de novo"})
+            return
+        estado_e["plano"] = plano
+        estado_e["fase"] = "preparo"
+        estado_e.setdefault("clausulas", {})
+        if trabalho.titulo in ("Nova conversa", "") or not trabalho.titulo:
+            trabalho.titulo = titular(estado_e.get("pedido") or "Trabalho")
+        unidade = plano["unidade"]
+        trabalho_nome = estado_e.get("trabalho") or plano.get("titulo_documento", "").lower() or "trabalho"
+        frase = (f"Vamos fazer o {trabalho_nome[:1].lower() + trabalho_nome[1:]} {unidade} por {unidade}, juntos, "
+                 f"começando pela qualificação das partes. A cada {unidade} você aprova ou pede correção, e no fim eu "
+                 f"compilo tudo num documento só.")
+        faltam = [l["nome"] for l in plano["leis"] if not l["na_biblioteca"]]
+        if faltam:
+            frase += (" Antes, se puder, anexe o texto de " + ", ".join(faltam)
+                      + " - com a lei em mãos eu fundamento cada " + unidade + " no texto oficial. Também ajuda muito "
+                      "um modelo já feito, se você tiver.")
+        else:
+            frase += " Se você tiver um modelo já feito, anexe antes de começar: ajuda a entender o que deve ser feito."
+        proposta = {"tipo": "preparo", "titulo": plano.get("titulo_documento") or trabalho_nome, "campos": {}, "porque": "",
+                    "falta": "", "pergunta": estado_e.get("pedido", ""), "entrevista_id": estado_e["id"],
+                    "unidade": unidade, "nivel_nome": nivel.nome,
+                    "secoes": [clausulas_mod.rotulo(plano, i) for i in range(len(plano["secoes"]))],
+                    "leis": plano["leis"], "modelos_acervo": _modelos_no_acervo(estado_e, plano)}
+        trabalho.etapas[-1].estado = CONCLUIDO
+        trabalho.etapas[-1].detalhe = f"{len(plano['secoes'])} {unidade}s"
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", frase, proposta=proposta, segundos=round(time.time() - inicio, 1), cobertura={"como": como})
+        estado.trabalhos.salvar(trabalho)
+        yield etapas_sse()
+        yield _sse("token", {"t": frase})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "como": como})
 
     def _gerar() -> Iterator[str]:
         inicio = time.time()
@@ -6115,11 +6391,19 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
                 yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "como": como})
                 return
             trabalho.etapas[0].estado = CONCLUIDO
+        # Cláusula por cláusula (src/clausulas.py): o plano, o que falta de lei e
+        # de modelo, e o cartão para começar - nada redigido ainda.
+        if modo != "tudo" and _cabe_clausula_por_clausula(estado_e):
+            yield from _gerar_preparo(inicio, como, avaliacao)
+            return
         # Executar: a entrevista se fecha, e a elaboracao comeca.
         estado_e["status"] = "executada"
+        estado_e["fase"] = "pronto"
         if trabalho.titulo in ("Nova conversa", "") or not trabalho.titulo:
             trabalho.titulo = titular(estado_e.get("pedido") or "Trabalho")
         abertura = ((avaliacao or {}).get("abertura") or "").strip()
+        if modo == "tudo":
+            abertura = FRASE_TUDO_DE_UMA_VEZ
         prefixo = (abertura + "\n\n") if abertura else ""
         trabalho.etapas += [Etapa(elaboracao_mod.TITULOS[e]) for e in nivel.etapas]
         estado.trabalhos.salvar(trabalho)

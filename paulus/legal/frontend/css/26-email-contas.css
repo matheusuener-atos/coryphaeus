@@ -56,7 +56,7 @@
   /* O expansor (sem marcador, seta expand_more que gira) vem da regra unificada em 05-paineis-e-botoes.css; aqui so a letra. */
   .ec-ajuda summary { font: 500 13px var(--sans); color: var(--ink2); }
   .ec-ajuda summary:hover { color: var(--ink); }
-  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--ink-a15); font: 400 15px/1.5 var(--serif); color: var(--ink2); }
+  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; font: 400 15px/1.5 var(--serif); color: var(--ink2); }
   .ec-servidor { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
   .ec-servidor span:not(.ic) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Servidor e porta lado a lado; a porta tem largura fixa e o campo nao pode ter piso maior que ela. */

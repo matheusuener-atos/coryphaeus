@@ -192,7 +192,7 @@
 .pa-tabela tr.destacada td { background: var(--papel-accbg); }
 .pa-tabela tr.total td { background: var(--papel-realce); font-weight: 700; }
 .pa-tabela td.escolhida { outline: 2px solid var(--tinta); outline-offset: -2px; }
-.pa-tabela td.mudou { background: var(--papel-mudou); box-shadow: inset 2px 0 0 var(--papel-ok); }
+.pa-tabela td.mudou { background: var(--papel-mudou); }
 .pa-tabela td.mudou s { color: var(--papel-ink3); font-size: .9em; }
 .pa-pe { gap: 14px; }
 .pa-abas { flex: none; }

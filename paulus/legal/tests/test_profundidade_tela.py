@@ -160,21 +160,49 @@ def main() -> int:
         pag.click('[data-ent-acao="explicar"]')
         pag.fill(".ent-explicar textarea", "O arrendatário vai plantar soja.")
         pag.click('[data-ent-acao="responder"]')
-        pag.wait_for_selector(".proposta.trabalho-pronto", timeout=60000)
-        pag.wait_for_timeout(500)
+        pag.wait_for_selector(".proposta.preparo", timeout=60000)
+        pag.wait_for_timeout(300)
         texto = pag.inner_text("#centro")
         checar("Qual é o objeto do arrendamento? — Área rural" in texto and "Benfeitorias, Garantia" in texto
                and "decida por mim" in texto and "plantar soja" in texto, "as respostas, legíveis na conversa")
-        checar("CONTRATO REVISTO" in texto and "Perfeito. Já tenho o necessário." in texto, "o trabalho, na versão revista")
+        checar("cláusula por cláusula, juntos, começando pela qualificação das partes" in texto, "diz que vamos fazer juntos, cláusula por cláusula")
+        prep = pag.inner_text(".proposta.preparo")
+        checar("falta o texto" in prep and "Um modelo já feito" in prep, "pede a lei que falta e o modelo", prep[:300])
+        acoes = pag.evaluate("() => [...document.querySelectorAll('.proposta.preparo .ent-acoes button')].map(x => x.textContent.replace('attach_file', '').trim())")
+        checar(acoes == ["Começar pela qualificação das partes", "Anexar lei ou modelo", "Fazer tudo de uma vez"], "as saídas do preparo", acoes)
+        checar("Com honestidade" in prep, "fazer tudo de uma vez: dito com honestidade")
+        pag.locator(".proposta.preparo").screenshot(path=str(CAPTURAS / "preparo.png"))
         corpo = [c["corpo"] for c in fake.chamadas if c["etapa"] == "entrevista"][-1]
         enviado = corpo["messages"][-1]["content"]
         checar("Área rural" in enviado and "5 anos" in enviado and "decida por mim" in enviado and "soja" in enviado,
                "a segunda análise recebeu as respostas e a explicação")
-        checar([c["etapa"] for c in fake.chamadas][-4:] == ["plano", "redacao", "revisao", "reescrita"], "o Juiz planejou, redigiu, revisou e reescreveu",
-               [c["etapa"] for c in fake.chamadas][-5:])
+
+        print("\ncláusula por cláusula")
+        pag.click('[data-cl="comecar"]')
+        pag.wait_for_selector(".proposta.clausula:not(.respondida)", timeout=60000)
+        checar("QUALIFICAÇÃO DAS PARTES" in pag.locator(".resposta .texto").last.inner_text(), "a qualificação das partes primeiro")
+        checar("###" not in pag.inner_text("#centro"), "o JSON dos pontos não aparece")
+        pag.click('.proposta.clausula:not(.respondida) [data-cl="corrigir"]')
+        checar(pag.locator(".proposta.clausula:not(.respondida) .cl-corrigir [data-cl-alt]").count() == 2, "corrigir: os pontos ajustáveis")
+        pag.locator(".proposta.clausula:not(.respondida)").screenshot(path=str(CAPTURAS / "clausula-corrigir.png"))
+        pag.click('.proposta.clausula:not(.respondida) [data-cl-alt="na colheita"]')
+        pag.fill(".proposta.clausula:not(.respondida) .cl-corrigir textarea", "use pessoa jurídica para o arrendatário")
+        pag.click('.proposta.clausula:not(.respondida) [data-cl="refazer"]')
+        pag.wait_for_function("() => document.querySelectorAll('.proposta.clausula').length >= 2 && "
+                              "document.querySelectorAll('.proposta.clausula:not(.respondida)').length === 1 && !estado.ocupado", timeout=60000)
+        checar("(ajustada)" in pag.locator(".resposta .texto").last.inner_text(), "a cláusula refeita com os ajustes")
+        for _ in range(3):
+            pag.click('.proposta.clausula:not(.respondida) [data-cl="aprovar"]')
+            pag.wait_for_function("() => !estado.ocupado", timeout=60000)
+            pag.wait_for_timeout(400)
+            if pag.locator(".proposta.trabalho-pronto").count():
+                break
+        pag.wait_for_selector(".proposta.trabalho-pronto", timeout=60000)
+        texto = pag.inner_text("#centro")
+        checar("CLÁUSULA 2ª – DO PREÇO" in texto and "CONTRATO DE ARRENDAMENTO RURAL" in texto, "o documento compilado")
         assinatura = pag.locator(".resposta .ass-meta").last.inner_text()
         checar(assinatura.find("Juiz") >= 0, "a assinatura diz o nível", assinatura)
-        checar("revisão apontou" in pag.inner_text(".proposta.trabalho-pronto"), "o cartão diz o que a revisão apontou")
+        checar("revisão" in pag.inner_text(".proposta.trabalho-pronto"), "o Juiz revisou o documento inteiro")
         checar(pag.locator(".proposta.entrevista button:enabled").count() == 0, "o cartão respondido trava")
         pag.screenshot(path=str(CAPTURAS / "trabalho-pronto.png"), full_page=True)
 

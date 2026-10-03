@@ -433,3 +433,154 @@ document.addEventListener("click", (e) => {
   if (document.getElementById("menu-agente") && !e.target.closest("#menu-agente") && !e.target.closest("#pilula-agente")) fecharMenuAgente();
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") fecharMenuAgente(); });
+
+/* ------------------------------------------------------------ cláusula por cláusula (src/clausulas.py)
+
+   "Antes de começar": o plano das cláusulas, as leis de que o trabalho
+   depende (na Biblioteca, ou falta - anexe o texto ou siga sem ela) e o
+   modelo já feito (anexe, ou escolha um do Acervo). Começar redige a
+   qualificação das partes; "Fazer tudo de uma vez" pode, e diz o que se perde.
+
+   Cada cláusula chega com Aprovar e Corrigir. Corrigir abre os pontos que a
+   própria cláusula deixou ajustáveis (o que foi escolhido e as alternativas)
+   e um campo livre. No fim, o documento compilado. */
+
+const FRASE_HONESTA = "Dá para fazer tudo de uma vez. Com honestidade: sem a sua aprovação em cada cláusula, o que estiver " +
+  "fora da sua estratégia só aparece no fim, e o texto feito de uma vez costuma sair menos cuidadoso.";
+
+function pluralUnidade(n, u) {
+  return plural(n, u, u === "cláusula" ? "cláusulas" : "seções");
+}
+
+function cartaoPreparo(d) {
+  const u = d.unidade || "cláusula";
+  const leis = (d.leis || []).map((l) => "<li>" + esc(l.nome) + ' <span class="cl-estado ' + (l.na_biblioteca ? "ok" : "falta") + '">' +
+    (l.na_biblioteca ? "na Biblioteca" : "falta o texto") + "</span></li>").join("");
+  const faltam = (d.leis || []).filter((l) => !l.na_biblioteca).length;
+  if (d.respondida) {
+    return '<div class="proposta preparo respondida"><div class="proposta-topo"><span class="rotulo">plano</span><b>' + esc(d.titulo || "") +
+      '</b><span class="ent-nivel">' + pluralUnidade((d.secoes || []).length, u) + "</span></div></div>";
+  }
+  return '<div class="proposta preparo"><div class="proposta-topo"><span class="rotulo">antes de começar</span><b>' + esc(d.titulo || "") +
+    '</b><span class="ent-nivel">' + esc(d.nivel_nome || "") + "</span></div>" +
+    '<details class="cl-plano"><summary>O plano: ' + pluralUnidade((d.secoes || []).length, u) +
+    "</summary><ol>" + (d.secoes || []).map((s) => "<li>" + esc(s) + "</li>").join("") + "</ol></details>" +
+    (leis ? '<div class="cl-bloco"><b>As leis deste trabalho</b><ul class="cl-leis">' + leis + "</ul>" +
+      (faltam ? "<small>Anexe o texto da lei que falta (o PDF ou a página do Planalto) e eu fundamento cada " + esc(u) +
+        " nele. Sem ela, sigo pelo que sei, e as citações dela ficam para você conferir.</small>" : "") + "</div>" : "") +
+    '<div class="cl-bloco"><b>Um modelo já feito</b><small>Se você tiver um modelo deste trabalho, anexe: ajuda a entender o que deve ' +
+    "ser feito (eu sigo a estrutura dele, sem copiar dados).</small>" +
+    ((d.modelos_acervo || []).length ? '<div class="ent-opcoes cl-modelos">' + d.modelos_acervo.map((n) =>
+      '<button type="button" class="ent-op" data-cl-modelo="' + esc(n) + '" aria-pressed="false" title="' + esc(n) + '">Usar “' +
+      esc(nomeCurto(n)) + "”</button>").join("") + "</div>" : "") + "</div>" +
+    '<div class="linha-form ent-acoes"><button class="primario" data-cl="comecar">Começar pela qualificação das partes</button>' +
+    '<button class="com-icone" data-cl="anexar">' + ic("attach_file", 15) + "Anexar lei ou modelo</button>" +
+    '<button data-cl="tudo">Fazer tudo de uma vez</button></div>' +
+    '<p class="nota cl-honesta">' + esc(FRASE_HONESTA) + "</p></div>";
+}
+
+function ligarPreparo(caixa, d) {
+  if (d.respondida) return;
+  caixa.querySelectorAll("[data-cl-modelo]").forEach((b) => {
+    b.onclick = () => { const on = !b.classList.contains("on"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); };
+  });
+  const anexar = caixa.querySelector('[data-cl="anexar"]');
+  if (anexar) anexar.onclick = () => { if (typeof abrirAnexar === "function") abrirAnexar(); };
+  caixa.querySelectorAll('[data-cl="comecar"], [data-cl="tudo"]').forEach((b) => {
+    b.onclick = () => {
+      if (estado.ocupado) { avisoCert("espere a resposta de agora terminar"); return; }
+      const modelos = Array.from(caixa.querySelectorAll("[data-cl-modelo].on")).map((x) => x.dataset.clModelo);
+      const tudo = b.dataset.cl === "tudo";
+      caixa.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+      const c = caixa.querySelector(".proposta");
+      if (c) c.classList.add("respondida");
+      enviar({ texto: tudo ? "Faça tudo de uma vez." : "Pode começar pela qualificação das partes.",
+        entrevista: { id: d.entrevista_id, acao: tudo ? "tudo" : "comecar", modelos: modelos } });
+    };
+  });
+}
+
+function cartaoClausula(d) {
+  const u = d.unidade || "cláusula";
+  const topo = '<div class="proposta-topo"><span class="rotulo">' + esc(u) + " " + (Number(d.indice) + 1) + " de " + esc(String(d.total)) +
+    "</span><b>" + esc(d.titulo || "") + "</b>" + (d.versao > 1 ? '<span class="ent-nivel">versão ' + d.versao + "</span>" : "") + "</div>";
+  if (d.respondida) {
+    const como = { aprovar: "aprovada", corrigir: "corrigida abaixo", tudo: "o resto foi feito de uma vez" }[d.acao] || "respondida";
+    return '<div class="proposta clausula respondida">' + topo + '<p class="explica">' + esc(como) + ".</p></div>";
+  }
+  const pontos = (d.pontos || []).map((p, i) =>
+    '<fieldset class="ent-q" data-cl-ponto="' + i + '"><legend class="ent-titulo">' + esc(p.ponto) + "</legend>" +
+    (p.atual ? '<small class="ent-porque">Agora: ' + esc(p.atual) + "</small>" : "") +
+    ((p.alternativas || []).length ? '<div class="ent-opcoes">' + p.alternativas.map((a) =>
+      '<button type="button" class="ent-op" data-cl-alt="' + esc(a) + '" aria-pressed="false">' + esc(a) + "</button>").join("") + "</div>" : "") +
+    '<input class="ent-campo" type="text" placeholder="ou escreva como prefere"></fieldset>').join("");
+  const idPedido = "cl-pedido-" + esc(d.secao) + "-" + d.versao;
+  return '<div class="proposta clausula" data-clausula="' + esc(d.secao) + '">' + topo +
+    (d.aviso ? '<p class="nota cl-aviso">' + esc(d.aviso) + "</p>" : "") +
+    '<div class="linha-form ent-acoes"><button class="primario" data-cl="aprovar">Aprovar' +
+    (Number(d.indice) + 1 < d.total ? " e seguir" : " e compilar") + "</button>" +
+    '<button data-cl="corrigir">Corrigir</button><button data-cl="tudo">Fazer o resto de uma vez</button></div>' +
+    '<div class="cl-corrigir" hidden>' + (pontos ? '<div class="ent-perguntas">' + pontos + "</div>" : "") +
+    '<label class="ent-titulo" for="' + idPedido + '">Outro ajuste</label>' +
+    '<textarea class="ent-campo" id="' + idPedido + '" rows="3" placeholder="Diga com as suas palavras o que mudar nesta ' + esc(u) + '."></textarea>' +
+    '<div class="linha-form"><button class="primario" data-cl="refazer">Refazer a ' + esc(u) + "</button></div></div>" +
+    '<p class="nota cl-honesta" hidden>' + esc(FRASE_HONESTA) +
+    ' <button type="button" class="sv-ligacao" data-cl="tudo-mesmo">Fazer o resto de uma vez</button></p></div>';
+}
+
+function ligarClausula(caixa, d) {
+  if (d.respondida) return;
+  const travar = () => {
+    caixa.querySelectorAll("button, input, textarea").forEach((x) => { x.disabled = true; });
+    const c = caixa.querySelector(".proposta");
+    if (c) c.classList.add("respondida");
+  };
+  const livre = () => { if (estado.ocupado) { avisoCert("espere a resposta de agora terminar"); return false; } return true; };
+  caixa.querySelectorAll(".ent-q").forEach((f) => {
+    const campo = f.querySelector("input");
+    f.querySelectorAll("[data-cl-alt]").forEach((b) => {
+      b.onclick = () => {
+        const on = !b.classList.contains("on");
+        f.querySelectorAll("[data-cl-alt]").forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); });
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", String(on));
+        if (on && campo) campo.value = "";
+      };
+    });
+    if (campo) campo.addEventListener("input", () => f.querySelectorAll("[data-cl-alt]").forEach((x) => x.classList.remove("on")));
+  });
+  caixa.querySelectorAll("[data-cl]").forEach((b) => {
+    b.onclick = () => {
+      const qual = b.dataset.cl;
+      if (qual === "corrigir") {
+        const f = caixa.querySelector(".cl-corrigir");
+        f.hidden = !f.hidden;
+        if (!f.hidden) { const t = f.querySelector("textarea"); if (t) t.focus(); }
+        return;
+      }
+      if (qual === "tudo") { caixa.querySelector(".cl-honesta").hidden = false; return; }
+      if (!livre()) return;
+      if (qual === "aprovar") {
+        travar();
+        enviar({ texto: "Aprovada: " + (d.titulo || ""), entrevista: { id: d.entrevista_id, acao: "aprovar", secao: d.secao } });
+      } else if (qual === "tudo-mesmo") {
+        travar();
+        enviar({ texto: "Faça o resto de uma vez.", entrevista: { id: d.entrevista_id, acao: "tudo" } });
+      } else if (qual === "refazer") {
+        const pontos = [];
+        caixa.querySelectorAll("[data-cl-ponto]").forEach((f) => {
+          const p = (d.pontos || [])[Number(f.dataset.clPonto)];
+          const alt = f.querySelector("[data-cl-alt].on");
+          const escrito = ((f.querySelector("input") || {}).value || "").trim();
+          const escolha = alt ? alt.dataset.clAlt : escrito;
+          if (p && escolha) pontos.push({ ponto: p.ponto, escolha: escolha });
+        });
+        const pedido = ((caixa.querySelector(".cl-corrigir textarea") || {}).value || "").trim();
+        if (!pontos.length && !pedido) { avisoCert("escolha um ponto ou escreva o ajuste"); return; }
+        travar();
+        const resumo = ["Corrigir " + (d.titulo || "") + ":"].concat(pontos.map((p) => p.ponto + " — " + p.escolha), pedido ? [pedido] : []).join("\n");
+        enviar({ texto: resumo, entrevista: { id: d.entrevista_id, acao: "corrigir", secao: d.secao, pontos: pontos, pedido: pedido } });
+      }
+    };
+  });
+}

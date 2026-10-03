@@ -551,7 +551,7 @@
      lugar dela e diferente de ler uma sugestao num painel ao lado. */
   .ed-novo { background: var(--papel-accbg); color: inherit; box-shadow: inset 0 -2px 0 var(--papel-acc); }
   .dupla-cartao {
-    border-left: 3px solid var(--papel-acc); background: var(--papel-accbg2);
+ background: var(--papel-accbg2);
     padding: 10px 14px; margin: 12px 0; display: grid; gap: 6px;
     font: 400 12.5px/1.55 var(--sans); color: var(--tinta);
   }
