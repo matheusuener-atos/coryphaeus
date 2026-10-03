@@ -677,7 +677,8 @@ export function htmlDoEmail({ titulo = "", texto = "", botao = "", link = "", pr
     "</div></body></html>";
 }
 
-export async function enviarEmail(env, { para, assunto, titulo, texto, botao, link, pre, pixel }) {
+/* `anexos` (opcional): [{nome, b64}] -> attachments do Resend (content em base64). */
+export async function enviarEmail(env, { para, assunto, titulo, texto, botao, link, pre, pixel, anexos }) {
   if (!env.RESEND_API_KEY) return { ok: false, status: 503, erro: "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(para || ""))) return { ok: false, status: 400, erro: "e-mail do destinatário inválido" };
   try {
@@ -685,7 +686,8 @@ export async function enviarEmail(env, { para, assunto, titulo, texto, botao, li
       method: "POST",
       headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ from: env.EMAIL_DE || DE_EMAIL, to: [para], subject: String(assunto || "").slice(0, 200),
-        html: htmlDoEmail({ titulo, texto, botao, link, pre, pixel }), text: [titulo, texto, botao && link ? botao + ": " + link : ""].filter(Boolean).join("\n\n") }),
+        html: htmlDoEmail({ titulo, texto, botao, link, pre, pixel }), text: [titulo, texto, botao && link ? botao + ": " + link : ""].filter(Boolean).join("\n\n"),
+        ...(anexos && anexos.length ? { attachments: anexos.map((x) => ({ filename: x.nome, content: x.b64 })) } : {}) }),
     });
     if (!r.ok) {
       let msg = "";
@@ -1011,7 +1013,7 @@ async function nfse(c) {
     prestador = {};
   }
   return {
-    config: { auto: false, email: false, ...((await kvJSON(c.env, "admin:nfse:config", {})) || {}) },
+    config: { auto: false, email: false, mail: false, ...((await kvJSON(c.env, "admin:nfse:config", {})) || {}) },
     emissor: configuracao(c.env).nfse,
     fatos: [
       { k: "Prestador", v: prestador.nome ? prestador.nome + " · CNPJ " + (prestador.cnpj || "a definir") : "a definir com o contador" },
@@ -1217,7 +1219,7 @@ async function aplicar(c, alt) {
     case "material.situacao":
       return aplicarMaterial(c, d);
     case "nfse.config":
-      await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email) }));
+      await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email), mail: Boolean(d.mail) }));
       return {};
     case "nfse.emitir":
       // O painel nao emite: quem emite e o PAULUS da casa, que manda a nota

@@ -299,6 +299,15 @@ r = await admin("GET", "/api/admin/nfse", { ...como(), envUsado: { ...env, NFSE_
 d = await r.json();
 checar(d.fatos.some((f) => f.k === "Emissor" && f.v.startsWith("PAULUS da casa · última conexão 03/10/2026")), "e a ultima conexao da casa", d.fatos);
 guardados.delete("admin:nfse-casa:visto");
+checar(d.config.mail === false, "o interruptor do e-mail da nota comeca desligado", d.config);
+r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.config", dados: { auto: true, email: false, mail: true }, texto: "Liguei: mandar também por e-mail" } }));
+r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
+d = await r.json();
+checar(d.ok && JSON.stringify(JSON.parse(guardados.get("admin:nfse:config"))) === JSON.stringify({ auto: true, email: false, mail: true }), "nfse.config grava os tres interruptores (auto, email, mail)", { d, cfg: guardados.get("admin:nfse:config") });
+r = await admin("GET", "/api/admin/nfse", como());
+d = await r.json();
+checar(d.config.mail === true && d.config.auto === true, "e o painel le o mail de volta", d.config);
+guardados.delete("admin:nfse:config");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.emitir", dados: { ids: ["x"] }, texto: "Emiti" } }));
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
 d = await r.json();

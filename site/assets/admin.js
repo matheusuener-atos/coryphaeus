@@ -783,7 +783,7 @@
     h += falta(emissor);
     var c = d.config || {}, pc = ultimaNaFila("nfse.config");
     var atual = pc ? pc.dados || c : c;
-    var OP = [["auto", "Emitir ao confirmar o pagamento", "o PAULUS da casa emite até 5 min depois, se os dados fiscais do cliente estiverem completos (com ele ligado)"], ["email", "Enviar PDF e XML ao cliente", "no PAULUS dele, como aviso com Download e XML, logo depois de emitir"]];
+    var OP = [["auto", "Emitir ao confirmar o pagamento", "o PAULUS da casa emite até 5 min depois, se os dados fiscais do cliente estiverem completos (com ele ligado)"], ["email", "Enviar PDF e XML ao cliente", "no PAULUS dele, como aviso com Download e XML, logo depois de emitir"], ["mail", "Mandar também por e-mail", "PDF e XML anexos, para o e-mail fiscal do cliente; precisa da RESEND_API_KEY"]];
     h += '<div class="duas-col"><div class="painel">' + OP.map(function (o) {
       var on = !!atual[o[0]], mud = pc && !!c[o[0]] !== on;
       return '<button type="button" class="linha-btn" role="switch" aria-checked="' + on + '" data-a="nfseCfg" data-k="' + o[0] + '"' + (podeC ? "" : ' disabled title="o papel ' + esc(E.sessao.papel) + ' não muda a NFS-e"') + '><span class="txt2"><b>' + esc(o[1]) + "</b><small>" + esc(o[2]) + (mud ? ' · <span class="c-atencao">na fila</span>' : "") + "</small></span>" + sw(on) + "</button>";
@@ -1327,10 +1327,10 @@
   // nfse
   A.nfseCfg = function (el) {
     var d = dadosDe("nfse"); if (!d) return;
-    var pc = ultimaNaFila("nfse.config"), atual = Object.assign({ auto: false, email: false }, pc ? pc.dados : d.config || {});
+    var pc = ultimaNaFila("nfse.config"), atual = Object.assign({ auto: false, email: false, mail: false }, pc ? pc.dados : d.config || {});
     var k = el.dataset.k, novo = Object.assign({}, atual); novo[k] = !atual[k];
-    var tit = { auto: "emitir ao confirmar o pagamento", email: "enviar PDF e XML ao cliente" }[k];
-    enfileirar("nfse", "nfse.config", "config", { auto: !!novo.auto, email: !!novo.email }, (novo[k] ? "Liguei: " : "Desliguei: ") + tit);
+    var tit = { auto: "emitir ao confirmar o pagamento", email: "enviar PDF e XML ao cliente", mail: "mandar também por e-mail" }[k];
+    enfileirar("nfse", "nfse.config", "config", { auto: !!novo.auto, email: !!novo.email, mail: !!novo.mail }, (novo[k] ? "Liguei: " : "Desliguei: ") + tit);
   };
   A.nfseEmitir = function (el) {
     var n = ((dadosDe("nfse") || {}).notas || []).filter(function (x) { return String(x.id) === el.dataset.id; })[0]; if (!n) return;

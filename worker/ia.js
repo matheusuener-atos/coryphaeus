@@ -568,8 +568,33 @@ export function oabNormal(t) {
   return uf + " " + numero[1] + (numero[2] || "");
 }
 
-/* O cadastro conferido, ou {erro}. */
-export function conferirCadastro(d) {
+/* O endereco do cadastro (vai como tomador na NFS-e) conferido, ou {erro}.
+   cmun e o codigo IBGE do municipio (a pagina preenche pela ViaCEP); vazio
+   quando a pessoa digitou a mao. */
+export function conferirEndereco(e) {
+  if (!e || typeof e !== "object") return { erro: "preencha o endereço (CEP, rua, número, bairro, cidade e UF)" };
+  const limpo = (v, max) => String(v == null ? "" : v).replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+  const cep = soDigitos(e.cep);
+  if (cep.length !== 8) return { erro: "o CEP tem 8 dígitos" };
+  const logradouro = limpo(e.logradouro, 125);
+  if (logradouro.length < 2) return { erro: "diga a rua do endereço" };
+  const numero = limpo(e.numero, 20);
+  if (!numero) return { erro: "diga o número do endereço (ou S/N)" };
+  const complemento = limpo(e.complemento, 60);
+  const bairro = limpo(e.bairro, 60);
+  if (!bairro) return { erro: "diga o bairro do endereço" };
+  const cidade = limpo(e.cidade, 60);
+  if (cidade.length < 2) return { erro: "diga a cidade do endereço" };
+  const uf = limpo(e.uf, 2).toUpperCase();
+  if (!UFS.includes(uf)) return { erro: "a UF tem 2 letras (ex.: PA)" };
+  const cmun = soDigitos(e.cmun);
+  if (cmun && cmun.length !== 7) return { erro: "o código do município (IBGE) tem 7 dígitos" };
+  return { endereco: { cep, logradouro, numero, complemento, bairro, cidade, uf, cmun } };
+}
+
+/* O cadastro conferido, ou {erro}. O endereco e obrigatorio para quem cadastra
+   agora (exigirEndereco); a conta antiga, cadastrada sem ele, continua valendo. */
+export function conferirCadastro(d, { exigirEndereco = true } = {}) {
   const nome = String(d.nome_escritorio || "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim();
   if (nome.length < 2 || nome.length > 80) return { erro: "diga o nome do escritório (ou o seu, se trabalha sozinho)" };
   const documento = soDigitos(d.documento);
@@ -578,8 +603,16 @@ export function conferirCadastro(d) {
   if (telefone.length < 10 || telefone.length > 13) return { erro: "o telefone precisa do DDD" };
   const oab = oabNormal(d.oab);
   if (!oab) return { erro: "a OAB vai com a UF e o número, por exemplo: PA 12345" };
+  let endereco = null;
+  if ((d.endereco !== undefined && d.endereco !== null) || exigirEndereco) {
+    const e = conferirEndereco(d.endereco);
+    if (e.erro) return { erro: e.erro };
+    endereco = e.endereco;
+  }
   if (d.aceite !== true) return { erro: "é preciso aceitar os termos de uso e a política de privacidade" };
-  return { cadastro: { nome_escritorio: nome, documento, telefone, oab, termos: TERMOS_VERSAO } };
+  const cadastro = { nome_escritorio: nome, documento, telefone, oab, termos: TERMOS_VERSAO };
+  if (endereco) cadastro.endereco = endereco;
+  return { cadastro };
 }
 
 async function atenderSite(request, env, p, deps) {
@@ -609,7 +642,10 @@ async function atenderSite(request, env, p, deps) {
     return json(await conta.pedir("ler_cadastro"));
   }
   if (p === "/api/ia/site/cadastro") {
-    const c = conferirCadastro(d);
+    // Conta que ja tinha cadastro sem endereco (de antes do endereco) continua
+    // valendo sem ele; cadastro novo, ou conta que ja tem endereco, precisa dele.
+    const antes = aberta.cadastro || null;
+    const c = conferirCadastro(d, { exigirEndereco: !antes || Boolean(antes.endereco) });
     if (c.erro) return json({ erro: c.erro }, 400);
     await conta.pedir("cadastro", { cadastro: { ...c.cadastro, quando: new Date().toISOString() } });
     if (!d.plano) return json(await conta.pedir("ler_cadastro"));

@@ -154,6 +154,14 @@
     if (c.documento && !$("cd-documento").value) $("cd-documento").value = mascararDocumento(c.documento);
     if (c.telefone && !$("cd-telefone").value) $("cd-telefone").value = mascararTelefone(c.telefone);
     if (c.oab && !$("cd-oab").value) $("cd-oab").value = c.oab;
+    var e = c.endereco || {};
+    if (e.cep && !$("cd-cep").value) {
+      $("cd-cep").value = mascararCep(e.cep);
+      cepLido = digitos(e.cep);
+      [["logradouro", "cd-logradouro"], ["numero", "cd-numero"], ["complemento", "cd-complemento"], ["bairro", "cd-bairro"], ["cidade", "cd-cidade"], ["uf", "cd-uf"], ["cmun", "cd-cmun"]].forEach(function (x) {
+        if (e[x[0]]) $(x[1]).value = e[x[0]];
+      });
+    }
     if (conta.plano_proximo) estado.escolhido = conta.plano_proximo.id;
     else if (conta.plano && conta.plano.id) estado.escolhido = conta.plano.id;
     var ativa = conta.plano_vigente;
@@ -229,6 +237,50 @@
     return "(" + d.slice(0, 2) + ") " + (d.length > 10 ? d.slice(2, 7) + "-" + d.slice(7) : d.slice(2, 6) + (d.length > 6 ? "-" + d.slice(6) : ""));
   }
 
+  function mascararCep(t) {
+    var d = digitos(t).slice(0, 8);
+    return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d;
+  }
+
+  /* O CEP com 8 digitos preenche rua, bairro, cidade e UF pela ViaCEP e guarda
+     o codigo IBGE do municipio (vai na NFS-e). Se a ViaCEP falhar, a pessoa
+     digita a mao e o codigo fica vazio (a casa completa na hora da nota). */
+  var cepLido = "";
+  async function buscarCep() {
+    var cep = digitos($("cd-cep").value);
+    var nota = $("cd-cep-nota");
+    if (cep.length !== 8) { if (cep !== cepLido) $("cd-cmun").value = ""; nota.hidden = true; return; }
+    if (cep === cepLido) return;
+    cepLido = cep;
+    $("cd-cmun").value = "";
+    nota.textContent = "Procurando o CEP…";
+    nota.hidden = false;
+    try {
+      var r = await fetch("https://viacep.com.br/ws/" + cep + "/json/");
+      var d = await r.json();
+      if (digitos($("cd-cep").value) !== cep) return;
+      if (!r.ok || !d || d.erro) throw new Error("não achei");
+      if (d.logradouro) $("cd-logradouro").value = d.logradouro;
+      if (d.bairro) $("cd-bairro").value = d.bairro;
+      if (d.localidade) $("cd-cidade").value = d.localidade;
+      if (d.uf) $("cd-uf").value = d.uf;
+      $("cd-cmun").value = /^\d{7}$/.test(String(d.ibge || "")) ? d.ibge : "";
+      nota.hidden = true;
+      (d.logradouro ? $("cd-numero") : $("cd-logradouro")).focus();
+    } catch (e) {
+      if (digitos($("cd-cep").value) !== cep) return;
+      nota.textContent = "Não achei esse CEP agora. Confira o número ou preencha o endereço à mão.";
+      nota.hidden = false;
+    }
+  }
+
+  function endereco() {
+    return {
+      cep: $("cd-cep").value, logradouro: $("cd-logradouro").value, numero: $("cd-numero").value, complemento: $("cd-complemento").value,
+      bairro: $("cd-bairro").value, cidade: $("cd-cidade").value, uf: $("cd-uf").value.trim().toUpperCase(), cmun: $("cd-cmun").value,
+    };
+  }
+
   async function pagar(ev) {
     ev.preventDefault();
     mostrarErro("cd-form-erro", "");
@@ -239,7 +291,7 @@
     try {
       var r = await pedir("/api/ia/site/cadastro", {
         id_token: estado.token, nome_escritorio: $("cd-nome").value, documento: $("cd-documento").value,
-        telefone: $("cd-telefone").value, oab: $("cd-oab").value, aceite: true, plano: estado.escolhido,
+        telefone: $("cd-telefone").value, oab: $("cd-oab").value, endereco: endereco(), aceite: true, plano: estado.escolhido,
         cupom: estado.cupom && estado.cupom.plano === estado.escolhido ? estado.cupom.codigo : "",
       });
       if (!r.link) throw new Error("o Mercado Pago não devolveu a página de pagamento");
@@ -277,6 +329,10 @@
     $("cd-cupom").addEventListener("input", function () { clearTimeout(esperaCupom); esperaCupom = setTimeout(conferirCupom, 500); });
     $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });
+    $("cd-cep").addEventListener("input", function () { this.value = mascararCep(this.value); buscarCep(); });
+    // Cidade digitada a mao: o codigo IBGE da ViaCEP deixa de valer.
+    $("cd-cidade").addEventListener("input", function () { $("cd-cmun").value = ""; });
+    $("cd-uf").addEventListener("input", function () { this.value = this.value.replace(/[^A-Za-z]/g, "").toUpperCase(); $("cd-cmun").value = ""; });
     var guardado = "";
     try { guardado = sessionStorage.getItem(CHAVE) || ""; } catch (e) { guardado = ""; }
     if (guardado) {
