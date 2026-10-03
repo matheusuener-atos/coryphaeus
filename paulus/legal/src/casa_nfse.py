@@ -1,10 +1,11 @@
 """
 As notas do PAVLVS: a NFS-e que o PAVLVS emite para quem assina o PAULUS.
 
-Roda no PAULUS "da casa" (o do servidor do escritório do dono), numa tela à
-parte ("Notas do PAVLVS"), e nunca nos PAULUS dos clientes: só aparece com
-PAULUS_CASA_PAVLVS=1 no ambiente ou "casa_pavlvs": true no preferencias.json da
-pasta de dados.
+Roda no PAULUS "da casa", numa tela à parte ("Notas do PAVLVS"), e aparece
+sozinha: é o PAULUS ligado (pela conta Google da assinatura) a uma conta que a
+nuvem reconhece como da equipe do painel admin (dono ou financeiro). Nos
+PAULUS dos clientes, a nuvem responde que não e a tela não existe. Nada a
+configurar: a conferência é feita no Worker, a cada 30 min.
 
 É o mesmo emissor dos escritórios (src/nfse/), numa instância SEPARADA:
 banco próprio (dados/pavlvs/pavlvs.sqlite3), certificado, configuração e notas
@@ -12,7 +13,8 @@ próprios — o emissor do escritório do dono continua intacto. O que é do
 PAVLVS e não do escritório:
 
 - os clientes e os pagamentos vêm do Worker (paulus.ia.br), pela ponte
-  /api/nfse-casa/* com a chave NFSE_CASA_TOKEN (worker/admin-api.md); editar
+  /api/nfse-casa/*, com o mesmo segredo da instalação que o PAULUS já usa
+  com a nuvem (worker/admin-api.md); editar
   um cliente aqui grava os dados fiscais dele no Worker;
 - a nota emitida vai para o app do cliente ("Sua NFS-e de … chegou", com
   Download e XML) pelo botão "Enviar ao cliente" ou, ligado nos parâmetros,
@@ -38,10 +40,62 @@ ORIGEM = "pavlvs"
 PASTA = "pavlvs"
 
 
-def ligada(prefs_dados: dict | None = None) -> bool:
+# A pergunta à nuvem ("esta conta é da equipe do painel?"). O teste troca por
+# uma função (segredo) -> (status, dados).
+PERGUNTAR = {"fn": None}
+_CACHE: dict = {"segredo": "", "sim": False, "ate": 0.0, "email": "", "motivo": ""}
+_TRAVA = threading.Lock()
+
+
+def _segredo(estado) -> str:
+    try:
+        import nuvem
+
+        return nuvem.chave(estado, "paulus") or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _perguntar(segredo: str) -> tuple[int, dict]:
+    if PERGUNTAR["fn"] is not None:
+        return PERGUNTAR["fn"](segredo)
+    import requests
+
+    site = os.environ.get("PAULUS_SITE", "https://paulus.ia.br").rstrip("/")
+    r = requests.get(site + "/api/nfse-casa/ping", headers={"Authorization": f"Bearer {segredo}"}, timeout=8)
+    try:
+        dados = r.json()
+    except ValueError:
+        dados = {}
+    return r.status_code, dados
+
+
+def situacao(estado, forcar: bool = False) -> dict:
+    """{ligada, email, motivo}: este PAULUS é o da casa? Guarda a resposta 30 min (sim) ou 10 min (não)."""
     if os.environ.get("PAULUS_CASA_PAVLVS") == "1":
-        return True
-    return bool((prefs_dados or {}).get("casa_pavlvs"))
+        return {"ligada": True, "email": "", "motivo": ""}
+    segredo = _segredo(estado)
+    if not segredo:
+        return {"ligada": False, "email": "", "motivo": "este PAULUS não está ligado à conta da assinatura"}
+    with _TRAVA:
+        agora = time.time()
+        if not forcar and _CACHE["segredo"] == segredo and agora < _CACHE["ate"]:
+            return {"ligada": _CACHE["sim"], "email": _CACHE["email"], "motivo": _CACHE["motivo"]}
+        try:
+            status, dados = _perguntar(segredo)
+        except Exception:  # noqa: BLE001 - sem internet: fica a última resposta
+            if _CACHE["segredo"] == segredo:
+                _CACHE["ate"] = agora + 120
+                return {"ligada": _CACHE["sim"], "email": _CACHE["email"], "motivo": _CACHE["motivo"]}
+            return {"ligada": False, "email": "", "motivo": "sem resposta de paulus.ia.br"}
+        sim = status == 200
+        _CACHE.update(segredo=segredo, sim=sim, ate=agora + (1800 if sim else 600), email=str(dados.get("email") or ""),
+                      motivo="" if sim else str(dados.get("erro") or f"HTTP {status}"))
+        return {"ligada": sim, "email": _CACHE["email"], "motivo": _CACHE["motivo"]}
+
+
+def ligada(estado) -> bool:
+    return situacao(estado)["ligada"]
 
 
 def _agora() -> str:
@@ -81,7 +135,7 @@ class ErroPonte(Exception):
 
 
 class Casa:
-    def __init__(self, dados_dir: Path | str) -> None:
+    def __init__(self, dados_dir: Path | str, segredo=None) -> None:
         from base import Base
         from nfse import tabelas
         from nfse.servico import Emissor
@@ -99,38 +153,18 @@ class Casa:
         # O teste troca a ponte HTTP por uma função (metodo, caminho, corpo) -> (status, dados).
         self.ponte_local = None
         self._ultima_resposta: dict = {}
+        # O segredo da instalação (o mesmo de /api/ia/*), lido na hora de cada pedido.
+        self._segredo = segredo or (lambda: "")
 
     # ------------------------------------------------------------- a ponte
-
-    def _token(self) -> str:
-        import segredos
-
-        guardado = (self.prefs.dados.get("ponte") or {}).get("token") or ""
-        if not guardado:
-            return ""
-        try:
-            return segredos.revelar(guardado) or ""
-        except Exception:  # noqa: BLE001
-            return ""
-
-    def guardar_token(self, token: str) -> None:
-        import segredos
-
-        token = str(token or "").strip()
-        if not token:
-            return
-        guardado = segredos.proteger(token) if segredos.disponivel() else ""
-        if not guardado:
-            raise ValueError("não consegui guardar a chave da ponte cifrada neste computador")
-        self.prefs.atualizar({"ponte": {"token": guardado, "gravado_em": _agora()}})
 
     def ponte(self, metodo: str, caminho: str, corpo: dict | None = None) -> dict:
         if self.ponte_local is not None:
             status, dados = self.ponte_local(metodo, caminho, corpo)
         else:
-            token = self._token()
+            token = self._segredo()
             if not token:
-                raise ErroPonte("falta a chave da ponte com paulus.ia.br (Parâmetros › Ponte com o painel)")
+                raise ErroPonte("este PAULUS não está ligado à conta da assinatura (Configurações › Modelos)")
             import requests
 
             try:
@@ -221,29 +255,15 @@ class Casa:
         self.prefs.atualizar({"automaticas": tentativas})
         return feitos
 
-    def ligar_rotina(self, intervalo: int = 300) -> None:
-        def laco():
-            time.sleep(30)
-            while True:
-                try:
-                    self.rodada_automatica()
-                except Exception:  # noqa: BLE001 - a rotina nunca derruba o PAULUS
-                    log.exception("casa_nfse: rodada automática")
-                time.sleep(intervalo)
-
-        threading.Thread(target=laco, daemon=True, name="casa-nfse-rotina").start()
-
     # ----------------------------------------------------------- parâmetros
 
     def gravar_parametros(self, dados: dict, quem: str) -> None:
         dados = dict(dados or {})
-        token = dados.pop("token_ponte", "")
+        dados.pop("token_ponte", None)
         if "enviar_sozinho" in dados:
             self.prefs.atualizar({"enviar_sozinho": bool(dados.pop("enviar_sozinho"))})
         if "mandar_email" in dados:
             self.prefs.atualizar({"mandar_email": bool(dados.pop("mandar_email"))})
-        if token:
-            self.guardar_token(token)
         prest = dados.get("prestador")
         if prest:
             self.emissor.prestador.gravar(prest, quem=quem)
@@ -501,8 +521,7 @@ class Casa:
         tela = e.para_tela()
         notas = [self.nota_para_tela(n) for n in e.notas.listar(limite=300)
                  if n["estado"] not in ("rascunho", "descartada")]
-        ponte = self.prefs.dados.get("ponte") or {}
-        return {**tela, "notas": notas, "ponte": {"configurada": bool(ponte.get("token")), "gravado_em": ponte.get("gravado_em", ""),
+        return {**tela, "notas": notas, "ponte": {
                                                   "site": self.site},
                 "enviar_sozinho": bool(self.prefs.dados.get("enviar_sozinho")),
                 "mandar_email": bool(self.prefs.dados.get("mandar_email")), "motivos": self.motivos(),

@@ -45,26 +45,42 @@ class Tomador(BaseModel):
 def montar(estado, app, dados_dir) -> None:
     estado.casa_nfse = None
 
-    def casa() -> casa_nfse.Casa:
-        if not casa_nfse.ligada(estado.prefs.dados):
-            raise HTTPException(status_code=404, detail="rota não existe")
+    def criar() -> casa_nfse.Casa:
         if estado.casa_nfse is None:
-            estado.casa_nfse = casa_nfse.Casa(Path(dados_dir))
+            estado.casa_nfse = casa_nfse.Casa(Path(dados_dir), segredo=lambda: casa_nfse._segredo(estado))
         return estado.casa_nfse
 
-    # O "emitir ao confirmar o pagamento" do painel roda a cada 5 min, só no
-    # PAULUS da casa. O teste desliga para controlar cada passo.
-    import os
+    def casa() -> casa_nfse.Casa:
+        if not casa_nfse.ligada(estado):
+            raise HTTPException(status_code=404, detail="rota não existe")
+        return criar()
 
-    if casa_nfse.ligada(estado.prefs.dados) and not os.environ.get("PAULUS_NFSE_SEM_FILA"):
-        casa().ligar_rotina()
+    # O "emitir ao confirmar o pagamento" do painel roda a cada 5 min, só no
+    # PAULUS da casa (a pergunta à nuvem é feita a cada volta, sem travar a
+    # abertura). O teste desliga para controlar cada passo.
+    import os
+    import threading
+    import time
+
+    def rotina() -> None:
+        time.sleep(30)
+        while True:
+            try:
+                if casa_nfse.ligada(estado):
+                    criar().rodada_automatica()
+            except Exception:  # noqa: BLE001 - a rotina nunca derruba o PAULUS
+                casa_nfse.log.exception("casa_nfse: rodada automática")
+            time.sleep(300)
+
+    if not os.environ.get("PAULUS_NFSE_SEM_FILA"):
+        threading.Thread(target=rotina, daemon=True, name="casa-nfse-rotina").start()
 
     def erro(exc: Exception, status: int = 400):
         raise HTTPException(status_code=status, detail=str(exc)) from exc
 
     @app.get("/api/casa-nfse/disponivel")
     def casa_disponivel() -> dict:
-        return {"ligada": casa_nfse.ligada(estado.prefs.dados)}
+        return {"ligada": casa_nfse.ligada(estado)}
 
     @app.get("/api/casa-nfse/municipios")
     def casa_municipios(q: str = "") -> dict:

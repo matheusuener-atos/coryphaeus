@@ -76,13 +76,31 @@ def main() -> int:
 
         local = TestClient(api.app, headers=api.cabecalho_local())
 
-        print("\nsó no PAULUS da casa")
-        checar(local.get("/api/casa-nfse").status_code == 404, "sem a chave, a tela não existe")
+        print("\nsó no PAULUS da casa, sozinho (a nuvem diz se a conta é da equipe)")
+        import casa_nfse
+
+        checar(local.get("/api/casa-nfse").status_code == 404, "sem conta da assinatura, a tela não existe")
         checar(local.get("/api/casa-nfse/disponivel").json() == {"ligada": False}, "disponível diz que não")
-        os.environ["PAULUS_CASA_PAVLVS"] = "1"
+        perguntas = []
+        resposta = {"status": 403, "dados": {"erro": "esta conta do PAULUS não é da equipe do painel (dono ou financeiro)"}}
+
+        def perguntar(segredo):
+            perguntas.append(segredo)
+            return resposta["status"], resposta["dados"]
+
+        casa_nfse.PERGUNTAR["fn"] = perguntar
+        casa_nfse._segredo = lambda estado: "pia_cliente_qualquer"
+        checar(local.get("/api/casa-nfse/disponivel").json() == {"ligada": False} and perguntas == ["pia_cliente_qualquer"],
+               "conta de cliente: a nuvem diz que não, e a tela não aparece")
+        local.get("/api/casa-nfse/disponivel")
+        checar(len(perguntas) == 1, "a resposta fica guardada (não pergunta a cada clique)")
+        casa_nfse._segredo = lambda estado: "pia_do_dono"
+        resposta.update(status=200, dados={"ok": True, "email": "dono@pavlvs.com.br", "papel": "dono"})
+        checar(local.get("/api/casa-nfse/disponivel").json() == {"ligada": True}, "conta da equipe: aparece sozinha, sem chave")
         r = local.get("/api/casa-nfse")
-        checar(r.status_code == 200, "com PAULUS_CASA_PAVLVS=1, existe", r.text[:200])
+        checar(r.status_code == 200, "e a tela abre", r.text[:200])
         casa = api.estado.casa_nfse
+        checar(casa._segredo() == "pia_do_dono", "a ponte usa o segredo da instalação, o mesmo da nuvem")
         w = WorkerFalso()
         casa.ponte_local = w
 

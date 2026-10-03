@@ -415,9 +415,8 @@ async function cnDialogoParametros() {
     cnCampo("prestador.ibscbs.cindop", "IBS/CBS — indicador da operação (cIndOp)", ib.cindop) +
     '<p class="dialogo-dica">O código do serviço, a NBS e a classificação do IBS/CBS do PAVLVS (programa de computador) são do contador: os da advocacia não servem aqui.</p>' +
     retencoes +
-    "<h4 class=\"cn-sub\">Ponte com o painel (paulus.ia.br)</h4>" +
-    cnCampo("token_ponte", ponte.configurada ? "Chave da ponte (gravada em " + cnData(ponte.gravado_em) + "; preencha só para trocar)" : "Chave da ponte (NFSE_CASA_TOKEN)", "", ' type="password"') +
-    '<label class="dialogo-marcar"><input type="checkbox" data-cn-campo="enviar_sozinho"' + (d.enviar_sozinho ? " checked" : "") +
+    "<h4 class=\"cn-sub\">Entrega ao cliente</h4>" +
+'<label class="dialogo-marcar"><input type="checkbox" data-cn-campo="enviar_sozinho"' + (d.enviar_sozinho ? " checked" : "") +
     "><span>Enviar a nota ao app do cliente assim que for emitida</span></label>" +
     '<label class="dialogo-marcar"><input type="checkbox" data-cn-campo="mandar_email"' + (d.mandar_email ? " checked" : "") +
     "><span>Mandar também por e-mail (PDF e XML anexos; precisa da RESEND_API_KEY no Worker)</span></label>" +

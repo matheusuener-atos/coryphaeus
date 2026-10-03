@@ -9,24 +9,23 @@ Ela usa o mesmo emissor dos escritórios (`src/nfse/`), numa instância
 separada: banco `dados/pavlvs/pavlvs.sqlite3`, certificado e configuração
 próprios. O emissor do escritório continua como está.
 
-## Ligar (uma vez)
+## Como a tela aparece
 
-1. No Worker: `npx wrangler secret put NFSE_CASA_TOKEN` (uma chave longa e
-   aleatória). Confira que a aplicação do Cloudflare Access cobre só `/admin*`
-   e `/api/admin*`: a ponte `/api/nfse-casa/*` fica fora dela.
-2. No servidor, ligue a tela de um destes dois jeitos e reabra o PAULUS:
-   - no Prompt de Comando da conta que abre o PAULUS: `setx PAULUS_CASA_PAVLVS 1`
-     (vale para os programas abertos depois; o lançador do PAULUS passa adiante);
-   - ou, com o PAULUS fechado, acrescente `"casa_pavlvs": true` ao
-     `preferencias.json` da pasta de dados — no PAULUS instalado,
-     `%LOCALAPPDATA%\PAULUS\dados\preferencias.json`.
-3. Na tela: certificado A1 do CNPJ do PAVLVS e a senha (uma linha);
+Sozinha, sem chave nem configuração: o PAULUS ligado à nuvem com uma conta
+Google que está na equipe do painel admin como **dono** ou **financeiro**
+(Equipe, em paulus.ia.br/admin) mostra a tela. A nuvem confere a cada 30 min.
+Nos PAULUS dos clientes a nuvem responde que não, e a tela não existe. A
+ponte com o painel usa o mesmo segredo da instalação que o PAULUS já usa com
+a nuvem.
+
+## Começar
+
+1. Na tela: certificado A1 do CNPJ do PAVLVS e a senha (uma linha);
    **Parâmetros**: inscrição municipal, endereço, regime, código do serviço,
-   NBS, IBS/CBS (o contador diz; os da advocacia não servem) e a **chave da
-   ponte** (a mesma do passo 1, guardada cifrada).
-4. **Testar comunicação**: certificado, servidor da Sefin (com o certificado
+   NBS e IBS/CBS (o contador diz; os da advocacia não servem).
+2. **Testar comunicação**: certificado, servidor da Sefin (com o certificado
    na conexão), cidade conveniada e a ponte com o painel.
-5. Emita uma nota no ambiente de testes; depois, Parâmetros › Produção ›
+3. Emita uma nota no ambiente de testes; depois, Parâmetros › Produção ›
    **Mudar para produção**.
 
 ## No dia a dia
