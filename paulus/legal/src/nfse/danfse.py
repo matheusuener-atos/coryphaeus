@@ -11,8 +11,8 @@ retrato, borda de 1 ponto e linhas de 0,5 ponto, títulos de bloco em caixa
 alta com fundo cinza claro.
 
 Diferenças conhecidas, ditas em vez de escondidas: a fonte é a Helvetica do
-PDF (de métrica igual à Arial pedida) e a logomarca oficial da NFS-e não vem
-embutida (o cabeçalho traz "NFS-e" em texto). Em produção restrita o
+PDF (de métrica igual à Arial pedida). A logomarca oficial da NFS-e (portal
+gov.br) vai à esquerda do cabeçalho (logo-nfse.jpg). Em produção restrita o
 cabeçalho diz "NFS-e SEM VALIDADE JURÍDICA" (§2).
 
 Tudo o que é impresso sai do XML da nota: "não poderão ser impressas
@@ -22,6 +22,7 @@ informações que não constem do arquivo da NFS-e" (§2.1).
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 from lxml import etree
 
@@ -179,6 +180,7 @@ def gerar(xml: bytes) -> bytes:
     from reportlab.graphics.shapes import Drawing
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
+    from reportlab.lib.utils import ImageReader
     from reportlab.pdfgen import canvas
 
     d = dados_do_xml(xml)
@@ -261,8 +263,9 @@ def gerar(xml: bytes) -> bytes:
     c.setFillColorRGB(*cinza)
     c.rect(x0, y - h, x1 - x0, h, fill=1, stroke=1)
     c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(x0 + 6, y - 0.85 * cm, "NFS-e")
+    logo = ImageReader(str(Path(__file__).with_name("logo-nfse.jpg")))
+    lw, lh = logo.getSize()
+    c.drawImage(logo, x0 + 4, y - 1.1 * cm, width=0.9 * cm * lw / lh, height=0.9 * cm)
     c.setFont("Helvetica-Bold", 9)
     c.drawCentredString(larg / 2, y - 0.5 * cm, "DANFSe v2.0")
     c.drawCentredString(larg / 2, y - 0.85 * cm, "Documento Auxiliar da NFS-e")

@@ -31,6 +31,7 @@
 import * as pdfLibModulo from "../vendor/pdf-lib.min.js";
 import DESCRICOES from "./tabelas/servicos_descricao.json" with { type: "json" };
 import { centavosDoXml, reais } from "./dinheiro.js";
+import { LOGO_NFSE } from "./logo-nfse.js";
 import { matrizQr } from "./qr.js";
 import { dominio, municipio } from "./tabelas.js";
 import { cnpjValido, cpfValido, documentoNormal, juntarEspacos, strip } from "./texto.js";
@@ -324,6 +325,7 @@ class Tela {
   }
   centro(x, y, texto, fonte, tam) { this.escrever(x - largura(String(texto), fonte, tam) / 2, y, texto, fonte, tam); }
   direita(x, y, texto, fonte, tam) { this.escrever(x - largura(String(texto), fonte, tam), y, texto, fonte, tam); }
+  imagem(nome, x, y, w, h) { this.ops.push(`q ${num(w)} 0 0 ${num(h)} ${num(x)} ${num(y)} cm /${nome} Do Q`); }
 }
 
 // As palavras como o str.split() do Python.
@@ -424,7 +426,9 @@ function desenhar(d) {
   c.corFundo(...cinza);
   c.ret(x0, y - hc, x1 - x0, hc, true, true);
   c.corFundo(0, 0, 0);
-  c.escrever(x0 + 6, y - 0.85 * CM, "NFS-e", F_NEGRITO, 16);
+  // A logomarca oficial da NFS-e à esquerda (NT 008, §2.1), 0,9 cm de altura.
+  const hl = 0.9 * CM;
+  c.imagem("LogoNFSe", x0 + 4, y - 1.1 * CM, (hl * LOGO_NFSE.largura) / LOGO_NFSE.altura, hl);
   c.centro(larg / 2, y - 0.5 * CM, "DANFSe v2.0", F_NEGRITO, 9);
   c.centro(larg / 2, y - 0.85 * CM, "Documento Auxiliar da NFS-e", F_NEGRITO, 9);
   if (d.homologacao) c.centro(larg / 2, y - 1.15 * CM, "NFS-e SEM VALIDADE JURÍDICA", F_NEGRITO, 8);
@@ -539,6 +543,12 @@ function dataDaNota(d) {
   return new Date(Number.isFinite(ms) ? ms : 0);
 }
 
+let _logo = null;
+function logoBytes() {
+  if (!_logo) _logo = Uint8Array.from(atob(LOGO_NFSE.b64), (ch) => ch.charCodeAt(0));
+  return _logo;
+}
+
 /**
  * O PDF do DANFSe (uma página A4), do XML da NFS-e (texto ou bytes).
  * Devolve Uint8Array. O mesmo XML dá sempre o mesmo PDF.
@@ -560,6 +570,8 @@ export async function gerarDanfse(xml) {
     const ref = ctx.register(ctx.obj({ Type: "Font", Subtype: "Type1", BaseFont: base, Encoding: "WinAnsiEncoding" }));
     pag.node.setFontDictionary(PDFName.of(nome), ref);
   }
+  const logo = await pdf.embedJpg(logoBytes());
+  pag.node.setXObject(PDFName.of("LogoNFSe"), logo.ref);
   pag.node.addContentStream(ctx.register(ctx.stream(conteudo)));
   return pdf.save({ useObjectStreams: false });
 }
