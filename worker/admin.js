@@ -319,7 +319,7 @@ function configuracao(env) {
     access: cfg(env.ACCESS_TEAM && env.ACCESS_AUD, "falta ACCESS_TEAM e ACCESS_AUD"),
     github: cfg(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET, "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)"),
     email: cfg(env.RESEND_API_KEY, "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY"),
-    // Quem emite e o PAULUS da casa (tela "Notas do PAVLVS"), pela ponte
+    // Quem emite e o PAULUS da casa (tela "Notas Admin"), pela ponte
     // /api/nfse-casa/* (worker/nfse-casa.js), com o segredo da instalacao de
     // uma conta da equipe (dono ou financeiro): ligada quando a nuvem esta.
     nfse: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA && env.APOIOS, "ponte desligada: a nuvem do PAULUS está desligada (IA_ATIVA)"),
@@ -1244,7 +1244,7 @@ async function aplicar(c, alt) {
     case "nfse.emitir":
       // O painel nao emite: quem emite e o PAULUS da casa, que manda a nota
       // pela ponte (/api/nfse-casa/notas).
-      throw new Error("a emissão é feita na tela \"Notas do PAVLVS\" do PAULUS da casa, não pelo painel");
+      throw new Error("a emissão é feita na tela \"Notas Admin\" do PAULUS da casa, não pelo painel");
     case "equipe.papel": {
       const lista = await listaDaEquipe(env);
       const m = lista.find((x) => String(x.email).toLowerCase() === String(d.email).toLowerCase());

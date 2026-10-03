@@ -1,4 +1,4 @@
-# Notas do PAVLVS (a NFS-e dos assinantes)
+# Notas Admin (a NFS-e dos assinantes)
 
 A NFS-e que o PAVLVS emite para quem assina o PAULUS sai do **PAULUS da casa**:
 o PAULUS do servidor do escritório do dono, numa tela à parte ("Notas do

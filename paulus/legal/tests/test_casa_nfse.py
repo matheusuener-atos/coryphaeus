@@ -1,5 +1,5 @@
 """
-Teste das Notas do PAVLVS (src/casa_nfse.py): o emissor do PAVLVS no PAULUS da casa.
+Teste das Notas Admin (src/casa_nfse.py): o emissor do PAVLVS no PAULUS da casa.
 
   - sem PAULUS_CASA_PAVLVS a tela não existe (404);
   - o emissor é separado do do escritório (banco, certificado, configuração);

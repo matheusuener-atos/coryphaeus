@@ -1,7 +1,7 @@
 """
 PAULUS - As NFS-e que o PAVLVS emitiu para este escritório (a assinatura).
 
-Quem emite é o PAULUS da casa (tela "Notas do PAVLVS", no servidor do dono);
+Quem emite é o PAULUS da casa (tela "Notas Admin", no servidor do dono);
 a nota fica no Worker (worker/nfse-casa.js) e este PAULUS a busca com o
 segredo da instalação da nuvem (src/nuvem.py):
 

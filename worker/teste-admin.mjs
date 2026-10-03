@@ -315,7 +315,7 @@ guardados.delete("admin:nfse:config");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.emitir", dados: { ids: ["x"] }, texto: "Emiti" } }));
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
 d = await r.json();
-checar(!d.ok && d.resultados[0].erro.includes("Notas do PAVLVS"), "o painel nao emite: diz que e no PAULUS da casa", d);
+checar(!d.ok && d.resultados[0].erro.includes("Notas Admin"), "o painel nao emite: diz que e no PAULUS da casa", d);
 await admin("DELETE", "/api/admin/alteracoes/" + d.resultados[0].id, como());
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "equipe.papel", dados: { email: "dono@paulus.ia.br", papel: "suporte" }, texto: "Rebaixei o dono" } }));
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));

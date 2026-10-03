@@ -453,7 +453,7 @@ _declarar(BLOQUEADO, "GET /api/nfse/recorrencias", "POST /api/nfse/recorrencias"
 # --- N8 (NFS-e): a liberacao da producao - so o titular, so na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/nfse/producao", "POST /api/nfse/producao/revisado", "POST /api/nfse/teste", "GET /api/nfse/teste/clientes",
           "POST /api/nfse/producao/liberar", "POST /api/nfse/producao/voltar")
-# --- Notas do PAVLVS (src/casa_nfse.py): so no PAULUS da casa; o titular emite
+# --- Notas Admin (src/casa_nfse.py): so no PAULUS da casa; o titular emite
 # de qualquer lugar, pelo tunel. A rota "disponivel" so diz se a tela existe.
 _declarar(PERMITIDO, "GET /api/casa-nfse/disponivel")
 _declarar(TITULAR, "GET /api/casa-nfse", "GET /api/casa-nfse/municipios", "POST /api/casa-nfse/certificado", "POST /api/casa-nfse/certificado/remover",

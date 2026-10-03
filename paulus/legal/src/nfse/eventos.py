@@ -138,7 +138,7 @@ class Eventos:
         return self._cancelamento_sem_fila(nota_id, motivo, texto, quem, "teste do assistente: cancelamento pedido")
 
     def criar_cancelamento_pavlvs(self, nota_id: int, motivo: str, texto: str, quem: str = "titular") -> dict:
-        """O cancelamento das Notas do PAVLVS (casa_nfse.py): o titular pede na tela, sem Aprovações."""
+        """O cancelamento das Notas Admin (casa_nfse.py): o titular pede na tela, sem Aprovações."""
         nota = self.notas.obter(nota_id)
         if not nota or nota["estado"] != EMITIDA:
             raise ValueError("só se cancela nota emitida")
@@ -155,7 +155,7 @@ class Eventos:
         abertos = [e for e in self.da_nota(nota_id) if e["tipo"] == CANCELAMENTO and e["estado"] not in (REJEITADO,)]
         if abertos:
             raise ValueError("já há um pedido de cancelamento desta nota")
-        return self._cancelamento_sem_fila(nota_id, motivo, texto, quem, f"Notas do PAVLVS: cancelamento pedido (motivo {motivo})")
+        return self._cancelamento_sem_fila(nota_id, motivo, texto, quem, f"Notas Admin: cancelamento pedido (motivo {motivo})")
 
     def _cancelamento_sem_fila(self, nota_id: int, motivo: str, texto: str, quem: str, passo: str) -> dict:
         agora = _agora()

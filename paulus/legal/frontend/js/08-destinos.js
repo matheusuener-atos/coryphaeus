@@ -42,7 +42,7 @@ const NOVOS_DESTINOS = {
   // As notas do PAVLVS (js/93-casa-nfse.js): só no PAULUS da casa; o botão
   // do trilho fica escondido nos escritórios.
   pavlvs: {
-    id: "pavlvs", nome: "Notas do PAVLVS", pronta: true, abre: "pavlvs",
+    id: "pavlvs", nome: "Notas Admin", pronta: true, abre: "pavlvs",
     resolve: "A NFS-e que o PAVLVS emite para quem assina o PAULUS.",
     precisa: [],
   },

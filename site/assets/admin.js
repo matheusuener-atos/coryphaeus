@@ -775,7 +775,7 @@
 
   /* ---------- 11. Notas fiscais ---------- */
   TELAS_RENDER.nfse = function () {
-    var h = cab("Notas fiscais (NFS-e)", "Cada pagamento confirmado pelo Mercado Pago, a cobrança mensal ou o Pix da recarga, entra aqui. A NFS-e é emitida na tela Notas do PAVLVS do PAULUS da casa, não neste painel; emitida, o PDF e o XML chegam ao PAULUS do cliente.");
+    var h = cab("Notas fiscais (NFS-e)", "Cada pagamento confirmado pelo Mercado Pago, a cobrança mensal ou o Pix da recarga, entra aqui. A NFS-e é emitida na tela Notas Admin do PAULUS da casa, não neste painel; emitida, o PDF e o XML chegam ao PAULUS do cliente.");
     var est = estadoLeitura(["nfse"], "nfse"); if (est) return h + est;
     h += erroRecente("nfse", "nfse");
     var d = dadosDe("nfse"), emissor = d.emissor && d.emissor.ligado === false ? d.emissor : cfg("nfse");
@@ -795,7 +795,7 @@
     var linhas = ns.map(function (n) {
       var cor = { emitida: "var(--ok)", pendente: "var(--atencao)", erro: "var(--erro)" }[n.nota] || "var(--ink3)";
       var txt = n.nota === "emitida" ? "NFS-e " + (n.numero || "") : n.nota === "cancelada" ? "NFS-e " + (n.numero || "") + " cancelada" : n.nota === "erro" ? "erro · " + (n.erro || "") : "aguardando emissão";
-      // O painel nao emite: quem emite e o PAULUS da casa (Notas do PAVLVS).
+      // O painel nao emite: quem emite e o PAULUS da casa (Notas Admin).
       var bt = n.nota === "emitida" || n.nota === "cancelada" ? "<span></span>" : '<small class="c-ink3" style="justify-self:end;font-size:11px">emitir no PAULUS da casa</small>';
       return '<div class="grade-linha p10"><span class="cel-nome" style="gap:1px"><span class="num c-ink2">' + esc(quando(n.quando)) + '</span><span class="num c-ink3" style="font-size:10.5px">' + esc(n.tipo) + "</span></span>" +
         '<span class="cel-nome" style="gap:1px"><b class="corta" style="font-size:13px">' + esc(n.cliente) + '</b><small style="font-size:11px">' + esc(n.doc || "") + "</small></span>" +
@@ -803,7 +803,7 @@
     }).join("") || '<p class="vazio-linha">Nenhum pagamento ainda.</p>';
     h += '<div class="painel">' + grade(cols, 680, '<span>Pagamento</span><span>Cliente</span><span class="dir">Valor</span><span>Nota</span><span></span>', linhas) +
       '<div class="pe-painel"><span style="flex:1">' + (pend.length ? pend.length + (pend.length === 1 ? " pagamento sem nota" : " pagamentos sem nota") : "Todos os pagamentos têm nota") + "</span>" +
-      (pend.length ? '<small class="c-ink3">emitir na tela Notas do PAVLVS do PAULUS da casa</small>' : "") + "</div></div>";
+      (pend.length ? '<small class="c-ink3">emitir na tela Notas Admin do PAULUS da casa</small>' : "") + "</div></div>";
     return h;
   };
 

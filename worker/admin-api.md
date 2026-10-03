@@ -124,14 +124,14 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `plano.criar` | `{id, nome, valor, tokens}` | dono, financeiro |
 | `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |
 | `nfse.config` | `{auto, email, mail}` | dono, financeiro |
-| `nfse.emitir` | `{ids: [id]}` | dono, financeiro - sempre falha com "a emissão é feita na tela \"Notas do PAVLVS\" do PAULUS da casa": o painel nao emite |
+| `nfse.emitir` | `{ids: [id]}` | dono, financeiro - sempre falha com "a emissão é feita na tela \"Notas Admin\" do PAULUS da casa": o painel nao emite |
 | `equipe.papel` | `{email, papel}` | dono |
 
 Ver contas, tokens e receita, mandar e-mails e lembretes: todos os papeis.
 
 ## Ponte da NFS-e (PAULUS da casa)
 
-Quem emite as NFS-e dos assinantes e o PAULUS da casa (tela "Notas do PAVLVS",
+Quem emite as NFS-e dos assinantes e o PAULUS da casa (tela "Notas Admin",
 no servidor do dono). Codigo em `worker/nfse-casa.js`; teste em
 `worker/teste-nfse-casa.mjs`.
 

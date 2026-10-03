@@ -1,6 +1,6 @@
 /* ------------------------------------------------- notas do PAVLVS */
 /*
-   A tela "Notas do PAVLVS" (src/casa_nfse.py): a NFS-e que o PAVLVS emite
+   A tela "Notas Admin" (src/casa_nfse.py): a NFS-e que o PAVLVS emite
    para quem assina o PAULUS. Só existe no PAULUS da casa (o do servidor do
    dono, ligado à nuvem com uma conta da equipe do painel); nos escritórios o botão do trilho nem
    aparece. Pelo túnel, só o titular.
@@ -23,7 +23,7 @@ async function casaNfseDisponivel() {
 }
 
 async function mostrarNotasPavlvs() {
-  abrirTela("Notas do PAVLVS", { cheia: true });
+  abrirTela("Notas Admin", { cheia: true });
   marcarDestino("pavlvs");
   $("conversa-meta").textContent = "A NFS-e que o PAVLVS emite para quem assina o PAULUS";
   cascaCasaNfse('<p class="nota">lendo…</p>');
@@ -326,7 +326,7 @@ async function cnDialogoEmitir() {
       if (comp && q.length >= 7) comp.value = q.slice(0, 7);
     });
   }, 0);
-  await dialogo({ titulo: "Emitir NFS-e", contexto: "Notas do PAVLVS", html, larga: true, classe: "cn-dialogo",
+  await dialogo({ titulo: "Emitir NFS-e", contexto: "Notas Admin", html, larga: true, classe: "cn-dialogo",
     confirmar: "Emitir", aoConfirmar: enviar });
 }
 
@@ -376,7 +376,7 @@ async function cnDialogoClientes() {
       }
     });
   }, 0);
-  await dialogo({ titulo: "Clientes", contexto: "Notas do PAVLVS", html, larga: true, classe: "cn-dialogo", confirmar: "Fechar", semCancelar: true });
+  await dialogo({ titulo: "Clientes", contexto: "Notas Admin", html, larga: true, classe: "cn-dialogo", confirmar: "Fechar", semCancelar: true });
 }
 
 /* ----------------------------------------------------- parâmetros */
@@ -449,7 +449,7 @@ async function cnDialogoParametros() {
       desenharCasaNfse();
     } catch (err) { cnErroNoDialogo(err.message); }
   };
-  await dialogo({ titulo: "Parâmetros", contexto: "Notas do PAVLVS", html, larga: true, classe: "cn-dialogo", confirmar: "Gravar", aoConfirmar: salvar });
+  await dialogo({ titulo: "Parâmetros", contexto: "Notas Admin", html, larga: true, classe: "cn-dialogo", confirmar: "Gravar", aoConfirmar: salvar });
 }
 
 casaNfseDisponivel();
@@ -489,7 +489,7 @@ async function cnDialogoCancelar(id) {
       if (ok) { ok.disabled = false; ok.textContent = "Cancelar a nota"; }
     }
   };
-  await dialogo({ titulo: "Cancelar a NFS-e nº " + n.numero, contexto: "Notas do PAVLVS", html, classe: "cn-dialogo",
+  await dialogo({ titulo: "Cancelar a NFS-e nº " + n.numero, contexto: "Notas Admin", html, classe: "cn-dialogo",
     confirmar: "Cancelar a nota", cancelar: "Voltar", perigo: true, aoConfirmar: fazer });
 }
 
@@ -524,6 +524,6 @@ async function cnDialogoSubstituir(id) {
       if (ok) { ok.disabled = false; ok.textContent = "Emitir a substituta"; }
     }
   };
-  await dialogo({ titulo: "Substituir a NFS-e nº " + n.numero, contexto: "Notas do PAVLVS", html, larga: true, classe: "cn-dialogo",
+  await dialogo({ titulo: "Substituir a NFS-e nº " + n.numero, contexto: "Notas Admin", html, larga: true, classe: "cn-dialogo",
     confirmar: "Emitir a substituta", aoConfirmar: fazer });
 }

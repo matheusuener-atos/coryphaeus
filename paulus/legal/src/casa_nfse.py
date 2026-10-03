@@ -1,7 +1,7 @@
 """
 As notas do PAVLVS: a NFS-e que o PAVLVS emite para quem assina o PAULUS.
 
-Roda no PAULUS "da casa", numa tela à parte ("Notas do PAVLVS"), e aparece
+Roda no PAULUS "da casa", numa tela à parte ("Notas Admin"), e aparece
 sozinha: é o PAULUS ligado (pela conta Google da assinatura) a uma conta que a
 nuvem reconhece como da equipe do painel admin (dono ou financeiro). Nos
 PAULUS dos clientes, a nuvem responde que não e a tela não existe. Nada a
@@ -337,7 +337,7 @@ class Casa:
         vinc = dict(self.prefs.dados.get("vinculos") or {})
         vinc[str(nota["id"])] = {"conta": conta, "pagamento": pagamento}
         self.prefs.atualizar({"vinculos": vinc})
-        e.notas.mudar_estado(nota["id"], APROVADA, quem, "Notas do PAVLVS: emitida pelo titular na tela",
+        e.notas.mudar_estado(nota["id"], APROVADA, quem, "Notas Admin: emitida pelo titular na tela",
                              aprovado_por=quem, aprovado_em=_agora())
         try:
             nota = e.envio.emitir(nota["id"], quem)
@@ -461,7 +461,7 @@ class Casa:
         vinc = dict(self.prefs.dados.get("vinculos") or {})
         vinc[str(nova["id"])] = dict(vinc.get(str(nota_id)) or {})
         self.prefs.atualizar({"vinculos": vinc})
-        e.notas.mudar_estado(nova["id"], APROVADA, quem, "Notas do PAVLVS: substituta emitida pelo titular na tela",
+        e.notas.mudar_estado(nova["id"], APROVADA, quem, "Notas Admin: substituta emitida pelo titular na tela",
                              aprovado_por=quem, aprovado_em=_agora())
         try:
             nova = e.envio.emitir(nova["id"], quem)
@@ -496,7 +496,7 @@ class Casa:
             return
         e.base.escrever("INSERT INTO nfse_liberacao (liberado_em, liberado_por, checklist) VALUES (?,?,?)",
                         (_agora(), quem, json.dumps([{"id": "testes", "ok": True, "detalhe": f"{testes} nota(s) de teste"}])))
-        e.prestador.mudar_ambiente("producao", quem, "Notas do PAVLVS: produção liberada pelo titular")
+        e.prestador.mudar_ambiente("producao", quem, "Notas Admin: produção liberada pelo titular")
 
     def voltar_para_testes(self, quem: str) -> None:
         self.emissor.producao.voltar(quem)

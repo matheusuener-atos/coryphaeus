@@ -1,5 +1,5 @@
 """
-As rotas da tela "Notas do PAVLVS" (src/casa_nfse.py).
+As rotas da tela "Notas Admin" (src/casa_nfse.py).
 
 Só existem no PAULUS da casa (casa_nfse.ligada). Fora dele, 404. Pelo túnel,
 só o titular entra (src/acesso/politicas.py, nível TITULAR): é ele quem emite
