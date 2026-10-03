@@ -1050,6 +1050,10 @@ rotas_nuvem.montar(estado, app, DADOS_DIR)
 import rotas_nfse  # noqa: E402
 
 rotas_nfse.montar(estado, app, DADOS_DIR)
+# As notas do PAVLVS (src/casa_nfse.py): só no PAULUS da casa.
+import rotas_casa_nfse  # noqa: E402
+
+rotas_casa_nfse.montar(estado, app, DADOS_DIR)
 
 
 def _descrever_para_auditoria(caminho: str) -> str:

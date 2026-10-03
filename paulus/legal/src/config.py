@@ -91,6 +91,9 @@ AUTONOMIA = [
 
 PADRAO: dict = {
     "pastas": [],
+    # Só no PAULUS da casa (o do servidor do dono): liga a tela "Notas do
+    # PAVLVS" (src/casa_nfse.py). Nos escritórios fica sempre desligado.
+    "casa_pavlvs": False,
     # Pastas lidas pelo Acervo alem da pasta do programa: para onde o
     # Organizar moveu documentos. Sem isso, o que foi organizado sumia da
     # tela Documentos - estava no disco, mas fora do que o indice le.
