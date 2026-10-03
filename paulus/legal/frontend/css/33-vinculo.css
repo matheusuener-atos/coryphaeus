@@ -47,8 +47,13 @@
   .trava-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
     background: var(--fill2); color: var(--ink); font: 500 13.5px var(--sans); letter-spacing: .01em; }
   .trava-pastilha svg { width: 16px; height: 16px; flex: none; }
-  .trava-trilho:hover:not(:disabled) .trava-pastilha { filter: brightness(1.12); }
-  .trava-trilho:active .trava-pastilha { filter: brightness(1.2); }
+  /* Sobre e apertado: as cores do desenho (#303030 e #333330 no escuro);
+     no claro, um passo mais fundo que a pastilha. */
+  .trava { --trava-sobre: #e0dad0; --trava-ativa: #d9d3c8; }
+  [data-tema="escuro"] .trava { --trava-sobre: #303030; --trava-ativa: #333330; }
+  .trava-trilho:hover:not(:disabled) .trava-pastilha { background: var(--trava-sobre); }
+  .trava-trilho:active:not(:disabled) .trava-pastilha { background: var(--trava-ativa); }
+  .trava-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .trava-trilho:disabled { opacity: .55; cursor: default; }
   .trava-fora { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 14px; border-radius: 10px;
     background: var(--surf); border: 1px solid var(--ink-a1); }

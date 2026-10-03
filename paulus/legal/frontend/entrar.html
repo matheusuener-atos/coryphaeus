@@ -44,10 +44,10 @@
 <style>
   [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill:#222220; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio-forte:rgba(242,241,236,.4); --borda-btn:rgba(242,241,236,.14);
-    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; color-scheme:dark; }
+    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
   [data-tema="claro"] { --bg:#faf9f6; --surf:#ffffff; --fill:#f2f1ee; --fill2:#e9e8e3; --ink:#1c1c1a; --ink2:#6b6b65; --ink3:#8a8a86;
     --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio-forte:rgba(28,28,26,.4); --borda-btn:rgba(28,28,26,.14);
-    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; color-scheme:light; }
+    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#e2e1db; --pastilha-ativa:#dcdbd5; color-scheme:light; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
@@ -85,7 +85,8 @@
   .g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
     background: var(--fill2); color: var(--ink); font: 500 13.5px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
   .g-pastilha svg { width: 16px; height: 16px; flex: none; }
-  .g-trilho:active .g-pastilha { background: #333330; }
+  .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
+  .g-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .g-trilho:disabled { opacity: .5; pointer-events: none; }
   /* O widget da Cloudflare nao aparece: so se pedir interacao (appearance
      "interaction-only"), e ai ele surge aqui sozinho. */
@@ -118,10 +119,6 @@
     outline: none; color: var(--ink); font: 400 15px 'Manrope', sans-serif; }
   .campos input:focus { border-color: var(--fio-forte); }
   .campos input::placeholder { color: var(--ink3); }
-  .principal { width: 100%; height: 52px; border-radius: 12px; background: var(--fill2); border: 1px solid var(--borda-btn); color: var(--ink);
-    font: 500 15px 'Manrope', sans-serif; cursor: pointer; }
-  .principal:active { background: var(--fill); }
-  .principal:disabled { opacity: .5; cursor: default; }
   .ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-wrap: pretty; text-align: center; }
   .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); text-align: center; }
   .erro:empty { display: none; }
@@ -177,7 +174,8 @@
     .passo .marca b { font-size: 56px; }
     .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
     .voltar { top: 28px; left: 28px; }
-    .g-trilho:hover .g-pastilha { background: #303030; }
+    .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
+    .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   }
 </style>
 </head>
@@ -208,7 +206,7 @@
         <span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · <a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener">Ajuda</a></span></span>
       </div>
       <p class="erro" id="erro-senha" role="alert"></p>
-      <button type="submit" class="principal" id="continuar-senha" hidden>Continuar</button>
+      <button type="submit" class="g-trilho" id="continuar-senha" hidden><span class="g-pastilha">Continuar</span></button>
       <button type="button" class="link-senha" id="usar-senha" hidden>Entrar com e-mail e senha</button>
     </form>
   </section>

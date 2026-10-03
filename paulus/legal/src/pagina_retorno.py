@@ -34,6 +34,9 @@ PERMISSOES = [
     ("calendar.events", "gagenda", "Agenda", "ler e criar eventos"),
     ("calendar.events", "gmeet", "Meet", "criar reuniões nos eventos"),
     ("drive.file", "gdrive", "Drive", "só os arquivos que o PAVLVS envia"),
+    # A leitura do Drive (drive.readonly) le tudo o que a conta ve; o PAULUS
+    # so copia as pastas escolhidas no Acervo (src/drive_online.py).
+    ("drive.readonly", "gdrive", "Drive", "ler as pastas que você escolher no Acervo"),
     ("IMAP.AccessAsUser.All", "email", "E-mail do Outlook", "ler as mensagens"),
     ("SMTP.Send", "email", "Envio pelo Outlook", "enviar, passando por Aprovações"),
 ]
@@ -160,9 +163,9 @@ PAGINA = """<!doctype html>
 <style>
 %%FONTES%%
 [data-tema="escuro"]{--bg:#131312;--surf:#1a1a18;--fill2:#2a2a27;--ink:#f2f1ec;--ink3:#95938a;--apagado:#6f6e68;--marca-dagua:#8a8982;--marca-sub:#6f6e68;
---fio:rgba(242,241,236,.12);--fio2:rgba(242,241,236,.1);--fio3:rgba(242,241,236,.08);--ok:#7fbf8e;--erro:#f0a19c;color-scheme:dark}
+--fio:rgba(242,241,236,.12);--fio2:rgba(242,241,236,.1);--fio3:rgba(242,241,236,.08);--ok:#7fbf8e;--erro:#f0a19c;--sobre:#303030;--ativa:#333330;color-scheme:dark}
 [data-tema="claro"]{--bg:#faf9f6;--surf:#fff;--fill2:#e9e8e3;--ink:#1c1c1a;--ink3:#6b6b65;--apagado:#9a9a93;--marca-dagua:#8a8a86;--marca-sub:#a8a69e;
---fio:rgba(28,28,26,.12);--fio2:rgba(28,28,26,.1);--fio3:rgba(28,28,26,.08);--ok:#2f6b42;--erro:#a3322b;color-scheme:light}
+--fio:rgba(28,28,26,.12);--fio2:rgba(28,28,26,.1);--fio3:rgba(28,28,26,.08);--ok:#2f6b42;--erro:#a3322b;--sobre:#e2e1db;--ativa:#dcdbd5;color-scheme:light}
 *{box-sizing:border-box}html,body{margin:0}
 body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22vh 24px 48px;padding-top:22dvh;
 background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -189,7 +192,7 @@ background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans
 .trilho{display:flex;width:100%;padding:3px;border-radius:10px;background:var(--surf);border:1px solid var(--fio2);cursor:pointer}
 .pastilha{flex:1;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--fill2);color:var(--ink);
 font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
-.trilho:hover .pastilha{filter:brightness(1.12)}.trilho:active .pastilha{filter:brightness(1.2)}
+.trilho:hover .pastilha{background:var(--sobre)}.trilho:active .pastilha{background:var(--ativa)}
 .trilho:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}
 .dica{justify-self:center;font:400 12px/1.5 'Manrope',sans-serif;color:var(--apagado);text-align:center;text-wrap:pretty}
 </style>
