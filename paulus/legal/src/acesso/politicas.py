@@ -469,6 +469,9 @@ _declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "P
           "GET /api/consumo/extrato", "POST /api/consumo/extrato/pdf", "GET /api/consumo/extrato/arquivo",
           "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}")
 _declarar(PERMITIDO, "GET /api/nuvem/situacao")
+# As NFS-e que o PAVLVS emitiu para o escritorio (src/rotas_nfse_recebidas.py):
+# como Plano e consumo, so na janela do escritorio.
+_declarar(BLOQUEADO, "GET /api/nfse-recebidas", "GET /api/nfse-recebidas/{id_}/pdf", "GET /api/nfse-recebidas/{id_}/xml")
 # A IA faz parte da assinatura (src/plano.py): se ela esta liberada, e a frase
 # de onde assinar - sem nada da conta. A tela de fora tambem precisa saber.
 _declarar(PERMITIDO, "GET /api/plano")

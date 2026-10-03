@@ -193,7 +193,7 @@ class Central:
         for nome, fonte in (("tarefas", self._das_tarefas), ("agenda", self._da_agenda),
                             ("financeiro", self._do_financeiro), ("publicacoes", self._das_publicacoes),
                             ("processos", self._dos_processos), ("conflitos", self._dos_conflitos),
-                            ("notas_fiscais", self._das_notas_fiscais),
+                            ("notas_fiscais", self._das_notas_fiscais), ("nfse_recebidas", self._das_nfse_recebidas),
                             ("documentos", self._dos_documentos), ("aprovacoes", self._das_aprovacoes),
                             ("conversas", self._das_conversas), ("rotinas", self._das_rotinas)):
             try:
@@ -348,6 +348,24 @@ class Central:
             avisos.append(self._aviso("nota_fiscal", a["id"], a["titulo"], 0, hoje.isoformat(),
                                       origem="Nota fiscal", detalhe=a.get("detalhe") or "",
                                       destino={"tela": "nfse", "id": a.get("nota_id")} if a.get("nota_id") else {"tela": "configuracoes", "secao": "nfse"}))
+        return avisos
+
+    def _das_nfse_recebidas(self, avisos, hoje, agora, ate, pessoa, politica):
+        """
+        A NFS-e que o PAVLVS emitiu para este escritório (src/nfse_recebidas.py):
+        "Sua NFS-e de outubro/2026 chegou", com Download (PDF) e XML. Só na
+        janela do escritório, como Plano e consumo.
+        """
+        estado = getattr(self, "estado_nuvem", None)
+        if estado is None or not politica("GET", "/api/nfse-recebidas"):
+            return avisos
+        import nfse_recebidas
+
+        for a in nfse_recebidas.para_avisos(estado, hoje):
+            avisos.append(self._aviso("nota_fiscal", a["id"], a["titulo"], 0, hoje.isoformat(), quando=a["quando"],
+                                      origem="PAVLVS · sua assinatura", detalhe=a["detalhe"],
+                                      destino={"tela": "nfse_recebida", "id": a["nota_id"], "url": a["acoes"][0]["url"]},
+                                      acoes=a["acoes"]))
         return avisos
 
     def _dos_processos(self, avisos, hoje, agora, ate, pessoa, politica):

@@ -248,6 +248,35 @@ def _paulus(estado, metodo: str, caminho: str, corpo: dict | None = None, segred
     return dados or {}
 
 
+def paulus_bytes(estado, caminho: str) -> tuple[bytes, str]:
+    """
+    Um arquivo do Worker (o PDF ou o XML de uma NFS-e), com o mesmo segredo
+    desta instalação que a _paulus usa. Devolve (bytes, content-type).
+    LookupError quando o Worker diz 404; ErroNuvem nos outros erros e sem conta.
+    """
+    k = chave(estado, "paulus")
+    if not k:
+        raise ErroNuvem("a conta da nuvem do PAULUS não está ativada nesta instalação")
+    try:
+        r = _pedir("GET", SITE + caminho, {"Authorization": f"Bearer {k}"}, None, False)
+    except Exception as exc:  # noqa: BLE001
+        raise ErroNuvem("não consegui falar com paulus.ia.br agora (sem internet?)") from exc
+    if r.status_code == 404:
+        raise LookupError("esse arquivo não está em paulus.ia.br")
+    if r.status_code >= 400:
+        try:
+            msg = str((r.json() or {}).get("erro") or "")
+        except Exception:  # noqa: BLE001
+            msg = ""
+        raise ErroNuvem(msg or f"paulus.ia.br respondeu com erro ({r.status_code})")
+    tipo = ""
+    try:
+        tipo = str((getattr(r, "headers", None) or {}).get("content-type") or "")
+    except Exception:  # noqa: BLE001
+        tipo = ""
+    return bytes(r.content or b""), tipo
+
+
 def instalacao_id(estado) -> str:
     """O mesmo id do acesso de fora (src/acesso/conexao.py): uma instalação, um id."""
     a = estado.prefs.dados.get("acesso_remoto") or {}

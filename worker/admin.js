@@ -319,7 +319,9 @@ function configuracao(env) {
     access: cfg(env.ACCESS_TEAM && env.ACCESS_AUD, "falta ACCESS_TEAM e ACCESS_AUD"),
     github: cfg(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET, "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)"),
     email: cfg(env.RESEND_API_KEY, "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY"),
-    nfse: cfg(env.NFSE_EMISSOR, "o emissor da NFS-e ainda não foi escolhido (confirmar com o contador)"),
+    // Quem emite e o PAULUS da casa (tela "Notas do PAVLVS"), pela ponte
+    // /api/nfse-casa/* (worker/nfse-casa.js); ligada com NFSE_CASA_TOKEN.
+    nfse: cfg(env.NFSE_CASA_TOKEN, "ponte desligada (falta NFSE_CASA_TOKEN)"),
     tuneis: cfg(cfConfigurado(env), "falta a chave da Cloudflare (CF_API_TOKEN, CF_ACCOUNT_ID, CF_ZONE_ID)"),
     mercado_pago: cfg(env.MP_ACCESS_TOKEN, "falta MP_ACCESS_TOKEN"),
     nuvem: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA, "a nuvem do PAULUS está desligada (IA_ATIVA)"),
@@ -397,6 +399,12 @@ async function chamarGitHub(metodo, url, token, corpo) {
 }
 
 // ---------------------------------------------------------- as contas
+
+/* As contas como o painel as monta, com o detalhe cru em _d (para a ponte da
+   NFS-e, worker/nfse-casa.js). */
+export async function contasDaCasa(env, agora = Date.now()) {
+  return lerContas({ env, agora });
+}
 
 /* Todas as contas da nuvem, com o detalhe de cada uma (um pedido por medidor). */
 async function lerContas(c) {
@@ -995,6 +1003,7 @@ async function nfse(c) {
       valor: x.valor, nota: x.nota || "pendente", numero: x.numero || "", erro: x.erro || "" });
   }
   notas.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+  const visto = await c.env.APOIOS.get("admin:nfse-casa:visto");
   let prestador = {};
   try {
     prestador = JSON.parse(c.env.NFSE_PRESTADOR || "{}");
@@ -1008,10 +1017,18 @@ async function nfse(c) {
       { k: "Prestador", v: prestador.nome ? prestador.nome + " · CNPJ " + (prestador.cnpj || "a definir") : "a definir com o contador" },
       { k: "Município", v: prestador.municipio || "a definir · ISS conforme a alíquota do município" },
       { k: "Serviço", v: prestador.servico || "a definir (ex.: 1.05 · licenciamento de programas de computação)" },
-      { k: "Emissor", v: c.env.NFSE_EMISSOR ? c.env.NFSE_EMISSOR : "não escolhido" },
+      { k: "Emissor", v: emissorDaCasa(c.env, visto) },
     ],
     notas,
   };
+}
+
+function emissorDaCasa(env, visto) {
+  if (!env.NFSE_CASA_TOKEN) return "ponte desligada (falta NFSE_CASA_TOKEN)";
+  if (!visto) return "PAULUS da casa · nunca conectou";
+  const d = new Date(visto);
+  const quando = isNaN(d) ? visto : d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return "PAULUS da casa · última conexão " + quando;
 }
 
 // ------------------------------------------------------------- equipe
@@ -1203,8 +1220,9 @@ async function aplicar(c, alt) {
       await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email) }));
       return {};
     case "nfse.emitir":
-      if (!env.NFSE_EMISSOR) throw new Error("o emissor da NFS-e ainda não foi escolhido (confirmar com o contador)");
-      throw new Error("a emissão pelo emissor " + env.NFSE_EMISSOR + " ainda não foi feita no Worker");
+      // O painel nao emite: quem emite e o PAULUS da casa, que manda a nota
+      // pela ponte (/api/nfse-casa/notas).
+      throw new Error("a emissão é feita na tela \"Notas do PAVLVS\" do PAULUS da casa, não pelo painel");
     case "equipe.papel": {
       const lista = await listaDaEquipe(env);
       const m = lista.find((x) => String(x.email).toLowerCase() === String(d.email).toLowerCase());
