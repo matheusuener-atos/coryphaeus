@@ -287,7 +287,7 @@ async function chavesDoAccess(time) {
   return CHAVES_CACHE.chaves;
 }
 
-async function listaDaEquipe(env) {
+export async function listaDaEquipe(env) {
   const doKV = await kvJSON(env, "admin:equipe", null);
   if (Array.isArray(doKV) && doKV.length) return doKV;
   try {
@@ -320,8 +320,9 @@ function configuracao(env) {
     github: cfg(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET, "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)"),
     email: cfg(env.RESEND_API_KEY, "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY"),
     // Quem emite e o PAULUS da casa (tela "Notas do PAVLVS"), pela ponte
-    // /api/nfse-casa/* (worker/nfse-casa.js); ligada com NFSE_CASA_TOKEN.
-    nfse: cfg(env.NFSE_CASA_TOKEN, "ponte desligada (falta NFSE_CASA_TOKEN)"),
+    // /api/nfse-casa/* (worker/nfse-casa.js), com o segredo da instalacao de
+    // uma conta da equipe (dono ou financeiro): ligada quando a nuvem esta.
+    nfse: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA && env.APOIOS, "ponte desligada: a nuvem do PAULUS está desligada (IA_ATIVA)"),
     tuneis: cfg(cfConfigurado(env), "falta a chave da Cloudflare (CF_API_TOKEN, CF_ACCOUNT_ID, CF_ZONE_ID)"),
     mercado_pago: cfg(env.MP_ACCESS_TOKEN, "falta MP_ACCESS_TOKEN"),
     nuvem: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA, "a nuvem do PAULUS está desligada (IA_ATIVA)"),
@@ -1025,12 +1026,31 @@ async function nfse(c) {
   };
 }
 
+/* "admin:nfse-casa:visto" e {quando, email} (JSON); o formato antigo era so a
+   data ISO, sem o e-mail. */
 function emissorDaCasa(env, visto) {
-  if (!env.NFSE_CASA_TOKEN) return "ponte desligada (falta NFSE_CASA_TOKEN)";
-  if (!visto) return "PAULUS da casa · nunca conectou";
-  const d = new Date(visto);
-  const quando = isNaN(d) ? visto : d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  return "PAULUS da casa · última conexão " + quando;
+  const cfg = configuracao(env).nfse;
+  if (!cfg.ligado) return cfg.falta;
+  if (!visto) return "PAULUS da casa · ainda não conectou";
+  let quando = visto;
+  let email = "";
+  try {
+    const x = JSON.parse(visto);
+    if (x && typeof x === "object") {
+      quando = x.quando || "";
+      email = x.email || "";
+    }
+  } catch {
+    // formato antigo: a string ISO
+  }
+  const d = new Date(quando);
+  if (!quando || isNaN(d)) return "PAULUS da casa · ainda não conectou";
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(d).map((p) => [p.type, p.value]),
+  );
+  const texto = partes.day + "/" + partes.month + "/" + partes.year + " " + partes.hour + ":" + partes.minute;
+  return "PAULUS da casa · " + (email ? email + " · " : "") + "última conexão " + texto;
 }
 
 // ------------------------------------------------------------- equipe

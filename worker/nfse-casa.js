@@ -7,16 +7,18 @@
 // em /api/ia/nfse (worker/ia.js, notasDoCliente, com o segredo da instalacao).
 //
 // Estas rotas ficam FORA do Cloudflare Access (que protege so /admin e
-// /api/admin) e fora da sessao do GitHub: a porta e o segredo NFSE_CASA_TOKEN
-// (npx wrangler secret put NFSE_CASA_TOKEN), em Authorization: Bearer.
-// Sem o segredo, 503; com o errado, 401.
+// /api/admin) e fora da sessao do GitHub. Nao ha chave propria: a casa manda
+// em Authorization: Bearer o segredo da instalacao (pia_<conta>_..., o mesmo
+// de /api/ia/*), e o e-mail dessa conta precisa estar na equipe do painel
+// (ADMIN_EQUIPE ou "admin:equipe" no KV) como dono ou financeiro.
+// Nuvem desligada, 503; segredo ausente ou invalido, 401; fora da equipe, 403.
 //
 // No KV APOIOS:
 //   nfse:tomador:<conta>          o que a casa corrigiu do tomador (vence o cadastro)
 //   nfse:nota:<conta>:<id>        a meta da nota
 //   nfse:nota-pdf:<conta>:<id>    o PDF (base64)
 //   nfse:nota-xml:<conta>:<id>    o XML (base64)
-//   admin:nfse-casa:visto         a ultima chamada valida (ISO)
+//   admin:nfse-casa:visto         a ultima chamada valida: {quando, email}
 //   admin:nfse:<pagamento>        a fila do painel; a nota emitida a marca
 
 //
@@ -24,35 +26,53 @@
 // e-mail pelo Resend (RESEND_API_KEY), ao e-mail do tomador corrigido pela casa
 // ou, sem ele, ao e-mail da conta. Falha no e-mail nao falha a nota.
 
-import { contasDaCasa, enviarEmail } from "./admin.js";
-import { cpfValido, cnpjValido } from "./ia.js";
+import { contasDaCasa, enviarEmail, listaDaEquipe } from "./admin.js";
+import { autenticar, cpfValido, cnpjValido } from "./ia.js";
 
 const PREFIXO = "/api/nfse-casa/";
 const MAX_ARQUIVO = 2 * 1024 * 1024;
 const RE_CONTA = /^[0-9a-f]{24}$/;
 const RE_NOTA = /^[A-Za-z0-9_.-]{1,64}$/;
 const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-const CAMPOS_TOMADOR = ["nome", "documento", "email", "telefone", "logradouro", "numero", "complemento", "bairro", "cep", "cmun", "uf", "inscricao_municipal"];
+const PAPEIS_DA_CASA = ["dono", "financeiro"];
+const CAMPOS_TOMADOR =["nome", "documento", "email", "telefone", "logradouro", "numero", "complemento", "bairro", "cep", "cmun", "uf", "inscricao_municipal"];
 
 export function ehRotaDaCasa(url) {
   return url.pathname.startsWith(PREFIXO);
 }
 
+/* Quem esta na porta: a conta do segredo, se o e-mail dela e da equipe do
+   painel como dono ou financeiro. Devolve {email, papel} ou {erro, status}. */
+async function porteiro(request, env) {
+  if (env.IA_ATIVA !== "1" || !env.CONTAS_IA) return { erro: "a ponte da NFS-e precisa da nuvem do PAULUS ligada (IA_ATIVA e CONTAS_IA)", status: 503 };
+  if (!env.APOIOS) return { erro: "a ponte da NFS-e precisa do KV APOIOS", status: 503 };
+  const quem = await autenticar(request, env);
+  if (quem.erro) return { erro: "não autorizado", status: 401 };
+  const resumo = (await quem.conta.pedir("resumo")) || {};
+  const email = normalEmail(resumo.email);
+  const membro = email ? (await listaDaEquipe(env)).find((x) => normalEmail(x && x.email) === email) : null;
+  if (!membro || !PAPEIS_DA_CASA.includes(membro.papel)) {
+    return { erro: "esta conta do PAULUS não é da equipe do painel (dono ou financeiro)", motivo: "fora_da_equipe", status: 403 };
+  }
+  return { email, papel: membro.papel };
+}
+
 export async function atenderCasa(request, env, url) {
-  if (!env.NFSE_CASA_TOKEN) return json({ erro: "a ponte da NFS-e não está configurada (NFSE_CASA_TOKEN)" }, 503);
-  if (!env.APOIOS) return json({ erro: "a ponte da NFS-e precisa do KV APOIOS" }, 503);
-  const cab = request.headers.get("authorization") || "";
-  const token = cab.startsWith("Bearer ") ? cab.slice(7).trim() : "";
-  if (!(await iguais(token, env.NFSE_CASA_TOKEN))) return json({ erro: "não autorizado" }, 401);
+  const quem = await porteiro(request, env);
+  if (quem.erro) {
+    const corpo = { erro: quem.erro };
+    if (quem.motivo) corpo.motivo = quem.motivo;
+    return json(corpo, quem.status);
+  }
   const agora = new Date().toISOString();
-  await env.APOIOS.put("admin:nfse-casa:visto", agora);
+  await env.APOIOS.put("admin:nfse-casa:visto", JSON.stringify({ quando: agora, email: quem.email }));
 
   const p = url.pathname.slice(PREFIXO.length);
   const m = request.method;
   try {
     if (m === "GET" && p === "ping") {
       const contas = (await kvPor(env, "admin:conta:")).length;
-      return json({ ok: true, hora: agora, contas });
+      return json({ ok: true, hora: agora, contas, email: quem.email, papel: quem.papel });
     }
     if (m === "GET" && p === "clientes") {
       const contas = await contasDaCasa(env);
@@ -304,16 +324,8 @@ function soDigitos(t) {
   return String(t || "").replace(/\D/g, "");
 }
 
-/* Compara o token em tempo constante: os dois passam pelo SHA-256 (mesmo
-   tamanho) e a diferenca e somada byte a byte, sem sair no primeiro. */
-async function iguais(a, b) {
-  const enc = new TextEncoder();
-  const [ha, hb] = await Promise.all([crypto.subtle.digest("SHA-256", enc.encode(String(a))), crypto.subtle.digest("SHA-256", enc.encode(String(b)))]);
-  const x = new Uint8Array(ha);
-  const y = new Uint8Array(hb);
-  let dif = 0;
-  for (let i = 0; i < x.length; i++) dif |= x[i] ^ y[i];
-  return dif === 0 && String(a).length > 0;
+function normalEmail(e) {
+  return String(e || "").replace(/\s+/g, "").toLowerCase();
 }
 
 async function kvJSON(env, chave, padrao = null) {

@@ -36,14 +36,21 @@ const CONTAS_IA = {
     },
   }),
 };
-const TOKEN = "casa-" + "x".repeat(40);
+// A casa entra com o segredo da instalacao de uma conta da equipe do painel:
+// a Ana (financeiro). O Bruno esta na equipe como suporte (nao entra).
+const EQUIPE = JSON.stringify([
+  { email: " Ana@Escritorio.com.br ", nome: "Ana", papel: "financeiro" },
+  { email: "bruno@escritorio.com.br", nome: "Bruno", papel: "suporte" },
+]);
 const env = {
-  IA_ATIVA: "1", CONTAS_IA, APOIOS, NFSE_CASA_TOKEN: TOKEN, DEEPINFRA_KEY: "k",
+  IA_ATIVA: "1", CONTAS_IA, APOIOS, ADMIN_EQUIPE: EQUIPE, DEEPINFRA_KEY: "k",
   GOOGLE_CLIENT_IDS: "cid",
   ASSETS: { fetch: async () => new Response("site", { status: 200 }) },
 };
 const ctx = { waitUntil() {} };
 
+const segredo = (id) => "pia_" + id + "_" + id.slice(0, 1).repeat(64);
+let TOKEN = "";
 async function pedir(metodo, caminho, { token = TOKEN, corpo, envUsado = env } = {}) {
   const headers = { "content-type": "application/json" };
   if (token) headers.authorization = "Bearer " + token;
@@ -65,26 +72,50 @@ await doDe(ID_ANA, "cadastro", { cadastro: { nome_escritorio: "Ana Advocacia", d
   endereco: { cep: "66010000", logradouro: "Rua dos Mundurucus", numero: "1500", complemento: "Sala 3", bairro: "Batista Campos", cidade: "Belém", uf: "PA", cmun: "1501402" } } });
 // Os segredos de instalacao, para as rotas do cliente (o DO guarda o SHA-256).
 const sha = async (t) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, "0")).join("");
-const segredo = (id) => "pia_" + id + "_" + id.slice(0, 1).repeat(64);
 for (const id of [ID_ANA, ID_BRUNO]) await doDe(id, "ativar", { id, dono: { sub: id === ID_ANA ? "ana" : "bruno", email: (id === ID_ANA ? "ana" : "bruno") + "@escritorio.com.br" }, instalacao: "inst-2-" + id.slice(0, 4), hash: await sha(segredo(id)) });
 // Dois pagamentos confirmados (o que anotarPagamento grava).
 guardados.set("admin:nfse:PAY1", JSON.stringify({ id: "PAY1", conta: ID_ANA, tipo: "mensalidade", valor: 300, quando: "2026-10-02T10:00:00Z", nota: "pendente" }));
+TOKEN = segredo(ID_ANA);
 guardados.set("admin:nfse:PAY2", JSON.stringify({ id: "PAY2", conta: ID_BRUNO, tipo: "recarga pix", valor: 50, quando: "2026-10-03T10:00:00Z", nota: "pendente" }));
 
 // ------------------------------------------------------------ portas
 console.log("portas");
-let r = await pedir("GET", "/api/nfse-casa/ping", { envUsado: { ...env, NFSE_CASA_TOKEN: "" } });
+let r = await pedir("GET", "/api/nfse-casa/ping", { envUsado: { ...env, IA_ATIVA: "" } });
 let d = await r.json();
-checar(r.status === 503 && d.erro.includes("NFSE_CASA_TOKEN"), "sem NFSE_CASA_TOKEN: 503 dizendo o que falta", d);
+checar(r.status === 503 && d.erro.includes("IA_ATIVA"), "nuvem desligada: 503 dizendo o que falta", d);
+r = await pedir("GET", "/api/nfse-casa/ping", { envUsado: { ...env, CONTAS_IA: undefined } });
+checar(r.status === 503, "sem CONTAS_IA: 503");
 r = await pedir("GET", "/api/nfse-casa/ping", { token: "errado" });
-checar(r.status === 401, "token errado: 401");
+d = await r.json();
+checar(r.status === 401 && d.erro === "não autorizado", "segredo invalido: 401", d);
+r = await pedir("GET", "/api/nfse-casa/ping", { token: "pia_" + ID_ANA + "_" + "z".repeat(64) });
+checar(r.status === 401, "segredo com a conta certa e o resto errado: 401");
 r = await pedir("GET", "/api/nfse-casa/ping", { token: "" });
-checar(r.status === 401, "sem token: 401");
+checar(r.status === 401, "sem segredo: 401");
+r = await pedir("GET", "/api/nfse-casa/ping", { token: segredo(ID_BRUNO) });
+d = await r.json();
+checar(r.status === 403 && d.motivo === "fora_da_equipe" && d.erro === "esta conta do PAULUS não é da equipe do painel (dono ou financeiro)", "conta valida com papel suporte: 403", d);
+r = await pedir("GET", "/api/nfse-casa/ping", { token: segredo(ID_BRUNO), envUsado: { ...env, ADMIN_EQUIPE: JSON.stringify([{ email: "ana@escritorio.com.br", papel: "dono" }]) } });
+d = await r.json();
+checar(r.status === 403 && d.motivo === "fora_da_equipe", "conta valida fora da equipe: 403", d);
+r = await pedir("GET", "/api/nfse-casa/ping", { envUsado: { ...env, ADMIN_EQUIPE: "" } });
+checar(r.status === 403, "sem equipe nenhuma: 403");
 checar(!guardados.has("admin:nfse-casa:visto"), "chamada recusada nao conta como conexao");
 r = await pedir("GET", "/api/nfse-casa/ping");
 d = await r.json();
-checar(r.status === 200 && d.ok && d.contas === 2 && d.hora, "ping: ok, hora e contas (sem Access nem GitHub)", d);
-checar(Boolean(guardados.get("admin:nfse-casa:visto")), "a chamada valida grava admin:nfse-casa:visto");
+checar(r.status === 200 && d.ok && d.contas === 2 && d.hora && d.email === "ana@escritorio.com.br" && d.papel === "financeiro", "segredo valido de conta da equipe: ping com hora, contas, email e papel (sem Access nem GitHub)", d);
+const visto = JSON.parse(guardados.get("admin:nfse-casa:visto") || "null");
+checar(visto && visto.email === "ana@escritorio.com.br" && !isNaN(Date.parse(visto.quando)), "a chamada valida grava admin:nfse-casa:visto {quando, email}", visto);
+// A equipe publicada pelo painel (KV) vence a do env.
+guardados.set("admin:equipe", JSON.stringify([{ email: "bruno@escritorio.com.br", nome: "Bruno", papel: "dono" }]));
+r = await pedir("GET", "/api/nfse-casa/ping", { token: segredo(ID_BRUNO) });
+d = await r.json();
+checar(r.status === 200 && d.email === "bruno@escritorio.com.br" && d.papel === "dono", "equipe do KV: o Bruno (dono) entra", d);
+r = await pedir("GET", "/api/nfse-casa/ping");
+checar(r.status === 403, "equipe do KV vence a do env: a Ana (so no env) fica de fora");
+guardados.delete("admin:equipe");
+r = await pedir("GET", "/api/nfse-casa/ping");
+checar(r.status === 200, "sem a equipe do KV, volta a do env");
 
 // ------------------------------------------------------------ clientes
 console.log("clientes");
@@ -252,10 +283,10 @@ console.log("painel");
 const reqSessao = new Request("https://paulus.ia.br/api/admin/sessao");
 r = await atenderAdmin(reqSessao, env, new URL(reqSessao.url), ctx, { chavesDoAccess: async () => [] });
 d = await r.json();
-checar(d.config.nfse.ligado === true, "com NFSE_CASA_TOKEN, a NFS-e aparece ligada no painel", d.config.nfse);
-r = await atenderAdmin(reqSessao, { ...env, NFSE_CASA_TOKEN: "" }, new URL(reqSessao.url), ctx, { chavesDoAccess: async () => [] });
+checar(d.config.nfse.ligado === true, "com a nuvem ligada, a NFS-e aparece ligada no painel (sem segredo)", d.config.nfse);
+r = await atenderAdmin(reqSessao, { ...env, IA_ATIVA: "" }, new URL(reqSessao.url), ctx, { chavesDoAccess: async () => [] });
 d = await r.json();
-checar(d.config.nfse.ligado === false && d.config.nfse.falta.includes("NFSE_CASA_TOKEN"), "sem o token, diz que a ponte esta desligada", d.config.nfse);
+checar(d.config.nfse.ligado === false && d.config.nfse.falta.includes("IA_ATIVA"), "com a nuvem desligada, diz que a ponte esta desligada", d.config.nfse);
 
 console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  ponte da NFS-e: todos os testes passaram");
 process.exit(falhas ? 1 : 0);
