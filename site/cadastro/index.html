@@ -92,7 +92,15 @@
         <div class="cd-acoes">
           <a class="btn primario" href="https://github.com/matheusuener-atos/coryphaeus/releases/latest"><span class="icon" aria-hidden="true">download</span>Baixar o PAVLVS para Windows</a>
         </div>
-        <p class="cd-nota">Instale, abra e entre com a mesma conta Google em Configurações › Modelos. Cancelar a assinatura também é por lá; para trocar de plano, escreva para contato@paulus.ia.br.</p>
+        <p class="cd-nota">Instale, abra e entre com a mesma conta Google em Configurações › Modelos. Cancelar a assinatura também é por lá.</p>
+        <div class="cd-troca" id="cd-troca" hidden>
+          <p class="cd-texto" id="cd-troca-texto"></p>
+          <div class="cd-acoes">
+            <button type="button" class="btn secundario" id="cd-trocar-plano"></button>
+            <span class="cd-nota">O valor novo é cobrado na próxima renovação, e os tokens do plano novo entram com ela. O ciclo já pago continua no plano de agora.</span>
+          </div>
+          <p class="cd-erro" id="cd-troca-erro" hidden></p>
+        </div>
       </div>
     </div>
   </section>

@@ -73,11 +73,18 @@ function painelDoPlano(d) {
     (vigente ? "" : " · sem o plano em dia, o PAULUS funciona sem IA") +
     ". A recarga não vence na renovação; o ciclo gasta primeiro os tokens do plano.</p>");
   const botoes = [];
-  if (!c.cortesia && a.situacao !== "authorized") {
-    // Os tres planos (worker/ia.js): o escolhido vai na assinatura. O mesmo
+  const ativa = a.situacao === "authorized";
+  if (ativa && c.plano_proximo) {
+    linhas.push('<p class="cfg-explica">Troca marcada: a partir de ' + esc(ciclo.fim ? dataNuvem(ciclo.fim) : "a renovação") + ", o plano " +
+      esc(c.plano_proximo.nome) + " (R$ " + esc(String(c.plano_proximo.valor)) + "/mês). O ciclo já pago continua no " + esc((c.plano || {}).nome || "plano de agora") + ".</p>");
+  }
+  if (!c.cortesia) {
+    // Os tres planos (worker/ia.js): sem assinatura, o escolhido vai na
+    // assinatura; com ela ativa, vira a troca, que vale na renovacao. O mesmo
     // da pagina paulus.ia.br/cadastro.
     const planos = c.planos || [];
-    if (!nuvemTela.plano) nuvemTela.plano = (c.plano || {}).id || "escritorio";
+    const vale = (ativa && c.plano_proximo ? c.plano_proximo : c.plano) || {};
+    if (!nuvemTela.plano) nuvemTela.plano = vale.id || "escritorio";
     const escolhido = planos.find((p) => p.id === nuvemTela.plano) || c.plano || {};
     if (planos.length > 1) {
       linhas.push('<div class="nuvem-planos" role="radiogroup" aria-label="Plano">' + planos.map((p) =>
@@ -85,7 +92,13 @@ function painelDoPlano(d) {
         '" data-nuvem-plano="' + esc(p.id) + '"><b>' + esc(p.nome) + "</b><span>R$ " + esc(String(p.valor)) + "/mês</span><small>" +
         esc(tokens(p.tokens)) + " tokens por mês</small></button>").join("") + "</div>");
     }
-    botoes.push('<button class="primario" data-nuvem-assinar="1">Assinar o ' + esc(escolhido.nome || "plano") + " · R$ " + esc(String(escolhido.valor || "")) + "/mês</button>");
+    if (!ativa) {
+      botoes.push('<button class="primario" data-nuvem-assinar="1">Assinar o ' + esc(escolhido.nome || "plano") + " · R$ " + esc(String(escolhido.valor || "")) + "/mês</button>");
+    } else if (escolhido.id && escolhido.id !== vale.id) {
+      const desfaz = c.plano_proximo && escolhido.id === (c.plano || {}).id;
+      botoes.push('<button class="primario" data-nuvem-trocar="1">' + (desfaz ? "Ficar no " + esc(escolhido.nome) + " (desfazer a troca)"
+        : "Trocar para o " + esc(escolhido.nome) + " · R$ " + esc(String(escolhido.valor)) + "/mês na renovação") + "</button>");
+    }
   }
   if (vigente) botoes.push('<button class="com-icone" data-nuvem-recarga="1">' + ic("payments", 16) + "Recarregar " + esc(tokens((c.recarga || {}).tokens)) +
     " · R$ " + esc(String((c.recarga || {}).valor || "")) + " no Pix</button>");
@@ -310,6 +323,13 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
   });
   raiz.querySelectorAll("[data-nuvem-plano]").forEach((b) => {
     b.onclick = () => { nuvemTela.plano = b.dataset.nuvemPlano; redesenhar(); };
+  });
+  clique("[data-nuvem-trocar]", async () => {
+    const r = await nuvemPost("/api/nuvem/paulus/plano", { plano: nuvemTela.plano });
+    if (!r) return;
+    nuvemTela.conta = r.conta || r;
+    avisoCert(nuvemTela.conta.plano_proximo ? "Troca marcada: o plano novo vale a partir da renovação." : "Troca desfeita: o plano continua o de agora.");
+    redesenhar();
   });
   clique("[data-nuvem-assinar]", async () => {
     const r = await nuvemPost("/api/nuvem/paulus/assinar", { plano: nuvemTela.plano });

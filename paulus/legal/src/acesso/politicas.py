@@ -422,7 +422,7 @@ _declarar(BLOQUEADO, "GET /api/nuvem", "POST /api/nuvem/chave", "GET /api/nuvem/
 # (nuvem), o plano e a recarga - tudo da janela do escritorio. De fora, so a
 # situacao que a caixa da pergunta usa (sem chave, sem conta).
 _declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "POST /api/nuvem/paulus/ativar",
-          "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "GET /api/nuvem/paulus/assinatura",
+          "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "POST /api/nuvem/paulus/plano", "GET /api/nuvem/paulus/assinatura",
           "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}")
 _declarar(PERMITIDO, "GET /api/nuvem/situacao")
 # A IA faz parte da assinatura (src/plano.py): se ela esta liberada, e a frase

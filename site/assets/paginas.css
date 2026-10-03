@@ -122,3 +122,5 @@
   .cd-num { display: none; }
 }
 .cd-acoes .btn { white-space: normal; }
+.cd-selo { margin-left: 6px; font-style: normal; letter-spacing: .04em; text-transform: none; font-family: var(--sans); font-size: 11.5px; color: var(--ink2); }
+.cd-troca { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }

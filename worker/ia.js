@@ -137,6 +137,11 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     return assinar(request, env, conta, quem.id, mp);
   }
   if (p === "/api/ia/assinatura" && m === "GET") return situacaoDaAssinatura(env, conta, mp);
+  if (p === "/api/ia/plano" && m === "POST") {
+    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+    const d = (await lerJSON(request)) || {};
+    return trocarPlano(env, conta, mp, String(d.plano || ""));
+  }
   if (p === "/api/ia/assinatura/cancelar" && m === "POST") return cancelar(env, conta, mp);
   if (p === "/api/ia/recarga" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
@@ -386,6 +391,25 @@ async function criarAssinatura(env, conta, id, mp, { email, plano, origem }) {
   return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido });
 }
 
+/* Trocar de plano com a assinatura ativa: o Mercado Pago passa a cobrar o
+   valor novo, e os tokens novos entram no ciclo seguinte - o ciclo ja pago
+   fica com o plano em que foi pago. Pedir o plano de agora desfaz a troca
+   marcada. */
+async function trocarPlano(env, conta, mp, plano) {
+  const n = numeros(env);
+  if (!n.planos.some((x) => x.id === plano)) return json({ erro: "esse plano não existe" }, 400);
+  const atual = await conta.pedir("resumo");
+  const a = atual.assinatura;
+  if (!a || !a.id || a.situacao !== "authorized") return json({ erro: "a troca é para quem tem a assinatura ativa; sem ela, é só assinar o plano escolhido" }, 409);
+  const novo = planoDe(n, plano);
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", {
+    reason: "PAULUS - plano " + novo.nome,
+    auto_recurring: { transaction_amount: novo.valor, currency_id: "BRL" },
+  });
+  if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor da assinatura", status: r.status }, 502);
+  return json(await conta.pedir("plano_proximo", { plano: novo.id, valor: novo.valor }));
+}
+
 // ------------------------------------------------------- o site (cadastro)
 
 const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
@@ -450,6 +474,11 @@ async function atenderSite(request, env, p, deps) {
   // Entrar abre a conta (a mesma que o PAULUS instalado usa, pela conta Google), sem segredo de instalacao.
   const aberta = await conta.pedir("abrir", { id, dono, cortesia: cortesias.includes(await sha256(dono.email)) });
   if (p === "/api/ia/site/entrar") return json(aberta);
+  if (p === "/api/ia/site/plano") {
+    const r = await trocarPlano(env, conta, deps.chamarMP, String(d.plano || ""));
+    if (!r.ok) return r;
+    return json(await conta.pedir("ler_cadastro"));
+  }
   if (p === "/api/ia/site/situacao") {
     const a = aberta.assinatura;
     const mp = deps.chamarMP;
@@ -643,6 +672,13 @@ export class ContaIA {
       return [{ ...this.resumo(conta, n, agora), cadastro: conta.cadastro }, conta];
     }
     if (acao === "ler_cadastro") return [{ ...this.resumo(conta, n, agora), cadastro: conta.cadastro || null }, null];
+    if (acao === "plano_proximo") {
+      // O plano de agora de novo: desfaz a troca marcada.
+      if (d.plano === planoDe(n, conta.plano).id) delete conta.plano_proximo;
+      else conta.plano_proximo = d.plano;
+      if (conta.assinatura) conta.assinatura.valor = d.valor;
+      return [this.resumo(conta, n, agora), conta];
+    }
     if (acao === "assinatura") {
       // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
       if (d.plano) conta.plano = d.plano;
@@ -664,6 +700,11 @@ export class ContaIA {
       if (aberto && aberto.origem === "assinatura" && !aberto.cobranca && quando - Date.parse(aberto.inicio) < 3 * 24 * 3600 * 1000) {
         aberto.cobranca = d.cobranca;
       } else {
+        // A troca de plano marcada vale a partir deste ciclo, o primeiro cobrado no valor novo.
+        if (conta.plano_proximo) {
+          conta.plano = conta.plano_proximo;
+          delete conta.plano_proximo;
+        }
         this.abrirCiclo(conta, n, Math.min(quando, agora), "cobranca", d.cobranca);
       }
       return [this.resumo(conta, n, agora), conta];
@@ -776,6 +817,8 @@ export class ContaIA {
       assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde } : null,
       plano_vigente: vigente,
       plano: planoDe(n, conta.plano),
+      // A troca marcada: vale a partir da proxima renovacao (fim do ciclo).
+      plano_proximo: conta.plano_proximo ? planoDe(n, conta.plano_proximo) : null,
       planos: n.planos,
       cadastro_completo: Boolean(conta.cadastro),
       recarga: { valor: n.recargaValor, tokens: n.recargaTokens },

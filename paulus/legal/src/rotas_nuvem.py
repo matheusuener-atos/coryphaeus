@@ -248,6 +248,15 @@ def montar(estado, app, dados_dir) -> None:
         corpo = {"email": email, **({"plano": payload.plano.strip()} if payload.plano.strip() else {})}
         return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/assinar", corpo))
 
+    @app.post("/api/nuvem/paulus/plano")
+    def nuvem_paulus_plano(payload: Email) -> dict:
+        """Trocar de plano com a assinatura ativa: o valor novo e os tokens novos valem na renovacao (worker/ia.js)."""
+        if not payload.plano.strip():
+            raise HTTPException(status_code=400, detail="escolha o plano")
+        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/plano", {"plano": payload.plano.strip()}))
+        plano.esquecer()
+        return {"conta": d}
+
     @app.get("/api/nuvem/paulus/assinatura")
     def nuvem_paulus_assinatura() -> dict:
         d = _paulus_ou_400(lambda: nuvem._paulus(estado, "GET", "/api/ia/assinatura"))

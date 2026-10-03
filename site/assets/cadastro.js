@@ -40,19 +40,62 @@
   /* ------------------------------------------------------------ planos */
 
   function desenharPlanos() {
-    var travado = estado.conta && estado.conta.plano_vigente;
+    // Com a assinatura de cortesia nao ha o que trocar; com a paga, o cartao
+    // escolhido vira a troca (desenharTroca).
+    var travado = estado.conta && estado.conta.plano_vigente && estado.conta.cortesia;
+    var c = estado.conta || {};
+    var atual = c.plano_vigente && c.plano ? c.plano.id : "";
+    var proximo = c.plano_proximo ? c.plano_proximo.id : "";
     $("cd-planos").innerHTML = estado.planos.map(function (p) {
       var on = p.id === estado.escolhido;
+      var selo = p.id === atual ? "seu plano" : p.id === proximo ? "a partir da renovação" : "";
       return '<button type="button" class="cd-plano' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-plano="' + esc(p.id) + '"' +
         (travado ? " disabled" : "") + ">" +
-        '<span class="cd-plano-nome">' + esc(p.nome) + "</span>" +
+        '<span class="cd-plano-nome">' + esc(p.nome) + (selo ? ' <em class="cd-selo">' + selo + "</em>" : "") + "</span>" +
         '<span class="cd-plano-valor">' + brl(p.valor) + "<small>/mês</small></span>" +
         '<span class="cd-plano-tokens">' + milhoes(p.tokens) + "</span>" +
         '<span class="cd-plano-uso">' + perguntas(p.tokens) + "</span></button>";
     }).join("");
     $("cd-planos").querySelectorAll("[data-plano]").forEach(function (b) {
-      b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); };
+      b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); desenharTroca(); };
     });
+  }
+
+  /* A troca de plano, com a assinatura paga ativa: o cartao escolhido que nao
+     e o de agora (nem o ja marcado) vira o botao. */
+  function desenharTroca() {
+    var c = estado.conta || {};
+    var paga = c.plano_vigente && !c.cortesia && c.assinatura && c.assinatura.situacao === "authorized";
+    $("cd-troca").hidden = !paga;
+    if (!paga) return;
+    var fim = c.ciclo && c.ciclo.fim ? new Date(c.ciclo.fim).toLocaleDateString("pt-BR") : "a próxima renovação";
+    var alvo = estado.planos.filter(function (x) { return x.id === estado.escolhido; })[0];
+    var proximo = c.plano_proximo;
+    $("cd-troca-texto").textContent = proximo
+      ? "Troca marcada: a partir de " + fim + ", o plano " + proximo.nome + " (" + brl(proximo.valor) + "/mês)."
+      : "Para trocar de plano, escolha outro acima.";
+    var mesmo = !alvo || alvo.id === (proximo || c.plano || {}).id;
+    $("cd-trocar-plano").hidden = mesmo;
+    if (!mesmo) {
+      var volta = proximo && alvo.id === (c.plano || {}).id;
+      $("cd-trocar-plano").textContent = volta ? "Ficar no " + alvo.nome + " (desfazer a troca)" : "Trocar para o " + alvo.nome + " · " + brl(alvo.valor) + "/mês";
+    }
+  }
+
+  async function trocarPlano() {
+    mostrarErro("cd-troca-erro", "");
+    if (!estado.token) { mostrarErro("cd-troca-erro", "Entre com o Google de novo para trocar."); return; }
+    var botao = $("cd-trocar-plano");
+    botao.disabled = true;
+    try {
+      var conta = await pedir("/api/ia/site/plano", { id_token: estado.token, plano: estado.escolhido });
+      mostrarConta(conta);
+    } catch (e) {
+      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo para trocar."); return; }
+      mostrarErro("cd-troca-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
+    } finally {
+      botao.disabled = false;
+    }
   }
 
   function atualizarBotao() {
@@ -88,7 +131,8 @@
     if (c.documento && !$("cd-documento").value) $("cd-documento").value = mascararDocumento(c.documento);
     if (c.telefone && !$("cd-telefone").value) $("cd-telefone").value = mascararTelefone(c.telefone);
     if (c.oab && !$("cd-oab").value) $("cd-oab").value = c.oab;
-    if (conta.plano && conta.plano.id) estado.escolhido = conta.plano.id;
+    if (conta.plano_proximo) estado.escolhido = conta.plano_proximo.id;
+    else if (conta.plano && conta.plano.id) estado.escolhido = conta.plano.id;
     var ativa = conta.plano_vigente;
     $("cd-form").hidden = Boolean(ativa);
     $("cd-pronto").hidden = !ativa;
@@ -101,6 +145,7 @@
     }
     desenharPlanos();
     atualizarBotao();
+    desenharTroca();
   }
 
   async function entrar(token) {
@@ -127,6 +172,7 @@
     estado.conta = null;
     $("cd-form").hidden = true;
     $("cd-pronto").hidden = true;
+    $("cd-troca").hidden = true;
     $("cd-google").hidden = false;
     $("cd-conta-texto").textContent = "A conta do PAVLVS é a sua conta Google: é com ela que você entra no programa depois. Nenhuma senha a mais.";
     if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
@@ -201,6 +247,7 @@
     carregarPlanos();
     iniciarGoogle();
     $("cd-form").addEventListener("submit", pagar);
+    $("cd-trocar-plano").addEventListener("click", trocarPlano);
     $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });
     var guardado = "";

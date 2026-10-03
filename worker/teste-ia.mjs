@@ -393,9 +393,26 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar(situacao.cadastro && situacao.cadastro.documento === "52998224725" && situacao.cadastro.oab === "PA 12345" && situacao.nome === "Nova Advocacia",
     "o cadastro fica na conta, conferido e normalizado", situacao.cadastro);
 
+  // Trocar de plano: o valor muda no Mercado Pago, os tokens na renovação.
+  let troca = await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "ouro" });
+  checar(troca.status === 400, "trocar para plano que não existe é recusado");
+  troca = await corpoDe(await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "plus" }));
+  checar(pre.auto_recurring.transaction_amount === 550 && troca.plano.id === "advogado" && troca.plano_proximo && troca.plano_proximo.id === "plus"
+    && troca.ciclo.tokens === 12000000, "trocar para o Plus: o Mercado Pago cobra R$ 550, e o ciclo pago continua no Advogado",
+    { valor: pre.auto_recurring.transaction_amount, plano: troca.plano, proximo: troca.plano_proximo });
+  const desfeita = await corpoDe(await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "advogado" }));
+  checar(desfeita.plano_proximo === null && pre.auto_recurring.transaction_amount === 150, "pedir o plano de agora desfaz a troca");
+  await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "plus" });
+  const contaNova = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "555");
+  relogio += 31 * 24 * 3600 * 1000;
+  const renovada = contaNova.o.fazer("renovar", contaNova.dados.get("conta"), { cobranca: "cob-plus-1", quando: new Date(relogio).toISOString() }, (await import("./ia.js")).numeros(env))[0];
+  checar(renovada.plano.id === "plus" && renovada.ciclo.tokens === 60000000 && renovada.plano_proximo === null,
+    "na renovação, o Plus entra com 60 milhões de tokens", { plano: renovada.plano, ciclo: renovada.ciclo });
+  relogio -= 31 * 24 * 3600 * 1000;
+
   // Depois, o PAULUS instalado entra com a mesma conta Google e já encontra o plano.
   const ativou = await corpoDe(await ia("POST", "/api/ia/ativar", { id_token: "token-novo", instalacao_id: "inst-nova-0001" }));
-  checar(ativou.conta.plano_vigente && ativou.conta.plano.id === "advogado" && ativou.conta.instalacoes === 1,
+  checar(ativou.conta.plano_vigente && ativou.conta.plano.id === "plus" && ativou.conta.instalacoes === 1,
     "o PAULUS instalado entra com a mesma conta e já tem o plano", ativou.conta);
 
   // Quem assinava antes dos três planos fica no Escritório.
