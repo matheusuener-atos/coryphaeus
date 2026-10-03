@@ -572,7 +572,7 @@
         '<div class="grade-campos">' + campoTexto("camp-botao", "Texto do botão", camp.botao, "", "camp.botao") + campoTexto("camp-link", "Link do botão", camp.link, "https://", "camp.link") + "</div>" +
         '<span class="nota-campo">Campos: {nome}, {escritorio}, {plano}, {vence_em}, {cupom}</span>';
     } else {
-      var de = (d.envio && d.envio.de) || "contato@paulus.ia.br", ritmo = Number(d.envio && d.envio.ritmo) || 50;
+      var de = (d.envio && d.envio.de) || "naoresponda@paulus.ia.br", ritmo = Number(d.envio && d.envio.ritmo) || 50;
       esq += '<span class="rotulo">Revisar</span><dl class="fatos-p f110">' + fato("Público", pub ? pub.label + " · " + n : "—") + fato("Assunto", trocaCampos(camp.assunto) || "(sem assunto)") + fato("De", "PAVLVS <" + de + ">") +
         fato("Botão", (camp.botao || "—") + " → " + (camp.link || "—")) + fato("Ritmo", ritmo + " por minuto · " + Math.max(1, Math.ceil(n / ritmo)) + " min") + "</dl>" +
         '<span class="rotulo">Quando</span>' + seg("emails.quando", [["agora", "Agora"], ["amanha", "Amanhã, 9h"], ["segunda", "Segunda, 9h"]], camp.quando) +
@@ -589,7 +589,7 @@
       '<div class="previa-corpo"><span class="marca-e">PAVLVS</span><h2>' + (trocaCampos(camp.titulo, true) || "Título do e-mail") + "</h2>" +
       "<p>" + (trocaCampos(camp.texto, true) || "O texto que você escrever em Conteúdo aparece aqui" + (unico ? ", com os campos preenchidos para " + esc(primeiro(so.nome)) : "") + ".") + "</p>" +
       '<span class="btn-duplo inicio" aria-hidden="true"><span>' + esc(camp.botao || "Botão") + "</span></span>" +
-      '<span class="pe">PAVLVS · ' + esc((d.envio && d.envio.de) || "contato@paulus.ia.br") + " · Para não receber avisos, responda este e-mail.</span></div></div>";
+      '<span class="pe">PAVLVS · ' + esc((d.envio && d.envio.de) || "naoresponda@paulus.ia.br") + " · Este e-mail é automático e não recebe respostas. Dúvidas ou para não receber mais avisos: contato@paulus.ia.br</span></div></div>";
     return h + '<div class="duas-col">' + esq + dir + "</div>";
   };
   function campoTexto(id, rot, val, ph, campo, extra) {

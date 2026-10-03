@@ -60,7 +60,7 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   onde `Renovacao = {id (da conta), nome, email, plano: {nome, valor}, fim, dias_vencido, tolerancia_dias (o total: 5 com a assinatura autorizada, 0 sem), motivo, lembrete_em}`
 - `GET /api/admin/campanhas` -> `{campanhas: [{id, nome, situacao: "enviada"|"agendada"|"na fila"|"enviando"|"rascunho",
   publico: {id, label}, enviados, abertos, cliques, devolvidos, quando}], publicos: [{id, label, n, gmail}],
-  stats: {enviados, abertura, cliques, devolvidos}, envio: {ligado, falta, de: "contato@paulus.ia.br", ritmo: 50}}`
+  stats: {enviados, abertura, cliques, devolvidos}, envio: {ligado, falta, de: "naoresponda@paulus.ia.br", ritmo: 50}}`
 - `GET /api/admin/cupons` -> `{cupons: [{codigo, descricao, desconto, meses, brinde, limite, usos, validade, planos: [id], ativo}]}`
 - `GET /api/admin/tokens?visao=geral|escritorio|conta&periodo=mes|30|ano` ->
   `{kpis: {entrada, saida, custo_usd, receita, contas}, linhas: [{nome, entrada, saida, custo_usd, receita}],
