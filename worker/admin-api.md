@@ -70,12 +70,11 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
 - `GET /api/admin/materiais` -> `{materiais: [{id, slug, tipo: "artigo"|"modelo"|"tabela", titulo, areas, licenca,
   autor, oab, enviado, situacao: "fila"|"ajustes"|"publicado"|"recusado", palavras, texto, resumo,
   varredura: {cpf, cnpj, processo, nomes}}]}`
-- `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, fatos: [{k, v}],
-  notas: [{id, quando, tipo: "mensalidade"|"recarga pix", cliente, doc, valor, nota: "pendente"|"emitida"|"cancelada"|"erro",
-  numero, erro}]}`. `emissor.ligado` = a nuvem esta ligada (`IA_ATIVA` e `CONTAS_IA`; a ponte da
-  casa, abaixo, nao tem segredo proprio); o fato "Emissor" diz
-  "PAULUS da casa · <e-mail> · última conexão dd/mm/aaaa hh:mm", "PAULUS da casa · ainda não conectou"
-  ou "ponte desligada: a nuvem do PAULUS está desligada (IA_ATIVA)". O painel nao emite nota.
+- `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, situacao: Situacao | null,
+  notas: [Nota], pagamentos: [{id, conta, cliente, tipo: "mensalidade"|"recarga pix", valor, quando, nota, numero,
+  motivo, erro}], cloudflare: Cloudflare, pode: {emitir: bool}, erro}`. `pagamentos` sao so os sem nota
+  (nenhuma nota do emissor com aquele pagamento, fora as descartadas); `motivo` diz por que a emissao
+  automatica nao saiu. `Situacao`, `Nota` e `Cloudflare` estao em "Notas fiscais", abaixo.
 - `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo}], matriz: [{acao, dono, financeiro, suporte}]}`
 - `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], cupons: [...], planos: [...],
   materiais: [...]}` (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
@@ -124,75 +123,110 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `plano.criar` | `{id, nome, valor, tokens}` | dono, financeiro |
 | `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |
 | `nfse.config` | `{auto, email, mail}` | dono, financeiro |
-| `nfse.emitir` | `{ids: [id]}` | dono, financeiro - sempre falha com "a emissão é feita na tela \"Notas Admin\" do PAULUS da casa": o painel nao emite |
 | `equipe.papel` | `{email, papel}` | dono |
 
 Ver contas, tokens e receita, mandar e-mails e lembretes: todos os papeis.
 
-## Ponte da NFS-e (PAULUS da casa)
+## Notas fiscais (emissor da nuvem)
 
-Quem emite as NFS-e dos assinantes e o PAULUS da casa (tela "Notas Admin",
-no servidor do dono). Codigo em `worker/nfse-casa.js`; teste em
-`worker/teste-nfse-casa.mjs`.
+As NFS-e que o PAVLVS emite para quem assina sao emitidas pelo painel: aba Notas fiscais,
+rotas `/api/admin/nfse/emissor/*` (`worker/nfse/api.js`, `atenderEmissor`) ate o Durable Object
+`EmissorNFSe` (`worker/nfse/emissor.js`). Testes: `worker/teste-nfse-admin.mjs` (painel + emissor),
+`worker/teste-nfse-emissor.mjs` (o emissor) e `worker/tela-nfse/teste_tela.py` (a tela, Playwright).
 
-- Prefixo `/api/nfse-casa/`, **fora** do Cloudflare Access (que cobre so `/admin*`
-  e `/api/admin*`) e fora da sessao do GitHub.
-- Porta: sem chave propria. A casa manda `Authorization: Bearer <segredo da instalacao>`,
-  o mesmo `pia_<conta>_...` que todo PAULUS ativado na nuvem ja usa em `/api/ia/*`
-  (`autenticar` em worker/ia.js). Depois, o Worker le o e-mail dessa conta (o Google com
-  que ela foi ativada) e confere se ele esta na equipe do painel (`admin:equipe` no KV;
-  sem ela, `ADMIN_EQUIPE`) com papel `dono` ou `financeiro` (e-mails comparados em
-  minusculas, sem espacos). Ou seja: basta o dono (ou o financeiro) ativar a nuvem no
-  PAULUS da casa com o proprio Google; nao ha segredo para criar nem colar.
-  - nuvem desligada (`IA_ATIVA` != "1" ou sem `CONTAS_IA`/`APOIOS`): 503 com o que falta;
-  - segredo ausente ou invalido: 401 `{erro: "não autorizado"}`;
-  - conta valida fora da equipe (ou com papel `suporte`): 403
-    `{erro: "esta conta do PAULUS não é da equipe do painel (dono ou financeiro)", motivo: "fora_da_equipe"}`.
-  Cada chamada valida grava `admin:nfse-casa:visto` = `{quando: ISO, email}` (JSON; o painel
-  ainda le o formato antigo, so a ISO).
+- **Mesmas portas do painel** (Access + sessao do GitHub). `GET` para todos os papeis; o resto
+  (emitir, cancelar, substituir, enviar, certificado, parametros, token, testar, producao) so
+  `dono` e `financeiro`: suporte recebe 403 `{erro: "o papel suporte só vê as notas fiscais: ..."}`.
+- **Na hora**: nada disso passa pela fila de alteracoes. So os tres interruptores (`nfse.config`)
+  continuam na fila.
+- Sem o emissor (`EMISSOR_NFSE`, `NFSE_CHAVE_MESTRA` ou `APOIOS`): 503 `{erro: "o emissor de NFS-e ainda nao esta ligado: falta ..."}`.
+  `GET /api/admin/sessao` diz o mesmo em `config.nfse`.
+- O `quem` de cada passo da nota e o e-mail do Access de quem pediu.
+- A ponte antiga com o PAULUS da casa (`/api/nfse-casa/*`) **saiu** em 03/10/2026 (responde 404).
 
-Rotas:
+Os interruptores (`admin:nfse:config`):
 
-- `GET /api/nfse-casa/ping` -> `{ok: true, hora, contas: n, email, papel}` (o e-mail e o papel de quem entrou).
-- `GET /api/nfse-casa/clientes` -> `{clientes: [{id, nome, email, telefone, oab, plano: {id, nome, valor} | null,
-  situacao: "ativa"|"cortesia"|"cancelada"|"vencida"|"pendente", ajustado: bool, tomador: {nome, documento,
-  email, telefone, logradouro, numero, complemento, bairro, cep, cmun, uf, inscricao_municipal}}]}`.
-  O `tomador` vem do cadastro da conta (nome_escritorio, documento so digitos, e-mail da conta
-  Google, telefone e o `endereco` do cadastro: logradouro, numero, complemento, bairro, cep, cmun, uf)
-  fundido com o ajuste em `nfse:tomador:<conta>` no KV; o ajuste vence, campo a campo. Conta
-  cadastrada antes do endereco vem com esses campos vazios (a casa completa pelo ajuste).
-  O cadastro do site (`POST /api/ia/site/cadastro`, worker/ia.js) recebe
-  `endereco: {cep (8 digitos), logradouro, numero, complemento?, bairro, cidade, uf, cmun (7 digitos ou "")}`,
-  obrigatorio para cadastro novo e para conta que ja tem endereco; conta antiga sem endereco continua
-  aceita sem ele (se mandar, e conferido). A pagina preenche rua/bairro/cidade/UF e o `cmun` (IBGE)
-  pela ViaCEP; sem ela, a pessoa digita e o `cmun` fica vazio.
-- `POST /api/nfse-casa/clientes/:id` `{tomador: {...}}` -> o cliente (como acima). So os campos
-  enviados mudam; `""` apaga o ajuste daquele campo (volta o do cadastro). Conferido:
-  documento CPF/CNPJ com digito verificador, `cep` 8 digitos, `cmun` 7 digitos (IBGE), `uf`
-  sigla valida, `email` com @, telefone com DDD; textos limpos e cortados. Erro: 400 `{erro}`;
-  conta inexistente: 404. **Nao altera o cadastro original da conta** (o que o cliente
-  preencheu em /cadastro): grava so o ajuste em `nfse:tomador:<conta>`.
-- `GET /api/nfse-casa/pagamentos` -> `{pagamentos: [{id, conta, cliente, tipo: "mensalidade"|"recarga pix",
-  valor, quando, nota: "pendente"|"emitida"|"cancelada"|"erro", numero}], config: {auto, email, mail}}`, mais novos
-  primeiro. `config` e a escolha do painel (Notas fiscais, gravada em `admin:nfse:config` pela acao
-  `nfse.config`): emitir ao confirmar / mandar ao PAULUS do cliente / mandar tambem por e-mail.
-- `POST /api/nfse-casa/notas` `{id, conta, pagamento?, numero, chave, competencia: "AAAA-MM", valor (reais),
-  descricao, ambiente: "producao"|"producao_restrita", emitida_em, pdf_b64, xml_b64, email?: bool}` -> `{ok: true}`
-  (com `email: true`, `{ok: true, email: "enviado"|"sem RESEND_API_KEY"|"sem e-mail do cliente"|"falhou: <motivo>"}`).
-  Com `email: true` (padrao false) e `RESEND_API_KEY`, manda pelo Resend, do remetente de sempre
-  (`EMAIL_DE` ou `PAVLVS <contato@paulus.ia.br>`), ao e-mail do tomador ajustado pela casa ou, sem ele,
-  ao e-mail da conta: assunto "Sua NFS-e de <mes por extenso>/<ano> — PAVLVS", corpo com numero, valor e
-  competencia (e "ambiente de testes, sem valor fiscal" em `producao_restrita`), PDF e XML anexos
-  (`NFS-e <numero>.pdf/.xml`). Falha no e-mail nao falha a nota (a nota ja esta gravada). Reenviar com
-  `email: true` manda de novo.
-  `id` = id da nota na casa (`[A-Za-z0-9_.-]{1,64}`). A meta vai em `nfse:nota:<conta>:<id>`, o PDF em
-  `nfse:nota-pdf:<conta>:<id>` e o XML em `nfse:nota-xml:<conta>:<id>` (base64). Cada arquivo ate 2 MB
-  (senao 413). Com `pagamento`, marca `admin:nfse:<pagamento>` com `nota: "emitida"` e o `numero`.
-  Reenviar o mesmo `id` substitui. Conta que nao existe: 404; campo invalido: 400.
-- `POST /api/nfse-casa/notas/:id/cancelada` `{conta, email?: bool, substituta?: {numero}}` -> `{ok: true}`
-  (com `email: true`, mais o campo `email` como acima); marca `cancelada` na meta (e o pagamento ligado
-  vira `nota: "cancelada"`); `substituta.numero` fica na meta (`substituta`). Com `email: true`, manda um
-  aviso curto do cancelamento, sem anexos, dizendo a nota substituta quando vier. Nota inexistente: 404.
+- `auto` - emitir ao confirmar o pagamento: o aviso do Mercado Pago (`worker/ia.js`, `anotarPagamento`,
+  ja em `ctx.waitUntil`) chama `emitirAutomatico`; so emite se o tomador do cliente estiver completo
+  (nome, CPF/CNPJ valido, rua, numero, bairro, CEP, municipio IBGE). Senao, o pagamento ganha
+  `motivo` ("emissão automática parada: falta CEP, ...") e fica em Pagamentos sem nota.
+- `email` - entregar ao app do cliente logo depois de emitir (`nfse:nota*`, como abaixo). Desligado,
+  a nota so vai ao app pelo botao Enviar ao cliente (`POST notas/:id/enviar`).
+- `mail` - mandar tambem por e-mail (Resend, PDF e XML anexos), depois do PDF (`depois`) e no Enviar ao cliente.
+
+Rotas (prefixo `/api/admin/nfse/emissor/`):
+
+- `GET situacao` -> `Situacao = {ambiente: "producao_restrita"|"producao", ambiente_rotulo, producao_liberada,
+  prestador: {versao, dados, faltas}, certificado: {instalado, titular, documento, valido_ate, dias_restantes,
+  vencido, instalado_em}, municipio: {situacao, frase, pode_emitir, prazo_cancelamento_dias, consultado_em},
+  pode_emitir, motivos: [frase], proximo_numero, tabelas, opcoes: {motivos_cancelamento, motivos_substituicao,
+  opcao_simples, regime_especial, regime_apuracao_sn, quando_reter, retencoes}, cloudflare, config}`
+- `POST prestador {prestador}` -> `{versao, mudou, faltas, prestador}` (400 com a frase quando nao confere).
+  O ambiente nao muda por aqui (so por `producao/*`).
+- `POST certificado {certPem, cadeiaPem: [pem], chavePkcs8 (base64 do DER), titular, documento, validoAte}` ->
+  `{certificado, conexao: {ok, frase, falta_token?, etapa?, erro?, certificate_id?}, cloudflare}`.
+  O .pfx e aberto **no navegador** (`site/assets/nfse-pfx.js` com `site/assets/vendor/forge.min.js`,
+  carregados so quando alguem instala): o arquivo e a senha nunca vao ao Worker. O DO confere que a
+  chave e a do certificado e guarda os dois cifrados (AES-GCM, `NFSE_CHAVE_MESTRA`). Com o token da
+  Cloudflare, cadastra o mTLS (abaixo); sem ele, guarda e responde `conexao.falta_token: true` com
+  a frase "falta o token da Cloudflare". Falha no cadastro nao desfaz o certificado guardado.
+- `POST cloudflare {token}` -> `{cloudflare, conexao | null}`. O token de API (permissoes Account ›
+  SSL and Certificates › Edit e Account › Workers Scripts › Edit) fica no KV cifrado
+  (`admin:nfse-cf:token`, `NFSE_CHAVE_MESTRA`) e nunca volta a tela. Com um certificado guardado
+  que ainda nao e o mTLS em uso, cadastra na hora. `""` apaga o token.
+  `Cloudflare = {token: bool, conta, mtls: {id, nome, documento, valido_ate, quando, script} | null,
+  auxiliar: "paulus-nfse-mtls", ligado_ao_auxiliar: bool, falta, como_criar_token}`.
+- O cadastro do mTLS (`worker/nfse/mtls.js`, conta `CF_ACCOUNT_ID`): (1) `POST /accounts/{id}/mtls_certificates`
+  `{ca: false, certificates: folha + cadeia (PEM), private_key: PKCS#8 PEM, name: "nfse-<CNPJ>-<AAAAMMDDhhmm>"}`;
+  (2) `PUT /accounts/{id}/workers/scripts/paulus-nfse-mtls` (multipart: `metadata` = `{main_module: "index.js",
+  compatibility_date, bindings: [{type: "mtls_certificate", name: "SEFIN", certificate_id}]}` e `index.js` =
+  `worker/nfse-mtls/index.js`); (3) `DELETE /accounts/{id}/mtls_certificates/{anterior}`. Se o PUT falha, o
+  certificado novo e apagado da Cloudflare e o anterior continua. O Worker principal fala com o auxiliar
+  pelo service binding `SEFIN_MTLS` (`wrangler.jsonc`).
+- `POST testar` -> `{ok, etapas: [{titulo: "Certificado"|"Conexão com a Sefin"|"Convênio do município", ok, detalhe, ms?}],
+  municipio, quando}`.
+- `GET clientes` -> `{clientes: [{id, nome, email, telefone, oab, plano, situacao, tomador, ajustado, faltas: [rotulo]}]}`.
+  O `tomador` vem do cadastro da conta fundido com o ajuste em `nfse:tomador:<conta>` (o ajuste vence).
+- `POST clientes/:conta {tomador}` -> o cliente. So os campos enviados mudam; `""` apaga o ajuste do campo.
+  Conferido: CPF/CNPJ com digito, CEP 8 digitos, `cmun` 7 digitos, UF, e-mail, telefone com DDD.
+  Nao altera o cadastro original da conta.
+- `POST notas {conta?, pagamento?, tomador, valor ("300,00" ou numero) | valor_centavos, descricao, competencia: "AAAA-MM"}`
+  -> `Nota`. Com `pagamento`, o que faltar (valor, descricao, competencia) vem dele; um pagamento, uma nota.
+  Erro de conferencia: 400 `{erro: "a nota não passou na conferência: ...", erros: [frase], avisos}`;
+  sem poder emitir: 409 `{erro, motivos}`.
+  `Nota = {id, estado, estado_rotulo, ambiente, conta, pagamento, numero, chave, serie, numero_dps, id_dps, cliente,
+  documento, tomador, valor, centavos, competencia, descricao, quando, erro, rejeicao, avisos, tentativas,
+  proxima_tentativa, substitui_id, substituida_por_id, cliente_avisado, pdf_em, tem_pdf, email, sefin}`.
+- `GET notas?estado=&limite=` -> `{notas: [Nota]}`; `GET notas/:id` -> `{nota, passos, eventos}`.
+- `GET notas/:id/xml?tipo=nfse|dps` -> o XML (attachment).
+- `GET notas/:id/pdf[?baixar=1]` -> o DANFSe (`application/pdf`; inline, ou attachment com `baixar`). Se o PDF
+  ainda nao existe, e gerado neste pedido e guardado em `admin:nfse-pdf:<id>`.
+- `POST notas/:id/depois` -> 202. O PDF (e o e-mail, com `mail`) num pedido separado do que emite; a tela
+  chama logo depois de emitir. O que sobrar (emissao automatica, nota que saiu da fila) o Cron de cada
+  minuto faz, uma por vez (`depoisPendentes`, lista `admin:nfse-depois`).
+- `POST notas/:id/enviar` -> `{ok, nota, email, pdf}`: a nota (meta, XML e PDF) no app do cliente e, com `mail`,
+  o e-mail. Nota sem conta ou nao emitida: 409.
+- `POST notas/:id/tentar` | `descartar` | `situacao`; `POST notas/:id/cancelar {motivo, texto}` ->
+  `{evento, nota, prazo}`; `POST notas/:id/substituir {motivo, texto, ajustes: {tomador?, valor?, descricao?,
+  competencia?}}` -> `{nota, original}`.
+- `POST producao/liberar` (precisa de ao menos uma nota emitida em testes) e `POST producao/voltar` -> `Situacao`.
+
+No KV `APOIOS` (fora do prefixo `admin:nfse:`, que e a lista de pagamentos): `admin:nfse-cf:token`,
+`admin:nfse-cf:mtls`, `admin:nfse-cf:cadeia`, `admin:nfse-pdf:<id>`, `admin:nfse-depois`.
+
+### As notas no app do cliente
+
+Emitida (com `email` ligado ou pelo Enviar ao cliente), a nota vai para as chaves que o PAULUS do
+cliente le (`worker/nfse-casa.js`, `guardarNotaDoCliente`): a meta em `nfse:nota:<conta>:nuvem-<id>`,
+o PDF em `nfse:nota-pdf:<conta>:nuvem-<id>` e o XML em `nfse:nota-xml:<conta>:nuvem-<id>` (base64,
+ate 2 MB cada). Cancelada ou substituida, a meta ganha `cancelada` (e `substituta` com o numero da
+nova); com `mail`, vai um aviso curto por e-mail. O pagamento ligado fica `nota: "emitida"|"cancelada"`.
+
+O endereco do tomador vem do cadastro do site (`POST /api/ia/site/cadastro`, worker/ia.js), que recebe
+`endereco: {cep (8 digitos), logradouro, numero, complemento?, bairro, cidade, uf, cmun (7 digitos ou "")}`,
+obrigatorio para cadastro novo e para conta que ja tem endereco; conta antiga sem endereco continua
+aceita sem ele. A pagina preenche rua/bairro/cidade/UF e o `cmun` (IBGE) pela ViaCEP; sem ela, a pessoa
+digita e o `cmun` fica vazio (o painel completa em Clientes).
 
 O PAULUS do cliente busca as proprias notas em `worker/ia.js`, com o segredo da
 instalacao (`Authorization: Bearer pia_<conta>_...`, como as outras `/api/ia/*`):
