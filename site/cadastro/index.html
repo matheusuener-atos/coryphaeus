@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assinar — PAVLVS</title>
+<meta name="description" content="Crie a conta do escritório no PAVLVS, escolha o plano da IA e assine. Depois, baixe o programa e entre com a mesma conta Google.">
+<link rel="canonical" href="https://paulus.ia.br/cadastro/">
+<meta name="theme-color" content="#131312">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=check,close,credit_card,dark_mode,download,light_mode,lock,menu&display=block">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/paginas.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="topo">
+  <a class="marca" href="../" aria-label="PAVLVS — página inicial">PAVLVS</a>
+  <nav class="nav" id="nav-principal" aria-label="Principal">
+    <a href="../">Plataforma</a>
+    <a href="../desenvolvimento/">Desenvolvimento</a>
+    <a href="../materiais/">Materiais</a>
+    <a href="../cadastro/" aria-current="page">Assinar</a>
+    <a href="../en/" lang="en" hreflang="en">English</a>
+    <a class="btn-duplo pequeno" href="../escritorio/"><span>Acessar escritório</span></a>
+  </nav>
+  <div class="acoes">
+    <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
+    <button type="button" class="btn-icone so-celular" data-menu aria-expanded="false" aria-controls="nav-principal" aria-label="Menu"><span class="icon" aria-hidden="true">menu</span></button>
+  </div>
+</header>
+
+<main id="conteudo" class="entrada">
+  <div class="entrada-col">
+    <div class="entrada-marca">
+      <h1 class="logo">Paulus está te esperando.</h1>
+      <p>Assine a IA. O programa é seu.</p>
+    </div>
+
+    <div class="campos">
+      <div class="campo">
+        <span class="rotulo" id="t-planos">Plano</span>
+        <div class="planos" id="cd-planos" role="radiogroup" aria-labelledby="t-planos"><p class="nota-campo" style="padding:16px 14px">Carregando os planos…</p></div>
+        <span class="nota-campo" id="cd-recarga">Uma pergunta sobre documentos gasta, em média, 3.500 tokens. Os tokens valem por um mês.</span>
+      </div>
+
+      <!-- 1. a conta: entrar com o Google -->
+      <div class="campo" id="cd-passo-conta">
+        <p class="conta-linha" id="cd-conta-texto">A conta do PAVLVS é a sua conta Google: é com ela que você entra no programa depois. Nenhuma senha a mais.</p>
+        <div class="google-btn" id="cd-google"></div>
+        <p class="erro-campo" id="cd-conta-erro" hidden></p>
+      </div>
+
+      <!-- 2. o escritorio e o pagamento -->
+      <form class="campos" id="cd-form" novalidate hidden>
+        <label class="campo"><span class="rotulo">Escritório</span>
+          <span class="caixa-campo"><input id="cd-nome" name="nome_escritorio" autocomplete="organization" maxlength="80" placeholder="Silva &amp; Souza Advogados" required></span></label>
+        <label class="campo"><span class="rotulo">CPF ou CNPJ</span>
+          <span class="caixa-campo mono"><input id="cd-documento" name="documento" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="000.000.000-00" required></span></label>
+        <label class="campo"><span class="rotulo">Telefone ou WhatsApp</span>
+          <span class="caixa-campo mono"><input id="cd-telefone" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(91) 90000-0000" required></span></label>
+        <label class="campo"><span class="rotulo">OAB</span>
+          <span class="caixa-campo mono"><input id="cd-oab" name="oab" autocomplete="off" maxlength="16" placeholder="PA 12345" required></span></label>
+        <label class="campo"><span class="rotulo">Cupom <span class="opcional">(opcional)</span></span>
+          <span class="caixa-campo mono"><input id="cd-cupom" name="cupom" autocomplete="off" maxlength="24" placeholder="PILOTO30" spellcheck="false"></span></label>
+        <span class="nota-campo" id="cd-cupom-nota" hidden></span>
+        <span class="nota-campo">O CPF ou CNPJ vai na nota fiscal da assinatura; o telefone, para suporte e avisos de cobrança; a OAB confirma que o PAVLVS é usado por advogado. O que fazemos com esses dados está na <a href="../politica-de-privacidade/#cadastro">Política de privacidade</a>.</span>
+        <label class="aceite"><input type="checkbox" id="cd-aceite"> <span>Li e aceito os <a href="../termos-de-uso/" target="_blank" rel="noopener">Termos de uso</a> e a <a href="../politica-de-privacidade/" target="_blank" rel="noopener">Política de privacidade</a>.</span></label>
+        <button type="submit" class="btn-duplo largo" id="cd-pagar"><span><span class="icon" aria-hidden="true">lock</span><span id="cd-pagar-texto">Ir para o pagamento</span></span></button>
+        <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">credit_card</span></span>Cartão na página do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span>cobrança mensal</span></span></div>
+        <span class="nota-campo" id="cd-pagar-nota">O cartão é digitado na página do Mercado Pago, nunca aqui. Dá para cancelar no PAVLVS, em Configurações › Modelos.</span>
+        <p class="erro-campo" id="cd-form-erro" hidden></p>
+      </form>
+
+      <!-- 3. pronto -->
+      <div class="pronto" id="cd-pronto" hidden>
+        <h2><span class="selo-icone"><span class="icon" aria-hidden="true">check</span></span><span id="cd-pronto-titulo">Assinatura ativa</span></h2>
+        <p id="cd-pronto-texto"></p>
+        <a class="btn-duplo largo" href="https://github.com/matheusuener-atos/coryphaeus/releases/latest"><span><span class="icon" aria-hidden="true">download</span>Baixar o PAVLVS para Windows</span></a>
+        <p class="nota-campo">Instale, abra e entre com a mesma conta Google em Configurações › Modelos. Cancelar a assinatura também é por lá.</p>
+        <div class="troca" id="cd-troca" hidden>
+          <p id="cd-troca-texto"></p>
+          <button type="button" class="btn-texto" id="cd-trocar-plano"></button>
+          <span class="nota-campo">O valor novo é cobrado na próxima renovação, e os tokens do plano novo entram com ela. O ciclo já pago continua no plano de agora.</span>
+          <p class="erro-campo" id="cd-troca-erro" hidden></p>
+        </div>
+      </div>
+
+      <span class="nota-campo nota-centro">A conta do PAVLVS é a sua conta Google. Depois, entre no programa com ela em Configurações › Modelos; o plano já vem junto.</span>
+    </div>
+  </div>
+</main>
+
+<footer class="rodape">
+  <span>© 2026 Atos</span>
+  <nav aria-label="Rodapé">
+    <a href="../politica-de-privacidade/">Privacidade</a>
+    <a href="../termos-de-uso/">Termos</a>
+    <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
+    <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
+  </nav>
+</footer>
+
+<script src="../assets/site.js" defer></script>
+<script src="../assets/cadastro.js" defer></script>
+</body>
+</html>

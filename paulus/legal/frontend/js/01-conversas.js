@@ -21,7 +21,10 @@ async function carregarTrabalhos() {
 function fecharMenu() {
   // O menu sai andando, como entrou; o que esta saindo ja nao conta como
   // aberto (outro pode abrir por cima enquanto ele some).
-  const aberto = document.querySelector(".menu-conversa:not(.saindo)");
+  // O menu que acabou de abrir (.recem, por um instante - menuNaLinha) nao
+  // fecha com o mesmo clique que o abriu: sem isso, o "⋯" que nao parava o
+  // clique (o do visor ao lado) abria e fechava o menu no mesmo gesto.
+  const aberto = document.querySelector(".menu-conversa:not(.saindo):not(.recem)");
   if (!aberto) return;
   aberto.classList.add("saindo");
   aberto.style.pointerEvents = "none";
@@ -97,7 +100,11 @@ function abrirMenu(linha) {
 async function abrirTrabalho(id) {
   const r = await fetch("/api/trabalhos/" + id);
   if (!r.ok) return false;
-  if (id !== estado.trabalhoId) { fecharEditorNaConversa(); if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId); }
+  if (id !== estado.trabalhoId) {
+    fecharEditorNaConversa();
+    if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId);
+    if (typeof fecharEmailNaConversa === "function") fecharEmailNaConversa();
+  }
   largarInscricao(id);
   transicaoDeTela("conversa:" + id);
   $("compositor").hidden = false;
@@ -144,16 +151,16 @@ async function voltarAoAssistente() {
    visao (Conversas ou Grupos), a pasta em que se estava, a busca e a altura
    da rolagem. So na memoria desta sessao - abrir o programa de novo comeca
    do inicio limpo, como o usuario pediu. */
-/* A lista de conversas comeca aberta (pacote de telas, `Assistente`): a
-   tela inicial e o historico. Recolher vale ate o programa fechar. */
-const lembrancaDoInicio = { lista: true, rolagem: 0 };
+/* A lista de conversas comeca recolhida (pedido de 02/10: a tela inicial
+   abre so com a saudacao, a caixa e as Recentes; "Ver mais" abre a lista).
+   Abrir ou recolher vale ate o programa fechar. */
+const lembrancaDoInicio = { lista: false, rolagem: 0 };
 
 $("compositor").addEventListener("scroll", () => {
   if ($("conversa-col").classList.contains("vazia")) lembrancaDoInicio.rolagem = $("compositor").scrollTop;
 }, { passive: true });
 
 $("nova").onclick = () => {
-  if (typeof apoio !== "undefined") apoio.naTela = false;
   fecharEditorNaConversa();
   largarInscricao("");
   if (typeof guardarDaConversa === "function") guardarDaConversa(estado.trabalhoId);
@@ -213,8 +220,9 @@ function atualizarPostura() {
   // O cartao do ditado mora em "Acontecendo agora" no inicio e em cima da
   // caixa de pedido numa conversa: trocar de postura o leva junto.
   if (ditado.estado) setTimeout(desenharCartaoDoDitado, 0);
+  // No celular, a caixa do desenho `Assistente` (js/90-celular.js).
   $("pedido").placeholder = !temConversa
-    ? "Peça o que precisa dos seus documentos…"
+    ? (typeof celularNaTela === "function" && celularNaTela() ? "Pergunte ao PAVLVS…" : "Peça o que precisa dos seus documentos…")
     : (textoDaCaixaDaFerramenta() || "Pergunte outra coisa ou aponte outra pasta…");
   if (!temConversa) {
     atualizarSaudacao();

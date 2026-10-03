@@ -246,6 +246,11 @@ PADRAO: dict = {
                  # `relacionados` (N7): embaixo da resposta, os temas e sumulas
                  # ligados aos artigos citados e a posicao da casa - por regra.
                  "relacionados": True},
+    # A profundidade (src/profundidade.py): o nivel que vale quando a caixa da
+    # pergunta nao diz (Estagiario ... Ministro); `entrevista`: entender o
+    # pedido de trabalho antes de executar (src/entrevista.py); `modelos`: um
+    # modelo da nuvem por nivel, se o escritorio quiser (vazio: o de Modelos).
+    "profundidade": {"padrao": "advogado", "entrevista": True, "modelos": {}},
     # Pensar no aparelho (docs/PROGRESSO-APARELHO.md). `fila` (F1): toda
     # chamada ao modelo entra na fila unica, com a origem; a pergunta mandada
     # com outra andando fica na conversa e vai sozinha; Ctrl+Enter pede
@@ -259,7 +264,17 @@ PADRAO: dict = {
     "aparelho": {"fila": False, "prioridade_por_hora": 3, "ligado": False, "modelo": "llama3.2:3b"},
     # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
     # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
-    "nuvem": {"ligado": False, "provedor": "anthropic", "modelo": "", "mascarar": True},
+    # A IA faz parte da assinatura (src/plano.py): o ultimo plano conhecido,
+    # para valer sem internet ate o fim do ciclo pago.
+    "plano": {"ativo": False, "ate": "", "conferido_em": ""},
+    # Os limites de uso da IA da nuvem (src/consumo.py, tela Plano e consumo):
+    # tokens por dia e por mes do escritorio e, por pessoa da equipe (conta_id
+    # -> {diario, mensal}). 0 = sem limite.
+    "limites_ia": {"diario": 0, "mensal": 0, "pessoas": {}},
+    # V5 (docs/PLANO-NUVEM.md): o PAULUS (nuvem) vem primeiro; sem o sim do
+    # titular (consentimento, com a versao do termo) nada liga.
+    "nuvem": {"ligado": False, "provedor": "paulus", "modelo": "", "mascarar": True, "consentimento": {},
+              "pedir_cada_envio": False, "tarefas": {"conversa": True, "resumos": True, "redacao": True}},
     # N1 (src/nfse/): o emissor de NFS-e pelo Padrao Nacional - desligado de
     # fabrica. A configuracao fiscal mora na base (com historico) e o
     # certificado da nota, com a senha cifrada pela DPAPI, em <dados>/nfse/.
@@ -285,7 +300,7 @@ PADRAO: dict = {
     "atualizacoes": {"verificar": True, "avisar_antes": True, "ultima_consulta": "", "erro": ""},
     # Os modulos do menu (assistente de configuracao, passo Modulos, e
     # Configuracoes › Modulos). Desligado some do menu desta maquina; o
-    # Assistente, Apoiar e Configuracoes ficam sempre.
+    # Assistente e Configuracoes ficam sempre.
     "modulos": {"servicos": True, "gravacoes": True, "agenda": True, "acervo": True, "documentos": True,
                 "assinatura": True, "email": True, "financeiro": True, "cadastros": True, "aprovacoes": True,
                 "foco": True},
@@ -319,7 +334,9 @@ PADRAO: dict = {
     # (src/vinculo.py, E5). Vinculado, abre travado - salvo manter_aberto.
     "vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
                 # entrar sem internet com o codigo proprio do servidor (src/vinculo.py)
-                "offline": {"segredo": "", "ultimo_passo": 0, "recuperacao": []}},
+                "offline": {"segredo": "", "ultimo_passo": 0, "recuperacao": []},
+                # "Nao pedir o codigo neste computador por 30 dias": a conta e ate quando
+                "codigo_confiado": {"conta_id": 0, "email": "", "ate": 0}},
     "pessoa": {
         "nome": "",
         "cpf": "",

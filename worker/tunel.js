@@ -652,7 +652,9 @@ export async function provisionar(env, slug, pedido, agora = () => Date.now()) {
     const registro = {
       slug, tunnel_id: tunel.id, dns_id: dns.id, instalacao_id: pedido.instalacao_id, nome: pedido.nome,
       hash_segredo: await resumo(segredo), porta: pedido.porta, criado_em: new Date(agora()).toISOString(), ultima_conexao: null,
-      dono: pedido.dono || null,
+      dono: pedido.dono || null, ativo: true,
+      // O que aconteceu com o endereco (o painel admin mostra; worker/admin.js).
+      historico: [{ quando: new Date(agora()).toISOString(), texto: "Túnel criado · CNAME " + host + " → cfargotunnel.com · porta " + pedido.porta }],
     };
     await kvPut(env, "escritorio:" + slug, registro);
     feito.push(() => env.ESCRITORIOS.delete("escritorio:" + slug));
@@ -716,7 +718,14 @@ async function comSegredo(request, env, fazer, comCorpo = true) {
 }
 
 async function marcarConexao(env, registro, quando) {
-  await kvPut(env, "escritorio:" + registro.slug, { ...registro, ultima_conexao: new Date(quando).toISOString() });
+  const novo = { ...registro, ultima_conexao: new Date(quando).toISOString() };
+  if (!registro.ultima_conexao) novo.historico = comEvento(registro, "Primeira conexão do PAULUS", quando);
+  await kvPut(env, "escritorio:" + registro.slug, novo);
+}
+
+// O historico de um endereco: os ultimos 40 eventos.
+function comEvento(registro, texto, quando = Date.now()) {
+  return [...(registro.historico || []), { quando: new Date(quando).toISOString(), texto }].slice(-40);
 }
 
 // So o token do Turnstile passa por aqui - nunca conteudo. O segredo do
@@ -803,4 +812,150 @@ export async function limparEscritorios(env, agora = () => Date.now()) {
     cursor = lista.list_complete ? undefined : lista.cursor;
   } while (cursor);
   return feito;
+}
+
+// ------------------------------------------------------- o painel admin
+//
+// O que o painel (worker/admin.js) faz com os enderecos: listar com o estado
+// do tunel na Cloudflare e o quanto falta para a limpeza, trocar o endereco,
+// desativar (o CNAME sai, o tunel fica) e liberar (o mesmo "remover" do
+// escritorio). Tudo grava um evento no historico do registro.
+
+export const LIMPEZA = { NUNCA_CONECTOU_DIAS, PARADO_DIAS };
+
+/* Quantos dias faltam para a limpeza diaria apagar o endereco, e por que - ou null. */
+export function previsaoDaLimpeza(registro, conectadoAgora, agora = Date.now()) {
+  if (conectadoAgora) return null;
+  const ultima = registro.ultima_conexao ? Date.parse(registro.ultima_conexao) || 0 : 0;
+  const criado = Date.parse(registro.criado_em) || agora;
+  if (!ultima) {
+    const dias = Math.ceil((criado + NUNCA_CONECTOU_DIAS * DIA_MS - agora) / DIA_MS);
+    return { dias: Math.max(0, dias), motivo: "nunca conectou" };
+  }
+  const dias = Math.ceil((ultima + PARADO_DIAS * DIA_MS - agora) / DIA_MS);
+  return { dias: Math.max(0, dias), motivo: "parado" };
+}
+
+export function cfConfigurado(env) {
+  return Boolean(env.CF_API_TOKEN && env.CF_ACCOUNT_ID && env.CF_ZONE_ID);
+}
+
+/* Todos os enderecos, com o estado do tunel na Cloudflare (sem a API, "desconhecido"). */
+export async function listarParaAdmin(env, agora = Date.now()) {
+  const saida = [];
+  if (!env.ESCRITORIOS) return saida;
+  let cursor;
+  do {
+    const lista = await env.ESCRITORIOS.list({ prefix: "escritorio:", cursor });
+    for (const { name } of lista.keys) {
+      const r = await kvGet(env, name);
+      if (!r) continue;
+      let estado = "desconhecido";
+      if (r.ativo === false) estado = "desativado";
+      if (cfConfigurado(env)) {
+        try {
+          const t = await chamarCF(env, "GET", "/accounts/" + env.CF_ACCOUNT_ID + "/cfd_tunnel/" + r.tunnel_id);
+          if (r.ativo !== false) estado = t.status || "desconhecido";
+          else estado = "desativado";
+          if ((t.status === "healthy" || t.status === "degraded") && r.ativo !== false) r.ultima_conexao = new Date(agora).toISOString();
+        } catch (e) {
+          // sem resposta da API: fica o que o KV sabe
+        }
+      }
+      const conectado = estado === "healthy" || estado === "degraded";
+      saida.push({
+        slug: r.slug, nome: r.nome || "", responsavel: (r.dono && r.dono.email) || "", estado,
+        ultima_conexao: r.ultima_conexao || null, criado_em: r.criado_em || null, tunnel_id: r.tunnel_id || "",
+        porta: r.porta || 0, ativo: r.ativo !== false, limpeza: previsaoDaLimpeza(r, conectado, agora),
+        historico: (r.historico || []).slice().reverse(),
+      });
+    }
+    cursor = lista.list_complete ? undefined : lista.cursor;
+  } while (cursor);
+  return saida;
+}
+
+/* Os enderecos liberados ha pouco (removidos pelo escritorio, pela limpeza ou pelo painel). */
+export async function enderecosLivres(env, limite = 12) {
+  if (!env.ESCRITORIOS) return [];
+  const lista = await env.ESCRITORIOS.list({ prefix: "removido:" });
+  const livres = [];
+  for (const { name } of lista.keys.slice(0, 60)) {
+    const r = await kvGet(env, name);
+    if (r && r.slug && !livres.includes(r.slug) && !(await env.ESCRITORIOS.get("escritorio:" + r.slug))) livres.push(r.slug);
+    if (livres.length >= limite) break;
+  }
+  return livres;
+}
+
+/* O motivo de um nome nao servir para o painel ("" se serve): formato, reservado ou em uso. */
+export async function motivoDoEnderecoNovo(env, nome) {
+  const motivo = motivoDoFormato(nome);
+  if (motivo) return motivo;
+  if (await env.ESCRITORIOS.get("escritorio:" + nome)) return "já em uso";
+  if (await env.ESCRITORIOS.get("reserva:" + nome)) return "reservado por um pedido em andamento";
+  return "";
+}
+
+export async function anotarHistorico(env, slug, texto, agora = Date.now()) {
+  const r = await kvGet(env, "escritorio:" + slug);
+  if (!r) return false;
+  await kvPut(env, "escritorio:" + slug, { ...r, historico: comEvento(r, texto, agora) });
+  return true;
+}
+
+/* Troca o endereco: o CNAME passa a ter o nome novo (no mesmo tunel), o ingress
+   do tunel aponta para ele, e o registro e os indices mudam de chave. */
+export async function alterarEndereco(env, slug, novo, agora = Date.now()) {
+  const r = await kvGet(env, "escritorio:" + slug);
+  if (!r) throw new Error("esse endereço não existe mais");
+  const motivo = await motivoDoEnderecoNovo(env, novo);
+  if (motivo) throw new Error(novo + ": " + motivo);
+  const host = novo + "." + DOMINIO;
+  if (r.ativo !== false && r.dns_id) {
+    await chamarCF(env, "PUT", "/zones/" + env.CF_ZONE_ID + "/dns_records/" + r.dns_id,
+      { type: "CNAME", name: host, content: r.tunnel_id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "PAULUS: acesso de fora de " + novo });
+  }
+  await chamarCF(env, "PUT", "/accounts/" + env.CF_ACCOUNT_ID + "/cfd_tunnel/" + r.tunnel_id + "/configurations", ingress(host, r.porta));
+  const registro = { ...r, slug: novo, historico: comEvento(r, "Endereço alterado de " + slug + " para " + novo + " · CNAME recriado", agora) };
+  await kvPut(env, "escritorio:" + novo, registro);
+  await env.ESCRITORIOS.delete("escritorio:" + slug);
+  await kvPut(env, "segredo:" + r.hash_segredo, { slug: novo });
+  if (r.instalacao_id) await kvPut(env, "instalacao:" + r.instalacao_id, { slug: novo });
+  if (r.dono) {
+    const indice = (await kvGet(env, "dono:" + r.dono.sub)) || { slugs: [] };
+    await kvPut(env, "dono:" + r.dono.sub, { slugs: [...(indice.slugs || []).filter((s) => s !== slug), novo] });
+  }
+  return registro;
+}
+
+/* Desativar tira o CNAME (o endereco deixa de responder) e mantem o tunel;
+   ativar cria o CNAME de novo. */
+export async function ativarEndereco(env, slug, ativo, agora = Date.now()) {
+  const r = await kvGet(env, "escritorio:" + slug);
+  if (!r) throw new Error("esse endereço não existe mais");
+  if (Boolean(ativo) === (r.ativo !== false)) return r;
+  const host = slug + "." + DOMINIO;
+  let dnsId = r.dns_id;
+  if (!ativo) {
+    if (r.dns_id) await chamarCF(env, "DELETE", "/zones/" + env.CF_ZONE_ID + "/dns_records/" + r.dns_id);
+    dnsId = null;
+  } else {
+    const dns = await chamarCF(env, "POST", "/zones/" + env.CF_ZONE_ID + "/dns_records",
+      { type: "CNAME", name: host, content: r.tunnel_id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "PAULUS: acesso de fora de " + slug });
+    dnsId = dns.id;
+  }
+  const registro = { ...r, ativo: Boolean(ativo), dns_id: dnsId,
+    historico: comEvento(r, ativo ? "Acesso reativado · CNAME de volta" : "Acesso desativado · CNAME tirado, o túnel fica", agora) };
+  await kvPut(env, "escritorio:" + slug, registro);
+  return registro;
+}
+
+/* Liberar: o mesmo remover do escritorio - conexoes, tunel, CNAME e registro. */
+export async function liberarEndereco(env, slug, motivo = "liberado pelo painel") {
+  const r = await kvGet(env, "escritorio:" + slug);
+  if (!r) throw new Error("esse endereço não existe mais");
+  if (r.ativo === false) r.dns_id = r.dns_id || "";
+  const resposta = await remover(env, { ...r, dns_id: r.dns_id || "sem-dns" }, motivo);
+  return resposta.json();
 }

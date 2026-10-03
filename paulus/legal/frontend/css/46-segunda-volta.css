@@ -63,7 +63,7 @@
   .cap-nota { margin: 2px 0 0; font-size: 11px; line-height: 1.3; color: var(--ink3); }
 
   /* N12: a redação que valia na data, e a vacatio no histórico (js/71-vigencia.js). */
-  .vig-anterior { display: block; margin: 4px 0 0; padding: 6px 10px; border-left: 3px solid var(--ink-a15); background: var(--fill);
+  .vig-anterior { display: block; margin: 4px 0 0; padding: 6px 10px; background: var(--fill);
     font-style: normal; color: var(--ink2); font-size: 13px; line-height: 1.45; }
   .vig-anterior::before, .vig-anterior::after { content: ""; }
   .vig-vigor { color: var(--ink3); font-size: 12px; }
@@ -95,10 +95,32 @@
 .pilula-nuvem.ativa { background: var(--accbg); border-color: var(--accln); color: var(--acc); }
 .nuvem-texto { white-space: pre-wrap; word-break: break-word; max-height: 50vh; overflow: auto; font-size: 12px; line-height: 1.45;
   background: var(--fill); border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; margin: 6px 0 0; }
-.proposta.nuvem-pedido { border-left: 3px solid var(--acc); }
+.proposta.nuvem-pedido { }
 .nuvem-liberar { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink2); }
 /* N14 e N13: o cartão do que o agente fez sozinho, e o painel da jurisprudência */
-.proposta.sozinho { border-left: 3px solid var(--accln); }
+.proposta.sozinho { }
 .jur-painel { display: grid; gap: 12px; }
 .nuvem-cartao .duas-linhas small { white-space: normal; overflow: visible; text-overflow: clip; }
 .nuvem-cartao label.cfg-servico { cursor: pointer; }
+/* V7 - o plano da nuvem do PAULUS (js/75-nuvem.js): tokens restantes, sem gráfico */
+.nuvem-plano { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; padding: 12px 14px; border: 1px solid var(--ink-a1);
+  border-radius: 10px; background: var(--fill); margin: 4px 0; }
+.nuvem-restantes { display: grid; gap: 2px; min-width: 150px; }
+.nuvem-numero { font-family: var(--serif); font-size: 28px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nuvem-restantes small { color: var(--ink2); font-size: 12.5px; }
+.nuvem-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 20px; margin: 0; flex: 1; min-width: 240px; }
+.nuvem-numeros dt { font-size: 12px; color: var(--ink2); }
+.nuvem-numeros dd { margin: 0; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nuvem-sem-sim { }
+/* Os tres planos, para escolher antes de assinar (o mesmo de paulus.ia.br/cadastro) */
+.nuvem-planos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 4px 0; }
+.nuvem-plano-op { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px;
+  background: transparent; color: var(--ink); cursor: pointer; }
+.nuvem-plano-op:hover { border-color: var(--ink); }
+.nuvem-plano-op.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.nuvem-plano-op span { font-family: var(--serif); font-size: 20px; font-variant-numeric: tabular-nums; }
+.nuvem-plano-op small { font-size: 12px; color: var(--ink2); }
+.nuvem-termo p { margin: 0 0 10px; line-height: 1.5; }
+.nuvem-pix { display: grid; gap: 8px; justify-items: center; text-align: center; }
+.nuvem-pix img { width: 200px; height: 200px; image-rendering: pixelated; border-radius: 6px; background: var(--papel); }
+.nuvem-copia { width: 100%; min-height: 64px; font-family: var(--mono); font-size: 11px; resize: none; }

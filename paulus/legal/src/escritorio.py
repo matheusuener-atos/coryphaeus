@@ -96,18 +96,25 @@ class Folha:
     def __init__(self, base) -> None:
         self.base = base
 
-    def pessoas(self) -> list[dict]:
+    def pessoas(self, mes: str = "") -> list[dict]:
         """
         Quem entra na folha: quem tem vínculo definido no cadastro.
 
         Sem vínculo, a pessoa não entra — não por engano, mas porque não foi
         dito como ela é paga. Colocar todo colaborador na folha por um valor
         que ninguém digitou produziria uma folha errada com cara de certa.
+
+        Com `mes`, quem começa depois dele ("desde" da ficha) fica de fora: a
+        Larissa que entra em novembro não está na folha de outubro. No mês em
+        que começa, entra com o valor inteiro (a folha não faz proporcional).
         """
-        return self.base.buscar(
-            "SELECT id, nome, tipo, vinculo, salario_centavos, encargos_centavos "
+        linhas = self.base.buscar(
+            "SELECT id, nome, tipo, vinculo, salario_centavos, encargos_centavos, inicio "
             "FROM cadastros WHERE vinculo != '' ORDER BY nome COLLATE NOCASE"
         )
+        if mes:
+            linhas = [p for p in linhas if not (p.get("inicio") or "")[:7] or (p.get("inicio") or "")[:7] <= mes]
+        return linhas
 
     def do_mes(self, mes: str = "") -> dict:
         """A folha gravada deste mês, com o resumo por natureza."""
@@ -152,8 +159,10 @@ class Folha:
         rascunho. O que não se pode é recalcular sozinha depois de paga.
         """
         mes = mes or mes_de_hoje()
-        pessoas = self.pessoas()
+        pessoas = self.pessoas(mes)
         if not pessoas:
+            if self.pessoas():
+                raise ValueError("ninguém da equipe começa até este mês (veja o “desde” em Cadastros › Equipe)")
             raise ValueError(
                 "nenhuma pessoa com vínculo definido. Abra Cadastros, escolha a "
                 "pessoa e diga como ela é paga e quanto recebe."

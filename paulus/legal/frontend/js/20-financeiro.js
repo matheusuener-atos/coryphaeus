@@ -644,8 +644,10 @@ function finSugestoesSecao() {
       : '<p class="rel-vazio">Nada a sugerir: nenhuma cobrança atrasada, nenhuma conta vencendo nesta semana e nenhum papel faltando.</p>');
 }
 
-function sugestoesDoMes() {
-  const d = fin.dados;
+/* `dados`/`mes`: de outra tela (a conversa, js/88-financeiro-na-conversa.js);
+   sem eles, os da tela Financeiro. */
+function sugestoesDoMes(dados, mes) {
+  const d = dados || fin.dados;
   const saida = [];
   (d.precisa || []).forEach((a) => {
     if (a.acao === "cobrar") {
@@ -664,13 +666,13 @@ function sugestoesDoMes() {
   const dias = (d.fechamento || {}).dias_para_fechar;
   if (dias && dias <= 7 && saida.length) {
     saida.push({ texto: "Fechar o mês nos próximos " + plural(dias, "dia") + ": resolver os itens acima antes deixa a planilha de exportação completa.",
-      tarefa: "Fechar o mês de " + mesCurto(fin.mes) });
+      tarefa: "Fechar o mês de " + mesCurto(mes || fin.mes) });
   }
   return saida;
 }
 
-async function criarTarefasDasSugestoes() {
-  const sugestoes = sugestoesDoMes();
+async function criarTarefasDasSugestoes(dados, mes) {
+  const sugestoes = sugestoesDoMes(dados, mes);
   if (!sugestoes.length) return;
   const hoje = iso(new Date());
   let feitas = 0;
@@ -786,7 +788,7 @@ function ligarFinanceiro(raiz) {
   clique("[data-fin-acervo]", (b) => verNoAcervo(b.dataset.finAcervo || ""));
   clique("[data-fin-foco]", () => { marcarDestino("foco"); mostrarFoco(); });
   clique("[data-fin-rel-aba]", (b) => { fin.relAba = b.dataset.finRelAba; desenharFinanceiro(); });
-  clique("[data-fin-criar-tarefas]", criarTarefasDasSugestoes);
+  clique("[data-fin-criar-tarefas]", () => criarTarefasDasSugestoes());
   clique("[data-fin-pede]", (b) => {
     const [i, j] = b.dataset.finPede.split(":").map(Number);
     const p = (fin.pedidos || [])[i];

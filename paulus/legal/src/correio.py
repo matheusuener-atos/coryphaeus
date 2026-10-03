@@ -82,6 +82,10 @@ class Mensagem:
     html: str = ""
     imagens_remotas: int = 0      # imagens de fora, bloqueadas por padrao
     sinalizada: bool = False      # a estrela (\Flagged no IMAP, a mesma do Gmail)
+    # O Message-ID e as References: a resposta vai encadeada (In-Reply-To),
+    # na mesma conversa do Gmail e do Outlook de quem escreveu.
+    message_id: str = ""
+    referencias: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -361,6 +365,8 @@ def montar_mensagem(bruto: bytes, uid: str = "", *, so_cabecalho: bool = False) 
         assunto=_texto_cabecalho(msg.get("Subject", "")) or "(sem assunto)",
         quando=quando.isoformat() if quando else "",
         quando_curto=_quando_curto(quando),
+        message_id=" ".join(str(msg.get("Message-ID", "") or "").split())[:300],
+        referencias=" ".join(str(msg.get("References", "") or "").split())[-1500:],
     )
 
     if so_cabecalho:
@@ -682,6 +688,33 @@ def baixar_anexo(conta, senha: str, uid: str, nome: str) -> tuple[str, bytes]:
             pass
 
 
+def baixar_anexos(conta, senha: str, uid: str) -> list[tuple[str, bytes]]:
+    """Todos os anexos da mensagem, numa leitura so (o Encaminhar leva os anexos junto)."""
+    con = _abrir_imap(conta, senha)
+    try:
+        con.select("INBOX", readonly=True)
+        estado, dados = con.uid("FETCH", uid, "(BODY.PEEK[])")
+        if estado != "OK" or not dados or not isinstance(dados[0], tuple):
+            raise ErroCorreio("não achei essa mensagem no servidor")
+        msg = email.message_from_bytes(dados[0][1], policy=email.policy.default)
+        achados = []
+        for parte in msg.walk():
+            if parte.is_multipart():
+                continue
+            nome = _texto_cabecalho(parte.get_filename())
+            if not nome or (parte.get_content_disposition() or "") == "inline" and (parte.get("Content-ID") or ""):
+                continue
+            carga = parte.get_payload(decode=True) or b""
+            if len(carga) <= MAX_ANEXO_BYTES:
+                achados.append((nome, carga))
+        return achados
+    finally:
+        try:
+            con.logout()
+        except Exception:
+            pass
+
+
 def arquivar(conta, senha: str, uid: str) -> bool:
     """
     Tira da caixa de entrada.
@@ -986,7 +1019,7 @@ def montar_email(conta, *, para: list[str], assunto: str, corpo: str,
                  corpo_html: str = "",
                  cc: list[str] | None = None, cco: list[str] | None = None,
                  anexos: list[Path] | None = None,
-                 responder_a: str = "") -> EmailMessage:
+                 responder_a: str = "", referencias: str = "") -> EmailMessage:
     """
     Monta a mensagem, com assinatura da conta no fim do texto.
 
@@ -1005,8 +1038,11 @@ def montar_email(conta, *, para: list[str], assunto: str, corpo: str,
     if assunto:
         msg["Subject"] = assunto
     if responder_a:
+        # A resposta encadeada: In-Reply-To e o Message-ID da mensagem, e
+        # References a corrente dela com ele no fim (RFC 5322, 3.6.4).
         msg["In-Reply-To"] = responder_a
-        msg["References"] = responder_a
+        corrente = " ".join((referencias or "").split())
+        msg["References"] = (corrente + " " + responder_a).strip() if responder_a not in corrente else corrente
 
     assinatura_html = (getattr(conta, "assinatura_html", "") or "").strip()
     assinatura_texto = conta.assinatura.strip() or html_para_texto(assinatura_html)

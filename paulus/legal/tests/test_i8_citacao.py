@@ -121,7 +121,7 @@ def test_na_conversa() -> None:
 
     def perguntar(simulado, texto="qual a multa?"):
         api.estado.client = simulado
-        api.estado.cliente_para = lambda tarefa: simulado
+        api.estado.cliente_para = lambda tarefa, **k: simulado
         id_ = c.post("/api/trabalhos", json={"pedido": "teste"}).json()["id"]
         r = c.post(f"/api/trabalhos/{id_}/perguntar", json={"pergunta": texto, "apenas": ["contrato.txt"], "documentos": True})
         eventos = []

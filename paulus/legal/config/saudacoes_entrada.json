@@ -1,0 +1,68 @@
+{
+  "_como_ler": "As frases das telas de entrar (src/saudacao.py, saudar_entrada). O titulo e sempre o mesmo; a frase de baixo sai daqui pela regra da saudacao do assistente, so com momento, dia e calendario - nada do escritorio, porque a tela abre para quem ainda nao entrou. 'telas' diz onde a frase vale: entrar (de fora), senha, codigo, chave, convite, convite_erro, convite_autenticador, convite_pronto, trava (a entrada do programa no computador), trava_codigo, trava_sem_internet, google_ok, google_entrou, google_negado, google_expirado, fora_da_janela. Boas-vindas tem tom leve; codigo, chave e erro sao serias. Marcas: {feriado}, {nome}, {escritorio}, {provedor} - a frase so vale quando a marca existe.",
+  "titulo": "Paulus está te esperando.",
+  "reserva": {
+    "entrar": "O mesmo escritório, de onde você estiver.",
+    "trava": "Entre com a sua conta para abrir o escritório.",
+    "codigo": "Falta confirmar que é você: digite o código do Google Authenticator.",
+    "chave": "Use uma das chaves de recuperação que você guardou. Cada uma vale uma vez.",
+    "convite_erro": "Este convite não abriu.",
+    "google_expirado": "Este login expirou. Volte ao PAVLVS e abra outro."
+  },
+  "subtitulos": [
+    {"id": "e-geral-1", "texto": "O mesmo escritório, de onde você estiver.", "telas": ["entrar"]},
+    {"id": "e-geral-2", "texto": "Entre com a sua conta para continuar de onde parou.", "telas": ["entrar", "trava"]},
+    {"id": "e-geral-3", "texto": "O escritório está aberto. É só entrar.", "telas": ["entrar", "trava"]},
+    {"id": "e-geral-4", "texto": "Entre com a conta do escritório para começar.", "telas": ["entrar", "trava"]},
+    {"id": "e-geral-5", "texto": "Tudo como você deixou. Entre para continuar.", "telas": ["entrar", "trava"]},
+    {"id": "e-trava-1", "texto": "Entre com a sua conta para abrir o escritório neste computador.", "telas": ["trava"]},
+
+    {"id": "e-manha-cedo", "texto": "Bom dia. Começando cedo: entre para abrir o escritório.", "telas": ["entrar", "trava"], "momento": ["manha_cedo"]},
+    {"id": "e-manha-1", "texto": "Bom dia. Entre para começar o dia no escritório.", "telas": ["entrar", "trava"], "momento": ["manha"]},
+    {"id": "e-manha-2", "texto": "Bom dia. É só entrar para continuar.", "telas": ["entrar", "trava"], "momento": ["manha"]},
+    {"id": "e-almoco", "texto": "Boa tarde. Entre para continuar de onde parou.", "telas": ["entrar", "trava"], "momento": ["almoco"]},
+    {"id": "e-tarde-1", "texto": "Boa tarde. Entre para continuar o trabalho.", "telas": ["entrar", "trava"], "momento": ["tarde"]},
+    {"id": "e-tarde-2", "texto": "Boa tarde. O escritório está aberto: é só entrar.", "telas": ["entrar", "trava"], "momento": ["tarde"]},
+    {"id": "e-fim-tarde", "texto": "Fim de tarde. Entre para fechar o que ficou aberto.", "telas": ["entrar", "trava"], "momento": ["fim_de_tarde"]},
+    {"id": "e-noite-1", "texto": "Boa noite. Entre com a sua conta para continuar.", "telas": ["entrar", "trava"], "momento": ["noite"]},
+    {"id": "e-noite-2", "texto": "Boa noite. O escritório segue aqui; é só entrar.", "telas": ["entrar", "trava"], "momento": ["noite", "noite_alta"]},
+    {"id": "e-madrugada", "texto": "Boa noite. Entre quando estiver pronto.", "telas": ["entrar", "trava"], "momento": ["madrugada", "noite_alta"]},
+
+    {"id": "e-segunda", "texto": "Começo de semana. Entre para ver o que está por vir.", "telas": ["entrar", "trava"], "dia": ["segunda"], "momento": ["manha_cedo", "manha", "almoco", "tarde"]},
+    {"id": "e-sexta", "texto": "Sexta-feira. Entre para fechar a semana.", "telas": ["entrar", "trava"], "dia": ["sexta"], "momento": ["almoco", "tarde", "fim_de_tarde"]},
+    {"id": "e-fim-semana", "texto": "Fim de semana. O escritório está aqui quando você precisar.", "telas": ["entrar", "trava"], "dia": ["sabado", "domingo"]},
+    {"id": "e-feriado", "texto": "{feriado}. O escritório está aqui quando você precisar.", "telas": ["entrar", "trava"], "calendario": ["feriado"]},
+    {"id": "e-pos-feriado", "texto": "De volta depois de {feriado}. Entre para retomar.", "telas": ["entrar", "trava"], "calendario": ["pos_feriado"]},
+    {"id": "e-inicio-mes", "texto": "Começo de mês. Entre para começar.", "telas": ["entrar", "trava"], "calendario": ["inicio_mes"]},
+    {"id": "e-fim-mes", "texto": "Fim de mês. Entre para fechar o que falta.", "telas": ["entrar", "trava"], "calendario": ["fim_mes"]},
+    {"id": "e-recesso", "texto": "Recesso forense. O escritório segue aberto para você.", "telas": ["entrar", "trava"], "calendario": ["recesso"]},
+    {"id": "e-inicio-ano", "texto": "Ano novo no escritório. Entre para começar.", "telas": ["entrar", "trava"], "calendario": ["inicio_ano"]},
+
+    {"id": "e-senha-1", "texto": "Entre com o e-mail e a senha do seu convite.", "telas": ["senha"]},
+
+    {"id": "e-codigo-1", "texto": "Falta confirmar que é você: digite o código do Google Authenticator.", "telas": ["codigo", "trava_codigo"]},
+    {"id": "e-codigo-2", "texto": "Por segurança, confirme com o código de seis dígitos do seu celular.", "telas": ["codigo", "trava_codigo"]},
+    {"id": "e-codigo-3", "texto": "Abra o Google Authenticator no celular e digite o código que está na tela.", "telas": ["codigo", "trava_codigo"]},
+
+    {"id": "e-sem-internet", "texto": "Sem internet, o código do celular abre o PAULUS neste computador.", "telas": ["trava_sem_internet"]},
+    {"id": "e-sem-internet-2", "texto": "Sem conexão com o Google agora: entre com o código do Google Authenticator.", "telas": ["trava_sem_internet"]},
+
+    {"id": "e-chave-1", "texto": "Use uma das chaves de recuperação que você guardou. Cada uma vale uma vez.", "telas": ["chave"]},
+    {"id": "e-chave-2", "texto": "Sem o celular, uma das chaves de recuperação entra no lugar do código. Cada uma vale uma vez.", "telas": ["chave"]},
+
+    {"id": "e-convite-nome", "texto": "{nome}, este é o seu convite para o PAVLVS de {escritorio}.", "telas": ["convite"]},
+    {"id": "e-convite-nome-2", "texto": "{nome}, este é o seu convite para o PAVLVS do escritório.", "telas": ["convite"]},
+    {"id": "e-convite-esc", "texto": "Este é o seu convite para o PAVLVS de {escritorio}.", "telas": ["convite"]},
+    {"id": "e-convite", "texto": "Este é o seu convite para o PAVLVS do escritório.", "telas": ["convite"]},
+    {"id": "e-convite-erro", "texto": "Este convite não abriu. Peça um novo a quem convidou você.", "telas": ["convite_erro"]},
+    {"id": "e-convite-app", "texto": "Agora, adicione a conta ao Google Authenticator.", "telas": ["convite_autenticador"]},
+    {"id": "e-convite-pronto", "texto": "Pronto: a sua conta está ativa.", "telas": ["convite_pronto"]},
+
+    {"id": "e-google-ok", "texto": "Conta {provedor} conectada. Já pode fechar esta aba.", "telas": ["google_ok"]},
+    {"id": "e-google-entrou", "texto": "Login recebido. Já pode fechar esta aba.", "telas": ["google_entrou"]},
+    {"id": "e-google-negado", "texto": "A conexão não foi autorizada. Nada foi alterado.", "telas": ["google_negado"]},
+    {"id": "e-google-expirado", "texto": "Este login expirou. Volte ao PAVLVS e abra outro.", "telas": ["google_expirado"]},
+
+    {"id": "e-fora-janela", "texto": "Este endereço só abre na janela do PAULUS, neste computador. Abra o PAULUS pelo atalho do Windows.", "telas": ["fora_da_janela"]}
+  ]
+}

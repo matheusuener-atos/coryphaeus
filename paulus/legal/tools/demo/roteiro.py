@@ -20,6 +20,13 @@ acerta e quanto tempo leva. Dois conjuntos:
     venv\\Scripts\\python.exe tools\\demo\\roteiro.py --tudo
     venv\\Scripts\\python.exe tools\\demo\\roteiro.py --programa      (só as sem modelo)
     venv\\Scripts\\python.exe tools\\demo\\roteiro.py --dificil --modelo llama3.2:3b-instruct-q8_0
+    venv\\Scripts\\python.exe tools\\demo\\roteiro.py --tudo --nuvem deepinfra:meta-llama/Llama-3.3-70B-Instruct
+
+--nuvem PROVEDOR:MODELO (V1, docs/PLANO-NUVEM.md): as mesmas perguntas, com a
+resposta escrita na nuvem - a bateria "Ollama local x nuvem". A chave vem de
+DEEPINFRA_API_KEY (ou ANTHROPIC_API_KEY / OPENAI_API_KEY), e é guardada só na
+pasta da demonstração. A busca, as regras e a conferência continuam aqui,
+como no produto. tools/demo/comparar.py põe duas rodadas lado a lado.
 
 Precisa do Ollama ligado para as perguntas sobre documentos. Grava o
 resultado em data/demo/roteiro-resultado[-<modelo>].json.
@@ -192,6 +199,38 @@ def pedir(base: str, metodo: str, caminho: str, dados: dict | None = None) -> di
         return json.loads(r.read().decode("utf-8") or "{}")
 
 
+def _preparar_nuvem(alvo: str) -> str:
+    """
+    Liga a nuvem nas preferências da demonstração: o provedor, o modelo, a
+    chave (do ambiente, guardada cifrada só na pasta da demonstração) e o sim
+    do termo de agora - o do dono, que roda a bateria com dados fictícios.
+    """
+    from types import SimpleNamespace
+
+    import nuvem
+    from config import Preferencias
+
+    provedor, _, modelo_nuvem = alvo.partition(":")
+    if provedor not in nuvem.PROVEDORES or provedor == "paulus" and not modelo_nuvem:
+        raise SystemExit("--nuvem PROVEDOR:MODELO, com PROVEDOR em " + ", ".join(nuvem.PROVEDORES))
+    prefs = Preferencias(DEMO / "preferencias.json")
+    falso = SimpleNamespace(dados_dir=DEMO, prefs=prefs)
+    if provedor != "paulus":
+        variavel = {"deepinfra": "DEEPINFRA_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}[provedor]
+        chave = os.environ.get(variavel, "")
+        if not chave and not nuvem.chave(falso, provedor):
+            raise SystemExit(f"ponha a chave em {variavel} para rodar a bateria na nuvem")
+        if chave:
+            nuvem.guardar_chave(falso, provedor, chave)
+    elif not nuvem.chave(falso, "paulus"):
+        raise SystemExit("o PAULUS (nuvem) precisa estar ativado na demonstração (Configurações › Modelos, com PAULUS_DADOS=data/demo)")
+    prefs.atualizar({"nuvem": {"ligado": True, "provedor": provedor, "modelo": modelo_nuvem or nuvem.PROVEDORES[provedor]["padrao"],
+                               "pedir_cada_envio": False, "tarefas": {"conversa": True},
+                               "consentimento": {"versao": nuvem.TERMO_VERSAO, "quem": "bateria (dados fictícios)",
+                                                 "quando": time.strftime("%Y-%m-%dT%H:%M:%S"), "provedor": provedor}}})
+    return f"{provedor}:{modelo_nuvem or nuvem.PROVEDORES[provedor]['padrao']}"
+
+
 def main() -> int:
     # A base tem datas relativas ao dia em que foi criada ("amanhã" é o dia
     # seguinte ao da criação). De outro dia, ela é refeita antes de medir.
@@ -229,6 +268,7 @@ def main() -> int:
         roteiro = [p for p in BASICO + DIFICIL + MATERIAL if trecho in p["pergunta"].lower()]
     if "--vezes" in sys.argv:
         roteiro = roteiro * int(sys.argv[sys.argv.index("--vezes") + 1])
+    nuvem_alvo = _preparar_nuvem(sys.argv[sys.argv.index("--nuvem") + 1]) if "--nuvem" in sys.argv else None
 
     from test_gravacoes import _porta_livre, _subir_servidor
 
@@ -242,6 +282,13 @@ def main() -> int:
             break
         time.sleep(1)
     modelo = api.estado.client.model
+    if nuvem_alvo:
+        import nuvem
+
+        if not nuvem.ligada(api.estado):
+            print("a nuvem não ligou na demonstração (chave, modelo ou o sim): " + json.dumps(nuvem.config(api.estado), ensure_ascii=False))
+            return 1
+        modelo = nuvem_alvo
     print(f"Acervo da demonstração: {len(api.estado.searcher.documents)} documentos · modelo {modelo}\n")
 
     resultados = []
@@ -252,7 +299,8 @@ def main() -> int:
             criados.append(t["id"])
             comeco = time.time()
             try:
-                eventos = conversar(base, f"/api/trabalhos/{t['id']}/perguntar", {"pergunta": p["pergunta"]})
+                eventos = conversar(base, f"/api/trabalhos/{t['id']}/perguntar",
+                                    {"pergunta": p["pergunta"], **({"nuvem": True} if nuvem_alvo else {})})
             except Exception as exc:  # noqa: BLE001 - o roteiro segue
                 eventos = [("erro", {"mensagem": str(exc)})]
             segundos = time.time() - comeco
@@ -274,8 +322,11 @@ def main() -> int:
             certo = acertou and veio == p["caminho"] and not erro
             if veio != p["caminho"]:
                 motivo = f"foi para {veio}" + (f"; {motivo}" if motivo else "")
+            fim_nuvem = next((d for tipo, d in eventos if tipo == "nuvem_fim"), {})
             resultados.append({**{k: p[k] for k in ("pergunta", "caminho", "tipo")}, "veio": veio, "certo": certo,
-                               "motivo": motivo or erro, "segundos": round(segundos, 1), "resposta": texto[:900]})
+                               "motivo": motivo or erro, "segundos": round(segundos, 1), "resposta": texto[:900],
+                               "onde": fim_nuvem.get("onde", "computador" if nuvem_alvo else ""),
+                               "tokens": (fim_nuvem.get("tokens_entrada") or 0) + (fim_nuvem.get("tokens_saida") or 0)})
             print(f"{'ok ' if certo else 'ERR'} {segundos:6.1f}s  [{veio:10}] {p['pergunta']}")
             if not certo:
                 print(f"         {motivo or erro} · resposta: {(erro or texto)[:220]!r}")
@@ -299,7 +350,11 @@ def main() -> int:
         print("por tipo: " + " · ".join(
             f"{t} {sum(1 for r in resultados if r['tipo'] == t and r['certo'])}/{sum(1 for r in resultados if r['tipo'] == t)}"
             for t in tipos))
-    sufixo = "" if "--modelo" not in sys.argv else "-" + re.sub(r"[^a-z0-9.]+", "_", modelo.lower())
+    if nuvem_alvo:
+        na_nuvem = [r for r in resultados if r.get("onde") == "nuvem"]
+        print(f"na nuvem: {len(na_nuvem)} de {len([r for r in resultados if r['caminho'] == 'documentos'])} perguntas sobre documentos"
+              f" · {sum(r['tokens'] for r in na_nuvem):,} tokens".replace(",", "."))
+    sufixo = "" if "--modelo" not in sys.argv and not nuvem_alvo else "-" + re.sub(r"[^a-z0-9.]+", "_", modelo.lower())
     (DEMO / f"roteiro-resultado{sufixo}.json").write_text(json.dumps(resultados, ensure_ascii=False, indent=1),
                                                           encoding="utf-8")
     return 0

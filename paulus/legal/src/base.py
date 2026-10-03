@@ -834,7 +834,28 @@ MIGRACOES: list[tuple[str, str]] = [
         """,
     ),
     (
-        "034_nfse_base",
+        "034_fichas_pela_conversa",
+        """
+        -- Os cadastros e o financeiro pela conversa (src/fichas_pela_conversa.py):
+        -- quem recebe a despesa fixa, se ela entra no Financeiro todo mes, desde
+        -- quando a pessoa entra na folha, e a forma do lancamento.
+        ALTER TABLE cadastros ADD COLUMN fornecedor TEXT DEFAULT '';
+        ALTER TABLE cadastros ADD COLUMN lancar_mensal INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE cadastros ADD COLUMN inicio TEXT DEFAULT '';
+        ALTER TABLE lancamentos ADD COLUMN forma TEXT DEFAULT '';
+        """,
+    ),
+    (
+        "035_lancamento_do_servico",
+        """
+        -- O "Cliente · processo" do lancamento (pacote de telas, `Conversa -
+        -- Lancamento`): o lancamento liga ao servico do cliente, e por ele ao
+        -- processo (processos.servico_id).
+        ALTER TABLE lancamentos ADD COLUMN servico_id INTEGER REFERENCES servicos(id) ON DELETE SET NULL;
+        """,
+    ),
+    (
+        "036_nfse_base",
         """
         -- O emissor de NFS-e (src/nfse/, N1). A configuracao fiscal e uma
         -- VERSAO por gravacao: a nota guarda o id da versao com que foi
@@ -875,7 +896,7 @@ MIGRACOES: list[tuple[str, str]] = [
         """,
     ),
     (
-        "035_nfse_notas",
+        "037_nfse_notas",
         """
         -- A nota fiscal do rascunho ao fim (src/nfse/notas.py, N2-N5). O
         -- estado e gravado ANTES de cada passo: se o programa cair no meio do
@@ -960,7 +981,7 @@ MIGRACOES: list[tuple[str, str]] = [
         """,
     ),
     (
-        "036_nfse_liberacao",
+        "038_nfse_liberacao",
         """
         -- A liberacao da producao (src/nfse, N8): so o titular, na janela do
         -- escritorio, com o checklist guardado. Sem uma linha ativa aqui, o
@@ -980,7 +1001,7 @@ MIGRACOES: list[tuple[str, str]] = [
         """,
     ),
     (
-        "037_papel_da_nfse",
+        "039_papel_da_nfse",
         """
         -- A nota emitida pelo PAULUS entra no mesmo registro das notas emitidas
         -- fora (N4), com a chave, o ambiente e a ligacao com a nota daqui. A
@@ -991,7 +1012,7 @@ MIGRACOES: list[tuple[str, str]] = [
         """,
     ),
     (
-        "038_nfse_eventos",
+        "040_nfse_eventos",
         """
         -- Os eventos da nota (N5): o cancelamento pedido daqui (e101101) e o que
         -- a Sefin registra sozinha (cancelamento por substituicao, por oficio).
@@ -1021,7 +1042,7 @@ MIGRACOES: list[tuple[str, str]] = [
         """,
     ),
     (
-        "039_nfse_recorrencia",
+        "041_nfse_recorrencia",
         """
         -- Honorarios recorrentes (N7): no dia, o PAULUS cria o RASCUNHO da nota
         -- e o poe em Aprovacoes. Nunca emite sozinho. Um por mes: o mes ja
@@ -1053,6 +1074,15 @@ MIGRACOES: list[tuple[str, str]] = [
     ),
 ]
 
+_RENOMEADAS = {
+    "034_nfse_base": "036_nfse_base",
+    "035_nfse_notas": "037_nfse_notas",
+    "036_nfse_liberacao": "038_nfse_liberacao",
+    "037_papel_da_nfse": "039_papel_da_nfse",
+    "038_nfse_eventos": "040_nfse_eventos",
+    "039_nfse_recorrencia": "041_nfse_recorrencia",
+}
+
 
 class Base:
     """
@@ -1083,6 +1113,11 @@ class Base:
                 "CREATE TABLE IF NOT EXISTS migracoes ("
                 " nome TEXT PRIMARY KEY, aplicada_em TEXT NOT NULL)"
             )
+            # As migracoes da NFS-e nasceram como 034-039 na branch dela e foram
+            # renumeradas para 036-041 na juncao com a main (que ja tinha 034 e
+            # 035): a base que rodou os nomes antigos nao as roda de novo.
+            for antigo, novo in _RENOMEADAS.items():
+                self.con.execute("UPDATE OR IGNORE migracoes SET nome = ? WHERE nome = ?", (novo, antigo))
             ja = {l["nome"] for l in self.con.execute("SELECT nome FROM migracoes")}
 
             aplicadas: list[str] = []

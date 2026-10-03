@@ -130,7 +130,7 @@ def test_conversa_de_fora() -> None:
         f_joao = entrar("Joao", "joao@x.com", "colaborador")
         # O modelo de mentira entra depois das entradas: o login conversa com o cliente de verdade.
         api.estado.client = anota
-        api.estado.cliente_para = lambda tarefa: anota
+        api.estado.cliente_para = lambda tarefa, **k: anota
         api.estado.saber.ligada = False
         # Sem juiz de uma letra: este teste é da busca, não do roteamento.
         api._juiz = lambda: None

@@ -2067,7 +2067,7 @@
     "preferências"
    ],
    "faz": [
-    "Seções: Meus dados, Assistente e modelo, Modelos, Desempenho, Conexões, Acesso de fora, Escritório e equipe, Backup, Biblioteca, Aparência e avisos, Módulos, Feedback, Apoio e versão e Lixeira.",
+    "Seções: Meus dados, Assistente e modelo, Modelos, Desempenho, Conexões, Acesso de fora, Escritório e equipe, Backup, Biblioteca, Aparência e avisos, Módulos, Feedback, Versão e Lixeira.",
     "Assistente e modelo: escolhe o modelo do Ollama, liga “Ir devagar quando eu usar o PC”, define os Limites da IA e reindexa o Acervo.",
     "Na Lixeira os itens apagados ficam por 30 dias e podem ser restaurados.",
     "As mudanças só valem depois de Salvar alterações (ou Ctrl+S).",
@@ -2593,88 +2593,6 @@
       "Clique em um deles para ver o gráfico do último minuto."
      ],
      "evidencia": "frontend/js/05-configuracoes.js:607"
-    }
-   ]
-  },
-  {
-   "destino": "apoiar",
-   "apelidos": [
-    "apoiar",
-    "apoiar o projeto",
-    "doar",
-    "doacao",
-    "contribuir"
-   ],
-   "faz": [
-    "Pix uma vez (QR e copia e cola, valem 30 minutos) ou cartão todo mês pelo Mercado Pago.",
-    "Baixa o extrato de contribuições em PDF depois do primeiro pagamento.",
-    "Mostra a lista pública de apoiadores (paulus.ia.br/apoiadores); o nome só entra com a pessoa autorizando.",
-    "Acompanhe o desenvolvimento abre as versões e o apoio consolidado de cada mês."
-   ],
-   "nao_faz": [
-    "O cartão nunca é digitado no programa, só na página do Mercado Pago.",
-    "O Pix não é recorrente: mensal só no cartão."
-   ],
-   "tarefas": [
-    {
-     "pergunta": "Como apoio o projeto com Pix?",
-     "palavras": [
-      "pix",
-      "apoiar com pix",
-      "doar"
-     ],
-     "passos": [
-      "Clique em Apoiar o projeto no menu à esquerda.",
-      "Escolha Pix · uma vez e o valor.",
-      "Preencha o e-mail para o recibo e clique em Gerar o Pix.",
-      "Pague pelo app do banco com o QR ou o código."
-     ],
-     "evidencia": "frontend/js/09-apoiar.js:189"
-    },
-    {
-     "pergunta": "Como faço um apoio mensal no cartão?",
-     "palavras": [
-      "apoio mensal",
-      "cartao",
-      "assinatura mensal",
-      "todo mes"
-     ],
-     "passos": [
-      "Clique em Apoiar o projeto no menu e escolha Cartão · todo mês.",
-      "Escolha o valor e preencha o e-mail para o recibo.",
-      "Clique em Assinar no cartão e ponha o cartão na página do Mercado Pago."
-     ],
-     "evidencia": "frontend/js/09-apoiar.js:169"
-    },
-    {
-     "pergunta": "Como cancelo ou diminuo minha assinatura de apoio?",
-     "palavras": [
-      "cancelar assinatura",
-      "interromper assinatura",
-      "diminuir valor",
-      "parar apoio"
-     ],
-     "passos": [
-      "Abra Apoiar o projeto no menu.",
-      "No cartão Sua assinatura, clique em Interromper assinatura.",
-      "Para pagar menos, ajuste o valor e clique em Diminuir o valor."
-     ],
-     "evidencia": "frontend/js/09-apoiar.js:152"
-    },
-    {
-     "pergunta": "Como baixo o extrato do meu apoio?",
-     "palavras": [
-      "extrato de apoio",
-      "extrato de contribuições",
-      "recibo do apoio",
-      "comprovante do apoio"
-     ],
-     "passos": [
-      "Abra Apoiar o projeto no menu.",
-      "Clique em Baixar extrato de contribuições (aparece depois do primeiro pagamento).",
-      "Escolha onde salvar o PDF."
-     ],
-     "evidencia": "frontend/js/09-apoiar.js:138"
     }
    ]
   },

@@ -1,341 +1,235 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PAVLVS — Assistente jurídico de IA local</title>
-<meta name="description" content="PAVLVS (PAULUS Legal) é um assistente jurídico de IA que roda no computador do escritório: acervo, documentos, agenda, assinatura, e-mail e aprovações. Nada sai sem a sua aprovação.">
+<title>PAVLVS — Assistente jurídico com IA</title>
+<meta name="description" content="PAVLVS (PAULUS Legal) é um assistente jurídico de IA instalado no computador do escritório: acervo, documentos, agenda, assinatura, e-mail e aprovações. Nada sai sem a sua aprovação.">
 <link rel="canonical" href="https://paulus.ia.br/">
 <link rel="alternate" hreflang="pt-BR" href="https://paulus.ia.br/">
 <link rel="alternate" hreflang="en" href="https://paulus.ia.br/en/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="PAVLVS — Assistente jurídico de IA local">
-<meta property="og:description" content="O escritório inteiro, com uma IA que fica na sua máquina.">
+<meta property="og:title" content="PAVLVS — Assistente jurídico com IA">
+<meta property="og:description" content="O escritório inteiro, com uma IA numa nuvem própria.">
 <meta property="og:url" content="https://paulus.ia.br/">
 <meta property="og:image" content="https://paulus.ia.br/assets/paulus-icone-512.png">
 <meta property="og:locale" content="pt_BR">
-<meta name="theme-color" content="#f6f6f4">
+<meta name="theme-color" content="#131312">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='escuro'?'dark':'light')}catch(e){}</script>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=archive,arrow_upward,block,calendar_month,close,code,contacts,dark_mode,description,download,draw,event,favorite,forum,gavel,inventory_2,key,light_mode,mail,menu,menu_book,mic,payments,self_improvement,send,verified,work&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=archive,arrow_upward,auto_awesome,calendar_month,check,close,contacts,dark_mode,description,draw,forum,inventory_2,light_mode,mail,menu,mic,payments,play_arrow,self_improvement,verified,work&display=block">
 <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
 <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 
-<div class="aviso">Em piloto com os primeiros escritórios · software livre, gratuito.<a href="#download">Baixar para Windows →</a></div>
-
 <header class="topo">
-  <a class="marca" href="./" aria-label="PAVLVS — página inicial"><span>PAVLVS</span></a>
+  <a class="marca" href="./" aria-label="PAVLVS — página inicial">PAVLVS</a>
   <nav class="nav" id="nav-principal" aria-label="Principal">
     <a href="./" aria-current="page">Plataforma</a>
     <a href="desenvolvimento/">Desenvolvimento</a>
-    <a href="apoiadores/">Apoiadores</a>
     <a href="materiais/">Materiais</a>
-    <a href="apoiar/">Apoiar</a>
+    <a href="cadastro/">Assinar</a>
     <a href="en/" lang="en" hreflang="en">English</a>
+    <a class="btn-duplo pequeno" href="escritorio/"><span>Acessar escritório</span></a>
   </nav>
   <div class="acoes">
-    <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">dark_mode</span></button>
-    <a class="btn-texto" href="https://github.com/matheusuener-atos/coryphaeus" style="font-size:14px;font-weight:500;color:var(--ink);text-decoration:none;padding:0 6px">GitHub</a>
-    <a class="btn primario cta-topo" href="#download"><span class="icon" aria-hidden="true">download</span>Baixar</a>
+    <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
     <button type="button" class="btn-icone so-celular" data-menu aria-expanded="false" aria-controls="nav-principal" aria-label="Menu"><span class="icon" aria-hidden="true">menu</span></button>
   </div>
 </header>
 
 <main id="conteudo">
 
-<!-- 01 Plataforma -->
 <section id="plataforma" class="hero" aria-labelledby="t-plataforma">
-  <div class="pilha">
-    <span class="rotulo">01 — Plataforma</span>
-    <h1 id="t-plataforma">O escritório inteiro, com uma IA que fica na sua máquina.</h1>
-    <p class="lead">O PAULUS lê seus contratos, responde com a fonte, agenda prazos, escreve documentos, assina, cuida do e-mail e do financeiro. A IA roda no seu computador. O que sai dele — um e-mail, um documento assinado — espera o seu sim.</p>
+  <div class="col-720">
+    <h1 id="t-plataforma">O escritório inteiro, com uma IA numa nuvem própria.</h1>
+    <p>Lê contratos e responde com a fonte, agenda prazos, escreve, assina, cuida do e-mail e do financeiro. Os arquivos ficam no seu computador, e o que sai do escritório — um e-mail, um documento assinado — espera o seu sim.</p>
     <div class="botoes">
-      <a class="btn primario" href="#download"><span class="icon" aria-hidden="true">download</span>Baixar para Windows</a>
-      <a class="btn secundario" href="#modulos">Ver os módulos</a>
+      <a class="btn-duplo" href="https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.29/PAULUS-0.9.29-instalador.exe"><span><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 2.2 6.5 1.3v6.3H0zM7.3 1.2 16 0v7.6H7.3zM0 8.4h6.5v6.3L0 13.8zM7.3 8.4H16V16l-8.7-1.2z"/></svg>Baixar para Windows</span></a>
+      <a class="link-mudo" href="cadastro/">Assinar · a partir de R$ 150/mês</a>
     </div>
-    <ul class="chips" aria-label="Destaques">
-      <li>Software livre · gratuito</li>
-      <li>IA local · nuvem só se você ligar</li>
-      <li>Fonte nas respostas</li>
+    <span class="mono-linha">dados pessoais mascarados · fonte nas respostas · nada sai sem o seu sim</span>
+  </div>
+</section>
+
+<section class="secao" aria-label="O PAVLVS em uso">
+  <div class="demo-moldura" data-demo role="img" aria-label="Animação: a pergunta sobre a reunião de ontem, a resposta com a gravação como fonte, a transcrição, o resumo da IA e o pedido de aprovação para criar duas tarefas na Agenda."></div>
+</section>
+
+<section class="secao" aria-labelledby="t-regras">
+  <div class="col regras">
+    <h2 id="t-regras" class="titulo">Quatro regras que não mudam.</h2>
+    <div>
+      <div class="regra"><span class="num">01</span><h3>Os arquivos ficam aqui.</h3><p>Documentos, índice e o modelo de reserva ficam na máquina do escritório. Sem internet, um modelo local responde.</p></div>
+      <div class="regra"><span class="num">02</span><h3>Nada sai sem o seu sim.</h3><p>Enviar e-mail, assinar e mover ou apagar arquivos passam pela fila de Aprovações antes de acontecer.</p></div>
+      <div class="regra"><span class="num">03</span><h3>Fonte em tudo.</h3><p>A resposta sobre os documentos mostra o arquivo, a página e o trecho de onde saiu. O modelo pode errar: a fonte está ali para você conferir.</p></div>
+      <div class="regra"><span class="num">04</span><h3>Pague só pela IA.</h3><p>O programa funciona inteiro sem pagar; a IA é por assinatura.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="modulos" class="secao" aria-labelledby="t-modulos">
+  <div class="col">
+    <div class="cabeca-secao">
+      <h2 id="t-modulos" class="titulo">Doze módulos. Uma conversa.</h2>
+      <p class="texto-lead">Cada módulo funciona sozinho e conversa com os outros: um prazo encontrado num contrato vira sugestão na Agenda, e uma cobrança do Financeiro sai como e-mail, depois de aprovada.</p>
+    </div>
+    <ul class="modulos">
+      <li class="modulo"><span class="icon" aria-hidden="true">forum</span><h3>Assistente</h3><p>Pergunte em português. A resposta cita o trecho e abre o documento na página certa.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">work</span><h3>Serviços</h3><p>Cada caso é uma pasta com arquivos, equipe, etapas, prazos e um resumo da IA.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">mic</span><h3>Gravações</h3><p>Reuniões transcritas nesta máquina. O resumo sai do texto; o áudio nunca sai do computador.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">calendar_month</span><h3>Agenda</h3><p>Compromissos, prazos e tarefas. Prazos de contratos e e-mails viram sugestão.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">inventory_2</span><h3>Acervo</h3><p>Os documentos das suas pastas, lidos e indexados aqui. PDF, DOCX, TXT e MD.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">description</span><h3>Documentos</h3><p>Editor e planilha com a IA ao lado: cláusulas do escritório, códigos, fórmulas em português.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">mail</span><h3>E-mail</h3><p>Caixa de entrada com o que a IA entendeu, prazos detectados e rascunhos prontos para aprovar.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">draw</span><h3>Assinatura</h3><p>PDFs assinados com o seu certificado A1, um a um ou em lote. O certificado não sai da máquina.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">payments</span><h3>Financeiro</h3><p>Honorários, despesas, extrato e relatórios. A cobrança sai como e-mail, depois do seu sim.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">contacts</span><h3>Cadastros</h3><p>Clientes, equipe e despesas fixas. Qualificação das partes preenchida nos documentos.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">verified</span><h3>Aprovações</h3><p>E-mail, assinatura e arquivos esperam o seu sim. Regras de alçada dizem o que sai sem pedir.</p></li>
+      <li class="modulo"><span class="icon" aria-hidden="true">self_improvement</span><h3>Foco</h3><p>Ciclos de foco, pausas e o ritmo da semana, para o trabalho caber no dia.</p></li>
     </ul>
   </div>
+</section>
 
-  <figure class="janela sombra" style="margin:0" aria-label="Ilustração: o assistente respondendo sobre contratos que vencem no trimestre">
-    <div class="janela-barra">
-      <img src="assets/paulus-logo.svg" alt="">
-      <strong>Vencimentos do trimestre</strong>
-      <span aria-hidden="true">·</span>
-      <span>Serviço: Renovação Fornecedor A</span>
-      <span class="status-local"><i class="pulso" aria-hidden="true"></i>LOCAL · 0 ENVIADOS</span>
-    </div>
-    <div class="conversa">
-      <div class="pergunta">Quais contratos da pasta Jurídico vencem este trimestre?</div>
-      <div class="resposta">
-        <p>Três vencem até dezembro. Dois renovam automaticamente se ninguém avisar com 30 dias de antecedência.</p>
-        <div class="tabela" role="table" aria-label="Contratos que vencem">
-          <div class="linha cab" role="row"><span role="columnheader">Contrato</span><span role="columnheader">Vence</span><span role="columnheader">Avisar até</span></div>
-          <div class="linha" role="row"><span class="nome" role="cell">Fornecedor A · logística<span class="cita">1</span></span><span role="cell">12 out</span><span role="cell"><span class="alerta">12 set · amanhã</span></span></div>
-          <div class="linha" role="row"><span class="nome" role="cell">Locação da sala 402<span class="cita">2</span></span><span role="cell">30 nov</span><span role="cell">31 out</span></div>
-          <div class="linha" role="row"><span class="nome" role="cell">Seguro predial<span class="cita">3</span></span><span role="cell">18 dez</span><span role="cell">não renova</span></div>
-        </div>
-        <div class="pilulas"><span class="pilula cheia">Criar 3 prazos na Agenda</span><span class="pilula">Abrir no Acervo</span></div>
-        <span class="rodape-mono">llama3.2:3b · 41 s · 24 arquivos lidos · 3 citados</span>
+<section class="secao" aria-label="Aprovações e gravações">
+  <div class="col duas">
+    <div class="bloco">
+      <div class="bloco-texto">
+        <h2 class="titulo">A IA propõe. Você aprova.</h2>
+        <p class="texto-lead">E-mails, assinaturas e a movimentação de arquivos entram numa fila. Você vê o que vai sair, se dá para desfazer, e decide.</p>
       </div>
-    </div>
-    <div class="janela-entrada">
-      <span>Pergunte outra coisa ou aponte outra pasta…<i class="caret" aria-hidden="true"></i></span>
-      <span class="enviar" aria-hidden="true"><span class="icon s16">arrow_upward</span></span>
-    </div>
-  </figure>
-</section>
-
-<!-- Principios -->
-<section class="secao tom" aria-labelledby="t-principios">
-  <h2 id="t-principios" class="vh">Princípios</h2>
-  <ul class="principios">
-    <li><span class="num">01</span><h3>Local por padrão.</h3><p>Modelo, índice e arquivos ficam na máquina do escritório. Funciona com a internet desligada.</p></li>
-    <li><span class="num">02</span><h3>Nada sai sem o seu sim.</h3><p>Enviar e-mail, assinar e mover ou apagar arquivos passam pela fila de Aprovações antes de acontecer.</p></li>
-    <li><span class="num">03</span><h3>Fonte em tudo.</h3><p>A resposta sobre os documentos mostra o arquivo, a página e o trecho de onde saiu. O modelo pode errar: a fonte está ali para você conferir.</p></li>
-    <li><span class="num">04</span><h3>Livre e gratuito.</h3><p>Código aberto. Sem assinatura nem cobrança por uso. Quem quiser, apoia.</p></li>
-  </ul>
-</section>
-
-<!-- 02 Modulos -->
-<section id="modulos" class="secao" aria-labelledby="t-modulos">
-  <div class="cabeca">
-    <span class="rotulo">02 — Módulos</span>
-    <h2 id="t-modulos">Doze módulos. Uma conversa.</h2>
-    <p class="lead">Cada módulo funciona sozinho e conversa com os outros: um prazo encontrado num contrato vira sugestão na Agenda, e uma cobrança do Financeiro sai como e-mail — depois de aprovada.</p>
-  </div>
-  <ul class="modulos">
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">forum</span></span><h3>Assistente</h3><p>Pergunte em português. A resposta cita o trecho; a citação abre o documento na página certa.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">work</span></span><h3>Serviços</h3><p>Cada caso é uma pasta com arquivos, equipe, etapas, prazos, anotações e um resumo da IA.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">mic</span></span><h3>Gravações</h3><p>Grave reuniões e atendimentos. A transcrição e o resumo, com decisões e pendências, são feitos nesta máquina.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">calendar_month</span></span><h3>Agenda</h3><p>Compromissos, prazos e tarefas num só lugar. Prazos encontrados em contratos e e-mails viram sugestão.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">inventory_2</span></span><h3>Acervo</h3><p>Os documentos das suas pastas, lidos e indexados nesta máquina. PDF, DOCX, TXT e MD.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">description</span></span><h3>Documentos</h3><p>Editor e planilha com a IA ao lado: cláusulas do escritório, códigos, fórmulas em português.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">mail</span></span><h3>E-mail</h3><p>Caixa de entrada com o que a IA entendeu, prazos detectados e rascunhos prontos para aprovar.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">draw</span></span><h3>Assinatura</h3><p>Assine PDFs com o seu certificado A1 (e-CPF ou e-CNPJ, ICP-Brasil), um a um ou em lote. O certificado não sai da máquina.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">payments</span></span><h3>Financeiro</h3><p>Honorários, despesas, extrato do banco e relatórios. A cobrança sai como e-mail, depois do seu sim.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">contacts</span></span><h3>Cadastros</h3><p>Clientes, equipe e despesas fixas. Qualificação das partes preenchida direto nos documentos.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">verified</span></span><h3>Aprovações</h3><p>E-mail, assinatura e movimentação de arquivos esperam o seu sim. Regras de alçada dizem o que o assistente faz sem pedir.</p></li>
-    <li class="modulo"><span class="ico"><span class="icon s20" aria-hidden="true">self_improvement</span></span><h3>Foco e bem-estar</h3><p>Ciclos de foco, pausas e o ritmo da semana, para o trabalho caber no dia.</p></li>
-  </ul>
-</section>
-
-<!-- 03 Aprovacoes / 04 Gravacoes -->
-<section class="secao tom" aria-label="Aprovações e gravações">
-  <div style="display:grid;gap:clamp(64px,8vw,120px)">
-    <div class="duas">
-      <div class="pilha">
-        <span class="rotulo">03 — Aprovações</span>
-        <h2 style="max-width:20ch">A IA propõe. Você aprova.</h2>
-        <p class="lead" style="max-width:50ch">E-mails, assinaturas e a movimentação de arquivos entram numa fila. Você vê o que vai sair e se dá para desfazer — e decide. Regras de alçada dizem o que o assistente pode fazer sem pedir.</p>
-      </div>
-      <figure class="janela" style="margin:0" aria-label="Ilustração: fila de Aprovações com três pedidos">
-        <div class="fila-cab"><span class="icon" aria-hidden="true">verified</span>Aprovações<span style="margin-left:auto"><span class="etiqueta">3 esperando</span></span></div>
-        <div class="fila-item"><span class="icon" aria-hidden="true">mail</span><span class="txt"><b>E-mail para Priscila Almeida</b><small>Procuração assinada · 1 anexo · 1,5 MB · pedido por Assistente</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
-        <div class="fila-item"><span class="icon" aria-hidden="true">draw</span><span class="txt"><b>Assinar aditivo — sala 402</b><small>e-CPF A1 · página 12 · selo no rodapé · pedido por Assistente</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
-        <div class="fila-item"><span class="icon" aria-hidden="true">archive</span><span class="txt"><b>Mover 14 arquivos para Clientes › Cooperativa</b><small>Organizar pastas · dá para desfazer · pedido por Assistente</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
-        <div class="fila-pe">Recusar não executa nada · o pedido fica no histórico do dia</div>
+      <figure class="painel" style="margin:0" aria-label="Ilustração: a fila de Aprovações com quatro pedidos">
+        <div class="painel-cab"><span class="rotulo">Aprovações</span><span class="verde">4 esperando</span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">mail</span><span class="txt"><b>E-mail para Priscila Almeida</b><small>Procuração assinada · 1 anexo · 1,5 MB</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">draw</span><span class="txt"><b>Assinar aditivo — sala 402</b><small>e-CPF A1 · página 12 · selo no rodapé</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">payments</span><span class="txt"><b>Cobrança de honorários — Cooperativa</b><small>R$ 4.800,00 · vence em 10 dias · sai por e-mail</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
+        <div class="painel-linha"><span class="icon" aria-hidden="true">archive</span><span class="txt"><b>Mover 14 arquivos para Clientes › Cooperativa</b><small>Organizar pastas · dá para desfazer</small></span><span class="par"><span class="mini">Recusar</span><span class="mini cheia">Aprovar</span></span></div>
       </figure>
     </div>
-
-    <div class="duas">
-      <figure class="janela" style="margin:0" aria-label="Ilustração: gravação transcrita, com resumo e pendências">
-        <div class="fila-cab"><span class="icon" aria-hidden="true">mic</span>Gravação · 28:14<span style="margin-left:auto;font-weight:500;color:var(--ink3);font-size:12px">Reunião · Fornecedor A</span></div>
-        <div class="grav">
-          <div class="fala" style="grid-template-columns:auto 1fr"><span style="font-family:var(--mono);font-size:12px;color:var(--ink3);padding-top:2px">12:40</span><span>Podemos compensar no aditivo, parcelado em duas vezes, se vocês abrirem mão da multa.</span></div>
-          <div class="nota destaque"><b><span class="icon s16" aria-hidden="true">description</span>Resumo</b><span>O fornecedor propõe parcelar em duas vezes em troca da renúncia à multa. Ficou de mandar a proposta por escrito.</span></div>
-          <div class="nota"><b><span class="icon s16" aria-hidden="true">event</span>Pendências · 2</b><span>Enviar a minuta do aditivo até sexta · Conferir se a renúncia precisa da anuência da Cooperativa.</span></div>
-        </div>
-      </figure>
-      <div class="pilha">
-        <span class="rotulo">04 — Gravações</span>
-        <h2 style="max-width:20ch">Grave a reunião. As pendências viram tarefa.</h2>
-        <p class="lead" style="max-width:50ch">O PAULUS grava pelo microfone e transcreve nesta máquina, com o minuto de cada trecho. O modelo local escreve o resumo com decisões e pendências, e as pendências viram tarefas na Agenda. Nada do áudio sai do computador.</p>
+    <div class="bloco">
+      <div class="bloco-texto">
+        <h2 class="titulo">Grave a reunião. As pendências viram tarefa.</h2>
+        <p class="texto-lead">Transcrição nesta máquina, com o minuto de cada trecho. A IA escreve o resumo a partir do texto, e as pendências viram tarefas na Agenda. Nada do áudio sai do computador.</p>
       </div>
+      <figure class="painel" style="margin:0" aria-label="Ilustração: gravação transcrita, com resumo e pendências">
+        <div class="painel-cab"><span class="rotulo">Gravação · 28:14</span><span>Reunião · Fornecedor A</span></div>
+        <div class="painel-trecho"><span class="rotulo">12:40</span><span>Podemos compensar no aditivo, parcelado em duas vezes, se vocês abrirem mão da multa.</span></div>
+        <div class="painel-nota"><span class="rotulo">Resumo</span><span>O fornecedor propõe parcelar em duas vezes em troca da renúncia à multa. Ficou de mandar a proposta por escrito.</span></div>
+        <div class="painel-nota"><span class="rotulo">Pendências · 2</span><span>Enviar a minuta do aditivo até sexta · Conferir se a renúncia precisa da anuência da Cooperativa.</span></div>
+      </figure>
     </div>
   </div>
 </section>
 
-<!-- 05 Privacidade -->
 <section id="privacidade" class="secao" aria-labelledby="t-privacidade">
-  <div class="duas" style="align-items:start">
-    <div class="pilha">
-      <span class="rotulo">05 — Privacidade</span>
-      <h2 id="t-privacidade" style="max-width:18ch">Seus documentos ficam onde estão.</h2>
-      <!-- Ajuste em relacao a referencia: ela dizia "Nao existe chamada a API externa no produto. A unica saida para a internet e a verificacao de atualizacoes". Isso contradiz o acesso ao e-mail (Google/Microsoft), a consulta ao planalto.gov.br e a politica de privacidade; o Google compara a pagina inicial com a politica. -->
-      <p class="lead">Extração, índice e modelo rodam via Ollama na máquina do escritório. Seus documentos e mensagens não passam por nenhum servidor nosso. O programa só vai à internet para o que você usa: o seu e-mail, direto com o seu provedor; o texto das leis, no site do Planalto; o download dos modelos que você escolher (linguagem, voz e tradução); a checagem de versão nova, uma vez por dia (dá para desligar); o histórico público do projeto, quando você abre Desenvolvimento aberto; os acórdãos do STJ e a consulta de processo no DataJud, quando você pede; a nuvem com a chave de API do próprio escritório (Anthropic ou OpenAI), só se você ligar, com cada envio aprovado e mascarado; e, se você apoiar o projeto, o pagamento pelo Mercado Pago, através deste site.</p>
-      <p class="lead links-texto">Detalhes na <a href="politica-de-privacidade/">Política de privacidade</a>.</p>
+  <div class="col" style="display:grid;gap:48px">
+    <div class="centro">
+      <h2 id="t-privacidade" class="titulo">Seus documentos ficam onde estão.</h2>
+      <p class="texto-lead">Os arquivos ficam no computador do escritório. Para a IA vão só a pergunta e os trechos que ela precisa ler, com CPF, CNPJ e número de processo mascarados, e o texto não fica guardado fora daqui. Seus documentos e mensagens não ficam em nenhum servidor nosso.</p>
+      <a class="link-mudo" href="politica-de-privacidade/">Política de privacidade</a>
     </div>
-    <dl class="fatos">
-      <div><dt>Inferência</dt><dd>ollama · 127.0.0.1:11434</dd></div>
-      <div><dt>Servidor do PAULUS</dt><dd>só o do apoio · nunca documentos</dd></div>
-      <div><dt>Base legal</dt><dd>LGPD · Lei nº 13.709/2018</dd></div>
-      <div><dt>Certificado e senhas</dt><dd>cofre desta máquina</dd></div>
-      <div><dt>Formatos</dt><dd>pdf · docx · txt · md · áudio</dd></div>
-      <div><dt>Modelos</dt><dd>os do Ollama · padrão llama3.2:3b</dd></div>
-    </dl>
-  </div>
-</section>
-
-<!-- Conta Google: exigido pela verificacao do app OAuth "PAVLVS" -->
-<section id="conta-google" class="secao tom" aria-labelledby="t-google">
-  <div class="duas topo-alinhado">
-    <div class="pilha">
-      <span class="rotulo">06 — Conta Google</span>
-      <h2 id="t-google" style="max-width:20ch">Por que o PAULUS pede acesso à sua conta Google.</h2>
-      <p class="lead">Quando você liga uma conta do Gmail ao módulo E-mail, o Google mostra a tela de consentimento do app <strong style="color:var(--ink)">PAVLVS — Assistente jurídico de IA local</strong>. O PAULUS pede o endereço de e-mail da conta e acesso ao Gmail (escopo <code style="font-family:var(--mono);font-size:.9em">https://mail.google.com/</code>) para três coisas, e só elas:</p>
-      <p class="lead">Opcionais, cada um só quando você conecta em Configurações › Conexões: a <strong style="color:var(--ink)">Agenda do Google</strong> (escopo <code style="font-family:var(--mono);font-size:.9em">calendar.events</code>), para levar os seus compromissos até lá — título, data, hora, duração e lugar — e criar a sala do Meet deles; e o <strong style="color:var(--ink)">Google Drive</strong> (escopo <code style="font-family:var(--mono);font-size:.9em">drive.file</code>, que só vê o que o PAULUS criou), para enviar à pasta PAULUS os documentos que você aprovar; e a leitura do Drive (escopo <code style="font-family:var(--mono);font-size:.9em">drive.readonly</code>, só leitura), para ter no Acervo uma cópia das pastas do Drive que você escolher.</p>
-      <p class="lead links-texto">Você pode desligar a qualquer momento: remova a conta no PAULUS e revogue o acesso em <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Veja a <a href="politica-de-privacidade/">Política de privacidade</a> e os <a href="termos-de-uso/">Termos de uso</a>.</p>
-    </div>
-    <div class="janela">
-      <ul class="google-lista">
-        <li><span class="ico"><span class="icon s20" aria-hidden="true">mail</span></span><div><h3>Mostrar a caixa e as mensagens que você abre</h3><p>A caixa de entrada aparece dentro do PAULUS. As mensagens vêm direto do Gmail para o seu computador, sem passar por nenhum servidor nosso.</p></div></li>
-        <li><span class="ico"><span class="icon s20" aria-hidden="true">event</span></span><div><h3>Transformar prazos em sugestão na Agenda</h3><p>Quando uma mensagem traz um prazo, o PAULUS sugere o compromisso ou a tarefa. Você confirma ou descarta.</p></div></li>
-        <li><span class="ico"><span class="icon s20" aria-hidden="true">send</span></span><div><h3>Preparar e enviar respostas que você aprova</h3><p>O assistente escreve o rascunho; o envio passa pela fila de Aprovações e só sai com o seu sim. Arquivar, excluir, marcar como lida ou com estrela também são ações suas.</p></div></li>
-      </ul>
-      <p class="nao-faz"><strong>O que o PAULUS não faz com os dados do Google:</strong> não usa para publicidade, não vende, não usa para treinar modelos de IA e não compartilha com terceiros. A autorização fica cifrada pela sua conta do Windows.</p>
-    </div>
-  </div>
-</section>
-
-<!-- 07 Roadmap -->
-<section id="roadmap" class="secao tom" aria-labelledby="t-roadmap">
-  <div class="cabeca">
-    <span class="rotulo">07 — Roadmap</span>
-    <h2 id="t-roadmap">O que está pronto e o que vem a seguir.</h2>
-  </div>
-  <ul class="modulos" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))">
-    <li class="modulo" style="cursor:default"><div style="display:flex;align-items:center;justify-content:space-between"><span class="rotulo" style="letter-spacing:.12em">Pronto</span><span style="font-family:var(--serif);font-size:22px">0.9</span></div><p>Assistente, Acervo, Agenda, Documentos, E-mail, Assinatura, Financeiro, Cadastros, Aprovações, Serviços, Gravações, Foco, tema escuro e WhatsApp Web · instalador para Windows · OCR de PDF escaneado.</p></li>
-    <li class="modulo" style="border-color:var(--acc)"><div style="display:flex;align-items:center;justify-content:space-between"><span class="rotulo" style="letter-spacing:.12em;color:var(--acc)">Em andamento</span><span style="font-family:var(--serif);font-size:22px">1.0</span></div><p>Manual de uso · ajustes do piloto com os primeiros escritórios.</p></li>
-    <li class="modulo"><div style="display:flex;align-items:center;justify-content:space-between"><span class="rotulo" style="letter-spacing:.12em">Próximo</span><span style="font-family:var(--serif);font-size:22px">1.1</span></div><p>Versão macOS e Linux · transcrição por falante e contexto ao vivo nas gravações · modelos maiores por GPU.</p></li>
-    <li class="modulo"><div style="display:flex;align-items:center;justify-content:space-between"><span class="rotulo" style="letter-spacing:.12em">Depois</span><span style="font-family:var(--serif);font-size:22px">1.2</span></div><p>Multiusuário em rede local · API para integrações do escritório.</p></li>
-  </ul>
-</section>
-
-<!-- 08 Download -->
-<section id="download" class="secao" aria-labelledby="t-download">
-  <div class="duas">
-    <div class="pilha">
-      <span class="rotulo">08 — Como começar</span>
-      <h2 id="t-download" style="max-width:20ch">Instale, aponte a pasta, pergunte.</h2>
-      <p class="lead">O instalador para Windows instala o PAULUS e, se faltar, o Ollama, o motor que roda a IA no seu computador. Na primeira abertura, o assistente de configuração testa a máquina em poucos segundos e sugere o modelo que cabe nela — dá para escolher outro. O modelo baixa quando o assistente termina; depois disso, a IA funciona sem internet.</p>
-      <div class="botoes">
-        <a class="btn primario" href="https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.24/PAULUS-0.9.24-instalador.exe"><span class="icon" aria-hidden="true">download</span>Baixar para Windows</a>
-        <span style="font-size:12.5px;color:var(--ink3)">versão 0.9.24 · 97 MB · em piloto</span>
+    <div class="duas meio">
+      <div class="bloco-texto">
+        <span class="rotulo">Quando o PAVLVS vai à internet</span>
+        <p class="texto-lead">Só para o que você usa. A IA faz parte da assinatura: as respostas são escritas na nuvem do PAULUS, que só liga com o sim do titular do escritório — o texto passa por este site até o DeepInfra, que roda o modelo, e não fica guardado. Sem internet, ou com a cota do mês no fim, um modelo local (Ollama) responde de reserva. Sem a assinatura, o programa funciona sem IA.</p>
       </div>
-      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--ink3);max-width:56ch">O instalador ainda não tem assinatura digital. Na primeira vez, o Windows pode mostrar “O Windows protegeu o computador”: clique em <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>. Para conferir o arquivo, o SHA-256 é <code style="font-family:var(--mono);font-size:11.5px;word-break:break-all;color:var(--ink2)">66f720658bc164065a02b583e5ef7fde599d304b99c2d1ccec67e131ef9282e3</code> (<a href="https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.24" style="color:var(--ink)">notas da versão</a>). Prefere instalar com a gente? <a href="mailto:contato@paulus.ia.br" style="color:var(--ink)">contato@paulus.ia.br</a></p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2)">
-        <span>macOS e Linux — em breve</span><span aria-hidden="true">·</span>
-        <a href="https://github.com/matheusuener-atos/coryphaeus" style="color:var(--ink);text-decoration:none;font-weight:600">Código-fonte no GitHub</a>
-      </div>
-    </div>
-    <div class="janela">
-      <dl class="req">
-        <span class="req-tit">Requisitos</span>
-        <div><dt>Sistema</dt><dd>Windows 10 ou 11 · 64 bits</dd></div>
-        <div><dt>Memória</dt><dd>8 GB (16 GB recomendado)</dd></div>
-        <div><dt>Disco</dt><dd>6 GB livres para modelo e índice</dd></div>
-        <div><dt>Placa de vídeo</dt><dd>opcional · acelera modelos maiores</dd></div>
-        <div><dt>Certificado</dt><dd>e-CPF A1 (.pfx) para assinar</dd></div>
+      <dl class="fatos">
+        <div><dt>IA</dt><dd>nuvem do PAULUS (DeepInfra), ou a chave de API do próprio escritório · sem nada do e-mail</dd></div>
+        <div><dt>E-mail</dt><dd>direto com o seu provedor</dd></div>
+        <div><dt>Leis e julgados</dt><dd>Planalto · STJ e DataJud, quando você pede</dd></div>
+        <div><dt>Modelos</dt><dd>download dos que você escolher (linguagem, voz e tradução)</dd></div>
+        <div><dt>Versão nova</dt><dd>uma checagem por dia · dá para desligar</dd></div>
+        <div><dt>Pagamento</dt><dd>Mercado Pago, através deste site</dd></div>
+        <div><dt>Base legal</dt><dd>LGPD · Lei nº 13.709/2018</dd></div>
       </dl>
     </div>
   </div>
 </section>
 
-<!-- 09 Apoiar -->
-<section id="apoiar" class="secao" aria-labelledby="t-apoiar" style="padding-top:0">
-  <div class="duas topo-alinhado">
-    <div class="pilha">
-      <span class="rotulo">09 — Apoiar o projeto</span>
-      <h2 id="t-apoiar" style="max-width:20ch">Gratuito para todos. Mantido por quem usa.</h2>
-      <p class="lead">O PAULUS não tem assinatura nem cobrança por uso. Quem quiser ajudar a pagar o desenvolvimento apoia pelo próprio programa, em Apoiar o projeto, ou por <a href="apoiar/">esta página</a>: Pix ou cartão, uma vez ou todo mês no cartão, pelo Mercado Pago.</p>
-      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--ink3);max-width:52ch">O cartão é digitado só na página do Mercado Pago, nunca no programa. Quem apoia pode aparecer na página de apoiadores, se autorizar — só com o nome que escolher, de pessoa ou de escritório. Valores nunca são publicados um a um: o que se publica é o total de cada mês.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:10px 28px;font-size:14px;font-weight:600">
-        <a href="desenvolvimento/" style="color:var(--ink);text-decoration:none">Acompanhe o desenvolvimento →</a>
-        <a href="apoiadores/" style="color:var(--ink);text-decoration:none">Conheça nossos apoiadores →</a>
-      </div>
+<!-- Conta Google: exigido pela verificacao do app OAuth "PAVLVS" -->
+<section id="conta-google" class="secao" aria-labelledby="t-google">
+  <div class="col duas meio">
+    <div class="bloco-texto">
+      <h2 id="t-google" class="titulo">Por que o PAULUS pede acesso à sua conta Google.</h2>
+      <p class="texto-lead">Quando você liga uma conta do Gmail ao módulo E-mail, o Google mostra a tela de consentimento do app <strong style="color:var(--ink);font-weight:500">PAVLVS — Assistente jurídico de IA local</strong>. O PAULUS pede o endereço de e-mail da conta e acesso ao Gmail (<code>https://mail.google.com/</code>) para três coisas, e só elas: mostrar a caixa e as mensagens que você abre, que vêm direto do Gmail para o seu computador; transformar prazos das mensagens em sugestão na Agenda; e preparar e enviar as respostas que você aprova, pela fila de Aprovações. Arquivar, excluir, marcar como lida ou com estrela também são ações suas.</p>
+      <p class="texto-lead">Opcionais, cada um só quando você conecta em Configurações › Conexões: a Agenda do Google (<code>calendar.events</code>), para levar os seus compromissos até lá e criar a sala do Meet deles; o Google Drive (<code>drive.file</code>, que só vê o que o PAULUS criou), para enviar à pasta PAULUS os documentos que você aprovar; e a leitura do Drive (<code>drive.readonly</code>), para ter no Acervo uma cópia das pastas que você escolher.</p>
+      <p class="texto-lead">Os dados do Google não são usados para publicidade, não são vendidos, não são usados para treinar modelos de IA e não são compartilhados com terceiros. O uso e a transferência, para qualquer outro app, de informações recebidas das APIs do Google obedecem à <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de Dados do Usuário dos Serviços de API do Google</a>, incluindo os requisitos de Uso Limitado. A autorização fica cifrada pela sua conta do Windows. Para desligar, remova a conta no PAULUS e revogue o acesso em <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Veja a <a href="politica-de-privacidade/">Política de privacidade</a> e os <a href="termos-de-uso/">Termos de uso</a>.</p>
     </div>
-    <div class="janela" aria-label="Ilustração: formulário de contribuição">
-      <div style="padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
-        <span style="font-weight:600;font-size:14px;flex:1">Sua contribuição</span><span class="etiqueta">Pix · uma vez</span>
-      </div>
-      <div style="padding:16px 18px;display:grid;gap:14px">
-        <div style="display:flex;gap:2px;padding:3px;background:var(--fill);border-radius:8px">
-          <span style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:13px;font-weight:600;background:var(--surf);box-shadow:0 1px 2px rgba(0,0,0,.12)">Pix · uma vez</span>
-          <span style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink2)">Cartão · todo mês</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px">
-          <div style="display:grid;gap:2px;padding:10px;border:1px solid var(--line);border-radius:10px;text-align:center"><span style="font-family:var(--serif);font-size:20px">R$ 25</span></div>
-          <div style="display:grid;gap:2px;padding:10px;border:1px solid var(--ink);border-radius:10px;text-align:center;background:var(--fill)"><span style="font-family:var(--serif);font-size:20px">R$ 50</span></div>
-          <div style="display:grid;gap:2px;padding:10px;border:1px solid var(--line);border-radius:10px;text-align:center"><span style="font-family:var(--serif);font-size:20px">R$ 100</span></div>
-          <div style="display:grid;gap:2px;padding:10px;border:1px solid var(--line);border-radius:10px;text-align:center"><span style="font-family:var(--serif);font-size:20px">R$ 500</span></div>
-          <div style="display:grid;gap:2px;padding:10px;border:1px solid var(--line);border-radius:10px;text-align:center"><span style="font-family:var(--serif);font-size:20px">Outro</span></div>
-        </div>
-        <div style="display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center;padding:12px;background:var(--bg);border-radius:10px">
-          <div aria-hidden="true" style="width:96px;height:96px;background:#fff;border:1px solid rgba(23,23,22,.15);border-radius:8px;padding:6px;background-image:repeating-linear-gradient(90deg,#171716 0 4px,transparent 4px 8px),repeating-linear-gradient(0deg,#171716 0 4px,transparent 4px 8px);background-blend-mode:multiply;background-origin:content-box;background-clip:content-box"></div>
-          <div style="display:grid;gap:4px;font-size:13px">
-            <span style="font-weight:600">Pix · R$ 50,00</span>
-            <span style="font-size:12.5px;line-height:1.5;color:var(--ink2)">Aponte a câmera do app do banco. O código vale 30 minutos, e a tela avisa quando o Pix cai.</span>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;font-size:13.5px">
-          <span style="flex:1">Aparecer na página de apoiadores</span>
-          <span aria-hidden="true" style="width:34px;height:20px;border-radius:10px;background:var(--fill);position:relative;flex:none"><i style="position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)"></i></span>
-        </div>
-      </div>
+    <div class="painel servicos" aria-label="O que o PAVLVS pede ao Google">
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M2 6.5v11A1.5 1.5 0 0 0 3.5 19H6V9.8l6 4.5 6-4.5V19h2.5a1.5 1.5 0 0 0 1.5-1.5v-11"/><path fill="#EA4335" d="M12 14.3 2 6.8V6a1.5 1.5 0 0 1 2.4-1.2L12 10.5l7.6-5.7A1.5 1.5 0 0 1 22 6v.8z"/><path fill="#34A853" d="M18 9.8V19h2.5a1.5 1.5 0 0 0 1.5-1.5V6.8z"/><path fill="#FBBC04" d="M6 9.8V19H3.5A1.5 1.5 0 0 1 2 17.5V6.8z"/></svg><b>Gmail</b><span>ler e enviar, com Aprovações</span></div>
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="#fff"/><path fill="#1A73E8" d="M3 7h18V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"/><path fill="#4285F4" d="M3 7h4v4H3zM17 7h4v4h-4z"/><path fill="#34A853" d="M3 17h4v4H3z"/><path fill="#FBBC04" d="M17 17v4h2a2 2 0 0 0 2-2v-2z"/><path fill="#EA4335" d="M17 11h4v6h-4z"/><path fill="#188038" d="M7 17h10v4H7z"/><text x="12" y="15.6" font-family="Arial" font-size="7" font-weight="700" fill="#1A73E8" text-anchor="middle">31</text></svg><b>Agenda</b><span>criar e atualizar eventos · opcional</span></div>
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#00832D" d="M14 12l2.4 2.7 3.2 2V7.3l-3.2 2z"/><path fill="#0066DA" d="M2 15.5V19a1.5 1.5 0 0 0 1.5 1.5H7v-5z"/><path fill="#E94235" d="M7 3.5 2 8.5h5z"/><path fill="#2684FC" d="M2 8.5h5v7H2z"/><path fill="#00AC47" d="M19.6 5l-3.2 2.3v9.4l3.2 2.3c.5.4 1.4 0 1.4-.6V5.6c0-.6-.9-1-1.4-.6z"/><path fill="#00AC47" d="M14 12v3.5H7v5h7.5A1.5 1.5 0 0 0 16 19v-4.3z"/><path fill="#FFBA00" d="M14 3.5H7v5h7v3.5l2.4-2.7V5A1.5 1.5 0 0 0 14 3.5z"/></svg><b>Meet</b><span>sala dos compromissos · opcional</span></div>
+      <div class="servico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0066DA" d="M3.6 18.8l1.1 1.9c.2.4.6.7 1 .9l3.9-6.7H1.8c0 .4.1.9.4 1.3z"/><path fill="#00AC47" d="M12 8.2 8.1 1.4c-.4.2-.8.5-1 .9L1.8 13.9c-.3.4-.4.9-.4 1.3h7.8z"/><path fill="#EA4335" d="M18.3 21.6c.4-.2.8-.5 1-.9l.5-.8 2.3-4c.3-.4.4-.9.4-1.3h-7.8l1.7 3.2z"/><path fill="#00832D" d="M12 8.2l3.9-6.8c-.4-.2-.8-.3-1.3-.3H9.4c-.5 0-.9.1-1.3.3z"/><path fill="#2684FC" d="M14.9 14.9H9.1l-3.9 6.7c.4.2.8.3 1.3.3h11c.5 0 .9-.1 1.3-.3z"/><path fill="#FFBA00" d="M18.3 7.9l-2.6-4.6c-.2-.4-.6-.7-1-.9L12 8.2l2.9 6.7h7.8c0-.4-.1-.9-.4-1.3z"/></svg><b>Drive</b><span>enviar o que você aprova · ler as pastas que escolher · opcional</span></div>
     </div>
   </div>
-
 </section>
 
-<!-- Chamada final -->
-<section class="secao tom" aria-labelledby="t-final" style="border-bottom:0">
-  <div class="final">
-    <h2 id="t-final">Veja o PAULUS rodando nos seus contratos.</h2>
-    <div class="botoes">
-      <a class="btn primario" href="mailto:contato@paulus.ia.br"><span class="icon" aria-hidden="true">mail</span>Falar com a gente</a>
-      <a class="btn secundario" href="https://github.com/matheusuener-atos/coryphaeus"><span class="icon" aria-hidden="true">code</span>Ver o código</a>
+<section id="download" class="secao" aria-labelledby="t-download">
+  <div class="col duas meio">
+    <div class="bloco" style="gap:22px">
+      <div class="bloco-texto">
+        <h2 id="t-download" class="titulo">Instale, aponte a pasta, pergunte.</h2>
+        <p class="texto-lead">O instalador traz o PAULUS e, se faltar, o Ollama, o motor do modelo local que responde de reserva. Na primeira abertura, o assistente testa a máquina e sugere o modelo local que cabe nela. A IA vem com a assinatura: <a href="cadastro/">assine aqui</a> e entre no PAULUS com a mesma conta Google, em Configurações › Modelos. Sem ela, o programa funciona inteiro, sem IA.</p>
+      </div>
+      <div style="display:grid;gap:14px">
+        <a class="btn-duplo largo" href="https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.29/PAULUS-0.9.29-instalador.exe"><span><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 2.2 6.5 1.3v6.3H0zM7.3 1.2 16 0v7.6H7.3zM0 8.4h6.5v6.3L0 13.8zM7.3 8.4H16V16l-8.7-1.2z"/></svg>Baixar para Windows</span></a>
+        <span class="mono-linha">versão 0.9.29 · 97 MB · em piloto</span>
+        <div class="links-miudos">
+          <button type="button" data-conferir aria-expanded="false" aria-controls="sha">Conferir arquivo</button>
+          <a href="https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.29">Notas da versão</a>
+          <a href="https://github.com/matheusuener-atos/coryphaeus">Código-fonte</a>
+        </div>
+        <p class="nota-pe" id="sha" hidden>SHA-256 do instalador (no PowerShell: <code>Get-FileHash</code>):<span class="sha">7268f48c18c525da8d0aa7aede4a55ef9cf218ab634ae9086f4f7dc41ea8ca15</span></p>
+        <p class="nota-pe">O instalador ainda não tem assinatura digital. Se o Windows avisar, clique em Mais informações e depois em Executar assim mesmo. macOS e Linux em breve. Prefere instalar com a gente? <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a></p>
+      </div>
     </div>
-    <span class="nota-pe">Gratuito · código aberto · IA local</span>
+    <dl class="fatos">
+      <div><dt>Sistema</dt><dd>Windows 10 ou 11 · 64 bits</dd></div>
+      <div><dt>Memória</dt><dd>8 GB · 16 GB recomendado</dd></div>
+      <div><dt>Disco</dt><dd>6 GB livres para modelo e índice</dd></div>
+      <div><dt>Placa de vídeo</dt><dd>opcional · acelera modelos maiores</dd></div>
+      <div><dt>Certificado</dt><dd>e-CPF A1 (.pfx) para assinar</dd></div>
+    </dl>
   </div>
+</section>
+
+<section class="final" aria-labelledby="t-final">
+  <h2 id="t-final" class="titulo">Veja o PAULUS rodando nos seus contratos.</h2>
+  <div class="botoes">
+    <a class="btn-duplo" href="mailto:contato@paulus.ia.br"><span><span class="icon" aria-hidden="true">mail</span>Falar com a gente</span></a>
+    <a class="link-mudo" href="https://github.com/matheusuener-atos/coryphaeus" style="display:inline-flex;align-items:center;gap:7px"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Ver o código</a>
+  </div>
+  <span class="nota-pe">O PAVLVS não presta consultoria jurídica e pode errar. Confira toda resposta contra o documento original.</span>
 </section>
 
 </main>
 
 <footer class="rodape">
-  <a class="marca" href="./" aria-label="PAVLVS — página inicial"><span>PAVLVS</span></a>
+  <span>© 2026 Atos</span>
   <nav aria-label="Rodapé">
-    <a href="#plataforma">Plataforma</a>
-    <a href="desenvolvimento/">Desenvolvimento</a>
-    <a href="apoiadores/">Apoiadores</a>
-    <a href="#modulos">Módulos</a>
-    <a href="#privacidade">Privacidade</a>
-    <a href="#conta-google">Conta Google</a>
-    <a href="#roadmap">Roadmap</a>
-    <a href="#download">Como começar</a>
-    <a href="apoiar/">Apoiar</a>
+    <a href="politica-de-privacidade/">Privacidade</a>
+    <a href="termos-de-uso/">Termos</a>
     <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
-    <a class="forte" href="politica-de-privacidade/">Política de privacidade</a>
-    <a class="forte" href="termos-de-uso/">Termos de uso</a>
-    <a class="forte" href="en/" lang="en">English</a>
-    <a class="forte" href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
+    <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
   </nav>
-  <div class="base">
-    <span>Não presta consultoria jurídica e pode errar. Confira toda resposta contra o documento original.</span>
-    <span>© 2026 Atos · Software livre · Construído sobre o Coryphaeus</span>
-  </div>
 </footer>
 
 <script src="assets/site.js" defer></script>
+<script src="assets/demo.js" defer></script>
+<script>
+document.querySelectorAll('[data-conferir]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var p = document.getElementById('sha'), abrir = p.hidden;
+    p.hidden = !abrir;
+    b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  });
+});
+</script>
 </body>
 </html>

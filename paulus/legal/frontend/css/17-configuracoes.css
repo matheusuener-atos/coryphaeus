@@ -4,8 +4,8 @@
     a medida de 1080px (sv-medida, 12-servicos.css), um sumario discreto a
     esquerda e a secao numa coluna de leitura - abertura em serifa, cartoes
     um embaixo do outro. Prefixo cfg-. Algumas pecas daqui (cfg-cartao,
-    cfg-tema, cfg-valor, cfg-grade...) servem tambem ao Apoiar e
-    as Configuracoes do e-mail; o interruptor e o .ag-toggle de 09-agenda.css.
+    cfg-tema, cfg-grade...) servem tambem as Configuracoes do
+    e-mail; o interruptor e o .ag-toggle de 09-agenda.css.
   */
   .cfg-tela.acervo { grid-template-columns: minmax(0, 1fr); }
   .cfg-tela .sv-principal { padding: 16px 24px 64px; }
@@ -34,7 +34,7 @@
   .cfg-ficha .sv-ficha-item b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cfg-ficha .sv-ficha-item b.cfg-mudo { color: var(--ink3); }
 
-  /* a grade de cartoes que o Apoiar e o E-mail ainda usam */
+  /* a grade de cartoes que o E-mail ainda usa */
   .cfg-linhas { display: grid; }
   .cfg-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
   .cfg-grade.larga { grid-template-columns: minmax(0, 1fr); }
@@ -174,14 +174,14 @@
   /* aparencia e atalhos */
   .cfg-temas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   /* A OPCAO EM CARTAO: o cartao que se escolhe - tema, tipo de feedback,
-     valor do Apoiar, modelo do assistente, escritorio das boas-vindas, como
+     modelo do assistente, escritorio das boas-vindas, como
      salvar o PDF assinado. Fio --ink-a1, raio 10, sem fundo proprio; passar
      o mouse escurece o fio; escolhida, o fio e um anel de 1 px por dentro
      ficam na tinta - o fundo nao muda, para nao depender do fundo do pai.
      Cada cartao guarda so o seu layout e a sua letra. */
-  .bv-opcao, .as-salvar-opcao, .cfg-modelo, .cfg-tema, .cfg-tipo, .cfg-valor { border: 1px solid var(--ink-a1); border-radius: 10px; background: transparent; cursor: pointer; }
-  .bv-opcao:hover:not(:disabled), .as-salvar-opcao:hover:not(:disabled), .cfg-modelo:hover:not(:disabled), .cfg-tema:hover:not(:disabled), .cfg-tipo:hover:not(:disabled), .cfg-valor:hover:not(:disabled) { border-color: var(--ink); background: transparent; }
-  .bv-opcao.escolhida, .as-salvar-opcao.on, .cfg-modelo.on, .cfg-tema.on, .cfg-tipo.on, .cfg-valor.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: transparent; }
+  .bv-opcao, .as-salvar-opcao, .cfg-modelo, .cfg-tema, .cfg-tipo { border: 1px solid var(--ink-a1); border-radius: 10px; background: transparent; cursor: pointer; }
+  .bv-opcao:hover:not(:disabled), .as-salvar-opcao:hover:not(:disabled), .cfg-modelo:hover:not(:disabled), .cfg-tema:hover:not(:disabled), .cfg-tipo:hover:not(:disabled) { border-color: var(--ink); background: transparent; }
+  .bv-opcao.escolhida, .as-salvar-opcao.on, .cfg-modelo.on, .cfg-tema.on, .cfg-tipo.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: transparent; }
   .cfg-tema { display: grid; gap: 8px; padding: 10px; }
   .cfg-tema > span:first-child { height: 56px; border-radius: 8px; border: 1px solid var(--ink-a1); display: flex; align-items: center; justify-content: center; }
   .cfg-tema.claro > span:first-child { background: var(--papel); }
@@ -202,11 +202,6 @@
   .cfg-tipo .ic { color: var(--ink3); }
   .cfg-tipo.on .ic { color: var(--ink); }
 
-  /* os valores do Apoiar (js/09-apoiar.js); o quadro vem da regra unificada */
-  .cfg-valores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .cfg-valor { display: grid; gap: 2px; padding: 9px 12px; text-align: center; }
-  .cfg-valor b { font: 600 22px/1.1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
-  .cfg-valor small { font: 500 12.5px var(--sans); color: var(--ink3); }
 
   /* A lixeira (docs/ui/05): a lista do que foi apagado, com Restaurar e Apagar de vez. */
   .cfg-lixo-linha .duas-linhas { flex: 1; }

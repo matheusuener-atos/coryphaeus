@@ -118,6 +118,13 @@ def test_http() -> None:
                and q.get("state", "").startswith("moura~"), "o endereco do Google: PKCE, retorno e state", q)
         checar("paulus_google=" in r.headers.get("set-cookie", "") and "HttpOnly" in r.headers.get("set-cookie", ""),
                "o cookie que amarra a volta a este navegador", r.headers.get("set-cookie"))
+        # 02/10: o entrar nao forca a tela do Google (select_account pedia a
+        # escolha de conta em todo login); a dica do aparelho vira login_hint.
+        checar("prompt" not in q and "login_hint" not in q, "entrar sem prompt: o Google só pergunta na primeira vez", q.get("prompt"))
+        _, q = ir(f, finalidade="entrar", dica="tita@x.com")
+        checar(q.get("login_hint") == "tita@x.com" and "prompt" not in q, "a conta da última entrada vai como login_hint", q.get("login_hint"))
+        _, q = ir(f, finalidade="entrar", dica="nao-e-email")
+        checar("login_hint" not in q, "dica que não é e-mail não vai ao Google")
 
         print("  a volta, recusada")
         outro = de_fora()

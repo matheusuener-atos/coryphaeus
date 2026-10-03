@@ -34,6 +34,8 @@ function secaoBackup() {
     chaveCfg("Pasta", b.pasta || "não escolhida") +
     chaveCfg("Senha", b.tem_senha ? "definida" : "não definida") + "</div>" +
     (b.ultimo_erro ? '<p class="acesso-erro">' + esc(b.ultimo_erro) + "</p>" : "") +
+    // Na coluna da conversa (js/89): a pasta sugerida e a senha aqui mesmo.
+    (typeof blocoDoBackupNoLado === "function" ? blocoDoBackupNoLado() : "") +
     (and.fazendo ? '<p class="cfg-explica">Fazendo o backup… ' + (and.total ? and.feitos + " de " + and.total + " arquivos" : "") + "</p>" : "") +
     '<div class="acesso-energia">' +
     ligaCfg("", "Backup automático", "uma vez por dia, com o PAULUS aberto; ficam os " + (b.manter || 10) + " mais novos", Boolean(b.automatico))

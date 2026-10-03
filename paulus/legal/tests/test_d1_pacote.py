@@ -200,7 +200,7 @@ def test_api() -> None:
         helena = entrar("Helena", "helena@x.com", "colaborador", {"aparelho": "faz", "servicos": "faz", "acervo": "ver"})
         rui = entrar("Rui", "rui@x.com", "colaborador", {"servicos": "faz", "acervo": "ver"})
         api.estado.client = cliente
-        api.estado.cliente_para = lambda tarefa: cliente
+        api.estado.cliente_para = lambda tarefa, **k: cliente
         api.check_ollama = lambda modelo: (True, "")
         mateus, h, r_ = cad("Mateus", "mateus@x.com", "socio"), cad("Helena", "helena@x.com"), cad("Rui", "rui@x.com")
         s1 = local.post("/api/servicos", json={"id": None, "dados": {"nome": "Locação da Clínica", "equipe": [mateus, h, r_]}}).json()["id"]

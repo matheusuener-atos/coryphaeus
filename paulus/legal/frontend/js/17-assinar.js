@@ -799,6 +799,8 @@ function atualizarFrase() {
   atualizarPronto();
   posicionarSelo();
   if (assina.lote) { guardarNoLote(); atualizarLote(); }
+  // A assinatura pela conversa (js/82-assinar-na-conversa.js): o cartao do chat.
+  if (typeof atualizarAssinarNaConversa === "function") atualizarAssinarNaConversa();
 }
 
 async function assinarAgora() {
@@ -854,6 +856,8 @@ async function assinarAgora() {
   // No lote, "Assinar so este" marca o documento e segue para o proximo;
   // salvar fica para a pergunta do fim.
   if (assina.lote) { await umDoLoteAssinado(origem, d); return; }
+  // Pela conversa, o resultado fica na conversa - e nao numa tela nova.
+  if (typeof asc !== "undefined" && asc.ativa) { await assinadoNaConversa(Object.assign({ origem: origem }, d)); return; }
   if (d.aguardando_aprovacao) {
     assina.feito = d;
     desenharAssinatura();

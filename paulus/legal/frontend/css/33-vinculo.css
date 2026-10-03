@@ -5,69 +5,93 @@
     o Google em pilula, o codigo em linha grande. So tokens do programa.
   */
   .trava { position: fixed; inset: 0; z-index: 95; display: flex; flex-direction: column; background: var(--bg); color: var(--ink);
-    overflow: auto; font-size: 15px; line-height: 1.6; }
-  .trava-topo { padding: 10px clamp(20px, 5vw, 88px); min-height: 64px; display: flex; align-items: center; justify-content: space-between;
-    gap: 12px 24px; border-bottom: 1px solid var(--ink-a1); flex: none; }
-  .trava-marca { font: 500 24px/1 var(--serif); letter-spacing: .14em; }
-  .trava-topo-dir { display: flex; align-items: center; gap: 18px; }
-  .trava-selo { display: flex; align-items: center; gap: 8px; font: 400 12px var(--mono); color: var(--ink3); }
-  .trava-tema { width: 36px; height: 36px; border: 0; background: transparent; color: var(--ink2); display: flex; align-items: center;
+    overflow: auto; font-size: 14px; line-height: 1.5; }
+  /* Desenho "Servidor - Entrar" (02/10/2026): a barra fina com "servidor" e
+     o tema; no meio, a coluna de 360 px - a marca em marca d'agua e o
+     formulario, como a tela de entrar de fora. So tokens do programa. */
+  .trava-topo { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }
+  .trava-selo { display: flex; align-items: center; gap: 6px; font: 400 12px var(--mono); color: var(--mute2); }
+  .trava-tema { width: 36px; height: 36px; border: 0; background: transparent; color: var(--mute2); display: flex; align-items: center;
     justify-content: center; cursor: pointer; padding: 0; }
   .trava-tema:hover { color: var(--ink); }
-  .trava-corpo { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; box-sizing: border-box;
-    padding: clamp(48px, 9vw, 120px) clamp(20px, 5vw, 48px); display: flex; flex-wrap: wrap; gap: 48px clamp(48px, 8vw, 112px); align-items: start; }
-  .trava-texto { flex: 1 1 380px; min-width: 0; display: grid; gap: 20px; }
-  .trava-rotulo { display: flex; align-items: center; gap: 8px; font: 400 11px var(--mono); letter-spacing: .16em; color: var(--acc); }
-  .trava-rotulo i { display: block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .trava-rotulo.neutro { color: var(--ink3); }
-  .trava-texto h1 { margin: 0; font: 400 clamp(44px, 6vw, 68px)/1 var(--serif); letter-spacing: -.02em; text-wrap: balance; }
-  .trava-texto p { margin: 0; font-size: clamp(17px, 1.8vw, 19px); line-height: 1.6; color: var(--ink2); max-width: 480px; text-wrap: pretty; }
-  .trava-nota { font: italic 400 19px var(--serif); color: var(--ink3); }
-  .trava-painel { flex: 1 1 360px; min-width: 0; max-width: 520px; border-left: 1px solid var(--ink-a1); padding-left: clamp(24px, 3vw, 40px);
-    display: grid; gap: 48px; }
-  .trava-form { display: grid; gap: 20px; margin: 0; }
-  .trava-etiqueta { font: 400 11px var(--mono); letter-spacing: .14em; color: var(--ink3); }
-  .trava-conta { display: grid; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--ink-a1); }
-  .trava-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
-  .trava-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
-  .trava-manter { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink); cursor: pointer; }
-  .trava-manter input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); flex: none; }
+  /* A marca no mesmo ponto das outras telas de entrada: 22% da janela,
+     descontada a barra de 56 px de cima. */
+  .trava-corpo { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: calc(22vh - 56px) 24px 48px; padding-top: calc(22dvh - 56px); }
+  .trava-voltar { position: absolute; top: 0; left: 28px; display: flex; align-items: center; gap: 6px; height: 44px; border: 0; background: none;
+    padding: 0; font: 500 13px var(--sans); color: var(--ink3); cursor: pointer; }
+  .trava-voltar:hover { color: var(--ink); }
+  .trava-coluna { width: 100%; max-width: 360px; display: grid; gap: 40px; }
+  .trava-marca { display: grid; gap: 14px; text-align: center; }
+  /* "Paulus está te esperando." na serifa, claro, e a frase do banco das telas de entrar
+     (js/entrada-saudacao.js): o jeito da saudacao do assistente - o bloco nasce apagado e
+     aparece devagar; ao trocar de passo, a frase sai e a nova entra. */
+  .trava-marca h1 { margin: 0; font: 400 44px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .trava-marca p { margin: 0; font: 400 15px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
+  .trava-marca > * { transition: opacity .7s ease, transform .7s ease; }
+  .trava-marca.abrindo > * { opacity: 0; }
+  .trava-marca.saindo > p { opacity: 0; transform: translateY(4px); }
+  html.sem-animacao .trava-marca > * { transition: none; }
+  /* O titulo passa da coluna de 360 px para caber numa linha; no celular, quebra. */
+  @media (min-width: 520px) { .trava-marca h1 { margin: 0 -60px; } }
+  .trava-form { display: grid; gap: 14px; margin: 0; }
+  .trava-grupo { display: grid; gap: 6px; }
+  .trava-enquanto { margin-top: 6px; }
+  .trava-etiqueta { font: 400 11px var(--mono); letter-spacing: .18em; color: var(--mute2); }
+  .trava-caixa { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--ink-a12); }
+  .trava-caixa svg, .trava-caixa .ic { width: 16px; height: 16px; flex: none; color: var(--ink3); }
+  .trava-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px var(--sans); color: var(--ink); }
+  .trava-trocar { flex: none; border: 0; background: none; padding: 10px 0; font: 500 12px var(--sans); color: var(--mute2); cursor: pointer; }
+  .trava-trocar:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
+  .trava-manter { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--ink-a1); cursor: pointer; font: 400 13.5px var(--sans); color: var(--ink); position: relative; }
+  .trava-manter input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .trava-manter i { width: 16px; height: 16px; flex: none; border-radius: 4px; background: var(--fill2); border: 1px solid var(--ink-a25);
+    display: flex; align-items: center; justify-content: center; }
+  .trava-manter i .ic { font-size: 13px; width: 13px; height: 13px; color: var(--ink); opacity: 0; }
+  .trava-manter input:checked + i .ic { opacity: 1; }
+  .trava-manter input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .trava-trilho { display: flex; width: 100%; height: auto; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--ink-a1); cursor: pointer; }
+  .trava-trilho:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); }
+  .trava-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
+    background: var(--fill2); color: var(--ink); font: 500 13.5px var(--sans); letter-spacing: .01em; }
+  .trava-pastilha svg { width: 16px; height: 16px; flex: none; }
+  /* Sobre e apertado: as cores do desenho (#303030 e #333330 no escuro);
+     no claro, um passo mais fundo que a pastilha. */
+  .trava-trilho:hover:not(:disabled) .trava-pastilha { background: var(--pastilha-sobre); }
+  .trava-trilho:active:not(:disabled) .trava-pastilha { background: var(--pastilha-ativa); }
+  .trava-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .trava-trilho:disabled { opacity: .55; cursor: default; }
+  .trava-fora { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 14px; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--ink-a1); }
+  .trava-estado { display: flex; align-items: center; gap: 10px; font: 500 13.5px var(--sans); color: var(--ink); }
+  .trava-estado i { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink3); flex: none; }
+  .trava-estado.ok i { background: var(--verde); }
+  .trava-mono { font: 400 11px var(--mono); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trava-ajuda { font: 400 12px/1.5 var(--sans); color: var(--mute2); text-wrap: pretty; }
+  .trava-ajuda.centro { text-align: center; }
+  .trava-link { justify-self: center; border: 0; background: none; padding: 10px 0; font: 500 13px var(--sans); color: var(--mute2); cursor: pointer; }
+  .trava-link:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
+  .trava-erro { margin: 0; font-size: 13.5px; color: var(--acc); text-align: center; }
+  .trava-erro:empty { display: none; }
+  .trava-rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; }
+  .trava-renova { font: 400 11px var(--mono); color: var(--mute2); }
+  .trava-renova b { font-weight: 400; color: var(--ink3); }
+  .trava-casas { position: relative; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 8px; }
+  .trava-casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--ink-a12); font: 400 20px var(--mono); color: var(--ink); }
+  .trava-casas span.vez { border-color: var(--ink3); }
+  .trava-casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; background: none; }
+  .trava-casas.campo { display: block; }
+  .trava-casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--ink-a25); outline: none; color: var(--ink); font: 400 15px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+
+  /* O botao Google em pilula do assistente de configuracao (js/23-boas-vindas.js). */
   .trava-google { flex: none; height: 40px; padding: 0 18px; border: 1px solid var(--ink-a25); border-radius: 999px; background: var(--bg);
     color: var(--ink); font: 600 14px var(--sans); cursor: pointer; display: flex; align-items: center; gap: 10px; }
   .trava-google svg { width: 16px; height: 16px; }
   .trava-google:hover { background: var(--fill); }
   .trava-google:disabled { opacity: .6; cursor: default; }
-  .trava-link { border: 0; background: none; color: var(--ink2); font: 400 13px var(--sans); cursor: pointer; padding: 0; }
-  .trava-link:hover { color: var(--ink); text-decoration: underline; }
-  .trava-form > .trava-link { justify-self: start; }
-  .trava-erro { margin: 0; font-size: 13.5px; color: var(--acc); }
-  .trava-erro:empty { display: none; }
-  .trava-ajuda { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.6; color: var(--ink3); }
-  .trava-linhas { display: grid; gap: 2px; }
-  .trava-linhas .trava-etiqueta { padding-bottom: 10px; }
-  .trava-linha { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--ink-a1); font-size: 14px; }
-  .trava-linha > span:first-child { color: var(--ink2); }
-  .trava-estado { display: flex; align-items: center; gap: 8px; }
-  .trava-estado i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); flex: none; }
-  .trava-estado.ok i { background: var(--verde); }
-  .trava-mono { font: 400 13px var(--mono); word-break: break-all; }
-  .trava-form-codigo { gap: 28px; }
-  .trava-conta-linha { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .trava-conta-linha svg { flex: none; }
-  .trava-conta-linha .trava-email { flex: 1; }
-  .trava-campo { display: grid; gap: 12px; }
-  .trava-campo input { width: 100%; max-width: 320px; height: 64px; box-sizing: border-box; padding: 0; border: 0; border-bottom: 1px solid var(--ink-a25);
-    background: transparent; color: var(--ink); font: 500 34px var(--mono); letter-spacing: .42em; outline: none; border-radius: 0; }
-  .trava-campo input.recuperacao { font-size: 26px; letter-spacing: .18em; }
-  .trava-campo input:focus { border-bottom-color: var(--ink); }
-  .trava-principal { justify-self: start; height: 40px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--ink); color: var(--bg);
-    font: 600 14px var(--sans); cursor: pointer; }
-  .trava-principal:hover { opacity: .88; }
-  .trava-pe { flex: none; border-top: 1px solid var(--ink-a1); padding: 24px clamp(20px, 5vw, 88px); display: flex; flex-wrap: wrap;
-    justify-content: space-between; gap: 12px 48px; }
-  .trava-pe p { margin: 0; max-width: 520px; font-size: 13px; line-height: 1.65; color: var(--ink3); text-wrap: pretty; }
-  .trava-pe p.forte { color: var(--ink2); }
-  @media (max-width: 760px) { .trava-painel { border-left: 0; padding-left: 0; max-width: none; } }
 
-  /* Dentro do programa, os tres botoes da janela ficam no canto: o cabecalho da trava abre espaco para eles. */
-  html.com-janela .trava-topo { padding-right: max(clamp(20px, 5vw, 88px), 150px); }
+  /* Dentro do programa, os botoes da janela ficam no canto: o tema fica antes deles. */
+  html.com-janela .trava-topo { padding-right: 160px; }

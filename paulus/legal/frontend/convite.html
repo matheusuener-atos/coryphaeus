@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="pt-BR" data-tema="claro">
+<html lang="pt-BR" data-tema="escuro">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>PAULUS — Convite</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/img/paulus-logo.png">
 <link rel="stylesheet" href="/fontes.css">
-<link rel="stylesheet" href="/css/00-tokens.css">
 <script>
+  // O tema antes da primeira pintura: o mesmo da tela de entrar (o que a
+  // pessoa escolheu neste aparelho ou, sem escolha, o escuro do desenho).
   (function () {
-    var tema = "claro";
+    var tema = "escuro";
     try {
       var g = localStorage.getItem("paulus.tema");
       if (g === "claro" || g === "escuro") tema = g;
-      else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
     } catch (e) { /* sem memoria do navegador */ }
     document.documentElement.dataset.tema = tema;
   })();
@@ -22,190 +22,278 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <!--
   O convite (docs/PLANO-EQUIPE.md, E4; src/acesso/convites.py). Quem foi
-  convidado abre este link no proprio celular: escolhe a senha, adiciona a
-  conta ao Google Authenticator e confirma com o primeiro codigo. A conta
-  nasce aqui - ninguem precisa ir ate o computador do escritorio.
+  convidado abre este link no proprio celular: entra com o Google (ou escolhe
+  a senha), adiciona a conta ao Google Authenticator e confirma com o primeiro
+  codigo. A conta nasce aqui - ninguem precisa ir ate o computador do escritorio.
+
+  Sem maquete propria: segue as telas de entrada do pacote "PAULUS - Site e
+  Entrada" (03/10/2026), as mesmas de frontend/entrar.html - a marca no alto
+  (22% da janela), os campos embaixo, rotulos em Fira Code, o botao de moldura
+  dupla e o Turnstile escondido atras do selo proprio.
 
   No celular nao da para ler um QR que esta na propria tela: o botao principal
   abre o Google Authenticator com a conta pronta (otpauth://). O QR fica para
   quem abriu o link num computador.
 -->
 <style>
+  [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
+    --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio3:rgba(242,241,236,.08); --fio-forte:rgba(242,241,236,.4);
+    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
+  [data-tema="claro"] { --bg:#faf9f6; --surf:#ffffff; --fill2:#e9e8e3; --ink:#1c1c1a; --ink2:#6b6b65; --ink3:#8a8a86;
+    --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio3:rgba(28,28,26,.08); --fio-forte:rgba(28,28,26,.4);
+    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#e2e1db; --pastilha-ativa:#dcdbd5; color-scheme:light; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); }
-  body { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(20px, 4vh, 36px) clamp(18px, 5vw, 64px); gap: 24px; }
-  .ic { font-family: 'Material Symbols Outlined'; font-weight: 300; font-size: 18px; line-height: 1; display: block; width: 18px; height: 18px;
-        overflow: hidden; flex: none; letter-spacing: normal; text-transform: none; white-space: nowrap; font-variation-settings: 'FILL' 0; }
-  .cabeca { display: flex; align-items: center; gap: 16px; }
-  .marca { font: 500 22px/1 var(--serif); letter-spacing: .12em; }
-  .selo { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 400 10.5px 'IBM Plex Mono', var(--mono); letter-spacing: .14em;
-          color: var(--ink2); text-transform: uppercase; white-space: nowrap; }
-  .selo i { width: 7px; height: 7px; border-radius: 50%; background: var(--okt); }
-  .corpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); gap: clamp(28px, 6vw, 88px); align-items: center;
-           max-width: 1120px; width: 100%; margin: 0 auto; }
-  .texto { display: grid; gap: 18px; max-width: 540px; }
-  .rotulo { font: 400 11px 'IBM Plex Mono', var(--mono); letter-spacing: .16em; color: var(--ink3); text-transform: uppercase; }
-  h1 { font: 400 clamp(30px, 3.6vw, 44px)/1.08 var(--serif); letter-spacing: -.015em; margin: 0; text-wrap: balance; }
-  .texto p { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); }
-  .passos { display: grid; gap: 10px; font-size: 13.5px; color: var(--ink2); }
-  .passos div { display: flex; gap: 10px; align-items: center; }
-  .passos b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none;
-              border: 1px solid var(--ink-a1); font: 700 11px var(--sans); color: var(--ink3); }
-  .passos .atual b { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-  .passos .feito b { background: var(--okbg); border-color: transparent; color: var(--okt); }
-  .passos .atual { color: var(--ink); font-weight: 600; }
-  .cartao { background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 14px; padding: 24px; display: grid; gap: 16px; box-shadow: var(--elev-card); }
-  .cartao h2 { font: 500 20px/1.2 var(--serif); margin: 0; }
-  .sub { margin: -8px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  label { display: block; font-size: 12.5px; color: var(--ink2); margin: 0 0 6px; }
-  input { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: var(--sub); border: 1px solid var(--ink-a12);
-          border-radius: 10px; padding: 11px 14px; min-height: 44px; outline: none; }
-  input:focus { border-color: var(--ink-a35); background: var(--surf); }
-  .codigo { font-family: var(--mono); font-size: 24px; letter-spacing: .3em; text-align: center; }
-  button, .botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 15px; font-weight: 600;
-           min-height: 44px; width: 100%; border: 0; border-radius: 10px; background: var(--ink); color: var(--bg); cursor: pointer; text-decoration: none; }
-  button:hover, .botao:hover { opacity: .9; }
-  button:disabled { opacity: .55; cursor: default; }
-  .secundario { background: var(--sub); color: var(--ink); font-weight: 500; }
-  .robo { min-height: 65px; }
-  .google { background: var(--surf); color: var(--ink); border: 1px solid var(--ink-a12); font-weight: 600; }
-  .google:hover { background: var(--fill); opacity: 1; }
-  .ou { display: flex; align-items: center; gap: 12px; margin: -2px 0; font-size: 12px; color: var(--ink3); }
-  .ou::before, .ou::after { content: ""; flex: 1; height: 1px; background: var(--ink-a1); }
-
-  .erro { color: var(--acc); font-size: 13.5px; line-height: 1.45; margin: 0; }
-  .erro:empty { display: none; }
-  .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border: 1px solid var(--ink-a1); border-radius: 10px; margin: 0 auto; }
-  .qr svg { width: 100%; height: 100%; display: block; }
-  .chave { display: block; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
-           font: 500 13px/1.6 var(--mono); letter-spacing: .04em; word-break: break-all; user-select: all; }
-  .codigos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; user-select: all; }
-  .codigos code { padding: 8px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
-                  font: 500 14px/1.3 var(--mono); letter-spacing: .08em; text-align: center; }
-  .lojas { display: flex; flex-wrap: wrap; gap: 8px; }
-  .lojas a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--ink-a1);
-             background: var(--surf); color: var(--ink); font-size: 12.5px; font-weight: 500; text-decoration: none; }
-  .app { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--sub); font-size: 13px; line-height: 1.5; color: var(--ink2); }
-  .app b { color: var(--ink); }
-  .app-cabeca { display: flex; align-items: center; gap: 12px; }
-  .app-icone { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 10px; background: #fff; border: 1px solid var(--ink-a1); }
-  .so-celular, .so-computador { display: none; }
-  html.celular .so-celular, html:not(.celular) .so-computador { display: grid; gap: 12px; }
-  .pe { font-size: 12px; line-height: 1.55; color: var(--ink3); max-width: 1120px; width: 100%; margin: 0 auto; }
+  html, body { margin: 0; height: 100%; }
+  body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
+    font: 400 14px/1.5 'Manrope', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; }
   [hidden] { display: none !important; }
-  @media (max-width: 820px) {
-    .corpo { grid-template-columns: minmax(0, 1fr); align-items: start; }
-    .texto p, .passos { display: none; }
-    h1 { font-size: 28px; }
-    .selo { display: none; }
-    .cartao { padding: 20px; }
+
+  /* A coluna: no celular, a marca no alto e os campos no pe; no computador,
+     360 px no meio, com a marca no mesmo ponto da tela de entrar. */
+  .tela { width: 100%; max-width: 440px; height: 100%; display: flex; flex-direction: column; overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .marca { flex: none; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 22vh 32px 32px; padding-top: 22dvh; text-align: center; }
+  /* O alto de toda tela de entrar (03/10): "Paulus est\u00e1 te esperando." na serifa, claro, e a frase
+     do banco embaixo (js/entrada-saudacao.js) - o jeito da saudacao do assistente: o bloco nasce
+     apagado e aparece devagar; ao trocar de passo, a frase sai e a nova entra. PAVLVS e a marca;
+     Paulus, o agente. */
+  .marca h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .marca p { margin: 0; max-width: 360px; font: 400 15px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
+  .marca > * { transition: opacity .7s ease, transform .7s ease; }
+  .marca.abrindo > * { opacity: 0; }
+  .marca.saindo > p { opacity: 0; transform: translateY(4px); }
+  @media (prefers-reduced-motion: reduce) { .marca > * { transition: none; } }
+  .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; margin-top: auto; }
+  .baixo form, .baixo section { display: grid; gap: 14px; margin: 0; }
+
+  .grupo { display: grid; gap: 6px; }
+  .rotulo { font: 400 11px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
+  .rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .lado { font: 400 11px 'Fira Code', monospace; color: var(--apagado); white-space: nowrap; }
+  .lado b { font-weight: 400; color: var(--ink3); }
+  .caixa { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio); }
+  .caixa svg { width: 16px; height: 16px; flex: none; }
+  .caixa .texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .campo { width: 100%; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio);
+    outline: none; color: var(--ink); font: 400 15px 'Manrope', sans-serif; }
+  .campo:focus { border-color: var(--fio-forte); }
+  .ajuda { margin: 0; font: 400 12px/1.5 'Manrope', sans-serif; color: var(--apagado); text-wrap: pretty; }
+  .ajuda b { font-weight: 500; color: var(--ink3); }
+  .ajuda.centro { text-align: center; }
+  .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); text-align: center; }
+  .erro:empty { display: none; }
+
+  /* O botao de moldura dupla: o trilho com a pastilha dentro. */
+  .g-trilho { display: flex; width: 100%; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2);
+    cursor: pointer; position: relative; text-decoration: none; }
+  .g-trilho::after { content: ""; position: absolute; inset: -2px 0; } /* 44 px de toque */
+  .g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
+    background: var(--fill2); color: var(--ink); font: 500 13.5px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
+  .g-pastilha svg { width: 16px; height: 16px; flex: none; }
+  .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
+  .g-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .g-trilho:disabled { opacity: .5; pointer-events: none; }
+
+  .ou { display: flex; align-items: center; gap: 12px; font: 400 11px 'Fira Code', monospace; letter-spacing: .12em; color: var(--apagado); }
+  .ou::before, .ou::after { content: ""; flex: 1; height: 1px; background: var(--fio2); }
+
+  /* O Google Authenticator antes de tudo: uma caixa com o icone e as lojas. */
+  .app { display: grid; gap: 10px; padding: 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2); }
+  .app-cabeca { display: flex; align-items: center; gap: 10px; font: 400 13px/1.5 'Manrope', sans-serif; color: var(--ink2); }
+  .app-cabeca b { font-weight: 500; color: var(--ink); }
+  .app-icone { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 8px; background: #fff; }
+  .lojas { display: flex; flex-wrap: wrap; gap: 8px; }
+  .lojas a { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--fill2);
+    color: var(--ink); font: 500 12.5px 'Manrope', sans-serif; text-decoration: none; }
+  .lojas a:hover { background: var(--pastilha-sobre); }
+
+  /* O widget da Cloudflare nao aparece: so se pedir interacao (appearance
+     "interaction-only"), e ai ele surge aqui sozinho. O estado vai para o selo. */
+  .robo:empty { display: none; }
+  .robo { display: flex; justify-content: center; }
+  .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio2); }
+  .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13.5px 'Manrope', system-ui, sans-serif; color: var(--ink); }
+  .cf-icone { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none;
+    transition: background .24s, transform .24s cubic-bezier(.2,.8,.2,1); }
+  .cf-icone svg { width: 15px; height: 15px; fill: #fff; opacity: 0; transition: opacity .2s .12s; }
+  .cf-dir { display: grid; justify-items: end; gap: 2px; text-align: right; }
+  .cf-marca { font: 700 9.5px 'Manrope', system-ui, sans-serif; letter-spacing: .12em; color: var(--ink); }
+  .cf-links { font: 400 9.5px 'Manrope', system-ui, sans-serif; color: var(--ink3); }
+  .cf-links a { color: inherit; text-decoration: none; }
+  .cf-badge[data-estado="verificando"] .cf-icone { border: 2px solid var(--fio); border-top-color: var(--ink); animation: cf-gira .9s linear infinite; }
+  .cf-badge[data-estado="ok"] .cf-icone { background: #2f9e5b; animation: cf-surge .24s cubic-bezier(.2,.8,.2,1); }
+  .cf-badge[data-estado="erro"] { cursor: pointer; }
+  .cf-badge[data-estado="erro"] .cf-icone { background: #b84a3c; }
+  .cf-badge:is([data-estado="ok"], [data-estado="erro"]) .cf-icone svg { opacity: 1; }
+  .cf-badge .cf-x { display: none; }
+  .cf-badge[data-estado="erro"] .cf-x { display: block; }
+  .cf-badge[data-estado="erro"] .cf-v { display: none; }
+  @keyframes cf-gira { to { transform: rotate(360deg); } }
+  @keyframes cf-surge { from { transform: scale(.6); } to { transform: scale(1); } }
+
+  /* O QR (no computador) e a chave para digitar. */
+  .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border-radius: 10px; margin: 0 auto; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .chave { height: auto; min-height: 40px; padding: 9px 12px; font: 400 13px/1.6 'Fira Code', monospace; letter-spacing: .04em;
+    color: var(--ink); word-break: break-all; user-select: all; }
+  .so-celular, .so-computador { display: none; }
+  html.celular .so-celular, html:not(.celular) .so-computador { display: grid; gap: 10px; }
+
+  /* As seis casas do codigo: o campo de verdade fica por cima, transparente
+     (o teclado do celular e o colar funcionam), como na tela de entrar. */
+  .casas { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
+  .casas span.vez { border-color: var(--fio-forte); }
+  .casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px;
+    color: transparent; caret-color: transparent; background: none; }
+
+  /* Os codigos de recuperacao: duas colunas de caixas, para copiar. */
+  .codigos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; user-select: all; }
+  .codigos code { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--fio); font: 400 14px 'Fira Code', monospace; letter-spacing: .1em; color: var(--ink); }
+
+  /* No computador: a coluna de 360 px no meio da tela, a marca em 56 px. */
+  @media (min-width: 601px) {
+    .tela { max-width: none; align-items: center; gap: 40px; padding: 0 24px 48px; }
+    .marca { gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
+    .marca h1 { font-size: 44px; }
+    .baixo { width: 100%; max-width: 360px; padding: 0; margin-top: 0; }
+    .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
+    .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   }
 </style>
 </head>
 <body>
-<header class="cabeca">
-  <span class="marca">PAVLVS</span>
-  <span class="selo"><i></i><span id="endereco">convite</span></span>
-</header>
-
-<main class="corpo">
-  <div class="texto">
-    <span class="rotulo" id="rotulo">Convite</span>
-    <h1 id="titulo">Você foi convidado para o PAULUS do escritório</h1>
-    <p>O PAULUS roda no computador do escritório; você usa pela internet, com a sua própria conta. Três passos, uma vez só.</p>
-    <div class="passos">
-      <div id="p1" class="atual"><b>1</b>Instalar o Google Authenticator e escolher a senha</div>
-      <div id="p2"><b>2</b>Adicionar a conta ao autenticador</div>
-      <div id="p3"><b>3</b>Confirmar com o código e guardar os de recuperação</div>
-    </div>
+<div class="tela">
+  <div class="marca abrindo" id="marca">
+    <h1 data-es-titulo>Paulus está te esperando.</h1>
+    <p data-es-frase id="frase">Este é o seu convite para o PAVLVS do escritório.</p>
   </div>
 
-  <div>
+  <div class="baixo">
+    <!-- O convite que nao vale (usado, vencido, inventado) -->
     <section id="erro-convite" hidden>
-      <div class="cartao"><h2>Este convite não serve</h2><p class="sub" id="erro-convite-texto"></p>
-        <a class="botao secundario" href="/">Ir para a tela de entrar</a></div>
+      <p class="erro" id="erro-convite-texto"></p>
+      <a class="g-trilho" href="/"><span class="g-pastilha">Ir para a tela de entrar</span></a>
     </section>
 
+    <!-- 1. Google ou senha -->
     <section id="passo-senha" hidden>
-      <form class="cartao" id="form-senha" autocomplete="on">
-        <h2>Olá, <span id="nome"></span></h2>
-        <p class="sub">A sua conta é <b id="email"></b>.</p>
-        <div class="app">
-          <span class="app-cabeca"><span class="app-icone"><svg viewBox="0 0 48 48" width="28" height="28" aria-hidden="true"><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(0 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(60 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#FBBC04" transform="rotate(120 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#EA4335" transform="rotate(180 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(240 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(300 24 24)"/><circle cx="24" cy="24" r="5" fill="#5F6368"/></svg></span>
-            <span><b>Antes, instale o Google Authenticator</b> no seu celular (grátis). É dele que vem o código que você digita ao entrar.</span></span>
+      <form id="form-senha" autocomplete="on">
+        <div class="grupo">
+          <div class="rotulo-linha"><span class="rotulo">CONTA</span><span class="lado" id="passo-de">passo 1 de 3</span></div>
+          <div class="caixa"><span id="marca-conta"></span><span class="texto" id="email"></span></div>
+          <p class="ajuda" id="so-google-ajuda" hidden>Entre no Google com essa conta.</p>
+        </div>
+        <div class="app" id="app">
+          <span class="app-cabeca"><span class="app-icone"><svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(60 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#FBBC04" transform="rotate(120 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#EA4335" transform="rotate(180 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(240 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(300 24 24)"/><circle cx="24" cy="24" r="5" fill="#5F6368"/></svg></span>
+            <span><b>Antes, instale o Google Authenticator</b> no celular (grátis). É dele que vem o código que você digita ao entrar.</span></span>
           <span class="lojas" id="lojas">
-            <a id="loja-android" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noopener noreferrer"><span class="ic">download</span>Android · Google Play</a>
-            <a id="loja-iphone" href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank" rel="noopener noreferrer"><span class="ic">download</span>iPhone · App Store</a>
+            <a id="loja-android" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" rel="noopener noreferrer">Android · Google Play</a>
+            <a id="loja-iphone" href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank" rel="noopener noreferrer">iPhone · App Store</a>
           </span>
         </div>
-        <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
-        <div id="com-google" hidden>
-          <button type="button" class="google" id="google"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar com o Google</button>
-        </div>
-        <div class="ou" id="ou" hidden>ou crie uma senha</div>
-        <div id="por-senha">
+        <button type="button" class="g-trilho" id="google" hidden><span class="g-pastilha"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar com o Google</span></button>
+        <div class="ou" id="ou" hidden>OU CRIE UMA SENHA</div>
+        <div class="grupo" id="por-senha">
           <input type="email" id="usuario" autocomplete="username" hidden>
-          <div><label for="senha">Senha (pelo menos 10 caracteres)</label><input id="senha" type="password" autocomplete="new-password" required minlength="10"></div>
-          <div><label for="repetir">Repita a senha</label><input id="repetir" type="password" autocomplete="new-password" required minlength="10"></div>
+          <div class="rotulo-linha"><span class="rotulo">SENHA</span><span class="lado">10 caracteres ou mais</span></div>
+          <input class="campo" id="senha" type="password" autocomplete="new-password" required minlength="10" aria-label="Senha">
+          <input class="campo" id="repetir" type="password" autocomplete="new-password" required minlength="10" placeholder="Repita a senha" aria-label="Repita a senha">
+        </div>
+        <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
+        <div class="cf-badge" id="cf-badge" data-estado="verificando" role="status" aria-live="polite" hidden>
+          <span class="cf-esq"><span class="cf-icone"><svg class="cf-v" viewBox="0 0 24 24" aria-hidden="true"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg><svg class="cf-x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 19 5 17.6 10.6 12 5 6.4 6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4Z"/></svg></span><span class="cf-texto" id="cf-texto">Verificando…</span></span>
+          <span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · <a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener">Ajuda</a></span></span>
         </div>
         <p class="erro" id="erro-senha" role="alert"></p>
-        <button type="submit" id="continuar-senha">Continuar</button>
+        <button type="submit" class="g-trilho" id="continuar-senha"><span class="g-pastilha">Continuar</span></button>
+        <p class="ajuda centro">O convite vale uma vez e por 7 dias. A senha e o autenticador ficam só no computador do escritório.</p>
       </form>
     </section>
 
+    <!-- 2. O autenticador: o QR (ou o botao, no celular) e o primeiro codigo -->
     <section id="passo-app" hidden>
-      <form class="cartao" id="form-codigo" autocomplete="off">
-        <h2>Adicione a conta ao autenticador</h2>
+      <form id="form-codigo" autocomplete="off">
         <div class="so-celular">
-          <a class="botao" id="otpauth" href="#"><span class="ic">open_in_new</span>Adicionar ao Google Authenticator</a>
-          <p class="sub">Abre o app com a conta do PAULUS pronta. Se não abrir, no app toque em <b>+</b> → <b>Inserir chave de configuração</b> e cole esta chave:</p>
+          <a class="g-trilho" id="otpauth" href="#"><span class="g-pastilha">Adicionar ao Google Authenticator</span></a>
+          <p class="ajuda">Abre o app com a conta do PAVLVS pronta. Se não abrir, no app toque em <b>+</b> › <b>Inserir chave de configuração</b> e use a chave abaixo.</p>
         </div>
         <div class="so-computador">
           <div class="qr" id="qr"></div>
-          <p class="sub">No celular, abra o Google Authenticator, toque em <b>+</b> → <b>Ler código QR</b> e aponte para o código acima. Sem câmera, use a chave:</p>
+          <p class="ajuda">No celular, abra o Google Authenticator, toque em <b>+</b> › <b>Ler código QR</b> e aponte para o código acima. Sem câmera, use a chave abaixo.</p>
         </div>
-        <code class="chave" id="chave"></code>
-        <div><label for="codigo">Código de 6 números que aparece no app</label>
-          <input id="codigo" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></div>
+        <div class="grupo">
+          <div class="rotulo-linha"><span class="rotulo">CHAVE</span><span class="lado">passo 2 de 3</span></div>
+          <code class="caixa chave" id="chave"></code>
+        </div>
+        <div class="grupo">
+          <div class="rotulo-linha"><span class="rotulo">GOOGLE AUTHENTICATOR</span><span class="lado">renova em <b id="segundos">00:30</b></span></div>
+          <div class="casas" id="casas">
+            <input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos que aparece no app" required>
+          </div>
+        </div>
         <p class="erro" id="erro-codigo" role="alert"></p>
-        <button type="submit">Confirmar</button>
+        <button type="submit" class="g-trilho" id="confirmar"><span class="g-pastilha">Confirmar</span></button>
       </form>
     </section>
 
+    <!-- 3. Os codigos de recuperacao, uma vez -->
     <section id="passo-fim" hidden>
-      <div class="cartao">
-        <h2>Pronto: a sua conta está ativa</h2>
-        <p class="sub">Guarde estes códigos fora do celular (anote ou tire um print e guarde longe dele). Cada um entra uma vez no lugar do código do app — para o dia em que o celular sumir. Eles não aparecem de novo.</p>
+      <div class="grupo">
+        <div class="rotulo-linha"><span class="rotulo">CÓDIGOS DE RECUPERAÇÃO</span><span class="lado">passo 3 de 3</span></div>
         <div class="codigos" id="codigos"></div>
-        <a class="botao" href="/">Entrar no PAULUS</a>
+        <p class="ajuda">Guarde estes códigos fora do celular (anote ou tire um print e guarde longe dele). Cada um entra uma vez no lugar do código do app, para o dia em que o celular sumir. Eles não aparecem de novo.</p>
       </div>
+      <a class="g-trilho" href="/"><span class="g-pastilha">Entrar no PAVLVS</span></a>
     </section>
 
+    <!-- Seguranca "simples": a conta ja esta pronta, sem autenticador -->
     <section id="passo-liberado" hidden>
-      <div class="cartao">
-        <h2>Pronto: a sua conta está ativa</h2>
-        <p class="sub">O escritório escolheu entrar só com a conta Google, sem o código do celular. Para usar o PAULUS, entre com <b id="liberado-email"></b>.</p>
-        <a class="botao" href="/">Entrar no PAULUS</a>
+      <div class="grupo">
+        <span class="rotulo">CONTA</span>
+        <div class="caixa"><span id="marca-liberado"></span><span class="texto" id="liberado-email"></span></div>
+        <p class="ajuda">O escritório escolheu entrar só com a conta Google, sem o código do celular. Para usar o PAVLVS, entre com essa conta.</p>
       </div>
+      <a class="g-trilho" href="/"><span class="g-pastilha">Entrar no PAVLVS</span></a>
     </section>
   </div>
-</main>
+</div>
 
-<p class="pe">Este endereço leva ao computador do escritório pelo túnel da Cloudflare. A senha e o autenticador ficam só lá; o convite vale uma vez e por 7 dias.</p>
-
+<script src="/js/entrada-saudacao.js"></script>
 <script>
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const codigoDoConvite = decodeURIComponent(location.pathname.split("/").filter(Boolean)[1] || "");
   const api = "/api/acesso/convite/" + encodeURIComponent(codigoDoConvite);
+  const G = $("google").querySelector("svg").outerHTML;
+  const ENVELOPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="color:var(--ink3)"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M4 7l8 6 8-6"/></svg>';
   let robo = null;
-  $("endereco").textContent = location.hostname;
+  let comRobo = false;
+  let ocupado = false;
+  let convite = {};
   if (/android|iphone|ipad|ipod/i.test(navigator.userAgent)) document.documentElement.classList.add("celular");
   if (/iphone|ipad|ipod/i.test(navigator.userAgent)) $("lojas").prepend($("loja-iphone"));
 
-  function passo(n) {
-    ["p1", "p2", "p3"].forEach((id, i) => { $(id).className = i + 1 < n ? "feito" : (i + 1 === n ? "atual" : ""); });
+  // "Paulus está te esperando." e a frase de cada passo (js/entrada-saudacao.js).
+  function frase(tela, extras) {
+    const bloco = $("marca");
+    if (!window.EntradaSaudacao) { bloco.classList.remove("abrindo"); return; }
+    if (bloco.dataset.aberto) EntradaSaudacao.trocar(bloco, tela, extras);
+    else { bloco.dataset.aberto = "1"; EntradaSaudacao.abrir(bloco, tela, extras); }
+  }
+  function mostrar(qual) {
+    ["erro-convite", "passo-senha", "passo-app", "passo-fim", "passo-liberado"].forEach((id) => { $(id).hidden = id !== qual; });
+    // Cada passo comeca do alto (o botao de antes podia estar la embaixo).
+    document.querySelector(".tela").scrollTop = 0;
+  }
+  function convidou() {
+    frase("convite_erro");
+    mostrar("erro-convite");
   }
 
   async function enviar(url, corpo) {
@@ -216,29 +304,81 @@
     return d;
   }
 
+  // O selo da verificacao contra robos, no lugar do widget da Cloudflare: os
+  // botoes so destravam quando ela passa (sem a chave do Turnstile, como no
+  // teste na rede do escritorio, nao ha verificacao e eles ficam livres).
+  function travar() {
+    const parado = ocupado || (comRobo && $("cf-badge").dataset.estado !== "ok");
+    $("google").disabled = parado;
+    $("continuar-senha").disabled = parado;
+  }
+  function selo(estado, texto) {
+    $("cf-badge").dataset.estado = estado;
+    $("cf-texto").textContent = texto;
+    travar();
+  }
+  const tokenDoRobo = () => (robo !== null && window.turnstile ? window.turnstile.getResponse(robo) || "" : "");
+  function novoRobo() {
+    if (!comRobo) return;
+    selo("verificando", "Verificando…");
+    if (robo !== null && window.turnstile) window.turnstile.reset(robo);
+  }
+  $("cf-badge").addEventListener("click", (e) => {
+    if ($("cf-badge").dataset.estado !== "erro" || e.target.closest("a")) return;
+    novoRobo();
+  });
+
   function mostrarRobo(chave) {
-    if (!chave) return;
+    comRobo = Boolean(chave);
+    $("cf-badge").hidden = !comRobo;
+    travar();
+    if (!comRobo) return;
     const tentar = () => {
       if (!window.turnstile) { setTimeout(tentar, 200); return; }
-      robo = window.turnstile.render("#robo", { sitekey: chave, language: "pt-br",
-        theme: document.documentElement.dataset.tema === "escuro" ? "dark" : "light" });
+      robo = window.turnstile.render("#robo", { sitekey: chave, language: "pt-br", size: "flexible", appearance: "interaction-only",
+        theme: document.documentElement.dataset.tema === "escuro" ? "dark" : "light",
+        callback: () => selo("ok", "Sucesso!"),
+        "error-callback": () => selo("erro", "Tente de novo"),
+        "expired-callback": () => novoRobo() });
+      // Um token que ja veio pronto (o navegador ja verificado) conta igual.
+      setTimeout(() => { if (tokenDoRobo() && $("cf-badge").dataset.estado !== "ok") selo("ok", "Sucesso!"); }, 300);
     };
     tentar();
   }
+
+  // As seis casas do codigo.
+  function desenharCasas() {
+    const v = $("codigo").value.replace(/\D/g, "").slice(0, 6);
+    const casas = $("casas");
+    casas.querySelectorAll("span").forEach((s) => s.remove());
+    for (let i = 0; i < 6; i++) {
+      const s = document.createElement("span");
+      s.textContent = v[i] || "";
+      if (i === Math.min(v.length, 5) && document.activeElement === $("codigo")) s.classList.add("vez");
+      casas.insertBefore(s, $("codigo"));
+    }
+  }
+  ["input", "focus", "blur"].forEach((ev) => $("codigo").addEventListener(ev, desenharCasas));
+  desenharCasas();
+  // "Renova em 00:18": o codigo do autenticador vale 30 s.
+  function relogio() { $("segundos").textContent = "00:" + String(30 - (Math.floor(Date.now() / 1000) % 30)).padStart(2, "0"); }
+  relogio();
+  setInterval(relogio, 1000);
 
   function mostrarQr(d) {
     if (d.simples) {
       // Seguranca "simples": sem autenticador - a conta ja esta pronta.
       $("liberado-email").textContent = d.email || "";
-      $("passo-senha").hidden = true; $("passo-liberado").hidden = false;
-      ["p1", "p2", "p3"].forEach((id) => { $(id).className = "feito"; });
+      $("marca-liberado").innerHTML = G;
+      frase("convite_pronto");
+      mostrar("passo-liberado");
       return;
     }
     $("qr").innerHTML = d.qr_svg || "";
     $("chave").textContent = String(d.segredo || "").replace(/(.{4})/g, "$1 ").trim();
     $("otpauth").href = d.otpauth || "#";
-    $("passo-senha").hidden = true; $("passo-app").hidden = false;
-    passo(2);
+    frase("convite_autenticador");
+    mostrar("passo-app");
   }
 
   // A volta do Google (E3a): #g=<token> busca o QR da conta que acabou de
@@ -250,82 +390,84 @@
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.detail || "a volta do Google venceu; abra o convite de novo");
       mostrarQr(d);
-    }).catch((err) => { $("erro-convite-texto").textContent = err.message; $("erro-convite").hidden = false; });
+    }).catch((err) => { $("erro-convite-texto").textContent = err.message; convidou(); });
   }
 
   $("google").addEventListener("click", async () => {
-    const b = $("google");
-    b.disabled = true; $("erro-senha").textContent = "";
+    ocupado = true; travar(); $("erro-senha").textContent = "";
     try {
-      const token = robo !== null && window.turnstile ? window.turnstile.getResponse(robo) : "";
-      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "convite", convite: codigoDoConvite, turnstile: token || "" });
+      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "convite", convite: codigoDoConvite, turnstile: tokenDoRobo() });
       location.assign(d.url);
       return;
     } catch (err) { $("erro-senha").textContent = err.message; }
-    if (robo !== null && window.turnstile) window.turnstile.reset(robo);
-    b.disabled = false;
+    // Cada token vale uma vez: o selo volta a verificar e destrava sozinho.
+    ocupado = false;
+    novoRobo();
+    travar();
   });
 
   if (!volta.get("g")) fetch(api).then(async (r) => {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) {
       $("erro-convite-texto").textContent = d.detail || "este convite não existe";
-      $("erro-convite").hidden = false;
+      convidou();
       return;
     }
-    $("nome").textContent = String(d.nome || "").split(" ")[0];
+    convite = d;
+    const primeiro = String(d.nome || "").split(" ")[0];
+    frase("convite", { nome: primeiro, escritorio: d.escritorio || "" });
     $("email").textContent = d.email;
     $("usuario").value = d.email;
-    if (d.escritorio) $("titulo").textContent = "Você foi convidado para o PAULUS de " + d.escritorio;
+    $("marca-conta").innerHTML = d.google ? G : ENVELOPE;
     if (d.seguranca === "simples") {
       // Sem autenticador: um passo so, e nada de instalar app.
-      document.querySelector(".texto > p").textContent = "O PAULUS roda no computador do escritório; você usa pela internet, com a sua própria conta. Um passo, uma vez só.";
-      $("p1").innerHTML = "<b>1</b>Entrar com a sua conta"; $("p2").hidden = true; $("p3").hidden = true;
-      document.querySelector("#passo-senha .app").hidden = true;
+      $("app").hidden = true;
+      $("passo-de").hidden = true;
     }
-    $("passo-senha").hidden = false;
+    mostrar("passo-senha");
     if (volta.get("erro")) $("erro-senha").textContent = volta.get("erro");
-    if (d.google) { $("com-google").hidden = false; $("ou").hidden = false; }
+    if (d.google) { $("google").hidden = false; $("ou").hidden = false; }
     // So o Google: o convite se aceita entrando no Google com a conta convidada.
     if (d.so_google) {
       if (!d.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem convidou você";
       $("por-senha").hidden = true; $("ou").hidden = true; $("continuar-senha").hidden = true;
       $("senha").required = false; $("repetir").required = false;
-      $("email").insertAdjacentText("afterend", " — entre no Google com essa conta");
+      $("so-google-ajuda").hidden = false;
     }
     mostrarRobo(d.turnstile_sitekey);
   }).catch(() => {
     $("erro-convite-texto").textContent = "não consegui abrir o convite; recarregue a página";
-    $("erro-convite").hidden = false;
+    convidou();
   });
 
   $("form-senha").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const b = e.target.querySelector("button[type=submit]");
-    b.disabled = true; $("erro-senha").textContent = "";
+    if (convite.so_google) return;
+    ocupado = true; travar(); $("erro-senha").textContent = "";
     try {
       if ($("senha").value !== $("repetir").value) throw new Error("as duas senhas não são iguais");
-      const token = robo !== null && window.turnstile ? window.turnstile.getResponse(robo) : "";
-      const d = await enviar(api + "/aceitar", { senha: $("senha").value, turnstile: token || "" });
+      const d = await enviar(api + "/aceitar", { senha: $("senha").value, turnstile: tokenDoRobo() });
       $("senha").value = ""; $("repetir").value = "";
       mostrarQr(d);
     } catch (err) { $("erro-senha").textContent = err.message; }
-    if (robo !== null && window.turnstile) window.turnstile.reset(robo);
-    b.disabled = false;
+    ocupado = false;
+    novoRobo();
+    travar();
   });
 
   $("form-codigo").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const b = e.target.querySelector("button[type=submit]");
+    const b = $("confirmar");
     b.disabled = true; $("erro-codigo").textContent = "";
     try {
-      const d = await enviar(api + "/confirmar", { codigo: $("codigo").value.trim() });
-      $("codigos").innerHTML = (d.codigos_recuperacao || []).map((c) => "<code>" + c.replace(/[<>&]/g, "") + "</code>").join("");
-      $("passo-app").hidden = true; $("passo-fim").hidden = false;
-      passo(4);
-    } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; }
+      const d = await enviar(api + "/confirmar", { codigo: $("codigo").value.replace(/\D/g, "") });
+      const lista = $("codigos");
+      lista.textContent = "";
+      (d.codigos_recuperacao || []).forEach((c) => { const x = document.createElement("code"); x.textContent = c; lista.appendChild(x); });
+      frase("convite_pronto");
+      mostrar("passo-fim");
+    } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; $("codigo").select(); }
   });
-  $("codigo").addEventListener("focus", () => passo(3));
 })();
 </script>
 </body>

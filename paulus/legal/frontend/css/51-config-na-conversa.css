@@ -1,0 +1,124 @@
+  /* ---------------------------- Configuracoes pela conversa (T5) */
+  /*
+    js/89-config-na-conversa.js: na conversa, o que muda (de quanto para
+    quanto) e o que pede atencao; na coluna de 460 px, a mesma secao de
+    Configuracoes, com o selo "novo" no que a conversa mudou e o rodape
+    "N mudanças · Descartar · Salvar alterações".
+  */
+  .cfc { display: grid; gap: 12px; min-width: 0; }
+  .cfc-bloco { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); overflow: hidden; box-shadow: var(--elev-card); }
+  .cfc-linha { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 8px 16px; border-top: 1px solid var(--ink-a06); font-size: 13.5px; }
+  .cfc-linha:first-child { border-top: none; }
+  .cfc-linha.neutra .cfc-campo, .cfc-linha.info .cfc-campo { color: var(--ink2); }
+  .cfc-campo { flex: 1; min-width: 0; color: var(--ink); }
+  .cfc-valor { display: inline-flex; align-items: center; gap: 8px; flex: none; max-width: 60%; font-size: 12.5px; color: var(--ink3); text-align: right; }
+  .cfc-valor .ic { color: var(--ink3); }
+  .cfc-valor b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cfc-valor b.cfc-leve { font-weight: 400; color: var(--ink2); }
+  .cfc-antes.riscado { text-decoration: line-through; }
+  .cfc .mono { font-family: var(--mono); font-size: 12px; }
+  .cfc-ic { display: inline-flex; flex: none; color: var(--ink3); }
+  .cfc-ic.ok { color: var(--okt); }
+  .cfc-ic.aviso { color: var(--warnt); }
+  .cfc-ic.erro { color: var(--acc); }
+  .cfc-ic.apagado { opacity: .5; }
+  .cfc-depois { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink); }
+  .cfc-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cfc-acoes button { display: inline-flex; align-items: center; gap: 6px; height: 34px; }
+  .cfc-nota { margin: 0; font-size: 12.5px; color: var(--ink3); }
+
+  .cfc-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+  .cfc-item .duas-linhas { flex: 1; min-width: 0; }
+  .cfc-item button { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+  .cfc-lembrete { gap: 6px; padding: 14px 16px; }
+  .cfc-lembrete p, .cfc-whats p { margin: 0; font-size: 14px; line-height: 1.6; }
+  .cfc-whats { gap: 0; }
+  .cfc-whats-topo { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a06); }
+  .cfc-whats-topo .duas-linhas { flex: 1; min-width: 0; }
+  .cfc-whats-topo > small { font-size: 12px; color: var(--ink3); }
+  .cfc-whats p { padding: 14px 16px; }
+  .cfc-passo-linha { min-height: 56px; }
+  .cfc-passo-linha.depois .duas-linhas { opacity: .7; }
+  .cfc-passo { display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ink-a2); font: 600 11px var(--sans); }
+  .cfc-passo.feito { border-color: transparent; background: var(--okt); color: var(--surf); }
+  .cfc-passo.atual { border-color: transparent; background: var(--ink); color: var(--surf); }
+
+  .cfc-teste { gap: 0; }
+  .cfc-teste-linha { display: grid; grid-template-columns: 22px minmax(0, 1fr) 84px 64px 64px; align-items: center; gap: 10px; min-height: 40px;
+    padding: 6px 16px; border-top: 1px solid var(--ink-a06); font-size: 13.5px; }
+  .cfc-teste-linha.cabeca { min-height: 34px; border-top: none; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink3); }
+  .cfc-teste-linha > span:nth-child(n+3) { text-align: right; }
+  .cfc-teste-linha b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cfc-teste-linha.depois { color: var(--ink3); }
+  .cfc-teste-linha.depois b { font-weight: 400; }
+  .cfc-teste-pe { display: flex; justify-content: space-between; gap: 10px; padding: 10px 16px 6px; border-top: 1px solid var(--ink-a06); font-size: 12px; color: var(--ink2); }
+  .cfc-teste-barra { margin: 0 16px 12px; }
+
+  /* ------------------------------------------------------ a coluna */
+  .cfn { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .cfn-topo { flex: none; display: flex; align-items: flex-start; gap: 10px; padding: 18px 16px 14px 20px; border-bottom: 1px solid var(--ink-a08); }
+  .cfn-ic { display: inline-flex; flex: none; padding-top: 1px; color: var(--ink2); }
+  .cfn-titulo { display: grid; gap: 1px; flex: 1; min-width: 0; }
+  .cfn-titulo b { font: 600 14.5px var(--sans); }
+  .cfn-titulo small { font-size: 12px; color: var(--ink3); }
+  .cfn-abrir { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 12.5px; white-space: nowrap; }
+  .cfn-fechar { flex: none; }
+  .cfn-corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+  .cfn-corpo .cfg-secao { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  /* A abertura da secao (o titulo em serifa) e a da tela inteira: na coluna, o topo ja diz. */
+  .cfn-corpo .sv-resumo-topo { display: none; }
+  .cfn-corpo .cfg-ficha { grid-auto-flow: column; grid-template-columns: none; padding: 12px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .cfn-corpo .ag-duas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cfn-pe { flex: none; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 12px 16px 12px 20px; border-top: 1px solid var(--ink-a08); }
+  .cfn-resumo { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink3); }
+  .cfn-pe button { flex: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+  .cfn-corpo .cfg-lixo-linha .duas-linhas { min-width: 0; }
+  .cfn-corpo .cfg-lixo-linha .duas-linhas b, .cfn-corpo .cfg-lixo-linha .duas-linhas small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cfn-corpo .cfg-tema { position: relative; }
+  .cfn-corpo .cfg-tema .cfn-novo { position: absolute; top: 14px; right: 14px; margin: 0; }
+  /* "Agora" na coluna: as tres medidas em linha e o grafico embaixo (`Conversa - Desempenho`). */
+  .cfn-corpo .cfg-desempenho { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .cfn-corpo .cfg-medidas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 12px 12px 0; border: none; }
+  .cfn-corpo .cfg-medida svg { display: none; }
+  .cfn-corpo .cfg-medida { min-width: 0; padding: 8px 10px; }
+  /* O selo leva o id: os rotulos dos toggles e dos temas pintam o texto deles por cima. */
+  #lado-ferramenta span.cfn-novo { color: var(--surf); background: var(--ink); font: 600 10.5px var(--sans); text-align: center; }
+  .cfn-novo { display: inline-flex; align-items: center; height: 18px; margin-left: 8px; padding: 0 6px; border-radius: 5px; background: var(--ink); color: var(--surf);
+    font: 600 10.5px var(--sans); letter-spacing: .02em; vertical-align: middle; }
+  .ag-campo.cfn-com-selo { position: relative; }
+  .ag-campo.cfn-com-selo input { padding-right: 64px; border-color: var(--ink); }
+  .ag-campo.cfn-com-selo .cfn-novo { position: absolute; right: 10px; bottom: 11px; margin: 0; }
+  .cfn-com-selo-escolha { border-color: var(--ink); }
+  .cfn-com-selo-escolha .cfn-novo { margin: 0 4px 0 auto; }
+  .ag-campo.cfn-atencao { position: relative; }
+  .ag-campo.cfn-atencao input { padding-right: 38px; border-color: var(--warnt); }
+  .cfn-atencao-ic { position: absolute; right: 10px; bottom: 11px; display: inline-flex; color: var(--warnt); }
+  .ag-toggle.cfn-destaque { border-radius: 10px; box-shadow: 0 0 0 1px var(--warnt); }
+
+  .cfn-busca { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); color: var(--ink3); }
+  .cfn-busca input { flex: 1; min-width: 0; max-width: 100%; height: 100%; border: none; background: none; padding: 0; color: var(--ink); font: 500 13.5px var(--sans); }
+  .cfn-busca input:focus { outline: none; }
+  .cfn-busca small { flex: none; font-size: 12px; }
+  .cfg-lixo-linha.cfn-achado { background: var(--fill); }
+
+  .cfn-lembrete { display: grid; gap: 6px; }
+  .cfn-lembrete label { font-size: 12.5px; color: var(--ink2); }
+  .cfn-lembrete textarea { width: 100%; min-height: 96px; resize: vertical; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 10px; background: var(--surf);
+    color: var(--ink); font: 400 13.5px/1.55 var(--sans); }
+  .cfn-lembrete-pe { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cfn-lembrete-pe small { font-size: 12px; color: var(--ink3); }
+  .cfn-backup { display: grid; gap: 10px; }
+  /* Com a pasta e a senha aqui, os botoes de dialogo e o "Fazer backup agora" sao o rodape. */
+  .cfn-backup ~ .cfg-botoes { display: none; }
+  /* As linhas de servico (Conexoes, Modelos, Equipe) quebram na coluna de 460 em vez de estourar. */
+  .cfn-corpo .cfg-servico { flex-wrap: wrap; row-gap: 8px; }
+  .cfn-corpo .cfg-servico > .duas-linhas { flex: 1 1 200px; min-width: 0; }
+  .cfn-corpo .cfg-servico > .duas-linhas b, .cfn-corpo .cfg-servico > .duas-linhas small { overflow: hidden; text-overflow: ellipsis; }
+  .cfn-convite { background: var(--fill); }
+
+  @media (max-width: 899px) {
+    .cfc-valor { max-width: 55%; }
+    .cfc-teste-linha { grid-template-columns: 22px minmax(0, 1fr) 56px 48px 48px; gap: 6px; padding: 6px 12px; }
+    .cfn-abrir { display: none; }
+  }

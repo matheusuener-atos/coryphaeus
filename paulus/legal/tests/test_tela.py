@@ -31,6 +31,11 @@ from pathlib import Path
 
 RAIZ = Path(__file__).parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
+# O servidor sobe sobre os dados reais: sem retomar as transcricoes paradas
+# deles (carregar o Whisper ali derrubava o teste por falta de memoria).
+import os  # noqa: E402
+
+os.environ.setdefault("PAULUS_SEM_VOZ", "1")
 
 _falhas: list[str] = []
 
@@ -100,6 +105,12 @@ def _subir_servidor(porta: int):
     import api
 
     api.estado.porta = porta
+    # Os dados reais podem estar vinculados a uma conta Google sem "manter
+    # aberto": o servidor sobe travado e toda rota responde 423 ate entrar com
+    # o Google. A trava tem teste proprio (test_e5_vinculo); aqui ela fica
+    # aberta so neste processo - nada e gravado nos dados.
+    if getattr(api.estado, "vinculo", None) is not None:
+        api.estado.vinculo.destravado = True
     servidor = uvicorn.Server(
         uvicorn.Config(api.app, host="127.0.0.1", port=porta, log_level="error")
     )
@@ -160,6 +171,10 @@ def test_celular(navegador, base: str) -> None:
         largura = "() => document.documentElement.scrollWidth"
 
         pag.goto(base + "/", wait_until="networkidle")
+        # Com o Google configurado (dados de verdade), ele vem primeiro e o
+        # e-mail e a senha ficam no "Entrar com e-mail e senha".
+        if pag.locator("#usar-senha").is_visible():
+            pag.click("#usar-senha")
         checar(pag.evaluate(largura) <= 390 and pag.locator("#email").is_visible(), "a tela de entrar cabe em 390 px",
                pag.evaluate(largura))
         pag.fill("#email", email)
@@ -179,10 +194,12 @@ def test_celular(navegador, base: str) -> None:
         pag.wait_for_timeout(500)
         checar(pag.evaluate("() => document.documentElement.classList.contains('remoto')"), "entrou de fora")
         checar(pag.evaluate(largura) <= 390, "a conversa cabe em 390 px", pag.evaluate(largura))
-        trilho = pag.evaluate("() => { const r = document.getElementById('trilho').getBoundingClientRect(); return {topo: r.top, altura: r.height}; }")
+        # Pacote "PAULUS - Telas Mobile" (02/10/2026): no celular o trilho sai
+        # e a navegacao e a barra de baixo de cinco icones (#barra-celular).
+        trilho = pag.evaluate("() => { const r = document.getElementById('barra-celular').getBoundingClientRect(); return {topo: r.top, altura: r.height}; }")
         checar(trilho["topo"] > 700, "a barra de destinos fica embaixo", trilho)
-        alvos = pag.evaluate("() => [...document.querySelectorAll('.trilho-item')].filter(b => b.offsetParent).map(b => b.getBoundingClientRect().height)")
-        checar(alvos and min(alvos) >= 44, "cada destino tem 44 px de toque", alvos[:3])
+        alvos = pag.evaluate("() => [...document.querySelectorAll('#barra-celular button')].filter(b => b.offsetParent).map(b => Math.min(b.getBoundingClientRect().height, b.getBoundingClientRect().width))")
+        checar(len(alvos) == 5 and min(alvos) >= 44, "cada destino tem 44 px de toque", alvos)
 
         nome = api.estado.searcher.documents[0].name if api.estado.searcher.documents else ""
         if nome:
@@ -409,10 +426,13 @@ def main() -> int:
                 "logo depois do nome do escritorio vem 'Acesso a distancia'",
                 pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
             )
+            # De fabrica vem desligado; nos dados de verdade, com um endereco
+            # ja gravado, vem ligado. O teste confere o que os dados dizem.
+            ja_tem = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("hostname"))
             checar(
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked') === 'false'"
-                                " && !document.getElementById('cx-slug')"),
-                "desligado de fabrica, sem nada para preencher",
+                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == str(ja_tem).lower()
+                and (ja_tem or not pagina.evaluate("() => !!document.getElementById('cx-slug')")),
+                "desligado de fabrica (ou como os dados dizem), sem nada para preencher",
             )
             # Ligado, com o Worker de mentira: so a disponibilidade.
             from types import SimpleNamespace
@@ -421,22 +441,24 @@ def main() -> int:
             provisao_antes = conexao.provisao
             conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst, token="": {"disponivel": True, "motivo": "", "sugestao": ""})
             try:
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
-                pagina.wait_for_selector("#cx-slug", timeout=5000)
-                pagina.fill("#cx-slug", "escritorio-da-tela")
-                pagina.wait_for_timeout(1200)
-                checar(
-                    pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
-                    and "disponível" in pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
-                    "ligado: o endereco, conferido enquanto digita, com o final em destaque",
-                    pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
-                )
-                checar(
-                    pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
-                    "as tres etapas: endereco, conta do titular, confirmar no navegador",
-                )
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
-                pagina.wait_for_timeout(300)
+                # Com um endereco ja gravado (dados de verdade), ligar nao se aplica.
+                if not ja_tem:
+                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                    pagina.wait_for_selector("#cx-slug", timeout=5000)
+                    pagina.fill("#cx-slug", "escritorio-da-tela")
+                    pagina.wait_for_timeout(1200)
+                    checar(
+                        pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
+                        and "disponível" in pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
+                        "ligado: o endereco, conferido enquanto digita, com o final em destaque",
+                        pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
+                    )
+                    checar(
+                        pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
+                        "as tres etapas: endereco, conta do titular, confirmar no navegador",
+                    )
+                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                    pagina.wait_for_timeout(300)
             finally:
                 conexao.provisao = provisao_antes
             pagina.evaluate("() => concluirBoasVindas(true)")
@@ -485,7 +507,7 @@ def main() -> int:
               return largos;
             }"""
             destinos = pagina.evaluate("() => DESTINOS.map(d => ({id: d.id, nome: d.nome}))")
-            # Servicos, Gravacoes e Apoiar sao so da casca, sem par no servidor.
+            # Servicos e Gravacoes sao so da casca, sem par no servidor.
             do_servidor = {d["id"] for d in destinos}
             destinos += [{"id": i, "nome": i} for i in casca["destinos"] if i not in do_servidor]
             com_compositor = []
@@ -894,7 +916,7 @@ def main() -> int:
             checar(pagina.evaluate("() => typeof aprovarMarcados === 'function' && !!document.getElementById('ap-fila')"),
                    "a fila de Aprovacoes responde ao Ctrl+Enter")
 
-            # "Novidades da versao" mora em Apoio e versao desde fd658f7.
+            # "Novidades da versao" mora em Configuracoes > Versao desde fd658f7.
             pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('plano'); }")
             pagina.wait_for_timeout(1800)
             pagina.evaluate("() => document.querySelector('[data-cfg-novidades]').click()")
@@ -1073,35 +1095,10 @@ def main() -> int:
                 "a semana traz os habitos e o parecer",
             )
 
-            print("\nApoiar o projeto: contribuir e quem ja apoia")
-            # O coracao do trilho abre a tela do desenho (A14); o pagamento nao
-            # existe e a tela diz isso, em vez do aviso generico de antes.
-            pagina.evaluate("() => abrirDestino('apoiar')")
-            pagina.wait_for_timeout(900)
-            # Desde f814227: duas formas (Pix uma vez, cartao todo mes) e os
-            # valores numa linha so - quatro valores e o Outro.
-            grades = pagina.evaluate(
-                "() => [...document.querySelectorAll('#apoio-tela .cfg-valores')]"
-                ".map(g => getComputedStyle(g).gridTemplateColumns.split(' ').length)"
-            )
-            checar(grades == [2, 5], f"as duas formas lado a lado e os cinco valores numa linha (achou {grades})")
+            print("\no apoio saiu do PAULUS (02/10/2026)")
             checar(
-                pagina.evaluate("() => !!document.querySelector('#apoio-tela .apoio-previa')"),
-                "a previa da lista de apoiadores aparece",
-            )
-            pagina.evaluate("() => document.querySelector('[data-apoio-visao=lista]').click()")
-            pagina.wait_for_timeout(600)
-            # A lista e a publica de paulus.ia.br/apoiadores, nunca uma de
-            # exemplo; a tela diz de onde vem, com ou sem internet.
-            checar(
-                pagina.evaluate("() => { const t = document.getElementById('apoio-tela').innerText;"
-                                " return t.includes('Quem mantém o PAULUS gratuito') && t.includes('paulus.ia.br/apoiadores')"
-                                " && !!document.querySelector('#apoio-tela .apoio-lista'); }"),
-                "Quem ja apoia mostra a lista publica do site",
-            )
-            checar(
-                pagina.evaluate("() => apoio.publicar === false"),
-                "aparecer na lista vem desligado",
+                pagina.evaluate("() => !document.querySelector('[data-destino=apoiar]') && typeof mostrarApoiar === 'undefined'"),
+                "nem o coracao no menu nem a tela Apoiar",
             )
 
             print("\no escritorio e um so: a equipe entra por convite (E4)")

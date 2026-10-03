@@ -98,6 +98,15 @@ function desenharSobre(m, pergunta, visor) {
   if (c.continuacao) linhas.push(["Pergunta", "entendida como continuação da anterior"]);
   if (m.interrompida) linhas.push(["Situação", "parada no meio"]);
   if (c.agente) linhas.push(["Agente", c.agente + (c.agente_versao ? " · versão " + c.agente_versao : "")]);
+  // A profundidade (js/92-entrevista.js): o nível, as etapas e os tokens do trabalho.
+  if (c.profundidade && c.profundidade.nome) {
+    const p = c.profundidade;
+    const etapas = (p.etapas || []).map((e) => ({ analise: "análise", plano: "plano", redacao: "redação", revisao: "revisão",
+      reescrita: "reescrita" }[e] || e));
+    linhas.push(["Profundidade", p.nome + (etapas.length ? " · " + etapas.join(", ") : "") +
+      (p.respostas ? " · " + plural(p.respostas, "ponto definido", "pontos definidos") + " antes" : "")]);
+    if (p.tokens) linhas.push(["Tokens", milhar(p.tokens) + " no trabalho todo"]);
+  }
   // D4: onde foi escrita e por quê (js/61-aparelho-tela.js).
   if (c.escrita && typeof fraseDaEscrita === "function") linhas.push(["Escrita", fraseDaEscrita(c.escrita)]);
   // L1: a nota que a pessoa deu a esta resposta (js/63-aprendizado.js).
@@ -195,11 +204,14 @@ function textoDoProximo() {
   const modo = modoDoEscopo();
   if (modo === "foco") return estado.foco.length === 1 ? "A próxima pergunta lê só “" + estado.foco[0] + "”" : "A próxima pergunta lê os " + plural(estado.foco.length, "documento") + " da conversa";
   if (modo === "perguntar") return "Na próxima pergunta, eu pergunto onde procurar";
+  if (modo === "criativo") return "Modo criativo: a próxima pergunta não lê documento, o Paulus responde pelo que sabe";
   return "A próxima pergunta procura em todo o Acervo" + (estado.contratos ? " · " + plural(estado.contratos, "documento") : "");
 }
 
 function desenharBarra() {
   if (!painelNovo()) return;
+  // O agente agora e pilula na caixa da pergunta (js/92-entrevista.js).
+  if (typeof desenharPilulaAgente === "function") desenharPilulaAgente();
   const caixa = $("registro");
   if (!caixa) return;
   const agora = $("registro-agora");
@@ -207,6 +219,7 @@ function desenharBarra() {
   $("atividade").hidden = true;
   caixa.classList.remove("aberto");
   caixa.classList.add("barra-escopo");
+  $("registro-cabeca").tabIndex = -1;
   const seta = caixa.querySelector(".registro-seta");
   if (seta) seta.hidden = true;
   if (!estado.trabalhoId) { caixa.hidden = true; return; }
@@ -217,7 +230,7 @@ function desenharBarra() {
   // Pacote de telas (`Conversa - Carregando`): com a resposta andando, a
   // barra continua dizendo onde a proxima pergunta procura - o que acontece
   // agora, e o Parar, moram no cartao de trabalho e no botao de enviar.
-  agora.innerHTML = andando ? esc(textoDoProximo()) : esc(textoDoProximo()) + barraDoAgente();
+  agora.innerHTML = esc(textoDoProximo());
   const parar = agora.querySelector("[data-barra-parar]");
   if (parar) parar.onclick = (e) => { e.stopPropagation(); pararResposta(); };
   const sel = agora.querySelector("[data-barra-agente]");

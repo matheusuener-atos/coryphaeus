@@ -159,6 +159,30 @@ def test_medidas_e_comentario() -> None:
     checar(folha["B2"].comment is not None and folha["B2"].comment.text == "nota", "o comentario vai junto")
 
 
+def test_fundo() -> None:
+    print("\no fundo da celula (Destacar atrasados) fica gravado e vai para o XLSX")
+    import io
+
+    aba = P.Aba()
+    aba.gravar("A2", {"valor": "Parcela 2/10", "fundo": "vermelho"})
+    aba.gravar("B2", {"fundo": "vermelho"})
+    aba.gravar("C2", {"valor": "x", "fundo": "roxo-neon"})
+    checar(aba.obter("A2").fundo == "vermelho" and aba.obter("A2").to_dict().get("fundo") == "vermelho", "o fundo grava e sai no dicionário")
+    checar("B2" in aba.celulas, "célula só com fundo não some")
+    checar(aba.obter("C2").fundo == "", "fundo fora da paleta não entra")
+    volta = P.de_dict(json.loads(P.para_json([aba])))[0]
+    checar(volta.obter("A2").fundo == "vermelho", "o fundo volta do JSON")
+    bruto = P.para_xlsx([aba], [P.calcular_aba(aba)])
+    from openpyxl import load_workbook
+
+    folha = load_workbook(io.BytesIO(bruto)).worksheets[0]
+    checar(str(folha["A2"].fill.start_color.rgb).endswith(P.FUNDOS["vermelho"]), "vai para o XLSX", folha["A2"].fill.start_color.rgb)
+    de_volta = P.de_xlsx(bruto)[0]
+    checar(de_volta.obter("A2").fundo == "vermelho", "e volta do XLSX", de_volta.obter("A2"))
+    aba.gravar("B2", {"fundo": ""})
+    checar("B2" not in aba.celulas, "tirar o fundo da célula vazia apaga a célula")
+
+
 def test_lote() -> None:
     print("\ngravar em lote")
     aba = P.Aba()
@@ -233,6 +257,7 @@ def main() -> int:
     test_inserir_e_excluir_linhas()
     test_colunas()
     test_medidas_e_comentario()
+    test_fundo()
     test_lote()
     test_rotas()
     print()

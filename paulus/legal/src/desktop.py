@@ -499,18 +499,59 @@ def _entregar_ao_word(porta: int, pedido: tuple[str, str], timeout: float = 15) 
         return False
 
 
-def _trazer_para_frente() -> None:
+def _trazer_para_frente() -> bool:
+    """
+    A janela do PAULUS na frente de tudo - quando o login do Google termina no
+    navegador, por exemplo. O Windows nao deixa um programa que esta atras
+    tomar o foco (SetForegroundWindow so pisca na barra), entao, em ordem:
+    restaura se estiver minimizada; tenta direto; prende a fila de entrada a
+    da janela que esta na frente (o navegador) e tenta de novo; e, se ainda
+    nao veio, um toque no Alt - o Windows libera a troca de foco a quem
+    "recebeu a ultima tecla". Sem conseguir, a janela pisca na barra de
+    tarefas ate a pessoa clicar. Devolve se veio.
+    """
     if not _HWND or sys.platform != "win32":
-        return
+        return False
     try:
         import ctypes
+        from ctypes import wintypes
 
-        u = ctypes.windll.user32
-        if u.IsIconic(_HWND):
-            u.ShowWindow(_HWND, 9)  # SW_RESTORE
-        u.SetForegroundWindow(_HWND)
+        u, k = ctypes.windll.user32, ctypes.windll.kernel32
+        hwnd = wintypes.HWND(_HWND)
+        if u.IsIconic(hwnd):
+            u.ShowWindow(hwnd, 9)                      # SW_RESTORE
+        elif not u.IsWindowVisible(hwnd):
+            u.ShowWindow(hwnd, 5)                      # SW_SHOW
+        u.GetForegroundWindow.restype = wintypes.HWND
+        na_frente = lambda: (u.GetForegroundWindow() or 0) == _HWND  # noqa: E731
+        if u.SetForegroundWindow(hwnd) and na_frente():
+            return True
+        frente = u.GetForegroundWindow()
+        fio_frente = u.GetWindowThreadProcessId(wintypes.HWND(frente), None) if frente else 0
+        fio_meu = k.GetCurrentThreadId()
+        if fio_frente and fio_frente != fio_meu and u.AttachThreadInput(fio_meu, fio_frente, True):
+            try:
+                u.BringWindowToTop(hwnd)
+                u.SetForegroundWindow(hwnd)
+            finally:
+                u.AttachThreadInput(fio_meu, fio_frente, False)
+        if not na_frente():
+            u.keybd_event(0x12, 0, 0, 0)               # VK_MENU (Alt) apertado
+            u.keybd_event(0x12, 0, 2, 0)               # e solto (KEYEVENTF_KEYUP)
+            u.SetForegroundWindow(hwnd)
+        if na_frente():
+            return True
+
+        class FLASHWINFO(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.UINT), ("hwnd", wintypes.HWND), ("dwFlags", wintypes.DWORD),
+                        ("uCount", wintypes.UINT), ("dwTimeout", wintypes.DWORD)]
+
+        # FLASHW_ALL | FLASHW_TIMERNOFG: pisca ate a janela vir para a frente.
+        info = FLASHWINFO(ctypes.sizeof(FLASHWINFO), hwnd, 0x3 | 0xC, 0, 0)
+        u.FlashWindowEx(ctypes.byref(info))
     except Exception:  # noqa: BLE001 - a janela fica onde estava
         pass
+    return False
 
 
 def _pedido_externo(tipo: str, caminho: str) -> None:
@@ -522,6 +563,78 @@ def _pedido_externo(tipo: str, caminho: str) -> None:
         # Sem esperar: anexar le o arquivo (pode levar segundos) e quem
         # entregou nao pode ficar preso nisso - senao desiste e abre outra janela.
         _JANELA.evaluate_js("setTimeout(function () { perguntarSobreArquivo(" + json.dumps(caminho) + "); }, 0); true")
+
+
+def _comando_do_protocolo() -> str:
+    """
+    O que o Windows roda para "paulus://...": o PAULUS.exe instalado, ou -
+    rodando pelo terminal - o pythonw com este desktop.py. O endereco chega
+    como argumento, e o main() o trata como abrir de novo: o PAULUS aberto
+    vem para a frente.
+    """
+    if os.environ.get("PAULUS_INSTALADO"):
+        exe = Path(__file__).resolve().parents[2] / "PAULUS.exe"
+        return f'"{exe}" "%1"' if exe.exists() else ""
+    py = Path(sys.executable)
+    pythonw = py.with_name("pythonw.exe")
+    return f'"{pythonw if pythonw.exists() else py}" "{Path(__file__).resolve()}" "%1"'
+
+
+def _registrar_protocolo() -> None:
+    """
+    O endereco paulus:// na area do usuario (02/10): a pagina de volta do
+    Google o abre, e o navegador pergunta "Abrir PAULUS?". O instalador
+    registra e a desinstalacao apaga (tools/instalador/Instalador.cs). Rodando
+    pelo terminal, so registra se ninguem registrou ou se o programa
+    registrado sumiu - um PAULUS instalado nunca e trocado pelo de teste.
+    """
+    if sys.platform != "win32":
+        return
+    comando = _comando_do_protocolo()
+    if not comando:
+        return
+    try:
+        import winreg
+
+        chave = r"Software\Classes\paulus"
+        atual = ""
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, chave + r"\shell\open\command") as k:
+                atual = str(winreg.QueryValueEx(k, "")[0] or "")
+        except OSError:
+            pass
+        if atual == comando:
+            _nome_do_protocolo(winreg, chave)
+            return
+        if atual and not os.environ.get("PAULUS_INSTALADO"):
+            registrado = atual.split('"')[1] if atual.startswith('"') else atual.split(" ")[0]
+            if Path(registrado).exists() and Path(registrado).name.lower() == "paulus.exe":
+                return
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, chave) as k:
+            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, "URL:PAULUS")
+            winreg.SetValueEx(k, "URL Protocol", 0, winreg.REG_SZ, "")
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, chave + r"\shell\open\command") as k:
+            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, comando)
+        _nome_do_protocolo(winreg, chave)
+    except OSError:
+        pass                                   # sem o registro, o "Voltar" da pagina segue pelo servidor
+
+
+def _nome_do_protocolo(winreg, chave: str) -> None:
+    """
+    O nome que o navegador mostra ao perguntar "Abrir ...?": PAVLVS, e nao o
+    nome do executavel (rodando pelo terminal, seria "Python"). E o
+    FriendlyAppName do verbo e o icone do P.
+    """
+    try:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, chave + r"\shell\open") as k:
+            winreg.SetValueEx(k, "FriendlyAppName", 0, winreg.REG_SZ, "PAVLVS")
+        icone = Path(__file__).resolve().parent.parent / "frontend" / "img" / "paulus.ico"
+        if icone.exists():
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, chave + r"\DefaultIcon") as k:
+                winreg.SetValueEx(k, "", 0, winreg.REG_SZ, f'"{icone}",0')
+    except OSError:
+        pass
 
 
 def _sair_da_pasta_do_programa() -> None:
@@ -617,6 +730,7 @@ def main() -> int:
     except OSError:
         pass
     api.estado.ao_pedido_externo = _pedido_externo
+    _registrar_protocolo()
     if pedido_word:
         def _atender_o_word() -> None:
             try:

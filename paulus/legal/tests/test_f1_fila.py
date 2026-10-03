@@ -199,7 +199,7 @@ def test_api():
     llama_client.requests = SimpleNamespace(post=ollama.post, get=ollama.get, exceptions=requests.exceptions)
     cliente = llama_client.LlamaClient(model="falso:1b", host="http://127.0.0.1:9")
     api.estado.client = cliente
-    api.estado.cliente_para = lambda tarefa: cliente
+    api.estado.cliente_para = lambda tarefa, **k: cliente
     api.estado.saber.ligada = False
     api._juiz = lambda: None
     api.check_ollama = lambda modelo: (True, "")

@@ -64,7 +64,9 @@ function etiquetaDeAcesso(email) {
    entra em Cadastros › Equipe pelo convite, com o vinculo e a funcao.
    `ficha` e a pessoa que ja esta em Cadastros. Devolve a ficha (com o id)
    quando o convite saiu; senao, false. */
-async function convidarPessoa(ficha, depois) {
+async function convidarPessoa(ficha, depois, inicial) {
+  // `inicial`: o nome e o e-mail que a conversa ja trouxe (js/89-config-na-conversa.js).
+  const ja = inicial || {};
   const pedido = dialogo({
     titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao PAULUS",
     texto: (eqp.soGoogle
@@ -73,8 +75,8 @@ async function convidarPessoa(ficha, depois) {
       "\nO e-mail do convite precisa ser o da conta Google da pessoa (Gmail ou Google Workspace)." +
       (ficha ? "" : " Ela também entra em Cadastros › Equipe."),
     campos: [
-      { chave: "nome", rotulo: "Nome", valor: ficha ? ficha.nome : "", obrigatorio: true },
-      { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: ficha ? (ficha.email || "") : "", placeholder: "com ele a pessoa entra", obrigatorio: true },
+      { chave: "nome", rotulo: "Nome", valor: ficha ? ficha.nome : (ja.nome || ""), obrigatorio: true },
+      { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
     ],
     depois: (ficha ? "" : '<div class="dialogo-duas"><div class="dialogo-campo"><label for="eqp-tipo">Vínculo</label><div class="dialogo-caixa">' +
@@ -190,8 +192,9 @@ function cartaoDaEquipeCfg() {
       '<span class="duas-linhas"><b>' + esc(f.nome) + "</b><small>" + esc([f.tipo === "socio" ? "sócio" : "colaborador", f.email].filter(Boolean).join(" · ")) + "</small></span>" +
       etiquetaDeAcesso(f.email) + '<span class="cfg-botoes">' + acao + "</span></div>";
   }).join("");
-  return cartaoCfg("A equipe", metaCfg(plural(eqp.equipe.length, "pessoa")),
-    (linhas ? '<div class="cfg-linhas">' + linhas + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>') +
+  const novo = typeof linhaDoConviteNoLado === "function" ? linhaDoConviteNoLado() : "";
+  return cartaoCfg("A equipe", metaCfg(plural(eqp.equipe.length + (novo ? 1 : 0), "pessoa")),
+    (linhas || novo ? '<div class="cfg-linhas">' + linhas + novo + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>') +
     '<div class="acesso-pe"><button class="primario com-icone" data-eqp-cfg-novo="1">' + ic("send", 16) + "Convidar pela internet</button>" +
     '<button class="com-icone" data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button>" +
     '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao PAULUS se liga a cada pessoa pelo e-mail Google.</p></div>');

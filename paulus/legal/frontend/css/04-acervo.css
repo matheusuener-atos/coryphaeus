@@ -43,7 +43,7 @@
     grade da tela distribui o espaco.
   */
   button.com-icone { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .acervo-trecho { grid-column: 2 / -1; font-size: 12.5px; line-height: 1.5; color: var(--ink2); border-left: 2px solid var(--ink-a15); padding-left: 9px; }
+  .acervo-trecho { grid-column: 2 / -1; font-size: 12.5px; line-height: 1.5; color: var(--ink2); padding-left: 9px; }
   .marcar.desligado { opacity: 0.35; pointer-events: none; }
   .conversa-col.tela-cheia .fluxo { padding: 0; gap: 0; }
   .conversa-col.tela-cheia .centro { flex: 1; min-height: 0; }
@@ -184,7 +184,7 @@
     padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 14px; cursor: pointer;
   }
   .tabela-linha:hover { background: var(--sub); }
-  .tabela-linha.aberta { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); border-bottom-color: transparent; }
+  .tabela-linha.aberta { background: var(--bg); border-bottom-color: transparent; }
   .tabela-linha.apagada { color: var(--ink3); }
   .tabela-linha.fora { color: var(--ink3); }
   .tabela-corpo > :last-child { border-bottom: none; }
@@ -219,10 +219,19 @@
     display: inline-flex; align-items: center; justify-content: center;
     font: 800 11px var(--sans); letter-spacing: -.02em;
   }
-  .glifo.pdf { background: var(--glifo-pdf); font-size: 7px; letter-spacing: .02em; }
-  .glifo.docx, .glifo.doc { background: var(--glifo-word); }
-  .glifo.xlsx, .glifo.xls { background: var(--glifo-excel); }
-  .glifo.outro { background: var(--mute2); font-size: 8px; }
+  /* A miniatura do tipo (js/12-telas-e-acervo.js, tipoDoArquivo): a folha
+     colorida de frontend/img/tipo-*.png, inteira na caixa, sem fundo. Vale
+     para o glifo (20 px) e para a marca do visor (.fl-marca, 32 px). */
+  :is(.glifo, .fl-marca)[class*=" t-"] { border-radius: 0; background: center / contain no-repeat; }
+  :is(.glifo, .fl-marca).t-pdf { background-image: url("/img/tipo-pdf.png"); }
+  :is(.glifo, .fl-marca).t-word { background-image: url("/img/tipo-word.png"); }
+  :is(.glifo, .fl-marca).t-xls { background-image: url("/img/tipo-xls.png"); }
+  :is(.glifo, .fl-marca).t-ppt { background-image: url("/img/tipo-ppt.png"); }
+  :is(.glifo, .fl-marca).t-text { background-image: url("/img/tipo-text.png"); }
+  :is(.glifo, .fl-marca).t-image { background-image: url("/img/tipo-image.png"); }
+  :is(.glifo, .fl-marca).t-record { background-image: url("/img/tipo-record.png"); }
+  :is(.glifo, .fl-marca).t-zip { background-image: url("/img/tipo-zip.png"); }
+  :is(.glifo, .fl-marca).t-doubt { background-image: url("/img/tipo-doubt.png"); }
   .nome-doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .duas-linhas { display: grid; line-height: 1.3; min-width: 0; flex: 1; }
   .duas-linhas b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -357,7 +366,7 @@
   /* prazos: a clausula de origem e o cartao de cada prazo */
   .folha-clausula { background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); padding: 14px 16px; display: grid; gap: 8px; font-family: var(--serif); }
   .folha-clausula small { font: 500 12px var(--sans); color: var(--papel-ink3); }
-  .folha-clausula p { margin: 0; padding: 8px 10px; background: var(--papel-accbg); box-shadow: inset 3px 0 0 var(--papel-acc); font-size: 14.5px; line-height: 1.55; color: var(--tinta); }
+  .folha-clausula p { margin: 0; padding: 8px 10px; background: var(--papel-accbg); font-size: 14.5px; line-height: 1.55; color: var(--tinta); }
   .prazo-cartao { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); cursor: pointer; }
   .prazo-cartao:hover { border-color: var(--ink); }
   .prazo-cartao.acc { border-color: var(--accln); background: var(--accbg2); }
@@ -458,7 +467,7 @@
      selecionavel, senao segurar o botao pinta texto. */
   .selecionando { user-select: none; }
   .selecionando .tabela-linha, .selecionando .sv-pasta, .selecionando .ag-linha { cursor: pointer; }
-  .tabela-linha.escolhida, .ag-linha.escolhida, .lc-linha.escolhida, .anx-linha.escolhida { background: var(--fill); box-shadow: inset 3px 0 0 var(--destaque); }
+  .tabela-linha.escolhida, .ag-linha.escolhida, .lc-linha.escolhida, .anx-linha.escolhida { background: var(--fill); }
   .sv-pasta.escolhida { border-color: var(--destaque); box-shadow: 0 0 0 2px var(--destaque-linha); background: var(--fill); }
   .barra-selecao {
     flex: none; display: flex; align-items: center; gap: 8px; min-height: 49px; padding: 8px 12px 8px 16px;

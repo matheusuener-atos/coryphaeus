@@ -56,6 +56,10 @@ RE_CELULA = re.compile(r"^([A-Z]{1,2})(\d{1,4})$")
 
 # ------------------------------------------------------------- a grade
 
+# Os fundos que a celula aceita, com a cor que vai para o XLSX. Paleta curta
+# de proposito: vermelho e o vencido, amarelo o que pede olhar, verde o pago.
+FUNDOS = {"vermelho": "F8D7D3", "amarelo": "FBEFC9", "verde": "D9EFDD", "cinza": "ECEBE7"}
+
 
 @dataclass
 class Celula:
@@ -74,6 +78,9 @@ class Celula:
     # Nota presa na celula, como o comentario do Excel: aparece ao passar o
     # mouse e vai junto para o XLSX.
     comentario: str = ""
+    # O fundo, de uma paleta curta (FUNDOS): "Destacar atrasados" pinta a
+    # linha vencida, e a cor vai junto para o XLSX e volta dele.
+    fundo: str = ""
 
     @property
     def e_formula(self) -> bool:
@@ -83,7 +90,7 @@ class Celula:
     def vazia(self) -> bool:
         return (not self.valor and not self.formato and not self.negrito
                 and not self.italico and not self.borda and self.juntar <= 1
-                and not self.comentario)
+                and not self.comentario and not self.fundo)
 
     def to_dict(self) -> dict:
         saida = {
@@ -93,6 +100,8 @@ class Celula:
         }
         if self.comentario:
             saida["comentario"] = self.comentario
+        if self.fundo:
+            saida["fundo"] = self.fundo
         return saida
 
 
@@ -125,6 +134,8 @@ class Aba:
             celula.juntar = max(1, min(int(dados["juntar"] or 1), MAX_COLUNAS))
         if "comentario" in dados:
             celula.comentario = str(dados["comentario"] or "").strip()[:2000]
+        if "fundo" in dados:
+            celula.fundo = str(dados["fundo"] or "") if str(dados["fundo"] or "") in FUNDOS else ""
 
         if celula.vazia:
             self.celulas.pop(ref, None)
@@ -1262,7 +1273,7 @@ def gravar_lote(aba: Aba, itens: list) -> int:
         if linha >= MAX_LINHAS or coluna >= MAX_COLUNAS:
             continue
         permitidos = {k: v for k, v in dados.items()
-                      if k in ("valor", "formato", "negrito", "italico", "borda", "comentario")}
+                      if k in ("valor", "formato", "negrito", "italico", "borda", "comentario", "fundo")}
         if permitidos:
             aba.gravar(ref, permitidos)
             feitas += 1
@@ -1388,9 +1399,28 @@ def de_xlsx(dados: bytes) -> list[Aba]:
                     dados_da_celula["formato"] = formato
                 if celula.font is not None and celula.font.bold:
                     dados_da_celula["negrito"] = True
+                fundo = _fundo_do_excel(celula)
+                if fundo:
+                    dados_da_celula["fundo"] = fundo
                 aba.gravar(celula.coordinate, dados_da_celula)
         abas.append(aba)
     return abas or [Aba()]
+
+
+def _fundo_do_excel(celula) -> str:
+    """O fundo solido da celula do Excel, na cor mais perto da paleta (FUNDOS); vazio sem fundo."""
+    try:
+        fill = celula.fill
+        if fill is None or fill.fill_type != "solid":
+            return ""
+        rgb = str(fill.start_color.rgb or "")[-6:]
+        if not re.fullmatch(r"[0-9A-Fa-f]{6}", rgb) or rgb.upper() in ("FFFFFF", "000000"):
+            return ""
+    except (AttributeError, TypeError):
+        return ""
+    alvo = tuple(int(rgb[i:i + 2], 16) for i in (0, 2, 4))
+    perto = min(FUNDOS.items(), key=lambda kv: sum((a - int(kv[1][i * 2:i * 2 + 2], 16)) ** 2 for i, a in enumerate(alvo)))
+    return perto[0]
 
 
 def para_xlsx(abas: list[Aba], calculados: list[dict]) -> bytes:
@@ -1430,6 +1460,10 @@ def para_xlsx(abas: list[Aba], calculados: list[dict]) -> bytes:
 
                 fio = Side(style="thin")
                 folha[ref].border = Border(left=fio, right=fio, top=fio, bottom=fio)
+            if celula.fundo in FUNDOS:
+                from openpyxl.styles import PatternFill
+
+                folha[ref].fill = PatternFill(fill_type="solid", start_color=FUNDOS[celula.fundo], end_color=FUNDOS[celula.fundo])
         for ref, celula in aba.celulas.items():
             if celula.juntar > 1:
                 linha, coluna = _posicao(ref)
@@ -1486,6 +1520,7 @@ def de_dict(bruto: dict) -> list[Aba]:
                     borda=bool(dados.get("borda")),
                     juntar=max(1, int(dados.get("juntar") or 1)),
                     comentario=str(dados.get("comentario") or ""),
+                    fundo=str(dados.get("fundo") or "") if str(dados.get("fundo") or "") in FUNDOS else "",
                 )
         abas.append(aba)
     return abas or [Aba()]

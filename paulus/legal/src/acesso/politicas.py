@@ -24,7 +24,7 @@ As politicas:
 O que nao se encaixou com clareza numa linha da tabela do contrato ficou
 bloqueado, num grupo proprio no fim, e esta listado no PROGRESSO para
 revisao: financeiro, relatorios, foco, servicos (gravar), gravacoes (gravar),
-upload de arquivo, importar para o editor, apoio.
+upload de arquivo, importar para o editor.
 """
 
 from __future__ import annotations
@@ -83,7 +83,9 @@ _declarar(PUBLICO,
           "GET /api/acesso/convite/{codigo}", "POST /api/acesso/convite/{codigo}/aceitar",
           "POST /api/acesso/convite/{codigo}/confirmar", "GET /api/acesso/convite/{codigo}/google",
           # entrar com o Google (E3a)
-          "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno")
+          "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno",
+          # a frase das telas de entrar (src/saudacao.py): so a hora, o dia e o calendario
+          "GET /api/saudacao/entrada")
 
 # Sem sessao, de fora, so isto passa - a tela de entrar e o que ELA carrega
 # (acesso-remoto/v0, R2). O resto da casca espera o login: toda rota /api/*
@@ -93,7 +95,9 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
               ("POST", "/api/acesso/entrar/codigo"),
               # entrar com o Google (E3a): ir ao Google e voltar dele
-              ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno")}
+              ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno"),
+              # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)
+              ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js")}
 
 
 def pagina_do_convite(caminho: str) -> bool:
@@ -182,8 +186,13 @@ _declarar(PERMITIDO,
           "POST /api/email/estrela", "POST /api/email/excluir", "POST /api/email/marcar",
           "POST /api/email/caixa/resumo", "GET /api/email/caixa/resumo", "POST /api/email/contexto",
           "GET /api/email/contexto", "POST /api/email/reescrever", "POST /api/email/traduzir",
-          "POST /api/email/anexos/conferir", "POST /api/email/rascunho", "POST /api/email/previa",
+          "POST /api/email/anexos/conferir", "POST /api/email/anexos/encaminhar", "POST /api/email/rascunho", "POST /api/email/previa",
           "POST /api/email/enviar", "GET /api/email/envios", "GET /api/email/anexaveis",
+          # o e-mail aberto e o rascunho na conversa (src/email_pela_conversa.py)
+          "GET /api/email/conversa/rascunho", "POST /api/email/conversa/rascunho", "PUT /api/email/conversa/rascunho",
+          "POST /api/email/conversa/perguntar", "POST /api/email/conversa/proxima",
+          # a ficha aberta na coluna: a frase que corrige um campo (so le)
+          "POST /api/fichas/corrigir",
           # Google: enviar ao Drive ja e pedido na fila
           "POST /api/google/drive/enviar",
           # a busca geral (Ctrl+K): filtra pelos modulos que a pessoa ve
@@ -249,7 +258,7 @@ _declarar(BLOQUEADO,
           "PUT /api/acesso/contas/{conta_id}/permissoes", "PUT /api/acesso/contas/{conta_id}/seguranca",
           "PUT /api/acesso/seguranca-padrao",
           # o vinculo do PAULUS a conta Google (E5): so na janela do servidor
-          "GET /api/vinculo", "POST /api/vinculo/entrar", "POST /api/vinculo/cancelar", "POST /api/vinculo/codigo",
+          "GET /api/vinculo", "POST /api/vinculo/entrar", "POST /api/vinculo/cancelar", "POST /api/vinculo/codigo", "POST /api/vinculo/esquecer-codigo",
           "POST /api/vinculo/travar", "POST /api/vinculo/manter-aberto", "POST /api/vinculo/desvincular",
           "POST /api/vinculo/sem-internet", "POST /api/vinculo/sem-internet/ligar",
           "POST /api/vinculo/sem-internet/confirmar", "POST /api/vinculo/sem-internet/desligar",
@@ -319,7 +328,12 @@ _declarar(BLOQUEADO,
           "POST /api/financeiro/lancamentos/{id_}/reabrir", "DELETE /api/financeiro/lancamentos/{id_}",
           "POST /api/financeiro/lancamentos/{id_}/comprovante", "DELETE /api/financeiro/comprovante/{id_}",
           "POST /api/financeiro/cobrar",
+          # o lancamento feito pela conversa (src/lancamentos_pela_conversa.py)
+          "POST /api/financeiro/lancar-pela-conversa",
           "GET /api/relatorios", "GET /api/relatorios/acoes", "POST /api/relatorios/parecer", "GET /api/relatorios/pdf",
+          # o relatorio financeiro do mes pela conversa (src/financeiro_pela_conversa.py)
+          "GET /api/relatorios/financeiro", "POST /api/relatorios/financeiro/gerar", "GET /api/relatorios/financeiro/arquivo",
+          "POST /api/relatorios/parecer-do-mes",
           "POST /api/relatorios/pdf",
           "GET /api/bemestar", "GET /api/bemestar/semana", "POST /api/bemestar/medir", "POST /api/bemestar/ciclo",
           "POST /api/bemestar/pausa", "POST /api/bemestar/parar", "GET /api/bemestar/ciclo", "POST /api/bemestar/lembretes",
@@ -344,10 +358,6 @@ _declarar(BLOQUEADO,
           "DELETE /api/gravacoes/{id_}", "POST /api/gravacoes/{id_}/audio/salvar", "POST /api/gravacoes/{id_}/corrigir",
           "POST /api/gravacoes/{id_}/exportar", "POST /api/gravacoes/{id_}/marcadores",
           "DELETE /api/gravacoes/{id_}/marcadores/{indice}",
-          "POST /api/apoio/pix", "POST /api/apoio/pix/recuperar", "GET /api/apoio/pix/{id_}",
-          "GET /api/apoio/assinatura/{id_}", "POST /api/apoio/extrato", "POST /api/apoio/assinatura/{id_}/valor",
-          "POST /api/apoio/assinatura/{id_}/interromper", "POST /api/apoio/assinatura",
-          "GET /api/apoio/neste-mes",
           # Pacote de telas (`Conversa - Gravando`): as sugestoes e os pontos
           # do caso enquanto a gravacao anda - gravar e coisa do escritorio.
           "POST /api/gravacoes/sugerir", "POST /api/gravacoes/pontos")
@@ -443,6 +453,17 @@ _declarar(BLOQUEADO, "GET /api/nfse/recorrencias", "POST /api/nfse/recorrencias"
 # --- N8 (NFS-e): a liberacao da producao - so o titular, so na janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/nfse/producao", "POST /api/nfse/producao/revisado", "POST /api/nfse/producao/testes-conferidos",
           "POST /api/nfse/producao/liberar", "POST /api/nfse/producao/voltar")
+# --- V1-V7 (docs/PLANO-NUVEM.md): o termo, o sim do titular, a conta do PAULUS
+# (nuvem), o plano e a recarga - tudo da janela do escritorio. De fora, so a
+# situacao que a caixa da pergunta usa (sem chave, sem conta).
+_declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "POST /api/nuvem/paulus/ativar",
+          "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "POST /api/nuvem/paulus/plano", "GET /api/consumo", "GET /api/consumo/pessoa/{conta_id}", "POST /api/consumo/limites", "GET /api/nuvem/paulus/assinatura",
+          "GET /api/consumo/extrato", "POST /api/consumo/extrato/pdf", "GET /api/consumo/extrato/arquivo",
+          "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}")
+_declarar(PERMITIDO, "GET /api/nuvem/situacao")
+# A IA faz parte da assinatura (src/plano.py): se ela esta liberada, e a frase
+# de onde assinar - sem nada da conta. A tela de fora tambem precisa saber.
+_declarar(PERMITIDO, "GET /api/plano")
 # --- N4: o conflito guardado como pendencia - cruza todos os clientes: janela do escritorio.
 _declarar(BLOQUEADO, "GET /api/conflitos", "GET /api/conflitos/{id_}", "POST /api/conflitos/{id_}/resolver",
           "POST /api/conflitos/{id_}/reabrir")
@@ -522,6 +543,8 @@ _declarar(PERMITIDO, "GET /api/central-avisos/hoje", "GET /api/central-avisos",
 # o titular, como as rotas de gravar da A1. A medida (A4) vem na lista, que ja
 # e permitida.
 _declarar(TITULAR, "POST /api/agentes/formulario", "POST /api/agentes/validar",
+          # T3 (`Conversa - Criar agente`): o rascunho por regra e o escrito pelo modelo.
+          "POST /api/agentes/rascunho", "POST /api/agentes/rascunho/escrever", "POST /api/agentes/rascunho/mudar",
           "GET /api/agentes/da-conversa/{trabalho_id}", "GET /api/agentes/sugestao/conversa")
 
 

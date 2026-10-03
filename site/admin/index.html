@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administração — PAVLVS</title>
+<meta name="description" content="Administração do PAVLVS: contas, túneis, planos, cupons, notas fiscais e a fila de alterações.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#131312">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=account_balance_wallet,add,arrow_back,arrow_forward,campaign,check,close,contacts,dark_mode,dashboard,delete,dns,edit,expand_less,expand_more,group,keyboard_return,light_mode,link_off,local_offer,lock,logout,mail,menu,menu_book,notifications,payments,publish,receipt_long,search,send,shield,swap_horiz,token,warning&display=block">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/paginas.css">
+<link rel="stylesheet" href="../assets/admin.css">
+</head>
+<body class="adm">
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+<!-- Antes da sessao: as duas portas (Cloudflare Access e GitHub) -->
+<main id="entrada" class="entrada entrada-adm" hidden>
+  <a class="voltar-site" href="../"><span class="icon s18" aria-hidden="true">arrow_back</span>Voltar ao site</a>
+  <button type="button" class="btn-icone adm-tema-entrada" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
+  <div class="entrada-col" id="entrada-col"><p class="carregando" style="text-align:center">Conferindo a sessão…</p></div>
+</main>
+
+<!-- Depois da sessao: a casca do painel -->
+<div id="casca" hidden style="flex:1;display:flex;flex-direction:column">
+  <header class="topo adm-topo">
+    <a class="marca adm-marca" href="#visao" aria-label="PAVLVS · Administração, visão geral">PAVLVS<span class="rotulo">Administração</span></a>
+    <button type="button" class="busca-btn" id="abrir-busca" aria-label="Buscar em tudo" aria-haspopup="dialog">
+      <span class="icon" aria-hidden="true">search</span>
+      <span class="dica">Buscar em tudo: telas, ações, contas, escritórios…</span>
+      <span class="teclas" aria-hidden="true"><kbd class="tecla" id="tecla-mod">⌘</kbd><kbd class="tecla">K</kbd></span>
+    </button>
+    <div class="adm-direita">
+      <div class="selo-sessao" id="selo-sessao" title="Cloudflare Access">
+        <span class="bola"><span class="icon" aria-hidden="true">shield</span></span>
+        <span class="nome">Cloudflare Access</span>
+        <span class="email" id="selo-email"></span>
+        <span class="papel" id="selo-papel"></span>
+      </div>
+      <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
+    </div>
+  </header>
+  <nav class="adm-pilulas" id="nav-celular" aria-label="Telas do painel"></nav>
+  <div class="adm-corpo">
+    <aside class="adm-lateral">
+      <nav id="nav-lateral" aria-label="Telas do painel"></nav>
+      <div class="adm-rodape">
+        <span>paulus.ia.br/admin</span>
+        <span id="versao-worker">worker</span>
+        <button type="button" data-a="sair"><span class="icon" aria-hidden="true">logout</span>Sair</button>
+      </div>
+    </aside>
+    <main id="conteudo" class="adm-main" tabindex="-1">
+      <div class="adm-col" id="tela"></div>
+    </main>
+  </div>
+</div>
+
+<!-- gaveta, modal e busca -->
+<div id="camada"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="../assets/site.js" defer></script>
+<script src="../assets/admin.js" defer></script>
+</body>
+</html>

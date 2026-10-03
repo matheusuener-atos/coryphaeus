@@ -6,7 +6,6 @@
 
 function abrirTela(nome, opcoes) {
   const o = opcoes || {};
-  if (typeof apoio !== "undefined") apoio.naTela = false;
   fecharEditorNaConversa();
   pararTocadorDaListaGv(nome);
   guardarLugarDoAssistente();
@@ -85,15 +84,33 @@ function dataLonga(iso) {
 }
 
 /* O glifo de formato do desenho: PDF, W, X. */
+/* A miniatura do tipo de arquivo (frontend/img/tipo-*.png, o jogo de
+   icones de 02/10/2026): uma folha por familia, e "doubt" para o que nao se
+   conhece. Glifo (20 px), cabecalho do visor (32 px) e abas do editor usam
+   a mesma decisao. */
+const TIPO_POR_EXTENSAO = {
+  pdf: "pdf",
+  doc: "word", docx: "word", odt: "word", rtf: "word",
+  xls: "xls", xlsx: "xls", csv: "xls", ods: "xls",
+  ppt: "ppt", pptx: "ppt", odp: "ppt",
+  txt: "text", md: "text",
+  png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", bmp: "image", tif: "image", tiff: "image", heic: "image", svg: "image",
+  mp3: "record", wav: "record", m4a: "record", ogg: "record", opus: "record", flac: "record", aac: "record", webm: "record", mp4: "record", mov: "record",
+  zip: "zip", rar: "zip", "7z": "zip", tar: "zip", gz: "zip",
+};
+
+function tipoDoArquivo(nome) {
+  const ext = /\.([a-z0-9]{1,5})$/i.exec(nome || "");
+  return (ext && TIPO_POR_EXTENSAO[ext[1].toLowerCase()]) || "doubt";
+}
+
+/* A classe que aponta a imagem (t-pdf, t-word...), inteira. */
+function classeDoTipo(nome) {
+  return "t-" + tipoDoArquivo(nome);
+}
+
 function glifo(nome) {
-  const ext = ((nome || "").split(".").pop() || "").toLowerCase();
-  const conhecidas = ["pdf", "docx", "doc", "xlsx", "xls"];
-  const classe = conhecidas.includes(ext) ? ext : "outro";
-  const texto = ext === "pdf" ? "PDF"
-    : (ext === "docx" || ext === "doc") ? "W"
-    : (ext === "xlsx" || ext === "xls") ? "X"
-    : (ext.slice(0, 3).toUpperCase() || "?");
-  return '<span class="glifo ' + classe + '">' + texto + "</span>";
+  return '<span class="glifo ' + classeDoTipo(nome) + '" aria-hidden="true"></span>';
 }
 
 /* O cabecalho da tela: busca, seletor de visoes e a acao principal. E o
@@ -891,9 +908,46 @@ function cartaoProposta(d) {
   // Gravar a reuniao na conversa (js/79-conversa-gravando.js): nao ha cartao,
   // a gravacao comeca e a transcricao desce no fio.
   if (d.tipo === "gravar") return "";
+  // Assinar pela conversa (js/82-assinar-na-conversa.js): o PDF abre ao lado.
+  if (d.tipo === "assinar") return cartaoDeAssinar(d);
+  // Agendar pela conversa (js/83-agendar-na-conversa.js): a semana no chat e
+  // o formulario da Agenda na coluna.
+  if (d.tipo === "agenda" || d.tipo === "tarefa") return cartaoDeAgendar(d);
+  // Criar agente pela conversa (js/84-criar-agente.js): as tres perguntas.
+  if (d.tipo === "criar_agente") return cartaoDeCriarAgente(d);
+  // O e-mail pela conversa (js/85-email-na-conversa.js): a mensagem ou o envelope.
+  if (d.tipo === "email") return cartaoDeEmail(d);
+  // Os cadastros pela conversa (js/86-fichas-na-conversa.js): a ficha na coluna.
+  if (d.tipo === "ficha") return cartaoDeFicha(d);
+  // O lancamento pela conversa (js/87-lancamento-na-conversa.js).
+  if (d.tipo === "lancamento") return cartaoDeLancamento(d);
+  // O financeiro e o relatorio do mes (js/88-financeiro-na-conversa.js).
+  if (d.tipo === "financeiro" || d.tipo === "relatorio") return cartaoDoFinanceiro(d);
+  // Uma secao de Configuracoes aberta pela conversa (js/89-config-na-conversa.js).
+  if (d.tipo === "config") return cartaoDaConfig(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
+  // O módulo de perguntas e o trabalho pronto (js/92-entrevista.js).
+  if (d.tipo === "entrevista") return cartaoEntrevista(d);
+  if (d.tipo === "levar_ao_editor") return cartaoLevarAoEditor(d);
+  if (d.tipo === "preparo") return cartaoPreparo(d);
+  if (d.tipo === "clausula") return cartaoClausula(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
+  // Bateria de 02/10/2026: "SEMA está errado, o certo é SEMAS - corrija" com
+  // o documento anexado abre o rascunho no editor e faz a troca, marcada.
+  if (d.tipo === "mudar_documento") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">mudar no editor</span>' +
+      "<b>" + esc(c.nome || "") + "</b></div>" +
+      '<p class="explica">O rascunho abre ao lado com a mudança marcada, para você manter ou descartar. O arquivo ' +
+      "original no Acervo não muda.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="mudar">Abrir e fazer a mudança</button></div></div>';
+  }
+  // "...e salve no editor": a resposta virou um rascunho no Editor de texto.
+  if (d.tipo === "editor_criado") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">salvo no editor</span>' +
+      "<b>" + esc(c.titulo || "") + "</b></div>" +
+      '<div class="linha-form"><button class="primario" data-prop="abrir-rascunho">Abrir no editor</button></div></div>';
+  }
 
   if (d.tipo === "abrir") {
     return '<div class="proposta"><div class="proposta-topo">' +
@@ -1319,12 +1373,50 @@ function camposProposta(d, faltando) {
 
 /* Ligar os botões do cartão. O que vai para o servidor é o que está nos
    campos — a pessoa pode ter corrigido a data antes de confirmar. */
+/* O que os cartões do editor fazem: abrir o rascunho do documento do Acervo
+   e pedir a mudança (o pedido já está na conversa), ou abrir o rascunho que a
+   resposta virou. A conversa chama sozinha quando o cartão chega ao vivo. */
+async function fazerDoCartaoDoEditor(caixa, d) {
+  const c = d.campos || {};
+  const botao = caixa.querySelector("[data-prop]");
+  if (botao) botao.disabled = true;
+  if (d.tipo === "editor_criado") {
+    await mostrarDupla(c.id);
+    if (botao) botao.disabled = false;
+    return;
+  }
+  const novo = await editarDocumentoDoAcervo(c.nome);
+  if (!novo || novo.tipo === "planilha" || !dupla.doc) {
+    if (botao) botao.disabled = false;
+    return;
+  }
+  caixa.innerHTML = '<p class="explica">Abri “' + esc(c.nome || "") + "” no editor ao lado. A mudança aparece marcada no texto.</p>";
+  await pedirNoDocumento(c.pedido || "", { jaDito: true });
+}
+
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
+  if (d.tipo === "assinar") return ligarAssinarNaProposta(caixa, d);
+  if (d.tipo === "agenda" || d.tipo === "tarefa") return ligarAgendarNaProposta(caixa, d);
+  if (d.tipo === "criar_agente") return ligarCriarAgente(caixa, d);
+  if (d.tipo === "email") return ligarEmailNaProposta(caixa, d);
+  if (d.tipo === "ficha") return ligarFichaNaProposta(caixa, d);
+  if (d.tipo === "lancamento") return ligarLancamentoNaProposta(caixa, d);
+  if (d.tipo === "financeiro" || d.tipo === "relatorio") return ligarFinanceiroNaProposta(caixa, d);
+  if (d.tipo === "config") return ligarConfigNaProposta(caixa, d);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
+  if (d.tipo === "entrevista") return ligarEntrevista(caixa, d);
+  if (d.tipo === "levar_ao_editor") return ligarLevarAoEditor(caixa, d);
+  if (d.tipo === "preparo") return ligarPreparo(caixa, d);
+  if (d.tipo === "clausula") return ligarClausula(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
   if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);
+  if (d.tipo === "mudar_documento" || d.tipo === "editor_criado") {
+    const botao = caixa.querySelector('[data-prop="mudar"], [data-prop="abrir-rascunho"]');
+    if (botao) botao.onclick = () => fazerDoCartaoDoEditor(caixa, d);
+    return;
+  }
   const fazer = caixa.querySelector('[data-prop="fazer"]');
   const nao = caixa.querySelector('[data-prop="nao"]');
   ligarBotoesDeDocumento(caixa, d);

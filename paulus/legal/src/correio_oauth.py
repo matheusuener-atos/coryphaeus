@@ -121,7 +121,7 @@ def desafio_s256(verificador: str) -> str:
 
 def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str,
                     desafio: str, *, login_hint: str = "", endpoint: str = "",
-                    escopos: str = "", incremental: bool = False) -> str:
+                    escopos: str = "", incremental: bool = False, so_identidade: bool = False) -> str:
     """
     O endereco que o navegador abre.
 
@@ -140,6 +140,12 @@ def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str
         "code_challenge_method": "S256",
         **dados["extras"],
     }
+    # So quem e (destravar, confirmar, vincular sem os servicos): sem
+    # refresh token a guardar, o "prompt=consent" so fazia o Google pedir a
+    # confirmacao em toda entrada (02/10). Sem ele, pergunta so na primeira.
+    if so_identidade:
+        parametros.pop("prompt", None)
+        parametros.pop("access_type", None)
     if login_hint:
         parametros["login_hint"] = login_hint
     if incremental:
@@ -530,7 +536,7 @@ class Entrada:
         self.url = url_autorizacao(
             self.provedor, self.credenciais["client_id"], self.redirect_uri, state, desafio,
             login_hint=self.login_hint, endpoint=self.endpoints.get("autorizar", ""),
-            escopos=self.escopos, incremental=bool(self.escopos),
+            escopos=self.escopos, incremental=bool(self.escopos), so_identidade=self.so_identidade,
         )
         self.fase = "aguardando"
         self._thread = threading.Thread(target=self._rodar, daemon=True)

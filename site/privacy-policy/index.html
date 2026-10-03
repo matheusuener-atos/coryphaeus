@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,14 +8,14 @@
 <link rel="canonical" href="https://paulus.ia.br/privacy-policy/">
 <link rel="alternate" hreflang="en" href="https://paulus.ia.br/privacy-policy/">
 <link rel="alternate" hreflang="pt-BR" href="https://paulus.ia.br/politica-de-privacidade/">
-<meta name="theme-color" content="#f6f6f4">
+<meta name="theme-color" content="#131312">
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='escuro'?'dark':'light')}catch(e){}</script>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=close,dark_mode,light_mode,menu&display=block">
 <link rel="stylesheet" href="../assets/site.css">
 </head>
@@ -23,31 +23,29 @@
 <a class="skip" href="#conteudo">Skip to content</a>
 
 <header class="topo">
-  <a class="marca" href="../en/" aria-label="PAVLVS — home">
-    <span>PAVLVS</span>
-  </a>
+  <a class="marca" href="../en/" aria-label="PAVLVS — home">PAVLVS</a>
   <nav class="nav" id="nav-principal" aria-label="Main">
-    <a href="../en/">Home</a>
-    <a href="../privacy-policy/" aria-current="page">Privacy Policy</a>
-    <a href="../terms-of-use/">Terms of Use</a>
-    <a href="mailto:contato@paulus.ia.br">Contact</a>
+    <a href="../en/">Platform</a>
+    <a href="../desenvolvimento/">Development</a>
+    <a href="../materiais/">Resources</a>
+    <a href="../cadastro/">Subscribe</a>
     <a href="../politica-de-privacidade/" lang="pt-BR" hreflang="pt-BR">Português</a>
+    <a class="btn-duplo pequeno" href="../en/office/"><span>Open your office</span></a>
   </nav>
   <div class="acoes">
-    <button type="button" class="btn-icone" data-alternar-tema aria-label="Toggle theme"><span class="icon" aria-hidden="true">dark_mode</span></button>
+    <button type="button" class="btn-icone" data-alternar-tema aria-label="Toggle theme"><span class="icon" aria-hidden="true">light_mode</span></button>
     <button type="button" class="btn-icone so-celular" data-menu aria-expanded="false" aria-controls="nav-principal" aria-label="Menu"><span class="icon" aria-hidden="true">menu</span></button>
   </div>
 </header>
 
 <main id="conteudo">
-<header class="doc-cabeca">
-  <span class="rotulo">PAVLVS — Local AI legal assistant</span>
+<header class="doc-cabeca"><div>
   <h1>Privacy Policy</h1>
   <p class="lead">How PAULUS (PAULUS Legal; app name on Google: PAVLVS) accesses, uses, stores and protects data — especially data from your Google account and Gmail.</p>
-  <span class="data">Last updated: October 1, 2026 (invoices) · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
-</header>
+  <span class="data">Last updated: October 3, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
+</div></header>
 
-<div class="doc">
+<div class="doc"><div class="doc-grade">
   <nav class="sumario" aria-label="On this page">
     <p>On this page</p>
     <ol>
@@ -62,7 +60,9 @@
       <li><a href="#other">Other internet access</a></li>
       <li><a href="#remote">Remote access (optional)</a></li>
       <li><a href="#device">Writing the answer on the device (optional)</a></li>
-      <li><a href="#cloud">Cloud with the office's own key (optional)</a></li>
+      <li><a href="#cloud">Cloud (optional)</a></li>
+      <li><a href="#signup">Sign-up and subscription</a></li>
+      <li><a href="#admin">Cloud administration and announcements</a></li>
       <li><a href="#invoice">Service invoice (NFS-e, optional)</a></li>
       <li><a href="#retention">Retention and deletion</a></li>
       <li><a href="#rights">Your rights (LGPD)</a></li>
@@ -76,8 +76,8 @@
     <h2 id="summary">Summary</h2>
     <div class="caixa">
       <ul style="margin:0">
-        <li>PAULUS is a <strong>desktop program for Windows</strong> that runs on the law office's own computer. Its AI model also runs there, locally — unless the office turns on the <a href="#cloud">cloud with its own key</a>, which comes turned off.</li>
-        <li><strong>No PAULUS server receives your messages, documents or client data.</strong> Our only server is the one behind this website, and it only receives something from you if you choose to support the project (see <a href="#other">Other internet access</a>).</li>
+        <li>PAULUS is a <strong>desktop program for Windows</strong> that runs on the law office's own computer. The AI is part of a subscription: with it, answers are written in the <a href="#cloud">cloud</a>, which comes turned off and only turns on after the office's principal says yes, and a local model answers as a backup without internet or when the quota runs out. Without the subscription, the program works without AI.</li>
+        <li><strong>No PAULUS server receives your messages, documents or client data.</strong> Our only server is the one behind this website, and it only receives something from you in the optional features: the cloud through the PAULUS plan, where the text passes through and is not stored (see <a href="#cloud">Cloud</a>), model calibration (see <a href="#other">Other internet access</a>) and remote access (see <a href="#remote">Remote access</a>).</li>
         <li>If you connect a Google account, PAULUS accesses the <strong>account's email address</strong> and your <strong>Gmail messages</strong> to show your inbox, suggest deadlines for your calendar, and send the replies you approve.</li>
         <li>If you also connect <strong>Google Calendar</strong> or <strong>Google Drive</strong> (each one only when you ask), PAULUS copies your appointments to your Google Calendar, creates their Google Meet rooms, sends to your Drive the documents you approve and, if you authorize Drive reading, keeps a local copy of the Drive folders you choose.</li>
         <li>Google data is <strong>not used for advertising, not sold, not used to train AI models, and not shared with third parties</strong>.</li>
@@ -97,8 +97,8 @@
     <h2 id="how-it-works">How PAULUS works</h2>
     <ul>
       <li>PAULUS is installed on and runs on the office's computer (Windows).</li>
-      <li>The AI model runs locally through Ollama at the internal address <code>127.0.0.1</code> — that is, on the machine itself. Questions, documents and the assistant's answers are not sent to any AI service on the internet, unless the office turns on the cloud with its own key (see <a href="#cloud">Cloud with the office's own key</a>).</li>
-      <li>No part of the program sends usage data, documents or messages to us. The two exceptions are actions you take, described in <a href="#other">Other internet access</a>: supporting the project and sending feedback.</li>
+      <li>The local AI model runs through Ollama at the internal address <code>127.0.0.1</code> — that is, on the machine itself — and, with the subscription, answers as a backup. Questions, documents and the assistant's answers only go to an AI service on the internet through the cloud, which only turns on after the office's principal says yes (see <a href="#cloud">Cloud</a>).</li>
+      <li>No part of the program sends usage data, documents or messages to us. The exception is an action you take, described in <a href="#other">Other internet access</a>: sending feedback.</li>
     </ul>
 
     <h2 id="google-data">Google data PAULUS accesses</h2>
@@ -129,7 +129,7 @@
       <li><strong>Upload documents to your Google Drive</strong>, in the PAULUS folder: each upload goes through the <strong>Approvals</strong> queue and only happens with your confirmation.</li>
       <li><strong>Keep in the Archive a copy of the Drive folders you choose</strong>, updated every 15 minutes, so you can search those documents on your computer.</li>
     </ol>
-    <p>This processing — including reading by the AI to understand a message, detect deadlines and write drafts, and the translation of messages in English or Spanish — happens on your computer, with local models. Google data does not go to the cloud described in <a href="#cloud">Cloud with the office's own key</a>: saved email attachments and the copy of Drive folders are left out of it.</p>
+    <p>This processing — including reading by the AI to understand a message, detect deadlines and write drafts, and the translation of messages in English or Spanish — happens on your computer, with local models. Google data does not go to the cloud described in <a href="#cloud">Cloud</a>: email, its saved attachments and the copy of Drive folders are left out of it.</p>
 
     <h2 id="limited-use">Limited Use (Google)</h2>
     <div class="caixa destaque">
@@ -158,7 +158,7 @@
 
     <h2 id="sharing">Sharing</h2>
     <p>We do not share, sell or transfer Google data, or any other data you handle in PAULUS, to third parties. The necessary exchange is with <strong>your own email provider</strong>, to read and send your messages — for example Google, when the account is Gmail — and, if you connect them, with <strong>your own Google Calendar and Google Drive</strong>, where the appointments and documents you chose go, and from where the Drive folders you chose are copied.</p>
-    <p>The only exception outside email is voluntary: if you <strong>support the project</strong>, the receipt email and the amount go to Mercado Pago, which processes the payment (see below). Google data never enters that request.</p>
+    <p>Outside email there are two exceptions, both voluntary and described in <a href="#cloud">Cloud</a>: if the principal turns the cloud on, the text sent goes to the model provider; and, if the office <strong>subscribes to the PAULUS (cloud) plan</strong>, the payer's email and the amount go to Mercado Pago, which processes the payment. Google data never enters the payment.</p>
     <p>When you send an approved message, it goes to the recipients you chose, as in any email program.</p>
 
     <h2 id="other">Other internet access</h2>
@@ -168,11 +168,10 @@
       <li><strong>Court publications (optional):</strong> if you turn on the daily check of court publications, PAULUS queries the public API of Brazil's national judicial electronic gazette (<code>comunicaapi.pje.jus.br</code>) with only the lawyer's bar number (OAB) and state.</li>
       <li><strong>WhatsApp Web:</strong> if you want, the program opens WhatsApp Web inside it. You then use WhatsApp's service directly, subject to WhatsApp's terms and privacy policy.</li>
       <li><strong>Other email providers</strong> (Microsoft or other): the same rules of this policy apply — messages travel only between your computer and the provider.</li>
-      <li><strong>New version:</strong> once a day, PAULUS reads the file <code>paulus.ia.br/atualizacao.json</code> to know whether there is a new version. That read is all: no document, office data, name or email goes with it (the website, like any website, sees the internet address of whoever accesses it). If there is a new version, the official installer is downloaded from the project's GitHub and checked by SHA-256 before opening. The check comes on and can be turned off in the setup assistant or in Settings › Support and version.</li>
+      <li><strong>New version:</strong> once a day, PAULUS reads the file <code>paulus.ia.br/atualizacao.json</code> to know whether there is a new version. That read is all: no document, office data, name or email goes with it (the website, like any website, sees the internet address of whoever accesses it). If there is a new version, the official installer is downloaded from the project's GitHub and checked by SHA-256 before opening. The check comes on and can be turned off in the setup assistant or in Settings › Version.</li>
       <li><strong>Model downloads:</strong> the first time you use them, PAULUS downloads the speech model for Recordings (Whisper, from the public Hugging Face repository) and the email translation packages (from <code>argos-net.com</code>). Language models are downloaded when you ask, in Settings › Models, from Ollama's public registry (<code>registry.ollama.ai</code>). The installer may download Ollama from ollama.com, Cloudflare's <code>cloudflared</code> from its official GitHub (the remote-access program, off until the office turns it on), and Microsoft's WebView2. These are file downloads only; no document, audio, text or data of yours is sent.</li>
       <li><strong>Model calibration (optional, off by default):</strong> if you turn on "Participate in calibration", the program sends to <code>paulus.ia.br</code> this machine's measurements — processor, memory, the two measured speeds and how many words per second each model writes and reads — and downloads other machines' measurements, to better estimate how long each model takes. Nothing from the office is sent: no document, name or email. The screen shows exactly what is sent beforehand. Turning it off stops sending immediately.</li>
-      <li><strong>Open development:</strong> when you open that screen, the program reads the public version history and the monthly aggregated support at <code>paulus.ia.br/api/public/desenvolvimento</code>. It is read-only: nothing of yours is sent.</li>
-      <li><strong>Supporting the project (optional):</strong> if you choose to support it, the amount and the receipt email go to the website, which passes the request to Mercado Pago. The card is typed only on Mercado Pago's page, never in the program or on the website. The website keeps for up to 400 days only the payment status, the amount, the date and a fingerprint of the email (a SHA-256 hash; the address itself is not stored).</li>
+      <li><strong>Open development:</strong> when you open that screen, the program reads the public version history at <code>paulus.ia.br/api/public/desenvolvimento</code>. It is read-only: nothing of yours is sent.</li>
       <li><strong>Feedback (optional):</strong> in Settings › Feedback, PAULUS opens an email addressed to <code>contato@paulus.ia.br</code> with what you wrote. You review it before it is sent, and sending goes through the Approvals queue like any email.</li>
       <li><strong>Links that open in the browser:</strong> some buttons only open a page in your browser — for example Google sign-in, the Ollama download page and the new-meeting page of Google Meet or Microsoft Teams. What happens there follows each site's rules.</li>
     </ul>
@@ -198,18 +197,47 @@
       <li><strong>What cannot be guaranteed:</strong> a compromised device — with malware or a malicious browser extension — can read what the page shows. That is already true today, just by viewing documents through remote access. Writing the answer on the device does not increase that risk, because the device receives the same thing the person would already see on screen, but it does not remove it either. Take care of the device you use.</li>
     </ul>
 
-    <h2 id="cloud">Cloud with the office's own key (optional)</h2>
-    <p>The office can let the answer to a conversation question be written by an <strong>Anthropic</strong> (Claude) or <strong>OpenAI</strong> (GPT) model, using the <strong>office's own API key</strong>, contracted and paid for by the office directly with the provider. <strong>It comes turned off.</strong> It can only be turned on from the office computer's own window, in Settings › Models; from remote access there is no cloud. Neither we nor the paulus.ia.br website sit in between: the request goes from the office computer straight to the provider.</p>
+    <h2 id="cloud">Cloud (optional)</h2>
+    <p>The office can let conversation answers, summaries and drafting be written by a cloud AI model, larger than the one on the computer. <strong>It comes turned off</strong>, and only turns on after the <strong>office's principal reads the terms and says yes</strong>, in the office computer's own window, in Settings › Models. The yes applies to the version of the terms that was read and to the chosen provider; switching providers asks for a new yes. There are two ways:</p>
     <ul>
-      <li><strong>When it goes:</strong> only the question the person marks “Cloud”, one at a time. Each send waits for a yes in Approvals (or on the card in the conversation), showing the exact text that will leave, the provider, the model and the size. A whole conversation can be released, or the approval rule “Send to the cloud without asking each time” can be turned on; it also comes turned off.</li>
-      <li><strong>What goes:</strong> the question, the start of the conversation, the assistant's instructions and the document excerpts the search found — the same ones that would go to the local model. Search, the index, the checks and the rest of the program stay on the computer; the answer that comes back goes through the same checks as a local answer.</li>
-      <li><strong>Masking (on by default):</strong> CPF, CNPJ, case numbers, email addresses and phone numbers become placeholders (“[CPF 1]”) before leaving, and are restored in the answer, on the computer. This reduces exposure but <strong>does not anonymize</strong>: names, addresses and the rest of the text go as they are.</li>
-      <li><strong>What never goes:</strong> saved email attachments (marked when saved, starting with the version that brought the cloud — an attachment saved earlier has no mark; to be sure, mark its folder “office only”); the copy of Drive folders that PAULUS makes; and clients, matters and folders marked “office only”. If the answer would need any of them, it is written on the computer, and the screen says why. Contacts, finances and the calendar are not part of the question.</li>
-      <li><strong>The key:</strong> stays on the computer, encrypted by the Windows account (DPAPI). Saving the key makes a single call to the provider, to list the models it can see.</li>
-      <li><strong>What the provider does with the text:</strong> it handles what it receives under the terms and privacy policy of the office's API account (Anthropic or OpenAI). Reading those terms, and deciding whether the cloud is suitable for clients' data, is the office's decision.</li>
-      <li><strong>Log:</strong> each send is recorded on the computer, with the exact text that left, the model, the tokens and how it was approved, in Settings › Models, and in the audit log.</li>
-      <li><strong>To stop:</strong> untick “Turn on the cloud” or delete the key, in Settings › Models. It takes effect immediately.</li>
+      <li><strong>PAULUS (cloud), through the office's plan:</strong> the text goes from the office computer to the <code>paulus.ia.br</code> website (a Cloudflare Worker), which passes it on to <strong>DeepInfra</strong>, a United States company that runs the model (Llama 3.3 70B or Qwen 2.5 72B), and the answer comes back the same way. The website <strong>does not store the text</strong>: it only passes it on. DeepInfra's published policy says it does not write to disk or log the content it receives through the API, and does not use it to train models; this is the provider's policy, not technical isolation — its servers are shared with its other customers. The cloud account is the Google account linked to PAULUS; activating it confirms that account with Google.</li>
+      <li><strong>The office's own API key:</strong> with a <strong>DeepInfra</strong>, <strong>Anthropic</strong> (Claude) or <strong>OpenAI</strong> (GPT) key, contracted and paid for by the office directly with the provider. The request goes from the office computer straight to the provider; the paulus.ia.br website does not sit in between. The provider handles the text under the terms of the office's API account: reading those terms is the office's decision.</li>
     </ul>
+    <p>Either way there is an <strong>international transfer of personal data</strong> (LGPD, art. 33). The office is the controller of its clients' data: it is up to the office to have a legal basis for this and to tell its clients that AI is used.</p>
+    <ul>
+      <li><strong>What goes:</strong> in the conversation, the question, the start of the conversation, the assistant's instructions and the document excerpts the search found — the same ones that would go to the model on the computer; in summaries, the text of the matter or of the recording's transcript; in drafting, the text the person asked the AI to work on in the editor, a comment, a spreadsheet formula or the comparison with the standard contract. Each of the three can be turned off separately. Search, the index, the checks and the rest of the program stay on the computer; the conversation answer that comes back goes through the same checks as a local answer. Before the answer, a short triage sends the question and the <strong>list of names of the documents in the archive</strong> (not their content, and without the names of the ones that never go to the cloud), so the AI can say which to read and whether the question is about the law.</li>
+      <li><strong>When it goes:</strong> after the principal's yes, without asking again for each question; every answer says where it was written. Whoever prefers can turn on “Ask for a yes on each question”: then each send waits in Approvals, showing the exact text that will leave. The “Cloud” pill in the question box keeps a single question on the computer. With the principal's yes, people who come in through remote access use the cloud too; with “ask on each question” on, a question from outside stays on the computer, because the yes is given in the office window.</li>
+      <li><strong>Masking (on by default):</strong> CPF, CNPJ, court case numbers, email addresses and phone numbers become placeholders (“[CPF 1]”) before leaving, and are put back into the answer on the computer. This reduces exposure but <strong>does not anonymize</strong>: names, addresses and the rest of the text go as they are.</li>
+      <li><strong>What never goes:</strong> email — reading, drafts, rewriting, the inbox summary; saved email attachments (marked when saved, starting with the version that brought the cloud — an attachment saved earlier has no mark; to be sure, mark its folder “office only”); the copy of Drive folders that PAULUS makes; clients, matters and folders marked “office only”; the Finance report; the conversation's quick judge and the reading of documents entering the archive. If an answer would need any of them, it is written on the computer, and the screen says why.</li>
+      <li><strong>The keys:</strong> the office's API key, and the installation secret for PAULUS (cloud), stay on the computer, encrypted by the Windows account (DPAPI).</li>
+      <li><strong>Log:</strong> each send is recorded on the computer, with the exact text that left, the model, the tokens and the task, in Settings › Models, and in the audit log. The yes and its withdrawal are recorded too, with the date and the version of the terms.</li>
+      <li><strong>The plan and billing (PAULUS (cloud) only):</strong> the plan is monthly, paid through Mercado Pago by card (a subscription), and gives a number of tokens per cycle; when they run out, the office can top up by Pix, and a top-up does not expire at renewal. Without a plan in good standing, PAULUS works without AI; with the plan in good standing but no tokens left, or without internet, answers are written on the computer, with the local model. The payer's email goes to Mercado Pago; the card is typed only on its page.</li>
+      <li><strong>What the website keeps about the cloud account:</strong> the Google account's email and identifier, the office name, the sign-up data (see <a href="#signup">Sign-up and subscription</a>), the chosen plan, the SHA-256 digest of each installation's secret (up to three), the principal's yes (version, name and date), the subscription status and the Mercado Pago numbers for it and for top-ups, and usage numbers: tokens per cycle, used, and per day (the last 62 days). No question, document or answer text. It is kept while the account exists; to delete it, write to contato@paulus.ia.br.</li>
+      <li><strong>To stop:</strong> untick “Turn on the cloud” or withdraw the yes, in Settings › Models. It takes effect immediately. Cancelling the subscription stops the billing; the tokens of the paid cycle remain valid until it ends.</li>
+    </ul>
+
+    <h2 id="signup">Sign-up and subscription on the website</h2>
+    <p>Whoever subscribes on the <a href="../cadastro/">paulus.ia.br/cadastro</a> page signs in with a Google account and provides:</p>
+    <ul>
+      <li><strong>From the Google account:</strong> the email and account identifier, confirmed by Google at sign-in. It is the same cloud account the installed PAULUS uses later. The Google password does not pass through us.</li>
+      <li><strong>About the office:</strong> the office name, CPF or CNPJ (Brazilian taxpayer numbers), phone or WhatsApp and bar (OAB) number. They identify the subscriber and are used to issue the subscription's invoice (CPF or CNPJ), for support and billing notices (phone) and to confirm that PAVLVS is used by a lawyer (OAB). The legal basis is the performance of the subscription contract and compliance with legal and tax obligations (LGPD, art. 7, II and V).</li>
+      <li><strong>The acceptance:</strong> the version of the Terms of Use and of this policy that the person accepted, with the date.</li>
+      <li><strong>Where it is kept:</strong> with the cloud account, in the website's storage (Cloudflare). It is not published, sold or used for advertising. The payer's email and the amount go to Mercado Pago, which processes the payment; the card is typed only on its page.</li>
+      <li><strong>For how long:</strong> while the account exists and, after it is closed, for as long as tax law requires for the invoice. To correct or delete it, write to <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>.</li>
+      <li><strong>On the page:</strong> Google's confirmation is kept only in the browser tab, for up to one hour, so the page knows whose subscription it is when coming back from Mercado Pago. No tracking cookies.</li>
+    </ul>
+
+    <h2 id="admin">Cloud administration and announcements</h2>
+    <p>The PAVLVS team runs the cloud from an internal panel at <code>paulus.ia.br/admin</code>, open only to team members: sign-in goes through Cloudflare Access (team e-mail and a one-time code) and then a GitHub account with write access to the PAVLVS repository. The panel adds no new data; it shows what the cloud and remote access already keep. For it, the website also keeps:</p>
+    <ul>
+      <li><strong>In each cloud account:</strong> the list of confirmed payments (type, amount, date and the Mercado Pago number) and token totals per month and per model. The Mercado Pago notices the cloud handled are kept in a short list (the 50 newest: account identifier, type, status and amount), with no name or e-mail.</li>
+      <li><strong>Remote access:</strong> a short history of each address (created, first connection, address changed, deactivated, notice sent), the last 40 events.</li>
+      <li><strong>Invoices:</strong> each confirmed payment enters a queue for the service invoice (account, type, amount and date). Automatic issuing is not switched on yet.</li>
+      <li><strong>Coupons:</strong> the code, the discount and how many times it was used. A subscription made with a coupon keeps the code in the account, so billing returns to the full price when it ends.</li>
+    </ul>
+    <p><strong>E-mails.</strong> From the panel, the team sends service notices (a plan that did not renew, remote access that stopped) and announcements about PAVLVS to the e-mail of the cloud's Google account. Sending is done by <strong>Resend</strong>, a United States company, which receives the address, subject and text of each e-mail. Announcements carry a 1-pixel image and a counting link so the team knows how many were opened and clicked: the website keeps only an "opened" and "clicked" mark per recipient, for up to 180 days, with no IP address or browser. The recipient list of an announcement stays on the website until sending ends and is removed afterwards; only the counts remain. To stop receiving announcements, reply to any of them asking so.</p>
+    <p><strong>Orders to an account.</strong> The panel can credit tokens, switch off an installation, cancel the subscription at Mercado Pago, and record in the account a request for PAULUS to stop using a Google service (Gmail, Calendar or Drive) or to unlink the Google account from the cloud. That request keeps only the service names, no Google data. The installed PAULUS follows it from the version that brings this feature; until then, the office switches services off in Settings. Every change to an account goes through a team confirmation and is recorded with who made it.</p>
+    <p><strong>Community materials.</strong> Whoever sends a material from PAULUS sends the title, author, OAB number (optional), areas and text, which wait for the team's review. Before publishing, the panel looks for CPF, CNPJ and court case numbers in the text, so the team can check that no client data remained. Once published, the material goes to <a href="../materiais/">paulus.ia.br/materiais</a> with the author's name; if declined, it is kept only to answer the author.</p>
 
     <h2 id="invoice">Service invoice (NFS-e, optional)</h2>
     <p>The office can issue Brazilian service invoices (NFS-e) through the <strong>National Standard</strong> from PAULUS. <strong>It ships turned off.</strong> It is only turned on from the office computer's window, in Settings › Invoice; from outside (remote access) the tax setup and the certificate cannot be used. Neither we nor paulus.ia.br are in the middle: requests go from the office computer straight to the National NFS-e System (gov.br).</p>
@@ -226,14 +254,14 @@
     <h2 id="retention">Retention and deletion</h2>
     <ul>
       <li>The Google authorization is kept on the computer <strong>while the account is connected</strong> to PAULUS.</li>
-      <li>The <strong>log of cloud sends</strong> (with the text that left) and the encrypted key stay on the computer, in the PAULUS data folder, until the office deletes them.</li>
+      <li>The <strong>log of cloud sends</strong> (with the text that left), the record of the yes and the encrypted keys stay on the computer, in the PAULUS data folder, until the office deletes them. What the website keeps about the cloud account is described in <a href="#cloud">Cloud</a>.</li>
       <li><strong>To disconnect:</strong> in PAULUS, open the Email module and remove the account. The stored authorization is deleted from the computer. To stop only Calendar, turn off sync in Settings › Connections.</li>
       <li><strong>Drive folder copies</strong> stay in the Archive, on your computer, while you keep following them. In Settings › Connections you can stop following a folder and, if you tick "Also delete the Archive copy", the copy is deleted from the computer.</li>
       <li>Events PAULUS created in your Google Calendar and documents you uploaded to your Drive <strong>remain there</strong> after you disconnect, managed by Google; deleting them is your choice, in Google itself.</li>
       <li><strong>To revoke at Google:</strong> go to <a href="https://myaccount.google.com/permissions">https://myaccount.google.com/permissions</a>, choose <strong>PAVLVS</strong> and remove access. From then on the program can no longer read or send messages with that account.</li>
       <li>Files you saved on the computer yourself (for example, downloaded attachments) remain in the folders where you saved them until you delete them.</li>
       <li>Messages remain in your Gmail account, managed by Google.</li>
-      <li>To ask us to delete any data we hold (only the project-support data described above), write to <code>contato@paulus.ia.br</code>.</li>
+      <li>From the former project support, which has been removed from PAULUS, the website may still hold, unpublished: each payment's status, amount, date and email fingerprint, which delete themselves within 400 days of the contribution; and each month's total and the names on the former supporters page, until they are deleted. To ask us to delete any data we hold, write to <code>contato@paulus.ia.br</code>.</li>
     </ul>
 
     <h2 id="rights">Your rights (LGPD)</h2>
@@ -249,21 +277,17 @@
     <h2 id="contact">Contact</h2>
     <p>Privacy questions, requests and complaints: <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>.</p>
   </article>
-</div>
+</div></div>
 </main>
 
 <footer class="rodape">
-  <a class="marca" href="../en/" aria-label="PAVLVS — home"><span>PAVLVS</span></a>
+  <span>© 2026 Atos</span>
   <nav aria-label="Footer">
-    <a href="../en/">Home</a>
-    <a class="forte" href="../privacy-policy/">Privacy Policy</a>
-    <a class="forte" href="../terms-of-use/">Terms of Use</a>
-    <a class="forte" href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
+    <a href="../privacy-policy/">Privacy</a>
+    <a href="../terms-of-use/">Terms</a>
+    <a href="https://github.com/matheusuener-atos/coryphaeus">GitHub</a>
+    <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>
   </nav>
-  <div class="base">
-    <span>Not legal advice, and it can be wrong. Check every answer against the original document.</span>
-    <span>© 2026 Atos · Free software · Built on Coryphaeus</span>
-  </div>
 </footer>
 
 <script src="../assets/site.js" defer></script>

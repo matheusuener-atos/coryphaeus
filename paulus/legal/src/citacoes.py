@@ -150,7 +150,7 @@ def _citacoes_em(texto: str) -> list[dict]:
     achados = []
     for a in regras_leis.achar(texto):
         d = a["dados"]
-        achados.append({"inicio": a["inicio"], "fim": a["fim"], "tipo": d.get("kind"),
+        achados.append({"inicio": a["inicio"], "fim": a["fim"], "tipo": d.get("kind"), "dados": d,
                         "chave": (d.get("kind"), d.get("article", ""), d.get("instrument_id", ""),
                                   d.get("number", ""), d.get("court", ""))})
     for a in regras_processo.achar(texto):
@@ -187,6 +187,9 @@ class Revisao:
     sem_fonte: int = 0
     removidas: list[str] = field(default_factory=list)
     frases: int = 0
+    # Com a base de leis (`revisar(..., leis=)`): os artigos citados fora dos
+    # trechos que existem na base - viram fonte, com o texto oficial.
+    conferidas: list[dict] = field(default_factory=list)
 
     @property
     def refazer(self) -> bool:
@@ -199,10 +202,19 @@ class Revisao:
         return self.frases > 0 and self.marcas_validas == 0
 
 
-def revisar(resposta: str, trechos: list[str]) -> Revisao:
+def revisar(resposta: str, trechos: list[str], leis=None, pergunta: str = "") -> Revisao:
     """
     As tres conferencias sobre a resposta, contra os textos dos trechos que o
     modelo recebeu (na ordem das marcas: `trechos[0]` e o [T1]).
+
+    `leis` (src/leis.py) e a resposta escrita na nuvem: o modelo grande pode
+    citar artigo que nao veio nos trechos, e a conferencia vai a base de leis
+    em vez de apagar. O artigo que existe fica - e entra em `conferidas`,
+    para virar fonte com o texto oficial. O que nao existe no codigo instalado
+    (ou o paragrafo que o artigo nao tem, ou o texto entre aspas que o artigo
+    nao diz) leva a frase inteira: apagar so a citacao deixava pedacos como
+    "em seu, estabelece" (bateria de 02/10/2026). Lei que a base nao tem fica
+    como esta - nao da para conferir, e nao da para dizer que nao existe.
     """
     n = len(trechos)
     citados_nos_trechos = [c for t in trechos for c in _citacoes_em(t)]
@@ -213,6 +225,11 @@ def revisar(resposta: str, trechos: list[str]) -> Revisao:
         if not corpo:
             saida.append(frase)
             continue
+        if leis is not None:
+            veredito = _conferir_na_base(frase, citados_nos_trechos, leis, pergunta, resposta, rev, trechos)
+            if veredito:
+                rev.removidas.append(veredito)
+                continue
         marcas = [int(m) for m in RE_MARCA.findall(corpo)]
         invalidas = [m for m in marcas if m < 1 or m > n]
         rev.marcas_invalidas += invalidas
@@ -220,6 +237,8 @@ def revisar(resposta: str, trechos: list[str]) -> Revisao:
         rev.marcas_validas += len(validas)
         # Regra 3: a citacao que nao existe em trecho nenhum sai da frase.
         for citacao in sorted(_citacoes_em(frase), key=lambda c: -c["inicio"]):
+            if leis is not None and citacao["tipo"] != "case":
+                continue                      # ja conferida na base, acima
             if not _existe_nos_trechos(citacao, citados_nos_trechos):
                 trecho = frase[citacao["inicio"]:citacao["fim"]]
                 rev.removidas.append(RE_MARCA.sub("", trecho).strip())
@@ -242,3 +261,73 @@ def revisar(resposta: str, trechos: list[str]) -> Revisao:
         saida.append(frase)
     rev.texto = "".join(saida)
     return rev
+
+
+# ------------------------------------------------------------ na base de leis
+
+_RE_ASPAS = re.compile(r"[“\"«]([^”\"»]{25,})[”\"»]")
+
+
+def _codigo_por_contexto(*textos: str) -> str:
+    """O codigo que o texto nomeia ("no Codigo Civil", "do CPC"), o primeiro achado."""
+    import leis as leis_mod
+
+    for texto in textos:
+        plano = leis_mod._plano(texto)
+        for codigo, padrao in leis_mod.CODIGO_NA_FRASE:
+            if re.search(padrao, plano):
+                return codigo
+    return ""
+
+
+def _sem_espacos(texto: str) -> str:
+    import leis as leis_mod
+
+    return " ".join(re.findall(r"[a-z0-9]+", leis_mod._plano(texto)))
+
+
+def _conferir_na_base(frase: str, nos_trechos: list[dict], leis, pergunta: str, resposta: str, rev: Revisao,
+                      trechos=()) -> str:
+    """
+    "" quando a frase fica; senao, o motivo de ela sair. Anota em
+    `rev.conferidas` os artigos citados fora dos trechos que a base tem.
+    """
+    import leis as leis_mod
+    from biblioteca.anotacoes import numero_legivel
+
+    for citacao in _citacoes_em(frase):
+        if citacao["tipo"] != "article":
+            continue
+        d = citacao.get("dados") or {}
+        codigo = leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id", "")) or ""
+        if not codigo and d.get("instrument_id"):
+            continue                          # lei que a base nao tem: nao da para conferir
+        if not codigo:
+            codigo = _codigo_por_contexto(frase, pergunta, resposta)
+        if not codigo:
+            continue
+        instalado = any(x["codigo"] == codigo and x["instalado"] for x in leis.instalados())
+        if not instalado:
+            continue
+        numero = numero_legivel(d.get("article", ""))
+        artigo = leis.artigo(codigo, numero)
+        rotulo = RE_MARCA.sub("", frase[citacao["inicio"]:citacao["fim"]]).strip()
+        if not artigo:
+            return f"{rotulo}: não existe no {leis_mod.CODIGOS[codigo]['nome']} guardado aqui"
+        texto = artigo.get("texto", "")
+        paragrafo = str(d.get("paragraph") or "")
+        if paragrafo and paragrafo != "único" and not re.search(r"§\s*" + re.escape(paragrafo) + r"\s*[º°o]?(?!\d)", texto):
+            return f"{rotulo}: o artigo não tem esse parágrafo"
+        if paragrafo == "único" and not re.search(r"(?i)par[áa]grafo [úu]nico", texto):
+            return f"{rotulo}: o artigo não tem parágrafo único"
+        lidos = [_sem_espacos(t) for t in trechos]
+        for aspas in _RE_ASPAS.findall(frase):
+            dito = _sem_espacos(aspas)
+            # O que esta entre aspas pode ser do documento lido, e nao do artigo.
+            if dito not in _sem_espacos(texto) and not any(dito in t for t in lidos):
+                return f"{rotulo}: o texto entre aspas não é o do artigo"
+        if not _existe_nos_trechos(citacao, nos_trechos):
+            chave = (codigo, artigo["numero"])
+            if chave not in [(c["codigo"], c["numero"]) for c in rev.conferidas]:
+                rev.conferidas.append(artigo)
+    return ""

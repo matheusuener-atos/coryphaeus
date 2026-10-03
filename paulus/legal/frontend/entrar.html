@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-tema="escuro">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>PAULUS — Entrar</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/img/paulus-logo.png">
@@ -21,153 +21,225 @@
 </script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <!--
-  A tela de entrar de quem esta de fora (acesso-remoto/v0, R2), no desenho do
-  export "Entrar - acesso de fora" (docs/ui). Tres passos: a verificacao
-  contra robos (Turnstile), o Google - ou, onde o Google nao esta configurado,
-  e-mail e senha - e o codigo do celular. "Confiar neste navegador por 30
-  dias" pula o codigo nas proximas entradas por este navegador.
+  A tela de entrar de quem esta de fora (acesso-remoto/v0, R2), no desenho
+  "Mobile - Escritorio online" (02/10/2026) e nos passos `Codigo` e `Chave de
+  recuperacao` do pacote "PAULUS - Telas Mobile".
+
+  1. Sem campo de escritorio (03/10): quem chega aqui ja esta no endereco
+     dele (uener.paulus.ia.br); escolher o escritorio e em paulus.ia.br/escritorio.
+  2. "Entrar com Google", travado ate a verificacao contra robos (Turnstile)
+     passar. O widget da Cloudflare fica escondido ("interaction-only": so
+     aparece se pedir um toque) e o estado vai para um selo proprio
+     (Verificando, Sucesso, Tente de novo) - o guia "Escritorio online". Onde
+     o escritorio deixa, e-mail e senha. Os dois levam ao codigo.
+  3. O codigo de 6 digitos do app autenticador - ou, sem o celular, a chave de
+     recuperacao XXXX-XXXX, que vale uma vez. "Confiar neste navegador por 30
+     dias" pula o codigo nas proximas entradas.
 
   Pagina propria, e nao uma tela do app: sem sessao, nenhuma rota do app
-  responde. Fontes e icones sao os do programa (nada de Google Fonts ou CDN:
-  a politica de seguranca da pagina so deixa carregar dela mesma e do
-  Turnstile).
+  responde. Fontes e icones sao os do programa (a politica de seguranca da
+  pagina so deixa carregar dela mesma e do Turnstile).
 -->
 <style>
-  [data-tema="claro"] { --bg:#ffffff; --bg2:#f6f6f4; --ink:#171716; --ink2:#5c5c59; --ink3:#8a8a86; --line:rgba(23,23,22,.1);
-    --line2:rgba(23,23,22,.22); --fill:#f1f1ee; --btn:#171716; --btnt:#f6f6f4; --ok:#2f6b42; --warn:#8a5a12; --erro:#a3331f; color-scheme:light; }
-  [data-tema="escuro"] { --bg:#111110; --bg2:#161615; --ink:#f6f6f4; --ink2:#b5b5b0; --ink3:#8a8a86; --line:rgba(255,255,255,.12);
-    --line2:rgba(255,255,255,.26); --fill:#242422; --btn:#f6f6f4; --btnt:#171716; --ok:#8fd0a3; --warn:#e8c283; --erro:#f0a08e; color-scheme:dark; }
+  [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill:#222220; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
+    --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio-forte:rgba(242,241,236,.4); --borda-btn:rgba(242,241,236,.14);
+    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
+  [data-tema="claro"] { --bg:#faf9f6; --surf:#ffffff; --fill:#f2f1ee; --fill2:#e9e8e3; --ink:#1c1c1a; --ink2:#6b6b65; --ink3:#8a8a86;
+    --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio-forte:rgba(28,28,26,.4); --borda-btn:rgba(28,28,26,.14);
+    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#e2e1db; --pastilha-ativa:#dcdbd5; color-scheme:light; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100%; }
-  body { min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--ink);
-    font-family: 'Manrope', system-ui, sans-serif; font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
-  a { color: inherit; }
-  input::placeholder { color: var(--ink3); }
+  html, body { margin: 0; height: 100%; }
+  body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
+    font: 400 14px/1.5 'Manrope', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .tela { width: 100%; max-width: 440px; height: 100%; display: flex; flex-direction: column; overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px); }
   .mono { font-family: 'Fira Code', ui-monospace, monospace; }
   .serif { font-family: 'EB Garamond', Georgia, serif; }
-  svg.ic { width: 16px; height: 16px; flex: none; fill: currentColor; }
-
-  header { padding: 10px clamp(20px, 5vw, 88px); min-height: 64px; display: flex; align-items: center; justify-content: space-between;
-    gap: 12px 24px; border-bottom: 1px solid var(--line); }
-  .marca { font-size: 24px; letter-spacing: .14em; font-weight: 500; line-height: 1; }
-  .topo { display: flex; align-items: center; gap: 18px; }
-  .dominio { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink3); }
-  .tema { width: 36px; height: 36px; border: 0; background: transparent; color: var(--ink2); display: flex; align-items: center;
-    justify-content: center; cursor: pointer; padding: 0; }
-  .tema:hover { color: var(--ink); }
-  .tema svg { width: 18px; height: 18px; }
-
-  main { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: clamp(56px, 9vw, 120px) clamp(20px, 5vw, 48px);
-    display: flex; flex-wrap: wrap; gap: 48px clamp(48px, 8vw, 112px); align-items: start; }
-  .texto { flex: 1 1 380px; min-width: 0; display: grid; gap: 20px; }
-  .rotulo { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .16em; color: var(--rotulo, var(--ok)); }
-  .rotulo i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--rotulo, var(--ok)); }
-  h1 { margin: 0; font-weight: 400; font-size: clamp(44px, 6vw, 68px); line-height: 1; letter-spacing: -.02em; text-wrap: balance; }
-  .texto p { margin: 0; font-size: clamp(17px, 1.8vw, 19px); line-height: 1.6; color: var(--ink2); text-wrap: pretty; max-width: 460px; }
-  .nota { font-style: italic; font-size: 19px; color: var(--ink3); }
-
-  .painel { flex: 1 1 360px; min-width: 0; max-width: 520px; border-left: 1px solid var(--line); padding-left: clamp(24px, 3vw, 40px);
-    display: grid; gap: 32px; }
-  form { display: grid; gap: 20px; margin: 0; }
-  .conta-topo { display: grid; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
-  .conta-topo .ajuda { font-size: 14px; }
-  .etiqueta { font-size: 11px; letter-spacing: .14em; color: var(--ink3); }
-  .google { justify-self: start; height: 40px; padding: 0 18px; border: 1px solid var(--line2); border-radius: 999px; background: var(--bg); color: var(--ink);
-    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-  .google:hover { background: var(--fill); }
-  .google:disabled { opacity: .55; cursor: default; }
-  .robo { min-height: 65px; display: flex; align-items: center; }
-  .ajuda { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
-  .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); }
-  .erro:empty { display: none; }
-  .ou { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--ink3); }
-  .ou::before, .ou::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-
-  label.campo { display: grid; gap: 4px; }
-  .campo input { height: 48px; padding: 0; border: 0; border-bottom: 1px solid var(--line2); background: transparent; color: var(--ink);
-    font: inherit; font-size: 16px; outline: none; border-radius: 0; }
-  .campo input:focus { border-bottom-color: var(--ink); }
-  .campo input.codigo { height: 64px; font-family: 'Fira Code', ui-monospace, monospace; font-size: 32px; letter-spacing: .4em; }
-  .campo input.codigo.recuperacao { font-size: 24px; letter-spacing: .18em; }
-  .quem { display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-  .quem span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
-  .link { border: 0; background: transparent; color: var(--ink2); font: inherit; font-size: 13px; cursor: pointer; padding: 0; text-align: left; }
-  .link:hover { color: var(--ink); text-decoration: underline; }
-  .confiar { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink2); cursor: pointer; }
-  .confiar input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
-  .principal { justify-self: start; height: 36px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--btn); color: var(--btnt);
-    font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
-  .principal:hover { opacity: .88; }
-  .principal:disabled { opacity: .5; cursor: default; }
-
-  footer { border-top: 1px solid var(--line); padding: 24px clamp(20px, 5vw, 88px); display: flex; flex-wrap: wrap; justify-content: space-between;
-    gap: 12px 48px; }
-  footer p { margin: 0; max-width: 520px; font-size: 13px; line-height: 1.65; color: var(--ink3); text-wrap: pretty; }
-  footer p.forte { color: var(--ink2); }
+  button { font: inherit; }
   [hidden] { display: none !important; }
-  @media (max-width: 760px) {
-    .painel { border-left: 0; padding-left: 0; max-width: none; }
-    main { padding-top: 40px; }
+
+  /* --- 1. o escritorio e o jeito de entrar */
+  /* A marca tem lugar fixo em todas as telas de entrada (02/10): o alto dela
+     a 22% da altura da janela, medidos do topo. O formulario vem depois e
+     cresce para baixo - trocar de tela nao a tira do lugar. No celular, o
+     formulario fica no pe; no computador, logo abaixo da marca. */
+  .marca { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 18px; padding: 22vh 32px 32px; padding-top: 22dvh; text-align: center; }
+  /* O alto de toda tela de entrar (03/10): "Paulus est\u00e1 te esperando." na serifa, claro, e a frase
+     do banco embaixo (js/entrada-saudacao.js) - o jeito da saudacao do assistente: o bloco nasce
+     apagado e aparece devagar; ao trocar de passo, a frase sai e a nova entra. PAVLVS e a marca;
+     Paulus, o agente. */
+  .marca h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .marca p { margin: 0; max-width: 360px; font: 400 15px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
+  .marca > * { transition: opacity .7s ease, transform .7s ease; }
+  .marca.abrindo > * { opacity: 0; }
+  .marca.saindo > p { opacity: 0; transform: translateY(4px); }
+  @media (prefers-reduced-motion: reduce) { .marca > * { transition: none; } }
+  .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; margin-top: auto; }
+  .rotulo { font: 400 11px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
+  .escritorio { display: grid; gap: 6px; }
+  .escritorio label { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio); cursor: text; }
+  .escritorio label:focus-within { border-color: var(--fio-forte); }
+  .escritorio input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; outline: none;
+    font: 400 14px 'Fira Code', monospace; color: var(--ink); }
+  /* "Entrar com Google": o trilho com a pastilha dentro (guia de 02/10),
+     travado ate a verificacao contra robos passar. */
+  .g-trilho { display: flex; width: 100%; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2);
+    cursor: pointer; position: relative; }
+  .g-trilho::after { content: ""; position: absolute; inset: -2px 0; } /* 44 px de toque */
+  .g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
+    background: var(--fill2); color: var(--ink); font: 500 13.5px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
+  .g-pastilha svg { width: 16px; height: 16px; flex: none; }
+  .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
+  .g-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .g-trilho:disabled { opacity: .5; pointer-events: none; }
+  /* O widget da Cloudflare nao aparece: so se pedir interacao (appearance
+     "interaction-only"), e ai ele surge aqui sozinho. */
+  .robo:empty { display: none; }
+  .robo { display: flex; justify-content: center; }
+  /* O selo proprio, no lugar do widget: verificando, sucesso ou de novo. */
+  .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio2); }
+  .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13.5px 'Manrope', system-ui, sans-serif; color: var(--ink); }
+  .cf-icone { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none;
+    transition: background .24s, transform .24s cubic-bezier(.2,.8,.2,1); }
+  .cf-icone svg { width: 15px; height: 15px; fill: #fff; opacity: 0; transition: opacity .2s .12s; }
+  .cf-dir { display: grid; justify-items: end; gap: 2px; text-align: right; }
+  .cf-marca { font: 700 9.5px 'Manrope', system-ui, sans-serif; letter-spacing: .12em; color: var(--ink); }
+  .cf-links { font: 400 9.5px 'Manrope', system-ui, sans-serif; color: var(--ink3); }
+  .cf-links a { color: inherit; text-decoration: none; }
+  .cf-badge[data-estado="verificando"] .cf-icone { border: 2px solid var(--fio); border-top-color: var(--ink); animation: cf-gira .9s linear infinite; }
+  .cf-badge[data-estado="ok"] .cf-icone { background: #2f9e5b; animation: cf-surge .24s cubic-bezier(.2,.8,.2,1); }
+  .cf-badge[data-estado="erro"] { cursor: pointer; }
+  .cf-badge[data-estado="erro"] .cf-icone { background: #b84a3c; }
+  .cf-badge:is([data-estado="ok"], [data-estado="erro"]) .cf-icone svg { opacity: 1; }
+  .cf-badge .cf-x { display: none; }
+  .cf-badge[data-estado="erro"] .cf-x { display: block; }
+  .cf-badge[data-estado="erro"] .cf-v { display: none; }
+  @keyframes cf-gira { to { transform: rotate(360deg); } }
+  @keyframes cf-surge { from { transform: scale(.6); } to { transform: scale(1); } }
+  .link-senha { justify-self: center; border: 0; background: none; padding: 10px 0; color: var(--ink3); font: 500 13px 'Manrope', sans-serif; cursor: pointer; }
+  .campos { display: grid; gap: 10px; }
+  .campos input { width: 100%; height: 44px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio);
+    outline: none; color: var(--ink); font: 400 15px 'Manrope', sans-serif; }
+  .campos input:focus { border-color: var(--fio-forte); }
+  .campos input::placeholder { color: var(--ink3); }
+  .ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-wrap: pretty; text-align: center; }
+  .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); text-align: center; }
+  .erro:empty { display: none; }
+
+  /* --- 2. o codigo (e a chave de recuperacao), no desenho "Codigo" */
+  .passo { position: relative; max-width: none; overflow: visible; }
+  .voltar { position: absolute; top: 20px; left: 16px; z-index: 1; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0;
+    border: 0; background: none; color: var(--ink3); font: 500 13px 'Manrope', sans-serif; cursor: pointer; }
+  .voltar svg { width: 18px; height: 18px; }
+  .voltar:hover { color: var(--ink); }
+  .conta { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio); }
+  .conta .g-ic { width: 16px; height: 16px; flex: none; }
+  .conta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .trocar { flex: none; border: 0; background: none; padding: 10px 0; color: var(--apagado); font: 500 12px 'Manrope', sans-serif; cursor: pointer; }
+  .trocar:hover { color: var(--ink); }
+  .rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; }
+  .renova { font: 400 11px 'Fira Code', monospace; color: var(--apagado); }
+  .renova b { font-weight: 400; color: var(--ink3); }
+  .casas { position: relative; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 8px; }
+  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
+  .casas span.vez { border-color: var(--fio-forte); }
+  /* O campo de verdade fica por cima das casas, transparente: o teclado do
+     celular, o colar e o preenchimento do codigo pelo SMS funcionam. */
+  .casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px;
+    color: transparent; caret-color: transparent; background: none; }
+  .confiar { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--fio2); cursor: pointer; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .confiar input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .confiar i { width: 16px; height: 16px; flex: none; border-radius: 4px; background: var(--fill2); border: 1px solid var(--fio-forte);
+    display: flex; align-items: center; justify-content: center; }
+  .confiar i svg { width: 13px; height: 13px; fill: var(--ink); opacity: 0; }
+  .confiar input:checked + i svg { opacity: 1; }
+  .confiar input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .link-senha:hover { color: var(--ink); }
+  /* A chave de recuperacao (desenho "Chave de recuperacao"): um campo so,
+     com a borda acesa, e a ajuda embaixo. */
+  .casas.campo { display: block; }
+  .casas.campo span { display: none; }
+  .casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px;
+    background: var(--surf); border: 1px solid var(--fio-forte); outline: none; color: var(--ink); caret-color: var(--ink);
+    font: 400 15px 'Fira Code', monospace; letter-spacing: .14em; text-transform: uppercase; }
+  .ajuda-chave { font: 400 12px/1.5 'Manrope', sans-serif; color: var(--apagado); text-wrap: pretty; }
+
+  /* --- no computador: uma coluna de 360 px no meio da tela, a marca em
+     cima (56 px) e o formulario 40 px abaixo - o desenho "Escritorio online"
+     de mesa. No celular, a marca no meio e o formulario embaixo. */
+  @media (min-width: 601px) {
+    .tela { max-width: none; }
+    .passo { justify-content: flex-start; align-items: center; gap: 40px; padding: 0 24px 48px; }
+    .passo .marca { flex: none; min-height: 0; gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
+    .passo .baixo { margin-top: 0; }
+    .passo .marca h1 { font-size: 44px; }
+    .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
+    .voltar { top: 28px; left: 28px; }
+    .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
+    .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   }
 </style>
 </head>
 <body>
-<header>
-  <span class="marca serif">PAVLVS</span>
-  <div class="topo">
-    <span class="dominio mono"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22q-.8 0-1.4-.6Q4 20.8 4 20V10q0-.8.6-1.4Q5.2 8 6 8h1V6q0-2.1 1.5-3.6Q10 1 12 1t3.5 1.4Q17 3.9 17 6v2h1q.8 0 1.4.6.6.6.6 1.4v10q0 .8-.6 1.4-.6.6-1.4.6Zm0-2h12V10H6v10Zm6-3q.8 0 1.4-.6Q14 15.8 14 15t-.6-1.4Q12.8 13 12 13t-1.4.6Q10 14.2 10 15t.6 1.4Q11.2 17 12 17ZM9 8h6V6q0-1.3-.9-2.1Q13.3 3 12 3t-2.1.9Q9 4.8 9 6v2Z"/></svg><span id="endereco">acesso de fora</span></span>
-    <button type="button" class="tema" id="tema" aria-label="Alternar tema"></button>
-  </div>
-</header>
+<div class="tela">
 
-<main>
-  <section class="texto">
-    <span class="rotulo mono" id="rotulo"><i></i><span id="rotulo-texto">ESCRITÓRIO ONLINE</span></span>
-    <h1 class="serif" id="titulo">Acesse o seu escritório</h1>
-    <p id="texto">O PAVLVS continua rodando no computador do escritório. Daqui você abre a mesma tela, com os mesmos processos e documentos.</p>
-    <span class="nota serif" id="nota">Cada acesso fica registrado no escritório.</span>
+  <!-- 1. O escritorio e o jeito de entrar (Google | Codigo) -->
+  <section id="entrar-senha" class="tela passo">
+    <div class="marca abrindo" id="marca-entrar">
+      <h1 data-es-titulo>Paulus está te esperando.</h1>
+      <p data-es-frase>O mesmo escritório, de onde você estiver.</p>
+    </div>
+    <form id="form-senha" class="baixo" autocomplete="on">
+      <button type="button" class="g-trilho" id="google" disabled><span class="g-pastilha"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar com Google</span></button>
+      <!-- E-mail e senha: so no escritorio sem o Google configurado. -->
+      <div class="campos" id="por-senha" hidden>
+        <input id="email" type="email" autocomplete="username" placeholder="E-mail" aria-label="E-mail">
+        <input id="senha" type="password" autocomplete="current-password" minlength="10" placeholder="Senha" aria-label="Senha">
+      </div>
+      <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
+      <div class="cf-badge" id="cf-badge" data-estado="verificando" role="status" aria-live="polite">
+        <span class="cf-esq"><span class="cf-icone"><svg class="cf-v" viewBox="0 0 24 24" aria-hidden="true"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg><svg class="cf-x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 19 5 17.6 10.6 12 5 6.4 6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4Z"/></svg></span><span class="cf-texto" id="cf-texto">Verificando…</span></span>
+        <span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · <a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener">Ajuda</a></span></span>
+      </div>
+      <p class="erro" id="erro-senha" role="alert"></p>
+      <button type="submit" class="g-trilho" id="continuar-senha" hidden><span class="g-pastilha">Continuar</span></button>
+      <button type="button" class="link-senha" id="usar-senha" hidden>Entrar com e-mail e senha</button>
+    </form>
   </section>
 
-  <section class="painel">
-    <section id="entrar-senha">
-      <form id="form-senha" autocomplete="on">
-        <div class="conta-topo"><span class="etiqueta mono">SUA CONTA</span>
-          <p class="ajuda" id="ajuda-conta">Entre com a conta liberada pelo escritório. Se ainda não tem acesso, peça a quem administra o PAVLVS.</p></div>
-        <div id="com-google" hidden>
-          <button type="button" class="google" id="google"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar com Google</button>
+  <!-- 2. O codigo do app autenticador, ou a chave de recuperacao -->
+  <section id="entrar-codigo" class="tela passo" hidden>
+    <button type="button" class="voltar" id="voltar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7.83 13 5.6 5.6L12 20l-8-8 8-8 1.43 1.4-5.6 5.6H20v2Z"/></svg>Voltar</button>
+    <div class="marca abrindo" id="marca-codigo">
+      <h1 data-es-titulo>Paulus está te esperando.</h1>
+      <p data-es-frase id="quem-titulo">Falta confirmar que é você: digite o código do Google Authenticator.</p>
+    </div>
+    <form id="form-codigo" class="baixo" autocomplete="off">
+      <div class="escritorio">
+        <span class="rotulo">CONTA</span>
+        <div class="conta"><svg class="g-ic" viewBox="0 0 48 48" aria-hidden="true" id="quem-marca"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span id="quem-email"></span><button type="button" class="trocar" id="trocar">Trocar</button></div>
+      </div>
+      <div class="escritorio">
+        <div class="rotulo-linha"><span class="rotulo" id="rotulo-codigo">GOOGLE AUTHENTICATOR</span><span class="renova" id="renova">renova em <b id="segundos">00:30</b></span></div>
+        <div class="casas" id="casas">
+          <input id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos" required>
         </div>
-        <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
-        <div class="ou" id="ou" hidden>ou com e-mail e senha</div>
-        <div id="por-senha">
-          <label class="campo"><span class="etiqueta mono">E-MAIL</span>
-            <input id="email" type="email" autocomplete="username" required></label>
-          <label class="campo" style="margin-top:14px"><span class="etiqueta mono">SENHA</span>
-            <input id="senha" type="password" autocomplete="current-password" required minlength="10"></label>
-        </div>
-        <p class="erro" id="erro-senha" role="alert"></p>
-        <button type="submit" class="principal" id="continuar-senha">Continuar</button>
-      </form>
-    </section>
-
-    <section id="entrar-codigo" hidden>
-      <form id="form-codigo" autocomplete="off">
-        <div class="quem"><span id="quem-email"></span><button type="button" class="link" id="voltar">Trocar</button></div>
-        <label class="campo"><span class="etiqueta mono" id="rotulo-codigo">CÓDIGO DO CELULAR</span>
-          <input id="codigo" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required></label>
-        <label class="confiar"><input type="checkbox" id="confiar">Confiar neste navegador por 30 dias</label>
-        <p class="erro" id="erro-codigo" role="alert"></p>
-        <button type="submit" class="principal">Entrar</button>
-        <button type="button" class="link" id="recuperacao" style="font-size:13.5px">Sem o celular? Use um código de recuperação</button>
-      </form>
-    </section>
+        <span class="ajuda-chave" id="ajuda-chave" hidden>Cada chave vale uma vez.</span>
+      </div>
+      <label class="confiar" id="caixa-confiar"><input type="checkbox" id="confiar"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg></i><span>Confiar neste navegador por 30 dias</span></label>
+      <p class="erro" id="erro-codigo" role="alert"></p>
+      <button type="submit" class="g-trilho" id="entrar"><span class="g-pastilha" id="entrar-texto">Entrar</span></button>
+      <button type="button" class="link-senha" id="recuperacao">Não tenho o celular</button>
+    </form>
   </section>
-</main>
+</div>
 
-<footer>
-  <p class="forte">Cada pessoa entra com a própria conta e o código do celular.</p>
-  <p>Este endereço leva ao computador do escritório por um túnel seguro. Os documentos e o modelo de IA ficam lá.</p>
-</footer>
-
+<script src="/js/entrada-saudacao.js"></script>
 <script>
 (function () {
   "use strict";
@@ -175,52 +247,71 @@
   let robo = null;
   let chaveRobo = "";
   let porRecuperacao = false;
+  let modo = "google";
+  let config = { google: false, so_google: false };
   const $ = (id) => document.getElementById(id);
-  $("endereco").textContent = location.hostname;
 
-  // O tema: o botao do canto troca e lembra (o mesmo "paulus.tema" do programa).
-  const SOL = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 15q1.25 0 2.13-.88Q15 13.25 15 12t-.87-2.13Q13.25 9 12 9t-2.12.87Q9 10.75 9 12t.88 2.12Q10.75 15 12 15Zm0 2q-2.08 0-3.54-1.46Q7 14.08 7 12t1.46-3.54Q9.92 7 12 7t3.54 1.46Q17 9.92 17 12t-1.46 3.54Q14.08 17 12 17ZM2 13q-.43 0-.71-.29Q1 12.43 1 12t.29-.71Q1.57 11 2 11h2q.43 0 .71.29Q5 11.57 5 12t-.29.71Q4.43 13 4 13Zm18 0q-.43 0-.71-.29Q19 12.43 19 12t.29-.71q.28-.29.71-.29h2q.43 0 .71.29.29.28.29.71t-.29.71Q22.43 13 22 13Zm-8-8q-.43 0-.71-.29Q11 4.43 11 4V2q0-.43.29-.71Q11.57 1 12 1t.71.29Q13 1.57 13 2v2q0 .43-.29.71Q12.43 5 12 5Zm0 18q-.43 0-.71-.29Q11 22.43 11 22v-2q0-.43.29-.71.28-.29.71-.29t.71.29q.29.28.29.71v2q0 .43-.29.71Q12.43 23 12 23Z"/></svg>';
-  const LUA = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 21q-3.75 0-6.37-2.63Q3 15.75 3 12t2.63-6.37Q8.25 3 12 3q.35 0 .69.02.34.03.66.08-1.03.72-1.64 1.89Q11.1 6.15 11.1 7.5q0 2.25 1.58 3.83Q14.25 12.9 16.5 12.9q1.38 0 2.53-.61 1.15-.62 1.87-1.64.05.33.07.66.03.34.03.69 0 3.75-2.63 6.38Q15.75 21 12 21Z"/></svg>';
-  function desenharTema() {
-    $("tema").innerHTML = document.documentElement.dataset.tema === "escuro" ? SOL : LUA;
+
+  // O jeito de entrar: o Google (o desenho) ou, so no escritorio que deixa,
+  // e-mail e senha - sozinhos quando o Google nao foi configurado, ou por
+  // escolha no "Entrar com e-mail e senha".
+  function escolher(qual) {
+    modo = qual;
+    const senha = qual === "senha";
+    $("google").hidden = senha;
+    $("por-senha").hidden = !senha;
+    $("email").required = senha;
+    $("senha").required = senha;
+    $("continuar-senha").hidden = !senha;
+    $("usar-senha").hidden = !(config.google && !config.so_google);
+    $("usar-senha").textContent = senha ? "Entrar com Google" : "Entrar com e-mail e senha";
+    $("erro-senha").textContent = "";
+    if (!$("entrar-senha").hidden) saudar($("marca-entrar"), senha ? "senha" : "entrar");
   }
-  desenharTema();
-  $("tema").addEventListener("click", () => {
-    const t = document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro";
-    document.documentElement.dataset.tema = t;
-    try { localStorage.setItem("paulus.tema", t); } catch (e) { /* sem memoria */ }
-    desenharTema();
-    // O widget da Cloudflare acompanha o tema: e redesenhado.
-    if (robo !== null && window.turnstile) { window.turnstile.remove(robo); robo = null; mostrarRobo(chaveRobo); }
+  $("google").addEventListener("click", () => entrarComGoogle());
+  $("usar-senha").addEventListener("click", () => { escolher(modo === "senha" ? "google" : "senha"); if (modo === "senha") $("email").focus(); });
+
+  // O selo da verificacao contra robos, no lugar do widget da Cloudflare.
+  function selo(estado, texto) {
+    $("cf-badge").dataset.estado = estado;
+    $("cf-texto").textContent = texto;
+    $("google").disabled = estado !== "ok";
+  }
+  $("cf-badge").addEventListener("click", (e) => {
+    if ($("cf-badge").dataset.estado !== "erro" || e.target.closest("a")) return;
+    selo("verificando", "Verificando…");
+    novoRobo();
   });
 
-  // O texto da esquerda muda com o passo (o desenho: "entrar" e "codigo").
-  const PASSOS = {
-    entrar: ["ESCRITÓRIO ONLINE", "var(--ok)", "Acesse o seu escritório",
-      "O PAVLVS continua rodando no computador do escritório. Daqui você abre a mesma tela, com os mesmos processos e documentos.",
-      "Cada acesso fica registrado no escritório."],
-    codigo: ["PASSO 2 DE 2", "var(--ink3)", "Confirme que é você",
-      "Digite o código de 6 dígitos que aparece no app autenticador do seu celular.", "O código muda a cada 30 segundos."],
-  };
+  // "Paulus está te esperando." e a frase de cada passo (js/entrada-saudacao.js).
+  function saudar(bloco, tela) {
+    if (!window.EntradaSaudacao || !bloco) { if (bloco) bloco.classList.remove("abrindo"); return; }
+    if (bloco.dataset.aberto) EntradaSaudacao.trocar(bloco, tela);
+    else { bloco.dataset.aberto = "1"; EntradaSaudacao.abrir(bloco, tela); }
+  }
+
   function passo(qual) {
-    const [rotulo, cor, titulo, texto, nota] = PASSOS[qual];
-    $("rotulo-texto").textContent = rotulo;
-    $("rotulo").style.setProperty("--rotulo", cor);
-    $("titulo").textContent = titulo;
-    $("texto").textContent = texto;
-    $("nota").textContent = nota;
     $("entrar-senha").hidden = qual !== "entrar";
     $("entrar-codigo").hidden = qual !== "codigo";
-    if (qual === "codigo") $("codigo").focus();
+    if (qual === "entrar") saudar($("marca-entrar"), modo === "senha" ? "senha" : "entrar");
+    else saudar($("marca-codigo"), porRecuperacao ? "chave" : "codigo");
+    if (qual === "codigo") { desenharCasas(); $("codigo").focus(); }
   }
 
   function mostrarRobo(chave) {
     chaveRobo = chave;
-    if (!chave) { $("erro-senha").textContent = "o acesso de fora deste escritório não terminou de ser configurado"; return; }
+    if (!chave) { selo("erro", "Indisponível"); $("erro-senha").textContent = "o acesso de fora deste escritório não terminou de ser configurado"; return; }
     const tentar = () => {
       if (!window.turnstile) { setTimeout(tentar, 200); return; }
-      robo = window.turnstile.render("#robo", { sitekey: chave, language: "pt-br",
-        theme: document.documentElement.dataset.tema === "escuro" ? "dark" : "light" });
+      // "interaction-only": o widget so aparece se a Cloudflare pedir um
+      // toque; o estado vai para o selo.
+      robo = window.turnstile.render("#robo", { sitekey: chave, language: "pt-br", size: "flexible", appearance: "interaction-only",
+        theme: document.documentElement.dataset.tema === "escuro" ? "dark" : "light",
+        callback: () => selo("ok", "Sucesso!"),
+        "error-callback": () => selo("erro", "Tente de novo"),
+        "expired-callback": () => { selo("verificando", "Verificando…"); novoRobo(); } });
+      // Um token que ja veio pronto (o navegador ja verificado) conta igual.
+      setTimeout(() => { if (tokenDoRobo() && $("cf-badge").dataset.estado !== "ok") selo("ok", "Sucesso!"); }, 300);
     };
     tentar();
   }
@@ -235,6 +326,31 @@
   const tokenDoRobo = () => (robo !== null && window.turnstile ? window.turnstile.getResponse(robo) : "");
   const novoRobo = () => { if (robo !== null && window.turnstile) window.turnstile.reset(robo); };
 
+  // As casas do codigo: o campo de verdade fica por cima, transparente.
+  function desenharCasas() {
+    const n = porRecuperacao ? 8 : 6;
+    const v = $("codigo").value.replace(porRecuperacao ? /[^0-9a-z]/gi : /\D/g, "").toUpperCase().slice(0, n);
+    const casas = $("casas");
+    casas.querySelectorAll("span").forEach((s) => s.remove());
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement("span");
+      s.textContent = v[i] || "";
+      if (i === Math.min(v.length, n - 1) && document.activeElement === $("codigo")) s.classList.add("vez");
+      casas.insertBefore(s, $("codigo"));
+    }
+  }
+  $("codigo").addEventListener("input", desenharCasas);
+  $("codigo").addEventListener("focus", desenharCasas);
+  $("codigo").addEventListener("blur", desenharCasas);
+
+  // "Renova em 00:18": o codigo do autenticador vale 30 s.
+  function relogio() {
+    const s = 30 - (Math.floor(Date.now() / 1000) % 30);
+    if ($("segundos")) $("segundos").textContent = "00:" + String(s).padStart(2, "0");
+  }
+  relogio();
+  setInterval(relogio, 1000);
+
   // A volta do Google vem depois do # (nao sai do navegador): #g=<pendencia>&e=<e-mail>
   // leva ao codigo; #entrou e o navegador confiado (a sessao ja esta aberta);
   // #erro=<frase> diz o que nao fechou.
@@ -244,41 +360,44 @@
   if (volta.get("erro")) $("erro-senha").textContent = volta.get("erro");
   if (volta.get("g")) {
     pendente = volta.get("g");
+    // A conta que voltou do Google fica lembrada neste aparelho: na proxima
+    // entrada ela vai como dica, e o Google nao pede para escolher de novo.
+    if (volta.get("e")) { try { localStorage.setItem("paulus.google.email", volta.get("e")); } catch (e) { /* sem memoria */ } }
     $("quem-email").textContent = volta.get("e") || "sua conta Google";
     passo("codigo");
   } else {
     passo("entrar");
   }
 
-  $("google").addEventListener("click", async () => {
+  async function entrarComGoogle() {
     const b = $("google");
     b.disabled = true; $("erro-senha").textContent = "";
     try {
+      if (!config.google) throw new Error("o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS");
       const token = tokenDoRobo();
-      if (!token) throw new Error("confirme a verificação contra robôs abaixo");
-      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "entrar", turnstile: token });
+      if (!token) throw new Error("confirme a verificação contra robôs acima");
+      let dica = "";
+      try { dica = localStorage.getItem("paulus.google.email") || ""; } catch (e) { /* sem memoria */ }
+      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "entrar", turnstile: token, dica });
       location.assign(d.url);
       return;
     } catch (err) { $("erro-senha").textContent = err.message; }
+    // Cada token vale uma vez: o selo volta a verificar e destrava sozinho.
+    selo("verificando", "Verificando…");
     novoRobo();
-    b.disabled = false;
-  });
+  }
 
   fetch("/api/acesso/entrar/config").then((r) => r.json()).then((d) => {
+    config = { google: Boolean(d.google), so_google: Boolean(d.so_google) };
     mostrarRobo(d.turnstile_sitekey);
-    if (d.google) { $("com-google").hidden = false; $("ou").hidden = false; }
-    // So o Google (decisao do escritorio): sem e-mail e senha na tela.
-    if (d.so_google) {
-      $("por-senha").hidden = true; $("ou").hidden = true; $("continuar-senha").hidden = true;
-      $("email").required = false; $("senha").required = false;
-      // Toda entrada e pelo Google: sem ele configurado, a tela diz o que
-      // falta - e nao oferece senha.
-      if (!d.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS";
-    }
+    // Sem o Google configurado (e com a senha liberada): e-mail e senha.
+    escolher(config.google || config.so_google ? "google" : "senha");
+    if (config.so_google && !config.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS";
   }).catch(() => { $("erro-senha").textContent = "não consegui abrir a tela de entrar; recarregue a página"; });
 
   $("form-senha").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (modo === "google") return entrarComGoogle();
     const b = $("continuar-senha");
     b.disabled = true; $("erro-senha").textContent = "";
     try {
@@ -289,37 +408,55 @@
       pendente = d.pendente;
       $("senha").value = "";
       $("quem-email").textContent = $("email").value.trim();
+      $("quem-marca").style.display = "none";
       passo("codigo");
     } catch (err) { $("erro-senha").textContent = err.message; }
     // Cada token do Turnstile vale uma vez: a proxima tentativa pede outro.
+    selo("verificando", "Verificando…");
     novoRobo();
     b.disabled = false;
   });
 
   $("form-codigo").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const b = e.target.querySelector("button[type=submit]");
+    const b = $("entrar");
     b.disabled = true; $("erro-codigo").textContent = "";
+    let codigo = $("codigo").value.trim().toUpperCase();
+    // A chave de recuperacao e XXXX-XXXX; digitada sem o hifen, ele entra aqui.
+    if (porRecuperacao && /^[0-9A-Z]{8}$/.test(codigo)) codigo = codigo.slice(0, 4) + "-" + codigo.slice(4);
     try {
-      await enviar("/api/acesso/entrar/codigo", { pendente, codigo: $("codigo").value.trim(), confiar: $("confiar").checked });
+      await enviar("/api/acesso/entrar/codigo", { pendente, codigo, confiar: $("confiar").checked });
       location.replace("/");
     } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; }
   });
 
-  // Codigo de recuperacao: XXXX-XXXX, letras e numeros, uma vez cada.
+  // Sem o celular: a chave de recuperacao (`Chave de recuperacao`), XXXX-XXXX,
+  // letras e numeros, uma vez cada.
   $("recuperacao").addEventListener("click", () => {
     porRecuperacao = !porRecuperacao;
     const c = $("codigo");
     c.value = "";
-    c.classList.toggle("recuperacao", porRecuperacao);
     c.maxLength = porRecuperacao ? 9 : 6;
-    c.placeholder = porRecuperacao ? "XXXX-XXXX" : "000000";
     c.inputMode = porRecuperacao ? "text" : "numeric";
-    $("rotulo-codigo").textContent = porRecuperacao ? "CÓDIGO DE RECUPERAÇÃO" : "CÓDIGO DO CELULAR";
-    $("recuperacao").textContent = porRecuperacao ? "Usar o código do celular" : "Sem o celular? Use um código de recuperação";
+    c.setAttribute("aria-label", porRecuperacao ? "Chave de recuperação de 8 caracteres" : "Código de 6 dígitos");
+    saudar($("marca-codigo"), porRecuperacao ? "chave" : "codigo");
+    $("rotulo-codigo").textContent = porRecuperacao ? "CHAVE DE RECUPERAÇÃO" : "GOOGLE AUTHENTICATOR";
+    $("renova").textContent = porRecuperacao ? "uso único" : "renova em ";
+    if (!porRecuperacao) { const b = document.createElement("b"); b.id = "segundos"; $("renova").appendChild(b); relogio(); }
+    $("casas").classList.toggle("campo", porRecuperacao);
+    $("ajuda-chave").hidden = !porRecuperacao;
+    $("trocar").hidden = porRecuperacao;
+    $("caixa-confiar").hidden = porRecuperacao;
+    if (porRecuperacao) $("confiar").checked = false;
+    c.autocomplete = porRecuperacao ? "off" : "one-time-code";
+    $("recuperacao").textContent = porRecuperacao ? "Usar o Google Authenticator" : "Não tenho o celular";
+    $("entrar-texto").textContent = "Entrar";
+    $("erro-codigo").textContent = "";
+    desenharCasas();
     c.focus();
   });
 
+  $("trocar").addEventListener("click", () => $("voltar").click());
   $("voltar").addEventListener("click", () => {
     pendente = ""; $("codigo").value = ""; $("erro-codigo").textContent = "";
     passo("entrar");

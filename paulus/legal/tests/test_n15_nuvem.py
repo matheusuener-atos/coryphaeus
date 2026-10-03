@@ -161,11 +161,13 @@ def main() -> int:
 
     print("\nmascarar")
     m = nuvem.Mascara()
-    t = m.aplicar(f"O cliente, CPF {CPF} (e não 111.222.333-44), da empresa 11.222.333/0001-81, no processo "
+    # 02/10/2026: o número solto com dígito errado fica; com a pontuação do
+    # documento, é CPF mesmo com o dígito errado, e sai (tests/test_bateria_nuvem.py).
+    t = m.aplicar(f"O cliente, CPF {CPF} (e não 11122233344), da empresa 11.222.333/0001-81, no processo "
                   "0001234-56.2024.8.26.0100, e-mail joao@clinica.com.br, telefone (11) 98765-4321. De novo: " + CPF)
     checar("[CPF 1]" in t and "[CNPJ 1]" in t and "[PROCESSO 1]" in t and "[E-MAIL 1]" in t and "[TELEFONE 1]" in t and CPF not in t,
            "CPF, CNPJ, processo, e-mail e telefone viram marcadores", t)
-    checar("111.222.333-44" in t and t.count("[CPF 1]") == 2 and "[CPF 2]" not in t, "o CPF inválido fica; o mesmo CPF é o mesmo marcador")
+    checar("11122233344" in t and t.count("[CPF 1]") == 2 and "[CPF 2]" not in t, "o número solto inválido fica; o mesmo CPF é o mesmo marcador")
     d = nuvem.Desmascarador(m)
     junto = d.entrar("O CPF é [CP") + d.entrar("F 1] e o processo [PROCESSO 1].") + d.fim()
     checar(junto == f"O CPF é {CPF} e o processo 0001234-56.2024.8.26.0100.", "o marcador partido entre dois pedaços volta inteiro", junto)
@@ -196,7 +198,7 @@ def main() -> int:
     api._juiz = lambda: None
     api.estado.prefs.dados.setdefault("ia", {}).update({"leitura": "trechos", "denso": False})
     api.estado.client = cliente
-    api.estado.cliente_para = lambda tarefa: cliente
+    api.estado.cliente_para = lambda tarefa, **k: cliente
     local = TestClient(api.app, headers=api.cabecalho_local())
     regra = next(a for a in config.AUTONOMIA if a["chave"] == "modelo_nuvem")
     checar(not regra["travada"] and regra["padrao"] is False and "sem pedir" in regra["titulo"], "a regra de alçada: desligada, e não mais travada", regra["titulo"])
@@ -218,8 +220,15 @@ def main() -> int:
     checar(r["modelos"] == ["claude-haiku-4-5-20251001", "claude-sonnet-5-5"] and r["modelo"] == "claude-sonnet-5-5"
            and arq.exists() and CHAVE not in arq.read_text(encoding="utf-8") and CHAVE not in json.dumps(api.estado.prefs.dados),
            "guardada cifrada (nem no arquivo nem nas preferências), testada, e o modelo escolhido", r.get("modelos"))
+    # V5 (docs/PLANO-NUVEM.md): sem o sim do titular, não liga; com ele, e o
+    # sim a cada envio pedido, o resto deste teste é o da N15.
+    r = local.post("/api/nuvem/configurar", json={"ligado": True})
+    checar(r.status_code == 400 and "sim" in r.json()["detail"], "ligar sem o sim do titular é recusado", r.json())
+    termo = local.get("/api/nuvem/termo").json()
+    r = local.post("/api/nuvem/consentimento", json={"aceito": True, "versao": termo["versao"]}).json()
+    local.post("/api/nuvem/configurar", json={"pedir_cada_envio": True})
     r = local.post("/api/nuvem/configurar", json={"ligado": True}).json()
-    checar(r["ligada"] is True, "ligada")
+    checar(r["ligada"] is True and r["consentido"] is True, "com o sim do titular, ligada")
 
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)
@@ -333,8 +342,10 @@ def main() -> int:
     hit = SimpleNamespace(chunk=SimpleNamespace(doc_path=str(copia)), doc_name="parecer.pdf")
     envio = nuvem.Envio(api.estado, SimpleNamespace(id="x", titulo="x", contexto={}))
     checar(envio.preparar("p", "c", "", [hit]) is None and "Google Drive" in envio.motivo, "a cópia do Drive feita pelo PAULUS (API do Google) fica", envio.motivo)
+    api.estado.prefs.atualizar({"autonomia": {"modelo_nuvem": False}})
     envio = nuvem.Envio(api.estado, SimpleNamespace(id="x", titulo="x", contexto={}), pessoa={"conta_id": 1})
-    checar(envio.preparar("p", "c", "", []) is None and "de fora" in envio.motivo, "de fora, a pergunta não vai à nuvem", envio.motivo)
+    checar(envio.preparar("p", "c", "", []) is None and "computador do escritório" in envio.motivo,
+           "de fora, com o sim a cada envio, a pergunta fica (o sim é da janela)", envio.motivo)
     api.estado.prefs.atualizar({"autonomia": {"modelo_nuvem": False}})
 
     print("\nno Edge")
@@ -362,9 +373,10 @@ def main() -> int:
                 pag.goto(f"http://127.0.0.1:{porta}/entrar-local?chave=" + api.estado.acesso.chave, wait_until="load")
                 pag.wait_for_function("() => typeof cartaoNuvem === 'function' && typeof enviar === 'function'")
                 pag.wait_for_selector("#pilula-nuvem", timeout=10000)
-                checar(pag.locator("#pilula-nuvem").count() == 1, "a pílula “Nuvem” na caixa da pergunta (nuvem ligada, janela do escritório)")
+                checar(pag.locator("#pilula-nuvem").count() == 1 and pag.get_attribute("#pilula-nuvem", "aria-pressed") == "true",
+                       "a pílula “Nuvem” na caixa da pergunta, já ligada (nuvem ligada para a conversa)")
                 pag.evaluate("() => { mostrarConfig('modelos'); }")
-                pag.wait_for_function("() => /Nuvem \\(chave do escritório\\)/.test((document.getElementById('cfg-tela') || {}).innerText || '')", timeout=15000)
+                pag.wait_for_function("() => /Mascarar antes de sair/.test((document.getElementById('cfg-tela') || {}).innerText || '')", timeout=15000)
                 tela = pag.inner_text("#cfg-tela")
                 checar("assinatura de consumidor" in tela and "Mascarar antes de sair" in tela and "registro de envios" in tela.lower(),
                        "o cartão em Modelos: o que sai, mascarar e o registro")
@@ -373,13 +385,15 @@ def main() -> int:
                 pag.evaluate("() => { voltarAoAssistente(); }")
                 pag.wait_for_timeout(500)
                 pag.click("#pilula-nuvem")
-                checar(pag.get_attribute("#pilula-nuvem", "aria-pressed") == "true", "a pílula marca a próxima pergunta")
+                checar(pag.get_attribute("#pilula-nuvem", "aria-pressed") == "false" and "Aqui" in pag.inner_text("#pilula-nuvem"),
+                       "clicar deixa a próxima pergunta neste computador")
+                pag.click("#pilula-nuvem")
                 pag.fill("#pedido", "qual a multa por atraso no aluguel?")
                 pag.evaluate("() => { enviar(); }")
                 pag.wait_for_selector(".nuvem-pedido [data-nuvem-mandar]", timeout=30000)
                 checar("Mandar à" in pag.inner_text(".nuvem-pedido") and "Mascarados: 1 CPF" in pag.inner_text(".nuvem-pedido"),
                        "o cartão na conversa: para onde vai e o que foi mascarado")
-                checar(pag.get_attribute("#pilula-nuvem", "aria-pressed") == "false", "a marca vale para uma pergunta só")
+                checar(pag.get_attribute("#pilula-nuvem", "aria-pressed") == "true", "depois de mandar, a pílula continua na nuvem")
                 pag.wait_for_timeout(300)
                 pag.screenshot(path=str(TMP / "n15-pedido.png"))
                 pag.click(".nuvem-pedido [data-nuvem-mandar]")

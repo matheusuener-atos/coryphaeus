@@ -203,6 +203,29 @@ def test_http() -> None:
     novo = vinculo_mod.Vinculo(api.estado.prefs, api.estado.acesso_de_fora.contas, lambda: {"client_id": "x"})
     checar(not novo.travado(), "e o 'manter aberto' volta a valer")
 
+    print("  não pedir o código neste computador por 30 dias")
+    local.post("/api/vinculo/travar")
+    local.post("/api/vinculo/entrar", json={"finalidade": "destravar"})
+    r = local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][1], "confiar": True})
+    ate = r.json().get("codigo_confiado_ate", "")
+    checar(r.status_code == 200 and not r.json()["travado"] and ate[:10] == time.strftime("%Y-%m-%d", time.localtime(time.time() + 30 * 86400)),
+           "com a caixa marcada, abre e guarda a dispensa por 30 dias", ate)
+    local.post("/api/vinculo/travar")
+    e = local.post("/api/vinculo/entrar", json={"finalidade": "destravar"}).json()
+    checar(not e["travado"] and not e["precisa_codigo"], "na próxima entrada com o Google, o código não é pedido", e)
+    e = local.post("/api/vinculo/esquecer-codigo").json()
+    checar(e["codigo_confiado_ate"] == "", "“Pedir o código de novo” desfaz a dispensa", e.get("codigo_confiado_ate"))
+    local.post("/api/vinculo/travar")
+    e = local.post("/api/vinculo/entrar", json={"finalidade": "destravar"}).json()
+    checar(e["travado"] and e["precisa_codigo"], "e o código volta a ser pedido", e)
+    prefs_v = api.estado.prefs.dados["vinculo"]
+    r = local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][2], "confiar": True})
+    prefs_v["codigo_confiado"]["ate"] = time.time() - 1
+    local.post("/api/vinculo/travar")
+    e = local.post("/api/vinculo/entrar", json={"finalidade": "destravar"}).json()
+    checar(e["precisa_codigo"] and e["codigo_confiado_ate"] == "", "passados os 30 dias, o código volta", e)
+    local.post("/api/vinculo/codigo", json={"codigo": t["codigos_recuperacao"][3]})
+
     print("  de fora")
     import segredos
 
@@ -217,11 +240,30 @@ def test_http() -> None:
     checar(r.status_code == 200 and not r.json()["vinculado"], "desvincular (aberto): sim")
 
 
+def test_sem_consentimento() -> None:
+    """02/10: destravar so confirma quem e - o Google nao deve pedir consentimento toda vez."""
+    print("\no login so de identidade nao forca o consentimento")
+    import urllib.parse as u
+
+    import correio_oauth
+
+    so = dict(u.parse_qsl(u.urlparse(correio_oauth.url_autorizacao(
+        "google", "id", "http://127.0.0.1:1/", "s", "d", login_hint="tita@x.com",
+        escopos="openid email profile", incremental=True, so_identidade=True)).query))
+    checar("prompt" not in so and "access_type" not in so and so.get("login_hint") == "tita@x.com",
+           "destravar: sem prompt nem access_type, com a conta como dica", so)
+    gmail = dict(u.parse_qsl(u.urlparse(correio_oauth.url_autorizacao(
+        "google", "id", "http://127.0.0.1:1/", "s", "d")).query))
+    checar(gmail.get("prompt") == "consent" and gmail.get("access_type") == "offline",
+           "o Gmail continua pedindo o consentimento (precisa do refresh token)", gmail)
+
+
 def main() -> int:
     print("=" * 55)
     print("  E5 - o PAULUS do servidor vinculado a conta Google")
     print("=" * 55)
     try:
+        test_sem_consentimento()
         test_http()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)

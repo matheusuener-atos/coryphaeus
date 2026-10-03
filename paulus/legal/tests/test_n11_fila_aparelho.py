@@ -139,7 +139,7 @@ def main() -> int:
         entrar("Mateus", "mateus@x.com", "titular")
         helena = entrar("Helena", "helena@x.com", "colaborador", {"aparelho": "faz", "acervo": "ver"})
         api.estado.client = cliente
-        api.estado.cliente_para = lambda tarefa: cliente
+        api.estado.cliente_para = lambda tarefa, **k: cliente
         pasta = Path(api.estado.pasta)
         pasta.mkdir(parents=True, exist_ok=True)
         clausulas = "\n\n".join(f"Cláusula {i}. O locatário cumpre a obrigação número {i}, com aviso por escrito."

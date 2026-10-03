@@ -153,6 +153,7 @@ function classeDaCelula(v, cel, l) {
   else if (/^[\d][\d.\-/]{9,}$/.test(texto)) nomes.push("mono");
   if ((cel && cel.negrito) || (l === 1 && texto)) nomes.push("forte");
   if (cel && cel.italico) nomes.push("inclinada");
+  if (cel && cel.fundo) nomes.push("fundo-" + cel.fundo);
   const plano = texto.trim().toLowerCase();
   if (plano === "a pagar") nomes.push("pa-pagar");
   else if (plano === "a receber") nomes.push("pa-receber");
@@ -490,6 +491,23 @@ async function faixaNaPlanilha(dados) {
   desenharGradeAoLado();
 }
 
+/* O fundo de linhas inteiras (da coluna A ate a ultima com dado), gravado
+   pela rota da faixa. Devolve se deu certo. */
+async function pintarLinhas(linhas, fundo) {
+  const ultima = letraColuna(Math.max(0, contaDaAba().colunas - 1));
+  for (const l of linhas) {
+    const r = await fetch("/api/planilha/" + pa.id + "/faixa", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aba: pa.aba, faixa: "A" + l + ":" + ultima + l, fundo: fundo }),
+    }).catch(() => null);
+    if (!r || !r.ok) { avisoNaJanela("Não consegui pintar a linha " + l + ": " + (r ? await erroDe(r) : "sem resposta"), { icone: "error" }); return false; }
+    respostaDaPlanilha(await r.json());
+  }
+  seloDaPlanilha("salvo no rascunho às " + new Date().toTimeString().slice(0, 5), "");
+  desenharGradeAoLado();
+  return true;
+}
+
 /* Σ Somar: a soma dos numeros logo acima da celula escolhida. */
 function somarNaPlanilha() {
   const p = posDaRef(pa.celula);
@@ -625,7 +643,8 @@ async function atalhoDaPlanilha(qual) {
     return;
   }
   if (qual === "atrasados") {
-    // Destaque so da tela: a planilha do editor nao guarda cor de fundo.
+    // O fundo vermelho fica gravado na planilha (e vai para o XLSX); a nota
+    // da conversa traz o Tirar o destaque.
     const col = colunaDoCabecalho("vencimento");
     if (!col) { avisoNaJanela("Não achei a coluna de vencimento na linha 1"); return; }
     const calc = (pa.dados.calculado || [])[pa.aba] || {};
@@ -639,10 +658,19 @@ async function atalhoDaPlanilha(qual) {
       const situacao = pagos ? String((calc[pagos + l] || {}).texto || "").toLowerCase() : "";
       if (quando < hoje && !/pago|recebido|quitad/.test(situacao)) pa.destacar.push(l);
     }
-    desenharGradeAoLado();
-    notaDeFeitoNaConversa(pa.destacar.length
-      ? "Destaquei " + plural(pa.destacar.length, "linha vencida", "linhas vencidas") + " e não pagas. O destaque é só da tela: o arquivo não guarda a cor."
-      : "Nenhuma linha vencida e não paga nesta aba.");
+    if (!pa.destacar.length) { notaDeFeitoNaConversa("Nenhuma linha vencida e não paga nesta aba."); return; }
+    const linhas = pa.destacar.slice();
+    pa.destacar = null;
+    await pintarLinhas(linhas, "vermelho");
+    notaDeFeitoNaConversa("Destaquei " + plural(linhas.length, "linha vencida", "linhas vencidas") + " e não pagas, com o fundo vermelho gravado na planilha (vai junto para o XLSX).");
+    const nota = [...document.querySelectorAll("#centro .nota-feito")].pop();
+    if (nota) {
+      nota.insertAdjacentHTML("beforeend", '<button type="button" class="sv-ligacao pa-tirar-destaque">' + ic("undo", 15) + "Tirar o destaque</button>");
+      nota.querySelector(".pa-tirar-destaque").onclick = async (e) => {
+        e.currentTarget.disabled = true;
+        if (await pintarLinhas(linhas, "")) e.currentTarget.textContent = "destaque tirado";
+      };
+    }
     return;
   }
   if (qual === "somar") pedirNaPlanilha("Somar o valor das linhas a receber");

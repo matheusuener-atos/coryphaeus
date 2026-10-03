@@ -102,7 +102,7 @@
   .fin-parecer small { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
   .fin-numeros-crus { white-space: pre-wrap; font: 400 12px/1.5 var(--mono); color: var(--ink2); padding: 10px 12px; border: 1px solid var(--ink-a1); background: var(--surf); border-radius: 8px; }
 
-  /* pecas que outras telas usam (Cadastros, Gravacoes, Foco, Apoiar) */
+  /* pecas que outras telas usam (Cadastros, Gravacoes, Foco) */
   .fin-cartao {
     flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; box-shadow: var(--elev-card);

@@ -259,9 +259,12 @@ def tela_da_revisao(base: str, api, slug: str) -> None:
             pag.evaluate(f"() => abrirTrabalho('{t.id}')")
             pag.wait_for_timeout(500)
             pag.fill("#pedido", "qual o índice de reajuste do aluguel?")
-            pag.wait_for_selector("[data-barra-revisao]", timeout=8000)
-            opcoes = pag.inner_text("[data-barra-agente]")
-            checar("precisa de revisão" in opcoes, "a barra: no seletor, marcado; e diz que não o escolheu sozinho", opcoes)
+            # O agente é pílula na caixa da pergunta (js/92-entrevista.js).
+            pag.wait_for_selector("#pilula-agente [data-barra-revisao]", timeout=8000, state="attached")
+            pag.click("#pilula-agente")
+            opcoes = pag.inner_text("#menu-agente[data-barra-agente]")
+            checar("precisa de revisão" in opcoes and "não escolhi sozinho" in pag.get_attribute("#pilula-agente", "title"),
+                   "a pílula: no menu, marcado; e diz que não o escolheu sozinho", opcoes)
         checar(not erros, "sem erro de JavaScript", erros[:3])
         nav.close()
 

@@ -27,7 +27,7 @@ const escr = {
   senhaPdf: "",
 };
 
-const GLIFO_DO_TIPO = { texto: ["docx", "W"], planilha: ["xlsx", "X"], pdf: ["pdf", "PDF"] };
+const GLIFO_DO_TIPO = { texto: "t-word", planilha: "t-xls", pdf: "t-pdf" };
 const ROTULO_DA_VISAO = { editor: "Editor", planilha: "Planilha", previa: "Pré-visualização" };
 
 /* ------------------------------------------------- lista de documentos */
@@ -315,9 +315,8 @@ async function renomearDocumento(aba) {
 }
 
 function glifoDaAba(aba) {
-  const g = GLIFO_DO_TIPO[aba.tipo] || GLIFO_DO_TIPO.texto;
-  const classe = "glifo " + g[0];
-  return '<span class="' + classe + '">' + g[1] + "</span>";
+  const classeTipo = GLIFO_DO_TIPO[aba.tipo] || GLIFO_DO_TIPO.texto;
+  return '<span class="glifo ' + classeTipo + '" aria-hidden="true"></span>';
 }
 
 function abasDosDocumentos() {
@@ -346,11 +345,10 @@ function listaDeDocumentos() {
   const filtro = escr.visao === "planilha" ? "planilha" : (escr.visao === "editor" ? "texto" : "");
   const itens = escr.lista.filter((d) => !filtro || d.tipo === filtro);
   const linhas = itens.map((d) => {
-    const g = GLIFO_DO_TIPO[d.tipo === "planilha" ? "planilha" : "texto"];
-    const classe = "glifo " + g[0];
+    const classeTipo = GLIFO_DO_TIPO[d.tipo === "planilha" ? "planilha" : "texto"];
     const classeLinha = "tabela-linha colunas-docs" + (escr.escolhidos.has(String(d.id)) ? " escolhida" : "");
     return '<div class="' + classeLinha + '" data-doc-abrir="' + d.id + '" data-sel="' + d.id + '" data-doc-tipo="' + esc(d.tipo) + '">' +
-      '<span class="nome-doc"><span class="' + classe + '">' + g[1] + '</span><span class="duas-linhas"><b>' + esc(d.titulo) + "</b>" +
+      '<span class="nome-doc"><span class="glifo ' + classeTipo + '" aria-hidden="true"></span><span class="duas-linhas"><b>' + esc(d.titulo) + "</b>" +
       "<small>" + (d.tipo === "planilha" ? "planilha" : "documento de texto") +
       (quemCriou(d.criado_por, d.criado_por_conta) ? " · por " + esc(d.criado_por) : "") + "</small></span></span>" +
       '<span class="quando-doc">' + esc(d.cadastro_nome || "—") + "</span>" +
@@ -2246,6 +2244,7 @@ function gradePlanilha(aba, calc) {
       if (cel && cel.negrito) classes.push("forte");
       if (cel && cel.italico) classes.push("inclinada");
       if (cel && cel.borda) classes.push("com-borda");
+      if (cel && cel.fundo) classes.push("fundo-" + cel.fundo);
       html += '<td class="' + classes.join(" ") + '" data-ref="' + ref + '"' +
         (juntar > 1 ? ' colspan="' + juntar + '"' : "") + ">" +
         (v ? esc(v.texto) : "") + "</td>";

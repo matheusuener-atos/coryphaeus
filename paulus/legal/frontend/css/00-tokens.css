@@ -38,6 +38,9 @@
     --paper: #fbfaf6;
     --fill: #f2f1ee;
     --fill2: #e8e2d8;
+    /* a pastilha do botao de moldura dupla, ao passar o mouse e ao apertar (as telas de entrar) */
+    --pastilha-sobre: #e0dad0;
+    --pastilha-ativa: #d9d3c8;
     --act: #e4e2db;
     --ink: #1c1c1a;
     --ink2: #6b6b65;
@@ -59,6 +62,11 @@
     /* A coluna da direita da conversa: um tom abaixo da superficie, entre ela
        e o fundo (no escuro, #161615 do pacote de telas). */
     --lado-fundo: #f4f3ef;
+    /* O celular (52-celular.css): marca d'agua, fundo do Mais, seta e item da lista. */
+    --cel-marca: #e6e4dd;
+    --cel-mais: #f4f3ef;
+    --cel-seta: #b5b3ab;
+    --cel-item: #2a2a27;
     /* O brilho que corre pela faixa do que esta andando. */
     --brilho: rgba(255,255,255,.5);
     /* O vermelho do botao de fechar a janela. E o do proprio Windows, nos dois
@@ -164,6 +172,8 @@
     --paper: #232322;
     --fill: #222220;
     --fill2: #2a2a27;
+    --pastilha-sobre: #303030;
+    --pastilha-ativa: #333330;
     --act: #34322c;
     --ink: #f2f1ec;
     --ink2: #a8a69e;
@@ -181,6 +191,10 @@
     --primario-hover: #dcdad3;
     --primario-ink: #161615;
     --lado-fundo: #161615;
+    --cel-marca: #2e2e2b;
+    --cel-mais: #0f0f0e;
+    --cel-seta: #3f3e3a;
+    --cel-item: #e8e6df;
 
     --ink-a06: rgba(242,241,236,.06);
     --ink-a08: rgba(242,241,236,.08);
@@ -256,7 +270,12 @@
     font: 400 13.5px/1.5 var(--sans);
     color: var(--ink);
     background-color: var(--bg);
+    /* A altura VISIVEL: no navegador do celular, 100vh conta a barra de
+       endereco como se nao existisse, e a barra de baixo do PAULUS e a caixa
+       de pedido ficavam cortadas (02/10). dvh acompanha a barra e o teclado;
+       vh fica para navegador antigo. */
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;

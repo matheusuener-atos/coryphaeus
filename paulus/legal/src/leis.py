@@ -737,6 +737,40 @@ class Leis:
                 achados.append(self._enfeitar(l))
         return achados[:limite]
 
+    def procurar_assunto(self, pergunta: str, limite: int = 3) -> list[dict]:
+        """
+        Os artigos que mais têm o assunto da pergunta, por radical ("contestar"
+        acha "contestação") e no código que a frase nomeia, quando nomeia.
+
+        É a reserva da triagem (src/triagem.py), não o caminho principal:
+        medido em 02/10/2026 nas dez perguntas de lei da bateria, a busca por
+        palavra acerta o artigo vizinho mais do que o certo ("prazo para
+        contestar" trouxe o art. 679 antes do 335). Por isso só os primeiros.
+        """
+        plano = _plano(pergunta)
+        codigos = [c for c, padrao in CODIGO_NA_FRASE if re.search(padrao, plano)]
+        radicais: list[str] = []
+        for palavra in re.findall(r"[a-z]{4,}", plano):
+            if palavra in PALAVRAS_DE_PERGUNTA:
+                continue
+            radical = palavra[:6]
+            if radical not in radicais:
+                radicais.append(radical)
+        if not radicais:
+            return []
+        onde = "artigos_busca MATCH ?"
+        parametros: list = [" OR ".join(f'"{r}"*' for r in radicais)]
+        if codigos:
+            onde += " AND a.codigo IN (" + ",".join("?" * len(codigos)) + ")"
+            parametros += codigos
+        try:
+            linhas = self.base.buscar(
+                f"SELECT a.* FROM artigos_busca b JOIN artigos a ON a.id = b.rowid WHERE {onde} "
+                f"ORDER BY bm25(artigos_busca) LIMIT ?", tuple(parametros) + (limite,))
+        except Exception:  # noqa: BLE001 - FTS recusou a consulta: sem reserva
+            return []
+        return [self._enfeitar(l) for l in linhas]
+
     def vizinhos(self, codigo: str, ordem: int, quantos: int = 3) -> list[dict]:
         """Os artigos ao redor — ler o anterior costuma resolver a dúvida."""
         linhas = self.base.buscar(
@@ -764,6 +798,24 @@ class Leis:
             "codigos": self.base.contar("leis"),
             "faltam": len(CODIGOS) - self.base.contar("leis"),
         }
+
+
+def _plano(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", str(texto or "").lower()) if unicodedata.category(c) != "Mn")
+
+
+# O código que a frase nomeia ("no CPC", "segundo o Código Civil").
+CODIGO_NA_FRASE = (
+    ("cpc", r"\bcpc\b|processo civil"), ("cc", r"\bcc\b|codigo civil"), ("cf", r"\bcf\b|constituicao"),
+    ("clt", r"\bclt\b|trabalhist"), ("cdc", r"\bcdc\b|defesa do consumidor"), ("cpp", r"\bcpp\b|processo penal"),
+    ("cp", r"\bcp\b|codigo penal"), ("ctn", r"\bctn\b|tributario nacional"), ("eca", r"\beca\b|crianca e do adolescente"),
+    ("ctb", r"\bctb\b|codigo de transito"), ("inquilinato", r"inquilinato"),
+)
+# O que toda pergunta de lei tem e não diz o assunto.
+PALAVRAS_DE_PERGUNTA = set("""qual quais quanto quanta quando onde como porque para pelo pela pelos pelas com sem
+sobre entre que uma umas uns dos das nos nas aos art artigo artigos codigo lei leis segundo conforme prazo prazos
+precisa precisam constar forma tempo geral diferenciado cabimento estao esta sao ser ter tem hipoteses garante
+pretensao contado contados dias corridos uteis deve devem pode podem existe isso este esta essa esse""".split())
 
 
 def _consulta_fts(termo: str) -> str:

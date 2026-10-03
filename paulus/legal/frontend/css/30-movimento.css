@@ -57,7 +57,7 @@
   .visoes.deslizando > button.ativa { background: transparent; box-shadow: none; }
 
   /* A linha e o cartao que se clicam trocam de fundo sem salto. */
-  :where(.tabela-cartao tbody tr, .sv-pasta, .apoio-cartaz, .ag-evento, .lc-linha) {
+  :where(.tabela-cartao tbody tr, .sv-pasta, .ag-evento, .lc-linha) {
     transition: background-color var(--dur-rapida) var(--curva-suave), box-shadow var(--dur-rapida) var(--curva-suave);
   }
 

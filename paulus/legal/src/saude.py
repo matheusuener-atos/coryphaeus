@@ -111,7 +111,7 @@ def verificar(*, dados: Path, modelo_ok: tuple[bool, str], backup: dict, acesso:
                            "" if pronto else "Sem internet, o PAULUS travado não abre. Ligue em Configurações › Escritório e equipe."))
     if anuncio and anuncio.get("nova"):
         itens.append(_item("versao", "Versão", "aviso", f"{versao} · a {anuncio.get('versao')} está disponível",
-                           "Atualize em Configurações › Apoio e versão."))
+                           "Atualize em Configurações › Versão."))
     else:
         itens.append(_item("versao", "Versão", "ok", versao))
     recentes = erros_recentes()

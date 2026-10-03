@@ -150,9 +150,6 @@
   .bv-entrar > .bv-ligacao { justify-self: center; }
   .bv-entrar-notas { display: flex; gap: 20px; font-size: 12.5px; color: var(--veu-tinta); }
 
-  .bv-apoio { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--ink-a1); }
-  .bv-apoio b { font: 600 14px var(--sans); }
-  .bv-apoio p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink2); }
 
   .bv-rodape { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--ink-a1); padding-top: 18px; }
   .bv-versao { font-size: 13px; }

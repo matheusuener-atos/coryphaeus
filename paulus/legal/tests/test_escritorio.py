@@ -104,6 +104,15 @@ def test_folha(tmp: Path) -> None:
         checar(refeita["total"] == 1160000,
                f"mas remontar de propósito pega os valores novos ({refeita['total']})")
 
+        # O "desde" da ficha: quem começa no mês que vem não entra neste.
+        mes = refeita["mes"]
+        ano, num = (int(x) for x in mes.split("-"))
+        seguinte = f"{ano + (num == 12):04d}-{num % 12 + 1:02d}"
+        cad.salvar({"tipo": "colaborador", "nome": "Larissa", "vinculo": "estagio", "salario_centavos": 180000, "inicio": seguinte + "-03"})
+        checar(not any(p["nome"] == "Larissa" for p in folha.pessoas(mes)) and any(p["nome"] == "Larissa" for p in folha.pessoas(seguinte)),
+               "quem começa no mês que vem não está na folha deste, e está na do outro")
+        checar(folha.montar(seguinte)["quantos"] == 3 and folha.montar(mes)["quantos"] == 2, "a folha de cada mês com quem já tinha começado")
+
         folha.ligar_ao_lancamento(refeita["mes"], 42)
         try:
             folha.montar()

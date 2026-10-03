@@ -34,6 +34,9 @@ PERMISSOES = [
     ("calendar.events", "gagenda", "Agenda", "ler e criar eventos"),
     ("calendar.events", "gmeet", "Meet", "criar reuniões nos eventos"),
     ("drive.file", "gdrive", "Drive", "só os arquivos que o PAVLVS envia"),
+    # A leitura do Drive (drive.readonly) le tudo o que a conta ve; o PAULUS
+    # so copia as pastas escolhidas no Acervo (src/drive_online.py).
+    ("drive.readonly", "gdrive", "Drive", "ler as pastas que você escolher no Acervo"),
     ("IMAP.AccessAsUser.All", "email", "E-mail do Outlook", "ler as mensagens"),
     ("SMTP.Send", "email", "Envio pelo Outlook", "enviar, passando por Aprovações"),
 ]
@@ -101,19 +104,11 @@ def _permissoes(escopos: str) -> list[tuple[str, str, str]]:
 
 # rotulo, tom, titulo, texto, nota, dica
 TEXTOS = {
-    "sucesso": ("CONECTADO", "ok", "Conta %%PROVEDOR%% conectada.",
-                "Em alguns segundos, e-mails, agenda e arquivos autorizados começam a aparecer no escritório.",
-                "Nada dos seus documentos sai deste computador.", "ou feche esta aba"),
+    "sucesso": ("CONECTADO", "ok", "Conta %%PROVEDOR%% conectada.", "", "", "Já pode fechar esta aba."),
     # So quem e (o vinculo do PAVLVS, destravar): nenhuma permissao pedida.
-    "entrou": ("LOGIN RECEBIDO", "ok", "Login recebido.",
-               "O PAVLVS confere a sua conta em alguns segundos e segue de onde você estava.",
-               "Já pode fechar esta aba.", "ou feche esta aba"),
-    "negado": ("NÃO CONECTADO", "aviso", "A conexão não foi autorizada.",
-               "As permissões não foram aceitas no %%PROVEDOR%%. Volte ao PAVLVS para tentar de novo.",
-               "Nada foi alterado.", ""),
-    "expirado": ("LINK EXPIRADO", "erro", "Este login expirou.",
-                 "O link vale uma única vez, só para o login que o PAVLVS abriu, e por poucos minutos. Volte ao PAVLVS para abrir outro.",
-                 "Nada foi alterado.", ""),
+    "entrou": ("LOGIN RECEBIDO", "ok", "Login recebido.", "", "", "Já pode fechar esta aba."),
+    "negado": ("NÃO CONECTADO", "aviso", "A conexão não foi autorizada.", "", "", "Nada foi alterado."),
+    "expirado": ("LINK EXPIRADO", "erro", "Este login expirou.", "", "", "Volte ao PAVLVS e abra outro."),
 }
 
 
@@ -126,29 +121,48 @@ def pagina(estado: str, *, provedor: str = "Google", escopos: str = "", detalhe:
     rotulo, tom, titulo, texto, nota, dica = TEXTOS.get(chave, TEXTOS["expirado"])
     titulo, texto = titulo.replace("%%PROVEDOR%%", provedor), texto.replace("%%PROVEDOR%%", provedor)
     marca = MICROSOFT if provedor.lower().startswith("micro") else GOOGLE
+    # O desenho "Google - Conectado" (02/10/2026): a coluna de 360 px, a conta
+    # com o selo, o que foi autorizado numa caixa so, com a marca de cada
+    # servico, e o "Voltar ao PAVLVS" no trilho.
     painel = ""
     if estado == "sucesso":
-        painel = ('<div class="bloco conta-bloco"><span class="etiqueta">CONTA</span>'
-                  f'<div class="conta"><span class="marca">{marca}</span><span class="email" id="email">conferindo a conta…</span>'
+        painel = ('<div class="grupo"><span class="etiqueta">CONTA</span>'
+                  f'<div class="caixa"><span class="marca">{marca}</span><span class="email" id="email">conferindo a conta…</span>'
                   '<span class="selo" id="selo"><i></i><span id="selo-texto">recebido</span></span></div>'
                   '<p class="falha" id="falha" hidden></p></div>')
         if perms:
-            painel += ('<div class="linhas"><span class="etiqueta">O QUE VOCÊ AUTORIZOU</span>' + "".join(
-                f'<div class="linha"><span class="servico">{MARCAS.get(icone, "")}{esc(nome)}</span><span class="d">{esc(desc)}</span></div>'
-                for icone, nome, desc in perms) + "</div>")
+            painel += ('<div class="grupo"><span class="etiqueta">O QUE VOCÊ AUTORIZOU</span><div class="lista">' + "".join(
+                f'<div class="linha"><span class="servico">{MARCAS.get(icone, "")}</span><span class="nome">{esc(nome)}</span>'
+                f'<span class="d">{esc(desc)}</span></div>'
+                for icone, nome, desc in perms) + "</div></div>")
     elif detalhe:
-        painel = f'<div class="bloco"><span class="etiqueta">DETALHE</span><span class="detalhe">{esc(detalhe)}</span></div>'
+        painel = f'<div class="grupo"><span class="etiqueta">DETALHE</span><div class="caixa detalhe">{esc(detalhe)}</div></div>'
     tema = "claro" if tema == "claro" else "escuro"
+    # O alto de toda tela de entrar (03/10): "Paulus está te esperando." e a
+    # frase do banco das telas de entrar (src/saudacao.py), com o mesmo
+    # aparecer devagar da saudacao do assistente. Escolhida aqui: a pagina vem
+    # de outra porta e nao pergunta nada ao app.
+    try:
+        import saudacao
+        from datetime import datetime
+
+        tela = {"sucesso": "google_ok" if perms else "google_entrou", "negado": "google_negado"}.get(estado, "google_expirado")
+        s = saudacao.saudar_entrada(tela, datetime.now(), provedor=provedor)
+        titulo_alto, frase = s["titulo"], s["subtitulo"]
+        # A frase do banco ja diz o que fazer (fechar a aba, abrir outro login).
+        dica = ""
+    except Exception:  # noqa: BLE001 - sem o banco, a frase fixa de cada estado
+        titulo_alto, frase = "Paulus está te esperando.", titulo + (" " + dica if dica else "")
     dados = json.dumps({"state": state if estado == "sucesso" else "", "tema": tema})
     return (PAGINA.replace("%%FONTES%%", _fontes_css())
             .replace("%%TEMA%%", tema)
             .replace("%%TOM%%", tom)
             .replace("%%ROTULO%%", esc(rotulo))
-            .replace("%%TITULO%%", esc(titulo))
+            .replace("%%ALTO%%", esc(titulo_alto))
+            .replace("%%TITULO%%", esc(frase))
             .replace("%%TEXTO%%", esc(texto))
             .replace("%%NOTA%%", esc(nota))
             .replace("%%PAINEL%%", painel)
-            .replace("%%PE%%", '<p class="forte">O andamento fica em Configurações › Conexões.</p>' if perms else "")
             .replace("%%DICA%%", esc(dica))
             .replace("%%PORTA%%", str(porta) if porta else "")
             .replace("%%PROVEDOR%%", esc(provedor))
@@ -164,88 +178,78 @@ PAGINA = """<!doctype html>
 <title>PAULUS</title>
 <style>
 %%FONTES%%
-[data-tema="claro"]{--bg:#fff;--ink:#171716;--ink2:#5c5c59;--ink3:#8a8a86;--line:rgba(23,23,22,.1);--line2:rgba(23,23,22,.22);--fill:#f1f1ee;
---btn:#171716;--btnt:#f6f6f4;--ok:#2f6b42;--aviso:#8a5a12;--erro:#a3322b;color-scheme:light}
-[data-tema="escuro"]{--bg:#111110;--ink:#f6f6f4;--ink2:#b5b5b0;--ink3:#8a8a86;--line:rgba(255,255,255,.12);--line2:rgba(255,255,255,.26);--fill:#242422;
---btn:#f6f6f4;--btnt:#171716;--ok:#8fd0a3;--aviso:#e8c283;--erro:#f0a19c;color-scheme:dark}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%}
-body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font:15px/1.6 'Manrope',system-ui,sans-serif;
--webkit-font-smoothing:antialiased}
-.mono{font-family:'Fira Code',ui-monospace,monospace}
-header{padding:10px clamp(20px,5vw,88px);min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px 24px;border-bottom:1px solid var(--line)}
-.pavlvs{font:500 24px/1 'EB Garamond',Georgia,serif;letter-spacing:.14em}
-.topo{display:flex;align-items:center;gap:18px}.porta{font:12px 'Fira Code',ui-monospace,monospace;color:var(--ink3)}
-.tema{width:36px;height:36px;padding:0;border:0;background:none;color:var(--ink2);cursor:pointer;display:flex;align-items:center;justify-content:center}
-.tema:hover{color:var(--ink)}.tema:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.tema svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
-[data-tema="escuro"] .tema .lua,[data-tema="claro"] .tema .sol{display:none}
-main{flex:1;width:100%;max-width:1280px;margin:0 auto;padding:clamp(56px,9vw,120px) clamp(20px,5vw,48px);display:flex;flex-wrap:wrap;
-gap:48px clamp(48px,8vw,112px);align-items:start}
-.texto{flex:1 1 380px;min-width:0;display:grid;gap:20px}
-.estado{display:flex;align-items:center;gap:8px;font:400 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.16em;color:var(--%%TOM%%)}
-.estado i{display:block;width:6px;height:6px;border-radius:50%;background:currentColor}
-h1{margin:0;font:400 clamp(44px,6vw,68px)/1 'EB Garamond',Georgia,serif;letter-spacing:-.02em;text-wrap:balance}
-.texto p{margin:0;font-size:clamp(17px,1.8vw,19px);line-height:1.6;color:var(--ink2);text-wrap:pretty;max-width:460px}
-.nota{font:italic 400 19px 'EB Garamond',Georgia,serif;color:var(--ink3)}
-.painel{flex:1 1 360px;min-width:0;max-width:520px;border-left:1px solid var(--line);padding-left:clamp(24px,3vw,40px);display:grid;gap:48px}
-.bloco{display:grid;gap:8px}
-.etiqueta{font:400 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.14em;color:var(--ink3)}
-.conta-bloco{padding-bottom:20px;border-bottom:1px solid var(--line)}
-.conta{display:flex;align-items:center;gap:12px}
-.marca{display:flex;flex:none}.marca svg{width:18px;height:18px}
-.email{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
-.selo{display:flex;align-items:center;gap:6px;flex:none;font-size:12.5px;color:var(--ink3);white-space:nowrap}
+[data-tema="escuro"]{--bg:#131312;--surf:#1a1a18;--fill2:#2a2a27;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#95938a;--apagado:#6f6e68;--marca-dagua:#8a8982;--marca-sub:#6f6e68;
+--fio:rgba(242,241,236,.12);--fio2:rgba(242,241,236,.1);--fio3:rgba(242,241,236,.08);--ok:#7fbf8e;--erro:#f0a19c;--sobre:#303030;--ativa:#333330;color-scheme:dark}
+[data-tema="claro"]{--bg:#faf9f6;--surf:#fff;--fill2:#e9e8e3;--ink:#1c1c1a;--ink2:#5c5b56;--ink3:#6b6b65;--apagado:#9a9a93;--marca-dagua:#8a8a86;--marca-sub:#a8a69e;
+--fio:rgba(28,28,26,.12);--fio2:rgba(28,28,26,.1);--fio3:rgba(28,28,26,.08);--ok:#2f6b42;--erro:#a3322b;--sobre:#e2e1db;--ativa:#dcdbd5;color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0}
+body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22vh 24px 48px;padding-top:22dvh;
+background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.coluna{width:100%;max-width:360px;display:grid;gap:40px}
+.topo{display:grid;gap:14px;text-align:center}
+.topo h1{margin:0;font:400 44px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;color:var(--ink);text-wrap:balance}
+.topo p{margin:0;font:400 15px/1.6 'Manrope',sans-serif;color:var(--ink2);text-wrap:pretty}
+.topo>*{transition:opacity .7s ease,transform .7s ease}.topo.abrindo>*{opacity:0}
+@media (prefers-reduced-motion:reduce){.topo>*{transition:none}}
+@media (min-width:520px){.topo h1{margin:0 -60px}}
+.form{display:grid;gap:14px}.grupo{display:grid;gap:6px}
+.etiqueta{font:400 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.18em;color:var(--apagado)}
+.caixa{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;background:var(--surf);border:1px solid var(--fio)}
+.marca{display:flex;flex:none}.marca svg{width:16px;height:16px}
+.email{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 13.5px 'Manrope',sans-serif;color:var(--ink)}
+.selo{flex:none;display:flex;align-items:center;gap:6px;font:400 11px 'Fira Code',ui-monospace,monospace;color:var(--apagado);white-space:nowrap}
 .selo i{display:block;width:6px;height:6px;border-radius:50%;background:currentColor}
 .selo.ok{color:var(--ok)}.selo.erro{color:var(--erro)}
-.falha{margin:0;font-size:13.5px;color:var(--erro)}
-.linhas{display:grid;gap:2px}.linhas .etiqueta{padding-bottom:10px}
-.linha{display:grid;grid-template-columns:160px minmax(0,1fr);gap:12px;padding:16px 0;border-bottom:1px solid var(--line);font-size:14px}
-.servico{display:inline-flex;align-items:center;gap:8px}.servico svg{width:16px;height:16px;flex:none}
-.linha .d{color:var(--ink2)}
-.detalhe{font:13.5px 'Fira Code',ui-monospace,monospace;color:var(--ink2);word-break:break-all;padding-bottom:14px;border-bottom:1px solid var(--line)}
-.acoes{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.voltar{height:36px;padding:0 16px;border-radius:999px;border:0;background:var(--btn);color:var(--btnt);font:600 13.5px 'Manrope',system-ui,sans-serif;
-cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-.voltar:hover{opacity:.88}.voltar:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.voltar svg{width:16px;height:16px;fill:currentColor}
-.dica{font-size:12.5px;color:var(--ink3)}
-footer{border-top:1px solid var(--line);padding:24px clamp(20px,5vw,88px);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 48px}
-footer p{margin:0;max-width:520px;font-size:13px;line-height:1.65;color:var(--ink3);text-wrap:pretty}
-footer p.forte{color:var(--ink2)}
-@media (max-width:760px){.painel{border-left:0;padding-left:0;max-width:none}main{padding-top:40px}}
+.falha{margin:0;font-size:12.5px;line-height:1.5;color:var(--erro)}
+.lista{display:grid;border-radius:10px;background:var(--surf);border:1px solid var(--fio2);overflow:hidden}
+.linha{display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-bottom:1px solid var(--fio3)}
+.linha:last-child{border-bottom:0}
+.servico{display:flex;flex:none}.servico svg{width:16px;height:16px}
+.nome{width:56px;flex:none;font:500 13.5px 'Manrope',sans-serif;color:var(--ink)}
+.linha .d{flex:1;min-width:0;font:400 12.5px 'Manrope',sans-serif;color:var(--ink3);text-align:right}
+.detalhe{height:auto;min-height:40px;padding:10px 12px;font:400 12.5px 'Fira Code',ui-monospace,monospace;color:var(--ink3);word-break:break-all}
+.trilho{display:flex;width:100%;padding:3px;border-radius:10px;background:var(--surf);border:1px solid var(--fio2);cursor:pointer}
+.pastilha{flex:1;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--fill2);color:var(--ink);
+font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
+.trilho:hover .pastilha{background:var(--sobre)}.trilho:active .pastilha{background:var(--ativa)}
+.trilho:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}
+.dica:empty{display:none}.dica{justify-self:center;font:400 12px/1.5 'Manrope',sans-serif;color:var(--apagado);text-align:center;text-wrap:pretty}
 </style>
 </head>
 <body>
-<header><span class="pavlvs">PAVLVS</span><div class="topo"><span class="porta">127.0.0.1:%%PORTA%%</span>
-<button type="button" class="tema" id="tema" aria-label="Alternar tema" title="Alternar claro/escuro"><span class="sol">%%SOL%%</span><span class="lua">%%LUA%%</span></button></div></header>
-<main>
-<section class="texto">
-<span class="estado"><i></i><span id="rotulo">%%ROTULO%%</span></span>
-<h1>%%TITULO%%</h1>
-<p id="texto">%%TEXTO%%</p>
-<span class="nota">%%NOTA%%</span>
-</section>
-<section class="painel">
+<div class="coluna">
+<div class="topo abrindo" id="topo"><h1>%%ALTO%%</h1><p id="titulo">%%TITULO%%</p></div>
+<div class="form">
 %%PAINEL%%
-<div class="acoes"><button type="button" class="voltar" id="voltar">Voltar ao PAVLVS</button><span class="dica">%%DICA%%</span></div>
-</section>
-</main>
-<footer>%%PE%%<p>Esta página é servida pelo próprio PAVLVS, neste computador.</p></footer>
+<button type="button" class="trilho" id="voltar"><span class="pastilha">Voltar ao PAVLVS</span></button>
+<span class="dica">%%DICA%%</span>
+</div>
+</div>
 <script>
 (function () {
   var dados = %%DADOS%%;
+  // O alto aparece devagar, como a saudacao do assistente.
+  requestAnimationFrame(function () { requestAnimationFrame(function () { document.getElementById("topo").classList.remove("abrindo"); }); });
   var raiz = document.documentElement;
   try { var t = localStorage.getItem("pv-tema"); if (t === "claro" || t === "escuro") raiz.dataset.tema = t; } catch (e) {}
-  document.getElementById("tema").onclick = function () {
-    var t = raiz.dataset.tema === "escuro" ? "claro" : "escuro";
-    raiz.dataset.tema = t;
-    try { localStorage.setItem("pv-tema", t); } catch (e) {}
-  };
-  // Voltar: o PAULUS traz a janela dele para frente; a aba fecha se o
-  // navegador deixar (so abas abertas por script podem se fechar).
+  // Voltar ao PAULUS (03/10): a pagina pede ao proprio PAULUS, pelo servidor
+  // desta volta (/voltar), que a janela dele venha para a frente - sem
+  // dialogo nenhum (src/desktop.py, _trazer_para_frente). Quando o login fica
+  // pronto, isso acontece sozinho. Se o PAULUS nao responde (a pagina foi
+  // aberta de novo mais tarde, com o servidor da volta ja fechado), o
+  // endereco paulus:// abre o programa - ai o navegador pergunta antes.
+  var voltou = false;
+  function voltar(depois) {
+    if (voltou) return;
+    voltou = true;
+    fetch("/voltar?state=" + encodeURIComponent(dados.state), { cache: "no-store" })
+      .then(function (r) { if (!r.ok && r.status !== 204) throw new Error(); if (depois) depois(); })
+      .catch(function () { try { window.location.href = "paulus://voltar"; } catch (e) {} });
+  }
+  function fecharAba() { setTimeout(function () { try { window.close(); } catch (e) {} }, 300); }
   document.getElementById("voltar").onclick = function () {
-    fetch("/voltar?state=" + encodeURIComponent(dados.state)).catch(function () {});
-    setTimeout(function () { try { window.close(); } catch (e) {} }, 300);
+    voltou = false;
+    voltar(fecharAba);
   };
   if (!dados.state) return;
   // O e-mail e o fim da conexao: o PAULUS sabe depois de trocar o codigo.
@@ -255,7 +259,7 @@ footer p.forte{color:var(--ink2)}
     fetch("/estado?state=" + encodeURIComponent(dados.state)).then(function (r) { return r.json(); }).then(function (d) {
       var selo = document.getElementById("selo"), texto = document.getElementById("selo-texto"), email = document.getElementById("email");
       if (d.email) email.textContent = d.email;
-      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; return; }
+      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; voltar(); return; }
       if (d.fase === "erro" || d.fase === "cancelado") {
         texto.textContent = "não conectado"; selo.className = "selo erro";
         var f = document.getElementById("falha"); f.hidden = false;

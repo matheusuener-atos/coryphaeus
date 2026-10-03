@@ -15,8 +15,7 @@ horario de Brasilia.
 
 Uma versao marcada com "curado": true no arquivo (textos revistos, miniatura
 escolhida) nunca e sobrescrita: so as outras sao refeitas das notas. O
-Worker junta este arquivo ao apoio consolidado de cada mes em
-/api/public/desenvolvimento. O publicar.py roda isto a cada versao nova.
+Worker publica este arquivo em /api/public/desenvolvimento. O publicar.py roda isto a cada versao nova.
 """
 
 from __future__ import annotations

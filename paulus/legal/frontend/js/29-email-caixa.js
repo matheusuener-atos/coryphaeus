@@ -1055,7 +1055,9 @@ async function exResponder(comRascunho, todos) {
   if (!m) return;
   const assunto = (m.assunto || "").toLowerCase().startsWith("re:") ? m.assunto : "Re: " + (m.assunto || "");
   const pronto = mail.rascunho && mail.rascunho.uid === m.uid ? mail.rascunho.rascunho : "";
-  cx.resp = { uid: m.uid, para: todos ? exTodos(m).join(", ") : m.de_email, assunto, corpo: comRascunho ? pronto : "", estado: comRascunho && !pronto ? "preparando" : "escrevendo" };
+  // O Message-ID e as References da mensagem: a resposta sai encadeada.
+  cx.resp = { uid: m.uid, para: todos ? exTodos(m).join(", ") : m.de_email, assunto, corpo: comRascunho ? pronto : "", estado: comRascunho && !pronto ? "preparando" : "escrevendo",
+    responder_a: m.message_id || "", referencias: m.referencias || "" };
   cx.respRolar = true;
   desenharEmail();
   if (cx.resp.estado !== "preparando") return;
@@ -1093,7 +1095,8 @@ async function exEnviarResposta() {
   if (!r || !r.corpo.trim()) { avisoCert("escreva a resposta antes de enviar"); exFocarResposta(); return; }
   r.estado = "enviando";
   desenharEmail();
-  const d = await exMandar({ conta_id: mail.conta ? mail.conta.id : "", para: r.para, cc: "", cco: "", assunto: r.assunto, corpo: r.corpo, corpo_html: r.corpoHtml || "", anexos: [] });
+  const d = await exMandar({ conta_id: mail.conta ? mail.conta.id : "", para: r.para, cc: "", cco: "", assunto: r.assunto, corpo: r.corpo, corpo_html: r.corpoHtml || "", anexos: [],
+    responder_a: r.responder_a || "", referencias: r.referencias || "" });
   if (cx.resp !== r) return;
   if (!d) { r.estado = "escrevendo"; if (mail.visao === "caixa") desenharEmail(); return; }
   r.estado = "enviado"; r.retorno = d;
@@ -1373,9 +1376,11 @@ function exLigarMensagem(raiz) {
   raiz.querySelectorAll("[data-ex-tentar-msg]").forEach((b) => { b.onclick = () => exAbrir(cx.aberta, true); });
   if (!m || m.uid !== cx.aberta) return;
   exLigarResposta(raiz);
-  const encaminharMsg = () => telaEscrever({
+  // Os anexos da mensagem vão junto (POST /api/email/anexos/encaminhar).
+  const encaminharMsg = async () => telaEscrever({
     assunto: "Fwd: " + (m.assunto || ""),
     corpo: "\n\n---------- Mensagem encaminhada ----------\nDe: " + (m.de_nome || "") + " <" + m.de_email + ">\nAssunto: " + (m.assunto || "") + "\n\n" + (m.corpo || ""),
+    anexos: await anexosParaEncaminhar(m, mail.conta ? mail.conta.id : ""),
   });
   const encaminhar = $("mail-encaminhar-pe");
   if (encaminhar) encaminhar.onclick = encaminharMsg;

@@ -50,7 +50,7 @@ const CARGOS_VINCULO = ["Advogado(a)", "Sócio(a)", "Financeiro", "Secretaria", 
 const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendamento", "tarefas", "biblioteca", "organizar", "caixa", "financeiro", "relatorios", "cadastros", "aprovacoes"]);
 
 /* Os modulos do menu que podem ser desligados (preferencia `modulos`), com o
-   destino de cada um na casca. O Assistente, Apoiar e Configuracoes ficam
+   destino de cada um na casca. O Assistente e Configuracoes ficam
    sempre. */
 const MODULOS_BV = [
   ["servicos", "work", "Serviços", "Processos, prazos e a trilha de cada caso", ["servicos"]],
@@ -223,7 +223,7 @@ function passoBoasVindas() {
   const pasta = s.programa || s.pasta || "";
   const texto = "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
     "<p>Poucos passos: o escritório, o acesso à distância, seus dados, o modelo de IA desta máquina e o que conectar. Tudo pode ser mudado depois em Configurações.</p>" +
-    '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre · gratuito</span><span class="etiqueta">IA 100% local</span><span class="etiqueta">Cerca de 3 minutos</span></div>';
+    '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre</span><span class="etiqueta">IA por assinatura</span><span class="etiqueta">Cerca de 3 minutos</span></div>';
   const lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() +
     '<span class="duas-linhas"><b>Instalação concluída</b><small title="' + esc(pasta) + '">PAULUS' + (s.versao ? " " + esc(s.versao) : "") + " · " + esc(pasta) + "</small></span>" +
     '<span class="etiqueta ok">pronto</span></div>' +
@@ -648,11 +648,10 @@ function passoAtualizacoes() {
     '<span class="duas-linhas"><b>' + titulo + "</b><small>" + desc + "</small></span>" +
     '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
   const lado = '<div class="bv-cartao"><div class="bv-grupos">' +
-    linha("verificar", "Verificar atualizações uma vez por dia", "desligado, o PAULUS não procura versão nova; dá para verificar em Configurações › Apoio e versão", a.verificar) +
+    linha("verificar", "Verificar atualizações uma vez por dia", "desligado, o PAULUS não procura versão nova; dá para verificar em Configurações › Versão", a.verificar) +
     linha("avisar_antes", "Avisar antes de instalar", a.avisar_antes
       ? "a faixa do topo avisa; você instala quando quiser"
-      : "a versão nova baixa sozinha e se instala quando você fechar o PAULUS", a.avisar_antes, !a.verificar) + "</div>" +
-    '<div class="bv-apoio"><b>Você também pode apoiar o projeto</b><p>O PAULUS é gratuito e mantido por quem usa. Sem pressa: dá para fazer isso depois, em Apoiar, no menu.</p></div></div>';
+      : "a versão nova baixa sozinha e se instala quando você fechar o PAULUS", a.avisar_antes, !a.verificar) + "</div></div>";
   return [texto, lado];
 }
 
@@ -1025,7 +1024,7 @@ function cartaoDeEsperaDoVinculo() {
   if (!v) return "";
   return '<div class="cartao-agora espera"><div class="cabeca"><i class="ponto-acc"></i><span class="nome">Aguardando o responsável validar o seu vínculo</span></div>' +
     '<div class="corpo">Seu código, para ele digitar em Configurações › Escritório e vínculos:</div>' + casasDoCodigo(v.meuCodigo) +
-    '<div class="corpo">Enquanto isso, o que é só desta máquina funciona: Assistente, Documentos, Assinatura, Foco, Configurações e Apoiar. Serviços, Agenda, Acervo, E-mail, Financeiro, Cadastros e Aprovações esperam o escritório.</div>' +
+    '<div class="corpo">Enquanto isso, o que é só desta máquina funciona: Assistente, Documentos, Assinatura, Foco e Configurações. Serviços, Agenda, Acervo, E-mail, Financeiro, Cadastros e Aprovações esperam o escritório.</div>' +
     '<div class="rodape">A conferência pela rede local ainda não existe nesta versão; o pedido fica guardado nesta máquina.</div>' +
     '<div class="acoes"><button class="fantasma" data-vinculo-copiar="1">' + ic("content_copy", 16) + "Copiar código</button>" +
     '<button class="fantasma" data-vinculo-cancelar="1">Cancelar e criar meu escritório</button></div></div>';

@@ -90,7 +90,7 @@ def _rodar() -> int:
 
     falha = Falha()
     api.estado.client = falha
-    api.estado.cliente_para = lambda tarefa: falha
+    api.estado.cliente_para = lambda tarefa, **k: falha
     api.estado.saber.ligada = False
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)

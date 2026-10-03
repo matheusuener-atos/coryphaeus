@@ -34,7 +34,18 @@ function lembrarConversaAberta(id) {
   if (id) gravarLocal(ULTIMA_CONVERSA, { id: id, em: new Date().toISOString() });
 }
 
+/* A saudacao comeca apagada (index.html) e so aparece quando a frase do
+   banco chegou ou nao vira: assim a abertura nao troca de frase na cara da
+   pessoa (js/78-chamada-da-vez.js, revelarSaudacao). */
 async function pedirSaudacao() {
+  try {
+    await pedirSaudacaoDoBanco();
+  } finally {
+    if (typeof revelarSaudacao === "function") revelarSaudacao();
+  }
+}
+
+async function pedirSaudacaoDoBanco() {
   if (!saudacaoNova()) return;
   if (aberturaAnterior === null) {
     aberturaAnterior = lerLocal(ULTIMA_ABERTURA, "") || "";

@@ -79,6 +79,17 @@ function carregarCaixa() { mail.pasta = "entrada"; mail.aberta = null; return mo
 
 /* Quem chama de fora (Agenda, Documentos) passa para/assunto/corpo; os
    anexos podem ser postos logo depois, antes de a tela desenhar. */
+/* Os anexos da mensagem para o Encaminhar: o servidor os traz da caixa para
+   data/encaminhar e devolve {path, nome, mb}. Sem anexo, lista vazia. */
+async function anexosParaEncaminhar(m, contaId) {
+  if (!m || !(m.anexos || []).length) return [];
+  const r = await fetch("/api/email/anexos/encaminhar", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conta_id: contaId || "", uid: m.uid }),
+  }).catch(() => null);
+  if (!r || !r.ok) { avisoCert("os anexos não vieram: " + (r ? await erroDe(r) : "sem resposta do servidor"), { tom: "erro" }); return []; }
+  return (await r.json()).anexos || [];
+}
+
 function telaEscrever(inicio) {
   mail.inicio = inicio || null;
   mail.anexos = (inicio && inicio.anexos) || [];

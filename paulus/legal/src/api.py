@@ -25,7 +25,7 @@ import threading
 import time
 import uuid
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -41,7 +41,6 @@ from pydantic import BaseModel
 import requests
 
 import aprovacoes as fila_aprovacoes
-import apoio
 import assinatura
 import traducao
 import certificado
@@ -138,6 +137,12 @@ import fundamentacao as fundamentacao_mod
 import comunidade as comunidade_mod
 import jurisprudencia as jurisprudencia_mod
 import nuvem as nuvem_mod
+import publico as publico_mod
+import triagem as triagem_mod
+import profundidade as profundidade_mod
+import entrevista as entrevista_mod
+import elaboracao as elaboracao_mod
+import clausulas as clausulas_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
 import fila_de_todos
@@ -148,6 +153,7 @@ from habilidade_base import (
     PRECISA_ASSISTENTE,
     PRECISA_DOCUMENTOS,
     Contexto,
+    Ponte,
 )
 from extract import (SUPPORTED_SUFFIXES, chave_do_caminho, extract_file, file_sha1, index_all_contracts,
                      listar_arquivos, motivo_sem_texto)
@@ -464,9 +470,15 @@ class Estado:
         # A lixeira: apagar guarda por 30 dias; o que venceu some ao abrir.
         self.lixeira = lixeira_mod.Lixeira(self.base, LIXEIRA_DIR)
         self.lixeira.esvaziar_vencidos()
-        for id_ in self.gravacoes.pendentes():
-            self.fila_voz.put(id_)
-        threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
+        # PAULUS_SEM_VOZ=1: nao retoma as transcricoes pendentes ao subir. Os
+        # testes que sobem o servidor sobre os dados reais (tests/test_tela.py)
+        # usam: carregar o Whisper para a gravacao parada de verdade derrubava
+        # o processo por falta de memoria (02/10; o Whisper tera rodada propria).
+        # Com a chave, a fila de voz nem comeca: o que entrar nela espera.
+        if os.environ.get("PAULUS_SEM_VOZ") != "1":
+            for id_ in self.gravacoes.pendentes():
+                self.fila_voz.put(id_)
+            threading.Thread(target=self._trabalhar_voz, name="voz", daemon=True).start()
         self.conexoes = conexoes.Conexoes(CONEXOES_PATH, SESSOES_DIR)
         self.relatorios = relatorios.Relatorios(
             self.base, fila=self.fila, assinaturas=self.assinaturas,
@@ -710,16 +722,24 @@ class Estado:
         return LlamaClient(model=modelo, host=host,
                            opcoes=inferencia.opcoes(self.catalogo, self.prefs.dados, modelo))
 
-    def cliente_para(self, tarefa: str) -> LlamaClient:
+    def cliente_para(self, tarefa: str, *, local: bool = False, servico=None, cadastro=None, caminhos=()) -> LlamaClient:
         """
         O cliente do modelo que faz a tarefa. O padrao e o proprio
         `self.client`; outro modelo ganha um cliente com as opcoes dele - a
         janela e por modelo (src/inferencia.py).
+
+        V6 (docs/PLANO-NUVEM.md): resumos e redacao vao a nuvem quando ela esta
+        ligada para eles (src/nuvem.py, ClienteNuvem). `local` e o que nunca
+        sai (a reescrita de e-mail, o parecer do Financeiro); `servico`,
+        `cadastro` e `caminhos` dizem de onde vem o texto, para o caso so no
+        escritorio, o e-mail e o Drive ficarem aqui.
         """
         nome = self.modelo_para(tarefa)
-        if nome == self.client.model:
-            return self.client
-        return self.novo_cliente(nome)
+        cliente = self.client if nome == self.client.model else self.novo_cliente(nome)
+        if not local and tarefa in ("resumos", "redacao") and nuvem_mod.usa(self, tarefa):
+            return nuvem_mod.ClienteNuvem(self, tarefa, cliente, nuvem_mod.caminhos_de(self, servico=servico, cadastro=cadastro,
+                                                                                        caminhos=caminhos))
+        return cliente
 
     def recarregar(self, *, force: bool = False) -> int:
         with self._trava_indice:
@@ -793,6 +813,11 @@ class Estado:
 
 
 estado = Estado()
+# A IA faz parte da assinatura (src/plano.py): sem ela vigente, o modelo local
+# nao e chamado - em lugar nenhum. Fora do instalado (terminal, testes), livre.
+import plano as plano_mod  # noqa: E402
+
+LlamaClient.portao = staticmethod(lambda: plano_mod.liberada(estado))
 
 
 @asynccontextmanager
@@ -832,6 +857,14 @@ async def _fila_cheia(request, exc):
     from fastapi.responses import JSONResponse
 
     return JSONResponse(status_code=429, content={"detail": str(exc)})
+
+
+@app.exception_handler(plano_mod.SemPlano)
+async def _sem_plano(request, exc):
+    """Qualquer tela que chamou o modelo sem a assinatura vigente: 402, com a frase de onde assinar."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=402, content={"detail": str(exc), "motivo": "sem_plano"})
 # O porteiro vem antes de tudo: separa a janela local (chave ou cookie da
 # sessao local) de quem chega de fora. Quem chega de fora passa pelo portao
 # do acesso remoto - desligado, ninguem passa.
@@ -1128,6 +1161,19 @@ class Pergunta(BaseModel):
     # D4: como a pessoa decidiu no seletor, quando a resposta e do escritorio
     # ("escritorio", "fila", "automatico") - so para a resposta dizer por que.
     escolha: str = ""
+    # O quanto o PAULUS trabalha o pedido (src/profundidade.py): "estagiario"
+    # ... "ministro"; vazio, o padrao do escritorio.
+    profundidade: str = ""
+    # As respostas ao modulo de perguntas (src/entrevista.py): {"id" da
+    # entrevista, "acao": "responder"|"continuar"|"decidir", "respostas":
+    # [{"id", "resposta", "modo"}], "explicacao"}.
+    entrevista: dict | None = None
+    # "Perguntar antes de trabalhar", desligado na caixa: o pedido de trabalho
+    # executa direto. Nulo: o que esta em Configuracoes (profundidade.entrevista).
+    perguntar: bool | None = None
+    # A pilula "Modo criativo": a pergunta nao le documento nenhum - o Paulus
+    # responde pelo que ele mesmo sabe, na nuvem (`_responder_criativo`).
+    criativo: bool = False
 
 
 class Busca(BaseModel):
@@ -1354,7 +1400,7 @@ async def contextos_ler_arquivo(arquivo: UploadFile = File(...)) -> dict:
             status_code=422,
             detail="esse arquivo não tem texto para ler — se for um PDF digitalizado, passe o OCR antes")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         # Sem modelo, ainda da para ensinar: o comeco do documento vai para o
         # campo e a pessoa escreve a regra com as palavras dela. Dizer isso e
@@ -3706,8 +3752,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # N15: a nuvem - so na janela do escritorio, ligada e com a chave (src/nuvem.py).
     # O Envio confere tudo de novo depois da busca, com os trechos na mao.
     envio_nuvem = None
+    # A profundidade escolhida na caixa (src/profundidade.py), ou o padrao do escritorio.
+    nivel_prof = profundidade_mod.obter(payload.profundidade, estado.prefs.dados)
     if payload.nuvem and escrita_no_aparelho is None:
         envio_nuvem = nuvem_mod.Envio(estado, trabalho, pessoa=rotas_do_acesso.pessoa(request))
+        envio_nuvem.profundidade = nivel_prof.id
 
     habilidade = estado.registro.obter("perguntar")
     if not habilidade or not habilidade.executavel:
@@ -3716,9 +3765,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     pergunta = payload.pergunta.strip()
     # A2: o agente desta pergunta (src/agente_na_conversa.py), por regra - o
     # que a pessoa escolheu, "@Nome", exemplos e palavras; o juiz so desempata.
+    # As respostas ao modulo de perguntas (src/entrevista.py) nao chamam agente.
     agente = None
     agente_como = ""
-    if rotas_execucoes.ligada(estado, "agentes") and getattr(estado, "agentes", None) is not None:
+    if (payload.entrevista is None and rotas_execucoes.ligada(estado, "agentes")
+            and getattr(estado, "agentes", None) is not None):
         try:
             ativos = estado.agentes.ativos()
         except Exception:  # noqa: BLE001 - agente com problema nao para a conversa
@@ -3746,6 +3797,16 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
         trabalho.dizer("pessoa", pergunta, quem=equipe.quem(request, estado.prefs.dados)["nome"])
+
+    # A entrevista aberta nesta conversa (src/entrevista.py): as respostas do
+    # modulo, ou o texto livre que responde a ele ("quero explicar com minhas
+    # palavras" e so continuar conversando). Outra pergunta, claramente outra
+    # coisa, segue o caminho de sempre - e as perguntas ficam para depois.
+    pendente = entrevista_mod.aberta(trabalho.contexto)
+    if agente is None and (payload.entrevista is not None or (
+            pendente and not payload.retomar and (not payload.apenas or pendente.get("fase") == "preparo")
+            and not entrevista_mod.parece_outro_assunto(pergunta, pendente.get("pedido", "")))):
+        return _seguir_entrevista(trabalho, payload, pergunta, pendente, request, dono, nivel_prof)
 
     # A memoria da conversa (I4, src/memoria.py): "e a multa?" herda o sujeito
     # da pergunta anterior, por regra, e os dois ultimos pares vao junto para
@@ -3794,6 +3855,48 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
 
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
                         cadastros=[f["nome"] for f in estado.cadastros.listar()])
+    # Bateria de 02/10/2026 (src/intencao.py, fim): o que o programa não faz
+    # diz que não faz; "SEMA está errado, o certo é SEMAS - corrija" com o
+    # documento anexado vai ao editor, em qualquer posição do verbo; e "...e
+    # salve no editor" e "se estiver vencida, crie uma tarefa" saem da
+    # pergunta e voltam depois da resposta, como documento e como cartão.
+    acao_depois = None
+    salvar_no_editor = False
+    if lido.tipo == "documentos":
+        fora = intencao.fora_do_alcance(pergunta)
+        if fora:
+            return _so_dizer(trabalho, fora)
+        if intencao.pedido_de_mudanca(pergunta):
+            alvo = (list(payload.apenas or []) or (list(explicito) if len(explicito) == 1 else [])
+                    or (list(citado) if len(citado or []) == 1 else []))
+            if len(alvo) == 1:
+                return _responder_mudar_documento(trabalho, alvo[0], pergunta)
+        salvar_no_editor, pergunta = intencao.salvar_no_editor(pergunta)
+        acao_depois, pergunta = intencao.acao_anexa(pergunta, documentos=estado.searcher.documents,
+                                                   cadastros=[f["nome"] for f in estado.cadastros.listar()])
+    # Pedido de TRABALHO - elaborar, revisar ou adaptar uma peca (por regra,
+    # src/entrevista.py): entender antes de executar, e executar na
+    # profundidade escolhida (src/elaboracao.py). Vai pela nuvem; sem ela, ou
+    # com o sim pedido a cada envio, segue o caminho de sempre.
+    if (lido.tipo == "documentos" and agente is None and envio_nuvem is not None and acao_depois is None
+            and entrevista_mod.e_trabalho(pergunta) and plano_mod.liberada(estado)):
+        anexos = (list(payload.apenas or []) or list(explicito or [])
+                  or (list(citado or []) if re.search(r"(?i)\b(este|esta|esse|essa|anexo|anexad[oa]|referid[oa]|acima)\b",
+                                                      pergunta) else []))
+        caminhos = [d.path for d in estado.searcher.documents if d.name in anexos]
+        motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, rotas_do_acesso.pessoa(request), caminhos)
+        if not motivo:
+            estado_e = entrevista_mod.novo_estado(pergunta, nivel_prof.id, anexos)
+            estado_e["inicio"] = max(0, len(trabalho.mensagens) - 1)
+            return _responder_trabalho(trabalho, request, dono, nivel_prof, estado_e, salvar_no_editor=salvar_no_editor,
+                                       forcar_execucao=payload.perguntar is False)
+        trabalho.registrar("O trabalho em etapas ficou para o caminho de sempre: " + motivo,
+                           mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
+    # Modo criativo: nada de busca nos documentos - o direito em tese, a
+    # redacao, as ideias, pelo que o modelo da nuvem sabe. As acoes (agenda,
+    # tarefa, e-mail...) e o pedido de trabalho ja passaram acima.
+    if payload.criativo and lido.tipo == "documentos" and agente is None and not payload.apenas:
+        return _responder_criativo(trabalho, request, dono, nivel_prof, envio_nuvem, pergunta, historico)
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
@@ -3814,6 +3917,26 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 tipo="exibir", titulo=alvo[0], campos={"nome": alvo[0], "nomes": alvo[:4]},
                 porque="você pediu para abrir os documentos anexados",
             )
+    # 02/10: "abra a agenda", "vá para Agentes", "pode abrir a lixeira?" com
+    # um documento anexado ou em foco iam ler o documento - a camada do
+    # programa so olha sem anexo. A navegacao e so regra e exige que a frase
+    # inteira seja o nome de uma tela; com um documento nomeado na frase, e
+    # dele que se fala. Quem escolheu "Procurar nos documentos" no cartao do
+    # programa (documentos=true) ja respondeu que nao e a tela.
+    if lido.tipo == "documentos" and not explicito and not payload.documentos:
+        navegacao = programa.navegar(pergunta, ampliado=consulta_cadastro.ligado(estado.prefs.dados))
+        if navegacao:
+            return _responder_programa(trabalho, navegacao, pergunta)
+    # "Assine este documento" com o anexo (ou o documento da conversa): o
+    # leitor so reconhece o pedido quando a frase da o nome do arquivo.
+    if lido.tipo == "documentos" and intencao.RE_PEDIDO_ASSINAR.search(intencao._plano(pergunta)):
+        alvo = list(payload.apenas or []) or list(citado or [])
+        if len(alvo) == 1:
+            lido = intencao.Intencao(
+                tipo="assinar", titulo=alvo[0],
+                campos={"nome": alvo[0], "nao_pdf": not alvo[0].lower().endswith(".pdf")},
+                porque="“" + pergunta.strip().rstrip(".!?") + "” e o documento desta conversa",
+            )
     # C4 (chave conversa.roteamento): "como funciona o acesso de fora?" e
     # "o que você faz" caem os dois em intencao.SOBRE; com uma tela citada, a
     # resposta e a explicacao dela, e nao a lista de tudo o que o programa faz.
@@ -3831,14 +3954,50 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # transcricao ao vivo e, se pedido, as sugestoes tiradas do caso.
     if lido.tipo == "gravar":
         return _responder_gravacao(trabalho, lido, pergunta)
+    # `Conversa - Assinar`: o PDF abre ao lado com o selo posto, e o cartao
+    # da conversa traz as escolhas. Assinar continua pedindo o sim.
+    if lido.tipo == "assinar":
+        return _responder_assinatura(trabalho, lido, pergunta)
+    # `Conversa - E-mail` e `Conversa - Escrever e-mail`: a mensagem aberta na
+    # conversa, e a resposta escrita no lugar da caixa de pedido.
+    if lido.tipo == "email":
+        if lido.campos.get("documento"):
+            lido.campos["anexados"] = list(payload.apenas or []) or list(explicito or [])
+        return _responder_email(trabalho, lido, pergunta, request)
+    # `Conversa - Cadastro`, `- Equipe`, `- Despesa fixa`: a ficha na coluna,
+    # preenchida com o que o Acervo (ou o anexo) diz. Com um agente, o cartao
+    # de sempre (a ferramenta dele).
+    if (lido.tipo == "ficha" or (lido.tipo == "cadastro" and lido.campos.get("nome"))) and agente is None:
+        return _responder_ficha(trabalho, lido, pergunta, citado or explicito)
+    # `Conversa - Financeiro` e `- Relatorio`: os numeros do mes somados
+    # aqui; a coluna traz o parecer, os papeis e as sugestoes.
+    if lido.tipo in ("financeiro", "relatorio") and agente is None:
+        return _responder_financeiro(trabalho, lido, pergunta)
+    # T5: uma secao de Configuracoes na coluna, com as mudancas marcadas -
+    # nada gravado antes do "Salvar alteracoes". So na janela do escritorio.
+    if lido.tipo == "config" and agente is None:
+        if not rotas_do_acesso.e_local(request):
+            return _so_dizer(trabalho, "As Configurações mudam só na janela do escritório. Peça de lá, ou abra Configurações no computador do escritório.")
+        return _responder_config(trabalho, lido, pergunta)
+    # `Conversa - Lancamento` e `- Recebimento`: o lancamento na coluna.
+    if lido.tipo == "lancamento" and agente is None:
+        return _responder_lancamento(trabalho, lido, pergunta, citado or explicito)
+    # `Conversa - Criar agente`: tres perguntas e o rascunho na coluna.
+    if lido.tipo == "criar_agente":
+        return _responder_criar_agente(trabalho, lido, pergunta)
     if lido.tipo in ("agenda", "tarefa", "sobre", "abrir", "servico", "cadastro", "nota", "exibir", "passos"):
         # A2: com um agente, a acao so vale se ele declarou a ferramenta dela;
         # o que ele pediu sem ter e recusado e fica registrado.
         if agente is not None and lido.tipo != "sobre":
             ferramenta = agente_mod.ferramenta_da_acao(lido.tipo)
             if not agente_mod.pode_usar(agente, ferramenta):
-                agente_mod.registrar_recusa(estado, trabalho, agente, ferramenta, pergunta)
-                return _so_dizer(trabalho, agente_mod.frase_da_recusa(agente, ferramenta))
+                # Escolhido pela regra, e nao pela pessoa: o pedido segue sem
+                # ele (bateria de 02/10/2026 - "crie uma tarefa" era recusado
+                # pelo agente de cadastro). Escolhido pela pessoa, a recusa vale.
+                if agente_como in ("pedido", "arroba"):
+                    agente_mod.registrar_recusa(estado, trabalho, agente, ferramenta, pergunta)
+                    return _so_dizer(trabalho, agente_mod.frase_da_recusa(agente, ferramenta))
+                agente, agente_como = None, ""
         return _responder_sem_documentos(trabalho, lido, pergunta, agente=agente)
 
     # C4: "qual o CPF do cliente Matheus?" responde da ficha, por molde, sem
@@ -3864,13 +4023,45 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if leitura:
             return _responder_programa(trabalho, leitura, pergunta)
 
+    # Daqui para baixo a resposta e escrita pelo modelo, lendo os documentos.
+    # Sem a assinatura vigente (src/plano.py), a conversa diz onde assinar - o
+    # que a regra responde (navegacao, consultas, agenda) ja passou acima.
+    if not plano_mod.liberada(estado):
+        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+
+    # A triagem na nuvem (src/triagem.py): se a pergunta e de lei, de
+    # documento ou das duas, quais documentos ela pede (pelo nome exato) e os
+    # artigos que a fundamentam. So quando nada na conversa diz qual
+    # documento - anexo, nome na frase ou foco.
+    triagem = None
+    if (envio_nuvem is not None and envio_nuvem.vai_sem_pedir() and not payload.apenas and not explicito
+            and not citado):
+        # A pergunta sobre um caso só do escritório, um anexo do e-mail ou uma
+        # cópia do Drive não sai nem para a triagem: a busca daqui, rápida,
+        # diz de onde a resposta deve vir.
+        provaveis = [str(getattr(h.chunk, "doc_path", "") or "") for h in estado.searcher.search(pergunta, top_k=8)]
+        if not nuvem_mod.motivo_para_ficar(estado, provaveis):
+            triagem = triagem_mod.triar(estado, pergunta, estado.searcher.documents, historico=historico,
+                                        leis=estado.leis, trabalho_id=trabalho.id,
+                                        pessoa=rotas_do_acesso.pessoa(request))
+        if triagem and triagem["documentos"]:
+            substantivo = intencao.referencia_generica(pergunta)
+            # "a procuração" e ha quatro: a conversa pergunta qual, entre as que a triagem achou.
+            if substantivo and len(triagem["documentos"]) >= 2 and not payload.retomar:
+                return _perguntar_qual_documento(trabalho, pergunta, substantivo, triagem["documentos"])
+            citado = list(triagem["documentos"])
+            trabalho.contexto["documento_em_foco"] = citado
+    de_lei = bool(triagem and triagem["assunto"] == "lei") or intencao.cita_lei(pergunta)
+
     # "Qual o valor do contrato?" sem dizer qual, e o Acervo tem varios: a
     # conversa pergunta qual, em vez de o modelo escolher um e responder como
     # se fosse o unico. So quando nada na conversa diz qual (anexo, foco,
     # nome na frase). Nao olha `tudo`: a pilula "Acervo" do compositor manda
     # `tudo` em toda pergunta, e o cartao nunca aparecia pela tela. Quem vem
-    # do cartao (um documento ou "Em todos") vem com `retomar`.
-    if not payload.apenas and not payload.retomar and not explicito and not citado:
+    # do cartao (um documento ou "Em todos") vem com `retomar`. Pergunta que
+    # cita lei ("na procuração, segundo o art. 105 do CPC") nao e sobre uma
+    # das procuracoes do Acervo (bateria de 02/10/2026, A4).
+    if not payload.apenas and not payload.retomar and not explicito and not citado and not de_lei:
         substantivo = intencao.referencia_generica(pergunta)
         if substantivo:
             nomes = intencao.documentos_do_tipo(substantivo, pergunta, estado.searcher.documents)
@@ -3880,7 +4071,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # Tirou o anexo e perguntou sem nomear documento: antes de ler os
     # dezessete, pergunta onde - so no que a conversa vinha lendo, ou no
     # acervo inteiro. Ler tudo leva minutos, e nao foi o que a pessoa disse.
-    if (payload.sem_anexo and not citado and not payload.tudo
+    if (payload.sem_anexo and not citado and not payload.tudo and not (triagem and triagem["assunto"] == "lei")
             and not intencao.quer_todo_o_acervo(pergunta)):
         trabalho.contexto["documento_em_foco"] = foco_antes
         return _perguntar_onde_procurar(trabalho, pergunta, foco_antes)
@@ -4033,6 +4224,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             ctx.escrita_no_aparelho = escrita_no_aparelho
         if envio_nuvem is not None:
             ctx.nuvem = envio_nuvem
+        if triagem:
+            ctx.triagem = triagem
         if payload.inteiro:
             ctx.ia["leitura"] = "tudo"
         sem_fundamento: dict = {}
@@ -4219,6 +4412,13 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             cobertura["como"]["nuvem"] = envio_nuvem.resumo()
             if envio_nuvem.foi:
                 cobertura["como"]["modelo"] = f"{envio_nuvem.nome_do_provedor} · {envio_nuvem.modelo}"
+                # A profundidade com que a nuvem respondeu (src/profundidade.py).
+                _prof = profundidade_mod.obter(envio_nuvem.profundidade, estado.prefs.dados)
+                cobertura["como"]["profundidade"] = {"nivel": _prof.id, "nome": _prof.nome}
+        if triagem:
+            cobertura["como"]["triagem"] = {"assunto": triagem["assunto"], "documentos": triagem["documentos"],
+                                            "dispositivos": [f"{c}:{n}" for c, n in triagem["dispositivos"]],
+                                            "tokens": triagem.get("tokens", 0)}
         # D1: onde a resposta foi escrita e por que, quando a pessoa pediu o aparelho.
         # D4: com o seletor na tela, a escolha da pessoa tambem fica dita.
         if payload.aparelho or payload.escolha in aparelho_mod.ESCOLHAS:
@@ -4253,10 +4453,23 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 relacionados = None
         if relacionados:
             cobertura["relacionados"] = relacionados
+        # "...e salve no editor": a resposta vira um rascunho no Editor de
+        # texto, ligado a esta conversa. "Se estiver vencida, crie uma tarefa":
+        # o cartão da tarefa vem embaixo da resposta, e quem confirma é a pessoa.
+        escrito_final = "".join(partes).strip()
+        feito_no_editor = None
+        if salvar_no_editor and escrito_final:
+            feito_no_editor = _resposta_no_editor(trabalho, pergunta, escrito_final, request)
+            if feito_no_editor:
+                oferta = feito_no_editor
+        if acao_depois is not None:
+            oferta = _proposta_da_acao(acao_depois, payload.pergunta.strip())
         trabalho.dizer(
-            "paulus", "".join(partes).strip(),
+            "paulus", escrito_final,
             fontes=fontes, cobertura=_como_pensou(id_, cobertura), segundos=segundos,
             nivel=nivel, inferencia=inferencia, proposta=oferta or {},
+            **({"feito": {"tipo": "editar", "id": feito_no_editor["campos"]["id"],
+                          "nome": feito_no_editor["campos"]["titulo"]}} if feito_no_editor else {}),
         )
         estado.trabalhos.salvar(trabalho)
         # Uma resposta leva cerca de um minuto nesta maquina: quem foi para
@@ -4345,6 +4558,24 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
         pedido = next((p for p in estado.fila.pendentes if p.id == payload.pedido_id), None)
         if pedido is None:
             raise HTTPException(status_code=409, detail="este pedido já foi decidido em Aprovações")
+    # O trabalho redigido (src/elaboracao.py) vai para o Editor de texto: a
+    # ultima resposta com o cartao "levar ao editor", como rascunho ligado a
+    # esta conversa (o mesmo do "...e salve no editor").
+    if payload.tipo == "levar_ao_editor":
+        msg = next((m for m in reversed(trabalho.mensagens)
+                    if m.autor == "paulus" and (m.proposta or {}).get("tipo") in ("levar_ao_editor", "editor_criado")), None)
+        if msg is None or not (msg.texto or "").strip():
+            raise HTTPException(status_code=404, detail="não achei o texto do trabalho nesta conversa")
+        if msg.feito and msg.feito.get("tipo") == "editar":
+            return {"proposta": {"tipo": "editor_criado", "titulo": msg.feito.get("nome", ""),
+                                 "campos": {"id": msg.feito["id"], "titulo": msg.feito.get("nome", "")}}}
+        criado = _resposta_no_editor(trabalho, "", msg.texto, None,
+                                     titulo=str(campos.get("titulo") or (msg.proposta or {}).get("titulo") or "Trabalho"))
+        if not criado:
+            raise HTTPException(status_code=500, detail="não consegui criar o rascunho no editor")
+        msg.feito = {"tipo": "editar", "id": criado["campos"]["id"], "nome": criado["campos"]["titulo"]}
+        estado.trabalhos.salvar(trabalho)
+        return {"proposta": criado}
     try:
         if payload.tipo == "abrir":
             nome = str(campos.get("nome", ""))
@@ -4415,6 +4646,115 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                       + (f" e {sugeridas} sugest{'ão' if sugeridas == 1 else 'ões'} de resposta" if sugeridas else ""))
             onde = "gravacoes"
             campos["nome"] = g.get("titulo") or ""
+        elif payload.tipo == "config":
+            # T5: o que a coluna de Configuracoes salvou pela rota de sempre
+            # (POST /api/preferencias, /api/contextos, /api/backup...). Aqui so
+            # entra na conversa, com o resumo escrito daqui pelas chaves.
+            import config_pela_conversa as cpc
+
+            secao = str(campos.get("secao") or "")
+            if secao not in cpc.SECOES:
+                raise HTTPException(status_code=400, detail="seção desconhecida")
+            acao = str(campos.get("acao") or "salvar")
+            nomes = [cpc.rotulo(str(c)) for c in (campos.get("chaves") or [])][:8]
+            juntar = lambda xs: ", ".join(xs[:-1]) + " e " + xs[-1] if len(xs) > 1 else (xs[0] if xs else "")  # noqa: E731
+            rotulo_secao = cpc.SECOES[secao][0]
+            titulos = [str(t)[:120] for t in (campos.get("titulos") or [])][:5]
+            if acao == "restaurar":
+                resumo = "Restaurei " + juntar(["“" + t + "”" for t in titulos]) + " da Lixeira"
+            elif acao == "lembrete":
+                resumo = "Guardei o lembrete do escritório: ele entra em toda pergunta da conversa"
+            elif acao == "backup":
+                resumo = "Guardei a pasta e a senha do backup e comecei o primeiro"
+            elif acao == "teste":
+                resumo = "Medi " + juntar(titulos) + " nesta máquina" if titulos else "Parei o teste dos modelos"
+            elif acao == "word":
+                resumo = "Instalei o PAVLVS no Word deste computador"
+            else:
+                resumo = f"Salvei em {rotulo_secao}" + (": " + juntar([n[:1].lower() + n[1:] if not n.isupper() else n for n in nomes]) if nomes else "")
+            novo = 0
+            feito = {"secao": secao, "acao": acao}
+            onde = "config"
+            campos["nome"] = rotulo_secao
+        elif payload.tipo == "lancamento":
+            # O lancamento feito pela coluna: quem gravou foi POST
+            # /api/financeiro/lancar-pela-conversa; aqui ele entra na conversa.
+            l = estado.financeiro.obter(int(campos.get("id") or 0))
+            if not l:
+                raise HTTPException(status_code=404, detail="não achei esse lançamento")
+            novo = l["id"]
+            feito = l
+            if l["tipo"] == "recebimento":
+                resumo = f"Lancei o recebimento de {l.get('valor')} (“{l['descricao']}”)" + (" como recebido em " + escritorio._br(l["liquidado_em"]) if l.get("liquidado_em") else "")
+            else:
+                resumo = f"Lancei a despesa de {l.get('valor')} (“{l['descricao']}”)" + (", vence " + escritorio._br(l["vencimento"]) if l.get("vencimento") else "")
+            if campos.get("papel"):
+                resumo += ", com o " + str(campos["papel"]) + " guardado"
+            if campos.get("tarefa"):
+                resumo += " e o lembrete na Agenda"
+            onde = "financeiro"
+            campos["nome"] = l["descricao"]
+        elif payload.tipo == "ficha":
+            # A ficha salva pela coluna (`Conversa - Cadastro`, `- Equipe`,
+            # `- Despesa fixa`): quem gravou foi POST /api/cadastros; aqui ela
+            # entra na conversa. A ficha tem de existir.
+            ficha = estado.cadastros.obter(int(campos.get("id") or 0))
+            if not ficha:
+                raise HTTPException(status_code=404, detail="não achei essa ficha")
+            novo = ficha["id"]
+            feito = ficha
+            ligados = int(campos.get("ligados") or 0)
+            if ficha["tipo"] == "despesa":
+                resumo = f"Cadastrei a despesa fixa “{ficha['nome']}”" + (f", {ficha['honorario']}" if ficha.get("honorario") else "") + \
+                         (f" todo dia {ficha['dia_vencimento']}" if ficha.get("dia_vencimento") else "")
+                onde = "cadastros"
+            elif ficha["tipo"] in ("socio", "colaborador"):
+                resumo = f"Pus {ficha['nome']} na equipe como {'sócio' if ficha['tipo'] == 'socio' else 'colaborador'}"
+                if campos.get("convite"):
+                    resumo += " e gerei o convite para o PAULUS"
+                onde = "equipe"
+            else:
+                resumo = f"Cadastrei “{ficha['nome']}” como cliente" + (f", ligado a {ligados} documento{'s' if ligados != 1 else ''}" if ligados else "")
+                onde = "cadastros"
+            campos["nome"] = ficha["nome"]
+        elif payload.tipo == "email":
+            # A resposta enviada pela conversa (`Conversa - Escrever e-mail`):
+            # quem enviou foi POST /api/email/enviar, com o sim; aqui o
+            # resultado entra na conversa. Enviado direto, tem de estar no
+            # registro de envios.
+            assunto = str(campos.get("assunto") or "")
+            para = ", ".join(str(x) for x in (campos.get("para") or [])[:3])
+            novo = 0
+            feito = {}
+            if campos.get("aguardando"):
+                resumo = f"Deixei a resposta “{assunto}” para {para} esperando o seu sim em Aprovações"
+                onde = "aprovacoes"
+            else:
+                if not any(e.get("assunto") == assunto for e in estado.envios.para_tela(10)["envios"]):
+                    raise HTTPException(status_code=404, detail="não achei esse envio no registro")
+                resumo = f"Enviei “{assunto}” para {para}"
+                onde = "caixa"
+            campos["nome"] = assunto
+        elif payload.tipo == "assinatura":
+            # A assinatura feita pela conversa (`Conversa - Assinar`): quem
+            # assinou foi POST /api/assinar, com o sim e a senha; aqui o
+            # resultado entra na conversa. O arquivo assinado tem de existir.
+            nome = str(campos.get("nome") or "")
+            novo = 0
+            feito = {}
+            if campos.get("aguardando"):
+                resumo = f"Deixei a assinatura de “{nome}” esperando o seu sim em Aprovações"
+                onde = "aprovacoes"
+            else:
+                destino = Path(str(campos.get("destino") or ""))
+                if not destino.exists():
+                    raise HTTPException(status_code=404, detail="não achei o arquivo assinado")
+                titular = str(campos.get("titular") or "").strip()
+                codigo = str(campos.get("codigo") or "").strip()
+                resumo = (f"Assinei “{nome}”" + (f" com o certificado de {titular}" if titular else "")
+                          + f" e guardei como “{destino.name}”" + (f" (código {codigo})" if codigo else ""))
+                onde = "assinar"
+                campos["nome"] = destino.name
         else:
             raise HTTPException(status_code=400, detail="nao sei fazer isso")
     except ValueError as exc:
@@ -4481,6 +4821,690 @@ def _responder_gravacao(trabalho, lido, pergunta: str) -> StreamingResponse:
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Assine o contrato de honorarios": a conversa diz onde o selo entra (o
+    canto que o certificado guarda, na ultima pagina) e manda a tela abrir o
+    PDF ao lado. Nada e assinado aqui - o sim (e a senha) vem do clique.
+    """
+    campos = dict(lido.campos)
+    nome = campos.get("nome", "")
+    doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+    proposta = None
+    if not doc:
+        texto = f"Não achei “{nome}” aberto no Acervo agora."
+    elif campos.get("nao_pdf") or Path(doc.path).suffix.lower() != ".pdf":
+        texto = (f"Só assino PDF, e “{nome}” não é. Abra no editor e use Assinar: eu gero o PDF, "
+                 "guardo no Acervo e abro a assinatura nele.")
+        proposta = {"tipo": "exibir", "titulo": nome, "campos": {"nome": nome}, "nomes": [nome],
+                    "porque": "é o documento que você pediu para assinar"}
+    else:
+        cofre = estado.cofre.para_tela()
+        posicao = (cofre.get("selo") or {}).get("posicao") or "rodape_direita"
+        rotulo = next((p["rotulo"] for p in cofre.get("posicoes") or [] if p.get("valor") == posicao), "")
+        onde = {"rodape_direita": "no rodapé da última página, à direita", "rodape_esquerda": "no rodapé da última página, à esquerda",
+                "rodape_centro": "no rodapé da última página, no meio", "topo_direita": "no alto da última página, à direita"}.get(
+            posicao, ("na última página (" + rotulo.lower() + ")") if rotulo else "na última página")
+        texto = f"Coloquei a assinatura {onde}. Confira ao lado, ajuste o que quiser aqui e assine."
+        if not cofre.get("instalado"):
+            texto += " Falta o certificado: instale o seu e-CPF antes de assinar."
+        proposta = {"tipo": "assinar", "titulo": nome, "campos": {"nome": nome, "caminho": str(doc.path)},
+                    "porque": lido.porque, "pergunta": pergunta}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        if proposta:
+            yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _documentos_citados(nomes) -> list:
+    abertos = {d.name: d for d in estado.searcher.documents}
+    return [abertos[n] for n in (nomes or []) if n in abertos]
+
+
+def _responder_ficha(trabalho, lido, pergunta: str, citados=None) -> StreamingResponse:
+    """
+    A ficha pela conversa: o cliente (o nome procurado no Acervo, com o
+    CPF/CNPJ e o endereco que estao perto dele), a pessoa da equipe (o que a
+    frase disse) e a despesa fixa (o contrato anexo, lido por regra). A frase
+    diz o que foi achado; a ficha abre na coluna e so grava no clique.
+    """
+    import fichas_pela_conversa as fpc
+
+    campos = dict(lido.campos)
+    tipo = campos.get("tipo") or "cliente"
+    hoje = date.today()
+    ficha: dict = {"tipo": tipo, "nome": campos.get("nome", "")}
+    origem: dict = {}
+    achados = None
+    if lido.tipo == "cadastro":
+        tipo = ficha["tipo"] = "cliente"
+        ficha.update({k: campos.get(k, "") for k in ("documento", "telefone", "email", "endereco", "observacao")})
+        achados = fpc.achar_no_acervo(ficha["nome"], estado.searcher.documents, limite=40)
+        for chave in ("documento", "endereco"):
+            if not ficha.get(chave) and achados["campos"].get(chave):
+                ficha[chave] = achados["campos"][chave]
+                origem[chave] = achados["origem"].get(chave, 0)
+        if achados["total"]:
+            origem["nome"] = achados["total"]
+            lido_no_doc = achados.get("nome_mais_lido", "")
+            if lido_no_doc and fpc._plano(lido_no_doc).startswith(fpc._plano(ficha["nome"])):
+                ficha["nome"] = lido_no_doc
+        import campos_br
+
+        ficha["pessoa"] = "juridica" if (fpc.parece_pj(ficha["nome"]) or campos_br.e_cnpj(ficha.get("documento", ""))) else "fisica"
+        sugestoes = estado.cadastros.sugestoes(CLASSIFICACAO_PATH, limite=None)
+        alvo = fpc._plano(ficha["nome"])
+        sugestao = next((s for s in sugestoes if fpc._plano(s.get("nome", "")) == alvo), None)
+        ficha["sugestoes_pendentes"] = max(0, len(sugestoes) - (1 if sugestao else 0))
+        n = achados["total"]
+        ligados = min(6, sum(1 for x in achados["documentos"] if len(x["campos"]) > 1))
+        if n:
+            mostrado = fpc._nome_proprio(ficha["nome"].lower()) if ficha["nome"].isupper() else ficha["nome"]
+            texto = (f"Achei {mostrado} em "
+                     f"{n} documento{'s' if n != 1 else ''} do Acervo e preenchi a ficha ao lado com o que estava neles. "
+                     "Confira o nome e o documento; o resto, se souber. "
+                     f"Ao salvar, a ficha nasce ligada a {ligados} documento{'s' if ligados != 1 else ''}.")
+        else:
+            texto = (f"Não achei “{ficha['nome']}” nos documentos do Acervo. Preenchi a ficha ao lado com o que você disse; "
+                     "complete o que souber e salve.")
+    elif tipo in ("colaborador", "socio"):
+        ficha.update({"funcao": campos.get("funcao", ""), "email": campos.get("email", ""), "salario": campos.get("salario", ""),
+                      "inicio": campos.get("inicio", ""), "vinculo": campos.get("vinculo", ""),
+                      "convidar": bool(campos.get("convidar"))})
+        papel = "sócia" if tipo == "socio" else ("colaboradora" if (campos.get("funcao", "").endswith("a")) else "colaborador")
+        partes = [f"Preenchi a ficha ao lado como {papel}"]
+        if ficha["salario"]:
+            partes[0] += ", entrando na folha" + (f" a partir de {escritorio._br(ficha['inicio'])[:5]}" if ficha["inicio"] else "")
+        texto = partes[0] + "."
+        if ficha["convidar"]:
+            texto += (" O convite gera o link de entrada para " + (ficha["email"] or "o e-mail Google dela") +
+                      " quando você clicar em Salvar e convidar.")
+        if not ficha["nome"]:
+            texto = "Não achei o nome da pessoa nessa frase. Preenchi o que deu na ficha ao lado."
+    else:
+        ficha.update({"valor": campos.get("valor", ""), "dia": campos.get("dia", 0)})
+        contrato = {}
+        lido_de = ""
+        for d in _documentos_citados(citados):
+            contrato = fpc.ler_contrato(d.text or "")
+            if contrato:
+                lido_de = d.name
+                break
+        for chave in ("valor", "dia"):
+            if not ficha.get(chave) and contrato.get(chave):
+                ficha[chave] = contrato[chave]
+                origem[chave] = 1
+        if contrato.get("fornecedor"):
+            ficha["fornecedor"] = contrato["fornecedor"]
+            origem["fornecedor"] = 1
+        for chave in ("documento", "email"):
+            if contrato.get(chave):
+                ficha[chave] = contrato[chave]
+        nota = [contrato.get("reajuste", ""), ("contrato até " + contrato["ate"]) if contrato.get("ate") else ""]
+        ficha["observacao"] = " · ".join(x for x in nota if x)
+        if ficha["nome"]:
+            origem["nome"] = 1 if lido_de else 0
+        ficha["lido_de"] = lido_de
+        ficha["avisar_dias"] = 3
+        ficha["lancar_mensal"] = True
+        if lido_de:
+            dito = [ficha.get("valor") or "", f"todo dia {ficha['dia']}" if ficha.get("dia") else ""]
+            texto = (f"Li “{lido_de}” e preenchi a despesa ao lado: " + ", ".join(x for x in dito if x) +
+                     (f", com {contrato['reajuste'][0].lower() + contrato['reajuste'][1:]}" if contrato.get("reajuste") else "") +
+                     ". Vou lembrar 3 dias antes e lançar no Financeiro todo mês.")
+        else:
+            texto = ("Preenchi a despesa ao lado com o que você disse" +
+                     ("" if ficha.get("valor") else "; falta o valor") + ". Ela entra no Financeiro todo mês, se você deixar ligado.")
+    ficha["origem"] = origem
+    proposta = {"tipo": "ficha", "titulo": ficha["nome"], "campos": ficha, "porque": lido.porque, "pergunta": pergunta,
+                "achados": achados}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Preencher a ficha", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _gerar_relatorio_financeiro(mes: str, comparar: str) -> dict:
+    """O PDF (Relatorios/Financeiro do Acervo) e a planilha do mes (Financeiro/Planilhas)."""
+    import financeiro_pela_conversa as fpc
+
+    r = fpc.relatorio(estado.financeiro, estado.base, mes, comparar)
+    pasta = _pasta_no_acervo("Relatórios", "Financeiro")
+    pdf = pasta / f"relatorio-financeiro-{mes}.pdf"
+    pdf.write_bytes(documento.para_pdf(documento.ler_html(fpc.html_do_relatorio(r, _escapar)),
+                                       f"Relatório financeiro · {r['rotulo']} {r['ano']}", "PAULUS · relatório gerado nesta máquina"))
+    xlsx = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
+    _exportar_mes_em(xlsx, mes)
+    estado.recarregar_em_segundo_plano()
+    return {"relatorio": r, "pdf": {"nome": pdf.name, "caminho": str(pdf)}, "xlsx": {"nome": xlsx.name, "caminho": str(xlsx)}}
+
+
+def _responder_financeiro(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Como está o financeiro do mês?" / "gera o relatório financeiro de
+    outubro": a frase sai dos numeros somados aqui (src/financeiro_pela_conversa.py);
+    o relatorio ja nasce com o PDF e a planilha no Acervo.
+    """
+    import financeiro_pela_conversa as fpc
+
+    c = dict(lido.campos)
+    mes, comparar = c.get("mes") or escritorio.mes_de_hoje(), c.get("comparar") or ""
+    estado.financeiro.lancar_fixas(estado.cadastros.listar(tipo="despesa"))
+    precisa = estado.financeiro.precisa_de_voce()
+    if lido.tipo == "relatorio":
+        try:
+            gerado = _gerar_relatorio_financeiro(mes, comparar)
+            texto = fpc.frase_do_relatorio(gerado["relatorio"])
+        except Exception as exc:  # noqa: BLE001 - o relatorio diz o que houve, a conversa segue
+            gerado = None
+            texto = f"Não consegui gerar o relatório agora: {exc}."
+        proposta = {"tipo": "relatorio", "titulo": "Relatório financeiro", "porque": lido.porque, "pergunta": pergunta,
+                    "campos": {"mes": mes, "comparar": comparar,
+                               "pdf": (gerado or {}).get("pdf"), "xlsx": (gerado or {}).get("xlsx")}}
+    else:
+        texto = fpc.frase_do_financeiro(estado.financeiro, mes, precisa)
+        proposta = {"tipo": "financeiro", "titulo": "Financeiro", "porque": lido.porque, "pergunta": pergunta,
+                    "campos": {"mes": mes, "comparar": comparar}}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Somar o mês", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _dados_da_config(secao: str, pedido: dict) -> dict:
+    """O que a frase de cada secao de Configuracoes precisa ler agora (src/config_pela_conversa.py)."""
+    dados: dict = {"prefs": estado.prefs.dados, "padrao": estado.client.model}
+    try:
+        if secao == "assistente":
+            try:
+                dados["modelos"] = [m["nome"] for m in modelos_mod.instalados(estado.client.host)]
+            except Exception:  # noqa: BLE001 - Ollama fora: o modelo pedido nao e conferido
+                dados["modelos"] = []
+        elif secao == "modelos" or (secao == "desempenho" and pedido.get("teste")):
+            listado = modelos_listar()
+            dados.update({"instalados": listado.get("instalados") or [], "tarefas": listado.get("tarefas") or [],
+                          "padrao": listado.get("padrao") or estado.client.model})
+            dados["memoria_total_gb"] = (recursos.ler(acordar_video=False).get("memoria") or {}).get("total_gb")
+        elif secao == "desempenho":
+            dados["recursos"] = {**recursos.ler(acordar_video=False), "devagar": estado.devagar}
+            # A primeira leitura do psutil sem intervalo e 0%: aqui mede meio segundo.
+            try:
+                import psutil
+
+                dados["recursos"]["processador"] = {"percentual": round(psutil.cpu_percent(interval=0.5), 1)}
+            except Exception:  # noqa: BLE001
+                pass
+            dados["saude"] = _itens_de_saude()
+            dados["modelo_gb"] = _tamanho_do_modelo()
+        elif secao == "plano":
+            dados["atualizacao"] = atualizacao_situacao()
+        elif secao == "lixeira":
+            estado.lixeira.esvaziar_vencidos()
+            dados["lixeira"] = estado.lixeira.listar()
+        elif secao == "backup":
+            import google_servicos
+
+            dados["backup"] = _backup_para_tela()
+            dados["drives"] = google_servicos.pastas_do_drive_no_computador()
+        elif secao == "word":
+            inst = getattr(estado, "word_instalacao", None)
+            dados["word"] = {"ligado": bool((estado.prefs.dados.get("word") or {}).get("ligado")),
+                             "instalacao": inst.situacao() if inst is not None else {}}
+        elif secao == "acesso":
+            sit = estado.acesso_de_fora.situacao()
+            dados["acesso"] = {**sit, "contas": len(estado.acesso_de_fora.contas.listar() or [])}
+        elif secao == "vinculos":
+            dados["vinculado"] = bool(getattr(estado, "vinculo", None) and estado.vinculo.vinculado())
+        elif secao == "conexoes":
+            w = pedido.get("whatsapp") or {}
+            quem = intencao._plano(w.get("quem") or "")
+            fichas = [f for f in estado.cadastros.listar() if (f.get("telefone") or "").strip()]
+            achadas = [f for f in fichas if quem and all(p in intencao._plano(f["nome"]).split() for p in quem.split())]
+            if achadas:
+                f = achadas[0]
+                dados["contato"] = {"id": f["id"], "nome": f["nome"], "telefone": f["telefone"],
+                                    "numero": conexoes.numero_whatsapp(f["telefone"]), "email": f.get("email") or ""}
+            dados["sessao"] = estado.conexoes.sessao().to_dict()
+    except Exception as exc:  # noqa: BLE001 - a frase diz menos, a coluna abre do mesmo jeito
+        dados["erro"] = str(exc)
+    return dados
+
+
+def _responder_config(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    `Conversa - Meus dados`, `- Aparencia`, `- Modulos`... (T5): a frase diz
+    o que muda, de quanto para quanto e o que precisa de atencao; a coluna
+    abre a secao de Configuracoes com as mudancas marcadas "novo". Nada e
+    gravado aqui - so o "Salvar alteracoes" da coluna grava, pela rota de
+    sempre de Configuracoes.
+    """
+    import config_pela_conversa as cpc
+
+    pedido = dict(lido.campos)
+    secao = pedido["secao"]
+    if secao == "aprendizado" and pedido.get("resto"):
+        pedido["lembrete"] = cpc.lembrete_da_frase(pedido["resto"], [f["nome"] for f in estado.cadastros.listar()])
+    texto, proposta = cpc.proposta(pedido, _dados_da_config(secao, pedido))
+    proposta.update({"porque": lido.porque, "pergunta": pergunta})
+    # O titulo que a frase sugere ("Troque meu telefone") so na conversa nova:
+    # a que ja tinha assunto continua com o nome dela.
+    if len([m for m in trabalho.mensagens if m.autor == "pessoa"]) <= 1 and proposta.get("titulo_conversa"):
+        trabalho.titulo = proposta["titulo_conversa"]
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Ler Configurações", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _responder_lancamento(trabalho, lido, pergunta: str, citados=None) -> StreamingResponse:
+    """
+    O lancamento pela conversa: a despesa ou o recebimento por regra, o
+    anexo lido (boleto, comprovante) e, no recebimento, a cobranca em aberto
+    que ele paga. A frase diz o que conferiu; o lancamento abre na coluna e
+    so entra no Financeiro no clique em Lancar.
+    """
+    import lancamentos_pela_conversa as lpc
+
+    c = dict(lido.campos)
+    hoje = date.today().isoformat()
+    if c.get("cadastro_nome") and not c.get("cadastro_id"):
+        ficha = next((f for f in estado.cadastros.listar() if f["nome"] == c["cadastro_nome"]), None)
+        c["cadastro_id"] = ficha["id"] if ficha else None
+    papel_doc = next((d for d in _documentos_citados(citados) if d.text), None)
+    papel = lpc.ler_papel(papel_doc.text) if papel_doc else {}
+    c["papel"] = {"nome": papel_doc.name, "tipo": c.get("anexo") or ("comprovante" if c["tipo"] == "recebimento" else "boleto"),
+                  **papel} if papel_doc else None
+    casado = None
+    if c["tipo"] == "recebimento":
+        abertos = estado.financeiro.listar(tipo="recebimento", situacao="aberto")
+        casado = lpc.casar_aberto(c, abertos)
+    partes = []
+    if casado:
+        c["id"] = casado["id"]
+        c["original_centavos"] = casado["centavos"]
+        c["juros_centavos"] = max(0, c["centavos"] - casado["centavos"])
+        c["descricao"] = casado["descricao"]
+        c["categoria"] = casado.get("categoria") or c["categoria"]
+        c["vencimento"] = casado.get("vencimento") or ""
+        c["atrasado"] = bool(casado.get("atrasado"))
+    if c.get("pago"):
+        c["liquidado_em"] = hoje
+    if c["tipo"] == "despesa" and c.get("cadastro_nome") and c.get("descricao") and c["cadastro_nome"] not in c["descricao"]:
+        c["descricao"] = c["descricao"] + " · " + c["cadastro_nome"]
+    forma = {"transferencia": "por transferência", "pix": "por Pix", "boleto": "por boleto", "cartao": "no cartão",
+             "dinheiro": "em dinheiro", "debito": "no débito"}.get(c.get("forma") or "", "")
+    if c["tipo"] == "recebimento":
+        if casado:
+            texto = (("Li o comprovante e preenchi" if papel_doc else "Preenchi") + " o recebimento ao lado: " +
+                     lpc.em_reais(casado["centavos"]) + " de “" + casado["descricao"] + "”" +
+                     (f" mais {lpc.em_reais(c['juros_centavos'])} de juros" if c["juros_centavos"] else "") +
+                     ", pagos hoje" + (f" {forma}" if forma else "") + "." +
+                     (" A cobrança em atraso sai da lista." if c.get("atrasado") else ""))
+        else:
+            texto = ("Preenchi o recebimento ao lado: " + lpc.em_reais(c["centavos"]) +
+                     (f" de {c['cadastro_nome']}" if c.get("cadastro_nome") else "") + ", pago hoje. " +
+                     ("Não achei cobrança em aberto desse cliente que case com o valor: entra como recebimento novo."
+                      if c.get("cadastro_id") else "Não achei o cliente em Cadastros: escolha ao lado."))
+        if papel.get("centavos") and papel["centavos"] != c["centavos"]:
+            texto += f" O comprovante diz {lpc.em_reais(papel['centavos'])} — confira."
+    else:
+        texto = ("Li o boleto e preenchi" if papel_doc else "Preenchi") + " a despesa ao lado."
+        if papel_doc:
+            confere = []
+            if papel.get("centavos"):
+                confere.append("o valor" if papel["centavos"] == c["centavos"] else None)
+            if papel.get("vencimento") and c.get("vencimento"):
+                confere.append("o vencimento" if papel["vencimento"] == c["vencimento"] else None)
+            if confere and all(confere):
+                partes.append(" e ".join(confere).capitalize() + (" batem" if len(confere) > 1 else " bate") + " com o que você disse")
+            elif papel.get("centavos") and papel["centavos"] != c["centavos"]:
+                partes.append(f"o boleto diz {lpc.em_reais(papel['centavos'])}, e você disse {lpc.em_reais(c['centavos'])} — confira")
+            elif papel.get("vencimento") and c.get("vencimento") and papel["vencimento"] != c["vencimento"]:
+                partes.append(f"o boleto vence em {escritorio._br(papel['vencimento'])}, e você disse {escritorio._br(c['vencimento'])} — confira")
+            if papel.get("beneficiario"):
+                partes.append("o beneficiário é " + papel["beneficiario"])
+            if partes:
+                texto += " " + "; ".join(partes) + "."
+        if not c.get("vencimento"):
+            texto += " Falta o vencimento."
+    c["frase"] = texto
+    proposta = {"tipo": "lancamento", "titulo": c.get("descricao") or "", "campos": c, "porque": lido.porque, "pergunta": pergunta}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Preencher o lançamento", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _achar_email(quem: str, sobre: str = "", *, marcar_lido: bool = True):
+    """
+    A mensagem mais recente de `quem` (o nome na ficha, com o e-mail dela,
+    ou o que a frase disse: procura no remetente e no assunto). Devolve
+    (conta, Mensagem | None). HTTPException quando a conta nao abre.
+    """
+    conta, senha = _conta_e_senha("")
+    alvo = intencao._plano(quem)
+    ficha = next((f for f in estado.cadastros.listar()
+                  if f.get("email") and alvo and alvo in intencao._plano(f.get("nome", ""))), None)
+    buscas = ([ficha["email"]] if ficha else []) + [quem]
+    clientes = _emails_dos_cadastros()
+    for busca in buscas:
+        try:
+            dados = correio.listar(conta, senha, busca=busca, limite=12 if sobre else 1, clientes=clientes)
+        except correio.ErroCorreio as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        msgs = dados.get("mensagens") or []
+        if sobre:
+            chave = intencao._plano(re.sub(r"^(?:a|o|as|os)\s+", "", sobre.strip(), flags=re.I))
+            msgs = [m for m in msgs if chave and chave in intencao._plano(m.get("assunto", ""))] or msgs
+        if msgs:
+            try:
+                return conta, correio.abrir(conta, senha, msgs[0]["uid"], marcar_lido=marcar_lido)
+            except correio.ErroCorreio as exc:
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return conta, None
+
+
+def _passa_por_aprovacao(conta, request) -> bool:
+    """O mesmo teste de POST /api/email/enviar: sem a permissao e a conta liberada, o envio vira pedido."""
+    de_fora = request is not None and not rotas_do_acesso.e_local(request)
+    return not (estado.prefs.pode("enviar_mensagem") and conta.pode_enviar_sem_confirmar and not de_fora)
+
+
+def _responder_email(trabalho, lido, pergunta: str, request=None) -> StreamingResponse:
+    """
+    "Abra o último e-mail do Mercado Pago": a mensagem abre na conversa e a
+    frase diz o que ela e, por regra (src/email_pela_conversa.py). "Responda
+    a Priscila confirmando...": a conversa acha a mensagem e manda a tela
+    abrir o rascunho; o texto vem de POST /api/email/conversa/rascunho, que
+    roda o modelo. Nada sai daqui: enviar e o clique, e passa por Aprovacoes
+    quando Limites da IA mandam.
+    """
+    import email_pela_conversa
+
+    campos = dict(lido.campos)
+    acao = campos.get("acao", "abrir")
+
+    if acao == "escrever":
+        return _escrever_email_novo(trabalho, lido, pergunta, request)
+
+    def gerar() -> Iterator[str]:
+        proposta = None
+        try:
+            conta, msg = _achar_email(campos.get("quem", ""), campos.get("sobre", ""), marcar_lido=(acao == "abrir"))
+        except HTTPException as exc:
+            detalhe = str(exc.detail)
+            if exc.status_code == 400:
+                texto = "Nenhuma conta de e-mail está ligada a este PAULUS. Ligue a sua em E-mail › Contas e peça de novo."
+            elif exc.status_code == 401:
+                texto = f"Não consegui entrar na caixa: {detalhe}. Abra E-mail uma vez, entre, e peça de novo."
+            else:
+                texto = f"Não consegui abrir a caixa agora: {detalhe}."
+            conta, msg = None, None
+        else:
+            if msg is None:
+                texto = (f"Não achei e-mail de “{campos.get('quem')}” na caixa de entrada"
+                         + (f" sobre “{campos.get('sobre')}”" if campos.get("sobre") else "")
+                         + " (procurei no remetente e no assunto).")
+        if msg is not None:
+            m = msg.to_dict()
+            cabeca = {k: m.get(k) for k in ("uid", "de_nome", "de_email", "para", "assunto", "quando", "quando_curto")}
+            cabeca["conta_id"] = conta.id
+            cabeca["conta_email"] = conta.email
+            if acao == "responder":
+                aprovacao = _passa_por_aprovacao(conta, request)
+                quem = m.get("de_nome") or m.get("de_email")
+                texto = (f"Vou escrever a resposta a {quem} sobre “{m.get('assunto') or 'sem assunto'}”. O texto aparece na caixa "
+                         "abaixo para você revisar — " + ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar."))
+                proposta = {"tipo": "email", "titulo": m.get("assunto") or "", "porque": lido.porque, "pergunta": pergunta,
+                            "campos": {"acao": "responder", "pedido": campos.get("pedido", ""), **cabeca}}
+            else:
+                codigo = email_pela_conversa.codigo_de_verificacao(m.get("assunto", ""), m.get("corpo", ""))
+                texto = email_pela_conversa.frase_da_mensagem(m, codigo)
+                proposta = {"tipo": "email", "titulo": m.get("assunto") or "", "porque": lido.porque, "pergunta": pergunta,
+                            "campos": {"acao": "abrir", "codigo": codigo, "prazo": m.get("prazo") or "",
+                                       "prazo_trecho": m.get("prazo_trecho") or "",
+                                       "sem_resposta": email_pela_conversa.sem_resposta(m.get("de_email", "")), **cabeca}}
+        trabalho.etapas = [Etapa("Achar o e-mail", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta or {})
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        if proposta:
+            yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _documentos_pela_descricao(descricao: str) -> list[str]:
+    """
+    "a procuração da COOBRAMEX" -> os documentos do Acervo cujo nome tem mais
+    palavras da descrição (pelo menos metade delas). Cópias do mesmo arquivo
+    em outro formato contam como candidatos à parte.
+    """
+    palavras = [p for p in re.findall(r"[a-z0-9]{3,}", intencao._plano(descricao))
+                if p not in ("das", "dos", "com", "para", "pra", "que", "este", "esta", "esse", "essa", "documento",
+                             "arquivo")]
+    if not palavras:
+        return []
+    notas = []
+    for d in estado.searcher.documents:
+        nome = intencao._plano(Path(d.name).stem)
+        nota = sum(1 for p in palavras if p in nome)
+        if nota * 2 >= len(palavras):
+            notas.append((nota, d.name))
+    if not notas:
+        return []
+    melhor = max(n for n, _ in notas)
+    return [nome for n, nome in notas if n == melhor]
+
+
+def _escrever_email_novo(trabalho, lido, pergunta: str, request=None) -> StreamingResponse:
+    """
+    "Escreva um e-mail para a Priscila dizendo que...": o envelope do e-mail
+    novo na conversa, com quem recebe achado na ficha (ou o endereco dito), e
+    o texto escrito pelo modelo em POST /api/email/conversa/rascunho. Nada
+    sai daqui: enviar e o clique, com o sim, e passa por Aprovacoes quando
+    Limites da IA mandam.
+    """
+    campos = dict(lido.campos)
+    quem = campos.get("quem", "")
+    email = campos.get("email", "")
+    nome = "" if email and quem == email else quem
+    if not email and quem:
+        alvo = intencao._plano(quem)
+        ficha = next((f for f in estado.cadastros.listar()
+                      if f.get("email") and alvo and all(p in intencao._plano(f.get("nome", "")).split() for p in alvo.split())), None)
+        if ficha:
+            nome, email = ficha["nome"], ficha["email"]
+    try:
+        conta, _senha = _conta_e_senha("")
+    except HTTPException as exc:
+        texto = ("Nenhuma conta de e-mail está ligada a este PAULUS. Ligue a sua em E-mail › Contas e peça de novo."
+                 if exc.status_code == 400 else f"Não consegui usar a conta de e-mail agora: {exc.detail}.")
+        return _so_dizer(trabalho, texto)
+    aprovacao = _passa_por_aprovacao(conta, request)
+    para = [{"nome": nome, "email": email}] if email else []
+    # "Envie a procuração da COOBRAMEX por e-mail para...": o documento vai
+    # anexado (bateria de 02/10/2026). Mais de um que pode ser "a procuração",
+    # a conversa diz quais e deixa a escolha no campo Anexos.
+    anexos: list[str] = []
+    sobre_anexo = ""
+    assunto = ""
+    if campos.get("documento"):
+        nomes = list(campos.get("anexados") or []) or _documentos_pela_descricao(campos["documento"])
+        caminhos = {d.name: d.path for d in estado.searcher.documents}
+        nomes = [n for n in nomes if n in caminhos]
+        if len(nomes) == 1:
+            anexos = [caminhos[nomes[0]]]
+            assunto = Path(nomes[0]).stem
+            sobre_anexo = f"Anexei “{nomes[0]}”. "
+        elif nomes:
+            unicos = list(dict.fromkeys(nomes))
+            sobre_anexo = ("Há " + str(len(nomes)) + " documentos que podem ser “" + campos["documento"] + "”: " +
+                           ", ".join("“" + n + "”" for n in unicos[:4]) + (" e outros" if len(unicos) > 4 else "") +
+                           ". Escolha o certo em Anexos. ")
+        else:
+            sobre_anexo = f"Não achei “{campos['documento']}” no Acervo: anexe pelo campo Anexos. "
+    texto = (f"Vou escrever o e-mail para {nome or email}. " if para else
+             f"Não achei e-mail de “{quem}” em Cadastros: ponha o endereço no Para. ") + sobre_anexo + \
+        "O texto aparece na caixa abaixo para você revisar — " + \
+        ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar.")
+    uid = "novo-" + uuid.uuid4().hex[:10]
+    proposta = {"tipo": "email", "titulo": "Novo e-mail", "porque": lido.porque, "pergunta": pergunta,
+                "campos": {"acao": "escrever", "uid": uid, "pedido": campos.get("pedido", ""), "para": para,
+                           "quem": quem, "conta_id": conta.id, "conta_email": conta.email, "assunto": assunto,
+                           "anexos": anexos}}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Preparar o e-mail", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _responder_criar_agente(trabalho, lido, pergunta: str) -> StreamingResponse:
+    """
+    "Crie um agente que preencha a procuracao...": a regra acha os modelos
+    possiveis no Acervo e a conversa pergunta tres coisas antes de escrever
+    (src/agente_pela_conversa.py). Nada e gravado aqui.
+    """
+    import agente_pela_conversa as apc
+
+    pedido = lido.campos.get("pedido", "")
+    modelos = apc.candidatos_de_modelo(pedido, estado.searcher.documents)
+    texto = "Já tenho a base. Antes de escrever as instruções, preciso de três respostas."
+    proposta = {"tipo": "criar_agente", "titulo": apc.nome_por_regra(pedido), "porque": lido.porque, "pergunta": pergunta,
+                "campos": {"pedido": pedido, "modelos": modelos, "nome": apc.nome_por_regra(pedido)}}
+
+    def gerar() -> Iterator[str]:
+        if len(trabalho.mensagens) <= 1:
+            trabalho.titulo = "Criar agente"
+        trabalho.etapas = [Etapa("Montar o roteiro de leitura e preenchimento", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class RascunhoDeAgente(BaseModel):
+    pedido: str = ""
+    modelo: str = ""
+    faltando: str = "perguntar"
+    formato: str = ""
+
+
+def _base_do_agente(payload: RascunhoDeAgente) -> tuple[dict, str]:
+    import agente_pela_conversa as apc
+
+    doc = next((d for d in estado.searcher.documents if d.name == payload.modelo), None) if payload.modelo else None
+    texto = (doc.text or "") if doc else ""
+    base = apc.rascunho(payload.pedido[:600], doc.name if doc else "", payload.faltando, payload.formato,
+                        apc.campos_em_branco(texto))
+    base["brancos"] = apc.campos_em_branco(texto)
+    return base, texto
+
+
+@app.post("/api/agentes/rascunho")
+def agentes_rascunho(payload: RascunhoDeAgente) -> dict:
+    """O rascunho do agente so por regra: o modelo lido e os campos em branco contados. Nao grava."""
+    base, _ = _base_do_agente(payload)
+    return {"campos": base}
+
+
+@app.post("/api/agentes/rascunho/escrever")
+def agentes_rascunho_escrever(payload: RascunhoDeAgente) -> dict:
+    """
+    O modelo local escreve nome, descricao, instrucoes e exemplos; as
+    respostas da pessoa entram por regra. Devolve os campos, o AGENTE.md e a
+    validacao de sempre. Nao grava - quem grava e o "Salvar agente".
+    """
+    import agente_pela_conversa as apc
+    import agentes_tela
+
+    base, texto = _base_do_agente(payload)
+    cliente = estado.cliente_para("redacao")
+    campos = apc.escrever(payload.pedido[:600], base, texto,
+                          lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis))
+    md = agentes_tela.markdown_do_formulario(campos)
+    return {"campos": campos, "markdown": md, "modelo_de_ia": estado.client.model,
+            **agentes_tela.conferir(estado.agentes, md)}
+
+
+class MudancaDeAgente(BaseModel):
+    passos: list[str] = []
+    fixos: list[str] = []
+    pedido: str = ""
+
+
+@app.post("/api/agentes/rascunho/mudar")
+def agentes_rascunho_mudar(payload: MudancaDeAgente) -> dict:
+    """O pedido de mudanca escrito na conversa, com o agente aberto ao lado. Nao grava."""
+    import agente_pela_conversa as apc
+
+    if not payload.pedido.strip():
+        raise HTTPException(status_code=400, detail="diga o que mudar")
+    cliente = estado.cliente_para("redacao")
+    novos = apc.mudar([str(p)[:400] for p in payload.passos[:20]], payload.pedido[:600], [str(f)[:400] for f in payload.fixos[:8]],
+                      lambda i, c, e, sis: cliente.ask_json(i, context=c, schema_hint=e, sistema=sis))
+    if novos is None:
+        raise HTTPException(status_code=503, detail="o modelo não respondeu agora; mude direto na folha")
+    return {"passos": novos}
+
+
 class SugestaoAoVivo(BaseModel):
     texto: str = ""
     documentos: list[str] = []
@@ -4536,6 +5560,97 @@ def _so_dizer(trabalho, texto: str) -> StreamingResponse:
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+def _proposta_da_acao(lido, pergunta: str) -> dict:
+    """
+    O cartão de uma ação de agenda ou tarefa, o mesmo de `_responder_sem_documentos`,
+    para ir embaixo de uma resposta ("...está vencida? Se estiver, crie uma tarefa").
+    """
+    ferramenta = ferramentas.POR_PROPOSTA.get(lido.tipo, "")
+    proposta = {
+        "tipo": lido.tipo, "titulo": lido.titulo, "campos": lido.campos, "porque": lido.porque, "falta": lido.falta,
+        "pergunta": pergunta, "ferramenta": ferramenta,
+        "disponivel": ferramentas.CATALOGO_FERRAMENTAS[ferramenta]["disponivel"] if ferramenta else True,
+        "ajuda_do_modelo": [],
+    }
+    if lido.tipo == "agenda" and not lido.falta:
+        _frase_do_agendar(proposta)            # liga a ficha e acha o horário livre
+    return proposta
+
+
+def _paragrafo_do_editor(p: str) -> str:
+    """Uma linha do texto do modelo no editor: "# Título" vira título, "**x**" vira negrito, "---" some."""
+    import html as _html
+
+    p = " ".join(p.split())
+    if re.fullmatch(r"-{3,}|\*{3,}|_{3,}", p):
+        return ""
+    cabeca = re.match(r"(#{1,4})\s+(.*)", p)
+    nivel = len(cabeca.group(1)) + 1 if cabeca else 0
+    p = cabeca.group(2) if cabeca else p
+    corpo = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _html.escape(p))
+    return f"<h{min(nivel, 4)}>{corpo}</h{min(nivel, 4)}>" if nivel else "<p>" + corpo + "</p>"
+
+
+def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None, titulo: str = "") -> dict | None:
+    """
+    "Resuma a procuração e salve no editor": a resposta vira um rascunho no
+    Editor de texto. Devolve o cartão que abre o rascunho, ou None. Com
+    `titulo` (o trabalho redigido, src/elaboracao.py), o nome é ele.
+    """
+    import citacoes
+
+    limpo = citacoes.RE_MARCA.sub("", texto).replace(citacoes.SEM_FONTE, "")
+    paragrafos = [p for p in re.split(r"\n\s*\n|\n", limpo) if p.strip()]
+    corpo = "".join(_paragrafo_do_editor(p) for p in paragrafos)
+    nomes = list(trabalho.contexto.get("documento_em_foco") or [])
+    base = Path(nomes[0]).stem if len(nomes) == 1 else ""
+    m = re.match(r"(?i)\s*(?:resuma|resume|resumir|fa[çc]a um resumo d[oae]s?|faz um resumo d[oae]s?)\s+(?:o\s+|a\s+|os\s+|as\s+)?(.+)",
+                 pergunta)
+    if titulo:
+        titulo = titulo[:1].upper() + titulo[1:]
+    elif m:
+        # "resuma a procuração da COOBRAMEX" -> "Resumo — procuração da COOBRAMEX"
+        titulo = "Resumo — " + (base or m.group(1).strip().rstrip(".?!"))
+    else:
+        titulo = base or titular(pergunta)
+    try:
+        id_ = estado.documentos.criar(titulo[:120], "texto", corpo, None)
+        equipe.marcar_autor(estado.base, "documentos", id_, equipe.quem(request, estado.prefs.dados))
+    except Exception:  # noqa: BLE001 - sem o rascunho, a resposta vale igual
+        return None
+    return {"tipo": "editor_criado", "titulo": titulo, "campos": {"id": id_, "titulo": titulo},
+            "porque": "você pediu para salvar no editor", "pergunta": pergunta}
+
+
+def _responder_mudar_documento(trabalho, nome: str, pergunta: str) -> StreamingResponse:
+    """
+    "SEMA está errado. O certo é SEMAS - corrija no documento" com o documento
+    anexado: o cartão que abre o rascunho no editor e faz a mudança, marcada
+    para manter ou descartar (js/13-editor-na-conversa.js). O arquivo do
+    Acervo não é tocado - o editor trabalha numa cópia.
+    """
+    if not any(d.name == nome for d in estado.searcher.documents):
+        return _so_dizer(trabalho, f"“{nome}” não está entre os documentos abertos, então não tenho onde mudar.")
+    trocas = intencao.trocas_do_pedido(pergunta)
+    texto = (f"Vou abrir “{nome}” no editor, como rascunho, e "
+             + (f"trocar “{trocas[0][0]}” por “{trocas[0][1]}”" if len(trocas) == 1 else "fazer a mudança")
+             + ". A alteração fica marcada para você manter ou descartar; o arquivo original no Acervo não muda.")
+    proposta = {"tipo": "mudar_documento", "titulo": nome, "porque": "um pedido de mudança e o documento desta conversa",
+                "pergunta": pergunta, "campos": {"nome": nome, "pedido": pergunta, "trocas": [list(t) for t in trocas]}}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> StreamingResponse:
     """
     O que nao precisa ler documento nenhum.
@@ -4549,7 +5664,8 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
     """
     def gerar() -> Iterator[str]:
         if lido.tipo == "sobre":
-            texto = _o_que_eu_faco()
+            # "Você consegue alterar documentos?" responde a pergunta feita.
+            texto = intencao.capacidade_perguntada(pergunta) or _o_que_eu_faco()
             trabalho.etapas = [Etapa("Responder", estado=CONCLUIDO)]
             trabalho.estado = CONCLUIDO
             trabalho.dizer("paulus", texto)
@@ -4633,8 +5749,14 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
             proposta["agente"] = {"slug": agente.slug, "nome": agente.nome or agente.slug, "versao": agente.versao}
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO)]
         trabalho.estado = CONCLUIDO
-        trabalho.dizer("paulus", "", proposta=proposta)
+        # Pacote de telas (`Conversa - Agendar`): o compromisso com data abre o
+        # formulario ao lado e a semana na conversa, e a conversa diz o dia e
+        # os horarios livres de verdade (os mesmos de /api/agenda/livres).
+        texto = _frase_do_agendar(proposta) if lido.tipo == "agenda" and not lido.falta else ""
+        trabalho.dizer("paulus", texto, proposta=proposta)
         estado.trabalhos.salvar(trabalho)
+        if texto:
+            yield _sse("token", {"t": texto})
         yield _sse("proposta", proposta)
         yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
 
@@ -4643,6 +5765,52 @@ def _responder_sem_documentos(trabalho, lido, pergunta: str, agente=None) -> Str
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+DIAS_DA_SEMANA = ("segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo")
+
+
+def _frase_do_agendar(proposta: dict) -> str:
+    """
+    "Separei quinta, 1º de outubro. Às 10:00 você está livre — confira ao
+    lado." Liga a ficha de quem vai (campos.cadastro_id) quando o nome da
+    frase esta em Cadastros. So diz o que a agenda mostra.
+    """
+    from datetime import date
+
+    campos = proposta.setdefault("campos", {})
+    nome = " ".join(str(campos.get("cliente") or "").split())
+    if nome:
+        alvo = nome.lower()
+        fichas = estado.cadastros.listar()
+        ficha = next((f for f in fichas if " ".join(f["nome"].split()).lower() == alvo), None) or \
+            next((f for f in fichas if alvo in " ".join(f["nome"].split()).lower()), None)
+        if ficha:
+            campos["cadastro_id"] = ficha["id"]
+            campos["cliente"] = ficha["nome"]
+    campos.setdefault("onde", "online")
+    try:
+        dia = date.fromisoformat(str(campos.get("data") or ""))
+    except ValueError:
+        return ""
+    quando = f"{DIAS_DA_SEMANA[dia.weekday()]}, {'1º' if dia.day == 1 else dia.day} de {acervo.MESES[dia.month - 1]}"
+    regra = estado.prefs.dados.get("disponibilidade", {})
+    try:
+        livres = estado.agenda.livres(dia.isoformat(), int(campos.get("duracao") or 60), regra)
+    except Exception:  # noqa: BLE001 - sem a conta dos livres, so o dia
+        livres = None
+    frase = f"Separei {quando}."
+    hora = str(campos.get("hora") or "")
+    if livres is not None:
+        if campos.get("hora_dita") and hora:
+            frase += (f" Às {hora} você está livre." if hora in livres
+                      else f" Às {hora} já tem coisa na agenda" + (f"; cabe às {', '.join(livres[:3])}." if livres else "."))
+        elif livres:
+            campos["hora"] = livres[0]
+            frase += " Cabe às " + (", ".join(livres[:3]) if len(livres) > 1 else livres[0]) + "."
+        else:
+            frase += " Não há horário livre nesse dia com essa duração."
+    return frase + " Escolha o horário no calendário ou ao lado e confira o resto."
 
 
 _JUIZES: dict[tuple, juizo.Juiz] = {}
@@ -4655,6 +5823,8 @@ def _juiz() -> juizo.Juiz | None:
     motivo: outro `num_ctx` faz o Ollama recarregar o modelo. Vinte segundos
     de paciencia: passou disso, a pergunta segue para os documentos.
     """
+    if not plano_mod.liberada(estado):
+        return None                       # sem a assinatura, so a regra decide
     modelo = estado.modelo_para("juiz")
     opcoes = estado.client.opcoes if modelo == estado.client.model else estado.novo_cliente(modelo).opcoes
     chave = (modelo, opcoes.num_ctx, opcoes.keep_alive)
@@ -4773,6 +5943,683 @@ def _perguntar_qual_documento(trabalho, pergunta: str, substantivo: str, nomes: 
     )
 
 
+# ------------------------------------------------- o trabalho: entender e executar
+# (src/entrevista.py, src/elaboracao.py, src/profundidade.py - 03/10/2026)
+
+
+def _seguir_entrevista(trabalho, payload: Pergunta, pergunta: str, pendente, request, dono: str, nivel):
+    """
+    A pessoa respondeu ao modulo de perguntas (ou escreveu, com ele aberto,
+    algo que responde a ele): as respostas entram na entrevista, e uma nova
+    rodada decide se ainda falta algo ou se ja da para executar. "Continuar com
+    o que temos" e "Decida por mim" executam direto.
+    """
+    e = payload.entrevista or {}
+    if pendente is None or (e.get("id") and e.get("id") != pendente.get("id")):
+        return _so_dizer(trabalho, "Esse módulo de perguntas já foi encerrado. Se quiser outro trabalho, é só pedir.")
+    pessoa = rotas_do_acesso.pessoa(request)
+    caminhos = [d.path for d in estado.searcher.documents if d.name in (pendente.get("anexos") or [])]
+    motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, pessoa, caminhos)
+    if not motivo and not payload.nuvem:
+        motivo = "a pergunta foi marcada para ficar neste computador"
+    if motivo:
+        return _so_dizer(trabalho, "Para continuar este trabalho em etapas eu preciso da nuvem, e " + motivo
+                         + ". As respostas ficaram guardadas: quando der, é só responder de novo ou pedir de novo.")
+    if not plano_mod.liberada(estado):
+        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+    # O nivel desta mensagem vale: a pessoa pode ter subido no meio da entrevista.
+    pendente["nivel"] = nivel.id
+    if pendente.get("fase") in ("preparo", "clausulas"):
+        return _seguir_clausulas(trabalho, payload, pergunta, pendente, request, dono, nivel)
+    acao = str(e.get("acao") or "") if payload.entrevista is not None else "explicar"
+    if payload.entrevista is not None:
+        entrevista_mod.juntar_respostas(pendente, e.get("respostas") or [], str(e.get("explicacao") or ""))
+    else:
+        entrevista_mod.juntar_respostas(pendente, [], pergunta)
+    if acao == "decidir":
+        respondidas = {r.get("id") for r in pendente["respostas"]}
+        for q in pendente.get("perguntas") or []:
+            if q["id"] not in respondidas:
+                pendente["respostas"].append({"id": q["id"], "pergunta": q["pergunta"], "resposta": "", "modo": "decida"})
+    # O cartao da rodada fica respondido: a conversa reaberta nao o oferece de novo.
+    for m in reversed(trabalho.mensagens):
+        p = m.proposta or {}
+        if p.get("tipo") == "entrevista" and p.get("entrevista_id") == pendente["id"] and not p.get("respondida"):
+            p["respondida"] = True
+            p["acao"] = acao
+            break
+    return _responder_trabalho(trabalho, request, dono, nivel, pendente, forcar_execucao=acao in ("continuar", "decidir"),
+                               mensagem_nova="" if payload.entrevista is not None else pergunta)
+
+
+def _modelos_no_acervo(estado_e: dict, plano: dict) -> list[str]:
+    """Documentos do Acervo que parecem do mesmo tipo de trabalho, para usar como modelo (até 4, pelo nome)."""
+    genericas = {"contrato", "contratos", "termo", "acordo", "peticao", "inicial", "rural", "urbano", "simples", "completo",
+                 "minuta", "documento"}
+    alvo = (estado_e.get("trabalho") or "") + " " + (plano.get("titulo_documento") or "")
+    palavras = {w for w in re.findall(r"[a-z]{5,}", clausulas_mod._plano_txt(alvo)) if w not in genericas}
+    if not palavras:
+        return []
+    achados = [d.name for d in estado.searcher.documents
+               if any(w[:7] in clausulas_mod._plano_txt(d.name) for w in palavras)]
+    return achados[:4]
+
+
+def _seguir_clausulas(trabalho, payload: Pergunta, pergunta: str, estado_e: dict, request, dono: str, nivel):
+    """
+    O trabalho junto, cláusula por cláusula (src/clausulas.py). Ações do cartão:
+    "comecar" (com os anexos e o modelo escolhido do Acervo), "aprovar",
+    "corrigir" (os pontos e o pedido livre) e "tudo" (o resto de uma vez - a
+    tela já disse o que se perde). Texto livre: "ok", "pode seguir" aprova;
+    "faça tudo de uma vez" faz o resto; o resto corrige a cláusula da vez.
+    """
+    import time
+
+    e = payload.entrevista or {}
+    acao = str(e.get("acao") or "")
+    texto_livre = "" if payload.entrevista is not None else pergunta
+    if not acao:
+        if clausulas_mod.RE_TUDO.search(texto_livre):
+            acao = "tudo"
+        elif estado_e.get("fase") == "preparo":
+            acao = "comecar"
+            if texto_livre:
+                estado_e["explicacoes"].append(texto_livre[:4000])
+        elif clausulas_mod.RE_APROVA.search(texto_livre):
+            acao = "aprovar"
+        else:
+            acao = "corrigir"
+    nomes = {d.name for d in estado.searcher.documents}
+    if acao in ("comecar", "tudo"):
+        novos = [n for n in list(payload.apenas or []) + [str(x) for x in (e.get("modelos") or [])] if n in nomes]
+        estado_e["materiais"] = list(dict.fromkeys(list(estado_e.get("materiais") or []) + novos))
+    # O cartão de antes fica respondido.
+    for m in reversed(trabalho.mensagens):
+        pr = m.proposta or {}
+        if pr.get("entrevista_id") == estado_e["id"] and pr.get("tipo") in ("preparo", "clausula") and not pr.get("respondida"):
+            pr["respondida"] = True
+            pr["acao"] = acao
+            break
+    if acao == "tudo":
+        estado_e["fase"] = "pronto"
+        return _responder_trabalho(trabalho, request, dono, nivel, estado_e, forcar_execucao=True, modo="tudo")
+    plano = estado_e["plano"]
+    estado_e.setdefault("clausulas", {})
+    atual = int(estado_e.get("atual") or 0)
+    ajustes = None
+    if acao == "aprovar":
+        sid = str(e.get("secao") or plano["secoes"][atual]["id"])
+        if sid in estado_e["clausulas"]:
+            estado_e["clausulas"][sid]["status"] = "aprovada"
+    elif acao == "corrigir":
+        sid = str(e.get("secao") or plano["secoes"][atual]["id"])
+        anterior = (estado_e["clausulas"].get(sid) or {}).get("texto", "")
+        pontos = [{"ponto": _curto_txt(x.get("ponto"), 80), "escolha": _curto_txt(x.get("escolha"), 300)}
+                  for x in (e.get("pontos") or []) if isinstance(x, dict)]
+        ajustes = {"anterior": anterior, "pontos": pontos, "pedido": str(e.get("pedido") or texto_livre or "").strip()[:3000]}
+        atual = next((i for i, x in enumerate(plano["secoes"]) if x["id"] == sid), atual)
+    estado_e["fase"] = "clausulas"
+    indice = atual if acao == "corrigir" else clausulas_mod.proxima(estado_e)
+    pessoa = rotas_do_acesso.pessoa(request)
+    id_ = trabalho.id
+    unidade = plano["unidade"]
+    total = len(plano["secoes"])
+    trabalho.contexto["entrevista"] = estado_e
+    trabalho.etapas = [Etapa("Compilar o documento" if indice is None else
+                             f"Redigir {clausulas_mod.rotulo(plano, indice).split(' – ')[0].lower()} ({indice + 1} de {total})",
+                             estado=EXECUTANDO)]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def gerar() -> Iterator[str]:
+        try:
+            yield from _gerar()
+        finally:
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                trabalho.etapas[0].estado = PAUSADO
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar() -> Iterator[str]:
+        inicio = time.time()
+        como = {"caminho": "clausulas", "profundidade": {"nivel": nivel.id, "nome": nivel.nome, "etapas": ["clausulas"]}}
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        if indice is None:
+            yield from _compilar(inicio, como)
+            return
+        rot = clausulas_mod.rotulo(plano, indice)
+        yield _sse("pensando", {"texto": ("Refazendo " if ajustes else "Redigindo ") + rot.split(" – ")[0].lower() + "…"})
+        gen = clausulas_mod.redigir(estado, trabalho=trabalho, estado_e=estado_e, nivel=nivel, indice=indice, ajustes=ajustes,
+                                    pessoa=pessoa, parar=parar.is_set)
+        escrito: list[str] = []
+        resultado = None
+        try:
+            while True:
+                try:
+                    _tipo, dados = next(gen)
+                except StopIteration as fim:
+                    resultado = fim.value
+                    break
+                if parar.is_set():
+                    break
+                escrito.append(dados["t"])
+                yield _sse("token", dados)
+        except nuvem_mod.ErroNuvem as exc:
+            trabalho.etapas[0].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem parou no meio da " + unidade + ": " + str(exc)})
+            return
+        segundos = round(time.time() - inicio, 1)
+        if parar.is_set() or resultado is None:
+            trabalho.etapas[0].estado = PAUSADO
+            trabalho.estado = PAUSADO
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(escrito)})
+            return
+        sid = plano["secoes"][indice]["id"]
+        versao = int((estado_e["clausulas"].get(sid) or {}).get("versao") or 0) + 1
+        estado_e["clausulas"][sid] = {"texto": resultado["texto"], "pontos": resultado["pontos"], "aviso": resultado["aviso"],
+                                      "status": "proposta", "versao": versao}
+        estado_e["atual"] = indice
+        if "".join(escrito).strip() != resultado["texto"]:
+            yield _sse("substituir", {"texto": resultado["texto"]})
+        cartao = {"tipo": "clausula", "titulo": rot, "campos": {}, "porque": "", "falta": "",
+                  "pergunta": estado_e.get("pedido", ""), "entrevista_id": estado_e["id"], "secao": sid,
+                  "indice": indice, "total": total, "unidade": unidade, "versao": versao,
+                  "pontos": resultado["pontos"], "aviso": resultado["aviso"], "nivel_nome": nivel.nome}
+        trabalho.etapas[0].estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", resultado["texto"], proposta=cartao, segundos=segundos, cobertura={"como": como})
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+        yield _sse("oferta", cartao)
+
+    def _compilar(inicio, como) -> Iterator[str]:
+        texto = clausulas_mod.compilar(estado_e)
+        estado_e["status"] = "executada"
+        estado_e["fase"] = "pronto"
+        problemas: list[dict] = []
+        if "revisao" in nivel.etapas:
+            yield _sse("pensando", {"texto": "Revisando o documento inteiro…"})
+            try:
+                mensagens = [{"role": "system", "content": elaboracao_mod._sistema(nivel)},
+                             {"role": "user", "content": elaboracao_mod._base_do_pedido(estado_e.get("pedido", ""),
+                                                                                          entrevista_mod.briefing(estado_e), ())
+                              + "\n\nTEXTO:\n" + texto + "\n\n" + elaboracao_mod.REVISAO.format(rigor="")}]
+                bruto, _uso = nuvem_mod.chamada(estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="revisao",
+                                                pergunta=estado_e.get("pedido", ""), json_mode=True, max_tokens=2000,
+                                                parar=parar.is_set, profundidade=nivel.id,
+                                                mascara=nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None)
+                problemas = elaboracao_mod.problemas_da_revisao(elaboracao_mod._ler_json(bruto))[0]
+            except nuvem_mod.ErroNuvem:
+                problemas = []
+        conferir = []
+        try:
+            import citacoes
+
+            rev = citacoes.revisar(texto, [], leis=estado.leis, pergunta=estado_e.get("pedido", ""))
+            conferir = [" ".join(str(r).split())[:160] for r in (rev.removidas or [])
+                        if re.search(r"(?i)\bart(?:igo)?s?\b\.?", str(r))][:8]
+        except Exception:  # noqa: BLE001
+            conferir = []
+        segundos = round(time.time() - inicio, 1)
+        oferta = {"tipo": "levar_ao_editor", "titulo": plano.get("titulo_documento") or estado_e.get("trabalho") or "Trabalho",
+                  "campos": {}, "porque": "", "falta": "", "pergunta": estado_e.get("pedido", ""), "nivel_nome": nivel.nome,
+                  "etapas": ["clausulas"] + (["revisao"] if "revisao" in nivel.etapas else []),
+                  "revisao": {"problemas": problemas, "refeito": False}, "conferir": conferir,
+                  "secoes": len(plano["secoes"]), "unidade": unidade}
+        trabalho.etapas[0].estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, segundos=segundos, cobertura={"como": como}, proposta=oferta)
+        estado.trabalhos.salvar(trabalho)
+        avisos.avisar("resposta", "Documento compilado · " + (trabalho.titulo or "Conversa")[:60], texto[:140])
+        yield _sse("token", {"t": texto})
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+        yield _sse("oferta", oferta)
+
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _curto_txt(v, n: int) -> str:
+    return " ".join(str(v or "").split())[:n].strip()
+
+
+def _historico_antes(trabalho, ate: int) -> list[dict]:
+    """Os dois ultimos pares da conversa antes do pedido, para o modelo saber do que se falava."""
+    saida = []
+    for m in trabalho.mensagens[:max(0, ate)][-4:]:
+        texto = (m.texto or "").strip()
+        if texto:
+            saida.append({"role": "user" if m.autor == "pessoa" else "assistant", "content": texto[:2000]})
+    return saida
+
+
+def _documentos_do_trabalho(nomes, limite: int) -> list[tuple[str, str]]:
+    """O texto dos documentos anexados, inteiro ate o limite do nivel (dividido entre eles)."""
+    docs = [d for d in estado.searcher.documents if d.name in (nomes or [])][:4]
+    if not docs:
+        return []
+    cota = max(4000, limite // len(docs))
+    saida = []
+    for d in docs:
+        texto = d.text or ""
+        saida.append((d.name, texto if len(texto) <= cota else texto[:cota] + "\n[… o resto do documento não coube]"))
+    return saida
+
+
+def _cabe_clausula_por_clausula(estado_e: dict) -> bool:
+    """
+    Redigir junto, clausula por clausula, vale para o trabalho a PRODUZIR. Revisar
+    o contrato anexado ("revise este contrato") continua de uma vez, como antes.
+    """
+    pedido = estado_e.get("pedido", "")
+    revisao = (bool(estado_e.get("anexos")) and entrevista_mod.RE_REVISAR.search(pedido)
+               and not entrevista_mod.RE_PRODUZIR.search(pedido))
+    return not revisao
+
+
+FRASE_TUDO_DE_UMA_VEZ = ("Faço tudo de uma vez, como você pediu. Com honestidade: sem a sua aprovação em cada cláusula, "
+                         "o que estiver fora da sua estratégia só aparece no fim, e o texto feito de uma vez costuma sair "
+                         "menos cuidadoso. Confira com atenção.")
+
+
+def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, forcar_execucao: bool = False,
+                        mensagem_nova: str = "", salvar_no_editor: bool = False, modo: str = ""):
+    """
+    Entender, e so entao executar. Uma rodada da entrevista (src/entrevista.py)
+    decide se pergunta - o modulo de perguntas vai como cartao, e a conversa
+    espera as respostas - ou se executa: a elaboracao nas etapas do nivel
+    (src/elaboracao.py), com o texto chegando a tela enquanto e escrito.
+    """
+    import time
+
+    id_ = trabalho.id
+    pessoa = rotas_do_acesso.pessoa(request)
+    historico = _historico_antes(trabalho, int(estado_e.get("inicio") or 0))
+    documentos = _documentos_do_trabalho(list(estado_e.get("anexos") or []) + list(estado_e.get("materiais") or []),
+                                         nivel.documento_caracteres)
+    perguntar_antes = (profundidade_mod.entrevista_ligada(estado.prefs.dados) and not forcar_execucao)
+    trabalho.contexto["entrevista"] = estado_e
+    trabalho.contexto["profundidade"] = nivel.id
+    if estado_e.get("anexos"):
+        trabalho.contexto["documento_em_foco"] = list(estado_e["anexos"])
+    trabalho.etapas = [Etapa("Entender o pedido", estado=EXECUTANDO if perguntar_antes else CONCLUIDO)]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def registrar(texto: str) -> None:
+        trabalho.registrar(texto, mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
+
+    def etapas_sse() -> str:
+        return _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+
+    def gerar() -> Iterator[str]:
+        try:
+            yield from _gerar()
+        finally:
+            estado.andamento.pop(id_, None)
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                for etapa in trabalho.etapas:
+                    if etapa.estado == EXECUTANDO:
+                        etapa.estado = PAUSADO
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar_preparo(inicio, como, avaliacao) -> Iterator[str]:
+        """O plano das seções e o cartão "antes de começar": a lei que falta, o modelo, Começar ou tudo de uma vez."""
+        trabalho.etapas.append(Etapa("Planejar as cláusulas", estado=EXECUTANDO))
+        yield etapas_sse()
+        yield _sse("pensando", {"texto": "Planejando as cláusulas…"})
+        ponte = Ponte(lambda _e: clausulas_mod.planejar(
+            estado, trabalho=trabalho, pedido=estado_e.get("pedido", ""), briefing=entrevista_mod.briefing(estado_e),
+            nivel=nivel, pessoa=pessoa, parar=parar.is_set), parar=parar.is_set)
+        for _ in ponte:
+            pass
+        plano = ponte.resultado
+        if parar.is_set():
+            trabalho.estado = PAUSADO
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "escreveu": False})
+            return
+        if not plano:
+            trabalho.etapas[-1].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem não respondeu ao planejar as cláusulas; tente de novo"})
+            return
+        estado_e["plano"] = plano
+        estado_e["fase"] = "preparo"
+        estado_e.setdefault("clausulas", {})
+        if trabalho.titulo in ("Nova conversa", "") or not trabalho.titulo:
+            trabalho.titulo = titular(estado_e.get("pedido") or "Trabalho")
+        unidade = plano["unidade"]
+        trabalho_nome = estado_e.get("trabalho") or plano.get("titulo_documento", "").lower() or "trabalho"
+        frase = (f"Vamos fazer o {trabalho_nome[:1].lower() + trabalho_nome[1:]} {unidade} por {unidade}, juntos, "
+                 f"começando pela qualificação das partes. A cada {unidade} você aprova ou pede correção, e no fim eu "
+                 f"compilo tudo num documento só.")
+        faltam = [l["nome"] for l in plano["leis"] if not l["na_biblioteca"]]
+        if faltam:
+            frase += (" Antes, se puder, anexe o texto de " + ", ".join(faltam)
+                      + " - com a lei em mãos eu fundamento cada " + unidade + " no texto oficial. Também ajuda muito "
+                      "um modelo já feito, se você tiver.")
+        else:
+            frase += " Se você tiver um modelo já feito, anexe antes de começar: ajuda a entender o que deve ser feito."
+        proposta = {"tipo": "preparo", "titulo": plano.get("titulo_documento") or trabalho_nome, "campos": {}, "porque": "",
+                    "falta": "", "pergunta": estado_e.get("pedido", ""), "entrevista_id": estado_e["id"],
+                    "unidade": unidade, "nivel_nome": nivel.nome,
+                    "secoes": [clausulas_mod.rotulo(plano, i) for i in range(len(plano["secoes"]))],
+                    "leis": plano["leis"], "modelos_acervo": _modelos_no_acervo(estado_e, plano)}
+        trabalho.etapas[-1].estado = CONCLUIDO
+        trabalho.etapas[-1].detalhe = f"{len(plano['secoes'])} {unidade}s"
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", frase, proposta=proposta, segundos=round(time.time() - inicio, 1), cobertura={"como": como})
+        estado.trabalhos.salvar(trabalho)
+        yield etapas_sse()
+        yield _sse("token", {"t": frase})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "como": como})
+
+    def _gerar() -> Iterator[str]:
+        inicio = time.time()
+        andamento = {"fase": "entendendo", "inicio": inicio, "desde": inicio, "previsao_s": 0, "palavras": 0,
+                     "documentos": len(documentos), "caracteres": 0}
+        estado.andamento[id_] = andamento
+        como = {"caminho": "trabalho", "modelo": "", "documentos": len(documentos),
+                "profundidade": {"nivel": nivel.id, "nome": nivel.nome, "rodada": int(estado_e.get("rodada") or 0)},
+                "escopo": {"apenas": list(estado_e.get("anexos") or []), "tudo": False, "sem_anexo": False}}
+        yield etapas_sse()
+        yield _sse("profundidade", {"nivel": nivel.id, "nome": nivel.nome})
+        avaliacao = None
+        if perguntar_antes:
+            registrar(f"Entendendo o pedido antes de trabalhar ({nivel.nome})")
+            yield _sse("pensando", {"texto": "Entendendo o pedido…"})
+            ponte = Ponte(lambda _empurrar: entrevista_mod.avaliar(
+                estado, estado_e, nivel, trabalho=trabalho, pessoa=pessoa, documentos=documentos, historico=historico,
+                mensagem_nova=mensagem_nova, parar=parar.is_set), parar=parar.is_set)
+            for _ in ponte:
+                pass
+            if parar.is_set():
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+                yield _sse("parado", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo,
+                                      "escreveu": False})
+                return
+            avaliacao = ponte.resultado
+            if avaliacao is None:
+                registrar("Não consegui avaliar o pedido na nuvem agora; sigo com o que ele diz")
+            elif avaliacao.get("outro_assunto") and mensagem_nova:
+                # O texto livre era outra coisa: as perguntas ficam para depois.
+                trabalho.etapas[0].estado = CONCLUIDO
+                trabalho.estado = CONCLUIDO
+                frase = ("Isso parece outro assunto. Deixei as perguntas sobre "
+                         + (estado_e.get("trabalho") or "o trabalho") + " para depois - responda ao cartão quando "
+                         "quiser. Mande a pergunta de novo que eu respondo por ela.")
+                estado_e["explicacoes"] = estado_e["explicacoes"][:-1]
+                trabalho.dizer("paulus", frase)
+                estado.trabalhos.salvar(trabalho)
+                yield _sse("token", {"t": frase})
+                yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo})
+                return
+            else:
+                entrevista_mod.aplicar(estado_e, avaliacao)
+            como["profundidade"]["rodada"] = int(estado_e.get("rodada") or 0)
+            if avaliacao and avaliacao["decisao"] == "perguntar":
+                nomes_cadastros = [f["nome"] for f in estado.cadastros.listar()][:80]
+                proposta = entrevista_mod.proposta(estado_e, avaliacao, nivel, cadastros=nomes_cadastros,
+                                                   documentos=[d.name for d in estado.searcher.documents][:80])
+                abertura = avaliacao.get("abertura") or "Antes de começar, preciso definir alguns pontos que mudam o trabalho."
+                trabalho.etapas[0].estado = CONCLUIDO
+                trabalho.etapas[0].detalhe = f"{len(avaliacao['perguntas'])} ponto(s) a definir"
+                trabalho.estado = CONCLUIDO
+                como["profundidade"]["perguntas"] = len(avaliacao["perguntas"])
+                trabalho.dizer("paulus", abertura, proposta=proposta, segundos=round(time.time() - inicio, 1),
+                               cobertura={"como": como})
+                estado.trabalhos.salvar(trabalho)
+                yield etapas_sse()
+                yield _sse("token", {"t": abertura})
+                yield _sse("proposta", proposta)
+                yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "como": como})
+                return
+            trabalho.etapas[0].estado = CONCLUIDO
+        # Cláusula por cláusula (src/clausulas.py): o plano, o que falta de lei e
+        # de modelo, e o cartão para começar - nada redigido ainda.
+        if modo != "tudo" and _cabe_clausula_por_clausula(estado_e):
+            yield from _gerar_preparo(inicio, como, avaliacao)
+            return
+        # Executar: a entrevista se fecha, e a elaboracao comeca.
+        estado_e["status"] = "executada"
+        estado_e["fase"] = "pronto"
+        if trabalho.titulo in ("Nova conversa", "") or not trabalho.titulo:
+            trabalho.titulo = titular(estado_e.get("pedido") or "Trabalho")
+        abertura = ((avaliacao or {}).get("abertura") or "").strip()
+        if modo == "tudo":
+            abertura = FRASE_TUDO_DE_UMA_VEZ
+        prefixo = (abertura + "\n\n") if abertura else ""
+        trabalho.etapas += [Etapa(elaboracao_mod.TITULOS[e]) for e in nivel.etapas]
+        estado.trabalhos.salvar(trabalho)
+        yield etapas_sse()
+        partes: list[str] = [prefixo] if prefixo else []
+        if prefixo:
+            yield _sse("token", {"t": prefixo})
+        andamento["fase"] = "escrevendo"
+        fim: dict = {}
+        briefing = entrevista_mod.briefing(estado_e)
+        try:
+            for tipo, dados in elaboracao_mod.elaborar(estado, trabalho=trabalho, pedido=estado_e.get("pedido", ""),
+                                                        briefing=briefing, nivel=nivel, documentos=documentos,
+                                                        pessoa=pessoa, parar=parar.is_set, historico=historico):
+                if parar.is_set():
+                    break
+                if tipo == "etapa":
+                    alvo = next((x for x in trabalho.etapas[1:] if x.titulo == elaboracao_mod.TITULOS.get(dados["id"])), None)
+                    if alvo is not None:
+                        alvo.estado = EXECUTANDO if dados["estado"] == "executando" else CONCLUIDO
+                        alvo.detalhe = dados.get("detalhe") or ""
+                        yield etapas_sse()
+                    if dados["estado"] == "executando":
+                        yield _sse("pensando", {"texto": dados["titulo"] + "…"})
+                elif tipo == "nota":
+                    registrar(dados["texto"][:1].upper() + dados["texto"][1:])
+                    yield _sse("nota", dados)
+                elif tipo == "token":
+                    partes.append(dados["t"])
+                    if len(partes) % 10 == 0:
+                        andamento["palavras"] = len("".join(partes).split())
+                    yield _sse("token", dados)
+                elif tipo == "reescrevendo":
+                    partes[:] = [prefixo] if prefixo else []
+                    yield _sse("reescrevendo", dados)
+                    if prefixo:
+                        yield _sse("token", {"t": prefixo})
+                elif tipo == "substituir":
+                    partes[:] = [prefixo + dados["texto"]]
+                    yield _sse("substituir", {"texto": prefixo + dados["texto"]})
+                elif tipo == "fim":
+                    fim = dados
+        except nuvem_mod.ErroNuvem as exc:
+            escrito = "".join(partes).strip()
+            segundos = round(time.time() - inicio, 1)
+            for etapa in trabalho.etapas:
+                if etapa.estado == EXECUTANDO:
+                    etapa.estado = "falhou"
+            if escrito and len(escrito) > len(prefixo.strip()) + 20:
+                trabalho.estado = PAUSADO
+                trabalho.dizer("paulus", escrito, segundos=segundos, interrompida=True, cobertura={"como": como})
+            else:
+                trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem parou no meio do trabalho: " + str(exc)})
+            return
+        segundos = round(time.time() - inicio, 1)
+        if parar.is_set() or not fim:
+            escrito = "".join(partes).strip()
+            for etapa in trabalho.etapas:
+                if etapa.estado == EXECUTANDO:
+                    etapa.estado = PAUSADO
+            trabalho.estado = PAUSADO
+            if escrito:
+                trabalho.dizer("paulus", escrito, segundos=segundos, interrompida=True, cobertura={"como": como})
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(escrito)})
+            return
+        texto = (prefixo + fim["texto"]).strip()
+        # Os artigos citados conferidos na base de leis (src/citacoes.py): num
+        # documento redigido, nada e apagado - o que nao se achou vai para a
+        # pessoa conferir.
+        conferir = []
+        try:
+            import citacoes
+
+            rev = citacoes.revisar(fim["texto"], [], leis=estado.leis, pergunta=estado_e.get("pedido", ""))
+            conferir = [" ".join(str(r).split())[:160] for r in (rev.removidas or [])
+                        if re.search(r"(?i)\bart(?:igo)?s?\b\.?", str(r))][:8]
+        except Exception:  # noqa: BLE001 - sem a conferencia, o texto vale igual
+            conferir = []
+        como.update({"modelo": f"{fim.get('provedor') or 'nuvem'} · {fim.get('modelo') or ''}".strip(" ·"),
+                     "nuvem": {"onde": "nuvem", "provedor": fim.get("provedor", ""), "modelo": fim.get("modelo", ""),
+                               "tokens_entrada": fim["tokens"]["entrada"], "tokens_saida": fim["tokens"]["saida"]}})
+        como["profundidade"].update({"etapas": fim.get("etapas") or [], "revisao": fim.get("revisao") or {},
+                                     "tokens": fim["tokens"]["entrada"] + fim["tokens"]["saida"],
+                                     "conferir": conferir, "premissas": list(estado_e.get("premissas") or []),
+                                     "respostas": len(estado_e.get("respostas") or [])})
+        for etapa in trabalho.etapas:
+            if etapa.estado == EXECUTANDO:
+                etapa.estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        oferta = {"tipo": "levar_ao_editor", "titulo": estado_e.get("trabalho") or titular(estado_e.get("pedido") or ""),
+                  "campos": {}, "porque": "", "falta": "", "pergunta": estado_e.get("pedido", ""),
+                  "nivel_nome": nivel.nome, "etapas": fim.get("etapas") or [], "revisao": fim.get("revisao") or {},
+                  "conferir": conferir}
+        feito = None
+        if salvar_no_editor:
+            feito = _resposta_no_editor(trabalho, estado_e.get("pedido", ""), texto, request, titulo=oferta["titulo"])
+            if feito:
+                oferta = feito
+        trabalho.dizer("paulus", texto, segundos=segundos, cobertura=_como_pensou(id_, {"como": como}), proposta=oferta,
+                       **({"feito": {"tipo": "editar", "id": feito["campos"]["id"], "nome": feito["campos"]["titulo"]}}
+                          if feito else {}))
+        estado.trabalhos.salvar(trabalho)
+        resumo = " ".join(texto.split())
+        avisos.avisar("resposta", "Trabalho pronto · " + (trabalho.titulo or "Conversa")[:60],
+                      resumo[:140] + ("…" if len(resumo) > 140 else ""))
+        yield etapas_sse()
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+        yield _sse("oferta", oferta)
+
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+INSTRUCAO_CRIATIVO = ("MODO CRIATIVO: nesta pergunta o programa NÃO leu documento nenhum do escritório - de "
+                      "propósito. Responda pelo que você sabe: o direito em tese, a prática, a redação, as ideias e "
+                      "alternativas. Não diga que procurou nos documentos nem cite arquivo; se a resposta depender do "
+                      "que está num documento do escritório, diga que é preciso lê-lo (sair do modo criativo).")
+
+
+def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergunta: str, historico) -> StreamingResponse:
+    """
+    O modo criativo (a pilula de escopo): a pergunta vai direto ao modelo da
+    nuvem, sem busca e sem trecho de documento, com a instrucao da nuvem, o
+    nivel de profundidade e os pares de antes da conversa. Sem a nuvem, diz
+    por que - o modelo deste computador so responde lendo documentos.
+    """
+    import time
+
+    pessoa = rotas_do_acesso.pessoa(request)
+    if envio_nuvem is None:
+        return _so_dizer(trabalho, "O modo criativo responde pela nuvem, e esta pergunta ficou neste computador. "
+                                   "Ligue a pílula “Nuvem”, ou escolha o Acervo na pílula de escopo.")
+    motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, pessoa, [])
+    if motivo:
+        return _so_dizer(trabalho, "O modo criativo responde pela nuvem, e " + motivo + ".")
+    if not plano_mod.liberada(estado):
+        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+    id_ = trabalho.id
+    trabalho.etapas = [Etapa("Responder pelo que sei", estado=EXECUTANDO)]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def gerar() -> Iterator[str]:
+        try:
+            yield from _gerar()
+        finally:
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                trabalho.etapas[0].estado = PAUSADO
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar() -> Iterator[str]:
+        import instrucao_nuvem
+
+        inicio = time.time()
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("pensando", {"texto": "Respondendo pelo que sei…"})
+        regra = (estado.contextos.bloco() or "").strip()
+        regra = (regra + "\n\n" + INSTRUCAO_CRIATIVO + "\n\n" + profundidade_mod.INSTRUCAO_RESPOSTA[nivel.id]).strip()
+        mensagens = instrucao_nuvem.montar_mensagens(pergunta, "", ensinado=regra, historico=historico)
+        mascara = nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None
+        modelo = profundidade_mod.modelo_do_nivel(estado.prefs.dados, nivel, nuvem_mod.config(estado).get("modelo") or "")
+        partes: list[str] = []
+        ponte = Ponte(lambda empurrar: nuvem_mod.chamada(
+            estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="criativo", pergunta=pergunta, mascara=mascara,
+            on_token=empurrar, max_tokens=profundidade_mod.SAIDA_RESPOSTA.get(nivel.id, 3000), parar=parar.is_set,
+            modelo=modelo, profundidade=nivel.id), parar=parar.is_set)
+        try:
+            for pedaco in ponte:
+                partes.append(pedaco)
+                yield _sse("token", {"t": pedaco})
+        except nuvem_mod.ErroNuvem as exc:
+            trabalho.etapas[0].estado = "falhou"
+            trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem não respondeu: " + str(exc)})
+            return
+        segundos = round(time.time() - inicio, 1)
+        texto = "".join(partes).strip()
+        _, uso = ponte.resultado or ("", {})
+        como = {"caminho": "criativo", "modelo": f"{uso.get('provedor', 'nuvem')} · {uso.get('modelo', modelo)}",
+                "profundidade": {"nivel": nivel.id, "nome": nivel.nome},
+                "nuvem": {"onde": "nuvem", "provedor": uso.get("provedor", ""), "modelo": uso.get("modelo", modelo),
+                          "tokens_entrada": uso.get("tokens_entrada", 0), "tokens_saida": uso.get("tokens_saida", 0)},
+                "escopo": {"apenas": [], "tudo": False, "sem_anexo": False, "criativo": True}}
+        interrompida = parar.is_set()
+        trabalho.etapas[0].estado = PAUSADO if interrompida else CONCLUIDO
+        trabalho.estado = PAUSADO if interrompida else CONCLUIDO
+        if texto:
+            trabalho.dizer("paulus", texto, segundos=segundos, cobertura={"como": como}, interrompida=interrompida)
+        estado.trabalhos.salvar(trabalho)
+        if interrompida:
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(texto)})
+            return
+        yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 def _perguntar_onde_procurar(trabalho, pergunta: str, foco: list[str]) -> StreamingResponse:
     """
     O cartao "onde eu procuro?": so no que a conversa vinha lendo, ou no
@@ -4813,7 +6660,18 @@ def _o_que_eu_faco() -> str:
     """
     grupos = destinos.por_grupo()
 
-    linhas = ["Eu trabalho com o que está nesta máquina. Nada sai daqui.", ""]
+    # Com a nuvem ligada, "nada sai daqui" deixou de ser verdade: o que sai, e
+    # como, é dito (bateria de 02/10/2026).
+    if nuvem_mod.ligada(estado):
+        c = nuvem_mod.config(estado)
+        provedor = nuvem_mod.PROVEDORES.get(c.get("provedor") or "", {}).get("nome", "nuvem")
+        abertura = (f"A IA que escreve as respostas roda na nuvem ({provedor}). Vão só a pergunta e os trechos que ela "
+                    "precisa ler" + (", com CPF, CNPJ, e-mail, telefone e número de processo trocados por marcadores"
+                                     if c.get("mascarar", True) else "")
+                    + "; os seus arquivos ficam nesta máquina.")
+    else:
+        abertura = "Eu trabalho com o que está nesta máquina. Nada sai daqui."
+    linhas = [abertura, ""]
     faltando: list[str] = []
 
     for bloco in grupos:
@@ -4838,6 +6696,12 @@ def _o_que_eu_faco() -> str:
         "do contrato de logística”",
         "  perguntar o que está gravado — “quais compromissos tenho amanhã?”, "
         "“tenho tarefa atrasada?”, “quanto recebi este mês?”",
+        "  perguntar sobre a lei — “qual o prazo para contestar no procedimento comum?”, com o artigo conferido "
+        "no texto dos códigos guardados aqui",
+        "  mudar um documento — anexe e peça “troque SEMA por SEMAS”: a mudança fica marcada no editor, e o "
+        "original não muda",
+        "  mandar um documento por e-mail — “envie a procuração por e-mail para fulano@exemplo.com”",
+        "  salvar uma resposta como documento — “resuma o contrato e salve no editor”",
         "  perguntar como se faz — “como assino um PDF?”, “como conecto meu Gmail?”",
         "  abrir uma tela — “abra o financeiro”",
         "",
@@ -5436,6 +7300,14 @@ def cadastros_salvar(payload: FichaCadastro) -> dict:
     return estado.cadastros.obter(id_) or {}
 
 
+@app.post("/api/fichas/corrigir")
+def fichas_corrigir(payload: dict) -> dict:
+    """Com a ficha aberta na coluna: o que a frase corrige, por regra (nada e gravado)."""
+    import fichas_pela_conversa
+
+    return {"campos": fichas_pela_conversa.corrigir(str(payload.get("texto", ""))[:600])}
+
+
 @app.post("/api/cadastros/{id_}/vincular")
 def cadastros_vincular(id_: int, payload: VinculoDoc) -> dict:
     if not estado.cadastros.obter(id_):
@@ -6014,7 +7886,8 @@ def folha_ler(mes: str = "") -> dict:
     mes = mes or escritorio.mes_de_hoje()
     return {
         "folha": estado.folha.do_mes(mes),
-        "candidatos": estado.folha.pessoas(),
+        # Quem começa depois deste mês ("desde" da ficha) não é candidato a ele.
+        "candidatos": estado.folha.pessoas(mes),
         "vinculos": [{"valor": k, "rotulo": v} for k, v in escritorio.VINCULOS.items()],
     }
 
@@ -7292,11 +9165,9 @@ def _nome_do_assinado(origem: Path, na_biblioteca: bool) -> Path:
     return destino
 
 
-# Onde ficavam, ate 27/09/2026, o certificado de conformidade e o extrato de
-# apoio. O que ja esta la continua abrindo; o novo vai para o Acervo
-# (_pasta_no_acervo).
+# Onde ficava, ate 27/09/2026, o certificado de conformidade. O que ja esta
+# la continua abrindo; o novo vai para o Acervo (_pasta_no_acervo).
 CONFORMIDADE_DIR = DADOS_DIR / "conformidade"
-APOIO_DIR = DADOS_DIR / "apoio"
 
 
 def _pasta_no_acervo(*partes: str) -> Path:
@@ -7323,7 +9194,7 @@ def _pdf_conhecido(caminho: str) -> Path:
         raise HTTPException(status_code=404, detail="arquivo não encontrado") from None
     if alvo.suffix.lower() != ".pdf" or not alvo.is_file():
         raise HTTPException(status_code=404, detail="arquivo não encontrado")
-    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve(), APOIO_DIR.resolve()]
+    raizes = [Path(p).resolve() for p in estado.pastas_do_acervo()] + [CONFORMIDADE_DIR.resolve()]
     conhecidos = {Path(d.path).resolve() for d in estado.searcher.documents}
     if alvo in conhecidos or any(r == alvo.parent or r in alvo.parents for r in raizes):
         return alvo
@@ -7607,6 +9478,7 @@ class PedidoEnvio(BaseModel):
     corpo_html: str = ""            # o mesmo texto com a formatacao da faixa de edicao
     anexos: list[str] = []          # caminhos de arquivos da biblioteca
     responder_a: str = ""           # Message-ID, quando e resposta
+    referencias: str = ""           # as References da mensagem respondida
     senha: str = ""
 
 
@@ -7804,6 +9676,10 @@ def _trazer_o_paulus() -> None:
         estado.ao_pedido_externo("mostrar", "")
 
 
+# O login da trava (destravar, vincular, confirmar) tambem volta para o PAULUS.
+estado.vinculo.ao_voltar = _trazer_o_paulus
+
+
 @app.get("/api/email/oauth")
 def email_oauth_info() -> dict:
     return _info_oauth()
@@ -7930,6 +9806,33 @@ def email_anexo(uid: str, nome: str, conta_id: str = ""):
 
     tipo, _ = mimetypes.guess_type(achado)
     return Response(dados, media_type=tipo or "application/octet-stream")
+
+
+@app.post("/api/email/anexos/encaminhar")
+def email_anexos_encaminhar(payload: dict) -> dict:
+    """
+    Os anexos da mensagem para o Encaminhar: vao para data/encaminhar/<uid>
+    (nao para o Acervo - sao do e-mail, nao documentos do escritorio) e a
+    tela os poe na lista de anexos do envio, como qualquer outro.
+    """
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    if not conta.pode_anexar:
+        raise HTTPException(status_code=403, detail="esta conta não permite que eu anexe arquivos")
+    uid = re.sub(r"[^\w.-]", "", str(payload.get("uid", "")))[:40]
+    if not uid:
+        raise HTTPException(status_code=400, detail="qual mensagem?")
+    try:
+        anexos = correio.baixar_anexos(conta, senha, uid)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    pasta = DADOS_DIR / "encaminhar" / f"{conta.id}-{uid}"
+    pasta.mkdir(parents=True, exist_ok=True)
+    saida = []
+    for nome, dados in anexos:
+        alvo = pasta / (Path(nome).name or "anexo")
+        alvo.write_bytes(dados)
+        saida.append({"path": str(alvo), "nome": alvo.name, "mb": round(len(dados) / (1024 * 1024), 2)})
+    return {"anexos": saida}
 
 
 @app.post("/api/email/anexo/guardar")
@@ -8131,7 +10034,7 @@ def email_reescrever(payload: dict) -> dict:
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        texto = correio.reescrever_email(estado.cliente_para("redacao"), pedido,
+        texto = correio.reescrever_email(estado.cliente_para("redacao", local=True), pedido,
                                          str(payload.get("assunto", "")), str(payload.get("corpo", "")))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -8140,154 +10043,22 @@ def email_reescrever(payload: dict) -> dict:
     return {"sugestao": texto, "pedido": pedido}
 
 
-# ------------------------------------------------------ apoiar o projeto
-
-
-@app.post("/api/apoio/pix")
-def apoio_pix(payload: dict) -> dict:
-    """O Pix de apoio: o site (Worker) cria no Mercado Pago e devolve o QR."""
-    try:
-        return apoio.criar_pix(float(payload.get("valor") or 0), str(payload.get("email", "")), str(payload.get("mural") or ""))
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail="valor inválido") from exc
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.post("/api/apoio/pix/recuperar")
-def apoio_pix_recuperar(payload: dict) -> dict:
-    """Os Pix pagos que o historico desta maquina perdeu (versao antiga)."""
-    try:
-        return apoio.recuperar_pix([str(e) for e in payload.get("emails") or []], [str(d) for d in payload.get("datas") or []])
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/api/apoio/pix/{id_}")
-def apoio_pix_situacao(id_: str) -> dict:
-    try:
-        return apoio.situacao_do_pix(id_)
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/api/apoio/assinatura/{id_}")
-def apoio_assinatura_situacao(id_: str) -> dict:
-    try:
-        return apoio.situacao_da_assinatura(id_)
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.get("/api/apoio/neste-mes")
-def apoio_neste_mes() -> dict:
-    """
-    O que o convite para apoiar diz (pacote de telas, `Assistente - Apoiar`):
-    quantos documentos o PAULUS leu para responder neste mes (os citados nas
-    respostas e os mostrados na conversa) e quantos lancamentos foram
-    montados no Financeiro. Conta feita aqui, com o que esta gravado; nada
-    sai da maquina.
-    """
-    hoje = date.today()
-    inicio = hoje.replace(day=1).isoformat()
-    lidos: set[str] = set()
-    resumos = [r for g in estado.trabalhos.listar().get("grupos", []) for r in g.get("trabalhos", [])]
-    for resumo in resumos:
-        t = estado.trabalhos.obter(resumo.get("id", ""))
-        if not t:
-            continue
-        for m in t.mensagens:
-            if m.autor != "paulus" or str(m.em or "")[:10] < inicio:
-                continue
-            for f in m.fontes or []:
-                nome = (f or {}).get("documento") if isinstance(f, dict) else None
-                if nome and not (f or {}).get("material"):
-                    lidos.add(nome)
-            feito = m.feito or {}
-            if feito.get("tipo") == "exibir" and feito.get("nome"):
-                lidos.add(feito["nome"])
-    lancamentos = estado.base.um(
-        "SELECT COUNT(*) AS n FROM lancamentos WHERE criado_em >= ?", (inicio,)) or {"n": 0}
-    import calendar
-    ultimo = calendar.monthrange(hoje.year, hoje.month)[1]
-    return {"mes": hoje.strftime("%Y-%m"), "documentos": len(lidos), "lancamentos": int(lancamentos["n"] or 0),
-            "faltam_dias": ultimo - hoje.day}
+# ------------------------------------------------- o que o site publica
 
 
 @app.get("/api/publico/{qual}")
 def publico_do_site(qual: str) -> dict:
     """
-    O historico (desenvolvimento) e o mural (apoiadores) que o site publica,
-    para a tela Desenvolvimento aberto e o "Quem ja apoia". So leitura; a
-    ultima copia fica em dados/publico para quando nao houver internet. A
-    versao instalada vai junto, para a tela marcar "e a sua versao".
+    O historico de versoes que o site publica, para a tela Desenvolvimento
+    aberto. So leitura; a ultima copia fica em dados/publico para quando nao
+    houver internet. A versao instalada vai junto, para a tela marcar "e a
+    sua versao".
     """
     try:
-        dados = apoio.publico(qual, DADOS_DIR / "publico")
-    except apoio.ErroDeApoio as exc:
+        dados = publico_mod.publico(qual, DADOS_DIR / "publico")
+    except publico_mod.ErroDoSite as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {**dados, "versao_instalada": VERSAO}
-
-
-@app.post("/api/apoio/extrato")
-def apoio_extrato(payload: dict) -> dict:
-    """
-    O "PAVLVS - Extrato de contribuicoes" em PDF: os Pix confirmados nesta
-    maquina (a tela manda) e as cobrancas do cartao, consultadas no Mercado
-    Pago agora. Gravado no Acervo, para baixar pela janela de sempre.
-    """
-    import extrato_apoio
-
-    pix = [p for p in (payload.get("pix") or []) if isinstance(p, dict)][:500]
-    cobrancas: list = []
-    # A assinatura de agora e as ja interrompidas: as cobrancas de todas.
-    for ass in [a for a in (payload.get("assinaturas") or []) if isinstance(a, dict)][:20]:
-        if not (ass.get("id") and ass.get("chave")):
-            continue
-        try:
-            cobrancas += apoio.pagamentos_da_assinatura(str(ass["id"]), str(ass["chave"])).get("pagamentos", [])
-        except apoio.ErroDeApoio as exc:
-            raise HTTPException(status_code=502, detail=f"não consegui as cobranças do cartão: {exc}") from exc
-    # Sem nome ou e-mail na tela Apoiar, valem os de Configuracoes > Meus dados.
-    pessoa = estado.prefs.dados.get("pessoa") or {}
-    nome = str(payload.get("nome") or "").strip() or str(pessoa.get("nome") or "").strip()
-    email = str(payload.get("email") or "").strip() or str(pessoa.get("email") or "").strip()
-    try:
-        caminho = extrato_apoio.gerar(_pasta_no_acervo("PAULUS", "Extratos de apoio"), nome=nome[:80], email=email[:120],
-                                      pix=pix, cobrancas=cobrancas)
-    except (OSError, ValueError) as exc:
-        raise HTTPException(status_code=500, detail=f"não consegui montar o extrato: {exc}") from exc
-    estado.recarregar_em_segundo_plano()
-    return {"caminho": str(caminho), "nome": caminho.name}
-
-
-@app.post("/api/apoio/assinatura/{id_}/valor")
-def apoio_assinatura_valor(id_: str, payload: dict) -> dict:
-    try:
-        return apoio.mudar_valor(id_, str(payload.get("chave", "")), float(payload.get("valor") or 0))
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail="valor inválido") from exc
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.post("/api/apoio/assinatura/{id_}/interromper")
-def apoio_assinatura_interromper(id_: str, payload: dict) -> dict:
-    try:
-        return apoio.interromper(id_, str(payload.get("chave", "")))
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@app.post("/api/apoio/assinatura")
-def apoio_assinatura(payload: dict) -> dict:
-    """A assinatura no cartao: devolve o link da pagina do Mercado Pago."""
-    try:
-        return apoio.criar_assinatura(float(payload.get("valor") or 0), str(payload.get("email", "")), str(payload.get("mural") or ""))
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail="valor inválido") from exc
-    except apoio.ErroDeApoio as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/api/email/traduzir")
@@ -8364,7 +10135,8 @@ def email_rascunho(payload: dict) -> dict:
         "aviso": aviso,
         "para": [msg.de_email],
         "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
-        "responder_a": "",
+        "responder_a": msg.message_id,
+        "referencias": msg.referencias,
         "sobre": msg.assunto,
     }
 
@@ -8396,6 +10168,7 @@ def _montar_do_pedido(payload: PedidoEnvio):
             cc=correio.enderecos(payload.cc),
             anexos=anexos,
             responder_a=payload.responder_a,
+            referencias=payload.referencias,
         )
     except correio.ErroCorreio as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -8502,6 +10275,232 @@ def _enviar_de_fato(dados: dict) -> dict:
     return estado.envios.anotar(conta.email, resultado)
 
 
+# ------------------------------------- o e-mail pela conversa (rascunho)
+
+
+def _rascunhos_da_conversa(trabalho) -> dict:
+    return trabalho.contexto.setdefault("email_rascunhos", {})
+
+
+def _conferencias_do_rascunho(conta, msg, corpo: str, request, aviso: str = "") -> list[dict]:
+    import email_pela_conversa
+
+    documentos = [(d.name, d.text or "") for d in estado.searcher.documents]
+    return email_pela_conversa.conferir(corpo, msg.corpo if msg else "", documentos, date.today(),
+                                        _passa_por_aprovacao(conta, request), aviso)
+
+
+@app.get("/api/email/conversa/rascunho")
+def email_conversa_rascunho_ler(trabalho_id: str, uid: str) -> dict:
+    """O rascunho guardado nesta conversa, para reabrir como estava."""
+    trabalho = estado.trabalhos.obter(trabalho_id)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    guardado = _rascunhos_da_conversa(trabalho).get(str(uid))
+    if not guardado:
+        raise HTTPException(status_code=404, detail="ainda não há rascunho")
+    return guardado
+
+
+@app.post("/api/email/conversa/rascunho")
+def email_conversa_rascunho(payload: dict, request: Request) -> dict:
+    """
+    Escreve a resposta com o pedido da conversa ("confirmando o acordo da
+    parcela de setembro") e guarda o rascunho nela. As conferencias saem por
+    regra (src/email_pela_conversa.py). Nada e enviado.
+    """
+    import email_pela_conversa
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    if not conta.pode_rascunhar:
+        raise HTTPException(status_code=403, detail="esta conta não permite que eu escreva rascunhos")
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    uid = str(payload.get("uid", ""))
+    quem = estado.prefs.dados.get("pessoa", {}).get("nome", "") or conta.nome
+    # O e-mail novo ("escreva um e-mail para..."): sem mensagem de origem.
+    if uid.startswith("novo-"):
+        para = [x for x in payload.get("para") or [] if isinstance(x, dict) and x.get("email")]
+        try:
+            assunto, texto, aviso = email_pela_conversa.escrever_novo(estado.cliente_para("email"), (para[0].get("nome") if para else "") or "",
+                                                                     str(payload.get("pedido", "")), quem)
+        except OllamaError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        rascunho = {
+            "uid": uid, "conta_id": conta.id, "de": conta.email, "novo_email": True,
+            "para": [{"nome": str(x.get("nome", "")), "email": str(x["email"])} for x in para], "cc": [], "cco": [],
+            "assunto": assunto, "sobre": "", "corpo": texto, "corpo_html": "", "anexos": [],
+            "aviso": aviso, "pelo_assistente": True, "palavras": email_pela_conversa.palavras(texto),
+            "conferencias": _conferencias_do_rascunho(conta, None, texto, request, aviso),
+            "salvo_em": datetime.now().isoformat(timespec="seconds"),
+        }
+        _rascunhos_da_conversa(trabalho)[uid] = rascunho
+        for m in reversed(trabalho.mensagens):
+            p = m.proposta or {}
+            if p.get("tipo") == "email" and str((p.get("campos") or {}).get("uid")) == uid:
+                m.texto = ("Preparei o e-mail. O texto está na caixa abaixo para você revisar — "
+                           + ("enviar passa por Aprovações." if _passa_por_aprovacao(conta, request) else "nada sai sem o seu clique em Enviar."))
+                break
+        estado.trabalhos.salvar(trabalho)
+        return rascunho
+    try:
+        msg = correio.abrir(conta, senha, uid, marcar_lido=False)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    try:
+        texto, aviso = email_pela_conversa.escrever_resposta(estado.cliente_para("email"), msg,
+                                                             str(payload.get("pedido", "")), quem)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    rascunho = {
+        "uid": uid, "conta_id": conta.id, "de": conta.email,
+        "para": [{"nome": msg.de_nome, "email": msg.de_email}], "cc": [], "cco": [],
+        "assunto": msg.assunto if msg.assunto.lower().startswith("re:") else f"Re: {msg.assunto}",
+        "responder_a": msg.message_id, "referencias": msg.referencias,
+        "sobre": msg.assunto, "corpo": texto, "corpo_html": "", "anexos": [],
+        "aviso": aviso, "pelo_assistente": True, "palavras": email_pela_conversa.palavras(texto),
+        "conferencias": _conferencias_do_rascunho(conta, msg, texto, request, aviso),
+        "salvo_em": datetime.now().isoformat(timespec="seconds"),
+    }
+    _rascunhos_da_conversa(trabalho)[uid] = rascunho
+    # A frase da conversa passa a dizer o que aconteceu (pacote de telas:
+    # "Preparei a resposta...").
+    for m in reversed(trabalho.mensagens):
+        p = m.proposta or {}
+        if p.get("tipo") == "email" and str((p.get("campos") or {}).get("uid")) == uid:
+            aprovacao = _passa_por_aprovacao(conta, request)
+            m.texto = ("Preparei a resposta. O texto está na caixa abaixo para você revisar — "
+                       + ("enviar passa por Aprovações." if aprovacao else "nada sai sem o seu clique em Enviar."))
+            break
+    estado.trabalhos.salvar(trabalho)
+    return rascunho
+
+
+@app.put("/api/email/conversa/rascunho")
+def email_conversa_rascunho_guardar(payload: dict, request: Request) -> dict:
+    """Guarda o que a pessoa mudou no rascunho e refaz as conferencias."""
+    import email_pela_conversa
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    uid = str(payload.get("uid", ""))
+    antes = _rascunhos_da_conversa(trabalho).get(uid) or {}
+    conta = _conta_da_vez(str(payload.get("conta_id", "") or antes.get("conta_id", "")))
+    corpo = str(payload.get("corpo", ""))
+    msg = None
+    if not uid.startswith("novo-"):
+        try:
+            conta_msg, senha = _conta_e_senha(antes.get("conta_id", "") or conta.id)
+            msg = correio.abrir(conta_msg, senha, uid, marcar_lido=False)
+        except (HTTPException, correio.ErroCorreio):
+            msg = None
+    def enderecos(chave):
+        saida = []
+        for x in payload.get(chave) or []:
+            if isinstance(x, dict) and str(x.get("email", "")).strip():
+                saida.append({"nome": str(x.get("nome", "")).strip(), "email": str(x["email"]).strip()})
+            elif isinstance(x, str) and x.strip():
+                saida.append({"nome": "", "email": x.strip()})
+        return saida
+    rascunho = {
+        **antes, "uid": uid, "conta_id": conta.id, "de": conta.email,
+        "para": enderecos("para"), "cc": enderecos("cc"), "cco": enderecos("cco"),
+        "assunto": str(payload.get("assunto", antes.get("assunto", ""))), "corpo": corpo,
+        "corpo_html": str(payload.get("corpo_html", "")),
+        "anexos": [str(a) for a in payload.get("anexos") or []],
+        "pelo_assistente": bool(payload.get("pelo_assistente", antes.get("pelo_assistente", False))),
+        "responder_a": str(payload.get("responder_a", antes.get("responder_a", "")))[:300],
+        "referencias": str(payload.get("referencias", antes.get("referencias", "")))[-1500:],
+        "novo_email": bool(payload.get("novo_email", antes.get("novo_email", False))),
+        "palavras": email_pela_conversa.palavras(corpo),
+        "conferencias": _conferencias_do_rascunho(conta, msg, corpo, request, antes.get("aviso", "")),
+        "salvo_em": datetime.now().isoformat(timespec="seconds"),
+    }
+    _rascunhos_da_conversa(trabalho)[uid] = rascunho
+    estado.trabalhos.salvar(trabalho)
+    return rascunho
+
+
+@app.post("/api/email/conversa/proxima")
+def email_conversa_proxima(payload: dict) -> dict:
+    """
+    "Próxima que pede resposta": a mensagem abre na conversa e FICA nela - a
+    fala e o cartao entram na conversa guardada, como o "abra o e-mail...",
+    e voltam ao reabrir. Devolve {texto, proposta}.
+    """
+    import email_pela_conversa
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    try:
+        msg = correio.abrir(conta, senha, str(payload.get("uid", "")), marcar_lido=True)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    m = msg.to_dict()
+    cabeca = {k: m.get(k) for k in ("uid", "de_nome", "de_email", "para", "assunto", "quando", "quando_curto")}
+    cabeca.update({"conta_id": conta.id, "conta_email": conta.email})
+    codigo = email_pela_conversa.codigo_de_verificacao(m.get("assunto", ""), m.get("corpo", ""))
+    texto = ("A próxima que pede resposta: " + (m.get("de_nome") or m.get("de_email") or "") + ", “" + (m.get("assunto") or "sem assunto") + "”. "
+             + email_pela_conversa.frase_da_mensagem(m, codigo).replace("Abri aqui. ", ""))
+    proposta = {"tipo": "email", "titulo": m.get("assunto") or "", "porque": "a próxima que pede resposta", "pergunta": "",
+                "campos": {"acao": "abrir", "codigo": codigo, "prazo": m.get("prazo") or "", "prazo_trecho": m.get("prazo_trecho") or "",
+                           "sem_resposta": email_pela_conversa.sem_resposta(m.get("de_email", "")), **cabeca}}
+    trabalho.dizer("paulus", texto, proposta=proposta)
+    estado.trabalhos.salvar(trabalho)
+    return {"texto": texto, "proposta": proposta}
+
+
+INSTRUCAO_PERGUNTA_EMAIL = """Voce e assistente de um advogado brasileiro. Responda a
+pergunta dele sobre o e-mail abaixo, em portugues do Brasil, em poucas linhas.
+Use so o que esta no e-mail; se o e-mail nao diz, diga que nao diz. Nao
+invente nome, data, valor nem prazo. Nao use marcacao nem asteriscos."""
+
+
+@app.post("/api/email/conversa/perguntar")
+def email_conversa_perguntar(payload: dict) -> dict:
+    """
+    "No e-mail": a pergunta e sobre a mensagem aberta na conversa. O texto do
+    remetente vai cercado (src/blindagem.py) e a pergunta e a resposta
+    entram na conversa.
+    """
+    import blindagem
+
+    trabalho = estado.trabalhos.obter(str(payload.get("trabalho_id", "")))
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="conversa não encontrada")
+    pergunta = " ".join(str(payload.get("pergunta", "")).split())[:600]
+    if not pergunta:
+        raise HTTPException(status_code=400, detail="falta a pergunta")
+    conta, senha = _conta_e_senha(str(payload.get("conta_id", "")))
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        msg = correio.abrir(conta, senha, str(payload.get("uid", "")), marcar_lido=False)
+    except correio.ErroCorreio as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    original = f"De: {msg.de_nome} <{msg.de_email}>\nAssunto: {msg.assunto}\n\n{msg.corpo[:4000]}"
+    try:
+        resposta = estado.cliente_para("email").ask(INSTRUCAO_PERGUNTA_EMAIL + "\n\n" + blindagem.REGRA,
+                                                    "E-mail:\n" + blindagem.cercar(original) + "\n\nPergunta do advogado: " + pergunta)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    texto, fora = blindagem.conferir_saida(" ".join((resposta or "").split("\n\n")).strip() or "Não consegui responder.",
+                                           original, [msg.de_email])
+    aviso = blindagem.aviso(blindagem.suspeitas(original))
+    trabalho.dizer("pessoa", pergunta)
+    trabalho.dizer("paulus", texto + (f"\n\n{aviso}" if aviso else ""))
+    estado.trabalhos.salvar(trabalho)
+    return {"texto": texto, "aviso": aviso, "tirado": fora}
+
+
 @app.get("/api/email/envios")
 def email_envios() -> dict:
     return estado.envios.para_tela()
@@ -8545,6 +10544,9 @@ class PedidoAoAssistente(BaseModel):
     # O editor aberto ao lado de uma conversa: o pedido e o que foi feito
     # ficam nela, como qualquer outra coisa dita ali.
     trabalho_id: str = ""
+    # O pedido ja esta na conversa (veio de uma pergunta que abriu o editor):
+    # nao entra de novo como fala da pessoa.
+    ja_dito: bool = False
 
 
 class CelulaPlanilha(BaseModel):
@@ -8825,7 +10827,7 @@ def documentos_comentar(id_: int, payload: dict) -> dict:
             status_code=400,
             detail="selecione no texto o trecho que você quer que eu comente")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
@@ -8836,7 +10838,7 @@ def documentos_comentar(id_: int, payload: dict) -> dict:
         "No maximo tres frases."
     )
     try:
-        resposta = estado.cliente_para("redacao").ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
+        resposta = estado.cliente_para("redacao", cadastro=item.get("cadastro_id")).ask(pedido, f"Trecho do contrato:\n{trecho[:2000]}",
                                      sistema=SISTEMA_COMENTARIO)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -9406,6 +11408,19 @@ _ASPAS = chr(34)
 # --------------------------------------------------------- o assistente
 
 
+INSTRUCAO_EDITOR_INTEIRO = """Voce ajuda um advogado brasileiro a mudar um documento. O documento inteiro
+vem abaixo. Responda so com um objeto JSON, assim:
+{"trocas": [{"de": "trecho copiado do documento", "para": "o texto novo"}], "acrescentar": ""}
+
+- Para mudar o que ja esta escrito, use "trocas". "de" e copiado do documento
+  letra por letra - o menor trecho que deixa claro o lugar (uma palavra, uma
+  frase). Todas as trocas que o pedido pede, uma por lugar diferente.
+- "acrescentar" e so para texto novo que o pedido manda escrever (uma
+  clausula, um paragrafo), e vai para o fim do documento. Sem isso, "".
+- nao invente numero de artigo, de lei, de sumula nem de processo
+- nao invente nome, data, valor nem prazo que nao estejam no documento ou no pedido
+- sem marcacao, sem asteriscos"""
+
 INSTRUCAO_EDITOR = """Voce ajuda um advogado brasileiro a redigir. Responda em
 portugues do Brasil, direto, sem preambulo.
 
@@ -9512,26 +11527,53 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     if not pedido:
         raise HTTPException(status_code=400, detail="diga o que você quer que eu escreva")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    inteiro = documento.para_texto(documento.ler_html(item["corpo"]))
+    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
+
+    # "SEMA está errado, o certo é SEMAS", "troque X por Y": a troca dita na
+    # frase é feita por regra, em todas as ocorrências, sem modelo - e o
+    # editor a aplica no lugar (bateria de 02/10/2026: o pedido escrevia
+    # um parágrafo no fim do documento).
+    if not payload.trecho.strip():
+        trocas = [(de, para) for de, para in intencao.trocas_do_pedido(pedido) if _ocorrencias(inteiro, de)]
+        if trocas:
+            quantas = sum(_ocorrencias(inteiro, de) for de, _ in trocas)
+            frase = ("Troquei " + ", ".join(f"“{de}” por “{para}”" for de, para in trocas) + f" em “{item['titulo']}” ("
+                     + (f"{quantas} ocorrências" if quantas > 1 else "1 ocorrência") + "). A alteração ficou marcada "
+                     "no documento, esperando você manter ou descartar.")
+            if trabalho:
+                if not payload.ja_dito:
+                    trabalho.dizer("pessoa", pedido)
+                trabalho.dizer("paulus", frase, feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
+                estado.trabalhos.salvar(trabalho)
+            return {"sugestao": "; ".join(para for _, para in trocas), "trocas": [{"de": de, "para": para} for de, para in trocas],
+                    "ocorrencias": quantas, "sobre": "", "frase": frase,
+                    "aviso": "Troca feita por regra, letra por letra, em todas as ocorrências. Confira antes de manter."}
+
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
+    cliente = estado.cliente_para("redacao", cadastro=item.get("cadastro_id"))
+    na_nuvem = isinstance(cliente, nuvem_mod.ClienteNuvem)
     if payload.trecho.strip():
         contexto = f"Trecho selecionado do documento:\n{payload.trecho[:2500]}"
     else:
-        texto = documento.para_texto(documento.ler_html(item["corpo"]))
-        contexto = f"Documento (início):\n{texto[:2500]}"
-    instrucao = INSTRUCAO_EDITOR + f"\n\nPedido: {pedido}"
+        # O documento inteiro (até o que cabe), e não o começo: o pedido pode
+        # ser sobre a cláusula 9ª.
+        limite = 60000 if na_nuvem else 12000
+        contexto = "Documento" + (" (início)" if len(inteiro) > limite else "") + f":\n{inteiro[:limite]}"
+    instrucao = (INSTRUCAO_EDITOR if payload.trecho.strip() else INSTRUCAO_EDITOR_INTEIRO) + f"\n\nPedido: {pedido}"
 
     # Vindo de uma conversa, o pedido e trabalho dela como qualquer pergunta:
     # a conversa fica "trabalhando" com as etapas a vista, o cartao
     # "Acontecendo agora" da tela inicial mostra o andamento - com barra, quando
     # esta maquina ja mediu quanto le e escreve -, e o botao de parar alcanca.
-    trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
     parar = threading.Event()
     if trabalho:
         agora = time.time()
-        trabalho.dizer("pessoa", pedido)
+        if not payload.ja_dito:
+            trabalho.dizer("pessoa", pedido)
         trabalho.etapas = [Etapa("Entender o pedido", estado=CONCLUIDO),
                            Etapa(f"Escrever em “{item['titulo']}”", estado=EXECUTANDO)]
         trabalho.estado = EXECUTANDO
@@ -9553,13 +11595,21 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         trabalho.dizer("paulus", texto, **extras)
         estado.trabalhos.salvar(trabalho)
 
+    aviso = ("Escrito pela IA do PAULUS. Confira nomes, datas, valores e qualquer artigo de lei antes de manter."
+             if na_nuvem else "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
+                              "datas, valores e qualquer artigo de lei antes de aceitar.")
+    regras_da_casa = estado.contextos.bloco(["Regras de redação"])
     try:
-        # No editor entram so as regras de redacao: como o escritorio escreve
-        # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
-        resposta = estado.cliente_para("redacao").ask(instrucao, contexto,
-                                     sistema=SISTEMA_EDITOR,
-                                     ensinado=estado.contextos.bloco(["Regras de redação"]),
-                                     parar=parar.is_set)
+        if payload.trecho.strip():
+            # No editor entram so as regras de redacao: como o escritorio escreve
+            # muda o texto sugerido; o nome de um cliente nao tem o que fazer aqui.
+            resposta = cliente.ask(instrucao, contexto, sistema=SISTEMA_EDITOR, ensinado=regras_da_casa,
+                                   parar=parar.is_set)
+        else:
+            # Sem trecho: o documento inteiro, e o que volta e o que trocar
+            # (copiado do documento) ou o que acrescentar no fim.
+            resposta = cliente.ask_json(instrucao, contexto, sistema=SISTEMA_EDITOR + (
+                "\n\n" + regras_da_casa if regras_da_casa.strip() else ""))
     except OllamaError as exc:
         terminar("falhou", f"Não consegui escrever em “{item['titulo']}”: {exc}")
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -9571,8 +11621,33 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         terminar(PAUSADO, f"Parei antes de escrever em “{item['titulo']}”. O documento ficou como estava.")
         raise HTTPException(status_code=409, detail="parei antes de terminar a alteração")
 
+    if not payload.trecho.strip():
+        dados = resposta if isinstance(resposta, dict) else {}
+        trocas = []
+        for t in dados.get("trocas") or []:
+            de, para = (str((t or {}).get("de") or "").strip(), str((t or {}).get("para") or "")) if isinstance(t, dict) else ("", "")
+            # So vale o que esta escrito no documento, letra por letra.
+            if de and de != para and _ocorrencias(inteiro, de) and (de, para) not in trocas:
+                trocas.append((de, para))
+        acrescentar = _limpar_sugestao(str(dados.get("acrescentar") or ""))
+        if trocas:
+            quantas = sum(_ocorrencias(inteiro, de) for de, _ in trocas)
+            frase = (f"Mudei {len(trocas)} trecho{'s' if len(trocas) > 1 else ''} em “{item['titulo']}” ("
+                     + (f"{quantas} ocorrências" if quantas > 1 else "1 ocorrência") + "). A alteração ficou marcada "
+                     "no documento, esperando você manter ou descartar.")
+            terminar(CONCLUIDO, frase, feito={"tipo": "alteracao", "id": id_, "nome": item["titulo"], "onde": "editor"})
+            avisos.avisar("resposta", "Alteração pronta · " + item["titulo"][:60], frase)
+            return {"sugestao": "; ".join(para for _, para in trocas)[:400],
+                    "trocas": [{"de": de, "para": para} for de, para in trocas], "ocorrencias": quantas,
+                    "sobre": "", "frase": frase, "aviso": aviso}
+        if not acrescentar:
+            detalhe = ("não achei no documento o trecho a mudar. Selecione no texto o trecho que você quer mudar e "
+                       "peça de novo.")
+            terminar("falhou", "Não consegui: " + detalhe)
+            raise HTTPException(status_code=422, detail=detalhe)
+        resposta = acrescentar
+
     sugestao = _limpar_sugestao(resposta)
-    inteiro = documento.para_texto(documento.ler_html(item["corpo"]))
     if _e_o_documento_de_volta(sugestao, inteiro):
         detalhe = ("o modelo devolveu o documento de volta em vez da alteração. "
                    "Selecione no texto o trecho que você quer mudar e peça de "
@@ -9590,11 +11665,22 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     return {
         "sugestao": sugestao,
         "sobre": payload.trecho[:160],
-        "aviso": (
-            "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
-            "datas, valores e qualquer artigo de lei antes de aceitar."
-        ),
+        "aviso": aviso,
     }
+
+
+def _ocorrencias(texto: str, trecho: str) -> int:
+    """
+    Quantas vezes o trecho aparece no texto como palavra inteira: "SEMA" não
+    conta dentro de "SEMAS". Os espaços contam como um só (o texto do editor
+    vem do HTML).
+    """
+    alvo = " ".join((trecho or "").split())
+    if not alvo:
+        return 0
+    padrao = (r"(?<![\w])" if alvo[0].isalnum() else "") + r"\s+".join(map(re.escape, alvo.split())) + \
+        (r"(?![\w])" if alvo[-1].isalnum() else "")
+    return len(re.findall(padrao, texto or ""))
 
 
 def _previsao_de_escrita(caracteres: int) -> float:
@@ -9713,7 +11799,7 @@ def planilha_faixa(id_: int, payload: dict) -> dict:
     if len(refs) > planilha.MAX_LINHAS * 4:
         raise HTTPException(status_code=400, detail="seleção grande demais")
 
-    dados = {c: payload[c] for c in ("formato", "negrito", "italico", "borda", "valor")
+    dados = {c: payload[c] for c in ("formato", "negrito", "italico", "borda", "valor", "fundo")
              if c in payload}
     if not dados:
         raise HTTPException(status_code=400, detail="nada para aplicar")
@@ -10186,7 +12272,7 @@ def planilha_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
     if not payload.pedido.strip():
         raise HTTPException(status_code=400, detail="diga o que você quer calcular")
 
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("redacao")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
 
@@ -10205,7 +12291,7 @@ def planilha_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         "Nao explique. Nao invente celula que nao esta na lista."
     )
     try:
-        resposta = estado.cliente_para("redacao").ask(instrucao + f"\n\nPedido: {payload.pedido}",
+        resposta = estado.cliente_para("redacao", cadastro=item.get("cadastro_id")).ask(instrucao + f"\n\nPedido: {payload.pedido}",
                                      "Células com valor:\n" + "\n".join(linhas))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -10273,6 +12359,8 @@ def financeiro_painel(mes: str = "") -> dict:
     e zero e a tela diz que esta vazio - grafico bonito de dado que ninguem
     digitou e a forma mais rapida de o financeiro perder a confianca de quem usa.
     """
+    # As despesas fixas com "lançar todo mês" entram no mes de hoje (uma vez).
+    estado.financeiro.lancar_fixas(estado.cadastros.listar(tipo="despesa"))
     dados = estado.financeiro.para_tela(mes)
     dados["clientes"] = [
         {"id": f["id"], "nome": f["nome"]} for f in estado.cadastros.listar()
@@ -10288,7 +12376,7 @@ def financeiro_painel(mes: str = "") -> dict:
     # tela, e seis chamadas fariam a tela pintar em pedacos.
     mes_alvo = dados["painel"]["mes"]
     dados["folha"] = estado.folha.do_mes(mes_alvo)
-    dados["candidatos_folha"] = estado.folha.pessoas()
+    dados["candidatos_folha"] = estado.folha.pessoas(mes_alvo)
     dados["notas"] = estado.papeis.listar("nota", mes_alvo)
     dados["notas_a_emitir"] = estado.papeis.a_emitir(mes_alvo)
     dados["boletos"] = estado.papeis.listar("boleto")
@@ -10487,6 +12575,61 @@ async def financeiro_comprovante(id_: int, arquivo: UploadFile, decisoes: str = 
     return estado.financeiro.obter(id_) or {}
 
 
+@app.post("/api/financeiro/lancar-pela-conversa")
+def financeiro_lancar_pela_conversa(payload: dict) -> dict:
+    """
+    O "Lançar" da coluna (`Conversa - Lancamento`, `- Recebimento`): grava
+    (ou atualiza a cobranca em aberto), da baixa quando ja foi pago, guarda o
+    papel (o comprovante vai para Financeiro/Comprovantes do Acervo e fica
+    ligado; o boleto entra em Papeis do mes) e cria o lembrete na Agenda.
+    """
+    dados = dict(payload.get("dados") or {})
+    id_ = payload.get("id") or None
+    try:
+        id_ = estado.financeiro.salvar(dados, int(id_) if id_ else None)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    liquidado = str(payload.get("liquidado_em") or "")[:10]
+    if liquidado:
+        estado.financeiro.liquidar(id_, liquidado)
+    lancamento = estado.financeiro.obter(id_) or {}
+    papel = payload.get("papel") or {}
+    papel_feito = ""
+    if papel.get("nome"):
+        doc = next((d for d in estado.searcher.documents if d.name == papel["nome"]), None)
+        if doc and Path(doc.path).exists():
+            if papel.get("tipo") == "boleto":
+                estado.papeis.salvar({"tipo": "boleto", "lancamento_id": id_, "cadastro_id": lancamento.get("cadastro_id"),
+                                      "centavos": lancamento.get("centavos", 0), "data": lancamento.get("vencimento", ""),
+                                      "observacao": doc.name})
+                papel_feito = "boleto"
+            else:
+                import hashlib
+                import shutil
+
+                quando = lancamento.get("liquidado_em") or lancamento.get("vencimento") or ""
+                pasta = _pasta_no_acervo("Financeiro", "Comprovantes", quando[:7] or escritorio.mes_de_hoje())
+                destino = pasta / Path(doc.path).name
+                if not destino.exists():
+                    shutil.copy2(doc.path, destino)
+                sha1 = hashlib.sha1(destino.read_bytes()).hexdigest()
+                estado.financeiro.anexar(id_, destino.name, str(destino), sha1)
+                estado.recarregar_em_segundo_plano()
+                papel_feito = "comprovante"
+    tarefa = 0
+    if payload.get("lembrar") and lancamento.get("vencimento") and not liquidado:
+        try:
+            antes = (date.fromisoformat(lancamento["vencimento"]) - timedelta(days=1)).isoformat()
+        except ValueError:
+            antes = ""
+        if antes:
+            verbo = "Receber" if lancamento.get("tipo") == "recebimento" else "Pagar"
+            tarefa = estado.tarefas.salvar({"titulo": f"{verbo}: {lancamento.get('descricao', '')} — {lancamento.get('valor', '')}",
+                                            "prazo": antes, "cadastro_id": lancamento.get("cadastro_id"),
+                                            "anotacao": "Lembrete do lançamento feito pela conversa (vence " + escritorio._br(lancamento["vencimento"]) + ")."})
+    return {"lancamento": estado.financeiro.obter(id_) or {}, "papel": papel_feito, "tarefa": tarefa}
+
+
 @app.delete("/api/financeiro/comprovante/{id_}")
 def financeiro_tirar_comprovante(id_: int) -> dict:
     estado.financeiro.tirar_comprovante(id_)
@@ -10540,6 +12683,66 @@ def relatorios_ver(quando: str = "") -> dict:
     return estado.relatorios.para_tela(quando)
 
 
+@app.get("/api/relatorios/financeiro")
+def relatorios_financeiro(mes: str = "", comparar: str = "") -> dict:
+    """Os numeros do relatorio financeiro do mes, somados aqui (src/financeiro_pela_conversa.py)."""
+    import financeiro_pela_conversa as fpc
+
+    mes = mes or escritorio.mes_de_hoje()
+    pasta = _pasta_no_acervo("Relatórios", "Financeiro")
+    pdf = pasta / f"relatorio-financeiro-{mes}.pdf"
+    xlsx = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
+    return {"relatorio": fpc.relatorio(estado.financeiro, estado.base, mes, comparar),
+            "pdf": {"nome": pdf.name, "caminho": str(pdf)} if pdf.exists() else None,
+            "xlsx": {"nome": xlsx.name, "caminho": str(xlsx)} if xlsx.exists() else None,
+            "precisa": estado.financeiro.precisa_de_voce()}
+
+
+@app.post("/api/relatorios/financeiro/gerar")
+def relatorios_financeiro_gerar(payload: dict) -> dict:
+    """Gera (ou refaz) o PDF e a planilha do mes no Acervo."""
+    mes = str(payload.get("mes") or escritorio.mes_de_hoje())[:7]
+    try:
+        return _gerar_relatorio_financeiro(mes, str(payload.get("comparar") or "")[:7])
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"não consegui gerar: {exc}") from exc
+
+
+@app.get("/api/relatorios/financeiro/arquivo")
+def relatorios_financeiro_arquivo(nome: str) -> FileResponse:
+    """Baixar o PDF ou a planilha gerados (so das duas pastas do relatorio)."""
+    nome = Path(nome).name
+    for pasta, sufixo, tipo in ((_pasta_no_acervo("Relatórios", "Financeiro"), ".pdf", "application/pdf"),
+                                (_pasta_no_acervo("Financeiro", "Planilhas"), ".xlsx",
+                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")):
+        alvo = pasta / nome
+        if alvo.suffix.lower() == sufixo and alvo.is_file():
+            return FileResponse(alvo, media_type=tipo, headers=_anexo(alvo.name))
+    raise HTTPException(status_code=404, detail="arquivo não encontrado")
+
+
+@app.post("/api/relatorios/parecer-do-mes")
+def relatorios_parecer_do_mes(payload: dict | None = None) -> dict:
+    """
+    O "Parecer do mês": o modelo escreve sobre os numeros ja somados
+    (src/financeiro_pela_conversa.py) - nao calcula nada.
+    """
+    import financeiro_pela_conversa as fpc
+
+    mes = str((payload or {}).get("mes") or escritorio.mes_de_hoje())[:7]
+    comparar = str((payload or {}).get("comparar") or fpc.mes_antes(mes))[:7]
+    r = fpc.relatorio(estado.financeiro, estado.base, mes, comparar)
+    disponivel, motivo = check_ollama(estado.client.model)
+    if not disponivel:
+        raise HTTPException(status_code=503, detail=motivo)
+    try:
+        texto = estado.cliente_para("redacao").ask(fpc.INSTRUCAO_PARECER_DO_MES,
+                                                   fpc.numeros_para_o_parecer(r, estado.financeiro.precisa_de_voce()))
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"texto": " ".join((texto or "").split()), "mes": mes}
+
+
 @app.get("/api/relatorios/acoes")
 def relatorios_acoes(limite: int = 40) -> dict:
     """O que o assistente fez com o seu sim, lido da fila de aprovacoes."""
@@ -10564,7 +12767,7 @@ def relatorios_parecer(payload: dict | None = None) -> dict:
         raise HTTPException(status_code=503, detail=motivo)
 
     try:
-        texto = estado.cliente_para("resumos").ask(relatorios.INSTRUCAO_PARECER, numeros)
+        texto = estado.cliente_para("resumos", local=True).ask(relatorios.INSTRUCAO_PARECER, numeros)
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -11806,11 +14009,11 @@ def servicos_resumo(id_: int) -> dict:
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("resumos")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
-        texto = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
+        texto = estado.cliente_para("resumos", servico=id_).ask(servicos_mod.INSTRUCAO_RESUMO, estado.servicos.texto_para_resumo(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     estado.servicos.guardar_resumo(id_, _limpar_sugestao(texto))
@@ -11836,7 +14039,7 @@ def servicos_conversar(id_: int, payload: dict, request: Request = None) -> dict
     s = estado.servicos.obter(id_)
     if not s:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("resumos")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     try:
@@ -11846,7 +14049,7 @@ def servicos_conversar(id_: int, payload: dict, request: Request = None) -> dict
     try:
         if not estado.fila_modelo.esperar(vez, timeout=600):
             raise HTTPException(status_code=503, detail="o modelo ficou ocupado demais; tente de novo")
-        resposta = estado.cliente_para("resumos").ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
+        resposta = estado.cliente_para("resumos", servico=id_).ask(servicos_mod.INSTRUCAO_CONVERSA + f"\n\nPergunta: {pergunta}",
                                      estado.servicos.texto_para_conversa(s))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -12105,12 +14308,12 @@ def gravacoes_resumo(id_: int) -> dict:
         raise HTTPException(status_code=404, detail="gravação não encontrada")
     if not g.get("trechos"):
         raise HTTPException(status_code=400, detail="a gravação ainda não foi transcrita")
-    disponivel, motivo = check_ollama(estado.client.model)
+    disponivel, motivo = _modelo_pronto("resumos")
     if not disponivel:
         raise HTTPException(status_code=503, detail=motivo)
     texto = estado.gravacoes.texto_da_transcricao(id_)
     try:
-        resumo = _resumir_em_blocos(texto)
+        resumo = _resumir_em_blocos(texto, servico=g.get("servico_id"))
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     estado.gravacoes.guardar_resumo(id_, resumo)
@@ -12119,9 +14322,16 @@ def gravacoes_resumo(id_: int) -> dict:
     return _com_progresso(estado.gravacoes.obter(id_) or {})
 
 
-def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
+def _modelo_pronto(tarefa: str) -> tuple[bool, str]:
+    """O modelo da tarefa responde? Com a nuvem ligada para ela, sim - o Ollama so e a volta."""
+    if nuvem_mod.usa(estado, tarefa):
+        return True, ""
+    return check_ollama(estado.client.model)
+
+
+def _resumir_em_blocos(texto: str, tamanho: int = 9000, servico=None) -> str:
     if len(texto) <= tamanho:
-        return _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
+        return _limpar_sugestao(estado.cliente_para("resumos", servico=servico).ask(gravacoes_mod.INSTRUCAO_RESUMO, texto))
     linhas = texto.split("\n")
     blocos, atual = [], ""
     for linha in linhas:
@@ -12132,10 +14342,10 @@ def _resumir_em_blocos(texto: str, tamanho: int = 9000) -> str:
     if atual:
         blocos.append(atual)
     parciais = [
-        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
+        f"Parte {i + 1} de {len(blocos)}:\n" + _limpar_sugestao(estado.cliente_para("resumos", servico=servico).ask(gravacoes_mod.INSTRUCAO_RESUMO, bloco))
         for i, bloco in enumerate(blocos)
     ]
-    return _limpar_sugestao(estado.cliente_para("resumos").ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
+    return _limpar_sugestao(estado.cliente_para("resumos", servico=servico).ask(gravacoes_mod.INSTRUCAO_JUNTAR, "\n\n".join(parciais)))
 
 
 def _mover_audio_da_gravacao(id_: int, servico_id: int | None) -> None:

@@ -76,7 +76,7 @@ function embrulharTela(nome) {
        pilha e a tela que ele abre, com os argumentos dela. */
     "abrirTrabalho", "voltarAoAssistente", "telaAdiante",
     "mostrarAprovacoes", "mostrarHistoricoDeAprovacoes", "mostrarRegrasDeAlcada",
-    "mostrarConfig", "mostrarCadastros", "mostrarAgenda", "mostrarApoiar", "mostrarServicos",
+    "mostrarConfig", "mostrarCadastros", "mostrarAgenda", "mostrarConsumo", "mostrarServicos",
     "mostrarGravacoes", "mostrarBiblioteca", "mostrarPrazos", "mostrarDupla", "organizarComecar",
     "mostrarCertificado", "mostrarAssinar", "mostrarEmail", "mostrarDocumentos", "mostrarEditor",
     "mostrarPlanilha", "abrirDocumento", "abrirPlanilha", "mostrarPrevia", "listaDocumentos",

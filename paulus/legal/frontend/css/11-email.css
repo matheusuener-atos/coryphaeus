@@ -173,7 +173,7 @@
   .em-conta-linha { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
   .em-conta-linha:last-child { border-bottom: none; }
   .em-conta-linha:hover { background: var(--sub); }
-  .em-conta-linha.ativa { background: var(--bg); box-shadow: inset 3px 0 0 var(--ink); }
+  .em-conta-linha.ativa { background: var(--bg); }
   .em-conta-linha.problema { background: var(--accbg2); }
   .em-conta-linha.ativa .duas-linhas b { font-weight: 600; }
   .em-conta-linha button { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }

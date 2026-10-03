@@ -508,6 +508,9 @@ function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
   // N14: o que o agente fez sozinho volta com o "Desfazer" (o próprio botão diz se já foi desfeito).
   if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
+        p.tipo === "entrevista" || p.tipo === "levar_ao_editor" || p.tipo === "preparo" || p.tipo === "clausula" ||
+        p.tipo === "editor_criado" || (p.tipo === "mudar_documento" && ultima) ||
+        (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) || p.tipo === "config" ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
   propostasGuardadas.push(p);
   return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +
@@ -736,6 +739,8 @@ function linhaAssinatura(segundos, citados, pergunta, quem, como, fontes) {
   if (como && como.agente) quem = (quem || estado.modelo || "assistente local") + " · " + como.agente + (como.agente_versao ? " v" + como.agente_versao : "");
   // Pelos fatos ja conferidos, sem o modelo: a linha nao diz que ele escreveu.
   if (como && como.caminho === "nivel0" && como.molde) quem = "sem modelo";
+  // A profundidade escolhida (js/92-entrevista.js): o nível na frente do modelo.
+  if (como && como.profundidade && como.profundidade.nome) quem = como.profundidade.nome + " · " + (quem || estado.modelo || "assistente local");
   const meta = [segundos ? segundosBR(segundos) : "", quem || estado.modelo || "assistente local"].filter(Boolean).join(" · ");
   return '<div class="assinatura">' + etiquetasDosCitados(fontes) +
     '<span class="ass-meta">' + esc(meta) + "</span>" +
@@ -1044,6 +1049,9 @@ function desenharAtividade(itens) {
 }
 
 $("registro-cabeca").onclick = () => {
+  // Como barra da proxima pergunta ("A próxima pergunta lê só…"), ela so
+  // informa: nao abre nem fecha nada (pedido de 02/10).
+  if ($("registro").classList.contains("barra-escopo")) return;
   const aberto = $("registro").classList.toggle("aberto");
   $("atividade").hidden = !aberto;
 };
@@ -1161,6 +1169,8 @@ function textoDoCartaoDoDitado() {
 function levarDitadoParaCaixa() {
   const campo = $("pedido");
   if (!ditado.texto) return false;
+  // Ditado começado no editor do e-mail (js/85): o texto vai para o e-mail.
+  if (ditado.destino === "email" && typeof levarDitadoAoEmail === "function" && levarDitadoAoEmail(ditado.texto)) return true;
   const antes = campo.value || "";
   campo.value = (antes.trim() ? antes.replace(/\s+$/, "") + " " : "") + ditado.texto;
   campo.style.height = "auto";
@@ -1192,6 +1202,11 @@ function cartaoDoDitado() {
   } else if (e === "pendente") {
     esquerda = botao("data-ditado-cancelar", "delete", "Descartar") + botao("data-ditado-continuar", "mic", "Continuar");
     direita = botao("data-ditado-usar", "", "Concluir e editar", "dit-borda") + botao("data-ditado-enviar", "arrow_upward", "Concluir e enviar", "dit-cheio");
+  }
+  // Começado no editor do e-mail: o texto vai para o e-mail, e "enviar" não é daqui.
+  if (ditado.destino === "email") {
+    notas.ouvindo = notas.pausado = "o texto entra no e-mail ao concluir";
+    if (direita) direita = botao("data-ditado-usar", "", "Pôr no e-mail", "dit-cheio");
   }
   const classe = "cartao-agora ditado-cartao " + e;
   const marca = e === "finalizando" ? '<span class="marca-etapa"><i class="giro"></i></span>' : '<i class="agr-rec' + (e === "ouvindo" ? " vivo" : "") + '"></i>';
@@ -1431,6 +1446,7 @@ async function enviarPedacoDoDitado() {
 
 function zerarDitado() {
   ditado.estado = "";
+  ditado.destino = "";
   ditado.sessao = "";
   ditado.amostras = [];
   ditado.acumulado = 0;
@@ -1565,21 +1581,41 @@ async function enviar(opcoes) {
     return;
   }
   // Enviar com ditado aberto ou pendente: primeiro o texto ditado entra no campo.
-  if (!o.retomar && ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
+  if (!o.retomar && !o.entrevista && ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
   const pedido = (o.texto || $("pedido").value).trim();
   if (!pedido) return;
 
   // Com o editor aberto ao lado, pedido de mudança vai para o documento.
-  if (!o.retomar && editorNaConversaAberto() && destinoDoPedido(pedido) === "documento") {
+  if (!o.retomar && !o.entrevista && editorNaConversaAberto() && destinoDoPedido(pedido) === "documento") {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
-    dupla.destino = "";
-    atualizarDestino();
     pedirNoDocumento(pedido);
     return;
   }
+  // Com o e-mail aberto na conversa e "No e-mail" (js/85-email-na-conversa.js),
+  // a pergunta e sobre a mensagem.
+  if (!o.retomar && !o.entrevista && typeof pedidoNoEmail === "function" && pedidoNoEmail(pedido)) {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+    return;
+  }
+  // Com a ficha aberta na coluna (js/86-fichas-na-conversa.js), a frase que
+  // traz um dado corrige o campo; a que nao traz segue para a conversa.
+  if (!o.retomar && !o.entrevista && ((typeof pedidoNaFicha === "function" && await pedidoNaFicha(pedido)) ||
+      (typeof pedidoNoLancamento === "function" && await pedidoNoLancamento(pedido)))) {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+    return;
+  }
+  // Com o agente aberto ao lado (js/84-criar-agente.js), o pedido muda as instrucoes.
+  if (!o.retomar && !o.entrevista && typeof agenteAoLadoAberto === "function" && agenteAoLadoAberto() && !agn.escrevendo) {
+    $("pedido").value = "";
+    $("pedido").style.height = "auto";
+    mudarAgentePelaConversa(pedido);
+    return;
+  }
   // Com a planilha em edicao ao lado (js/81-planilha-ao-lado.js), idem.
-  if (!o.retomar && planilhaEmEdicao() && destinoNaPlanilha(pedido) === "planilha") {
+  if (!o.retomar && !o.entrevista && planilhaEmEdicao() && destinoNaPlanilha(pedido) === "planilha") {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     pa.destino = "";
@@ -1668,7 +1704,10 @@ async function enviar(opcoes) {
         inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade) }, envio,
         typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {}, onde,
         // N15: a pílula "Nuvem" (js/75-nuvem.js) vale para esta pergunta só.
-        typeof nuvemDoEnvio === "function" ? nuvemDoEnvio() : {})),
+        typeof nuvemDoEnvio === "function" ? nuvemDoEnvio() : {},
+        // A profundidade e as respostas do módulo de perguntas (js/92-entrevista.js).
+        typeof profundidadeDoEnvio === "function" ? profundidadeDoEnvio() : {},
+        o.entrevista ? { entrevista: o.entrevista } : {})),
       signal: estado.controle.signal,
     });
     // F1: a conversa já respondia (outra aba, outra pessoa) e a pergunta
@@ -1867,6 +1906,19 @@ async function lerResposta(r, v) {
         }
       } else if (mt[1] === "refazendo") {
         anotarBastidor("a resposta citou um trecho que não existe — refazendo com menos trechos");
+      } else if (mt[1] === "pensando") {
+        // O trabalho em etapas (src/elaboracao.py): o que está sendo feito agora.
+        if (pensando()) linha(dados.texto || "");
+        anotarBastidor((dados.texto || "").replace(/…$/, "").toLowerCase());
+      } else if (mt[1] === "nota") {
+        anotarBastidor(dados.texto || "");
+      } else if (mt[1] === "reescrevendo") {
+        // A revisão pediu para refazer: o rascunho dá lugar à versão revista.
+        texto.textContent = "";
+        primeiro = true;
+        if (pensando()) linha("Reescrevendo com as correções da revisão…");
+      } else if (mt[1] === "substituir") {
+        texto.textContent = dados.texto || "";
       } else if (mt[1] === "token" && revisado) {
         bruto += dados.t;
         texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);
@@ -1892,8 +1944,14 @@ async function lerResposta(r, v) {
         // "abra o financeiro": o pedido era a tela. Abre depois do fim,
         // para a conversa terminar de se gravar antes de sair dela.
         if (dados.tipo === "programa" && (dados.campos || {}).modo === "ir") abrirAoFim = dados.campos.destino;
+        // O pedido de mudança e o "salve no editor": o editor abre sozinho,
+        // depois de a conversa terminar de se gravar.
+        if ((dados.tipo === "mudar_documento" || dados.tipo === "editor_criado") && aqui()) {
+          setTimeout(() => { if (caixa.isConnected) fazerDoCartaoDoEditor(caixa, dados); }, 800);
+        }
         if ((dados.tipo === "programa" && !dados.por_modelo) || dados.tipo === "escopo" ||
-            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar") assinaSemModelo = true;
+            dados.tipo === "consulta_cadastro" || dados.tipo === "gravar" || dados.tipo === "assinar" || dados.tipo === "criar_agente" || dados.tipo === "email" || dados.tipo === "ficha" || dados.tipo === "lancamento" || dados.tipo === "financeiro" || dados.tipo === "relatorio" || dados.tipo === "config" ||
+            ((dados.tipo === "agenda" || dados.tipo === "tarefa") && !(dados.ajuda_do_modelo || []).length)) assinaSemModelo = true;
         rolar();
       } else if (mt[1] === "relacionados") {
         // N7: chega depois do fim - os temas e as súmulas ligados aos artigos citados.
@@ -1938,9 +1996,6 @@ async function lerResposta(r, v) {
         ligarResposta(resposta);
         if (aqui()) $("conversa-titulo").textContent = dados.titulo;
         if (abrirAoFim && aqui()) { const id = abrirAoFim; setTimeout(() => abrirTelaDaConversa(id), 700); }
-        // O pedido de apoio, no maximo uma vez por mes, depois de uma leitura
-        // (pacote de telas, `Conversa - Apoiar`; js/77-apoiar-convite.js).
-        if (aqui() && fontesAtuais.length && typeof oferecerConviteNaConversa === "function") oferecerConviteNaConversa(resposta);
       }
     }
   }
@@ -2053,8 +2108,10 @@ async function carregarAbertos() {
    - "foco": o documento que esta conversa vinha lendo;
    - "acervo": todos os documentos abertos;
    - "perguntar": sem escolher — a pergunta que não nomeia documento volta
-     com um cartão perguntando onde. */
-const MODOS_DO_ESCOPO = ["foco", "acervo", "perguntar"];
+     com um cartão perguntando onde;
+   - "criativo": sem ler documento nenhum — o Paulus responde pelo que ele
+     mesmo sabe (direito em tese, redação, ideias), na nuvem. */
+const MODOS_DO_ESCOPO = ["foco", "acervo", "perguntar", "criativo"];
 
 function definirEscopo(nomes) {
   const lista = Array.isArray(nomes) ? nomes : (nomes ? [nomes] : []);
@@ -2079,7 +2136,7 @@ function modoDoEscopo() {
 }
 
 function alternarModoDoEscopo() {
-  const ordem = (estado.foco || []).length ? MODOS_DO_ESCOPO : ["acervo", "perguntar"];
+  const ordem = (estado.foco || []).length ? MODOS_DO_ESCOPO : ["acervo", "perguntar", "criativo"];
   estado.modoEscopo = ordem[(ordem.indexOf(modoDoEscopo()) + 1) % ordem.length];
   desenharEscopo();
   // C3: o modo e da conversa, e fica no servidor.
@@ -2094,6 +2151,7 @@ function escopoDoEnvio() {
     apenas: modo === "foco" ? estado.foco.slice() : [],
     tudo: modo === "acervo",
     sem_anexo: modo === "perguntar",
+    criativo: modo === "criativo",
   };
 }
 
@@ -2126,13 +2184,18 @@ function desenharEscopo() {
       ? ((estado.foco.length === 1 ? glifo(estado.foco[0]) : ic("description", 18)) + "<b>" + esc(nomeDoFoco()) + "</b>")
       : modo === "perguntar"
         ? ic("help", 18) + "<b>Pergunto onde procurar</b>"
-        : ic("folder", 18) + "<b>" + total + "</b>";
-    const ordem = (estado.foco || []).length ? "o documento da conversa, todo o Acervo, ou perguntar onde procurar" : "todo o Acervo, ou perguntar onde procurar";
+        : modo === "criativo"
+          ? ic("auto_awesome", 18) + "<b>Modo criativo</b>"
+          : ic("folder", 18) + "<b>" + total + "</b>";
+    const ordem = (estado.foco || []).length ? "o documento da conversa, todo o Acervo, perguntar onde procurar ou o modo criativo"
+      : "todo o Acervo, perguntar onde procurar ou o modo criativo";
     const agora = modo === "foco"
       ? "A próxima pergunta lê só " + (estado.foco.length === 1 ? "“" + estado.foco[0] + "”" : "os documentos da conversa: " + estado.foco.join(", "))
       : modo === "perguntar"
         ? "A próxima pergunta que não nomear documento volta com um cartão perguntando onde procurar"
-        : "A próxima pergunta procura em todo o Acervo";
+        : modo === "criativo"
+          ? "A próxima pergunta não lê documento: o Paulus responde pelo que ele mesmo sabe, na nuvem"
+          : "A próxima pergunta procura em todo o Acervo";
     caixa.innerHTML = '<span class="escopo-acervo escopo-livre" id="escopo-modo" role="button" tabindex="0" title="' +
       esc(agora + ". Clique para alternar entre " + ordem + ".") + '">' + rotulo + "</span>";
     const botao = $("escopo-modo");
@@ -2281,7 +2344,7 @@ async function carregarStatus() {
     /* O subtitulo e de quem esta na tela. O status chega de tempos em tempos e
        escrevia por cima de qualquer tela aberta: a Agenda dizia "17 documentos
        abertos" no lugar da semana, o Foco no lugar do tempo ativo. */
-    if (!String(troca.tela || "").startsWith("tela:")) {
+    if (!String(troca.tela || "").startsWith("tela:") && !(typeof cfgNoLado === "function" && cfgNoLado())) {
       $("conversa-meta").textContent = s.contratos
         ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos"
         : "nenhum documento aberto";

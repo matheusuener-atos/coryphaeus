@@ -37,7 +37,7 @@ const CFG_SECOES = [
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
-  ["plano", "Apoio e versão", "O PAULUS é software livre, com licença MIT, e roda de graça nesta máquina."],
+  ["plano", "Versão", "O PAULUS é software livre, com licença MIT."],
   ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
 ];
 
@@ -244,7 +244,9 @@ function fichaCfg(itens) {
 
 function cartaoCfg(titulo, meta, corpo, extra) {
   const classe = "cfg-cartao" + (extra ? " " + extra : "");
-  return '<div class="' + classe + '"><div class="cfg-cartao-cabeca"><span>' + titulo + "</span>" + (meta || "") + "</div>" +
+  // O nome do cartao em data-cartao: a coluna da conversa (js/89) rola ate ele.
+  const nome = String(titulo).replace(/<[^>]+>/g, "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return '<div class="' + classe + '" data-cartao="' + nome + '"><div class="cfg-cartao-cabeca"><span>' + titulo + "</span>" + (meta || "") + "</div>" +
     '<div class="cfg-cartao-corpo">' + corpo + "</div></div>";
 }
 
@@ -422,7 +424,7 @@ async function mostrarNovidades() {
       b.itens.map((x) => "<li>" + negrito(x) + "</li>").join("") + "</ul></div>").join("");
   await dialogo({
     titulo: "Novidades da versão",
-    contexto: "Configurações › Apoio e versão",
+    contexto: "Configurações › Versão",
     html: html,
     confirmar: "Fechar",
     larga: true,
@@ -1034,7 +1036,7 @@ function secaoAprendizado() {
   return aberturaCfg() + ficha +
     estante +
     cartaoChavesBiblioteca() +
-    cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), lembretes) +
+    cartaoCfg("Lembretes", metaCfg("o que eu devo saber do escritório"), (typeof blocoDoLembreteNovo === "function" ? blocoDoLembreteNovo() : "") + lembretes) +
     cartaoCfg("O que eu sei fazer", metaCfg(plural(total, "habilidade")), sei);
 }
 
@@ -1062,7 +1064,7 @@ function escolherTema(escolha) {
 function secaoModulos() {
   const m = (cfg.rascunho || {}).modulos || {};
   const linhas = MODULOS_BV.map(([id, , nome, desc]) => ligaCfg("modulos." + id, nome, desc, m[id] !== false)).join("");
-  return aberturaCfg() + cartaoCfg("No menu", metaCfg("o Assistente, Apoiar e Configurações ficam sempre"),
+  return aberturaCfg() + cartaoCfg("No menu", metaCfg("o Assistente e Configurações ficam sempre"),
     '<div class="cfg-sub">' + linhas + "</div>");
 }
 
@@ -1159,8 +1161,7 @@ function secaoFeedback() {
   return aberturaCfg() + caderno + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
 }
 
-/* Todo feedback vai para o endereço do projeto - o mesmo do extrato de apoio
-   (src/extrato_apoio.py) e das páginas públicas. */
+/* Todo feedback vai para o endereço do projeto - o mesmo das páginas públicas. */
 const FEEDBACK_PARA = "contato@paulus.ia.br";
 
 function assuntoDoFeedback() {
@@ -1199,15 +1200,14 @@ async function enviarFeedback() {
   telaEscrever({ para: FEEDBACK_PARA, assunto: assuntoDoFeedback(), corpo: corpoDoFeedback() });
 }
 
-/* --------------------------------------------------------- apoio e versao */
+/* --------------------------------------------------------------- versao */
 
 function secaoPlano() {
-  const apoiar = '<p class="cfg-texto">Sem assinatura nem cobrança por uso. Quem usa e pode contribuir paga o desenvolvimento, por Pix ou cartão.</p>' +
-    '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-apoiar="contribuir">' + ic("favorite", 16) + "Apoiar o projeto</button>" +
-    '<button data-cfg-apoiar="lista">Quem já apoia</button><button data-cfg-apoiar="desenvolvimento">Desenvolvimento aberto</button></div>';
+  const desenvolvimento = '<p class="cfg-texto">As versões publicadas do PAVLVS e o que mudou em cada uma, mês a mês.</p>' +
+    '<div class="cfg-botoes"><button data-cfg-desenvolvimento="1">Desenvolvimento aberto</button></div>';
   return aberturaCfg() +
-    cartaoCfg("Apoiar o projeto", "", apoiar) +
-    cartaoCfg("Versão e atualização", "", blocoAtualizacao());
+    cartaoCfg("Versão e atualização", "", blocoAtualizacao()) +
+    cartaoCfg("Desenvolvimento aberto", "", desenvolvimento);
 }
 
 /* ------------------------------------------------------------- lixeira */
@@ -1222,18 +1222,27 @@ const CFG_ICONE_LIXO = {
 function secaoLixeira() {
   const l = cfg.lixo;
   if (!l) return aberturaCfg() + cartaoCfg("Itens apagados", "", '<p class="cfg-texto">não consegui ler a lixeira.</p>');
-  const itens = l.itens || [];
+  // Na coluna da conversa (js/89): a busca no alto e o que a frase procurou em destaque.
+  const naColuna = cfg.host === "lado" && typeof filtrarLixeiraNoLado === "function";
+  const todos = l.itens || [];
+  const itens = naColuna ? filtrarLixeiraNoLado(todos) : todos;
+  const achados = naColuna ? ((cfn.extra || {}).achados || []).map((x) => x.id) : [];
+  const busca = naColuna ? campoDeBuscaDaLixeira(itens.length, todos.length) : "";
+  if (naColuna && todos.length && !itens.length) {
+    return busca + cartaoCfg("Itens apagados", metaCfg("some em 30 dias"), '<p class="nota">Nada na lixeira com esse nome.</p>');
+  }
   if (!itens.length) {
     return aberturaCfg() + cartaoCfg("Itens apagados", metaCfg("vazia"),
       '<p class="nota">Nada na lixeira. Conversa, tarefa, compromisso, serviço, gravação, documento, lançamento ou ficha que você apagar aparece aqui.</p>');
   }
-  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha"><span class="caixa-tipo">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
-    '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "")) + "</small></div>" +
-    '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>" +
-    '<button data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +
+  const linhas = itens.map((e) => '<div class="cfg-servico cfg-lixo-linha' + (achados.includes(e.id) ? " cfn-achado" : "") + '"><span class="caixa-tipo">' + ic(CFG_ICONE_LIXO[e.tipo] || "delete", 18) + "</span>" +
+    '<div class="duas-linhas"><b>' + esc(e.titulo) + "</b><small>" + esc(e.tipo_rotulo + (e.detalhe ? " · " + e.detalhe : "") + (naColuna ? " · " + quandoCurtoSv(e.apagado_em) : "")) + "</small></div>" +
+    // Na coluna de 460 px o quando vai na linha de baixo; a coluna do quando nao cabe.
+    (naColuna ? "" : '<small class="cfg-lixo-quando">apagado ' + esc(quandoCurtoSv(e.apagado_em)) + " · some em " + plural(e.dias_restantes, "dia") + "</small>") +
+    '<button' + (achados.includes(e.id) ? ' class="primario"' : "") + ' data-cfg-lixo-restaurar="' + e.id + '">' + ic("undo", 16) + "Restaurar</button>" +
     '<button class="mais-linha" data-cfg-lixo-tirar="' + e.id + '" title="Apagar de vez">' + ic("close", 16) + "</button></div>").join("");
   const esvaziar = '<button class="sv-ligacao" data-cfg-lixo-esvaziar="1">' + ic("delete", 16) + "Esvaziar a lixeira</button>";
-  return aberturaCfg(esvaziar) + cartaoCfg("Itens apagados", metaCfg(plural(itens.length, "item", "itens")),
+  return aberturaCfg(esvaziar) + busca + cartaoCfg("Itens apagados", metaCfg(naColuna ? "some em 30 dias" : plural(itens.length, "item", "itens")),
     '<div class="cfg-linhas">' + linhas + "</div>" +
     '<p class="cfg-explica cfg-lixo-pe">Restaurar devolve a linha, as ligações e os arquivos ao lugar de onde saíram.</p>');
 }
@@ -1342,7 +1351,7 @@ function ligarConfig() {
     desenharConfig();
     carregarUsuario();
   });
-  clique("[data-cfg-apoiar]", (b) => { marcarDestino("apoiar"); b.dataset.cfgApoiar === "desenvolvimento" ? mostrarDesenvolvimento() : mostrarApoiar(b.dataset.cfgApoiar); });
+  clique("[data-cfg-desenvolvimento]", () => mostrarDesenvolvimento());
   if (cfg.secao === "vinculos" && typeof ligarEquipeCfg === "function") ligarEquipeCfg();
   if (cfg.secao === "backup" && typeof ligarBackupCfg === "function") ligarBackupCfg();
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));

@@ -799,6 +799,7 @@ static class Motor
             if (o.AtalhoMesa) Atalho(mesa, exe, pasta); else ApagarAtalhoDaPasta(mesa, pasta);
             if (o.MenuIniciar) Atalho(iniciar, exe, pasta); else ApagarAtalhoDaPasta(iniciar, pasta);
             if (o.Explorer) MenuDoExplorer(exe); else TirarMenuDoExplorer(pasta);
+            Protocolo(exe);
             Directory.CreateDirectory(Path.Combine(Casa, "dados"));
             Directory.CreateDirectory(Path.Combine(Casa, "modelos"));
         }
@@ -1043,6 +1044,34 @@ static class Motor
         SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
     }
 
+    /* O endereco paulus:// (02/10): a pagina de volta do Google abre
+       "paulus://voltar" e o navegador pergunta "Abrir PAULUS?" - o PAULUS ja
+       aberto vem para a frente (src/desktop.py). Na area do usuario, sem
+       pedir administrador. */
+    static void Protocolo(string exe)
+    {
+        using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Software\Classes\paulus"))
+        {
+            k.SetValue("", "URL:PAULUS");
+            k.SetValue("URL Protocol", "");
+            using (RegistryKey i = k.CreateSubKey("DefaultIcon")) i.SetValue("", "\"" + exe + "\",0");
+            using (RegistryKey c = k.CreateSubKey(@"shell\open\command")) c.SetValue("", "\"" + exe + "\" \"%1\"");
+        }
+    }
+
+    static void TirarProtocolo(string pasta)
+    {
+        try
+        {
+            string comando = "";
+            using (RegistryKey c = Registry.CurrentUser.OpenSubKey(@"Software\Classes\paulus\shell\open\command"))
+                if (c != null) comando = c.GetValue("") as string ?? "";
+            if (Dentro(ExeDoComando(comando), pasta))
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\paulus", false);
+        }
+        catch (Exception) { }
+    }
+
     /* O menu do Explorer ligado PARA ESTA PASTA (o de outra instalacao nao conta). */
     public static bool MenuDoExplorerLigado(string pasta)
     {
@@ -1142,6 +1171,7 @@ static class Motor
         ApagarAtalhoDaPasta(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "PAULUS.lnk"), pasta);
         ApagarAtalhoDaPasta(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "PAULUS.lnk"), pasta);
         TirarMenuDoExplorer(pasta);
+        TirarProtocolo(pasta);
         ApagarChaveDaPasta(ChaveDe(pasta), pasta);
         // A entrada antiga, de antes de cada pasta ter a sua: sai se era desta.
         ApagarChaveDaPasta(CHAVE, pasta);

@@ -164,7 +164,7 @@ def notas_da_release(v: str, novidades: list[str], sha: str) -> str:
     itens = "\n".join(f"- {n}" for n in novidades)
     return (
         f"**Para atualizar:** quem tem o PAULUS 0.9.2 ou mais novo recebe esta versão pelo próprio programa "
-        f"(Configurações › Apoio e versão). Para instalar do zero, baixe `PAULUS-{v}-instalador.exe` e abra; os dados "
+        f"(Configurações › Versão). Para instalar do zero, baixe `PAULUS-{v}-instalador.exe` e abra; os dados "
         f"do escritório ficam.\n\n**O que mudou**\n{itens}\n\n"
         "**Aviso do Windows:** o instalador ainda não tem assinatura digital. Na primeira vez, o Windows pode mostrar "
         "\"O Windows protegeu o computador\": clique em **Mais informações** e depois em **Executar assim mesmo**.\n\n"
@@ -174,11 +174,20 @@ def notas_da_release(v: str, novidades: list[str], sha: str) -> str:
 
 
 def baixar_sha(url: str) -> str:
-    h = hashlib.sha256()
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "PAULUS-publicar"}), timeout=120) as r:
-        for bloco in iter(lambda: r.read(1 << 20), b""):
-            h.update(bloco)
-    return h.hexdigest()
+    # Tres tentativas: um download de 100 MB que trava no meio (02/10) nao
+    # derruba a publicacao com a release ja criada.
+    for tentativa in range(3):
+        h = hashlib.sha256()
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "PAULUS-publicar"}), timeout=300) as r:
+                for bloco in iter(lambda: r.read(1 << 20), b""):
+                    h.update(bloco)
+            return h.hexdigest()
+        except (TimeoutError, OSError):
+            if tentativa == 2:
+                raise
+            time.sleep(10)
+    return ""
 
 
 def atualizar_site(v: str, url: str, sha: str, tamanho: int, novidades: list[str]) -> None:
@@ -219,6 +228,16 @@ def preparar(a) -> dict:
     """Versao, instalador e o teste de instalar. Guarda o estado para o enviar."""
     passo("conferindo commits")
     conferir_arvore()
+    # Um envio que caiu no meio (02/10: a conferencia do download passou do
+    # tempo, com a release ja criada) deixa o estado e o instalador provados.
+    # O mesmo instalador, na versao que esta no codigo, e retomado - montar
+    # outro daria "nada novo" contra a release que ficou pela metade.
+    if ESTADO.exists():
+        e = json.loads(ESTADO.read_text(encoding="utf-8"))
+        exe = Path(e.get("exe", ""))
+        if e.get("versao") == versao_atual() and exe.exists() and sha256_de(exe) == e.get("sha256"):
+            passo(f"retomando a {e['versao']} já preparada")
+            return e
     anterior = ultima_release()
     atual = versao_atual()
     if a.versao:
@@ -266,8 +285,17 @@ def enviar() -> dict:
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md", delete=False) as f:
         f.write(notas_da_release(v, e["novidades"], sha))
     try:
-        rodar(["gh", "release", "create", f"v{v}", str(exe), "-R", REPOSITORIO, "--target", "main",
-               "--title", f"PAULUS {v}", "--notes-file", f.name], tempo=1800)
+        # Retomada: a release ja criada nao e criada de novo; sem o instalador
+        # nela, ele sobe agora.
+        existe = subprocess.run(["gh", "release", "view", f"v{v}", "-R", REPOSITORIO, "--json", "assets"],
+                                capture_output=True, text=True, encoding="utf-8")
+        if existe.returncode == 0:
+            nomes = [x.get("name") for x in json.loads(existe.stdout or "{}").get("assets", [])]
+            if exe.name not in nomes:
+                rodar(["gh", "release", "upload", f"v{v}", str(exe), "-R", REPOSITORIO, "--clobber"], tempo=1800)
+        else:
+            rodar(["gh", "release", "create", f"v{v}", str(exe), "-R", REPOSITORIO, "--target", "main",
+                   "--title", f"PAULUS {v}", "--notes-file", f.name], tempo=1800)
     finally:
         os.unlink(f.name)
     url = f"https://github.com/{REPOSITORIO}/releases/download/v{v}/{exe.name}"
