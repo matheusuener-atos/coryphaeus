@@ -55,6 +55,9 @@ data/assinaturas.json
 data/conformidade/
 # Extratos de apoio gerados: nome e e-mail de quem apoia.
 data/apoio/
+# A nuvem (src/nuvem.py): o segredo da instalacao (chave-paulus.dpapi), o sim
+# do titular e o texto exato de cada envio - perguntas e trechos de documentos.
+data/nuvem/
 
 # Etapa 7. A sessao do navegador embutido guarda o token da conta de WhatsApp
 # do escritorio - versionar isso e entregar a conta. Comprovantes e lancamentos
