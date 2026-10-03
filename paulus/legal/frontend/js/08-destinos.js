@@ -39,6 +39,13 @@ const NOVOS_DESTINOS = {
     resolve: "Quanto o escritório usa da IA, quem usa, os limites de uso, o plano e a recarga.",
     precisa: [],
   },
+  // Notas fiscais (js/93-notas-fiscais.js): as NFS-e emitidas pelo
+  // escritorio e as recebidas do PAVLVS. So na janela do escritorio.
+  notas: {
+    id: "notas", nome: "Notas fiscais", pronta: true, abre: "notas",
+    resolve: "As NFS-e que o escritório emite para os clientes e as que recebe do PAVLVS pela assinatura.",
+    precisa: [],
+  },
   // B1: a Biblioteca (js/57-biblioteca.js) - obras e lembretes, as leis e
   // as súmulas que vêm com o PAULUS, e os tribunais. O id "biblioteca" já é
   // do Acervo no registro de destinos.
@@ -118,6 +125,7 @@ function abrirDestino(id) {
   if (d.abre === "gravacoes") return mostrarGravacoes("lista");
   if (d.abre === "agentes") return mostrarAgentes();
   if (d.abre === "consumo") return mostrarConsumo();
+  if (d.abre === "notas") return mostrarNotasFiscais();
   if (d.abre === "contexto") return mostrarBibliotecaContexto();
   if (!d.pronta) return telaAdiante(d);
   if (d.abre === "conversa") return voltarAoAssistente();

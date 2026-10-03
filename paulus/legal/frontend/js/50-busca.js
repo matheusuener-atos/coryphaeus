@@ -64,7 +64,7 @@ function acoesBsc() {
 const ICONE_DA_TELA_BSC = {
   conversa: "forum", servicos: "work", gravacoes: "mic", calendario: "calendar_month", foco: "self_improvement",
   biblioteca: "inventory_2", editor: "description", assinar: "draw", caixa: "mail", financeiro: "payments",
-  cadastros: "contacts", aprovacoes: "verified", config: "settings", consumo: "speed", planilha: "grid_view",
+  cadastros: "contacts", aprovacoes: "verified", config: "settings", consumo: "speed", notas: "receipt_long", planilha: "grid_view",
   organizar: "drive_file_move", tarefas: "task_alt", agendamento: "schedule", certificado: "workspace_premium",
   relatorios: "bar_chart", habilidades: "auto_awesome", conexoes: "hub", desempenho: "speed", aprendizado: "lightbulb",
   documentos: "description", email: "mail", ajuda: "help", leis: "menu_book", manual: "menu_book",

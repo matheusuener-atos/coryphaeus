@@ -103,6 +103,11 @@ TELAS_NAVEGAVEIS = {
                 "tokens.",
                 ("plano e consumo", "consumo", "consumo de tokens", "consumo da ia", "tokens", "meus tokens",
                  "meu plano", "limites de uso", "limite de tokens", "recarga de tokens", "upgrade do plano")),
+    "notas": ("Notas fiscais",
+              "As NFS-e do escritório: as emitidas para os clientes (com PDF, XML, cancelar e substituir) e as "
+              "recebidas do PAVLVS pela assinatura.",
+              ("notas fiscais", "nota fiscal", "notas emitidas", "notas recebidas", "nfs-e", "nfse",
+               "minhas notas fiscais", "lista de notas fiscais")),
     "agentes": ("Agentes",
                 "Os agentes do escritório - assistentes com instruções, fontes e ferramentas próprias - e as tarefas "
                 "de vários passos.",

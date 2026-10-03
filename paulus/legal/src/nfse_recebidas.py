@@ -71,7 +71,8 @@ def _limpa(n: dict) -> dict:
         valor = 0.0
     return {"id": str(n["id"]), "numero": str(n.get("numero") or ""), "competencia": str(n.get("competencia") or ""),
             "valor": valor, "descricao": str(n.get("descricao") or ""), "emitida_em": str(n.get("emitida_em") or ""),
-            "ambiente": str(n.get("ambiente") or ""), "cancelada": bool(n.get("cancelada"))}
+            "ambiente": str(n.get("ambiente") or ""), "cancelada": bool(n.get("cancelada")),
+            "substituida": bool(n.get("substituida"))}
 
 
 def arquivo(estado, id_: str, tipo: str) -> tuple[bytes, str, str]:

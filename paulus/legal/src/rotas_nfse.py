@@ -334,6 +334,21 @@ def montar(estado, app, dados_dir) -> None:
         return Response(pdf, media_type="application/pdf",
                         headers={"Content-Disposition": f'inline; filename="{nome}"'})
 
+    @app.get("/api/nfse/notas/{id_}/xml")
+    def nfse_nota_xml(id_: int):
+        """O XML da NFS-e emitida (o que a Sefin devolveu), como anexo. Tela Notas fiscais."""
+        from fastapi.responses import Response
+
+        nota = estado.nfse.notas.obter(id_)
+        if not nota or not nota.get("xml_nfse"):
+            raise HTTPException(status_code=404, detail="a nota ainda não foi emitida")
+        caminho = Path(nota["xml_nfse"])
+        if not caminho.exists():
+            raise HTTPException(status_code=404, detail="não achei o XML da nota emitida")
+        nome = f"NFS-e {nota['numero_nfse'] or nota['id']}.xml"
+        return Response(caminho.read_bytes(), media_type="application/xml",
+                        headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
+
     @app.post("/api/nfse/notas/{id_}/cancelar")
     def nfse_nota_cancelar(id_: int, payload: Motivo) -> dict:
         """Pede o cancelamento (vai para Aprovações; fora do prazo, explica)."""
