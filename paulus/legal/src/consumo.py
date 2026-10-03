@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 ALERTA = 0.8           # a partir daqui, a tela avisa que está perto do limite
 JANELA_MESMA_PERGUNTA_S = 180
@@ -220,7 +221,90 @@ def painel(estado) -> dict:
             alertas.append(f"O escritório está {'no' if gasto >= teto else 'perto do'} limite {rotulo}: "
                            f"{gasto:,} de {teto:,} tokens.".replace(",", "."))
     return {"ciclo": {"inicio": mes.isoformat(timespec="minutes"), "fim": fim}, "total": total, "hoje": gasto_hoje,
-            "pessoas": pessoas, "limites": lim, "alertas": alertas}
+            "pessoas": pessoas, "limites": lim, "alertas": alertas, "areas": _areas(linhas, mes, total)}
+
+
+def _areas(linhas: list[dict], desde: datetime, total: int) -> list[dict]:
+    """O consumo do ciclo por tarefa do registro (conversa, resumos, redação), da maior para a menor."""
+    import nuvem
+
+    por: dict[str, int] = {}
+    for d in linhas:
+        try:
+            if datetime.fromisoformat(str(d.get("quando", ""))[:19]) < desde:
+                continue
+        except ValueError:
+            continue
+        tarefa = str(d.get("tarefa") or "conversa")
+        por[tarefa] = por.get(tarefa, 0) + tokens_de(d)
+    return [{"tarefa": t, "nome": nuvem.TAREFAS.get(t, t), "tokens": n, "porcento": round(100 * n / total, 1) if total else 0.0}
+            for t, n in sorted(por.items(), key=lambda x: -x[1]) if n]
+
+
+# ------------------------------------------------------------- o extrato
+
+def extrato(estado) -> dict:
+    """
+    O extrato do ciclo: por área e por pessoa, o total e o custo pela conta do
+    plano (o valor do plano dividido pelos tokens dele) - não é a fatura, que
+    é a mensalidade.
+    """
+    import nuvem
+
+    p = painel(estado)
+    conta = (nuvem._CONTA_CACHE.get("dados") if hasattr(nuvem, "_CONTA_CACHE") else None) or {}
+    plano = conta.get("plano") or {}
+    por_milhao = None
+    if not conta.get("cortesia") and plano.get("valor") and plano.get("tokens"):
+        por_milhao = round(float(plano["valor"]) / float(plano["tokens"]) * 1e6, 2)
+    return {"ciclo": p["ciclo"], "total": p["total"], "areas": p["areas"],
+            "pessoas": [{"nome": x["nome"], "tokens": x["tokens"], "porcento": x["porcento"]} for x in p["pessoas"] if x["tokens"]],
+            "plano": str(plano.get("nome") or ""), "por_milhao": por_milhao,
+            "custo": round(p["total"] / 1e6 * por_milhao, 2) if por_milhao is not None else None}
+
+
+def _milhar(n) -> str:
+    return f"{int(n):,}".replace(",", ".")
+
+
+def _reais(v: float) -> str:
+    return "R$ " + f"{v:,.2f}".replace(",", "x").replace(".", ",").replace("x", ".")
+
+
+def html_do_extrato(e: dict, escapar) -> str:
+    """O extrato em HTML, para o gerador de PDF dos documentos."""
+    inicio = str(e["ciclo"].get("inicio") or "")[:10]
+    fim = str(e["ciclo"].get("fim") or "")[:10]
+    periodo = (f"{inicio[8:10]}/{inicio[5:7]}/{inicio[:4]}" if inicio else "") + \
+        (f" a {fim[8:10]}/{fim[5:7]}/{fim[:4]}" if fim else " até hoje")
+    linhas = ["<h1>Extrato de consumo da IA</h1>",
+              f"<p>Ciclo de {escapar(periodo)}" + (f" · plano {escapar(e['plano'])}" if e["plano"] else "") + ".</p>",
+              f"<p><b>Total: {_milhar(e['total'])} tokens</b>" +
+              (f"<br>Custo pela conta do plano: {_reais(e['custo'])} ({_reais(e['por_milhao'])} por milhão de tokens)" if e["custo"] is not None else "") +
+              "</p>"]
+    for titulo, itens in (("Por área", e["areas"]), ("Por pessoa", e["pessoas"])):
+        linhas.append(f"<h2>{titulo}</h2>")
+        if not itens:
+            linhas.append("<p>Nenhum envio à nuvem neste ciclo.</p>")
+            continue
+        linhas.append("<ul>" + "".join(f"<li>{escapar(x['nome'])}: {_milhar(x['tokens'])} tokens "
+                                       f"({str(x['porcento']).replace('.', ',')}%)</li>" for x in itens) + "</ul>")
+    linhas.append("<p><i>Quem gastou e em quê saem do registro de envios desta máquina; o total que vale para o plano é o "
+                  "de paulus.ia.br. O custo é a parte do valor do plano que esses tokens representam, não uma cobrança à parte.</i></p>")
+    return "".join(linhas)
+
+
+def gravar_pdf_do_extrato(estado, escapar) -> Path:
+    """O PDF do extrato no Acervo (Relatórios/Consumo da IA), um por dia: refazer no mesmo dia troca o do dia."""
+    import documento
+
+    e = extrato(estado)
+    pasta = Path(estado.pasta) / "Relatórios" / "Consumo da IA"
+    pasta.mkdir(parents=True, exist_ok=True)
+    arq = pasta / f"extrato-consumo-{date.today().isoformat()}.pdf"
+    arq.write_bytes(documento.para_pdf(documento.ler_html(html_do_extrato(e, escapar)), "Extrato de consumo da IA",
+                                       "PAULUS · extrato gerado nesta máquina"))
+    return arq
 
 
 def historico(estado, conta_id: int, dias: int = 31) -> list[dict]:
@@ -230,7 +314,8 @@ def historico(estado, conta_id: int, dias: int = 31) -> list[dict]:
     """
     desde = datetime.now() - timedelta(days=dias)
     interacoes: list[dict] = []
-    for d in ler(estado, desde):
+    # Pela hora, e nao pela ordem do arquivo: a triagem e a resposta precisam ficar lado a lado.
+    for d in sorted(ler(estado, desde), key=lambda x: str(x.get("quando", ""))):
         if pessoa_de(d) != conta_id:
             continue
         pergunta = str(d.get("pergunta") or d.get("titulo") or "").strip()

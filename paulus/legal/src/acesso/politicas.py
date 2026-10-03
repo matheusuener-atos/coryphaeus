@@ -423,6 +423,7 @@ _declarar(BLOQUEADO, "GET /api/nuvem", "POST /api/nuvem/chave", "GET /api/nuvem/
 # situacao que a caixa da pergunta usa (sem chave, sem conta).
 _declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "POST /api/nuvem/paulus/ativar",
           "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "POST /api/nuvem/paulus/plano", "GET /api/consumo", "GET /api/consumo/pessoa/{conta_id}", "POST /api/consumo/limites", "GET /api/nuvem/paulus/assinatura",
+          "GET /api/consumo/extrato", "POST /api/consumo/extrato/pdf", "GET /api/consumo/extrato/arquivo",
           "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}")
 _declarar(PERMITIDO, "GET /api/nuvem/situacao")
 # A IA faz parte da assinatura (src/plano.py): se ela esta liberada, e a frase

@@ -303,6 +303,38 @@ def montar(estado, app, dados_dir) -> None:
 
         return {"limites": consumo.guardar_limites(estado, payload or {}), "painel": consumo.painel(estado)}
 
+    @app.get("/api/consumo/extrato")
+    def consumo_extrato() -> dict:
+        """O extrato do ciclo: por area e por pessoa, o total e o custo pela conta do plano."""
+        import consumo
+
+        return consumo.extrato(estado)
+
+    @app.post("/api/consumo/extrato/pdf")
+    def consumo_extrato_pdf() -> dict:
+        """Grava o PDF do extrato no Acervo e devolve o caminho - o anexo do e-mail e o nome para baixar."""
+        import html as _html
+
+        import consumo
+
+        try:
+            arq = consumo.gravar_pdf_do_extrato(estado, _html.escape)
+        except Exception as exc:  # noqa: BLE001 - a tela diz o que houve
+            raise HTTPException(status_code=500, detail=f"não consegui gerar o PDF: {exc}") from exc
+        if hasattr(estado, "recarregar_em_segundo_plano"):
+            estado.recarregar_em_segundo_plano()
+        return {"path": str(arq), "nome": arq.name, "mb": round(arq.stat().st_size / (1024 * 1024), 2)}
+
+    @app.get("/api/consumo/extrato/arquivo")
+    def consumo_extrato_arquivo(nome: str):
+        """Baixar um PDF do extrato (so da pasta do extrato)."""
+        from fastapi.responses import FileResponse
+
+        alvo = Path(estado.pasta) / "Relatórios" / "Consumo da IA" / Path(nome).name
+        if alvo.suffix.lower() != ".pdf" or not alvo.is_file():
+            raise HTTPException(status_code=404, detail="arquivo não encontrado")
+        return FileResponse(alvo, media_type="application/pdf", filename=alvo.name)
+
     @app.get("/api/nuvem/paulus/recarga/{pedido}")
     def nuvem_paulus_recarga_situacao(pedido: str) -> dict:
         if not pedido.replace("-", "").replace("_", "").isalnum():

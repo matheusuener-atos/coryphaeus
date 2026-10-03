@@ -114,9 +114,49 @@ def main() -> int:
             nuvem.ligada, nuvem.usa = original_ligada, original_usa
             consumo.guardar_limites(e, {"diario": 0, "mensal": 0, "pessoas": {}})
 
+        print("\no extrato")
+        _linhas(e, [
+            {"quando": h(minutes=30), "tarefa": "conversa", "trabalho_id": "t1", "pessoa": {"conta_id": 2, "nome": "João"},
+             "pergunta": "Elabore", "tokens_entrada": 6000, "tokens_saida": 0},
+            {"quando": h(minutes=20), "tarefa": "resumos", "pessoa": {"conta_id": 3, "nome": "Maria"},
+             "pergunta": "Resumos", "tokens_entrada": 3000, "tokens_saida": 1000},
+        ])
+        areas = {a["tarefa"]: a for a in consumo.painel(e)["areas"]}
+        checar(areas["conversa"]["tokens"] == 6000 and areas["resumos"]["tokens"] == 4000 and areas["conversa"]["porcento"] == 60.0,
+               "o consumo do ciclo por área (tarefa do registro)", areas)
+        checar(areas["resumos"]["nome"] == nuvem.TAREFAS["resumos"], "a área tem o nome da tarefa", areas["resumos"])
+        cache = dict(nuvem._CONTA_CACHE)
+        nuvem._CONTA_CACHE["dados"] = {"plano": {"nome": "Escritório", "valor": 300, "tokens": 30_000_000}}
+        try:
+            ex = consumo.extrato(e)
+            checar(ex["total"] == 10000 and ex["por_milhao"] == 10.0 and ex["custo"] == 0.1 and ex["plano"] == "Escritório",
+                   "o custo pela conta do plano: R$ 300 / 30 mi = R$ 10 por milhão", ex)
+            checar([p["nome"] for p in ex["pessoas"]] == ["João", "Maria"], "por pessoa, só quem gastou, de quem gasta mais", ex["pessoas"])
+            nuvem._CONTA_CACHE["dados"] = {"cortesia": True, "plano": {"nome": "Escritório", "valor": 300, "tokens": 30_000_000}}
+            checar(consumo.extrato(e)["custo"] is None, "na cortesia, sem custo")
+            import html as _html
+            arq = consumo.gravar_pdf_do_extrato(e, _html.escape)
+            checar(arq.is_file() and arq.read_bytes()[:4] == b"%PDF" and arq.parent.name == "Consumo da IA",
+                   "o PDF do extrato vai para o Acervo, em Relatórios › Consumo da IA", str(arq))
+            texto = consumo.html_do_extrato(ex, _html.escape)
+            checar("não uma cobrança à parte" in texto and "6.000 tokens" in texto, "o texto do extrato diz o que o custo é", texto[:200])
+        finally:
+            nuvem._CONTA_CACHE.clear()
+            nuvem._CONTA_CACHE.update(cache)
+
         print("\nas rotas")
         rotas = {f"{m} {r.path}" for r in api.app.routes for m in getattr(r, "methods", [])}
-        checar({"GET /api/consumo", "GET /api/consumo/pessoa/{conta_id}", "POST /api/consumo/limites"} <= rotas, "a tela tem as três rotas")
+        checar({"GET /api/consumo", "GET /api/consumo/pessoa/{conta_id}", "POST /api/consumo/limites", "GET /api/consumo/extrato",
+                "POST /api/consumo/extrato/pdf", "GET /api/consumo/extrato/arquivo"} <= rotas, "a tela tem as seis rotas")
+        from fastapi.testclient import TestClient
+        cli = TestClient(api.app, headers=api.cabecalho_local())
+        r = cli.post("/api/consumo/extrato/pdf")
+        checar(r.status_code == 200 and r.json()["nome"].startswith("extrato-consumo-"), "a rota grava o PDF", r.text[:200])
+        if r.status_code == 200:
+            b = cli.get("/api/consumo/extrato/arquivo", params={"nome": r.json()["nome"]})
+            checar(b.status_code == 200 and b.content[:4] == b"%PDF", "e o PDF se baixa", b.status_code)
+        checar(cli.get("/api/consumo/extrato/arquivo", params={"nome": "../preferencias.json"}).status_code == 404,
+               "baixar só da pasta do extrato")
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "=" * 55)
