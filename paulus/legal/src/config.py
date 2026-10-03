@@ -246,6 +246,11 @@ PADRAO: dict = {
                  # `relacionados` (N7): embaixo da resposta, os temas e sumulas
                  # ligados aos artigos citados e a posicao da casa - por regra.
                  "relacionados": True},
+    # A profundidade (src/profundidade.py): o nivel que vale quando a caixa da
+    # pergunta nao diz (Estagiario ... Ministro); `entrevista`: entender o
+    # pedido de trabalho antes de executar (src/entrevista.py); `modelos`: um
+    # modelo da nuvem por nivel, se o escritorio quiser (vazio: o de Modelos).
+    "profundidade": {"padrao": "advogado", "entrevista": True, "modelos": {}},
     # Pensar no aparelho (docs/PROGRESSO-APARELHO.md). `fila` (F1): toda
     # chamada ao modelo entra na fila unica, com a origem; a pergunta mandada
     # com outra andando fica na conversa e vai sozinha; Ctrl+Enter pede

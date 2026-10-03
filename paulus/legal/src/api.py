@@ -139,6 +139,9 @@ import jurisprudencia as jurisprudencia_mod
 import nuvem as nuvem_mod
 import publico as publico_mod
 import triagem as triagem_mod
+import profundidade as profundidade_mod
+import entrevista as entrevista_mod
+import elaboracao as elaboracao_mod
 import vigencia as vigencia_mod
 import perfis as perfis_mod
 import fila_de_todos
@@ -149,6 +152,7 @@ from habilidade_base import (
     PRECISA_ASSISTENTE,
     PRECISA_DOCUMENTOS,
     Contexto,
+    Ponte,
 )
 from extract import (SUPPORTED_SUFFIXES, chave_do_caminho, extract_file, file_sha1, index_all_contracts,
                      listar_arquivos, motivo_sem_texto)
@@ -1152,6 +1156,16 @@ class Pergunta(BaseModel):
     # D4: como a pessoa decidiu no seletor, quando a resposta e do escritorio
     # ("escritorio", "fila", "automatico") - so para a resposta dizer por que.
     escolha: str = ""
+    # O quanto o PAULUS trabalha o pedido (src/profundidade.py): "estagiario"
+    # ... "ministro"; vazio, o padrao do escritorio.
+    profundidade: str = ""
+    # As respostas ao modulo de perguntas (src/entrevista.py): {"id" da
+    # entrevista, "acao": "responder"|"continuar"|"decidir", "respostas":
+    # [{"id", "resposta", "modo"}], "explicacao"}.
+    entrevista: dict | None = None
+    # "Perguntar antes de trabalhar", desligado na caixa: o pedido de trabalho
+    # executa direto. Nulo: o que esta em Configuracoes (profundidade.entrevista).
+    perguntar: bool | None = None
 
 
 class Busca(BaseModel):
@@ -3730,8 +3744,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # N15: a nuvem - so na janela do escritorio, ligada e com a chave (src/nuvem.py).
     # O Envio confere tudo de novo depois da busca, com os trechos na mao.
     envio_nuvem = None
+    # A profundidade escolhida na caixa (src/profundidade.py), ou o padrao do escritorio.
+    nivel_prof = profundidade_mod.obter(payload.profundidade, estado.prefs.dados)
     if payload.nuvem and escrita_no_aparelho is None:
         envio_nuvem = nuvem_mod.Envio(estado, trabalho, pessoa=rotas_do_acesso.pessoa(request))
+        envio_nuvem.profundidade = nivel_prof.id
 
     habilidade = estado.registro.obter("perguntar")
     if not habilidade or not habilidade.executavel:
@@ -3740,9 +3757,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     pergunta = payload.pergunta.strip()
     # A2: o agente desta pergunta (src/agente_na_conversa.py), por regra - o
     # que a pessoa escolheu, "@Nome", exemplos e palavras; o juiz so desempata.
+    # As respostas ao modulo de perguntas (src/entrevista.py) nao chamam agente.
     agente = None
     agente_como = ""
-    if rotas_execucoes.ligada(estado, "agentes") and getattr(estado, "agentes", None) is not None:
+    if (payload.entrevista is None and rotas_execucoes.ligada(estado, "agentes")
+            and getattr(estado, "agentes", None) is not None):
         try:
             ativos = estado.agentes.ativos()
         except Exception:  # noqa: BLE001 - agente com problema nao para a conversa
@@ -3770,6 +3789,16 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         ultima = trabalho.mensagens[-1] if trabalho.mensagens else None
     if not (payload.retomar and ultima and ultima.autor == "pessoa" and ultima.texto.strip() == pergunta):
         trabalho.dizer("pessoa", pergunta, quem=equipe.quem(request, estado.prefs.dados)["nome"])
+
+    # A entrevista aberta nesta conversa (src/entrevista.py): as respostas do
+    # modulo, ou o texto livre que responde a ele ("quero explicar com minhas
+    # palavras" e so continuar conversando). Outra pergunta, claramente outra
+    # coisa, segue o caminho de sempre - e as perguntas ficam para depois.
+    pendente = entrevista_mod.aberta(trabalho.contexto)
+    if agente is None and (payload.entrevista is not None or (
+            pendente and not payload.retomar and not payload.apenas
+            and not entrevista_mod.parece_outro_assunto(pergunta, pendente.get("pedido", "")))):
+        return _seguir_entrevista(trabalho, payload, pergunta, pendente, request, dono, nivel_prof)
 
     # A memoria da conversa (I4, src/memoria.py): "e a multa?" herda o sujeito
     # da pergunta anterior, por regra, e os dois ultimos pares vao junto para
@@ -3837,6 +3866,24 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         salvar_no_editor, pergunta = intencao.salvar_no_editor(pergunta)
         acao_depois, pergunta = intencao.acao_anexa(pergunta, documentos=estado.searcher.documents,
                                                    cadastros=[f["nome"] for f in estado.cadastros.listar()])
+    # Pedido de TRABALHO - elaborar, revisar ou adaptar uma peca (por regra,
+    # src/entrevista.py): entender antes de executar, e executar na
+    # profundidade escolhida (src/elaboracao.py). Vai pela nuvem; sem ela, ou
+    # com o sim pedido a cada envio, segue o caminho de sempre.
+    if (lido.tipo == "documentos" and agente is None and envio_nuvem is not None and acao_depois is None
+            and entrevista_mod.e_trabalho(pergunta) and plano_mod.liberada(estado)):
+        anexos = (list(payload.apenas or []) or list(explicito or [])
+                  or (list(citado or []) if re.search(r"(?i)\b(este|esta|esse|essa|anexo|anexad[oa]|referid[oa]|acima)\b",
+                                                      pergunta) else []))
+        caminhos = [d.path for d in estado.searcher.documents if d.name in anexos]
+        motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, rotas_do_acesso.pessoa(request), caminhos)
+        if not motivo:
+            estado_e = entrevista_mod.novo_estado(pergunta, nivel_prof.id, anexos)
+            estado_e["inicio"] = max(0, len(trabalho.mensagens) - 1)
+            return _responder_trabalho(trabalho, request, dono, nivel_prof, estado_e, salvar_no_editor=salvar_no_editor,
+                                       forcar_execucao=payload.perguntar is False)
+        trabalho.registrar("O trabalho em etapas ficou para o caminho de sempre: " + motivo,
+                           mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
@@ -4352,6 +4399,9 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
             cobertura["como"]["nuvem"] = envio_nuvem.resumo()
             if envio_nuvem.foi:
                 cobertura["como"]["modelo"] = f"{envio_nuvem.nome_do_provedor} · {envio_nuvem.modelo}"
+                # A profundidade com que a nuvem respondeu (src/profundidade.py).
+                _prof = profundidade_mod.obter(envio_nuvem.profundidade, estado.prefs.dados)
+                cobertura["como"]["profundidade"] = {"nivel": _prof.id, "nome": _prof.nome}
         if triagem:
             cobertura["como"]["triagem"] = {"assunto": triagem["assunto"], "documentos": triagem["documentos"],
                                             "dispositivos": [f"{c}:{n}" for c, n in triagem["dispositivos"]],
@@ -4495,6 +4545,24 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
         pedido = next((p for p in estado.fila.pendentes if p.id == payload.pedido_id), None)
         if pedido is None:
             raise HTTPException(status_code=409, detail="este pedido já foi decidido em Aprovações")
+    # O trabalho redigido (src/elaboracao.py) vai para o Editor de texto: a
+    # ultima resposta com o cartao "levar ao editor", como rascunho ligado a
+    # esta conversa (o mesmo do "...e salve no editor").
+    if payload.tipo == "levar_ao_editor":
+        msg = next((m for m in reversed(trabalho.mensagens)
+                    if m.autor == "paulus" and (m.proposta or {}).get("tipo") in ("levar_ao_editor", "editor_criado")), None)
+        if msg is None or not (msg.texto or "").strip():
+            raise HTTPException(status_code=404, detail="não achei o texto do trabalho nesta conversa")
+        if msg.feito and msg.feito.get("tipo") == "editar":
+            return {"proposta": {"tipo": "editor_criado", "titulo": msg.feito.get("nome", ""),
+                                 "campos": {"id": msg.feito["id"], "titulo": msg.feito.get("nome", "")}}}
+        criado = _resposta_no_editor(trabalho, "", msg.texto, None,
+                                     titulo=str(campos.get("titulo") or (msg.proposta or {}).get("titulo") or "Trabalho"))
+        if not criado:
+            raise HTTPException(status_code=500, detail="não consegui criar o rascunho no editor")
+        msg.feito = {"tipo": "editar", "id": criado["campos"]["id"], "nome": criado["campos"]["titulo"]}
+        estado.trabalhos.salvar(trabalho)
+        return {"proposta": criado}
     try:
         if payload.tipo == "abrir":
             nome = str(campos.get("nome", ""))
@@ -5496,22 +5564,38 @@ def _proposta_da_acao(lido, pergunta: str) -> dict:
     return proposta
 
 
-def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None) -> dict | None:
-    """
-    "Resuma a procuração e salve no editor": a resposta vira um rascunho no
-    Editor de texto. Devolve o cartão que abre o rascunho, ou None.
-    """
-    import citacoes
+def _paragrafo_do_editor(p: str) -> str:
+    """Uma linha do texto do modelo no editor: "# Título" vira título, "**x**" vira negrito, "---" some."""
     import html as _html
 
+    p = " ".join(p.split())
+    if re.fullmatch(r"-{3,}|\*{3,}|_{3,}", p):
+        return ""
+    cabeca = re.match(r"(#{1,4})\s+(.*)", p)
+    nivel = len(cabeca.group(1)) + 1 if cabeca else 0
+    p = cabeca.group(2) if cabeca else p
+    corpo = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _html.escape(p))
+    return f"<h{min(nivel, 4)}>{corpo}</h{min(nivel, 4)}>" if nivel else "<p>" + corpo + "</p>"
+
+
+def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None, titulo: str = "") -> dict | None:
+    """
+    "Resuma a procuração e salve no editor": a resposta vira um rascunho no
+    Editor de texto. Devolve o cartão que abre o rascunho, ou None. Com
+    `titulo` (o trabalho redigido, src/elaboracao.py), o nome é ele.
+    """
+    import citacoes
+
     limpo = citacoes.RE_MARCA.sub("", texto).replace(citacoes.SEM_FONTE, "")
-    paragrafos = [" ".join(p.split()) for p in re.split(r"\n\s*\n|\n", limpo) if p.strip()]
-    corpo = "".join("<p>" + _html.escape(p) + "</p>" for p in paragrafos)
+    paragrafos = [p for p in re.split(r"\n\s*\n|\n", limpo) if p.strip()]
+    corpo = "".join(_paragrafo_do_editor(p) for p in paragrafos)
     nomes = list(trabalho.contexto.get("documento_em_foco") or [])
     base = Path(nomes[0]).stem if len(nomes) == 1 else ""
     m = re.match(r"(?i)\s*(?:resuma|resume|resumir|fa[çc]a um resumo d[oae]s?|faz um resumo d[oae]s?)\s+(?:o\s+|a\s+|os\s+|as\s+)?(.+)",
                  pergunta)
-    if m:
+    if titulo:
+        titulo = titulo[:1].upper() + titulo[1:]
+    elif m:
         # "resuma a procuração da COOBRAMEX" -> "Resumo — procuração da COOBRAMEX"
         titulo = "Resumo — " + (base or m.group(1).strip().rstrip(".?!"))
     else:
@@ -5844,6 +5928,306 @@ def _perguntar_qual_documento(trabalho, pergunta: str, substantivo: str, nomes: 
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ------------------------------------------------- o trabalho: entender e executar
+# (src/entrevista.py, src/elaboracao.py, src/profundidade.py - 03/10/2026)
+
+
+def _seguir_entrevista(trabalho, payload: Pergunta, pergunta: str, pendente, request, dono: str, nivel):
+    """
+    A pessoa respondeu ao modulo de perguntas (ou escreveu, com ele aberto,
+    algo que responde a ele): as respostas entram na entrevista, e uma nova
+    rodada decide se ainda falta algo ou se ja da para executar. "Continuar com
+    o que temos" e "Decida por mim" executam direto.
+    """
+    e = payload.entrevista or {}
+    if pendente is None or (e.get("id") and e.get("id") != pendente.get("id")):
+        return _so_dizer(trabalho, "Esse módulo de perguntas já foi encerrado. Se quiser outro trabalho, é só pedir.")
+    pessoa = rotas_do_acesso.pessoa(request)
+    caminhos = [d.path for d in estado.searcher.documents if d.name in (pendente.get("anexos") or [])]
+    motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, pessoa, caminhos)
+    if not motivo and not payload.nuvem:
+        motivo = "a pergunta foi marcada para ficar neste computador"
+    if motivo:
+        return _so_dizer(trabalho, "Para continuar este trabalho em etapas eu preciso da nuvem, e " + motivo
+                         + ". As respostas ficaram guardadas: quando der, é só responder de novo ou pedir de novo.")
+    if not plano_mod.liberada(estado):
+        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+    # O nivel desta mensagem vale: a pessoa pode ter subido no meio da entrevista.
+    pendente["nivel"] = nivel.id
+    acao = str(e.get("acao") or "") if payload.entrevista is not None else "explicar"
+    if payload.entrevista is not None:
+        entrevista_mod.juntar_respostas(pendente, e.get("respostas") or [], str(e.get("explicacao") or ""))
+    else:
+        entrevista_mod.juntar_respostas(pendente, [], pergunta)
+    if acao == "decidir":
+        respondidas = {r.get("id") for r in pendente["respostas"]}
+        for q in pendente.get("perguntas") or []:
+            if q["id"] not in respondidas:
+                pendente["respostas"].append({"id": q["id"], "pergunta": q["pergunta"], "resposta": "", "modo": "decida"})
+    # O cartao da rodada fica respondido: a conversa reaberta nao o oferece de novo.
+    for m in reversed(trabalho.mensagens):
+        p = m.proposta or {}
+        if p.get("tipo") == "entrevista" and p.get("entrevista_id") == pendente["id"] and not p.get("respondida"):
+            p["respondida"] = True
+            p["acao"] = acao
+            break
+    return _responder_trabalho(trabalho, request, dono, nivel, pendente, forcar_execucao=acao in ("continuar", "decidir"),
+                               mensagem_nova="" if payload.entrevista is not None else pergunta)
+
+
+def _historico_antes(trabalho, ate: int) -> list[dict]:
+    """Os dois ultimos pares da conversa antes do pedido, para o modelo saber do que se falava."""
+    saida = []
+    for m in trabalho.mensagens[:max(0, ate)][-4:]:
+        texto = (m.texto or "").strip()
+        if texto:
+            saida.append({"role": "user" if m.autor == "pessoa" else "assistant", "content": texto[:2000]})
+    return saida
+
+
+def _documentos_do_trabalho(nomes, limite: int) -> list[tuple[str, str]]:
+    """O texto dos documentos anexados, inteiro ate o limite do nivel (dividido entre eles)."""
+    docs = [d for d in estado.searcher.documents if d.name in (nomes or [])][:4]
+    if not docs:
+        return []
+    cota = max(4000, limite // len(docs))
+    saida = []
+    for d in docs:
+        texto = d.text or ""
+        saida.append((d.name, texto if len(texto) <= cota else texto[:cota] + "\n[… o resto do documento não coube]"))
+    return saida
+
+
+def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, forcar_execucao: bool = False,
+                        mensagem_nova: str = "", salvar_no_editor: bool = False):
+    """
+    Entender, e so entao executar. Uma rodada da entrevista (src/entrevista.py)
+    decide se pergunta - o modulo de perguntas vai como cartao, e a conversa
+    espera as respostas - ou se executa: a elaboracao nas etapas do nivel
+    (src/elaboracao.py), com o texto chegando a tela enquanto e escrito.
+    """
+    import time
+
+    id_ = trabalho.id
+    pessoa = rotas_do_acesso.pessoa(request)
+    historico = _historico_antes(trabalho, int(estado_e.get("inicio") or 0))
+    documentos = _documentos_do_trabalho(estado_e.get("anexos") or [], nivel.documento_caracteres)
+    perguntar_antes = (profundidade_mod.entrevista_ligada(estado.prefs.dados) and not forcar_execucao)
+    trabalho.contexto["entrevista"] = estado_e
+    trabalho.contexto["profundidade"] = nivel.id
+    if estado_e.get("anexos"):
+        trabalho.contexto["documento_em_foco"] = list(estado_e["anexos"])
+    trabalho.etapas = [Etapa("Entender o pedido", estado=EXECUTANDO if perguntar_antes else CONCLUIDO)]
+    trabalho.estado = EXECUTANDO
+    estado.trabalhos.salvar(trabalho)
+    parar = threading.Event()
+    estado.respondendo[id_] = parar
+
+    def registrar(texto: str) -> None:
+        trabalho.registrar(texto, mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
+
+    def etapas_sse() -> str:
+        return _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
+
+    def gerar() -> Iterator[str]:
+        try:
+            yield from _gerar()
+        finally:
+            estado.andamento.pop(id_, None)
+            if estado.respondendo.get(id_) is parar:
+                del estado.respondendo[id_]
+            if trabalho.estado == EXECUTANDO:
+                for etapa in trabalho.etapas:
+                    if etapa.estado == EXECUTANDO:
+                        etapa.estado = PAUSADO
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+
+    def _gerar() -> Iterator[str]:
+        inicio = time.time()
+        andamento = {"fase": "entendendo", "inicio": inicio, "desde": inicio, "previsao_s": 0, "palavras": 0,
+                     "documentos": len(documentos), "caracteres": 0}
+        estado.andamento[id_] = andamento
+        como = {"caminho": "trabalho", "modelo": "", "documentos": len(documentos),
+                "profundidade": {"nivel": nivel.id, "nome": nivel.nome, "rodada": int(estado_e.get("rodada") or 0)},
+                "escopo": {"apenas": list(estado_e.get("anexos") or []), "tudo": False, "sem_anexo": False}}
+        yield etapas_sse()
+        yield _sse("profundidade", {"nivel": nivel.id, "nome": nivel.nome})
+        avaliacao = None
+        if perguntar_antes:
+            registrar(f"Entendendo o pedido antes de trabalhar ({nivel.nome})")
+            yield _sse("pensando", {"texto": "Entendendo o pedido…"})
+            ponte = Ponte(lambda _empurrar: entrevista_mod.avaliar(
+                estado, estado_e, nivel, trabalho=trabalho, pessoa=pessoa, documentos=documentos, historico=historico,
+                mensagem_nova=mensagem_nova, parar=parar.is_set), parar=parar.is_set)
+            for _ in ponte:
+                pass
+            if parar.is_set():
+                trabalho.estado = PAUSADO
+                estado.trabalhos.salvar(trabalho)
+                yield _sse("parado", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo,
+                                      "escreveu": False})
+                return
+            avaliacao = ponte.resultado
+            if avaliacao is None:
+                registrar("Não consegui avaliar o pedido na nuvem agora; sigo com o que ele diz")
+            elif avaliacao.get("outro_assunto") and mensagem_nova:
+                # O texto livre era outra coisa: as perguntas ficam para depois.
+                trabalho.etapas[0].estado = CONCLUIDO
+                trabalho.estado = CONCLUIDO
+                frase = ("Isso parece outro assunto. Deixei as perguntas sobre "
+                         + (estado_e.get("trabalho") or "o trabalho") + " para depois - responda ao cartão quando "
+                         "quiser. Mande a pergunta de novo que eu respondo por ela.")
+                estado_e["explicacoes"] = estado_e["explicacoes"][:-1]
+                trabalho.dizer("paulus", frase)
+                estado.trabalhos.salvar(trabalho)
+                yield _sse("token", {"t": frase})
+                yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo})
+                return
+            else:
+                entrevista_mod.aplicar(estado_e, avaliacao)
+            como["profundidade"]["rodada"] = int(estado_e.get("rodada") or 0)
+            if avaliacao and avaliacao["decisao"] == "perguntar":
+                nomes_cadastros = [f["nome"] for f in estado.cadastros.listar()][:80]
+                proposta = entrevista_mod.proposta(estado_e, avaliacao, nivel, cadastros=nomes_cadastros,
+                                                   documentos=[d.name for d in estado.searcher.documents][:80])
+                abertura = avaliacao.get("abertura") or "Antes de começar, preciso definir alguns pontos que mudam o trabalho."
+                trabalho.etapas[0].estado = CONCLUIDO
+                trabalho.etapas[0].detalhe = f"{len(avaliacao['perguntas'])} ponto(s) a definir"
+                trabalho.estado = CONCLUIDO
+                como["profundidade"]["perguntas"] = len(avaliacao["perguntas"])
+                trabalho.dizer("paulus", abertura, proposta=proposta, segundos=round(time.time() - inicio, 1),
+                               cobertura={"como": como})
+                estado.trabalhos.salvar(trabalho)
+                yield etapas_sse()
+                yield _sse("token", {"t": abertura})
+                yield _sse("proposta", proposta)
+                yield _sse("fim", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "como": como})
+                return
+            trabalho.etapas[0].estado = CONCLUIDO
+        # Executar: a entrevista se fecha, e a elaboracao comeca.
+        estado_e["status"] = "executada"
+        if trabalho.titulo in ("Nova conversa", "") or not trabalho.titulo:
+            trabalho.titulo = titular(estado_e.get("pedido") or "Trabalho")
+        abertura = ((avaliacao or {}).get("abertura") or "").strip()
+        prefixo = (abertura + "\n\n") if abertura else ""
+        trabalho.etapas += [Etapa(elaboracao_mod.TITULOS[e]) for e in nivel.etapas]
+        estado.trabalhos.salvar(trabalho)
+        yield etapas_sse()
+        partes: list[str] = [prefixo] if prefixo else []
+        if prefixo:
+            yield _sse("token", {"t": prefixo})
+        andamento["fase"] = "escrevendo"
+        fim: dict = {}
+        briefing = entrevista_mod.briefing(estado_e)
+        try:
+            for tipo, dados in elaboracao_mod.elaborar(estado, trabalho=trabalho, pedido=estado_e.get("pedido", ""),
+                                                        briefing=briefing, nivel=nivel, documentos=documentos,
+                                                        pessoa=pessoa, parar=parar.is_set, historico=historico):
+                if parar.is_set():
+                    break
+                if tipo == "etapa":
+                    alvo = next((x for x in trabalho.etapas[1:] if x.titulo == elaboracao_mod.TITULOS.get(dados["id"])), None)
+                    if alvo is not None:
+                        alvo.estado = EXECUTANDO if dados["estado"] == "executando" else CONCLUIDO
+                        alvo.detalhe = dados.get("detalhe") or ""
+                        yield etapas_sse()
+                    if dados["estado"] == "executando":
+                        yield _sse("pensando", {"texto": dados["titulo"] + "…"})
+                elif tipo == "nota":
+                    registrar(dados["texto"][:1].upper() + dados["texto"][1:])
+                    yield _sse("nota", dados)
+                elif tipo == "token":
+                    partes.append(dados["t"])
+                    if len(partes) % 10 == 0:
+                        andamento["palavras"] = len("".join(partes).split())
+                    yield _sse("token", dados)
+                elif tipo == "reescrevendo":
+                    partes[:] = [prefixo] if prefixo else []
+                    yield _sse("reescrevendo", dados)
+                    if prefixo:
+                        yield _sse("token", {"t": prefixo})
+                elif tipo == "substituir":
+                    partes[:] = [prefixo + dados["texto"]]
+                    yield _sse("substituir", {"texto": prefixo + dados["texto"]})
+                elif tipo == "fim":
+                    fim = dados
+        except nuvem_mod.ErroNuvem as exc:
+            escrito = "".join(partes).strip()
+            segundos = round(time.time() - inicio, 1)
+            for etapa in trabalho.etapas:
+                if etapa.estado == EXECUTANDO:
+                    etapa.estado = "falhou"
+            if escrito and len(escrito) > len(prefixo.strip()) + 20:
+                trabalho.estado = PAUSADO
+                trabalho.dizer("paulus", escrito, segundos=segundos, interrompida=True, cobertura={"como": como})
+            else:
+                trabalho.estado = "falhou"
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"mensagem": "a nuvem parou no meio do trabalho: " + str(exc)})
+            return
+        segundos = round(time.time() - inicio, 1)
+        if parar.is_set() or not fim:
+            escrito = "".join(partes).strip()
+            for etapa in trabalho.etapas:
+                if etapa.estado == EXECUTANDO:
+                    etapa.estado = PAUSADO
+            trabalho.estado = PAUSADO
+            if escrito:
+                trabalho.dizer("paulus", escrito, segundos=segundos, interrompida=True, cobertura={"como": como})
+            estado.trabalhos.salvar(trabalho)
+            yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(escrito)})
+            return
+        texto = (prefixo + fim["texto"]).strip()
+        # Os artigos citados conferidos na base de leis (src/citacoes.py): num
+        # documento redigido, nada e apagado - o que nao se achou vai para a
+        # pessoa conferir.
+        conferir = []
+        try:
+            import citacoes
+
+            rev = citacoes.revisar(fim["texto"], [], leis=estado.leis, pergunta=estado_e.get("pedido", ""))
+            conferir = [" ".join(str(r).split())[:160] for r in (rev.removidas or [])
+                        if re.search(r"(?i)\bart(?:igo)?s?\b\.?", str(r))][:8]
+        except Exception:  # noqa: BLE001 - sem a conferencia, o texto vale igual
+            conferir = []
+        como.update({"modelo": f"{fim.get('provedor') or 'nuvem'} · {fim.get('modelo') or ''}".strip(" ·"),
+                     "nuvem": {"onde": "nuvem", "provedor": fim.get("provedor", ""), "modelo": fim.get("modelo", ""),
+                               "tokens_entrada": fim["tokens"]["entrada"], "tokens_saida": fim["tokens"]["saida"]}})
+        como["profundidade"].update({"etapas": fim.get("etapas") or [], "revisao": fim.get("revisao") or {},
+                                     "tokens": fim["tokens"]["entrada"] + fim["tokens"]["saida"],
+                                     "conferir": conferir, "premissas": list(estado_e.get("premissas") or []),
+                                     "respostas": len(estado_e.get("respostas") or [])})
+        for etapa in trabalho.etapas:
+            if etapa.estado == EXECUTANDO:
+                etapa.estado = CONCLUIDO
+        trabalho.estado = CONCLUIDO
+        oferta = {"tipo": "levar_ao_editor", "titulo": estado_e.get("trabalho") or titular(estado_e.get("pedido") or ""),
+                  "campos": {}, "porque": "", "falta": "", "pergunta": estado_e.get("pedido", ""),
+                  "nivel_nome": nivel.nome, "etapas": fim.get("etapas") or [], "revisao": fim.get("revisao") or {},
+                  "conferir": conferir}
+        feito = None
+        if salvar_no_editor:
+            feito = _resposta_no_editor(trabalho, estado_e.get("pedido", ""), texto, request, titulo=oferta["titulo"])
+            if feito:
+                oferta = feito
+        trabalho.dizer("paulus", texto, segundos=segundos, cobertura=_como_pensou(id_, {"como": como}), proposta=oferta,
+                       **({"feito": {"tipo": "editar", "id": feito["campos"]["id"], "nome": feito["campos"]["titulo"]}}
+                          if feito else {}))
+        estado.trabalhos.salvar(trabalho)
+        resumo = " ".join(texto.split())
+        avisos.avisar("resposta", "Trabalho pronto · " + (trabalho.titulo or "Conversa")[:60],
+                      resumo[:140] + ("…" if len(resumo) > 140 else ""))
+        yield etapas_sse()
+        yield _sse("fim", {"segundos": segundos, "titulo": trabalho.titulo, "como": como})
+        yield _sse("oferta", oferta)
+
+    if rotas_execucoes.ligada(estado, "execucao"):
+        return rotas_execucoes.rodar_conversa(estado, id_, dono, gerar())
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 def _perguntar_onde_procurar(trabalho, pergunta: str, foco: list[str]) -> StreamingResponse:

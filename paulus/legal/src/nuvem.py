@@ -714,6 +714,9 @@ class Envio:
         self.uso: dict = {}
         self.caracteres = 0
         self.documentos: list[str] = []
+        # A profundidade escolhida na caixa da pergunta (src/profundidade.py):
+        # a instrução do nível, o teto da resposta e, se o escritório quis, o modelo.
+        self.profundidade = ""
 
     @property
     def nome_do_provedor(self) -> str:
@@ -760,6 +763,12 @@ class Envio:
         # sabia a data de hoje (bateria de 02/10/2026).
         import instrucao_nuvem
 
+        import profundidade as profundidade_mod
+
+        if self.profundidade:
+            nivel = profundidade_mod.obter(self.profundidade, self.estado.prefs.dados)
+            self.modelo = profundidade_mod.modelo_do_nivel(self.estado.prefs.dados, nivel, self.modelo)
+            regra = ((regra or "").strip() + "\n\n" + profundidade_mod.INSTRUCAO_RESPOSTA[nivel.id]).strip()
         mensagens = instrucao_nuvem.montar_mensagens(
             m.aplicar(pergunta) if m else pergunta, m.aplicar(contexto) if m else contexto, ensinado=regra,
             historico=[dict(x, content=m.aplicar(x.get("content", "")) if m else x.get("content", ""))
@@ -819,8 +828,11 @@ class Envio:
 
     def mandar(self, on_token, parar=None) -> dict:
         desm = Desmascarador(self.mascara)
+        import profundidade as profundidade_mod
+
+        teto = profundidade_mod.SAIDA_RESPOSTA.get(self.profundidade, MAX_TOKENS)
         uso = chamar(self.provedor, self.modelo, chave(self.estado, self.provedor), self.mensagens,
-                     lambda t: on_token(desm.entrar(t)), parar=parar)
+                     lambda t: on_token(desm.entrar(t)), parar=parar, max_tokens=teto)
         resto = desm.fim()
         if resto:
             on_token(resto)
@@ -837,7 +849,7 @@ class Envio:
             "mascarados": dict(self.mascara.contagem) if self.mascara else {}, "como": self.como or "aprovado em Aprovações",
             "pedido_id": self.pedido_id, "de_fora": self.pessoa is not None,
             "pessoa": getattr(self, "quem", None) or quem_envia(self.estado, self.pessoa),
-            "pergunta": getattr(self, "pergunta", ""), **self.uso})
+            "pergunta": getattr(self, "pergunta", ""), "profundidade": self.profundidade, **self.uso})
 
     def resumo(self) -> dict:
         return {"onde": "nuvem" if self.foi else "computador", "provedor": self.nome_do_provedor, "modelo": self.modelo,
@@ -1006,3 +1018,70 @@ class ClienteNuvem:
                 except ValueError:
                     return None
             return None
+
+
+# ------------------------------------------------------------ o trabalho em etapas
+
+def motivo_para_trabalhar_aqui(estado, trabalho=None, pessoa=None, caminhos=()) -> str:
+    """
+    Por que a entrevista e a elaboração em etapas (src/entrevista.py,
+    src/elaboracao.py) não vão à nuvem ("" = vão). São várias chamadas por
+    pedido: só sem pedir o sim a cada envio - o sim do titular, a conversa
+    liberada ou a regra de alçada. Os limites de uso e o que nunca sai valem
+    como na conversa.
+    """
+    if not usa(estado, "conversa"):
+        return "a nuvem não está ligada para a conversa"
+    liberada = bool(((getattr(trabalho, "contexto", None) or {}).get("nuvem_liberada")))
+    if config(estado).get("pedir_cada_envio") and not liberada and not estado.prefs.pode("modelo_nuvem"):
+        return "a nuvem está pedindo o sim a cada envio"
+    limite = limite_atingido(estado, quem_envia(estado, pessoa))
+    if limite:
+        return limite
+    m = motivo_para_ficar(estado, caminhos)
+    return ("o texto " + m) if m else ""
+
+
+def chamada(estado, mensagens: list[dict], *, pessoa=None, trabalho=None, etapa: str = "", pergunta: str = "",
+            mascara: "Mascara | None" = None, on_token=None, desmascarar: bool = True, json_mode: bool = False,
+            max_tokens: int = MAX_TOKENS, parar=None, modelo: str = "", profundidade: str = "") -> tuple[str, dict]:
+    """
+    Uma chamada de uma etapa do trabalho: mascarada com a `mascara` do pedido
+    (a mesma em todas as etapas, para "[CPF 1]" ser o mesmo CPF do começo ao
+    fim), registrada como todo envio, com quem pediu, a etapa e a
+    profundidade. Devolve (texto, uso). Com `desmascarar`, o texto volta com os
+    dados; sem, fica com os marcadores - é o que vai para a etapa seguinte.
+    Erro da nuvem sobe como ErroNuvem.
+    """
+    c = config(estado)
+    provedor = c.get("provedor") or "paulus"
+    modelo = modelo or c.get("modelo") or PROVEDORES.get(provedor, {}).get("padrao", "")
+    if mascara is not None:
+        mensagens = [dict(x, content=mascara.aplicar(x.get("content", ""))) for x in mensagens]
+    desm = Desmascarador(mascara if desmascarar else None)
+    partes: list[str] = []
+
+    def entrou(t: str) -> None:
+        pronto = desm.entrar(t)
+        if pronto:
+            partes.append(pronto)
+            if on_token:
+                on_token(pronto)
+
+    uso = chamar(provedor, modelo, chave(estado, provedor), mensagens, entrou, parar=parar, json_mode=json_mode,
+                 max_tokens=max_tokens)
+    resto = desm.fim()
+    if resto:
+        partes.append(resto)
+        if on_token:
+            on_token(resto)
+    registrar_envio(estado, mensagens, {
+        "envio": uuid.uuid4().hex[:12], "tarefa": "conversa",
+        "titulo": getattr(trabalho, "titulo", "") or "Conversa", "trabalho_id": getattr(trabalho, "id", ""),
+        "provedor": provedor, "modelo": modelo, "caracteres": sum(len(x.get("content", "")) for x in mensagens),
+        "documentos": [], "mascarados": dict(mascara.contagem) if mascara else {},
+        "como": "com o sim do titular de " + _data_do_sim(estado), "de_fora": pessoa is not None,
+        "pessoa": quem_envia(estado, pessoa), "pergunta": " ".join(str(pergunta or "").split())[:140],
+        "etapa": etapa, "profundidade": profundidade, **uso})
+    return "".join(partes).strip(), {**uso, "provedor": PROVEDORES.get(provedor, {}).get("nome", provedor),
+                                     "modelo": modelo}

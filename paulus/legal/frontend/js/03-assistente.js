@@ -508,6 +508,7 @@ function cartaoGuardado(m, ultima) {
   const p = m.proposta || {};
   // N14: o que o agente fez sozinho volta com o "Desfazer" (o próprio botão diz se já foi desfeito).
   if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
+        p.tipo === "entrevista" || p.tipo === "levar_ao_editor" ||
         p.tipo === "editor_criado" || (p.tipo === "mudar_documento" && ultima) ||
         (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) || p.tipo === "config" ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
@@ -738,6 +739,8 @@ function linhaAssinatura(segundos, citados, pergunta, quem, como, fontes) {
   if (como && como.agente) quem = (quem || estado.modelo || "assistente local") + " · " + como.agente + (como.agente_versao ? " v" + como.agente_versao : "");
   // Pelos fatos ja conferidos, sem o modelo: a linha nao diz que ele escreveu.
   if (como && como.caminho === "nivel0" && como.molde) quem = "sem modelo";
+  // A profundidade escolhida (js/92-entrevista.js): o nível na frente do modelo.
+  if (como && como.profundidade && como.profundidade.nome) quem = como.profundidade.nome + " · " + (quem || estado.modelo || "assistente local");
   const meta = [segundos ? segundosBR(segundos) : "", quem || estado.modelo || "assistente local"].filter(Boolean).join(" · ");
   return '<div class="assinatura">' + etiquetasDosCitados(fontes) +
     '<span class="ass-meta">' + esc(meta) + "</span>" +
@@ -1578,12 +1581,12 @@ async function enviar(opcoes) {
     return;
   }
   // Enviar com ditado aberto ou pendente: primeiro o texto ditado entra no campo.
-  if (!o.retomar && ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
+  if (!o.retomar && !o.entrevista && ditado.estado && ditado.estado !== "finalizando") await usarDitadoNoChat();
   const pedido = (o.texto || $("pedido").value).trim();
   if (!pedido) return;
 
   // Com o editor aberto ao lado, pedido de mudança vai para o documento.
-  if (!o.retomar && editorNaConversaAberto() && destinoDoPedido(pedido) === "documento") {
+  if (!o.retomar && !o.entrevista && editorNaConversaAberto() && destinoDoPedido(pedido) === "documento") {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     pedirNoDocumento(pedido);
@@ -1591,28 +1594,28 @@ async function enviar(opcoes) {
   }
   // Com o e-mail aberto na conversa e "No e-mail" (js/85-email-na-conversa.js),
   // a pergunta e sobre a mensagem.
-  if (!o.retomar && typeof pedidoNoEmail === "function" && pedidoNoEmail(pedido)) {
+  if (!o.retomar && !o.entrevista && typeof pedidoNoEmail === "function" && pedidoNoEmail(pedido)) {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     return;
   }
   // Com a ficha aberta na coluna (js/86-fichas-na-conversa.js), a frase que
   // traz um dado corrige o campo; a que nao traz segue para a conversa.
-  if (!o.retomar && ((typeof pedidoNaFicha === "function" && await pedidoNaFicha(pedido)) ||
+  if (!o.retomar && !o.entrevista && ((typeof pedidoNaFicha === "function" && await pedidoNaFicha(pedido)) ||
       (typeof pedidoNoLancamento === "function" && await pedidoNoLancamento(pedido)))) {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     return;
   }
   // Com o agente aberto ao lado (js/84-criar-agente.js), o pedido muda as instrucoes.
-  if (!o.retomar && typeof agenteAoLadoAberto === "function" && agenteAoLadoAberto() && !agn.escrevendo) {
+  if (!o.retomar && !o.entrevista && typeof agenteAoLadoAberto === "function" && agenteAoLadoAberto() && !agn.escrevendo) {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     mudarAgentePelaConversa(pedido);
     return;
   }
   // Com a planilha em edicao ao lado (js/81-planilha-ao-lado.js), idem.
-  if (!o.retomar && planilhaEmEdicao() && destinoNaPlanilha(pedido) === "planilha") {
+  if (!o.retomar && !o.entrevista && planilhaEmEdicao() && destinoNaPlanilha(pedido) === "planilha") {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     pa.destino = "";
@@ -1701,7 +1704,10 @@ async function enviar(opcoes) {
         inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade) }, envio,
         typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {}, onde,
         // N15: a pílula "Nuvem" (js/75-nuvem.js) vale para esta pergunta só.
-        typeof nuvemDoEnvio === "function" ? nuvemDoEnvio() : {})),
+        typeof nuvemDoEnvio === "function" ? nuvemDoEnvio() : {},
+        // A profundidade e as respostas do módulo de perguntas (js/92-entrevista.js).
+        typeof profundidadeDoEnvio === "function" ? profundidadeDoEnvio() : {},
+        o.entrevista ? { entrevista: o.entrevista } : {})),
       signal: estado.controle.signal,
     });
     // F1: a conversa já respondia (outra aba, outra pessoa) e a pergunta
@@ -1900,6 +1906,19 @@ async function lerResposta(r, v) {
         }
       } else if (mt[1] === "refazendo") {
         anotarBastidor("a resposta citou um trecho que não existe — refazendo com menos trechos");
+      } else if (mt[1] === "pensando") {
+        // O trabalho em etapas (src/elaboracao.py): o que está sendo feito agora.
+        if (pensando()) linha(dados.texto || "");
+        anotarBastidor((dados.texto || "").replace(/…$/, "").toLowerCase());
+      } else if (mt[1] === "nota") {
+        anotarBastidor(dados.texto || "");
+      } else if (mt[1] === "reescrevendo") {
+        // A revisão pediu para refazer: o rascunho dá lugar à versão revista.
+        texto.textContent = "";
+        primeiro = true;
+        if (pensando()) linha("Reescrevendo com as correções da revisão…");
+      } else if (mt[1] === "substituir") {
+        texto.textContent = dados.texto || "";
       } else if (mt[1] === "token" && revisado) {
         bruto += dados.t;
         texto.innerHTML = textoComCitacoes(bruto, fontesAtuais, pedido);

@@ -221,7 +221,40 @@ def painel(estado) -> dict:
             alertas.append(f"O escritório está {'no' if gasto >= teto else 'perto do'} limite {rotulo}: "
                            f"{gasto:,} de {teto:,} tokens.".replace(",", "."))
     return {"ciclo": {"inicio": mes.isoformat(timespec="minutes"), "fim": fim}, "total": total, "hoje": gasto_hoje,
-            "pessoas": pessoas, "limites": lim, "alertas": alertas, "areas": _areas(linhas, mes, total)}
+            "pessoas": pessoas, "limites": lim, "alertas": alertas, "areas": _areas(linhas, mes, total),
+            "profundidade": _por_profundidade(linhas, mes)}
+
+
+def _por_profundidade(linhas: list[dict], desde: datetime) -> list[dict]:
+    """
+    O consumo do ciclo por nível de profundidade (src/profundidade.py), na
+    ordem Estagiário -> Ministro: os tokens, quantos pedidos e a média por
+    pedido - é a conta que mostra que o Ministro gasta mais da franquia.
+    Envio de antes da profundidade não entra.
+    """
+    import profundidade
+
+    por: dict[str, dict] = {}
+    for d in linhas:
+        nivel = str(d.get("profundidade") or "")
+        if nivel not in profundidade.NIVEIS:
+            continue
+        try:
+            if datetime.fromisoformat(str(d.get("quando", ""))[:19]) < desde:
+                continue
+        except ValueError:
+            continue
+        x = por.setdefault(nivel, {"tokens": 0, "pedidos": set()})
+        x["tokens"] += tokens_de(d)
+        x["pedidos"].add(str(d.get("trabalho_id") or "") + "|" + str(d.get("pergunta") or "")[:60])
+    saida = []
+    for nid in profundidade.ORDEM:
+        n = profundidade.NIVEIS[nid]
+        x = por.get(nid) or {"tokens": 0, "pedidos": set()}
+        pedidos = len(x["pedidos"])
+        saida.append({"nivel": nid, "nome": n.nome, "consumo": n.consumo, "resumo": n.resumo, "tokens": x["tokens"],
+                      "pedidos": pedidos, "media": round(x["tokens"] / pedidos) if pedidos else 0})
+    return saida
 
 
 def _areas(linhas: list[dict], desde: datetime, total: int) -> list[dict]:

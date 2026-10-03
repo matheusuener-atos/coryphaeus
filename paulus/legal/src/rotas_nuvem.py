@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 import nuvem
 import plano
+import profundidade
 
 
 class Chave(BaseModel):
@@ -114,7 +115,9 @@ def montar(estado, app, dados_dir) -> None:
         prov = c.get("provedor") or "paulus"
         return {"ligada": nuvem.usa(estado, "conversa"), "provedor": prov,
                 "nome": nuvem.PROVEDORES.get(prov, {}).get("nome", prov), "modelo": c.get("modelo") or "",
-                "pedir_cada_envio": bool(c.get("pedir_cada_envio"))}
+                "pedir_cada_envio": bool(c.get("pedir_cada_envio")),
+                # O seletor de profundidade (src/profundidade.py): os cinco niveis e o padrao.
+                "profundidade": profundidade.para_tela(estado.prefs.dados)}
 
     @app.get("/api/nuvem/termo")
     def nuvem_termo(provedor: str = "") -> dict:

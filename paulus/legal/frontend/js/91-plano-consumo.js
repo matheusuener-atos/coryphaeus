@@ -99,7 +99,7 @@ function desenharConsumo() {
   }
   const c = d.conta;
   cabecalhoConsumo();
-  cascaConsumo(blocoGeral(d, c) + blocoEquipe(d) + blocoLimites(d) + blocoPlano(d, c));
+  cascaConsumo(blocoGeral(d, c) + blocoEquipe(d) + blocoLimites(d) + blocoProfundidade(d) + blocoPlano(d, c));
   ligarConsumo();
 }
 
@@ -310,6 +310,29 @@ function blocoLimites(d) {
     '<button type="button" class="sv-ligacao" data-pc-limites="1">' + ic("edit", 15) + "Ajustar limites</button></div>" +
     (itens.length ? '<div class="pc-limites-lista">' + itens.join("") + "</div>" : '<p class="sv-dica pc-sem">Sem limites: a equipe usa até o fim dos tokens do plano.</p>') +
     '<p class="sv-dica">Passado um limite, a pergunta é escrita pelo modelo deste computador, e a resposta diz por quê. A tela avisa a partir de 80%.</p></section>';
+}
+
+/* ------------------------------------------------- a profundidade (js/92-entrevista.js)
+
+   Quanto cada nível gastou neste ciclo, e quanto ele gasta por natureza: o
+   Ministro analisa, planeja, redige e revisa - consome mais da franquia que o
+   Estagiário, que escreve direto. A conta "~N×" é aproximada (src/profundidade.py). */
+function blocoProfundidade(d) {
+  const niveis = d.painel.profundidade || [];
+  if (!niveis.length) return "";
+  const usados = niveis.filter((n) => n.tokens);
+  const meta = usados.length ? plural(usados.reduce((s, n) => s + n.pedidos, 0), "pedido") + " com profundidade neste ciclo" : "nenhum pedido ainda";
+  return '<section class="sv-secao pc-secao" aria-labelledby="pc-t-prof"><div class="sv-secao-cabeca">' +
+    '<span class="sv-secao-titulo" id="pc-t-prof">' + ic("gavel", 16) + "Profundidade</span>" +
+    '<span class="sv-secao-meta">' + esc(meta) + "</span></div>" +
+    '<div class="pc-limites-lista">' + niveis.map((n) =>
+      '<div class="pc-limite-item"><span class="corta"><b>' + esc(n.nome) + "</b> · " + esc(n.resumo) + "</span>" +
+      '<span class="pc-limite-qual">~' + esc(String(n.consumo).replace(".", ",")) + "× da franquia</span>" +
+      '<span class="pc-limite-uso">' + (n.pedidos ? esc(tokCurto(n.tokens)) + " em " + plural(n.pedidos, "pedido") +
+        " · ~" + esc(tokCurto(n.media)) + " por pedido" : "sem uso no ciclo") + "</span></div>").join("") + "</div>" +
+    '<p class="sv-dica">Quem escolhe o nível é quem pergunta, na caixa da pergunta. Níveis mais altos entendem melhor o pedido, ' +
+    "planejam, revisam e reescrevem — e por isso gastam mais tokens por pedido. O “~N×” compara com o Estagiário e é aproximado; " +
+    "o que vale é o que o plano conta.</p></section>";
 }
 
 async function ajustarLimites() {

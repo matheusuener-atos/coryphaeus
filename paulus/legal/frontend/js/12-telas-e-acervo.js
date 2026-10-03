@@ -926,6 +926,9 @@ function cartaoProposta(d) {
   // Uma secao de Configuracoes aberta pela conversa (js/89-config-na-conversa.js).
   if (d.tipo === "config") return cartaoDaConfig(d);
   if (d.tipo === "escopo") return cartaoEscopo(d);
+  // O módulo de perguntas e o trabalho pronto (js/92-entrevista.js).
+  if (d.tipo === "entrevista") return cartaoEntrevista(d);
+  if (d.tipo === "levar_ao_editor") return cartaoLevarAoEditor(d);
   if (d.tipo === "programa") return cartaoPrograma(d);
   if (d.tipo === "consulta_cadastro") return cartaoConsultaCadastro(d);
   // Bateria de 02/10/2026: "SEMA está errado, o certo é SEMAS - corrija" com
@@ -1397,6 +1400,8 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "config") return ligarConfigNaProposta(caixa, d);
   if (d.tipo === "sozinho" && typeof ligarSozinho === "function") return ligarSozinho(caixa, d);
   if (d.tipo === "escopo") return ligarEscopo(caixa, d);
+  if (d.tipo === "entrevista") return ligarEntrevista(caixa, d);
+  if (d.tipo === "levar_ao_editor") return ligarLevarAoEditor(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
   if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);
   if (d.tipo === "mudar_documento" || d.tipo === "editor_criado") {

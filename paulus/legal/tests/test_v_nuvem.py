@@ -250,9 +250,11 @@ def main() -> int:
            "o sim do titular também vai ao Worker", fake.consentimento)
     r = local.post("/api/nuvem/configurar", json={"ligado": True}).json()
     checar(r["ligada"] and not r["pedir_cada_envio"], "ligada, sem pedir a cada envio")
-    checar(local.get("/api/nuvem/situacao").json() == {"ligada": True, "provedor": "paulus", "nome": "PAULUS (nuvem)",
-                                                       "modelo": "meta-llama/Llama-3.3-70B-Instruct", "pedir_cada_envio": False},
-           "a situação da pílula: só o necessário")
+    situacao = local.get("/api/nuvem/situacao").json()
+    niveis = situacao.pop("profundidade", {}).get("niveis") or []
+    checar(situacao == {"ligada": True, "provedor": "paulus", "nome": "PAULUS (nuvem)",
+                        "modelo": "meta-llama/Llama-3.3-70B-Instruct", "pedir_cada_envio": False} and len(niveis) == 5,
+           "a situação da pílula: só o necessário (e os níveis de profundidade)")
 
     print("\na conversa")
     pasta = Path(api.estado.pasta)
