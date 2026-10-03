@@ -132,14 +132,16 @@ Ver contas, tokens e receita, mandar e-mails e lembretes: todos os papeis.
 As NFS-e que o PAVLVS emite para quem assina sao emitidas pelo painel: aba Notas fiscais,
 rotas `/api/admin/nfse/emissor/*` (`worker/nfse/api.js`, `atenderEmissor`) ate o Durable Object
 `EmissorNFSe` (`worker/nfse/emissor.js`). Testes: `worker/teste-nfse-admin.mjs` (painel + emissor),
-`worker/teste-nfse-emissor.mjs` (o emissor) e `worker/tela-nfse/teste_tela.py` (a tela, Playwright).
+`worker/teste-nfse-emissor.mjs` (o emissor), `worker/teste-nfse-danfse.mjs` (o DANFSe contra o do PAULUS)
+e `worker/tela-nfse/teste_tela.py` (a tela, Playwright).
 
 - **Mesmas portas do painel** (Access + sessao do GitHub). `GET` para todos os papeis; o resto
   (emitir, cancelar, substituir, enviar, certificado, parametros, token, testar, producao) so
   `dono` e `financeiro`: suporte recebe 403 `{erro: "o papel suporte só vê as notas fiscais: ..."}`.
 - **Na hora**: nada disso passa pela fila de alteracoes. So os tres interruptores (`nfse.config`)
   continuam na fila.
-- Sem o emissor (`EMISSOR_NFSE`, `NFSE_CHAVE_MESTRA` ou `APOIOS`): 503 `{erro: "o emissor de NFS-e ainda nao esta ligado: falta ..."}`.
+- Sem o emissor (`EMISSOR_NFSE`, `NFSE_CHAVE_MESTRA` ou `APOIOS`): 503 `{erro: "o emissor de NFS-e ainda nao esta ligado: falta ..."}`
+  (menos `GET municipios`, que e so a tabela).
   `GET /api/admin/sessao` diz o mesmo em `config.nfse`.
 - O `quem` de cada passo da nota e o e-mail do Access de quem pediu.
 - A ponte antiga com o PAULUS da casa (`/api/nfse-casa/*`) **saiu** em 03/10/2026 (responde 404).
@@ -185,6 +187,13 @@ Rotas (prefixo `/api/admin/nfse/emissor/`):
   pelo service binding `SEFIN_MTLS` (`wrangler.jsonc`).
 - `POST testar` -> `{ok, etapas: [{titulo: "Certificado"|"Conexão com a Sefin"|"Convênio do município", ok, detalhe, ms?}],
   municipio, quando}`.
+- `GET municipios?q=<nome>&uf=<UF opcional>` -> `{municipios: [{codigo, nome, uf}]}`, ate 12, da tabela oficial
+  (`worker/nfse/tabelas/municipios.json`, `buscarMunicipios`): sem acento e sem caixa, por comeco de palavra
+  ("goi" -> Goiania/GO, "paulo" -> Sao Paulo/SP); primeiro o nome igual, depois o que comeca pelo texto, depois
+  o que tem uma palavra que comeca por ele; em cada grupo as capitais primeiro e depois a ordem alfabetica.
+  Os 7 digitos do codigo IBGE acham o municipio. Todos os papeis (suporte tambem). Nos pop-ups Emitir,
+  Clientes e Parametros o campo de municipio busca por aqui: mostra "Nome/UF", guarda o codigo IBGE
+  escondido (`cmun` / `municipio`) e preenche a UF do tomador; colar o codigo tambem serve.
 - `GET clientes` -> `{clientes: [{id, nome, email, telefone, oab, plano, situacao, tomador, ajustado, faltas: [rotulo]}]}`.
   O `tomador` vem do cadastro da conta fundido com o ajuste em `nfse:tomador:<conta>` (o ajuste vence).
 - `POST clientes/:conta {tomador}` -> o cliente. So os campos enviados mudam; `""` apaga o ajuste do campo.
@@ -200,7 +209,12 @@ Rotas (prefixo `/api/admin/nfse/emissor/`):
 - `GET notas?estado=&limite=` -> `{notas: [Nota]}`; `GET notas/:id` -> `{nota, passos, eventos}`.
 - `GET notas/:id/xml?tipo=nfse|dps` -> o XML (attachment).
 - `GET notas/:id/pdf[?baixar=1]` -> o DANFSe (`application/pdf`; inline, ou attachment com `baixar`). Se o PDF
-  ainda nao existe, e gerado neste pedido e guardado em `admin:nfse-pdf:<id>`.
+  ainda nao existe, e gerado neste pedido e guardado em `admin:nfse-pdf:<id>`. O DANFSe e o do leiaute da
+  NT 008 (`worker/nfse/danfse.js`, `gerarDanfse(xml)`, porte de `paulus/legal/src/nfse/danfse.py`): uma
+  pagina A4, os mesmos blocos e campos do PAULUS, tirados so do XML da NFS-e, com o QR Code da consulta
+  publica; fontes padrao do PDF (Helvetica). CPU: ~1,5 ms quente, ~11-13 ms na 1a chamada de um isolate.
+  A conferencia visual contra o do Python fica em `worker/nfse/fixtures/danfse/`
+  (`fixtures/comparar_danfse.py`).
 - `POST notas/:id/depois` -> 202. O PDF (e o e-mail, com `mail`) num pedido separado do que emite; a tela
   chama logo depois de emitir. O que sobrar (emissao automatica, nota que saiu da fila) o Cron de cada
   minuto faz, uma por vez (`depoisPendentes`, lista `admin:nfse-depois`).

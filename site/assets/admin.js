@@ -785,7 +785,7 @@
     assinada: "var(--atencao)", rascunho: "var(--ink3)", cancelada: "var(--ink3)", substituida: "var(--ink3)", descartada: "var(--ink3)",
   };
   var NF_TOMADOR = [["nome", "Nome ou razão social"], ["documento", "CPF ou CNPJ"], ["email", "E-mail"], ["telefone", "Telefone"], ["cep", "CEP"],
-    ["logradouro", "Rua"], ["numero", "Número"], ["complemento", "Complemento"], ["bairro", "Bairro"], ["cmun", "Município (código IBGE, 7 dígitos)"],
+    ["logradouro", "Rua"], ["numero", "Número"], ["complemento", "Complemento"], ["bairro", "Bairro"], ["cmun", "Município"],
     ["uf", "UF"], ["inscricao_municipal", "Inscrição municipal (se houver)"]];
   function podeNf() { var d = dadosDe("nfse"); return !!(d && d.pode ? d.pode.emitir : E.sessao && DF.indexOf(E.sessao.papel) >= 0); }
   function nfCompetencia(c) { var m = /^(\d{4})-(\d{2})/.exec(c || ""); return m ? NF_MESES[Number(m[2]) - 1] + "/" + m[1] : "—"; }
@@ -1084,8 +1084,100 @@
   }
   function nfDuas(a, b) { return '<div class="grade-campos">' + a + (b || "<span></span>") + "</div>"; }
   function nfSub(t) { return '<span class="rotulo nf-sub">' + esc(t) + "</span>"; }
+  // O município: a pessoa digita o nome ("goi" -> Goiânia/GO) e escolhe na
+  // lista; o código IBGE fica escondido em M.v[k] (e num input hidden). Colar
+  // os 7 dígitos também serve. Quem já tem código mostra "Nome/UF".
+  var NF_UF = { 11: "RO", 12: "AC", 13: "AM", 14: "RR", 15: "PA", 16: "AP", 17: "TO", 21: "MA", 22: "PI", 23: "CE", 24: "RN", 25: "PB", 26: "PE", 27: "AL",
+    28: "SE", 29: "BA", 31: "MG", 32: "ES", 33: "RJ", 35: "SP", 41: "PR", 42: "SC", 43: "RS", 50: "MS", 51: "MT", 52: "GO", 53: "DF" };
+  var NF_MUN = {}, nfMunPedidos = {};
+  function nfMunRotulo(cod) {
+    cod = String(cod || "");
+    if (!/^\d{7}$/.test(cod)) return cod;
+    if (NF_MUN[cod]) return NF_MUN[cod];
+    if (!nfMunPedidos[cod]) {
+      nfMunPedidos[cod] = 1;
+      api("GET", NF + "municipios?q=" + cod).then(function (r) {
+        var m = (r.municipios || [])[0];
+        NF_MUN[cod] = m ? m.nome + "/" + m.uf : cod + " (fora da tabela do IBGE)";
+        renderCamada();
+      }, function () { delete nfMunPedidos[cod]; });
+    }
+    return cod;
+  }
+  function nfMunicipio(k, rot, extra, kUf) {
+    var M = E.modal; M.mun = M.mun || {};
+    var st = M.mun[k] || {}, cod = String(M.v[k] == null ? "" : M.v[k]), id = nfId(k), lista = id + "-lista";
+    var aberto = !!(st.editando && st.res);
+    var h = '<div class="campo-adm nf-mun"><label class="rot" for="' + id + '">' + esc(rot) + '</label><span class="caixa-campo fundo"><input id="' + id + '" data-in="nfMun" data-k="' + esc(k) + '" data-uf="' + esc(kUf || "") +
+      '" value="' + esc(st.editando ? st.texto : nfMunRotulo(cod)) + '" placeholder="digite o nome (ex.: Goiânia) ou o código IBGE" role="combobox" aria-autocomplete="list" aria-expanded="' + aberto + '" aria-controls="' + lista + '"' +
+      (aberto && st.res.length ? ' aria-activedescendant="' + lista + "-" + st.idx + '"' : "") + (extra || "") + ' autocomplete="off" spellcheck="false"></span>' +
+      '<input type="hidden" id="' + id + '-codigo" data-codigo="' + esc(k) + '" value="' + esc(cod) + '">';
+    if (aberto) {
+      h += '<div class="nf-mun-lista" role="listbox" id="' + lista + '" aria-label="Municípios">' + (st.res.length ? st.res.map(function (m, i) {
+        return '<button type="button" class="nf-mun-opcao" role="option" id="' + lista + "-" + i + '" aria-selected="' + (i === st.idx) + '" tabindex="-1" data-a="nfMunEscolher" data-mun="' + esc(k) + '" data-i="' + i + '">' +
+          esc(m.nome + "/" + m.uf) + "<small>" + esc(m.codigo) + "</small></button>";
+      }).join("") : '<span class="nf-mun-vazio">' + esc(st.erro || "Nenhum município com esse nome.") + "</span>") + "</div>";
+    } else if (st.editando && String(st.texto || "").trim()) {
+      h += '<span class="nf-mun-cod">procurando…</span>';
+    } else if (/^\d{7}$/.test(cod)) {
+      h += '<span class="nf-mun-cod">código IBGE ' + esc(cod) + "</span>";
+    }
+    return h + "</div>";
+  }
+  function nfMunFixar(M, k, m, kUf) {
+    M.v[k] = m.codigo;
+    NF_MUN[m.codigo] = m.nome + "/" + m.uf;
+    if (kUf) M.v[kUf] = m.uf;
+    M.mun[k] = {};
+    renderCamada();
+    var i = $(nfId(k)); if (i) { i.focus(); try { i.setSelectionRange(i.value.length, i.value.length); } catch (x) { /* nada */ } }
+  }
+  function nfMunDigitar(el) {
+    var M = E.modal; if (!M || !M.v) return;
+    M.mun = M.mun || {};
+    var k = el.dataset.k, t = el.value, kUf = el.dataset.uf, st = M.mun[k] = M.mun[k] || {};
+    clearTimeout(st.timer);
+    if (/^\s*\d{7}\s*$/.test(t)) {
+      var cod = t.replace(/\D/g, "");
+      M.v[k] = cod; M.mun[k] = {};
+      if (kUf && NF_UF[cod.slice(0, 2)]) M.v[kUf] = NF_UF[cod.slice(0, 2)];
+      renderCamada();
+      return;
+    }
+    M.v[k] = "";
+    st.editando = true; st.texto = t; st.idx = 0; st.erro = "";
+    if (!t.trim()) { st.res = null; st.editando = false; renderCamada(); return; }
+    st.res = st.res && st.res.length ? st.res : null;
+    renderCamada();
+    st.timer = setTimeout(function () {
+      api("GET", NF + "municipios?q=" + encodeURIComponent(t)).then(function (r) {
+        if (E.modal !== M || st.texto !== t) return;
+        st.res = r.municipios || []; st.idx = 0; renderCamada();
+      }, function (e) {
+        if (E.modal !== M || st.texto !== t || e.status === 401) return;
+        st.res = []; st.erro = "Não consegui buscar agora: " + e.message; renderCamada();
+      });
+    }, 150);
+  }
+  // As setas andam na lista, Enter escolhe, Esc fecha a lista. true = tratou.
+  function nfMunTecla(ev) {
+    var el = ev.target, M = E.modal, k = ev.key;
+    if (!M || !M.mun || !el || !el.dataset || el.dataset.in !== "nfMun") return false;
+    var st = M.mun[el.dataset.k];
+    if (!st || !st.editando) return false;
+    var n = st.res ? st.res.length : 0;
+    if ((k === "ArrowDown" || k === "ArrowUp") && n) { st.idx = ((st.idx + (k === "ArrowDown" ? 1 : -1)) % n + n) % n; renderCamada(); }
+    else if (k === "Enter") { if (n) nfMunFixar(M, el.dataset.k, st.res[st.idx], el.dataset.uf); }
+    else if (k === "Escape" && st.res) { st.res = null; renderCamada(); }
+    else return false;
+    ev.preventDefault();
+    return true;
+  }
   function nfTomadorCampos(prefixo) {
-    var c = NF_TOMADOR.map(function (x) { return nfCampo(prefixo + x[0], x[1], x[0] === "cep" || x[0] === "cmun" || x[0] === "documento" || x[0] === "telefone" ? ' inputmode="numeric"' : ""); });
+    var c = NF_TOMADOR.map(function (x) {
+      if (x[0] === "cmun") return nfMunicipio(prefixo + "cmun", "Município", "", prefixo + "uf");
+      return nfCampo(prefixo + x[0], x[1], x[0] === "cep" || x[0] === "documento" || x[0] === "telefone" ? ' inputmode="numeric"' : "");
+    });
     var h = "";
     for (var i = 0; i < c.length; i += 2) h += nfDuas(c[i], c[i + 1]);
     return h;
@@ -1149,7 +1241,7 @@
       h += modalCab("Parâmetros") + '<div class="modal-corpo">' + (so ? '<p class="nota-campo">Só o dono e o financeiro mudam os parâmetros; aqui você só lê.</p>' : "") +
         nfSub("O PAVLVS (prestador)") +
         nfDuas(nfCampo("documento", "CNPJ", ' inputmode="numeric"' + so), nfCampo("inscricao_municipal", "Inscrição municipal", so)) + nfCampo("razao_social", "Razão social", so) +
-        nfDuas(nfCampo("municipio", "Município (código IBGE)", ' inputmode="numeric"' + so), nfCampo("endereco.cep", "CEP", ' inputmode="numeric"' + so)) +
+        nfDuas(nfMunicipio("municipio", "Município", so, ""), nfCampo("endereco.cep", "CEP", ' inputmode="numeric"' + so)) +
         nfDuas(nfCampo("endereco.logradouro", "Rua", so), nfCampo("endereco.numero", "Número", so)) +
         nfDuas(nfCampo("endereco.complemento", "Complemento", so), nfCampo("endereco.bairro", "Bairro", so)) +
         nfDuas(nfCampo("email", "E-mail", so), nfCampo("telefone", "Telefone", so)) +
@@ -1657,7 +1749,7 @@
     if (pagamento) nfEscolherPagamento(M, pagamento);
   }
   function nfEscolherCliente(M, id) {
-    M.v.conta = id;
+    M.v.conta = id; M.mun = {};
     var c = (M.clientes || []).filter(function (x) { return x.id === id; })[0];
     NF_TOMADOR.forEach(function (x) { M.v["tomador." + x[0]] = c ? (c.tomador || {})[x[0]] || "" : ""; });
   }
@@ -1702,11 +1794,17 @@
     api("GET", NF + "clientes").then(function (r) { if (E.modal === M) { M.clientes = r.clientes || []; renderCamada(); } },
       function (e) { if (E.modal === M && e.status !== 401) { M.erroClientes = e.message; renderCamada(); } });
   };
+  A.nfMunEscolher = function (el) {
+    var M = E.modal, k = el.dataset.mun, st = M && M.mun && M.mun[k];
+    if (!st || !st.res) return;
+    var m = st.res[Number(el.dataset.i)], i = $(nfId(k));
+    if (m) nfMunFixar(M, k, m, i ? i.dataset.uf : "");
+  };
   A.nfCliEditar = function (el) {
     var M = E.modal, id = el.dataset.id;
     if (M.editando === id) { M.editando = null; renderCamada(); return; }
     var c = (M.clientes || []).filter(function (x) { return x.id === id; })[0]; if (!c) return;
-    M.editando = id; M.erro = ""; M.ok = ""; M.v = {};
+    M.editando = id; M.erro = ""; M.ok = ""; M.v = {}; M.mun = {};
     NF_TOMADOR.forEach(function (x) { M.v["tomador." + x[0]] = (c.tomador || {})[x[0]] || ""; });
     renderCamada();
     var i = $(nfId("tomador.nome")); if (i) i.focus();
@@ -1876,6 +1974,7 @@
     buscaQ: function (el) { E.busca.q = el.value; E.busca.idx = 0; buscar(); renderCamada(); },
     // notas fiscais: os campos dos pop-ups guardam o valor sem redesenhar
     nf: function (el) { if (E.modal && E.modal.v) E.modal.v[el.dataset.k] = el.type === "checkbox" ? el.checked : el.value; },
+    nfMun: function (el) { nfMunDigitar(el); },
     nfCliente: function (el) { nfEscolherCliente(E.modal, el.value); renderCamada(); },
     nfPagamento: function (el) { if (el.value) nfEscolherPagamento(E.modal, el.value); else E.modal.v.pagamento = ""; renderCamada(); },
     nfSenha: function (el) { U.nfse.senha = el.value; },
@@ -1926,6 +2025,7 @@
       if (E.busca.aberta) fecharBusca(); else abrirBusca();
       return;
     }
+    if (nfMunTecla(ev)) return;
     if (k === "Escape") {
       if (E.busca.aberta) { ev.preventDefault(); fecharBusca(); return; }
       if (E.modal) { ev.preventDefault(); fecharModal(); return; }

@@ -260,6 +260,22 @@ for (const [rota, corpo] of [["notas", { valor: 1 }], ["certificado", doNavegado
   x = await nf("POST", rota, corpo, "sup@paulus.ia.br");
   checar(x.status === 403 && /só vê as notas fiscais/.test(x.dados.erro), "suporte: POST " + rota + " é recusado (403)", x.dados);
 }
+// a busca de município pelo nome (Emitir, Clientes e Parâmetros)
+x = await nf("GET", "municipios?q=goi", undefined, "sup@paulus.ia.br");
+checar(x.status === 200 && x.dados.municipios.length === 12 && x.dados.municipios.some((m) => m.codigo === "5208707" && m.nome === "Goiânia" && m.uf === "GO")
+  && x.dados.municipios.every((m) => /^\d{7}$/.test(m.codigo) && m.nome && m.uf), "municípios: \"goi\" acha Goiânia/GO (até 12; o suporte também busca)", x.dados);
+x = await nf("GET", "municipios?q=" + encodeURIComponent("SAO PAULO"));
+checar(x.dados.municipios[0].codigo === "3550308", "sem acento e sem caixa: \"SAO PAULO\" -> São Paulo primeiro", x.dados.municipios[0]);
+x = await nf("GET", "municipios?q=paulo&uf=sp");
+checar(x.dados.municipios.length > 0 && x.dados.municipios.every((m) => m.uf === "SP") && x.dados.municipios.some((m) => m.codigo === "3550308"),
+  "por começo de palavra (\"paulo\" acha São Paulo) e só da UF pedida", x.dados.municipios);
+x = await nf("GET", "municipios?q=5208707");
+checar(x.dados.municipios.length === 1 && x.dados.municipios[0].nome === "Goiânia", "os 7 dígitos do código IBGE acham o município", x.dados);
+x = await nf("GET", "municipios?q=" + encodeURIComponent("xyzw"));
+const vazio = await nf("GET", "municipios?q=");
+checar(x.status === 200 && x.dados.municipios.length === 0 && vazio.dados.municipios.length === 0, "nada que bata (ou busca vazia): lista vazia");
+r = await admin("GET", "/api/admin/nfse/emissor/municipios?q=goi");
+checar(r.status === 401, "a busca de município pede a mesma autenticação do painel");
 r = await admin("POST", "/api/admin/nfse/emissor/prestador", { email: "fin@paulus.ia.br", cookie: SESSOES["fin@paulus.ia.br"], corpo: { prestador: PRESTADOR } });
 let d = await r.json();
 checar(r.status === 200 && d.versao === 1 && d.faltas.length === 0, "o financeiro grava os parâmetros (na hora, sem a fila)", d);
@@ -439,6 +455,10 @@ r = await atenderAdmin(new Request("https://paulus.ia.br/api/admin/nfse/emissor/
   semMestra, new URL("https://paulus.ia.br/api/admin/nfse/emissor/situacao"), ctx, deps);
 d = await r.json();
 checar(r.status === 503 && /NFSE_CHAVE_MESTRA/.test(d.erro), "sem a NFSE_CHAVE_MESTRA: 503 dizendo o que falta", d);
+r = await atenderAdmin(new Request("https://paulus.ia.br/api/admin/nfse/emissor/municipios?q=bel", { headers: { "cf-access-jwt-assertion": await jwt("dono@paulus.ia.br"), cookie: "pv_admin=" + SESSOES["dono@paulus.ia.br"] } }),
+  semMestra, new URL("https://paulus.ia.br/api/admin/nfse/emissor/municipios?q=bel"), ctx, deps);
+d = await r.json();
+checar(r.status === 200 && d.municipios.some((m) => m.codigo === "1501402"), "a busca de município não depende do emissor ligado (é só a tabela)", d);
 
 console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  notas fiscais no painel: todos os testes passaram");
 process.exit(falhas ? 1 : 0);

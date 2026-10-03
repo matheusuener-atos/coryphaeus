@@ -6,7 +6,7 @@
 //   1. lerPfx: titular, documento (CN e otherName ICP-Brasil), validade, senha errada
 //   2. assinatura XMLDSig: o XML assinado em JS é IDÊNTICO byte a byte ao do Python
 //   3. gzip+base64: ida e volta, contra o gzip do Python
-//   4. custo de CPU (process.cpuUsage) de cada passo e de um DANFSe esqueleto
+//   4. custo de CPU (process.cpuUsage) de cada passo e do DANFSe (NT 008)
 // O limite do plano grátis do Worker é 10 ms de CPU por pedido.
 import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -57,7 +57,8 @@ const { assinar, importarChave } = await import("./nfse/assinatura.js");
 const { gzipB64, deGzipB64 } = await import("./nfse/gzip.js");
 custos.carga_assinatura = performance.now() - t;
 t = performance.now();
-const { danfseEsqueleto } = await import("./nfse/danfse.js");
+const { gerarDanfse } = await import("./nfse/danfse.js");
+const NFSE = JSON.parse(readFileSync(join(FIX, "danfse.json"), "utf8")).casos[3].xml;
 custos.carga_pdflib = performance.now() - t;
 
 const dados = JSON.parse(readFileSync(join(FIX, "dps.json"), "utf8"));
@@ -140,17 +141,10 @@ custos.importKey_e_assinar = await medir(async () => assinar(xml0, await importa
 const assinado0 = Buffer.from(c0.assinado_b64, "base64");
 custos.gzipB64 = await medir(() => gzipB64(assinado0));
 custos.deGzipB64 = await medir(() => deGzipB64(c0.gzip_b64_python));
-const dadosPdf = {
-  chave: "52087072211222333000181000000000000326090000000001", numero: "3", emissao: "15/09/2026 10:30:00", producaoRestrita: true,
-  prestador: { nome: "ESCRITÓRIO DE TESTE LTDA", documento: "11.222.333/0001-81", municipio: "Goiânia/GO" },
-  tomador: { nome: "Tomador & Filhos <Ltda>", documento: "45.997.418/0001-53", endereco: "Rua 1, 10, Centro, 74000-000", email: "fiscal@tomador.com.br" },
-  descricao: "Honorários advocatícios referentes ao acompanhamento processual da ação nº 123, fase de instrução, conforme contrato de prestação de serviços. ".repeat(4),
-  valores: { servico: "R$ 5.000,00", desconto: "R$ 0,00", iss: "R$ 250,00", retencoes: "R$ 307,50", liquido: "R$ 4.692,50" },
-};
 let pdf;
-custos.danfse = await medir(async () => { pdf = await danfseEsqueleto(dadosPdf); }, 100);
-checar(pdf.length > 1000 && Buffer.from(pdf.slice(0, 5)).toString() === "%PDF-", `DANFSe esqueleto: PDF de ${pdf.length} bytes`);
-writeFileSync(join(tmpdir(), "danfse-esqueleto.pdf"), pdf);
+custos.danfse = await medir(async () => { pdf = await gerarDanfse(NFSE); }, 100);
+checar(pdf.length > 1000 && Buffer.from(pdf.slice(0, 5)).toString() === "%PDF-", `DANFSe (NT 008): PDF de ${pdf.length} bytes`);
+writeFileSync(join(tmpdir(), "danfse-nt008.pdf"), pdf);
 
 console.log(`  carga dos módulos (partida do isolate): forge ${custos.carga_forge.toFixed(1)} ms, assinatura+gzip ${custos.carga_assinatura.toFixed(1)} ms, pdf-lib ${custos.carga_pdflib.toFixed(1)} ms`);
 for (const k of ["lerPfx_aes_pbkdf2_20000", "lerPfx_3des_2048", "importKey", "assinar", "importKey_e_assinar", "gzipB64", "deGzipB64", "danfse"]) {
@@ -172,7 +166,7 @@ if (iw > 0) {
     const pfx = readFileSync(join(FIX, arquivo));
     const r = await fetch(`${base}/api/nfse-prova`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pfx_b64: pfx.toString("base64"), senha: dados.senha, xml_b64: c.xml_b64, id: c.id, algoritmo: c.algoritmo }),
+      body: JSON.stringify({ pfx_b64: pfx.toString("base64"), senha: dados.senha, xml_b64: c.xml_b64, id: c.id, algoritmo: c.algoritmo, nfse_b64: Buffer.from(NFSE).toString("base64") }),
     });
     const d = await r.json();
     // O legado tem a MESMA chave do a1-cn (gerar.py reembrulha), então a assinatura também é a mesma.

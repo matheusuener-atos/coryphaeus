@@ -1210,10 +1210,9 @@ export class EmissorNFSe {
       case "liberar_producao": return this.liberarProducao(d);
       case "voltar_testes": return this.voltarParaTestes(d);
       case "para_pdf": {
+        // O DANFSe sai só do XML da NFS-e (danfse.js): a nota e o XML bastam.
         const n = this.exigir(d.id);
-        const prest = (this.prestadorVersao(n.prestador_versao) || this.prestadorAtual()).dados;
-        return { nota: this.paraTela(n), xml_nfse: n.xml_nfse || "", prestador: { nome: prest.razao_social, documento: prest.documento,
-          municipio: (tabelas.municipio(prest.municipio) || {}).nome || prest.municipio }, calculo: n.calculo };
+        return { nota: this.paraTela(n), xml_nfse: n.xml_nfse || "" };
       }
       case "marcar_depois": return this.marcarDepois(d);
       case "enviar_cliente": return this.enviarAoCliente(d);

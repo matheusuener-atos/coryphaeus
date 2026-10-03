@@ -7,10 +7,13 @@ Só o necessário para montar e conferir a DPS na nuvem:
   municipios.json  {"codigo IBGE": "nome"}  (a UF sai dos 2 primeiros dígitos;
                    o script confere que bate com a tabela em todos os 5.570)
   servicos.json    {"cTribNac": "local de incidência (EP/LP/ET ou vazio)"}
+  servicos_descricao.json  {"cTribNac": "descrição"}  (só o DANFSe usa, quando a
+                   NFS-e não traz o xTribNac)
   nbs.json         ["código NBS", ...]
   indop.json       ["cIndOp", ...]
   regras.json      {"E0014": ["mensagem", "campo"], ...}  (DPS + eventos)
-  dominios.json    {"motivo_cancelamento": {...}, ...}  (os domínios do XSD usados)
+  dominios.json    {"motivo_cancelamento": {...}, ...}  (os domínios do XSD usados,
+                   inclusive os rótulos que o DANFSe imprime)
   versoes.json     a versão, a data e a fonte de cada tabela de origem
 
     C:/coryphaeus/paulus/legal/venv/Scripts/python.exe worker/nfse/tabelas/gerar.py
@@ -31,7 +34,7 @@ UF_DO_CODIGO = {
     "42": "SC", "43": "RS", "50": "MS", "51": "MT", "52": "GO", "53": "DF",
 }
 DOMINIOS = ("motivo_cancelamento", "motivo_substituicao", "regime_especial", "opcao_simples",
-            "regime_apuracao_sn", "cst_pis_cofins")
+            "regime_apuracao_sn", "cst_pis_cofins", "retencao_pis_cofins", "retencao_iss", "tributacao_iss")
 
 
 def _ler(nome: str) -> dict:
@@ -60,6 +63,7 @@ def main() -> None:
     s, inc = _ler("servicos"), _ler("incidencia")
     local = {i["codigo"]: i.get("local", "") for i in inc["itens"]}
     tamanhos["servicos"] = _gravar("servicos", {i["codigo"]: local.get(i["codigo"], "") for i in s["itens"]})
+    tamanhos["servicos_descricao"] = _gravar("servicos_descricao", {i["codigo"]: i.get("descricao", "") for i in s["itens"]})
     versoes["servicos"] = {k: s.get(k, "") for k in ("versao", "data", "fonte")}
     versoes["incidencia"] = {k: inc.get(k, "") for k in ("versao", "data", "fonte")}
 

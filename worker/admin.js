@@ -123,7 +123,8 @@ async function rotear(c, request, url, p, m) {
       return json({ erro: "o papel " + c.quem.papel + " só vê as notas fiscais: emitir, cancelar e configurar são do dono e do financeiro" }, 403);
     }
     const falta = faltaDoEmissor(c.env);
-    if (falta) return json({ erro: "o emissor de NFS-e ainda não está ligado: " + falta }, 503);
+    // A busca de município é só a tabela: funciona com o emissor desligado.
+    if (falta && !(m === "GET" && p === PREFIXO_EMISSOR + "municipios")) return json({ erro: "o emissor de NFS-e ainda não está ligado: " + falta }, 503);
     return atenderEmissor(request, c.env, c.ctx, { quem: c.quem.email, prefixo: PREFIXO_EMISSOR });
   }
   if (m === "GET") {

@@ -4,7 +4,8 @@
 
 Sobe worker/tela-nfse/servidor.mjs (o painel e o emissor de verdade, o resto
 simulado), abre /admin/ no Chromium e faz o caminho da tela: Parâmetros,
-certificado sem e com o token da Cloudflare, Testar comunicação, Emitir a
+o município pelo nome (Parâmetros, Emitir e Clientes:
+digitar, escolher, gravar e conferir o código IBGE), certificado sem e com o token da Cloudflare, Testar comunicação, Emitir a
 partir do pagamento (com um erro de conferência no pop-up), PDF, Enviar ao
 cliente, Clientes e Cancelar. Depois, como suporte: os botões travados. Falha
 em qualquer erro de JavaScript da página.
@@ -65,6 +66,11 @@ def campo(pagina, chave):
     return pagina.locator('.modal [data-k="' + chave + '"]')
 
 
+def codigo(pagina, chave):
+    """O código IBGE guardado escondido atrás do campo de município."""
+    return pagina.locator('.modal [data-codigo="' + chave + '"]').get_attribute("value")
+
+
 def toast(pagina, texto):
     expect(pagina.locator("#toast")).to_contain_text(texto, timeout=15000)
 
@@ -90,7 +96,7 @@ def como_dono(pw):
         pagina.click('[data-a="nfParametros"]')
         expect(pagina.locator(".modal")).to_contain_text("O PAVLVS (prestador)")
         for chave, valor in [("documento", "11222333000181"), ("razao_social", "PAVLVS Tecnologia"), ("inscricao_municipal", "7788990"),
-                             ("municipio", "1501402"), ("servico.ctribnac", "010301"), ("servico.nbs", "115062100"),
+                             ("servico.ctribnac", "010301"), ("servico.nbs", "115062100"),
                              ("servico.aliquota_iss_pct", "2,00"), ("servico.descricao", "Assinatura do PAULUS"), ("ibscbs.cst", "000"),
                              ("ibscbs.cclasstrib", "000001"), ("ibscbs.cindop", "100301"), ("total_tributos.federal_pct", "13,45"),
                              ("total_tributos.municipal_pct", "2,00")]:
@@ -99,11 +105,32 @@ def como_dono(pw):
         campo(pagina, "opcao_simples").select_option("1")
         for k in ["iss", "irrf", "pis", "cofins", "csll", "cp"]:
             campo(pagina, "retencoes." + k + ".quando").select_option("nunca")
+        # o município pelo nome: colar o código mostra o nome; digitar "belém" lista e escolhe
+        mun = campo(pagina, "municipio")
+        mun.fill("5208707")
+        expect(mun).to_have_value("Goiânia/GO", timeout=10000)
+        checar(codigo(pagina, "municipio") == "5208707", "Parâmetros: colar os 7 dígitos do IBGE mostra \"Goiânia/GO\" e guarda o código")
+        mun.fill("")
+        mun.press_sequentially("belém", delay=40)
+        opcao = pagina.locator(".modal .nf-mun-opcao", has_text="Belém/PA")
+        expect(opcao).to_be_visible(timeout=10000)
+        checar(pagina.locator(".modal .nf-mun-opcao", has_text="Belém/PB").count() == 1, "a lista mostra os Belém de cada UF (nome/UF)")
+        foto(pagina, "2-parametros-municipio")
+        opcao.click()
+        expect(mun).to_have_value("Belém/PA")
+        checar(codigo(pagina, "municipio") == "1501402" and pagina.locator(".modal .nf-mun-lista").count() == 0,
+               "Parâmetros: escolher \"Belém/PA\" fecha a lista e guarda o código 1501402 escondido")
         foto(pagina, "2-parametros")
         pagina.click('[data-a="nfParamSalvar"]')
         toast(pagina, "Parâmetros gravados (versão")
         checar(pagina.locator(".modal").count() == 0, "Parâmetros: grava o prestador e a tributação (alíquotas em %)")
         expect(tela).to_contain_text("PAVLVS Tecnologia")
+        r = pagina.request.get(base + "/api/admin/nfse/emissor/situacao")
+        checar(r.json()["prestador"]["dados"]["municipio"] == "1501402", "o código IBGE do município foi gravado no prestador")
+        pagina.click('[data-a="nfParametros"]')
+        expect(campo(pagina, "municipio")).to_have_value("Belém/PA", timeout=10000)
+        checar(True, "reaberto, Parâmetros mostra \"Belém/PA\" no lugar do código")
+        pagina.keyboard.press("Escape")
 
         # certificado sem o token
         pagina.set_input_files("#nf-pfx", str(PFX))
@@ -135,6 +162,8 @@ def como_dono(pw):
         expect(campo(pagina, "tomador.nome")).to_have_value("Ana Advocacia", timeout=10000)
         expect(campo(pagina, "valor")).to_have_value("300,00")
         checar(True, "Emitir: o pop-up vem preenchido pelo pagamento (cliente, tomador, valor)")
+        expect(campo(pagina, "tomador.cmun")).to_have_value("Belém/PA", timeout=10000)
+        checar(codigo(pagina, "tomador.cmun") == "1501402", "Emitir: o município do cliente aparece pelo nome (\"Belém/PA\"), com o código escondido")
         campo(pagina, "tomador.documento").fill("52998224726")
         pagina.click('[data-a="nfEmitirConfirmar"]')
         expect(pagina.locator(".modal .erro-campo")).to_be_visible(timeout=15000)
@@ -169,11 +198,24 @@ def como_dono(pw):
         expect(pagina.locator(".modal")).to_contain_text("Escritório bruno", timeout=10000)
         pagina.locator('.modal [data-a="nfCliEditar"][data-id="' + "b" * 24 + '"]').click()
         for chave, valor in [("tomador.documento", "11222333000181"), ("tomador.cep", "66010000"), ("tomador.logradouro", "Av. Nazaré"),
-                             ("tomador.numero", "10"), ("tomador.bairro", "Nazaré"), ("tomador.cmun", "1501402")]:
+                             ("tomador.numero", "10"), ("tomador.bairro", "Nazaré")]:
             campo(pagina, chave).fill(valor)
+        mun = campo(pagina, "tomador.cmun")
+        mun.press_sequentially("goi", delay=40)
+        opcao = pagina.locator(".modal .nf-mun-opcao", has_text="Goiânia/GO")
+        expect(opcao).to_be_visible(timeout=10000)
+        mun.press("ArrowDown")
+        checar(pagina.locator('.modal .nf-mun-opcao[aria-selected="true"]').count() == 1, "Clientes: as setas andam na lista")
+        foto(pagina, "6-clientes-municipio")
+        opcao.click()
+        expect(mun).to_have_value("Goiânia/GO")
+        checar(codigo(pagina, "tomador.cmun") == "5208707" and campo(pagina, "tomador.uf").input_value() == "GO",
+               "Clientes: digitar \"goi\" e escolher \"Goiânia/GO\" guarda 5208707 e preenche a UF")
         pagina.locator('.modal [data-a="nfCliSalvar"]').click()
         expect(pagina.locator(".modal")).to_contain_text("salvos", timeout=10000)
         checar("completo" in pagina.locator(".modal").inner_text(), "Clientes: editar e salvar o tomador; o que faltava some")
+        bruno = [c for c in pagina.request.get(base + "/api/admin/nfse/emissor/clientes").json()["clientes"] if c["id"] == "b" * 24][0]
+        checar(bruno["tomador"]["cmun"] == "5208707" and bruno["tomador"]["uf"] == "GO", "o código IBGE escolhido pelo nome foi gravado no cliente (5208707)")
         foto(pagina, "6-clientes")
         pagina.keyboard.press("Escape")
 

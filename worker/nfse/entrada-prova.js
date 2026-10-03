@@ -7,7 +7,8 @@
 //     npx wrangler dev worker/nfse/entrada-prova.js --port 8799
 //     node worker/teste-nfse-prova.mjs --workerd http://127.0.0.1:8799
 //
-// POST /api/nfse-prova {pfx_b64, senha, xml_b64, id, algoritmo} devolve
+// POST /api/nfse-prova {pfx_b64, senha, xml_b64, id, algoritmo, nfse_b64?} devolve
+// (com nfse_b64, o XML de uma NFS-e, gera também o DANFSe)
 // {assinado_b64, gzip_b64, volta_ok, pdf_bytes, documento, titular}.
 // Qualquer outro caminho vai para o Worker do site, como sempre.
 
@@ -16,7 +17,7 @@ export { ContaIA, EmissorNFSe } from "../index.js";
 import { lerPfx } from "./pfx.js";
 import { assinar, b64, importarChave } from "./assinatura.js";
 import { deGzipB64, gzipB64 } from "./gzip.js";
-import { danfseEsqueleto } from "./danfse.js";
+import { gerarDanfse } from "./danfse.js";
 
 function deB64(t) {
   const bin = atob(t);
@@ -38,7 +39,7 @@ export default {
       const bytes = new TextEncoder().encode(assinado);
       const gz = await gzipB64(bytes);
       const volta = await deGzipB64(gz);
-      const pdf = await danfseEsqueleto({ numero: "1", chave: "teste", producaoRestrita: true, prestador: { nome: cert.titular, documento: cert.documento }, descricao: "prova" });
+      const pdf = e.nfse_b64 ? await gerarDanfse(deB64(e.nfse_b64)) : new Uint8Array(0);
       return Response.json({
         assinado_b64: b64(bytes), gzip_b64: gz, volta_ok: b64(volta) === b64(bytes),
         pdf_bytes: pdf.length, documento: cert.documento, titular: cert.titular,

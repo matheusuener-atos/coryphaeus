@@ -12,6 +12,8 @@
 //                                       cifrado no DO e cadastra o mTLS na Cloudflare (mtls.js)
 //   POST cloudflare {token}             o token de API da Cloudflare (cifrado no KV; "" apaga)
 //   POST testar                         certificado, conexão com a Sefin e convênio, com o tempo
+//   GET  municipios?q=<nome>&uf=<UF>    até 12 {codigo, nome, uf}: sem acento, por começo de
+//                                       palavra; 7 dígitos acham pelo código IBGE
 //   GET  clientes                       os assinantes com o tomador e o que falta
 //   POST clientes/:conta {tomador}      o ajuste do tomador
 //   POST notas {conta?, pagamento?, tomador, valor | valor_centavos, descricao, competencia}
@@ -29,17 +31,18 @@
 //   POST fila                           processa a fila agora (o alarme do DO faz sozinho)
 //   POST producao/liberar  /  POST producao/voltar
 //
-// O PDF e o e-mail ficam FORA do pedido que emite: o DANFSe (pdf-lib) custa
-// CPU que, somada à da emissão, passaria dos 10 ms do plano grátis. A tela
+// O PDF e o e-mail ficam FORA do pedido que emite: o DANFSe (pdf-lib, ~1,5 ms
+// quente, mais na 1ª chamada do isolate) somado à emissão passaria dos 10 ms
+// do plano grátis. A tela
 // chama POST notas/:id/depois logo depois de receber a nota emitida; o que
 // sobrar (emissão automática, nota que saiu da fila) o Cron de cada minuto
 // faz (depoisPendentes).
 
 import { b64 } from "./assinatura.js";
 import { deB64 } from "./cofre.js";
-import { danfseEsqueleto } from "./danfse.js";
+import { gerarDanfse } from "./danfse.js";
 import { idNoCliente, K_DEPOIS } from "./emissor.js";
-import { reais } from "./dinheiro.js";
+import { buscarMunicipios } from "./tabelas.js";
 import { guardarTokenCf, instalarMtls, K_CADEIA, mtlsEhDeste, situacaoCf } from "./mtls.js";
 import {
   clienteDaConta, faltasDoTomador, gravarTomador, listarClientes, listarPagamentos, mandarNotaPorEmail, marcarPagamento,
@@ -123,6 +126,10 @@ export async function atenderEmissor(request, env, ctx, { quem = "PAVLVS", prefi
     if (m === "POST" && p === "certificado") return json(...(await receberCertificado(env, corpo, quem)));
     if (m === "POST" && p === "cloudflare") return json(...(await receberTokenCf(env, corpo)));
     if (m === "POST" && p === "testar") return json(await testar(env));
+    if (m === "GET" && p === "municipios") {
+      const q = String(url.searchParams.get("q") || "").slice(0, 80);
+      return json({ municipios: buscarMunicipios(q, String(url.searchParams.get("uf") || "").slice(0, 2), 12) });
+    }
     if (m === "GET" && p === "clientes") return json({ clientes: await listarClientes(env) });
     let r = p.match(/^clientes\/([0-9a-f]{24})$/);
     if (r && m === "POST") {
@@ -259,20 +266,11 @@ async function testar(env) {
 async function montarPdf(env, id) {
   const r = await chamar(env, "para_pdf", { id });
   if (r.status !== 200) return { erro: r.dados.erro, status: r.status };
-  const { nota, xml_nfse: xml, prestador, calculo } = r.dados;
+  const { nota, xml_nfse: xml } = r.dados;
   if (!["emitida", "cancelada", "substituida"].includes(nota.estado)) return { erro: "a nota ainda não foi emitida", status: 409 };
-  const t = nota.tomador || {};
-  const c = calculo || {};
-  const v = nota.sefin || {};
-  const pdf = await danfseEsqueleto({
-    chave: nota.chave, numero: nota.numero, emissao: String(nota.quando || "").slice(0, 10).split("-").reverse().join("/"),
-    producaoRestrita: nota.ambiente === "producao_restrita", prestador,
-    tomador: { nome: t.nome, documento: t.documento, email: t.email,
-      endereco: [t.logradouro, t.numero, t.complemento, t.bairro, t.cep, t.uf].filter(Boolean).join(", ") },
-    descricao: nota.descricao,
-    valores: { servico: reais(nota.centavos), desconto: reais(c.v_desc_incond || 0), iss: reais(v.v_issqn ?? c.iss ?? 0),
-      retencoes: reais(v.v_total_ret ?? c.v_total_ret ?? 0), liquido: reais(v.v_liq || c.v_liq || 0) },
-  });
+  if (!xml) return { erro: "a nota não tem o XML da NFS-e", status: 409 };
+  // O DANFSe no leiaute da NT 008, tirado só do XML (danfse.js, porte do PAULUS).
+  const pdf = await gerarDanfse(xml);
   return { b64: b64(pdf), bytes: pdf.length, nota, xml };
 }
 
