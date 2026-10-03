@@ -137,6 +137,11 @@ def main() -> int:
                    f"volta do Google ({estado}): o título, a frase do estado e o aparecer devagar")
         html = pagina_retorno.pagina("sucesso", provedor="Google", escopos="https://mail.google.com/")
         checar("Conta Google conectada." in html, "com a conta conectada, a frase diz a conta")
+        pronto = re.search(r'd\.fase === "pronto"\) \{[^}]*\}', html)
+        checar(pronto and "voltar()" in pronto.group(0) and "paulus://" not in pronto.group(0),
+               "login pronto: a página pede ao PAULUS que venha para a frente, sem o diálogo do paulus://")
+        checar(html.count("paulus://voltar") == 1 and ".catch(function () { try { window.location.href = \"paulus://voltar\"" in html,
+               "o paulus:// só se o PAULUS não responder")
         checar(TITULO in porteiro.PAGINA_RECUSADA and "janela do PAULUS" in porteiro.PAGINA_RECUSADA, "fora da janela: o título e o motivo")
     finally:
         shutil.rmtree(TMP, ignore_errors=True)

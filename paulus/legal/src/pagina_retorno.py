@@ -232,22 +232,24 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
   requestAnimationFrame(function () { requestAnimationFrame(function () { document.getElementById("topo").classList.remove("abrindo"); }); });
   var raiz = document.documentElement;
   try { var t = localStorage.getItem("pv-tema"); if (t === "claro" || t === "escuro") raiz.dataset.tema = t; } catch (e) {}
-  // Voltar: o PAULUS traz a janela dele para frente; a aba fecha se o
-  // navegador deixar (so abas abertas por script podem se fechar).
-  // paulus:// (02/10): o navegador pergunta "Abrir PAULUS?" e o PAULUS
-  // aberto vem para a frente (src/desktop.py). Sem o registro, nada acontece
-  // aqui - e o aviso ao servidor, de sempre, traz a janela do mesmo jeito.
-  var abriu = false;
-  function abrirApp() {
-    if (abriu) return;
-    abriu = true;
-    try { window.location.href = "paulus://voltar"; } catch (e) {}
+  // Voltar ao PAULUS (03/10): a pagina pede ao proprio PAULUS, pelo servidor
+  // desta volta (/voltar), que a janela dele venha para a frente - sem
+  // dialogo nenhum (src/desktop.py, _trazer_para_frente). Quando o login fica
+  // pronto, isso acontece sozinho. Se o PAULUS nao responde (a pagina foi
+  // aberta de novo mais tarde, com o servidor da volta ja fechado), o
+  // endereco paulus:// abre o programa - ai o navegador pergunta antes.
+  var voltou = false;
+  function voltar(depois) {
+    if (voltou) return;
+    voltou = true;
+    fetch("/voltar?state=" + encodeURIComponent(dados.state), { cache: "no-store" })
+      .then(function (r) { if (!r.ok && r.status !== 204) throw new Error(); if (depois) depois(); })
+      .catch(function () { try { window.location.href = "paulus://voltar"; } catch (e) {} });
   }
+  function fecharAba() { setTimeout(function () { try { window.close(); } catch (e) {} }, 300); }
   document.getElementById("voltar").onclick = function () {
-    abriu = false;
-    abrirApp();
-    fetch("/voltar?state=" + encodeURIComponent(dados.state)).catch(function () {});
-    setTimeout(function () { try { window.close(); } catch (e) {} }, 300);
+    voltou = false;
+    voltar(fecharAba);
   };
   if (!dados.state) return;
   // O e-mail e o fim da conexao: o PAULUS sabe depois de trocar o codigo.
@@ -257,7 +259,7 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
     fetch("/estado?state=" + encodeURIComponent(dados.state)).then(function (r) { return r.json(); }).then(function (d) {
       var selo = document.getElementById("selo"), texto = document.getElementById("selo-texto"), email = document.getElementById("email");
       if (d.email) email.textContent = d.email;
-      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; abrirApp(); return; }
+      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; voltar(); return; }
       if (d.fase === "erro" || d.fase === "cancelado") {
         texto.textContent = "não conectado"; selo.className = "selo erro";
         var f = document.getElementById("falha"); f.hidden = false;
