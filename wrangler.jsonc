@@ -72,7 +72,7 @@
   // Admin" (o secret e segredo: GITHUB_CLIENT_SECRET); ADMIN_EQUIPE e a lista
   // inicial da equipe com o papel de cada um. RESEND_API_KEY (segredo) liga o
   // envio de e-mail; NFSE_EMISSOR fica vazio ate escolher o emissor.
-  "vars": { "ACCESS_TEAM": "", "ACCESS_AUD": "", "GITHUB_CLIENT_ID": "", "ADMIN_EQUIPE": "[]", "NFSE_EMISSOR": "",
+  "vars": { "ACCESS_TEAM": "flat-cloud-c226.cloudflareaccess.com", "ACCESS_AUD": "a2820f4ed9f0e11fcf052fa538cb835c241fe36bce9259f523d359a62edf4165", "GITHUB_CLIENT_ID": "", "ADMIN_EQUIPE": "[]", "NFSE_EMISSOR": "",
     "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20",
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
     "IA_ATIVA": "1", "IA_MODELOS": "meta-llama/Llama-3.3-70B-Instruct,Qwen/Qwen2.5-72B-Instruct",
