@@ -145,6 +145,9 @@ h2.titulo { font-size: 34px; line-height: 1.1; }
 .rotulo { font: 400 11px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
 
 /* a demo animada */
+#cd-google iframe { color-scheme: normal; }
+.demo-tocar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; padding: 10px 20px; border-radius: 999px; border: 1px solid var(--line); background: rgba(19, 19, 18, .88); color: #f2f1ec; font: 500 14px var(--sans); cursor: pointer; }
+.demo-tocar:hover { background: #2a2a27; }
 .demo-moldura { width: 100%; max-width: 960px; aspect-ratio: 1280 / 800; border-radius: 12px; border: 1px solid var(--line); overflow: hidden; background: #131312; position: relative; }
 
 /* as quatro regras */

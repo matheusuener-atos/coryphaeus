@@ -772,7 +772,7 @@ async function campanhaTeste(c, camp) {
   const ex = contas[0] || { nome: c.quem.nome || "Teste", escritorio: { nome: "Escritório de teste" }, plano: { nome: "Escritório" }, _d: {} };
   const campos = camposDe(ex);
   const r = await enviarEmail(c.env, {
-    para: c.quem.email, assunto: "[teste] " + preencher(camp.assunto, campos), titulo: preencher(camp.titulo, campos),
+    para: c.quem.email, assunto: preencher(camp.assunto, campos), titulo: preencher(camp.titulo, campos),
     texto: preencher(camp.texto, campos), botao: camp.botao, link: camp.link, pre: preencher(camp.pre, campos),
   });
   if (!r.ok) return json({ erro: r.erro }, r.status || 502);

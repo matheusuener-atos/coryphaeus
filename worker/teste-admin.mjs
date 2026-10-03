@@ -231,7 +231,7 @@ checar(r.status === 403, "suporte nao muda papeis");
 // --------------------------------------------------------- e-mail e campanhas
 console.log("e-mail");
 r = await admin("POST", "/api/admin/campanhas/teste", como({ corpo: { campanha: { assunto: "Olá {nome}", titulo: "Novidade", texto: "Oi {nome}, tudo bem?" } } }));
-checar(r.status === 200 && emails.length === 1 && emails[0].to[0] === "dono@paulus.ia.br" && emails[0].subject.startsWith("[teste]"), "e-mail de teste vai para quem esta na sessao", emails[0]);
+checar(r.status === 200 && emails.length === 1 && emails[0].to[0] === "dono@paulus.ia.br" && !emails[0].subject.startsWith("[teste]"), "e-mail de teste vai para quem esta na sessao", emails[0]);
 r = await admin("POST", "/api/admin/campanhas/teste", { ...como(), envUsado: { ...env, RESEND_API_KEY: "" }, corpo: { campanha: { assunto: "x", texto: "y" } } });
 checar(r.status === 503 && (await r.json()).erro.includes("RESEND_API_KEY"), "sem o provedor de e-mail: 503 dizendo o que falta");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "campanha.disparar", dados: { nome: "Boas-vindas", publico: "todos", assunto: "Bem-vindo, {nome}", texto: "O PAULUS chegou.", botao: "Abrir", link: "https://paulus.ia.br/", quando: "agora" }, texto: "Disparei Boas-vindas" } }));

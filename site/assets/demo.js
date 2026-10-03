@@ -239,10 +239,19 @@
   window.addEventListener("resize", ajustar);
 
   var parado = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (parado) { quadro(CUE.Aprovacao + 2.6); quadro(CUE.Aprovacao + 2.6); return; }
-
   var visivel = true, rodando = false, inicio = null, desde = 0, ultimo = 0;
-  function seguir() { if (!rodando && visivel && !document.hidden) { rodando = true; requestAnimationFrame(passo); } }
+  // Quem pediu menos movimento ao sistema (no Windows: Efeitos de animação
+  // desligados) vê um quadro parado e um botão para assistir, se quiser.
+  if (parado) {
+    quadro(CUE.Aprovacao + 2.6); quadro(CUE.Aprovacao + 2.6);
+    var tocar = document.createElement("button");
+    tocar.type = "button";
+    tocar.className = "demo-tocar";
+    tocar.textContent = document.documentElement.lang === "en" ? "\u25B6 Watch the demo" : "\u25B6 Ver a demonstra\u00e7\u00e3o";
+    tocar.addEventListener("click", function () { tocar.remove(); parado = false; seguir(); });
+    raiz.appendChild(tocar);
+  }
+  function seguir() { if (!parado && !rodando && visivel && !document.hidden) { rodando = true; requestAnimationFrame(passo); } }
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(function (e) { visivel = e[0].isIntersecting; seguir(); }, { threshold: .05 }).observe(raiz);
   }
