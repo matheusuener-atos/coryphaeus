@@ -224,14 +224,14 @@ def main() -> int:
         for tela in ("Configurações › **Nota fiscal**", "**Emitir nota**", "**Emitir nota dos honorários**", "**Preparar a nota**",
                      "**Pedir aprovação**", "**Cancelar a nota**", "**Substituir**", "**Atualizar situação**",
                      "**Abrir o DANFSe**", "**Abrir o relatório do mês**", "**Exportar para o contador:**",
-                     "**Mandar ao contador:**", "**Nota todo mês**", "**Produção**", "**Liberar a produção**",
-                     "**Voltar para\nprodução restrita**", "Aguardando confirmação", "Rejeições comuns", "procurar o contador"):
+                     "**Mandar ao contador:**", "**Nota todo mês**", "**Produção:**", "**Mudar para produção**", "**Fazer o teste**",
+                     "**Voltar para o\nambiente de testes**","Aguardando confirmação", "Rejeições comuns", "procurar o contador"):
             checar(tela.replace("\n", " ") in manual.replace("\n", " "), f"o manual fala de {tela.strip('*')}")
         js = "\n".join(f.read_text(encoding="utf-8") for f in (RAIZ / "frontend" / "js").glob("*.js"))
         for rotulo in ("Emitir nota", "Emitir nota dos honorários", "Preparar a nota", "Pedir aprovação", "Cancelar a nota",
                        "Substituir", "Atualizar situação", "Abrir o DANFSe", "Abrir o relatório do mês", "Exportar para o contador",
-                       "Mandar ao contador", "Nota todo mês", "Liberar a produção", "Voltar para produção restrita",
-                       "Consultar e mandar", "Registrar a revisão do contador"):
+                       "Mandar ao contador", "Nota todo mês", "Mudar para produção", "Voltar para o ambiente de testes", "Fazer o teste",
+                       "Consultar e mandar", "Registrar que o contador conferiu"):
             checar(rotulo in js, f"o botão “{rotulo}” do manual existe na tela")
     finally:
         shutil.rmtree(TMP, ignore_errors=True)

@@ -451,7 +451,7 @@ _declarar(BLOQUEADO, "GET /api/nfse/contador", "POST /api/nfse/contador/exportar
 # --- N7 (NFS-e): honorarios recorrentes (criam o rascunho e o pedido; nunca emitem).
 _declarar(BLOQUEADO, "GET /api/nfse/recorrencias", "POST /api/nfse/recorrencias", "POST /api/nfse/recorrencias/{id_}/desligar")
 # --- N8 (NFS-e): a liberacao da producao - so o titular, so na janela do escritorio.
-_declarar(BLOQUEADO, "GET /api/nfse/producao", "POST /api/nfse/producao/revisado", "POST /api/nfse/producao/testes-conferidos",
+_declarar(BLOQUEADO, "GET /api/nfse/producao", "POST /api/nfse/producao/revisado", "POST /api/nfse/teste", "GET /api/nfse/teste/clientes",
           "POST /api/nfse/producao/liberar", "POST /api/nfse/producao/voltar")
 # --- V1-V7 (docs/PLANO-NUVEM.md): o termo, o sim do titular, a conta do PAULUS
 # (nuvem), o plano e a recarga - tudo da janela do escritorio. De fora, so a

@@ -315,3 +315,25 @@ Cada correção que vier daí entra com teste.
   do Assistente) e tinha alterações sem commit de outra sessão. A junção
   está pronta e conferida na branch `nfse-sobre-main` (ver "Junção com a
   main", acima).
+
+## Assistente e teste de um clique (03/10/2026)
+
+O emissor é do escritório cliente (cada PAULUS instalado emite com o A1 do
+próprio escritório). A configuração virou um passo a passo em Configurações ›
+Nota fiscal: 1. Certificado (o CNPJ e o nome vêm dele), 2. Escritório (a cidade
+é consultada no Sistema Nacional ao gravar), 3. Impostos (perguntas simples;
+retenções, IBS/CBS com a sugestão oficial, total de tributos e códigos em
+"Mais opções"), 4. Teste, 5. Produção.
+
+- O teste (`src/nfse/teste.py`, `POST /api/nfse/teste`) emite uma nota de
+  R$ 1,00 em produção restrita para um cliente do Cadastro e a cancela; o
+  clique é a aprovação (sem fila de Aprovações, sem e-mail, sem registro no
+  Financeiro; XML em Notas fiscais/Testes). Grava a impressão da configuração:
+  mudou depois, pede outro teste.
+- A liberação trava só em: configuração completa, certificado válido, município
+  conveniado e teste passando. Revisão do contador e backup viraram
+  recomendação. Sai o "5 notas conferidas" (`/producao/testes-conferidos`).
+- `test_n8_producao` cobre o teste (sucesso, recusa da Sefin, configuração
+  mudada); `test_n9_textos` com os rótulos novos.
+- Pausa N3/N8 deixa de ser do dono do PAULUS: o primeiro envio real é o
+  teste do passo 4 no primeiro escritório que configurar.

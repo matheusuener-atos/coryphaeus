@@ -217,6 +217,10 @@ def _nome_arquivo(texto: str) -> str:
 def pasta_da_nota(estado, nota: dict) -> Path:
     """A pasta do Serviço (Notas fiscais), ou Notas fiscais/<cliente> no Acervo."""
     raiz = Path(estado.pasta)
+    if nota.get("origem") == "teste_assistente":
+        alvo = raiz / "Notas fiscais" / "Testes"
+        alvo.mkdir(parents=True, exist_ok=True)
+        return alvo
     if nota.get("servico_id"):
         p = estado.servicos.pasta_de(int(nota["servico_id"]))
         if p:
@@ -254,6 +258,12 @@ def depois_de_emitir(estado, nota: dict) -> None:
             estado.recarregar_em_segundo_plano()
     except Exception as exc:  # noqa: BLE001
         notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS", f"não consegui guardar no Acervo: {exc}")
+
+    if nota.get("origem") == "teste_assistente":
+        # A nota do teste do assistente (teste.py): só no Acervo; nada no
+        # Financeiro, nenhum e-mail ao cliente.
+        auditar(estado, f"NFS-e de teste {nota['numero_nfse']} emitida (produção restrita)")
+        return
 
     try:
         papel = estado.base.escrever(

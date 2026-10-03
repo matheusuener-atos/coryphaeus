@@ -51,6 +51,9 @@ class Emissor:
         from .producao import Producao
 
         self.producao = Producao(self)
+        from .teste import Teste
+
+        self.teste = Teste(self)
         # O estado do programa (para Aprovações), posto pelas rotas; e o dia em
         # que a rotina diária já rodou.
         self.estado_app = None
@@ -95,6 +98,7 @@ class Emissor:
                 self.cofre.remover()
             raise ValueError(lido.erro)
         self.cofre.lembrar(senha)
+        self._preencher_do_certificado()
         if guardar and not self.cofre.proteger(senha):
             raise ValueError("certificado instalado, mas não consegui guardar a senha nesta conta do Windows")
         if not guardar:
@@ -102,6 +106,26 @@ class Emissor:
             self.cofre.dados["guardar_senha"] = False
             self.cofre.salvar()
         return self.certificado_para_tela()
+
+    def _preencher_do_certificado(self) -> None:
+        """O CNPJ (ou CPF) e o nome do certificado preenchem a configuração, se ainda estão vazios."""
+        cert = self.cofre.certificado()
+        if not cert or cert.erro:
+            return
+        d = cert.to_dict()
+        doc = "".join(ch for ch in (d.get("documento") or "") if ch.isalnum())
+        nome = str(d.get("titular") or "").split(":")[0].strip()
+        atual = self.prestador.atual()["dados"]
+        novo = {}
+        if doc and not atual.get("documento"):
+            novo["documento"] = doc
+        if nome and not atual.get("razao_social"):
+            novo["razao_social"] = nome
+        if novo:
+            try:
+                self.prestador.gravar(novo, quem="titular", motivo="dados do certificado")
+            except ValueError:
+                pass
 
     def desbloquear(self, senha: str, guardar: bool = False) -> dict:
         lido = self.cofre.abrir(senha)

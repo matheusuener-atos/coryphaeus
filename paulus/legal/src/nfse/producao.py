@@ -1,16 +1,17 @@
 """
 A liberação da produção (N8): só o titular, só na janela do escritório.
 
-Antes, um checklist que o PAULUS confere sozinho onde dá e pede à pessoa
-onde só ela sabe:
+Antes, um checklist que o PAULUS confere sozinho. Travam a liberação:
 
-1. a configuração fiscal revisada pelo contador ("revisado por … em …");
-2. pelo menos 5 notas emitidas em produção restrita e conferidas por alguém
-   (a pessoa marca que conferiu no portal e no DANFSe);
-3. o certificado da nota válido;
-4. o município com convênio confirmado (a consulta da produção restrita: a
+1. a configuração fiscal completa;
+2. o certificado da nota válido;
+3. o município com convênio confirmado (a consulta da produção restrita: a
    de produção só depois da liberação, porque o cliente tranca a produção);
-5. o backup configurado (pasta e senha).
+4. o teste do assistente (teste.py) feito com sucesso com a configuração de
+   agora: uma nota emitida e cancelada em produção restrita.
+
+Recomendados, sem travar (o escritório decide): a revisão do contador e o
+backup configurado.
 
 Liberar grava quem, quando e o checklist (tabela nfse_liberacao), muda o
 ambiente da configuração e vai para a auditoria. "Voltar para produção
@@ -25,7 +26,6 @@ from datetime import datetime
 
 from . import tabelas
 
-MINIMO_DE_TESTES = 5
 FRASE_PRIMEIRA = "Esta nota vale de verdade. Conferiu os dados?"
 
 
@@ -48,34 +48,24 @@ class Producao:
         except (OSError, ValueError):
             return {}
 
-    def marcar_testes_conferidos(self, por: str) -> dict:
-        por = " ".join(str(por or "").split())[:120]
-        if not por:
-            raise ValueError("diga quem conferiu as notas de teste")
-        marcas = self._marcas()
-        marcas["testes_conferidos_por"] = por
-        marcas["testes_conferidos_em"] = _agora()
-        self.emissor.pasta.mkdir(parents=True, exist_ok=True)
-        self._arquivo.write_text(json.dumps(marcas, ensure_ascii=False, indent=1), encoding="utf-8")
-        return self.checklist()
-
     def checklist(self, prefs_backup: dict | None = None) -> dict:
         prest = self.emissor.prestador.atual()["dados"]
-        testes = self.base.contar("nfse_notas", "ambiente = 'producao_restrita' AND estado IN ('emitida','cancelada','substituida')")
-        marcas = self._marcas()
+        marcas_teste = self.emissor.teste.ultimo()
         cert = (self.emissor.certificado_para_tela() or {}).get("certificado") or {}
         mun = self.emissor.municipios.situacao(prest.get("municipio") or "", "producao_restrita")
         backup = prefs_backup if prefs_backup is not None else (self.emissor.prefs.dados.get("backup") or {})
+        faltas = self.emissor.prestador.para_tela()["faltas"]
+        if marcas_teste.get("vale_para_agora"):
+            det_teste = f"nota nº {marcas_teste.get('numero', '')} emitida e cancelada em {marcas_teste.get('em', '')[:16].replace('T', ' ')}"
+        elif marcas_teste.get("ok"):
+            det_teste = "a configuração mudou depois do último teste: faça o teste de novo"
+        elif marcas_teste:
+            det_teste = marcas_teste.get("frase", "")
+        else:
+            det_teste = "faça o teste no passo 4"
         itens = [
-            {"id": "revisado", "ok": bool(prest.get("revisado_por")),
-             "titulo": "Configuração fiscal revisada pelo contador",
-             "detalhe": (f"revisada por {prest['revisado_por']} em {prest.get('revisado_em', '')}" if prest.get("revisado_por")
-                         else "peça ao contador para revisar Configurações › Nota fiscal e registre quem revisou")},
-            {"id": "testes", "ok": testes >= MINIMO_DE_TESTES and bool(marcas.get("testes_conferidos_por")),
-             "titulo": f"Pelo menos {MINIMO_DE_TESTES} notas em produção restrita, emitidas e conferidas",
-             "detalhe": f"{testes} emitida(s) em produção restrita" + (
-                 f"; conferidas por {marcas['testes_conferidos_por']}" if marcas.get("testes_conferidos_por")
-                 else "; falta marcar que alguém as conferiu (no portal e no DANFSe)")},
+            {"id": "configuracao", "ok": not faltas, "titulo": "Configuração completa",
+             "detalhe": "tudo preenchido" if not faltas else "falta " + "; ".join(faltas)},
             {"id": "certificado", "ok": bool(cert) and not cert.get("erro") and not cert.get("vencido"),
              "titulo": "Certificado da nota válido",
              "detalhe": (f"válido até {cert.get('valido_ate', '')}" if cert and not cert.get("erro") else
@@ -86,12 +76,21 @@ class Producao:
              # emissão desligada, a frase da consulta prometeria demais.
              "detalhe": (f"{_nome_do_municipio(prest.get('municipio') or '')} tem convênio ativo com o Sistema Nacional "
                          "da NFS-e" if mun.get("situacao") == "conveniado" else mun.get("frase", ""))},
+            {"id": "teste", "ok": bool(marcas_teste.get("vale_para_agora")),
+             "titulo": "Teste feito com sucesso", "detalhe": det_teste},
+        ]
+        recomendados = [
+            {"id": "revisado", "ok": bool(prest.get("revisado_por")),
+             "titulo": "Configuração conferida pelo contador",
+             "detalhe": (f"conferida por {prest['revisado_por']} em {prest.get('revisado_em', '')}" if prest.get("revisado_por")
+                         else "peça ao contador para conferir o regime e as retenções")},
             {"id": "backup", "ok": bool(backup.get("pasta")) and bool(backup.get("senha")),
              "titulo": "Backup configurado", "detalhe": ("pasta " + backup["pasta"]) if backup.get("pasta")
-             else "configure o backup em Configurações › Backup (pasta e senha)"},
+             else "configure o backup em Configurações › Backup"},
         ]
         lib = self.emissor.liberacao()
-        return {"itens": itens, "pode_liberar": all(i["ok"] for i in itens), "liberada": lib is not None,
+        return {"itens": itens, "recomendados": recomendados, "pode_liberar": all(i["ok"] for i in itens),
+                "liberada": lib is not None, "teste": marcas_teste,
                 "liberacao": lib, "ambiente": self.emissor.ambiente, "frase_primeira": FRASE_PRIMEIRA}
 
     def liberar(self, quem: str, confirmo: bool) -> dict:
@@ -104,7 +103,7 @@ class Producao:
             faltam = [i["titulo"] for i in ch["itens"] if not i["ok"]]
             raise ValueError("falta no checklist: " + "; ".join(faltam))
         self.base.escrever("INSERT INTO nfse_liberacao (liberado_em, liberado_por, checklist) VALUES (?,?,?)",
-                           (_agora(), quem, json.dumps(ch["itens"], ensure_ascii=False)))
+                           (_agora(), quem, json.dumps(ch["itens"] + ch["recomendados"], ensure_ascii=False)))
         self.emissor.prestador.mudar_ambiente("producao", quem, "produção liberada pelo titular")
         return self.checklist()
 

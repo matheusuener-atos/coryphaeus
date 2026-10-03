@@ -61,6 +61,10 @@ class Liberar(BaseModel):
     confirmo: bool = False
 
 
+class FazerTeste(BaseModel):
+    cadastro_id: int | None = None
+
+
 class Por(BaseModel):
     por: str = ""
 
@@ -449,12 +453,25 @@ def montar(estado, app, dados_dir) -> None:
             _erro(exc)
         return estado.nfse.producao.checklist()
 
-    @app.post("/api/nfse/producao/testes-conferidos")
-    def nfse_producao_testes(payload: Por) -> dict:
+    @app.post("/api/nfse/teste")
+    def nfse_teste(payload: FazerTeste) -> dict:
+        """O passo 4 do assistente: emite e cancela uma nota em produção restrita."""
+        from nfse import fluxo
+
         try:
-            return estado.nfse.producao.marcar_testes_conferidos(payload.por)
+            r = estado.nfse.teste.fazer(payload.cadastro_id or 0, quem="titular")
         except ValueError as exc:
             _erro(exc)
+        fluxo.auditar(estado, "teste da NFS-e em produção restrita: " + ("tudo certo" if r.get("ok") else "falhou")
+                      + (f" (nota {r.get('numero')})" if r.get("numero") else ""))
+        return estado.nfse.producao.checklist()
+
+    @app.get("/api/nfse/teste/clientes")
+    def nfse_teste_clientes() -> dict:
+        """Os clientes do Cadastro com CPF/CNPJ, para escolher o da nota de teste."""
+        linhas = estado.base.buscar("SELECT id, nome, documento FROM cadastros WHERE COALESCE(documento,'') != '' "
+                                    "ORDER BY nome LIMIT 300")
+        return {"clientes": [{"id": l["id"], "nome": l["nome"], "documento": l["documento"]} for l in linhas]}
 
     @app.post("/api/nfse/producao/liberar")
     def nfse_producao_liberar(payload: Liberar) -> dict:

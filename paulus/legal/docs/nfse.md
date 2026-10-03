@@ -9,43 +9,40 @@ O PAULUS **não faz planejamento tributário**. Ele aplica a configuração
 fiscal que o escritório (ou o contador) definiu, mostra a conta e avisa
 quando algo não bate. Na dúvida tributária, a resposta é do contador.
 
-## 1. Configurar (uma vez)
+## 1. Configurar (uma vez): o passo a passo
 
 Configurações › **Nota fiscal**. Só na janela do computador do escritório.
+A tela é um passo a passo, com o caminho no alto (✓ no que está feito):
 
-1. **Ligar** a emissão (vem desligada).
-2. **Quem presta o serviço:** CNPJ (ou CPF do advogado autônomo), inscrição
-   municipal, município (digite o nome e escolha; o código IBGE vem da
-   tabela oficial), endereço, telefone e e-mail. Contador (nome e e-mail).
-3. **Regime:** situação no Simples Nacional (não optante, MEI, ME/EPP e o
-   regime de apuração) e o regime especial de ISS — sociedade de advogados
-   com ISS fixo costuma ser "6 – Sociedade de Profissionais". Com regime
-   especial a nota não leva alíquota de ISS nem ISS retido (regras E0604 e
-   E0588 da Sefin).
-4. **Serviço padrão:** o código de tributação nacional (171401, Advocacia, já
-   vem), a **NBS** (depende da área: criminal, outras áreas, consultoria
-   tributária…), a alíquota do ISS do município (para a previsão; quem
-   aplica é a Sefin) e a descrição padrão.
-5. **Retenções:** para IRRF, PIS, COFINS, CSLL, CP e ISS retido, diga quando
-   reter (nunca, quando o tomador é pessoa jurídica, sempre) e a alíquota.
-   **"Não sei — perguntar ao contador"** deixa a retenção desligada e o
-   cartão avisa. PIS/COFINS/CSLL retidos pedem o CST do PIS/COFINS.
-6. **IBS e CBS:** o CST e o cClassTrib (o contador informa). A tabela oficial
-   de correlação sugere, para a advocacia, cIndOp 100301 e cClassTrib 200052,
-   mas o próprio portal diz que é um trabalho inicial: confirme antes.
-7. **Total aproximado de tributos** (Lei 12.741): os percentuais.
-8. **Gravar a configuração.** Cada gravação é uma versão: a nota emitida
-   guarda a versão com que foi feita.
-9. **Certificado A1 da nota** (.pfx ou .p12), com a senha. Separado do
-   certificado de assinar PDF. Marque "guardar a senha nesta conta do
-   Windows" para a fila poder enviar sem você; senão, a senha vale 15 minutos.
-   O A3 (token) não serve, nem o certificado instalado no Windows sem exportar.
-10. **O município emite pelo nacional?** Clique em "Consultar agora": o
-    PAULUS pergunta ao próprio Sistema Nacional. Sem convênio, a tela diz, e
-    a nota continua sendo emitida no sistema da prefeitura e **registrada**
-    no Financeiro, como antes.
-
-O que faltar, a tela lista em "Falta configurar".
+1. **Certificado:** o A1 do escritório (.pfx ou .p12), com a senha — o mesmo
+   que ele usa na prefeitura. Separado do certificado de assinar PDF. Do
+   certificado o PAULUS já tira o CNPJ (ou CPF) e o nome. "Guardar a senha
+   neste computador" vem marcado, para a fila poder enviar sem você; sem
+   isso, a senha vale 15 minutos. O A3 (token) não serve, nem o certificado
+   instalado no Windows sem exportar.
+2. **Escritório:** CNPJ, inscrição municipal, cidade (digite o nome e
+   escolha), endereço, telefone e e-mail. Ao gravar, o PAULUS pergunta
+   sozinho ao Sistema Nacional se a cidade emite por ele. Sem convênio, a
+   tela diz, e a nota continua sendo emitida no sistema da prefeitura e
+   **registrada** no Financeiro, como antes.
+3. **Impostos:** como o escritório paga impostos (lucro presumido ou real,
+   Simples, MEI), se o ISS é fixo por profissional (sociedade de advogados ou
+   autônomo), a área de atuação (vira a NBS), a alíquota do ISS da cidade e o
+   texto padrão da nota. Em **Mais opções**, para conferir com o contador:
+   retenções ("Não sei — perguntar ao contador" deixa a retenção desligada),
+   IBS/CBS (já vem com a sugestão da tabela oficial para a advocacia, cClassTrib
+   200052 e cIndOp 100301 — confirme), total aproximado de tributos, códigos e
+   o contato do contador. Cada gravação é uma versão: a nota emitida guarda a
+   versão com que foi feita.
+4. **Teste:** escolha um cliente do Cadastro (com endereço completo) e clique
+   em **Fazer o teste**. O PAULUS emite uma nota de R$ 1,00 no ambiente de
+   testes do governo (produção restrita, sem valor fiscal) e a cancela em
+   seguida, mostrando cada etapa. Nada vai ao cliente: nem e-mail, nem
+   registro no Financeiro; o XML fica em Notas fiscais/Testes. Se falhar, a
+   tela diz o motivo (a frase da Sefin); corrija e teste de novo. Mudou a
+   configuração depois, o teste vale para a de antes e a tela pede outro.
+5. **Produção:** com o teste passando, a tela diz **"Tudo certo!"** e
+   mostra **Mudar para produção** (seção 11).
 
 ## 2. Emitir
 
@@ -167,18 +164,19 @@ uma vez por mês).
 
 ## 11. Produção
 
-Configurações › Nota fiscal › **Produção**, só o titular. O checklist:
+Configurações › Nota fiscal › passo 5, só o titular. Libera quando:
 
-1. a configuração revisada pelo contador ("Registrar a revisão do contador");
-2. pelo menos 5 notas em produção restrita, emitidas e conferidas por alguém
-   no portal e no DANFSe;
-3. o certificado válido;
-4. o município com convênio confirmado;
-5. o backup configurado.
+1. a configuração está completa;
+2. o certificado está válido;
+3. o município tem convênio confirmado;
+4. o teste do passo 4 passou com a configuração de agora.
 
-**Liberar a produção** grava quem e quando. A primeira nota de produção
-pergunta: "Esta nota vale de verdade. Conferiu os dados?". **Voltar para
-produção restrita** tranca de novo.
+Recomendados, sem travar: a configuração conferida pelo contador
+("Registrar que o contador conferiu") e o backup configurado.
+
+**Mudar para produção** grava quem e quando. A primeira nota de produção
+pergunta: "Esta nota vale de verdade. Conferiu os dados?". **Voltar para o
+ambiente de testes** tranca de novo.
 
 ## 12. Rejeições comuns
 
@@ -209,7 +207,7 @@ produção restrita** tranca de novo.
 - o total aproximado de tributos;
 - se o Simples deve mandar o grupo IBS/CBS ainda em 2026;
 - o prazo de guarda pela lei do município;
-- antes de liberar a produção (a revisão entra no checklist).
+- antes de mudar para produção (recomendado; a conferência aparece no passo 5).
 
 ## 14. O que o PAULUS não faz
 

@@ -128,6 +128,20 @@ class Eventos:
         self.notas.passo(nota_id, EMITIDA, EMITIDA, quem, f"pedido de cancelamento em Aprovações (motivo {motivo})")
         return self.obter(ev_id)
 
+    def criar_cancelamento_de_teste(self, nota_id: int, motivo: str, texto: str, quem: str = "titular") -> dict:
+        """O cancelamento da nota do teste do assistente (teste.py): só em produção restrita, sem Aprovações."""
+        nota = self.notas.obter(nota_id)
+        if not nota or nota["estado"] != EMITIDA:
+            raise ValueError("só se cancela nota emitida")
+        if nota["ambiente"] != "producao_restrita" or nota.get("origem") != "teste_assistente":
+            raise ValueError("só a nota de teste do assistente se cancela sem Aprovações")
+        agora = _agora()
+        ev_id = self.base.escrever(
+            "INSERT INTO nfse_eventos (nota_id, tipo, estado, motivo, texto, pedido_por, criado_em, atualizado_em) "
+            "VALUES (?,?,?,?,?,?,?,?)", (nota_id, CANCELAMENTO, ESPERANDO, motivo, texto, quem, agora, agora))
+        self.notas.passo(nota_id, EMITIDA, EMITIDA, quem, "teste do assistente: cancelamento pedido")
+        return self._mudar(ev_id, aprovado_por=quem)
+
     def _pedido_xml(self, nota: dict, tipo: str, motivo: str, texto: str, chave_substituta: str = "") -> tuple[bytes, str]:
         from versao import VERSAO
 

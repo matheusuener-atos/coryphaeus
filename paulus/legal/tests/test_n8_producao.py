@@ -4,9 +4,10 @@ Teste da N8 do emissor de NFS-e — a liberação da produção.
 (A N8 não tem portão próprio no prompt: o portão é o teste real do dono. Este
 teste mede o que o código garante antes dele.)
 
-  - o checklist trava a liberação até todos os itens: revisão do contador, 5
-    notas em produção restrita conferidas, certificado válido, município com
-    convênio e backup configurado;
+  - o checklist trava a liberação até a configuração completa, o certificado
+    válido, o município com convênio e o teste do assistente (uma nota emitida
+    e cancelada em produção restrita) feito com a configuração de agora; a
+    revisão do contador e o backup são recomendados, sem travar;
   - liberar grava quem e quando, muda o ambiente e vai para a auditoria; o
     cliente passa a falar com os endereços de produção;
   - a primeira nota de produção pede a confirmação "Esta nota vale de verdade";
@@ -83,22 +84,52 @@ def main() -> int:
         print("\no checklist trava a liberação")
         ch = local.get("/api/nfse/producao").json()
         checar(not ch["pode_liberar"] and not ch["liberada"], "de início, não dá para liberar")
-        r = local.post("/api/nfse/producao/liberar", json={"confirmo": True})
-        checar(r.status_code == 400 and "falta no checklist" in r.json()["detail"], "liberar sem o checklist é recusado", r.text[:200])
-        for _ in range(5):
-            emitir(api, local, cid)
-        ch = local.get("/api/nfse/producao").json()
-        testes = next(i for i in ch["itens"] if i["id"] == "testes")
-        checar(not testes["ok"] and "5 emitida(s)" in testes["detalhe"], "5 emitidas, mas falta marcar que foram conferidas", testes)
-        local.post("/api/nfse/producao/testes-conferidos", json={"por": "Dra. Ana"})
-        local.post("/api/nfse/producao/revisado", json={"por": "Carla Contadora"})
-        ch = local.get("/api/nfse/producao").json()
         falta = [i["id"] for i in ch["itens"] if not i["ok"]]
-        checar(falta == ["backup"], "só falta o backup", falta)
-        api.estado.prefs.dados["backup"]["pasta"] = str(TMP / "bk")
-        api.estado.prefs.dados["backup"]["senha"] = "x"
+        checar(falta == ["teste"], "só falta o teste (contador e backup são recomendados)", falta)
+        checar({i["id"] for i in ch["recomendados"]} == {"revisado", "backup"}, "revisão e backup viram recomendação")
+        r = local.post("/api/nfse/producao/liberar", json={"confirmo": True})
+        checar(r.status_code == 400 and "falta no checklist" in r.json()["detail"], "liberar sem o teste é recusado", r.text[:200])
+
+        print("\no teste do assistente")
+        r = local.post("/api/nfse/teste", json={})
+        checar(r.status_code == 400, "sem cliente, o teste não roda", r.status_code)
+        clientes = local.get("/api/nfse/teste/clientes").json()["clientes"]
+        checar(any(c["id"] == cid for c in clientes), "o cliente aparece para escolher")
+        e.ligar(False)
+        r = local.post("/api/nfse/teste", json={"cadastro_id": cid})
+        ch = r.json()
+        checar(r.status_code == 200 and ch["teste"]["ok"] and ch["pode_liberar"], "teste feito: pode liberar", r.text[:400])
+        checar(e.ligado, "o teste liga a emissão")
+        etapas = [x["titulo"] for x in ch["teste"]["etapas"] if x["ok"]]
+        checar(len(etapas) == 5 and "Cancelamento registrado" in etapas, "as cinco etapas, até o cancelamento", etapas)
+        nt = e.notas.obter(ch["teste"]["nota_id"])
+        checar(nt["estado"] == "cancelada" and nt["ambiente"] == "producao_restrita" and nt["centavos"] == 100,
+               "a nota de teste: R$ 1,00, produção restrita, cancelada", (nt["estado"], nt["ambiente"], nt["centavos"]))
+        checar(not any(p.acao in ("nfse.emitir", "nfse.cancelar", "correio.enviar") for p in api.estado.fila.pendentes),
+               "o teste não deixa pedido em Aprovações nem e-mail ao cliente")
+        checar(not api.estado.base.buscar("SELECT id FROM papeis_fiscais WHERE nfse_nota_id = ?", (nt["id"],)),
+               "a nota de teste não entra nas notas fiscais do Financeiro")
+        checar((Path(api.estado.pasta) / "Notas fiscais" / "Testes").exists(), "o XML do teste vai para Notas fiscais/Testes")
+
+        print("\nmudou a configuração, o teste não vale mais")
+        e.prestador.gravar({"servico": {"descricao": "Honorários advocatícios contratuais"}}, quem="teste")
         ch = local.get("/api/nfse/producao").json()
-        checar(ch["pode_liberar"], "checklist completo")
+        checar(not ch["pode_liberar"] and "mudou" in next(i for i in ch["itens"] if i["id"] == "teste")["detalhe"],
+               "pede outro teste", ch["itens"])
+        local.post("/api/nfse/producao/revisado", json={"por": "Carla Contadora"})
+        ch = local.post("/api/nfse/teste", json={"cadastro_id": cid}).json()
+        checar(ch["pode_liberar"], "o teste de novo libera", ch.get("teste", {}).get("frase"))
+        checar(next(i for i in ch["recomendados"] if i["id"] == "revisado")["ok"], "a revisão aparece como recomendação cumprida")
+
+        print("\no teste que falha diz o porquê")
+        s.modos = ["rejeicao"]
+        r = local.post("/api/nfse/teste", json={"cadastro_id": cid})
+        ch = r.json()
+        checar(r.status_code == 200 and not ch["teste"]["ok"] and "recusou" in ch["teste"]["frase"] and not ch["pode_liberar"],
+               "Sefin recusa: o teste falha com a frase e trava a liberação", ch.get("teste", {}).get("frase"))
+        s.modos = ["sucesso"]
+        ch = local.post("/api/nfse/teste", json={"cadastro_id": cid}).json()
+        checar(ch["pode_liberar"], "e passa de novo quando a Sefin aceita", ch.get("teste", {}).get("frase"))
         r = local.post("/api/nfse/producao/liberar", json={"confirmo": False})
         checar(r.status_code == 400, "sem a confirmação, não libera")
         checar(not e.producao_liberada() and e.ambiente == "producao_restrita", "ainda em produção restrita")
