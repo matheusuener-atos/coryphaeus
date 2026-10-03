@@ -1,4 +1,4 @@
-# mTLS da NFS-e no Worker (só documentado; NADA disto foi executado)
+# mTLS da NFS-e no Worker (os passos à mão; o painel automatiza desde a fase 4, seção 6)
 
 O Sistema Nacional (Sefin/ADN) exige o A1 do emitente no TLS. No Worker, o
 `fetch` global não apresenta certificado de cliente; quem apresenta é o
@@ -127,6 +127,23 @@ Qualquer erro do `fetch` (tempo esgotado, conexão caída) é tratado como
 "sem resposta": o emissor CONSULTA a DPS antes de qualquer reenvio. O
 auxiliar pode responder `x-nfse-nao-chegou: 1` quando recusa o destino sem
 abrir conexão (aí o pedido certamente não chegou e a nota vai para a fila).
-O binding `SEFIN_MTLS` ainda NÃO está no wrangler.jsonc: entra quando o
-auxiliar existir (sem ele, `podeEmitir` passa, mas o envio vai para a fila
-com "sem conexão com a Sefin configurada").
+O binding `SEFIN_MTLS` está no wrangler.jsonc desde a fase 4 (03/10/2026):
+o auxiliar precisa existir ANTES do deploy (veja a nota no topo do
+wrangler.jsonc).
+
+## 6. Pelo painel (fase 4)
+
+Os passos 2 e 3 não são mais à mão: em `/admin` › Notas fiscais, o .pfx é
+aberto no navegador e o Worker (`worker/nfse/mtls.js`, `instalarMtls`) faz o
+POST do certificado, o PUT do auxiliar (o script é `worker/nfse-mtls/index.js`)
+e o DELETE do mTLS anterior, com o token de API colado em Parâmetros (cifrado
+no KV). O dono só cria o auxiliar uma vez, antes do primeiro deploy:
+
+```sh
+cd worker/nfse-mtls
+npx wrangler deploy index.js --name paulus-nfse-mtls --compatibility-date 2026-09-25 --no-bundle
+# e desliga o *.workers.dev (Workers & Pages › paulus-nfse-mtls › Settings › Domains & Routes)
+```
+
+(Sem o binding `SEFIN` o auxiliar responde 503 com `x-nfse-nao-chegou: 1`, e a
+nota vai para a fila; o primeiro certificado instalado pelo painel liga o binding.)

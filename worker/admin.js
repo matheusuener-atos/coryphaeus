@@ -4,6 +4,11 @@
 // cupons, os tokens e a receita, os planos, os materiais para moderar, as
 // notas fiscais e a propria equipe.
 //
+// As notas fiscais (NFS-e do PAVLVS) sao emitidas daqui: /api/admin/nfse/emissor/*
+// vai ao emissor da nuvem (worker/nfse/api.js, o Durable Object EmissorNFSe),
+// atras das mesmas duas portas; dono e financeiro emitem e configuram, suporte
+// so le. Essas acoes sao na hora (nao passam pela fila de alteracoes).
+//
 // Duas portas, nenhuma senha:
 //   1. Cloudflare Access na frente de /admin e /api/admin (e-mail da equipe,
 //      codigo de uso unico). Aqui o Worker confere o JWT que o Access poe em
@@ -27,6 +32,7 @@ import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
   anotarHistorico, cfConfigurado,
 } from "./tunel.js";
+import { atenderEmissor, faltaDoEmissor, resumoParaPainel, PREFIXO as PREFIXO_EMISSOR } from "./nfse/api.js";
 
 const REPO = "matheusuener-atos/coryphaeus";
 const RAMO = "main";
@@ -56,9 +62,11 @@ const PODE = {
   "plano.criar": ["dono", "financeiro"],
   "material.situacao": TODOS,
   "nfse.config": ["dono", "financeiro"],
-  "nfse.emitir": ["dono", "financeiro"],
   "equipe.papel": ["dono"],
 };
+// O emissor de NFS-e (/api/admin/nfse/emissor/*, na hora): quem emite,
+// cancela, substitui e configura. Os outros papeis so leem (GET).
+const PODE_NFSE = ["dono", "financeiro"];
 export const MATRIZ = [
   ["Ver contas, tokens e receita", TODOS],
   ["Mandar e-mails e lembretes", TODOS],
@@ -66,7 +74,8 @@ export const MATRIZ = [
   ["Apagar e mudar túneis", ["dono", "suporte"]],
   ["Cupons e planos", ["dono", "financeiro"]],
   ["Cancelar assinatura e creditar tokens", ["dono", "financeiro"]],
-  ["Notas fiscais", ["dono", "financeiro"]],
+  ["Ver as notas fiscais e baixar PDF e XML", TODOS],
+  ["Emitir, cancelar e substituir notas fiscais; certificado e parâmetros", PODE_NFSE],
   ["Mudar papéis da equipe", ["dono"]],
 ];
 
@@ -108,6 +117,15 @@ export async function atenderAdmin(request, env, url, ctx, deps = {}) {
 }
 
 async function rotear(c, request, url, p, m) {
+  // O emissor de NFS-e: na hora, sem a fila. GET para todos; o resto, dono e financeiro.
+  if (p.startsWith(PREFIXO_EMISSOR)) {
+    if (m !== "GET" && !PODE_NFSE.includes(c.quem.papel)) {
+      return json({ erro: "o papel " + c.quem.papel + " só vê as notas fiscais: emitir, cancelar e configurar são do dono e do financeiro" }, 403);
+    }
+    const falta = faltaDoEmissor(c.env);
+    if (falta) return json({ erro: "o emissor de NFS-e ainda não está ligado: " + falta }, 503);
+    return atenderEmissor(request, c.env, c.ctx, { quem: c.quem.email, prefixo: PREFIXO_EMISSOR });
+  }
   if (m === "GET") {
     if (p === "/api/admin/visao") return json(await visao(c));
     if (p === "/api/admin/contas") return json(await contasParaTela(c));
@@ -319,10 +337,8 @@ function configuracao(env) {
     access: cfg(env.ACCESS_TEAM && env.ACCESS_AUD, "falta ACCESS_TEAM e ACCESS_AUD"),
     github: cfg(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET, "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)"),
     email: cfg(env.RESEND_API_KEY, "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY"),
-    // Quem emite e o PAULUS da casa (tela "Notas Admin"), pela ponte
-    // /api/nfse-casa/* (worker/nfse-casa.js), com o segredo da instalacao de
-    // uma conta da equipe (dono ou financeiro): ligada quando a nuvem esta.
-    nfse: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA && env.APOIOS, "ponte desligada: a nuvem do PAULUS está desligada (IA_ATIVA)"),
+    // O emissor de NFS-e da nuvem (worker/nfse/api.js): o DO e a chave mestra.
+    nfse: cfg(!faltaDoEmissor(env), "o emissor de NFS-e ainda não está ligado: " + faltaDoEmissor(env)),
     tuneis: cfg(cfConfigurado(env), "falta a chave da Cloudflare (CF_API_TOKEN, CF_ACCOUNT_ID, CF_ZONE_ID)"),
     mercado_pago: cfg(env.MP_ACCESS_TOKEN, "falta MP_ACCESS_TOKEN"),
     nuvem: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA, "a nuvem do PAULUS está desligada (IA_ATIVA)"),
@@ -401,8 +417,8 @@ async function chamarGitHub(metodo, url, token, corpo) {
 
 // ---------------------------------------------------------- as contas
 
-/* As contas como o painel as monta, com o detalhe cru em _d (para a ponte da
-   NFS-e, worker/nfse-casa.js). */
+/* As contas como o painel as monta, com o detalhe cru em _d (para o tomador
+   das notas fiscais, worker/nfse-casa.js). */
 export async function contasDaCasa(env, agora = Date.now()) {
   return lerContas({ env, agora });
 }
@@ -993,64 +1009,11 @@ async function receberMaterial(request, env, deps) {
 
 // ------------------------------------------------------------- NFS-e
 
+/* A aba Notas fiscais: o emissor da nuvem (situacao, notas, pagamentos sem
+   nota, Cloudflare) e o que o papel pode (worker/nfse/api.js, resumoParaPainel). */
 async function nfse(c) {
-  const contas = await lerContas(c);
-  const porId = new Map(contas.map((x) => [x.id, x]));
-  const notas = [];
-  for (const k of await kvPor(c.env, "admin:nfse:")) {
-    if (k === "admin:nfse:config") continue;
-    const x = await kvJSON(c.env, k, null);
-    if (!x) continue;
-    const conta = porId.get(x.conta);
-    notas.push({ id: x.id, quando: x.quando, tipo: x.tipo, cliente: conta ? conta.nome : "conta " + String(x.conta || "").slice(0, 6), doc: conta ? conta.escritorio.documento || "sem CPF/CNPJ" : "",
-      valor: x.valor, nota: x.nota || "pendente", numero: x.numero || "", erro: x.erro || "" });
-  }
-  notas.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
-  const visto = await c.env.APOIOS.get("admin:nfse-casa:visto");
-  let prestador = {};
-  try {
-    prestador = JSON.parse(c.env.NFSE_PRESTADOR || "{}");
-  } catch {
-    prestador = {};
-  }
-  return {
-    config: { auto: false, email: false, mail: false, ...((await kvJSON(c.env, "admin:nfse:config", {})) || {}) },
-    emissor: configuracao(c.env).nfse,
-    fatos: [
-      { k: "Prestador", v: prestador.nome ? prestador.nome + " · CNPJ " + (prestador.cnpj || "a definir") : "a definir com o contador" },
-      { k: "Município", v: prestador.municipio || "a definir · ISS conforme a alíquota do município" },
-      { k: "Serviço", v: prestador.servico || "a definir (ex.: 1.05 · licenciamento de programas de computação)" },
-      { k: "Emissor", v: emissorDaCasa(c.env, visto) },
-    ],
-    notas,
-  };
-}
-
-/* "admin:nfse-casa:visto" e {quando, email} (JSON); o formato antigo era so a
-   data ISO, sem o e-mail. */
-function emissorDaCasa(env, visto) {
-  const cfg = configuracao(env).nfse;
-  if (!cfg.ligado) return cfg.falta;
-  if (!visto) return "PAULUS da casa · ainda não conectou";
-  let quando = visto;
-  let email = "";
-  try {
-    const x = JSON.parse(visto);
-    if (x && typeof x === "object") {
-      quando = x.quando || "";
-      email = x.email || "";
-    }
-  } catch {
-    // formato antigo: a string ISO
-  }
-  const d = new Date(quando);
-  if (!quando || isNaN(d)) return "PAULUS da casa · ainda não conectou";
-  const partes = Object.fromEntries(
-    new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-      .formatToParts(d).map((p) => [p.type, p.value]),
-  );
-  const texto = partes.day + "/" + partes.month + "/" + partes.year + " " + partes.hour + ":" + partes.minute;
-  return "PAULUS da casa · " + (email ? email + " · " : "") + "última conexão " + texto;
+  const r = await resumoParaPainel(c.env);
+  return { ...r, pode: { emitir: PODE_NFSE.includes(c.quem.papel) } };
 }
 
 // ------------------------------------------------------------- equipe
@@ -1241,10 +1204,6 @@ async function aplicar(c, alt) {
     case "nfse.config":
       await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email), mail: Boolean(d.mail) }));
       return {};
-    case "nfse.emitir":
-      // O painel nao emite: quem emite e o PAULUS da casa, que manda a nota
-      // pela ponte (/api/nfse-casa/notas).
-      throw new Error("a emissão é feita na tela \"Notas Admin\" do PAULUS da casa, não pelo painel");
     case "equipe.papel": {
       const lista = await listaDaEquipe(env);
       const m = lista.find((x) => String(x.email).toLowerCase() === String(d.email).toLowerCase());

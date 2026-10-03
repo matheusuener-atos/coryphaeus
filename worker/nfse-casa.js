@@ -1,99 +1,54 @@
-// A ponte da NFS-e (contrato em worker/admin-api.md, "Ponte da NFS-e").
+// As notas do PAVLVS no app de cada cliente e o tomador de cada assinante
+// (contrato em worker/admin-api.md, "Notas fiscais").
 //
-// Quem emite as NFS-e dos assinantes e o PAULUS da casa (a tela "Notas do
-// PAVLVS", no servidor do dono). Ele fala com o Worker por /api/nfse-casa/*:
-// le os clientes (o tomador de cada um) e os pagamentos, e devolve cada nota
-// emitida (meta, PDF e XML). O PAULUS de cada cliente busca as proprias notas
-// em /api/ia/nfse (worker/ia.js, notasDoCliente, com o segredo da instalacao).
-//
-// Estas rotas ficam FORA do Cloudflare Access (que protege so /admin e
-// /api/admin) e fora da sessao do GitHub. Nao ha chave propria: a casa manda
-// em Authorization: Bearer o segredo da instalacao (pia_<conta>_..., o mesmo
-// de /api/ia/*), e o e-mail dessa conta precisa estar na equipe do painel
-// (ADMIN_EQUIPE ou "admin:equipe" no KV) como dono ou financeiro.
-// Nuvem desligada, 503; segredo ausente ou invalido, 401; fora da equipe, 403.
+// Quem emite e o emissor da nuvem (worker/nfse/emissor.js, o Durable Object
+// EmissorNFSe), pela aba Notas fiscais do painel (/api/admin/nfse/*). A antiga
+// ponte com o PAULUS da casa (/api/nfse-casa/*) saiu em 03/10/2026; ficam aqui
+// as funcoes que o emissor e o painel usam:
+//   clienteDaConta / listarClientes   o tomador de cada assinante (cadastro + ajuste)
+//   conferirTomador / gravarTomador   o ajuste do tomador (nfse:tomador:<conta>)
+//   listarPagamentos                  a fila admin:nfse:<pagamento>
+//   guardarNotaDoCliente              a nota no app do cliente (nfse:nota*)
+//   avisarNotaCancelada               a nota cancelada (ou substituida) no app do cliente
+//   mandarNotaPorEmail / mandarEmail  o e-mail da nota pelo Resend
+//   marcarPagamento                   a marca da nota no pagamento
+// O PAULUS de cada cliente busca as proprias notas em /api/ia/nfse
+// (worker/ia.js, notasDoCliente, com o segredo da instalacao).
 //
 // No KV APOIOS:
-//   nfse:tomador:<conta>          o que a casa corrigiu do tomador (vence o cadastro)
+//   nfse:tomador:<conta>          o que o painel corrigiu do tomador (vence o cadastro)
 //   nfse:nota:<conta>:<id>        a meta da nota
 //   nfse:nota-pdf:<conta>:<id>    o PDF (base64)
 //   nfse:nota-xml:<conta>:<id>    o XML (base64)
-//   admin:nfse-casa:visto         a ultima chamada valida: {quando, email}
 //   admin:nfse:<pagamento>        a fila do painel; a nota emitida a marca
-
 //
-// Com `email: true` (POST notas e notas/:id/cancelada), a nota tambem vai por
-// e-mail pelo Resend (RESEND_API_KEY), ao e-mail do tomador corrigido pela casa
-// ou, sem ele, ao e-mail da conta. Falha no e-mail nao falha a nota.
+// O e-mail da nota vai pelo Resend (RESEND_API_KEY), ao e-mail do tomador
+// corrigido no painel ou, sem ele, ao e-mail da conta. Falha no e-mail nao
+// falha a nota.
 
-import { contasDaCasa, enviarEmail, listaDaEquipe } from "./admin.js";
-import { autenticar, cpfValido, cnpjValido } from "./ia.js";
+import { contasDaCasa, enviarEmail } from "./admin.js";
+import { cpfValido, cnpjValido } from "./ia.js";
 
-const PREFIXO = "/api/nfse-casa/";
 const MAX_ARQUIVO = 2 * 1024 * 1024;
 const RE_CONTA = /^[0-9a-f]{24}$/;
 const RE_NOTA = /^[A-Za-z0-9_.-]{1,64}$/;
 const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-const PAPEIS_DA_CASA = ["dono", "financeiro"];
-const CAMPOS_TOMADOR =["nome", "documento", "email", "telefone", "logradouro", "numero", "complemento", "bairro", "cep", "cmun", "uf", "inscricao_municipal"];
+export const CAMPOS_TOMADOR = ["nome", "documento", "email", "telefone", "logradouro", "numero", "complemento", "bairro", "cep", "cmun", "uf", "inscricao_municipal"];
+// O que a nota precisa do tomador (o resto e opcional).
+const ROTULOS_TOMADOR = { nome: "nome", documento: "CPF/CNPJ", logradouro: "rua", numero: "número", bairro: "bairro", cep: "CEP", cmun: "município (IBGE)" };
 
-export function ehRotaDaCasa(url) {
-  return url.pathname.startsWith(PREFIXO);
-}
-
-/* Quem esta na porta: a conta do segredo, se o e-mail dela e da equipe do
-   painel como dono ou financeiro. Devolve {email, papel} ou {erro, status}. */
-async function porteiro(request, env) {
-  if (env.IA_ATIVA !== "1" || !env.CONTAS_IA) return { erro: "a ponte da NFS-e precisa da nuvem do PAULUS ligada (IA_ATIVA e CONTAS_IA)", status: 503 };
-  if (!env.APOIOS) return { erro: "a ponte da NFS-e precisa do KV APOIOS", status: 503 };
-  const quem = await autenticar(request, env);
-  if (quem.erro) return { erro: "não autorizado", status: 401 };
-  const resumo = (await quem.conta.pedir("resumo")) || {};
-  const email = normalEmail(resumo.email);
-  const membro = email ? (await listaDaEquipe(env)).find((x) => normalEmail(x && x.email) === email) : null;
-  if (!membro || !PAPEIS_DA_CASA.includes(membro.papel)) {
-    return { erro: "esta conta do PAULUS não é da equipe do painel (dono ou financeiro)", motivo: "fora_da_equipe", status: 403 };
-  }
-  return { email, papel: membro.papel };
-}
-
-export async function atenderCasa(request, env, url) {
-  const quem = await porteiro(request, env);
-  if (quem.erro) {
-    const corpo = { erro: quem.erro };
-    if (quem.motivo) corpo.motivo = quem.motivo;
-    return json(corpo, quem.status);
-  }
-  const agora = new Date().toISOString();
-  await env.APOIOS.put("admin:nfse-casa:visto", JSON.stringify({ quando: agora, email: quem.email }));
-
-  const p = url.pathname.slice(PREFIXO.length);
-  const m = request.method;
-  try {
-    if (m === "GET" && p === "ping") {
-      const contas = (await kvPor(env, "admin:conta:")).length;
-      return json({ ok: true, hora: agora, contas, email: quem.email, papel: quem.papel });
-    }
-    if (m === "GET" && p === "clientes") {
-      const contas = await contasDaCasa(env);
-      const clientes = await Promise.all(contas.map((c) => cliente(env, c)));
-      return json({ clientes });
-    }
-    let r = p.match(/^clientes\/([0-9a-f]{24})$/);
-    if (r && m === "POST") return gravarTomador(request, env, r[1]);
-    if (m === "GET" && p === "pagamentos") return json(await pagamentos(env));
-    if (m === "POST" && p === "notas") return receberNota(request, env);
-    r = p.match(/^notas\/([A-Za-z0-9_.-]{1,64})\/cancelada$/);
-    if (r && m === "POST") return cancelarNota(request, env, r[1]);
-    return json({ erro: "rota não existe" }, 404);
-  } catch (e) {
-    return json({ erro: String((e && e.message) || e).slice(0, 300) }, 500);
-  }
+/* O que falta no tomador para a nota: ["CEP", "bairro"...]. */
+export function faltasDoTomador(t) {
+  const x = t || {};
+  const faltas = Object.keys(ROTULOS_TOMADOR).filter((k) => !String(x[k] || "").trim()).map((k) => ROTULOS_TOMADOR[k]);
+  const doc = soDigitos(x.documento);
+  if (doc && !(doc.length === 11 ? cpfValido(doc) : doc.length === 14 && cnpjValido(doc))) faltas.push("CPF/CNPJ válido");
+  return faltas;
 }
 
 // ------------------------------------------------------------ clientes
 
-async function cliente(env, conta) {
+export async function clienteDaConta(env, conta) {
   const d = conta._d || {};
   const cad = d.cadastro || {};
   // O endereco que o cliente deu em /cadastro (contas antigas nao tem).
@@ -109,8 +64,13 @@ async function cliente(env, conta) {
   const plano = conta.plano ? { id: conta.plano.id, nome: conta.plano.nome, valor: conta.plano.valor } : null;
   return {
     id: conta.id, nome: conta.nome, email: conta.email, telefone: soDigitos(cad.telefone), oab: conta.oab || "",
-    plano, situacao: conta.situacao, tomador, ajustado: Object.keys(ajuste).length > 0,
+    plano, situacao: conta.situacao, tomador, ajustado: Object.keys(ajuste).length > 0, faltas: faltasDoTomador(tomador),
   };
+}
+
+export async function listarClientes(env) {
+  const contas = await contasDaCasa(env);
+  return Promise.all(contas.map((c) => clienteDaConta(env, c)));
 }
 
 /* O tomador conferido, ou {erro}. So os campos enviados entram; "" apaga o
@@ -148,24 +108,23 @@ export function conferirTomador(t) {
   return { tomador: saida };
 }
 
-async function gravarTomador(request, env, id) {
-  const d = await lerJSON(request);
-  if (!d) return json({ erro: "pedido inválido" }, 400);
-  const c = conferirTomador(d.tomador);
-  if (c.erro) return json({ erro: c.erro }, 400);
+/* O ajuste do tomador (o cadastro original da conta nao muda). {status, corpo}. */
+export async function gravarTomador(env, id, tomador) {
+  const c = conferirTomador(tomador);
+  if (c.erro) return { status: 400, corpo: { erro: c.erro } };
   const conta = (await contasDaCasa(env)).find((x) => x.id === id);
-  if (!conta) return json({ erro: "essa conta não existe" }, 404);
+  if (!conta) return { status: 404, corpo: { erro: "essa conta não existe" } };
   const antes = (await kvJSON(env, "nfse:tomador:" + id)) || {};
   const novo = { ...antes, ...c.tomador };
   for (const k of Object.keys(novo)) if (novo[k] === "") delete novo[k];
   if (Object.keys(novo).length) await env.APOIOS.put("nfse:tomador:" + id, JSON.stringify(novo));
   else await env.APOIOS.delete("nfse:tomador:" + id);
-  return json(await cliente(env, conta));
+  return { status: 200, corpo: await clienteDaConta(env, conta) };
 }
 
 // ------------------------------------------------------------ pagamentos
 
-async function pagamentos(env) {
+export async function listarPagamentos(env) {
   const contas = await contasDaCasa(env);
   const porId = new Map(contas.map((x) => [x.id, x]));
   const lista = [];
@@ -174,7 +133,8 @@ async function pagamentos(env) {
     const x = await kvJSON(env, k);
     if (!x) continue;
     const conta = porId.get(x.conta);
-    lista.push({ id: x.id, conta: x.conta || "", cliente: conta ? conta.nome : "", tipo: x.tipo, valor: x.valor, quando: x.quando, nota: x.nota || "pendente", numero: x.numero || "" });
+    lista.push({ id: x.id, conta: x.conta || "", cliente: conta ? conta.nome : "", tipo: x.tipo, valor: x.valor, quando: x.quando, nota: x.nota || "pendente",
+      numero: x.numero || "", nota_id: x.nota_id || "", motivo: x.motivo || "", erro: x.erro || "" });
   }
   lista.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
   const config = { auto: false, email: false, mail: false, ...((await kvJSON(env, "admin:nfse:config")) || {}) };
@@ -191,16 +151,9 @@ function bytesDoBase64(b64) {
   return { tamanho, b64: s };
 }
 
-async function receberNota(request, env) {
-  const d = await lerJSON(request);
-  if (!d) return json({ erro: "pedido inválido" }, 400);
-  const r = await guardarNotaDoCliente(env, d);
-  return json(r.corpo, r.status);
-}
-
-/* A nota emitida no lugar onde o app do cliente a busca (nfse:nota*, o
-   contrato de POST /api/nfse-casa/notas). Exportada para o emissor da nuvem
-   (worker/nfse/emissor.js) gravar nas MESMAS chaves. Devolve {status, corpo}. */
+/* A nota emitida no lugar onde o app do cliente a busca (nfse:nota*), com a
+   meta, o PDF e o XML (base64). O emissor da nuvem (worker/nfse/emissor.js)
+   grava por aqui. Devolve {status, corpo}. */
 export async function guardarNotaDoCliente(env, d) {
   const json = (corpo, status = 200) => ({ corpo, status });
   const id = String(d.id || "");
@@ -220,14 +173,18 @@ export async function guardarNotaDoCliente(env, d) {
   if (pdf.tamanho > MAX_ARQUIVO || xml.tamanho > MAX_ARQUIVO) return json({ erro: "cada arquivo pode ter até 2 MB" }, 413);
   const pagamento = d.pagamento ? String(d.pagamento).slice(0, 80) : "";
   const limpo = (v, max) => String(v == null ? "" : v).replace(/[\u0000-\u0009\u000b-\u001f]/g, " ").trim().slice(0, max);
+  const base = conta + ":" + id;
+  // Sem pdf_b64 no pedido, o PDF que ja estava fica (o emissor manda a nota
+  // antes de o PDF existir e o PDF depois, em outro pedido).
+  const manterPdf = d.pdf_b64 === undefined;
   const meta = {
     id, conta, pagamento, numero: limpo(d.numero, 30), chave: limpo(d.chave, 60), competencia, valor: Math.round(valor * 100) / 100,
     descricao: limpo(d.descricao, 2000), ambiente, emitida_em: limpo(d.emitida_em, 40) || new Date().toISOString(),
-    tem_pdf: Boolean(pdf.b64), tem_xml: Boolean(xml.b64), cancelada: false, recebida: new Date().toISOString(),
+    tem_pdf: manterPdf ? Boolean(await env.APOIOS.get("nfse:nota-pdf:" + base)) : Boolean(pdf.b64), tem_xml: Boolean(xml.b64), cancelada: false,
+    recebida: new Date().toISOString(),
   };
-  const base = conta + ":" + id;
-  if (pdf.b64) await env.APOIOS.put("nfse:nota-pdf:" + base, pdf.b64);
-  else await env.APOIOS.delete("nfse:nota-pdf:" + base);
+  if (!manterPdf && pdf.b64) await env.APOIOS.put("nfse:nota-pdf:" + base, pdf.b64);
+  else if (!manterPdf) await env.APOIOS.delete("nfse:nota-pdf:" + base);
   if (xml.b64) await env.APOIOS.put("nfse:nota-xml:" + base, xml.b64);
   else await env.APOIOS.delete("nfse:nota-xml:" + base);
   await env.APOIOS.put("nfse:nota:" + base, JSON.stringify(meta));
@@ -290,15 +247,8 @@ export async function marcarPagamento(env, pagamento, campos) {
   await env.APOIOS.put(chave, JSON.stringify({ ...x, ...campos }));
 }
 
-async function cancelarNota(request, env, id) {
-  const d = (await lerJSON(request)) || {};
-  const r = await avisarNotaCancelada(env, id, d);
-  return json(r.corpo, r.status);
-}
-
-/* A nota cancelada (ou substituida) no app do cliente: o contrato de POST
-   /api/nfse-casa/notas/:id/cancelada. Exportada para o emissor da nuvem.
-   d: {conta, email?, substituta?: {numero}}. Devolve {status, corpo}. */
+/* A nota cancelada (ou substituida) no app do cliente. Usada pelo emissor da
+   nuvem. d: {conta, email?, substituta?: {numero}}. Devolve {status, corpo}. */
 export async function avisarNotaCancelada(env, id, d) {
   const json = (corpo, status = 200) => ({ corpo, status });
   const conta = String(d.conta || "");
@@ -329,27 +279,8 @@ export async function avisarNotaCancelada(env, id, d) {
 
 // ------------------------------------------------------------ utilidades
 
-function json(dados, status = 200) {
-  return new Response(JSON.stringify(dados), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-  });
-}
-
-async function lerJSON(request) {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-}
-
 function soDigitos(t) {
   return String(t || "").replace(/\D/g, "");
-}
-
-function normalEmail(e) {
-  return String(e || "").replace(/\s+/g, "").toLowerCase();
 }
 
 async function kvJSON(env, chave, padrao = null) {

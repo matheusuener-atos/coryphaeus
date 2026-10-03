@@ -81,7 +81,7 @@
   var PAPEIS = {
     "conta.creditar": DF, "conta.instalacao.apagar": DS, "conta.cancelar": DF, "google.servicos": DS, "google.desvincular": DS,
     "tunel.apagar": DS, "tunel.endereco": DS, "tunel.ativo": DS, "cupom.criar": DF, "cupom.ativo": DF, "plano.editar": DF,
-    "plano.criar": DF, "nfse.config": DF, "nfse.emitir": DF, "equipe.papel": ["dono"],
+    "plano.criar": DF, "nfse.config": DF, "equipe.papel": ["dono"],
   };
   var PAPEL_NOME = { dono: "Dono", financeiro: "Financeiro", suporte: "Suporte" };
 
@@ -101,6 +101,7 @@
     tokens: { visao: "geral", periodo: "mes" },
     planos: { novo: { nome: "", id: "", valor: "", tokens: "" } },
     materiais: { filtro: "fila", aberto: null, checks: {}, recados: {} },
+    nfse: { teste: null, testando: false, pfx: null, senha: "", instalando: false, aviso: null },
   };
   function novaCamp() { return { publico: "", nome: "", assunto: "", pre: "", titulo: "", texto: "", botao: "Abrir o PAULUS", link: "https://paulus.ia.br/", quando: "agora" }; }
   function novoCupom() { return { codigo: "", desconto: "", meses: "", brinde: "", limite: "", validade: "", planos: {} }; }
@@ -208,7 +209,7 @@
     var t = dadosDe("tuneis"); if (t) c.tuneis = (t.tuneis || []).filter(function (x) { return x.estado === "inactive" || x.estado === "down"; }).length;
     var r = dadosDe("renovacoes"); if (r) c.renovacoes = (r.abertas || []).length;
     var m = dadosDe("materiais"); if (m) c.materiais = (m.materiais || []).filter(function (x) { return x.situacao === "fila"; }).length;
-    var n = dadosDe("nfse"); if (n) c.nfse = (n.notas || []).filter(function (x) { return x.nota !== "emitida" && x.nota !== "cancelada"; }).length;
+    var n = dadosDe("nfse"); if (n) c.nfse = (n.pagamentos || []).length + (n.notas || []).filter(function (x) { return x.estado === "rejeitada" || x.estado === "na_fila" || x.estado === "aguardando_confirmacao"; }).length;
     c.alteracoes = E.pendentes.length;
     return c;
   }
@@ -774,38 +775,138 @@
   };
 
   /* ---------- 11. Notas fiscais ---------- */
+  // O emissor de NFS-e da nuvem (worker/nfse/api.js) em /api/admin/nfse/emissor/*:
+  // emitir, cancelar, substituir, certificado e parâmetros valem na hora (sem a
+  // fila); só os três interruptores passam pela fila de alterações.
+  var NF = "/api/admin/nfse/emissor/";
+  var NF_MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  var NF_SIT = {
+    emitida: "var(--ok)", rejeitada: "var(--erro)", na_fila: "var(--atencao)", aguardando_confirmacao: "var(--atencao)", enviando: "var(--atencao)",
+    assinada: "var(--atencao)", rascunho: "var(--ink3)", cancelada: "var(--ink3)", substituida: "var(--ink3)", descartada: "var(--ink3)",
+  };
+  var NF_TOMADOR = [["nome", "Nome ou razão social"], ["documento", "CPF ou CNPJ"], ["email", "E-mail"], ["telefone", "Telefone"], ["cep", "CEP"],
+    ["logradouro", "Rua"], ["numero", "Número"], ["complemento", "Complemento"], ["bairro", "Bairro"], ["cmun", "Município (código IBGE, 7 dígitos)"],
+    ["uf", "UF"], ["inscricao_municipal", "Inscrição municipal (se houver)"]];
+  function podeNf() { var d = dadosDe("nfse"); return !!(d && d.pode ? d.pode.emitir : E.sessao && DF.indexOf(E.sessao.papel) >= 0); }
+  function nfCompetencia(c) { var m = /^(\d{4})-(\d{2})/.exec(c || ""); return m ? NF_MESES[Number(m[2]) - 1] + "/" + m[1] : "—"; }
+  function nfDoc(d) {
+    var x = String(d || "").replace(/\D/g, "");
+    if (x.length === 14) return x.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+    if (x.length === 11) return x.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+    return d || "";
+  }
+  function nfMesAtual() { var d = new Date(Date.now() - 3 * 36e5); return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1); }
+  function nfPct(bp) { return bp ? dec(Number(bp) / 100, 2) : ""; }
+  function nfBp(t) { var n = numDec(t); return Math.round(n * 100); }
+  function nfReais(centavos) { return (Number(centavos || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function nfNota(id) { return (((dadosDe("nfse") || {}).notas) || []).filter(function (n) { return String(n.id) === String(id); })[0]; }
+  function nfMini(rot, icone, a, id, extra) { return '<button type="button" class="mini" data-a="' + a + '" data-id="' + esc(id) + '"' + (extra || "") + ">" + (icone ? ic(icone) : "") + esc(rot) + "</button>"; }
+
   TELAS_RENDER.nfse = function () {
-    var h = cab("Notas fiscais (NFS-e)", "Cada pagamento confirmado pelo Mercado Pago, a cobrança mensal ou o Pix da recarga, entra aqui. A NFS-e é emitida na tela Notas Admin do PAULUS da casa, não neste painel; emitida, o PDF e o XML chegam ao PAULUS do cliente.");
+    var h = cab("Notas fiscais (NFS-e)", "A NFS-e que o PAVLVS emite para quem assina o PAULUS. Emitir, cancelar, substituir, o certificado e os parâmetros valem <b>na hora</b>; só os três interruptores passam pela fila de alterações.");
     var est = estadoLeitura(["nfse"], "nfse"); if (est) return h + est;
     h += erroRecente("nfse", "nfse");
-    var d = dadosDe("nfse"), emissor = d.emissor && d.emissor.ligado === false ? d.emissor : cfg("nfse");
-    var podeC = pode("nfse.config");
-    h += falta(emissor);
+    var d = dadosDe("nfse"), s = d.situacao || null, emitir = podeNf(), N = U.nfse;
+    var trava = emitir ? "" : ' disabled title="o papel ' + esc(E.sessao.papel) + ' só vê as notas fiscais"';
+    if (d.emissor && d.emissor.ligado === false) h += falta(d.emissor);
+    if (d.erro) h += '<p class="erro-linha">' + ic("warning") + "<span>" + esc(d.erro) + "</span></p>";
+    var prod = s && s.ambiente === "producao";
+    // o topo: o selo do ambiente e os quatro botões
+    h += '<div class="nf-topo"><span class="nf-selo' + (prod ? " producao" : "") + '">' + (prod ? "produção · as notas valem de verdade" : "ambiente de testes · produção restrita, sem valor fiscal") + "</span>" +
+      '<div class="nf-botoes"><button type="button" class="btn-acao verde" data-a="nfEmitir"' + (s ? trava : " disabled") + ">" + ic("receipt_long") + "Emitir NFS-e</button>" +
+      '<button type="button" class="btn-acao" data-a="nfClientes"' + (s ? "" : " disabled") + ">" + ic("contacts") + "Clientes</button>" +
+      '<button type="button" class="btn-acao" data-a="nfParametros"' + (s ? "" : " disabled") + ">" + ic("tune") + "Parâmetros</button>" +
+      '<button type="button" class="btn-acao" data-a="nfTestar"' + (s ? trava : " disabled") + (N.testando ? " disabled" : "") + ">" + ic("lan") + (N.testando ? "Testando…" : "Testar comunicação") + "</button></div></div>";
+    if (s && !s.pode_emitir && (s.motivos || []).length) h += '<p class="aviso-falta">' + ic("warning") + "<span><b>Ainda não dá para emitir:</b> " + esc(s.motivos.join("; ")) + ".</span></p>";
+    // o resultado do teste
+    var t = N.teste;
+    if (t) {
+      h += '<div class="painel nf-teste">' + painelCab(t.ok ? "Comunicação ok" : "A comunicação falhou", esc(quando(t.quando)), t.ok ? "c-ok" : "c-erro") + (t.etapas || []).map(function (e) {
+        return '<div class="linha p10">' + ic(e.ok ? "check" : "close", e.ok ? "c-ok" : "c-erro") + '<span class="txt2"><b>' + esc(e.titulo) + "</b><small>" + esc(e.detalhe || "") + "</small></span>" +
+          (e.ms != null ? '<span class="num s11 c-ink3">' + esc(e.ms) + " ms</span>" : "") + "</div>";
+      }).join("") + "</div>";
+    }
+    // o certificado numa linha + o cartão
+    if (s) h += nfCertificado(d, s, emitir);
+    // os interruptores e os fatos
     var c = d.config || {}, pc = ultimaNaFila("nfse.config");
-    var atual = pc ? pc.dados || c : c;
-    var OP = [["auto", "Emitir ao confirmar o pagamento", "o PAULUS da casa emite até 5 min depois, se os dados fiscais do cliente estiverem completos (com ele ligado)"], ["email", "Enviar PDF e XML ao cliente", "no PAULUS dele, como aviso com Download e XML, logo depois de emitir"], ["mail", "Mandar também por e-mail", "PDF e XML anexos, para o e-mail fiscal do cliente; precisa da RESEND_API_KEY"]];
+    var atual = pc ? pc.dados || c : c, podeC = pode("nfse.config");
+    var OP = [["auto", "Emitir ao confirmar o pagamento", "assim que o Mercado Pago confirma, se os dados fiscais do cliente estiverem completos; senão o motivo aparece em Pagamentos sem nota"],
+      ["email", "Entregar ao app do cliente logo depois de emitir", "a nota (PDF e XML) aparece no PAULUS dele; desligado, o botão Enviar ao cliente entrega"],
+      ["mail", "Mandar também por e-mail", "PDF e XML anexos, ao e-mail fiscal do cliente; precisa da RESEND_API_KEY"]];
+    var p = s ? (s.prestador || {}).dados || {} : {};
+    var fatos = s ? [["Prestador", p.razao_social ? p.razao_social + " · " + (nfDoc(p.documento) || "CNPJ a definir") : "a definir em Parâmetros"],
+      ["Serviço", (p.servico || {}).ctribnac ? "cTribNac " + p.servico.ctribnac + ((p.servico || {}).nbs ? " · NBS " + p.servico.nbs : "") + ((p.servico || {}).aliquota_iss_bp ? " · ISS " + nfPct(p.servico.aliquota_iss_bp) + "%" : "") : "a definir"],
+      ["Município", s.municipio ? s.municipio.frase : "—"], ["Próxima DPS", "nº " + s.proximo_numero + " · série " + (p.serie || "1")]] : [];
     h += '<div class="duas-col"><div class="painel">' + OP.map(function (o) {
       var on = !!atual[o[0]], mud = pc && !!c[o[0]] !== on;
       return '<button type="button" class="linha-btn" role="switch" aria-checked="' + on + '" data-a="nfseCfg" data-k="' + o[0] + '"' + (podeC ? "" : ' disabled title="o papel ' + esc(E.sessao.papel) + ' não muda a NFS-e"') + '><span class="txt2"><b>' + esc(o[1]) + "</b><small>" + esc(o[2]) + (mud ? ' · <span class="c-atencao">na fila</span>' : "") + "</small></span>" + sw(on) + "</button>";
-    }).join("") + "</div>" +
-      '<dl class="fatos-p f110 alto">' + (d.fatos || []).map(function (f) { return fato(f.k, f.v); }).join("") + "</dl></div>";
+    }).join("") + "</div>" + (fatos.length ? '<dl class="fatos-p f110 alto">' + fatos.map(function (f) { return fato(f[0], f[1]); }).join("") + "</dl>" : "<span></span>") + "</div>";
+    // a lista das notas
     var ns = d.notas || [];
-    var pend = ns.filter(function (n) { return n.nota !== "emitida" && n.nota !== "cancelada"; });
-    var cols = "96px minmax(160px,1fr) 90px 170px 120px";
+    var cols = "64px minmax(170px,1fr) 120px 96px 150px";
     var linhas = ns.map(function (n) {
-      var cor = { emitida: "var(--ok)", pendente: "var(--atencao)", erro: "var(--erro)" }[n.nota] || "var(--ink3)";
-      var txt = n.nota === "emitida" ? "NFS-e " + (n.numero || "") : n.nota === "cancelada" ? "NFS-e " + (n.numero || "") + " cancelada" : n.nota === "erro" ? "erro · " + (n.erro || "") : "aguardando emissão";
-      // O painel nao emite: quem emite e o PAULUS da casa (Notas Admin).
-      var bt = n.nota === "emitida" || n.nota === "cancelada" ? "<span></span>" : '<small class="c-ink3" style="justify-self:end;font-size:11px">emitir no PAULUS da casa</small>';
-      return '<div class="grade-linha p10"><span class="cel-nome" style="gap:1px"><span class="num c-ink2">' + esc(quando(n.quando)) + '</span><span class="num c-ink3" style="font-size:10.5px">' + esc(n.tipo) + "</span></span>" +
-        '<span class="cel-nome" style="gap:1px"><b class="corta" style="font-size:13px">' + esc(n.cliente) + '</b><small style="font-size:11px">' + esc(n.doc || "") + "</small></span>" +
-        '<span class="num dir">' + esc(brl(n.valor)) + '</span><span class="sit" style="color:' + cor + '" title="' + esc(txt) + '"><i></i><span class="corta">' + esc(txt) + "</span></span>" + bt + "</div>";
-    }).join("") || '<p class="vazio-linha">Nenhum pagamento ainda.</p>';
-    h += '<div class="painel">' + grade(cols, 680, '<span>Pagamento</span><span>Cliente</span><span class="dir">Valor</span><span>Nota</span><span></span>', linhas) +
-      '<div class="pe-painel"><span style="flex:1">' + (pend.length ? pend.length + (pend.length === 1 ? " pagamento sem nota" : " pagamentos sem nota") : "Todos os pagamentos têm nota") + "</span>" +
-      (pend.length ? '<small class="c-ink3">emitir na tela Notas Admin do PAULUS da casa</small>' : "") + "</div></div>";
+      var cor = NF_SIT[n.estado] || "var(--ink3)", txt = n.estado_rotulo + (n.ambiente !== "producao" ? " · testes" : "");
+      var A = [];
+      if (n.estado === "emitida" || n.estado === "cancelada" || n.estado === "substituida") {
+        A.push('<a class="mini" href="' + NF + "notas/" + n.id + '/pdf?baixar=1" download>' + ic("download") + "PDF</a>");
+        A.push(nfMini("Imprimir", "print", "nfImprimir", n.id));
+        A.push('<a class="mini" href="' + NF + "notas/" + n.id + '/xml" download>' + ic("code") + "XML</a>");
+      }
+      if (n.estado === "emitida") {
+        A.push(nfMini(n.cliente_avisado && !/^erro/.test(n.cliente_avisado) ? "Reenviar ao cliente" : "Enviar ao cliente", "send", "nfEnviar", n.id, n.conta ? trava : ' disabled title="nota sem conta de assinante"'));
+        A.push(nfMini("Substituir", "swap_horiz", "nfSubstituir", n.id, trava));
+        A.push('<button type="button" class="mini vermelho" data-a="nfCancelar" data-id="' + n.id + '"' + trava + ">" + ic("block") + "Cancelar</button>");
+      } else if (n.estado === "na_fila" || n.estado === "aguardando_confirmacao" || n.estado === "enviando") {
+        A.push(nfMini("Tentar agora", "refresh", "nfTentar", n.id, trava));
+      } else if (n.estado === "rejeitada" || n.estado === "rascunho") {
+        A.push(nfMini("Descartar", "delete", "nfDescartar", n.id, trava));
+      }
+      var info = [];
+      if (n.erro && n.estado !== "emitida") info.push(n.erro);
+      if (n.cliente_avisado && !/^erro/.test(n.cliente_avisado)) info.push("no app do cliente desde " + ddmm(n.cliente_avisado));
+      else if (n.cliente_avisado) info.push("app do cliente: " + n.cliente_avisado);
+      if (n.email) info.push("e-mail: " + n.email);
+      if (n.substituida_por_id) info.push("substituída pela nota " + ((nfNota(n.substituida_por_id) || {}).numero || "#" + n.substituida_por_id));
+      return '<div class="grade-linha p10"><span class="num">' + esc(n.numero || "—") + "</span>" +
+        '<span class="cel-nome"><b class="corta" style="font-size:13px">' + esc(n.cliente || "—") + "</b><small>" + esc(nfDoc(n.documento)) + "</small></span>" +
+        '<span class="num c-ink2">' + esc(nfCompetencia(n.competencia)) + '</span><span class="num dir">' + esc(brl(n.centavos / 100)) + "</span>" +
+        '<span class="sit" style="color:' + cor + '" title="' + esc(txt) + '"><i></i><span class="corta">' + esc(txt) + "</span></span>" +
+        (A.length || info.length ? '<div class="nf-acoes">' + A.join("") + (info.length ? '<small class="nf-info">' + esc(info.join(" · ")) + "</small>" : "") + "</div>" : "") + "</div>";
+    }).join("") || '<p class="vazio-linha">Nenhuma nota ainda. Comece por Emitir NFS-e.</p>';
+    h += '<div class="painel">' + painelCab("Notas", ns.length + (ns.length === 1 ? " nota" : " notas")) +
+      grade(cols, 640, '<span>Nº</span><span>Cliente</span><span>Competência</span><span class="dir">Valor</span><span>Situação</span>', linhas) + "</div>";
+    // os pagamentos sem nota
+    var pg = d.pagamentos || [];
+    var lp = pg.map(function (x) {
+      return '<div class="linha p10"><span class="cel-nome" style="width:96px;flex:none;gap:1px"><span class="num c-ink2">' + esc(quando(x.quando)) + '</span><span class="num c-ink3" style="font-size:10.5px">' + esc(x.tipo) + "</span></span>" +
+        '<span class="txt2" style="min-width:180px"><b>' + esc(x.cliente || "conta " + String(x.conta || "").slice(0, 6)) + "</b>" + (x.motivo || x.erro ? '<small class="c-atencao">' + esc(x.motivo || x.erro) + "</small>" : "<small>sem nota</small>") + "</span>" +
+        '<span class="num">' + esc(brl(x.valor)) + "</span>" + nfMini("Emitir", "receipt_long", "nfEmitirPag", x.id, s ? trava : " disabled") + "</div>";
+    }).join("") || '<p class="vazio-linha">Todos os pagamentos têm nota.</p>';
+    h += '<div class="painel">' + painelCab("Pagamentos sem nota", String(pg.length), pg.length ? "c-atencao" : "") + lp + "</div>";
     return h;
   };
+
+  function nfCertificado(d, s, emitir) {
+    var N = U.nfse, c = s.certificado || {}, cf = d.cloudflare || {};
+    var h = '<div class="painel">' + painelCab("Certificado digital A1", c.instalado ? "instalado " + esc(ddmmaaaa(c.instalado_em)) : "nenhum");
+    if (emitir) {
+      h += '<div class="nf-cert"><label class="btn-acao nf-arquivo">' + ic("upload") + '<span class="corta">' + esc(N.pfx ? N.pfx.nome : "Escolher o .pfx") + '</span><input type="file" id="nf-pfx" data-in="nfPfx" accept=".pfx,.p12,application/x-pkcs12"></label>' +
+        '<span class="caixa-campo fundo nf-senha"><input type="password" id="nf-senha" data-in="nfSenha" value="' + esc(N.senha) + '" placeholder="senha do certificado" autocomplete="off" aria-label="Senha do certificado"></span>' +
+        '<button type="button" class="btn-acao" data-a="nfCert"' + (N.instalando || !N.pfx ? " disabled" : "") + ">" + (N.instalando ? "Instalando…" : c.instalado ? "Trocar" : "Instalar") + "</button></div>" +
+        '<p class="nota-campo nf-nota">O .pfx é aberto aqui no navegador: o arquivo e a senha não saem desta página. Vão ao servidor só o certificado e a chave, guardados cifrados.</p>';
+    }
+    if (N.aviso) h += '<p class="' + (N.aviso.ok ? "nf-aviso ok" : "nf-aviso") + '">' + ic(N.aviso.ok ? "check" : "warning") + "<span>" + esc(N.aviso.frase) + "</span></p>";
+    if (c.instalado) {
+      var dias = c.dias_restantes, perto = c.vencido || (dias != null && dias <= 30);
+      h += '<dl class="fatos-p f110 nf-cartao">' + fato("Nome", String(c.titular || "—").split(":")[0]) + fato("CNPJ/CPF", nfDoc(c.documento) || "—") +
+        '<div><dt>Vencimento</dt><dd class="' + (perto ? "c-erro" : "") + '">' + esc(ddmmaaaa(c.valido_ate) + (dias != null ? " · " + (dias < 0 ? "vencido" : dias + (dias === 1 ? " dia" : " dias")) : "")) +
+        (perto && !c.vencido ? " · renove antes de vencer" : "") + "</dd></div>" +
+        fato("Conexão", cf.mtls ? "mTLS na Cloudflare · " + cf.mtls.id + " · desde " + ddmmaaaa(cf.mtls.quando) : cf.falta || "ainda não cadastrado na Cloudflare") + "</dl>";
+    } else h += '<p class="nota-campo nf-nota">Use o A1 (.pfx ou .p12) do CNPJ do PAVLVS; o CNPJ, o nome e o vencimento saem dele.</p>';
+    if (cf.falta && c.instalado && !cf.mtls) h += '<p class="aviso-falta embutido">' + ic("warning") + "<span>Sem a conexão com a Sefin: " + esc(cf.falta) + ".</span></p>";
+    return h + "</div>";
+  }
 
   /* ---------- 12. Equipe ---------- */
   TELAS_RENDER.equipe = function () {
@@ -915,8 +1016,11 @@
   function modalCab(rot) { return '<div class="modal-cab"><span class="rotulo" id="modal-titulo">' + esc(rot) + '</span><button type="button" class="btn-icone" data-a="fecharModal" aria-label="Fechar">' + ic("close", "s18") + "</button></div>"; }
   function modalPe(botao) { return '<div class="modal-pe"><button type="button" class="mini h32" data-a="fecharModal">Cancelar</button>' + botao + "</div>"; }
   function modalHtml() {
-    var M = E.modal, h = '<div class="veu forte" data-a="fecharModal"></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">';
-    if (M.tipo === "google") {
+    var M = E.modal, larga = /^nf(Emitir|Clientes|Parametros|Substituir)$/.test(M.tipo);
+    var h = '<div class="veu forte" data-a="fecharModal"></div><div class="modal' + (larga ? " larga" : "") + '" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">';
+    if (/^nf/.test(M.tipo)) {
+      h += nfModalHtml(M);
+    } else if (M.tipo === "google") {
       var n = SERV_G.filter(function (s) { return M.ligados[s[0]]; }).length;
       h += modalCab("Permissões do Google") + '<div class="modal-corpo"><div class="quem"><b>' + esc(M.nome) + "</b><span>" + esc(M.email) + '</span></div><div class="caixa-escura">' +
         SERV_G.map(function (s) {
@@ -960,6 +1064,143 @@
     }
     return h + "</div>";
   }
+  /* ---------- os pop-ups das notas fiscais ---------- */
+  function nfId(k) { return "nf-c-" + String(k).replace(/[^A-Za-z0-9_-]/g, "-"); }
+  function nfCampo(k, rot, extra) {
+    var v = E.modal.v[k];
+    return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input id="' + nfId(k) + '" data-in="nf" data-k="' + esc(k) + '" value="' + esc(v == null ? "" : v) + '"' + (extra || "") + ' autocomplete="off"></span></label>';
+  }
+  function nfEscolha(k, rot, opcoes, inp) {
+    var v = String(E.modal.v[k] == null ? "" : E.modal.v[k]);
+    return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><select id="' + nfId(k) + '" data-in="' + (inp || "nf") + '" data-k="' + esc(k) + '">' +
+      opcoes.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === v ? " selected" : "") + ">" + esc(o[1]) + "</option>"; }).join("") + "</select></span></label>";
+  }
+  function nfDominio(obj, comCodigo) { return Object.keys(obj || {}).sort().map(function (k) { return [k, (comCodigo ? k + " – " : "") + obj[k]]; }); }
+  function nfTexto(k, rot, ph) {
+    return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><textarea class="area" rows="3" id="' + nfId(k) + '" data-in="nf" data-k="' + esc(k) + '" maxlength="255" placeholder="' + esc(ph || "") + '">' + esc(E.modal.v[k] || "") + "</textarea></label>";
+  }
+  function nfMarcar(k, rot) {
+    return '<label class="nf-marcar"><input type="checkbox" id="' + nfId(k) + '" data-in="nf" data-k="' + esc(k) + '"' + (E.modal.v[k] ? " checked" : "") + "><span>" + esc(rot) + "</span></label>";
+  }
+  function nfDuas(a, b) { return '<div class="grade-campos">' + a + (b || "<span></span>") + "</div>"; }
+  function nfSub(t) { return '<span class="rotulo nf-sub">' + esc(t) + "</span>"; }
+  function nfTomadorCampos(prefixo) {
+    var c = NF_TOMADOR.map(function (x) { return nfCampo(prefixo + x[0], x[1], x[0] === "cep" || x[0] === "cmun" || x[0] === "documento" || x[0] === "telefone" ? ' inputmode="numeric"' : ""); });
+    var h = "";
+    for (var i = 0; i < c.length; i += 2) h += nfDuas(c[i], c[i + 1]);
+    return h;
+  }
+  function nfErro(M) { return M.erro ? '<p class="erro-campo" role="alert">' + esc(M.erro) + "</p>" : ""; }
+  // "a.b.c" -> {a: {b: {c}}}
+  function nfAninhar(v, prefixo) {
+    var saida = {};
+    Object.keys(v).forEach(function (k) {
+      if (prefixo && k.indexOf(prefixo) !== 0) return;
+      var partes = k.slice(prefixo ? prefixo.length : 0).split("."), alvo = saida;
+      partes.slice(0, -1).forEach(function (p) { alvo[p] = alvo[p] || {}; alvo = alvo[p]; });
+      alvo[partes[partes.length - 1]] = v[k];
+    });
+    return saida;
+  }
+  function nfAchatar(obj, prefixo, saida) {
+    saida = saida || {};
+    Object.keys(obj || {}).forEach(function (k) {
+      var x = obj[k];
+      if (x && typeof x === "object" && !Array.isArray(x)) nfAchatar(x, prefixo + k + ".", saida);
+      else saida[prefixo + k] = x == null ? "" : x;
+    });
+    return saida;
+  }
+
+  function nfModalHtml(M) {
+    var d = dadosDe("nfse") || {}, s = d.situacao || {}, op = s.opcoes || {}, prod = s.ambiente === "producao", h = "";
+    if (M.tipo === "nfEmitir") {
+      var cl = M.clientes, pgs = d.pagamentos || [];
+      h += modalCab("Emitir NFS-e") + '<div class="modal-corpo">';
+      if (M.erroClientes) h += '<p class="nota-campo">Sem a lista de clientes (' + esc(M.erroClientes) + "): preencha à mão.</p>";
+      h += nfDuas(nfEscolha("conta", "Cliente (assinante)", [["", cl ? "— preencher à mão —" : "carregando…"]].concat((cl || []).map(function (c) { return [c.id, c.nome + (c.faltas && c.faltas.length ? " · falta " + c.faltas.join(", ") : "")]; })), "nfCliente"),
+        nfEscolha("pagamento", "Pagamento (opcional)", [["", "— nenhum —"]].concat(pgs.map(function (x) { return [x.id, (x.cliente || "conta") + " · " + x.tipo + " · " + brl(x.valor) + " · " + ddmm(x.quando)]; })), "nfPagamento"));
+      var esc_ = (cl || []).filter(function (c) { return c.id === M.v.conta; })[0];
+      if (esc_ && esc_.faltas && esc_.faltas.length) h += '<p class="aviso-falta">' + ic("warning") + "<span>No cadastro de " + esc(esc_.nome) + " falta " + esc(esc_.faltas.join(", ")) + ". Complete abaixo (vale só para esta nota) ou em Clientes (vale para as próximas).</span></p>";
+      h += nfSub("Tomador") + nfTomadorCampos("tomador.") + nfSub("Serviço") +
+        nfDuas(nfCampo("valor", "Valor (R$)", ' inputmode="decimal" placeholder="300,00"'), nfCampo("competencia", "Competência", ' type="month"')) +
+        nfCampo("descricao", "Descrição") +
+        '<p class="nota-campo">' + (prod ? "<b>Produção:</b> esta nota vale de verdade." : "Ambiente de testes: a nota não tem valor fiscal.") + " Com um pagamento escolhido, o valor, a descrição e a competência vêm dele.</p>" + nfErro(M) + "</div>" +
+        modalPe('<button type="button" class="btn-acao verde" data-a="nfEmitirConfirmar" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + ic("receipt_long") + (M.enviando ? "Emitindo…" : "Emitir") + "</button>");
+    } else if (M.tipo === "nfClientes") {
+      h += modalCab("Clientes") + '<div class="modal-corpo"><p class="nota-campo">Os assinantes vêm do cadastro feito no paulus.ia.br. O que você editar aqui vale para as notas (dados fiscais); o cadastro original da conta fica como está.</p>';
+      if (M.erroClientes) h += '<p class="erro-linha">' + ic("warning") + "<span>Não consegui ler os clientes: " + esc(M.erroClientes) + "</span></p>";
+      else if (!M.clientes) h += '<p class="carregando">Carregando…</p>';
+      else if (!M.clientes.length) h += '<p class="vazio-linha">Nenhum assinante ainda.</p>';
+      else {
+        h += '<div class="caixa-escura">' + M.clientes.map(function (c) {
+          var t = c.tomador || {}, aberto = M.editando === c.id;
+          var r = '<div class="linha"><span class="txt2"><b>' + esc(c.nome) + "</b><small>" + esc([nfDoc(t.documento), t.email, c.plano ? c.plano.nome : "", c.situacao].filter(Boolean).join(" · ")) +
+            (c.faltas && c.faltas.length ? ' · <span class="c-atencao">falta ' + esc(c.faltas.join(", ")) + "</span>" : ' · <span class="c-ok">completo</span>') + "</small></span>" +
+            (podeNf() ? '<button type="button" class="mini" data-a="nfCliEditar" data-id="' + esc(c.id) + '">' + (aberto ? "Fechar" : "Editar") + "</button>" : "") + "</div>";
+          if (aberto) r += '<div class="nf-form">' + nfTomadorCampos("tomador.") + nfErro(M) + '<div class="nf-botoes"><button type="button" class="btn-acao" data-a="nfCliSalvar" data-id="' + esc(c.id) + '"' + (M.enviando ? " disabled" : "") + ">" + (M.enviando ? "Salvando…" : "Salvar") + "</button></div></div>";
+          return r;
+        }).join("") + "</div>";
+      }
+      if (M.ok) h += '<p class="nf-aviso ok">' + ic("check") + "<span>" + esc(M.ok) + "</span></p>";
+      h += "</div>" + '<div class="modal-pe"><button type="button" class="btn-acao" data-a="fecharModal" id="modal-ok">Fechar</button></div>';
+    } else if (M.tipo === "nfParametros") {
+      var ret = op.retencoes || {}, cf = d.cloudflare || {}, so = !podeNf() ? " disabled" : "";
+      h += modalCab("Parâmetros") + '<div class="modal-corpo">' + (so ? '<p class="nota-campo">Só o dono e o financeiro mudam os parâmetros; aqui você só lê.</p>' : "") +
+        nfSub("O PAVLVS (prestador)") +
+        nfDuas(nfCampo("documento", "CNPJ", ' inputmode="numeric"' + so), nfCampo("inscricao_municipal", "Inscrição municipal", so)) + nfCampo("razao_social", "Razão social", so) +
+        nfDuas(nfCampo("municipio", "Município (código IBGE)", ' inputmode="numeric"' + so), nfCampo("endereco.cep", "CEP", ' inputmode="numeric"' + so)) +
+        nfDuas(nfCampo("endereco.logradouro", "Rua", so), nfCampo("endereco.numero", "Número", so)) +
+        nfDuas(nfCampo("endereco.complemento", "Complemento", so), nfCampo("endereco.bairro", "Bairro", so)) +
+        nfDuas(nfCampo("email", "E-mail", so), nfCampo("telefone", "Telefone", so)) +
+        nfSub("Tributação") +
+        nfDuas(nfEscolha("opcao_simples", "Regime", nfDominio(op.opcao_simples)), nfEscolha("regime_apuracao_sn", "Apuração no Simples", [["", "não se aplica"]].concat(nfDominio(op.regime_apuracao_sn, true)))) +
+        nfDuas(nfEscolha("regime_especial", "Regime especial", nfDominio(op.regime_especial)), nfCampo("serie", "Série da DPS", ' inputmode="numeric"' + so)) +
+        nfDuas(nfCampo("servico.ctribnac", "Código de serviço (cTribNac)", ' placeholder="ex.: 010501"' + so), nfCampo("servico.nbs", "NBS", so)) +
+        nfDuas(nfCampo("servico.aliquota_iss_pct", "Alíquota do ISS (%)", ' inputmode="decimal" placeholder="2,00"' + so), nfCampo("servico.ctribmun", "Código municipal (3 dígitos, se houver)", so)) +
+        nfCampo("servico.descricao", "Descrição padrão do serviço", so) +
+        nfDuas(nfCampo("ibscbs.cst", "IBS/CBS — CST", so), nfCampo("ibscbs.cclasstrib", "IBS/CBS — cClassTrib", so)) +
+        nfDuas(nfCampo("ibscbs.cindop", "IBS/CBS — indicador da operação (cIndOp)", so), nfEscolha("ibscbs.indfinal", "Consumidor final", [["0", "não"], ["1", "sim"]])) +
+        nfMarcar("ibscbs.enviar", "Enviar o grupo IBS/CBS na nota") +
+        nfDuas(nfCampo("pis_cofins.cst", "PIS/COFINS — CST (se houver retenção)", so), nfCampo("total_tributos.federal_pct", "Tributos aproximados — federal (%)", ' inputmode="decimal"' + so)) +
+        nfDuas(nfCampo("total_tributos.estadual_pct", "Tributos aproximados — estadual (%)", ' inputmode="decimal"' + so), nfCampo("total_tributos.municipal_pct", "Tributos aproximados — municipal (%)", ' inputmode="decimal"' + so)) +
+        '<p class="nota-campo">O código do serviço, a NBS e a classificação do IBS/CBS do PAVLVS (programa de computador) são do contador.</p>' +
+        nfSub("Retenções") + Object.keys(ret).map(function (k) {
+          return nfDuas(nfEscolha("retencoes." + k + ".quando", ret[k] + " — quando reter", nfDominio(op.quando_reter)),
+            k === "iss" ? "" : nfCampo("retencoes." + k + ".aliquota_pct", ret[k] + " — alíquota (%)", ' inputmode="decimal"' + so));
+        }).join("") +
+        nfDuas(nfCampo("contador.nome", "Contador", so), nfCampo("contador.email", "E-mail do contador", so)) + nfErro(M) +
+        nfSub("Token da Cloudflare") +
+        '<p class="nota-campo">Com ele o painel cadastra o certificado na Cloudflare (o mTLS que a Sefin exige) e republica o Worker auxiliar paulus-nfse-mtls. ' + esc(cf.como_criar_token || "") + " Fica guardado cifrado; não volta para a tela.</p>" +
+        '<div class="nf-cert"><span class="caixa-campo fundo nf-senha"><input type="password" id="nf-token" data-in="nfTokenCampo" value="' + esc(M.token || "") + '" placeholder="' + (cf.token ? "token gravado · cole outro para trocar" : "cole o token aqui") + '" autocomplete="off" aria-label="Token da Cloudflare"' + so + "></span>" +
+        '<button type="button" class="btn-acao" data-a="nfToken"' + (so || M.gravandoToken ? " disabled" : "") + ">" + (M.gravandoToken ? "Gravando…" : "Gravar token") + "</button>" +
+        '<span class="num s11 ' + (cf.token ? "c-ok" : "c-atencao") + '">' + (cf.token ? "token gravado" : "sem token") + "</span></div>" +
+        (M.tokenMsg ? '<p class="' + (M.tokenOk ? "nf-aviso ok" : "nf-aviso") + '">' + ic(M.tokenOk ? "check" : "warning") + "<span>" + esc(M.tokenMsg) + "</span></p>" : "") +
+        nfSub("Produção") +
+        (s.producao_liberada
+          ? '<p class="nota-campo">Em produção: as notas valem de verdade.</p><div class="nf-botoes"><button type="button" class="btn-acao" data-a="nfProducao" data-v="voltar"' + so + ">Voltar para testes</button></div>"
+          : '<p class="nota-campo">Em testes (produção restrita, sem valor fiscal). Só muda depois de ao menos uma nota emitida em testes.</p><div class="nf-botoes"><button type="button" class="btn-acao' + (M.prodConfirma ? " perigo-cheio" : "") + '" data-a="nfProducao" data-v="liberar"' + so + ">" +
+            (M.prodConfirma ? "Confirmar: as notas passam a valer de verdade" : "Mudar para produção") + "</button></div>") +
+        (M.erroProd ? '<p class="erro-campo">' + esc(M.erroProd) + "</p>" : "") + "</div>" +
+        modalPe(so ? "" : '<button type="button" class="btn-acao verde" data-a="nfParamSalvar" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + (M.enviando ? "Gravando…" : "Gravar parâmetros") + "</button>");
+    } else if (M.tipo === "nfCancelar") {
+      var n = nfNota(M.id) || {};
+      h += modalCab("Cancelar a NFS-e nº " + (n.numero || "")) + '<div class="modal-corpo"><p class="t13" style="line-height:1.55">NFS-e nº ' + esc(n.numero) + " · " + esc(n.cliente) + " · " + esc(brl(n.centavos / 100)) +
+        (n.ambiente === "producao" ? "" : " · ambiente de testes") + ". O cancelamento vai ao Sistema Nacional e não se desfaz; o município tem um prazo para cancelar. Depois do prazo, o caminho é Substituir.</p>" +
+        nfEscolha("motivo", "Motivo (tabela oficial)", nfDominio(op.motivos_cancelamento, true)) + nfTexto("texto", "Descreva o motivo (15 a 255 caracteres)") + nfErro(M) + "</div>" +
+        modalPe('<button type="button" class="btn-acao perigo-cheio" data-a="nfCancelarConfirmar" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + (M.enviando ? "Cancelando…" : "Cancelar a nota") + "</button>");
+    } else if (M.tipo === "nfSubstituir") {
+      var o = nfNota(M.id) || {};
+      h += modalCab("Substituir a NFS-e nº " + (o.numero || "")) + '<div class="modal-corpo"><p class="t13" style="line-height:1.55">Sai uma nota nova no lugar da nº ' + esc(o.numero) + ", e a Sefin cancela a antiga sozinha. Corrija abaixo o que estava errado; o resto vem da nota original.</p>" +
+        nfEscolha("motivo", "Motivo (tabela oficial)", nfDominio(op.motivos_substituicao, true)) + nfTexto("texto", "Descrição do motivo (15 a 255 caracteres; obrigatória no 99 – Outros)") +
+        nfSub("Tomador") + nfTomadorCampos("ajustes.tomador.") + nfSub("Serviço") +
+        nfDuas(nfCampo("ajustes.valor", "Valor (R$)", ' inputmode="decimal"'), nfCampo("ajustes.competencia", "Competência", ' type="month"')) + nfCampo("ajustes.descricao", "Descrição") +
+        '<p class="nota-campo">No Simples Nacional, a substituta não pode mudar o tomador, o valor nem a competência (regra E0061).</p>' + nfErro(M) + "</div>" +
+        modalPe('<button type="button" class="btn-acao verde" data-a="nfSubstituirConfirmar" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + (M.enviando ? "Emitindo…" : "Emitir a substituta") + "</button>");
+    }
+    return h;
+  }
+
   function campoModal(id, rot, val, inp, pre, suf) {
     return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo mono fundo">' + (pre ? '<span class="pre">' + pre + "</span>" : "") + '<input id="' + id + '" data-in="' + inp + '" value="' + esc(val) + '" inputmode="decimal">' + (suf ? '<span class="sufixo">' + suf + "</span>" : "") + "</span></label>";
   }
@@ -971,7 +1212,7 @@
   function rapidas() {
     var c = contagens(), l = [];
     l.push({ icon: "campaign", t: "E-mails › Nova campanha", d: "público, conteúdo e disparo em 3 passos", ir: function () { U.emails.aba = "nova"; U.emails.passo = 1; irPara("emails"); } });
-    if (pode("nfse.emitir")) l.push({ icon: "receipt_long", t: "Notas fiscais › Pagamentos sem nota", d: c.nfse != null ? c.nfse + " pagamentos sem nota" : "pagamentos sem nota", ir: function () { irPara("nfse"); } });
+    if (podeNf()) l.push({ icon: "receipt_long", t: "Notas fiscais › Emitir NFS-e", d: c.nfse != null ? c.nfse + " pendências (pagamentos sem nota e notas na fila)" : "pagamentos sem nota", ir: function () { irPara("nfse"); } });
     l.push({ icon: "publish", t: "Confirmar alterações › Commitar e pushar", d: c.alteracoes + " pendentes", ir: function () { irPara("alteracoes"); } });
     if (pode("cupom.criar")) l.push({ icon: "local_offer", t: "Cupons › Novo cupom", d: "desconto por meses, brinde em tokens", ir: function () { irPara("cupons"); setTimeout(function () { var i = $("cupom-codigo"); if (i) i.focus(); }, 60); } });
     l.push({ icon: "dns", t: "Túneis › Perto de apagar", d: "os que a limpeza diária vai pegar", ir: function () { U.tuneis.filtro = "risco"; irPara("tuneis"); } });
@@ -1329,17 +1570,250 @@
     var d = dadosDe("nfse"); if (!d) return;
     var pc = ultimaNaFila("nfse.config"), atual = Object.assign({ auto: false, email: false, mail: false }, pc ? pc.dados : d.config || {});
     var k = el.dataset.k, novo = Object.assign({}, atual); novo[k] = !atual[k];
-    var tit = { auto: "emitir ao confirmar o pagamento", email: "enviar PDF e XML ao cliente", mail: "mandar também por e-mail" }[k];
+    var tit = { auto: "emitir ao confirmar o pagamento", email: "entregar ao app do cliente logo depois de emitir", mail: "mandar também por e-mail" }[k];
     enfileirar("nfse", "nfse.config", "config", { auto: !!novo.auto, email: !!novo.email, mail: !!novo.mail }, (novo[k] ? "Liguei: " : "Desliguei: ") + tit);
   };
-  A.nfseEmitir = function (el) {
-    var n = ((dadosDe("nfse") || {}).notas || []).filter(function (x) { return String(x.id) === el.dataset.id; })[0]; if (!n) return;
-    enfileirar("nfse", "nfse.emitir", n.id, { ids: [n.id] }, "Emiti a NFS-e de " + brl(n.valor) + " para " + n.cliente);
+  var scriptsCarregados = {};
+  function carregarScript(src) {
+    if (!scriptsCarregados[src]) {
+      scriptsCarregados[src] = new Promise(function (ok, falhou) {
+        var s = document.createElement("script");
+        s.src = src; s.onload = ok;
+        s.onerror = function () { delete scriptsCarregados[src]; falhou(new Error("não consegui carregar " + src)); };
+        document.head.appendChild(s);
+      });
+    }
+    return scriptsCarregados[src];
+  }
+  A.nfCert = async function () {
+    var N = U.nfse; if (!N.pfx || N.instalando) return;
+    N.instalando = true; N.aviso = null; render();
+    try {
+      await carregarScript("../assets/vendor/forge.min.js");
+      await carregarScript("../assets/nfse-pfx.js");
+      var par = window.PavlvsPfx.ler(N.pfx.bytes, N.senha);
+      var r = await api("POST", NF + "certificado", par);
+      N.pfx = null; N.senha = "";
+      var cx = r.conexao || {};
+      N.aviso = { ok: !!cx.ok, frase: (cx.ok ? "Certificado de " + (r.certificado.titular || "—") + " instalado. " : "") + (cx.frase || "") + (cx.aviso ? " " + cx.aviso : "") };
+      toast("Certificado instalado");
+    } catch (e) {
+      if (e.status !== 401) N.aviso = { ok: false, frase: e.message };
+    }
+    N.instalando = false;
+    var i = $("nf-pfx"); if (i) i.value = "";
+    ler("nfse"); render();
   };
-  A.nfseEmitirTodas = function () {
-    var ns = ((dadosDe("nfse") || {}).notas || []).filter(function (n) { return n.nota !== "emitida" && !E.pendentes.some(function (p) { return p.tipo === "nfse.emitir" && p.dados && (p.dados.ids || []).indexOf(n.id) >= 0; }); });
-    if (!ns.length) return;
-    enfileirar("nfse", "nfse.emitir", "pendentes", { ids: ns.map(function (n) { return n.id; }) }, "Emiti " + ns.length + (ns.length === 1 ? " NFS-e pendente" : " NFS-e pendentes"));
+  A.nfTestar = async function () {
+    var N = U.nfse; if (N.testando) return;
+    N.testando = true; render();
+    try { N.teste = await api("POST", NF + "testar", {}); } catch (e) { if (e.status !== 401) toast(e.message, true); }
+    N.testando = false; ler("nfse"); render();
+  };
+  A.nfImprimir = function (el) {
+    var antigo = $("nf-impressao"); if (antigo) antigo.remove();
+    var q = document.createElement("iframe");
+    q.id = "nf-impressao"; q.title = "Impressão da NFS-e";
+    q.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+    q.src = NF + "notas/" + encodeURIComponent(el.dataset.id) + "/pdf";
+    q.onload = function () { try { q.contentWindow.focus(); q.contentWindow.print(); } catch (e) { window.open(q.src, "_blank"); } };
+    document.body.appendChild(q);
+  };
+  A.nfEnviar = async function (el) {
+    el.disabled = true;
+    var r = await naHora("POST", NF + "notas/" + encodeURIComponent(el.dataset.id) + "/enviar", {});
+    if (r) { toast("Enviada: a nota está no PAULUS do cliente" + (r.email ? " · e-mail: " + r.email : "")); ler("nfse"); } else el.disabled = false;
+  };
+  A.nfTentar = async function (el) {
+    el.disabled = true;
+    var r = await naHora("POST", NF + "notas/" + encodeURIComponent(el.dataset.id) + "/tentar", {});
+    if (r) { toast(r.estado === "emitida" ? "NFS-e nº " + r.numero + " emitida" : "A nota continua: " + (r.estado_rotulo || r.estado), r.estado !== "emitida"); if (r.estado === "emitida") nfDepois(r.id); ler("nfse"); } else el.disabled = false;
+  };
+  A.nfDescartar = async function (el) {
+    el.disabled = true;
+    var r = await naHora("POST", NF + "notas/" + encodeURIComponent(el.dataset.id) + "/descartar", {}, "Nota descartada; o número volta para a próxima");
+    if (r) ler("nfse"); else el.disabled = false;
+  };
+  // O PDF (e o e-mail) num pedido separado, logo depois de emitir.
+  function nfDepois(id) { api("POST", NF + "notas/" + encodeURIComponent(id) + "/depois", {}).catch(function () { /* o Cron faz depois */ }); }
+
+  // pop-up Emitir
+  function nfAbrirEmitir(pagamento) {
+    var v = { conta: "", pagamento: "", valor: "", competencia: nfMesAtual(), descricao: "" };
+    NF_TOMADOR.forEach(function (x) { v["tomador." + x[0]] = ""; });
+    abrirModal({ tipo: "nfEmitir", v: v, clientes: null, erro: "", enviando: false });
+    var M = E.modal;
+    api("GET", NF + "clientes").then(function (r) {
+      if (E.modal !== M) return;
+      M.clientes = r.clientes || [];
+      if (pagamento) nfEscolherPagamento(M, pagamento);
+      renderCamada();
+    }, function (e) {
+      if (E.modal !== M || e.status === 401) return;
+      M.erroClientes = e.message; M.clientes = [];
+      if (pagamento) nfEscolherPagamento(M, pagamento);
+      renderCamada();
+    });
+    if (pagamento) nfEscolherPagamento(M, pagamento);
+  }
+  function nfEscolherCliente(M, id) {
+    M.v.conta = id;
+    var c = (M.clientes || []).filter(function (x) { return x.id === id; })[0];
+    NF_TOMADOR.forEach(function (x) { M.v["tomador." + x[0]] = c ? (c.tomador || {})[x[0]] || "" : ""; });
+  }
+  function nfEscolherPagamento(M, id) {
+    M.v.pagamento = id;
+    var p = (((dadosDe("nfse") || {}).pagamentos) || []).filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+    nfEscolherCliente(M, p.conta || "");
+    M.v.valor = Number(p.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    M.v.descricao = p.tipo === "mensalidade" ? "Assinatura do PAULUS — plano mensal" : "Recarga de uso do PAULUS (nuvem)";
+    if (String(p.quando || "").length >= 7) M.v.competencia = String(p.quando).slice(0, 7);
+  }
+  A.nfEmitir = function () { nfAbrirEmitir(""); };
+  A.nfEmitirPag = function (el) { nfAbrirEmitir(el.dataset.id); };
+  A.nfEmitirConfirmar = async function () {
+    var M = E.modal; if (!M || M.enviando) return;
+    var v = M.v, corpo = { tomador: nfAninhar(v, "tomador."), descricao: v.descricao, competencia: v.competencia };
+    if (v.conta) corpo.conta = v.conta;
+    if (v.pagamento) corpo.pagamento = v.pagamento;
+    if (String(v.valor || "").trim()) corpo.valor = String(v.valor).trim();
+    else if (!v.pagamento) { M.erro = "diga o valor da nota"; renderCamada(); return; }
+    M.enviando = true; M.erro = ""; renderCamada();
+    try {
+      var n = await api("POST", NF + "notas", corpo);
+      if (E.modal === M) fecharModal();
+      if (n.estado === "emitida") { toast("NFS-e nº " + n.numero + " emitida"); nfDepois(n.id); }
+      else toast("A nota ficou “" + (n.estado_rotulo || n.estado) + "”" + (n.erro ? ": " + n.erro : ""), true);
+      ler("nfse");
+    } catch (e) {
+      if (E.modal !== M) return;
+      M.enviando = false;
+      var lista = e.dados && e.dados.erros && e.dados.erros.length ? e.dados.erros : null;
+      M.erro = e.status === 401 ? "" : lista ? "A nota não passou na conferência: " + lista.join("; ") : e.message;
+      renderCamada();
+    }
+  };
+
+  // pop-up Clientes
+  A.nfClientes = function () {
+    abrirModal({ tipo: "nfClientes", clientes: null, editando: null, v: {}, erro: "", ok: "" });
+    var M = E.modal;
+    api("GET", NF + "clientes").then(function (r) { if (E.modal === M) { M.clientes = r.clientes || []; renderCamada(); } },
+      function (e) { if (E.modal === M && e.status !== 401) { M.erroClientes = e.message; renderCamada(); } });
+  };
+  A.nfCliEditar = function (el) {
+    var M = E.modal, id = el.dataset.id;
+    if (M.editando === id) { M.editando = null; renderCamada(); return; }
+    var c = (M.clientes || []).filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    M.editando = id; M.erro = ""; M.ok = ""; M.v = {};
+    NF_TOMADOR.forEach(function (x) { M.v["tomador." + x[0]] = (c.tomador || {})[x[0]] || ""; });
+    renderCamada();
+    var i = $(nfId("tomador.nome")); if (i) i.focus();
+  };
+  A.nfCliSalvar = async function (el) {
+    var M = E.modal, id = el.dataset.id; if (!M || M.enviando) return;
+    M.enviando = true; M.erro = ""; renderCamada();
+    try {
+      var c = await api("POST", NF + "clientes/" + encodeURIComponent(id), { tomador: nfAninhar(M.v, "tomador.") });
+      M.clientes = (M.clientes || []).map(function (x) { return x.id === id ? c : x; });
+      M.editando = null; M.ok = "Dados fiscais de " + c.nome + " salvos" + (c.faltas && c.faltas.length ? "; ainda falta " + c.faltas.join(", ") : "") + ".";
+    } catch (e) { if (e.status !== 401) M.erro = e.message; }
+    M.enviando = false; renderCamada();
+  };
+
+  // pop-up Parâmetros
+  A.nfParametros = function () {
+    var s = (dadosDe("nfse") || {}).situacao; if (!s) return;
+    var p = JSON.parse(JSON.stringify((s.prestador || {}).dados || {}));
+    var v = nfAchatar(p, "");
+    Object.keys(v).forEach(function (k) {
+      if (/_bp$/.test(k) && !/minimo/.test(k)) { v[k.replace(/_bp$/, "_pct")] = nfPct(v[k]); delete v[k]; }
+    });
+    v["ibscbs.enviar"] = !!(p.ibscbs || {}).enviar;
+    abrirModal({ tipo: "nfParametros", v: v, erro: "", token: "", tokenMsg: "", prodConfirma: false });
+  };
+  A.nfParamSalvar = async function () {
+    var M = E.modal; if (!M || M.enviando) return;
+    var v = {};
+    Object.keys(M.v).forEach(function (k) {
+      if (/^(ambiente|revisado_por|revisado_em|uf)$/.test(k)) return;
+      if (/_pct$/.test(k)) v[k.replace(/_pct$/, "_bp")] = nfBp(M.v[k]);
+      else v[k] = M.v[k];
+    });
+    M.enviando = true; M.erro = ""; renderCamada();
+    try {
+      var r = await api("POST", NF + "prestador", { prestador: nfAninhar(v, "") });
+      if (E.modal === M) fecharModal();
+      toast(r.mudou ? "Parâmetros gravados (versão " + r.versao + ")" + (r.faltas && r.faltas.length ? "; ainda falta " + r.faltas.join(", ") : "") : "Nada mudou nos parâmetros", !!(r.faltas && r.faltas.length));
+      ler("nfse");
+    } catch (e) {
+      if (E.modal !== M) return;
+      M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada();
+    }
+  };
+  A.nfToken = async function () {
+    var M = E.modal; if (!M || M.gravandoToken) return;
+    if (!String(M.token || "").trim()) { M.tokenMsg = "Cole o token antes de gravar."; M.tokenOk = false; renderCamada(); return; }
+    M.gravandoToken = true; M.tokenMsg = ""; renderCamada();
+    try {
+      var r = await api("POST", NF + "cloudflare", { token: M.token.trim() });
+      M.token = ""; M.tokenOk = !r.conexao || !!r.conexao.ok;
+      M.tokenMsg = "Token gravado (cifrado)." + (r.conexao ? " " + r.conexao.frase : "");
+      var d = dadosDe("nfse"); if (d) d.cloudflare = r.cloudflare;
+      if (r.conexao && r.conexao.ok) U.nfse.aviso = null;
+      ler("nfse");
+    } catch (e) { if (e.status !== 401) { M.tokenMsg = e.message; M.tokenOk = false; } }
+    M.gravandoToken = false; renderCamada();
+  };
+  A.nfProducao = async function (el) {
+    var M = E.modal, acao = el.dataset.v; if (!M) return;
+    if (acao === "liberar" && !M.prodConfirma) { M.prodConfirma = true; renderCamada(); return; }
+    M.erroProd = ""; el.disabled = true;
+    try {
+      var r = await api("POST", NF + "producao/" + acao, {});
+      if (E.modal === M) fecharModal();
+      toast(r.producao_liberada ? "Em produção: as notas valem de verdade" : "De volta ao ambiente de testes");
+      ler("nfse");
+    } catch (e) { if (e.status !== 401 && E.modal === M) { M.erroProd = e.message; M.prodConfirma = false; renderCamada(); } }
+  };
+
+  // cancelar e substituir
+  A.nfCancelar = function (el) { abrirModal({ tipo: "nfCancelar", id: el.dataset.id, v: { motivo: "1", texto: "" }, erro: "", enviando: false }); };
+  A.nfCancelarConfirmar = async function () {
+    var M = E.modal; if (!M || M.enviando) return;
+    M.enviando = true; M.erro = ""; renderCamada();
+    try {
+      var r = await api("POST", NF + "notas/" + encodeURIComponent(M.id) + "/cancelar", { motivo: M.v.motivo, texto: M.v.texto });
+      if (E.modal === M) fecharModal();
+      var ev = r.evento || {};
+      if (r.nota && r.nota.estado === "cancelada") toast("NFS-e nº " + r.nota.numero + " cancelada");
+      else toast("O cancelamento ficou “" + (ev.estado || "pendente") + "”" + (ev.ultimo_erro ? ": " + ev.ultimo_erro : ""), true);
+      ler("nfse");
+    } catch (e) { if (E.modal === M) { M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada(); } }
+  };
+  A.nfSubstituir = function (el) {
+    var n = nfNota(el.dataset.id); if (!n) return;
+    var v = { motivo: "99", texto: "", "ajustes.valor": nfReais(n.centavos), "ajustes.competencia": String(n.competencia || "").slice(0, 7), "ajustes.descricao": n.descricao || "" };
+    NF_TOMADOR.forEach(function (x) { v["ajustes.tomador." + x[0]] = (n.tomador || {})[x[0]] || ""; });
+    abrirModal({ tipo: "nfSubstituir", id: n.id, v: v, erro: "", enviando: false });
+  };
+  A.nfSubstituirConfirmar = async function () {
+    var M = E.modal; if (!M || M.enviando) return;
+    var corpo = nfAninhar(M.v, "");
+    M.enviando = true; M.erro = ""; renderCamada();
+    try {
+      var r = await api("POST", NF + "notas/" + encodeURIComponent(M.id) + "/substituir", corpo);
+      if (E.modal === M) fecharModal();
+      var n = r.nota || {};
+      if (n.estado === "emitida") { toast("NFS-e nº " + n.numero + " emitida no lugar da nº " + ((r.original || {}).numero || "")); nfDepois(n.id); }
+      else toast("A substituta ficou “" + (n.estado_rotulo || n.estado) + "”" + (n.erro ? ": " + n.erro : ""), true);
+      ler("nfse");
+    } catch (e) {
+      if (E.modal !== M) return;
+      var lista = e.dados && e.dados.erros && e.dados.erros.length ? e.dados.erros : null;
+      M.enviando = false; M.erro = e.status === 401 ? "" : lista ? "A nota não passou na conferência: " + lista.join("; ") : e.message; renderCamada();
+    }
   };
 
   // equipe
@@ -1400,6 +1874,18 @@
     planoTokens: function (el) { E.modal.tokens = el.value; renderCamada(); },
     commitTexto: function (el) { E.modal.texto = el.value; E.modal.erro = ""; renderCamada(); },
     buscaQ: function (el) { E.busca.q = el.value; E.busca.idx = 0; buscar(); renderCamada(); },
+    // notas fiscais: os campos dos pop-ups guardam o valor sem redesenhar
+    nf: function (el) { if (E.modal && E.modal.v) E.modal.v[el.dataset.k] = el.type === "checkbox" ? el.checked : el.value; },
+    nfCliente: function (el) { nfEscolherCliente(E.modal, el.value); renderCamada(); },
+    nfPagamento: function (el) { if (el.value) nfEscolherPagamento(E.modal, el.value); else E.modal.v.pagamento = ""; renderCamada(); },
+    nfSenha: function (el) { U.nfse.senha = el.value; },
+    nfTokenCampo: function (el) { if (E.modal) E.modal.token = el.value; },
+    nfPfx: function (el) {
+      var f = el.files && el.files[0];
+      if (!f) return;
+      if (f.size > 64 * 1024) { toast("Esse arquivo é grande demais para um certificado A1 (.pfx)", true); el.value = ""; return; }
+      f.arrayBuffer().then(function (b) { U.nfse.pfx = { nome: f.name, bytes: new Uint8Array(b) }; U.nfse.aviso = null; render(); });
+    },
   };
 
   /* ================================================================ toast */

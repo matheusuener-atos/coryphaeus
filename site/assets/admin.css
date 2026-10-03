@@ -457,6 +457,37 @@ code.cod { font: 400 12px var(--mono); color: var(--ink); background: var(--pill
 .toast.erro .tx { white-space: normal; }
 .toast a { color: var(--ink); border-bottom: 1px solid var(--line3); }
 
+/* ---------- Notas fiscais (NFS-e) ---------- */
+.nf-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.nf-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.nf-selo { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); font: 400 11px var(--mono); color: var(--atencao); }
+.nf-selo.producao { color: var(--ok); border-color: var(--ok); }
+.btn-acao.perigo-cheio { background: var(--errofill); color: #fff; }
+.nf-cert { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 14px; }
+.nf-arquivo { position: relative; max-width: 280px; min-width: 0; }
+.nf-arquivo input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.nf-arquivo:focus-within { outline: 2px solid var(--line3); outline-offset: 2px; }
+.nf-senha { flex: 1 1 200px; height: 32px; min-width: 0; }
+.nf-nota { padding: 0 14px 12px; }
+.nf-cartao { padding: 0 14px 4px; }
+.nf-aviso { display: flex; align-items: flex-start; gap: 8px; margin: 0 14px 12px; font-size: 12.5px; line-height: 1.5; color: var(--atencao); }
+.modal-corpo .nf-aviso { margin: 0; }
+.nf-aviso.ok { color: var(--ok); }
+.nf-aviso .icon { font-size: 16px; margin-top: 1px; }
+.nf-acoes { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+a.mini { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap; }
+a.mini:hover { color: var(--ink); }
+a.mini .icon { font-size: 14px; }
+.nf-info { font: 400 11px var(--mono); color: var(--ink3); margin-left: 4px; }
+.nf-teste .linha { flex-wrap: nowrap; }
+.nf-sub { margin-top: 6px; }
+.nf-form { display: grid; gap: 12px; padding: 12px 14px 14px; border-bottom: 1px solid var(--line2); }
+.nf-marcar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); cursor: pointer; }
+.caixa-campo select { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: var(--ink); font: 400 14px var(--sans); }
+.caixa-campo select option { background: var(--panel); color: var(--ink); }
+.caixa-campo input[type="month"] { font: 400 13px var(--mono); color-scheme: inherit; }
+.modal.larga { width: min(calc(100% - 32px), 760px); }
+
 /* ---------- celular ---------- */
 @media (max-width: 759px) {
   .adm-lateral { display: none; }

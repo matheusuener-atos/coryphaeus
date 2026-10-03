@@ -1,3 +1,11 @@
+// ANTES DO MERGE (NFS-e na nuvem): o service binding SEFIN_MTLS, abaixo,
+// aponta para o Worker auxiliar "paulus-nfse-mtls" - o deploy FALHA se ele
+// nao existir. O dono cria o auxiliar uma vez (worker/nfse-mtls/index.js;
+// worker/nfse/MTLS.md: sem rota e com o *.workers.dev desligado) e cadastra o
+// segredo NFSE_CHAVE_MESTRA (npx wrangler secret put NFSE_CHAVE_MESTRA, valor
+// de openssl rand -base64 32). Depois disso, o painel republica o auxiliar
+// sozinho a cada certificado novo (com o token da Cloudflare dos Parametros).
+//
 // O site publico do PAULUS (paulus.ia.br) no Cloudflare, publicado pelo
 // "npx wrangler deploy" que o Workers Builds roda a cada push.
 //
@@ -71,12 +79,15 @@
   // eles o painel fica fechado); GITHUB_CLIENT_ID e do OAuth App "PAVLVS
   // Admin" (o secret e segredo: GITHUB_CLIENT_SECRET); ADMIN_EQUIPE e a lista
   // inicial da equipe com o papel de cada um. RESEND_API_KEY (segredo) liga o
-  // envio de e-mail. A ponte da NFS-e com o PAULUS da casa nao tem segredo
-  // proprio: entra com o segredo da instalacao de uma conta da equipe (dono ou
-  // financeiro) e fica ligada com a nuvem (IA_ATIVA; /api/nfse-casa/*,
-  // worker/nfse-casa.js). NFSE_EMISSOR nao e
-  // mais usado (quem emite e o PAULUS da casa).
-  "vars": { "ACCESS_TEAM": "flat-cloud-c226.cloudflareaccess.com", "ACCESS_AUD": "a2820f4ed9f0e11fcf052fa538cb835c241fe36bce9259f523d359a62edf4165", "GITHUB_CLIENT_ID": "Ov23li63aRJVcRPb4QhE", "ADMIN_EQUIPE": "[{\"email\":\"matheusuener.atos@gmail.com\",\"nome\":\"Matheus\",\"papel\":\"dono\"}]", "NFSE_EMISSOR": "",
+  // envio de e-mail.
+  //
+  // As notas fiscais (NFS-e do PAVLVS) sao emitidas pelo painel (/admin ›
+  // Notas fiscais; worker/nfse/api.js). CF_ACCOUNT_ID: a conta Cloudflare onde
+  // o painel cadastra o certificado A1 como mTLS e republica o auxiliar
+  // paulus-nfse-mtls (worker/nfse/mtls.js; o token de API fica cifrado no KV,
+  // colado em Notas fiscais › Parametros). Identificador de conta nao e segredo.
+  "vars": { "ACCESS_TEAM": "flat-cloud-c226.cloudflareaccess.com", "ACCESS_AUD": "a2820f4ed9f0e11fcf052fa538cb835c241fe36bce9259f523d359a62edf4165", "GITHUB_CLIENT_ID": "Ov23li63aRJVcRPb4QhE", "ADMIN_EQUIPE": "[{\"email\":\"matheusuener.atos@gmail.com\",\"nome\":\"Matheus\",\"papel\":\"dono\"}]",
+    "CF_ACCOUNT_ID": "54164f67b5d5eb33c0a1d325dfebb449",
     "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20",
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
     "IA_ATIVA": "1", "IA_MODELOS": "meta-llama/Llama-3.3-70B-Instruct,Qwen/Qwen2.5-72B-Instruct",
@@ -88,8 +99,14 @@
   // O emissor de NFS-e da nuvem (worker/nfse/emissor.js, EmissorNFSe): uma
   // instancia so (idFromName("pavlvs")), SQLite. O certificado e a chave da
   // NFS-e ficam cifrados nele com o segredo NFSE_CHAVE_MESTRA (npx wrangler
-  // secret put NFSE_CHAVE_MESTRA; openssl rand -base64 32). As rotas ainda nao
-  // estao ligadas (worker/nfse/api.js).
+  // secret put NFSE_CHAVE_MESTRA; openssl rand -base64 32), que tambem cifra o
+  // token da Cloudflare no KV. Trocar a mestra = instalar o certificado e colar
+  // o token de novo. As rotas sao as do painel (/api/admin/nfse/emissor/*).
   "durable_objects": { "bindings": [{ "name": "CONTAS_IA", "class_name": "ContaIA" }, { "name": "EMISSOR_NFSE", "class_name": "EmissorNFSe" }] },
-  "migrations": [{ "tag": "v1-contas-ia", "new_sqlite_classes": ["ContaIA"] }, { "tag": "v2-emissor-nfse", "new_sqlite_classes": ["EmissorNFSe"] }]
+  "migrations": [{ "tag": "v1-contas-ia", "new_sqlite_classes": ["ContaIA"] }, { "tag": "v2-emissor-nfse", "new_sqlite_classes": ["EmissorNFSe"] }],
+  // A conexao com a Sefin (mTLS): todo pedido a Sefin/ADN sai pelo Worker
+  // auxiliar paulus-nfse-mtls, que apresenta o certificado A1 (worker/nfse/MTLS.md,
+  // worker/nfse/sefin.js, fetchPeloMtls). Veja a nota no topo: o auxiliar
+  // precisa existir antes do deploy.
+  "services": [{ "binding": "SEFIN_MTLS", "service": "paulus-nfse-mtls" }]
 }

@@ -15,9 +15,9 @@
 //
 // Todo o resto e o site estatico.
 //
-// A ponte da NFS-e (worker/nfse-casa.js): /api/nfse-casa/*, o PAULUS da casa
-// le clientes e pagamentos e devolve as notas emitidas. A porta e o segredo
-// da instalacao de uma conta da equipe do painel (dono ou financeiro).
+// As notas fiscais (NFS-e do PAVLVS) sao emitidas pelo painel admin, em
+// /api/admin/nfse/* (worker/admin.js -> worker/nfse/api.js -> o Durable Object
+// EmissorNFSe). A antiga ponte com o PAULUS da casa (/api/nfse-casa/*) saiu.
 //
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
@@ -35,13 +35,12 @@
 import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
 import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
 import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas } from "./admin.js";
-import { atenderCasa, ehRotaDaCasa } from "./nfse-casa.js";
+import { depoisPendentes } from "./nfse/api.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
-// O emissor de NFS-e da nuvem (worker/nfse/emissor.js). So a classe do Durable
-// Object e exportada (o binding EMISSOR_NFSE pede); as rotas ainda nao estao
-// ligadas aqui (worker/nfse/api.js, atenderEmissor).
+// O emissor de NFS-e da nuvem (worker/nfse/emissor.js): a classe do Durable
+// Object (o binding EMISSOR_NFSE pede). As rotas ficam no painel admin.
 export { EmissorNFSe } from "./nfse/emissor.js";
 
 const MP = "https://api.mercadopago.com";
@@ -64,15 +63,6 @@ export default {
         return await atenderTunel(request, env, url, { dentroDoLimite });
       } catch (erro) {
         return json({ erro: "falha no servidor do acesso de fora" }, 500);
-      }
-    }
-    // A ponte da NFS-e com o PAULUS da casa: fora do Access e da sessao do
-    // GitHub, com o segredo da instalacao de uma conta da equipe (worker/nfse-casa.js).
-    if (ehRotaDaCasa(url)) {
-      try {
-        return await atenderCasa(request, env, url);
-      } catch (erro) {
-        return json({ erro: "falha no servidor da ponte da NFS-e" }, 500);
       }
     }
     if (ehRotaDoAdmin(url)) {
@@ -108,11 +98,15 @@ export default {
   // fora que nunca conectaram em 7 dias ou estao parados ha mais de 180.
   // Sem TUNEL_ATIVO e sem o KV, nao faz nada.
   // O Cron de cada minuto manda a proxima leva das campanhas do painel admin
-  // (50 por minuto; sem RESEND_API_KEY, nada).
+  // (50 por minuto; sem RESEND_API_KEY, nada) e faz o PDF (e o e-mail) de uma
+  // NFS-e emitida que ainda nao tem (worker/nfse/api.js, depoisPendentes; sem
+  // nota esperando, uma leitura do KV).
   async scheduled(controller, envOriginal, ctx) {
     const env = await comPlanosDoPainel(envOriginal);
-    if (controller && controller.cron === "* * * * *") ctx.waitUntil(enviarCampanhas(env));
-    else ctx.waitUntil(limparEscritorios(env));
+    if (controller && controller.cron === "* * * * *") {
+      ctx.waitUntil(enviarCampanhas(env));
+      ctx.waitUntil(depoisPendentes(env).catch(() => null));
+    } else ctx.waitUntil(limparEscritorios(env));
   },
 };
 

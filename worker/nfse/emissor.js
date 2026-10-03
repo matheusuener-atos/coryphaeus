@@ -37,7 +37,7 @@ import { centavosDeTexto, centavosDoXml, reais } from "./dinheiro.js";
 import { hojeBrasilia, montarDps } from "./dps.js";
 import { CANCELAMENTO, montarPedidoEvento, POR_OFICIO, POR_SUBSTITUICAO } from "./eventos.js";
 import { deGzipB64 } from "./gzip.js";
-import { AMBIENTES, conferirPrestador, fundir, padrao } from "./prestador.js";
+import { AMBIENTES, conferirPrestador, fundir, padrao, QUANDO_RETER, RETENCOES } from "./prestador.js";
 import {
   CAMPOS, ClienteSefin, campo, CONVENIADO, fetchPeloMtls, INDEFINIDO, interpretarConvenio, NAO_CONSULTADO, NaoChegou,
   prazoCancelamentoDias, ProducaoBloqueada, SEM_CONVENIO, SemResposta, valoresB64,
@@ -352,7 +352,7 @@ export class EmissorNFSe {
 
   /**
    * Guarda o certificado e a chave já abertos (o .pfx é aberto fora, no
-   * PAULUS da casa ou pelo lerPfx). Confere que a chave é a do certificado;
+   * navegador, site/assets/nfse-pfx.js, ou pelo lerPfx). Confere que a chave é a do certificado;
    * a validade sai do próprio certificado. Os dois vão cifrados.
    */
   async guardarCertificado({ certificado, chave, titular = "", documento = "", algoritmo = "sha1", quem = "" }) {
@@ -465,7 +465,7 @@ export class EmissorNFSe {
       ambiente, ambiente_rotulo: AMBIENTES[ambiente] || "", producao_liberada: this.producaoLiberada(),
       prestador: { versao: p.id, dados: p.dados, faltas: this.faltas() }, certificado: this.certificadoParaTela(),
       municipio: this.situacaoMunicipio(), pode_emitir: pode, motivos, proximo_numero: this.proximoNumero(ambiente, serie),
-      tabelas: tabelas.versoes(),
+      tabelas: tabelas.versoes(), opcoes: opcoesDaTela(),
     };
   }
 
@@ -548,7 +548,7 @@ export class EmissorNFSe {
       competencia: (r.competencia || "").slice(0, 7), descricao: r.descricao || "", quando: n.dh_proc || n.atualizado_em || "",
       erro: n.ultimo_erro || "", rejeicao: n.rejeicao, avisos: n.avisos, tentativas: n.tentativas,
       proxima_tentativa: n.proxima_tentativa || "", substitui_id: n.substitui_id, substituida_por_id: n.substituida_por_id,
-      cliente_avisado: n.cliente_avisado || "", pdf_em: n.pdf_em || "", email: n.email || "", sefin: n.sefin,
+      cliente_avisado: n.cliente_avisado || "", pdf_em: n.pdf_em || "", tem_pdf: Boolean(n.pdf_em), email: n.email || "", sefin: n.sefin,
     };
   }
 
@@ -799,7 +799,13 @@ export class EmissorNFSe {
     return this.obter(nota.id);
   }
 
-  /** O que vem depois de emitida; nada aqui desfaz a nota (falha vira passo). */
+  /**
+   * O que vem depois de emitida; nada aqui desfaz a nota (falha vira passo).
+   * O pagamento sempre fica marcado; a nota só vai ao app do cliente com o
+   * interruptor "email" do painel ligado (desligado, o botão Enviar ao
+   * cliente entrega). O PDF e o e-mail ficam para outro pedido
+   * (api.js, depoisDeEmitir): a nota entra na lista admin:nfse-depois.
+   */
   async depoisDaNota(nota) {
     if (nota.substitui_id) {
       const original = this.obter(nota.substitui_id);
@@ -809,7 +815,22 @@ export class EmissorNFSe {
         await this.avisarCancelada(original, { numero: nota.numero_nfse });
       }
     }
-    await this.mandarAoCliente(nota);
+    if (nota.pagamento && this.env.APOIOS) {
+      try {
+        await marcarPagamento(this.env, nota.pagamento, { nota: "emitida", numero: nota.numero_nfse, nota_id: idNoCliente(nota.id), erro: "", motivo: "" });
+      } catch {
+        // a nota vale; a marca do pagamento é só para a lista do painel
+      }
+    }
+    if ((await this.config()).email) await this.mandarAoCliente(nota);
+    else if (nota.conta) this.passo(nota.id, nota.estado, nota.estado, "PAVLVS", "não foi ao app do cliente (a entrega logo depois de emitir está desligada no painel): use Enviar ao cliente");
+    if (this.env.APOIOS) {
+      try {
+        await anotarParaDepois(this.env, nota.id, this.agora());
+      } catch {
+        // sem o KV agora: o botão PDF gera na hora
+      }
+    }
   }
 
   /** A meta e o XML nas chaves do app do cliente (nfse:nota*, como POST /api/nfse-casa/notas). */
@@ -820,9 +841,6 @@ export class EmissorNFSe {
       if (nota.conta) {
         const r = await guardarNotaDoCliente(this.env, notaParaCliente(nota));
         resultado = r.status === 200 ? this.agoraIso() : `erro: ${r.corpo.erro || r.status}`;
-      } else if (nota.pagamento) {
-        await marcarPagamento(this.env, nota.pagamento, { nota: "emitida", numero: nota.numero_nfse, nota_id: idNoCliente(nota.id), erro: "" });
-        resultado = "sem conta: só o pagamento marcado";
       } else return;
     } catch (e) {
       resultado = `erro: ${String(e && e.message || e).slice(0, 200)}`;
@@ -832,10 +850,16 @@ export class EmissorNFSe {
   }
 
   async avisarCancelada(nota, substituta = null) {
-    if (!this.env.APOIOS || !nota.conta) return "";
+    if (!this.env.APOIOS) return "";
+    // A nota não chegou ao app do cliente: só o pagamento muda.
+    if (!nota.conta || !nota.cliente_avisado || String(nota.cliente_avisado).startsWith("erro")) {
+      if (nota.pagamento && !substituta) await marcarPagamento(this.env, nota.pagamento, { nota: "cancelada" }).catch(() => {});
+      if (nota.conta) this.passo(nota.id, nota.estado, nota.estado, "PAVLVS", "o app do cliente não tinha esta nota: nada a avisar");
+      return "";
+    }
     let frase;
     try {
-      const corpo = { conta: nota.conta, email: await this.configEmail() };
+      const corpo = { conta: nota.conta, email: (await this.config()).mail };
       if (substituta) corpo.substituta = substituta;
       const r = await avisarNotaCancelada(this.env, idNoCliente(nota.id), corpo);
       frase = r.status === 200 ? "o app do cliente foi avisado" : `não consegui avisar o app do cliente: ${r.corpo.erro || r.status}`;
@@ -846,13 +870,49 @@ export class EmissorNFSe {
     return frase;
   }
 
-  async configEmail() {
+  /** Os interruptores do painel: {auto, email, mail} (admin:nfse:config). */
+  async config() {
     try {
-      const v = await this.env.APOIOS.get("admin:nfse:config");
-      return Boolean(v && JSON.parse(v).mail);
+      const v = this.env.APOIOS ? await this.env.APOIOS.get("admin:nfse:config") : null;
+      const c = v ? JSON.parse(v) : {};
+      return { auto: Boolean(c.auto), email: Boolean(c.email), mail: Boolean(c.mail) };
     } catch {
-      return false;
+      return { auto: false, email: false, mail: false };
     }
+  }
+
+  /** Enviar ao cliente (o botão do painel): a nota emitida vai ao app dele agora. */
+  async enviarAoCliente({ id, quem = "PAVLVS" }) {
+    const n = this.exigir(id);
+    if (n.estado !== EMITIDA) throw new ErroEmissor("só se envia ao cliente a nota emitida", 409);
+    if (!n.conta) throw new ErroEmissor("esta nota não é de um assinante (sem conta): baixe o PDF e mande à mão", 409);
+    await this.mandarAoCliente(n);
+    const depois = this.obter(n.id);
+    if (String(depois.cliente_avisado || "").startsWith("erro")) {
+      throw new ErroEmissor("não consegui entregar ao app do cliente: " + depois.cliente_avisado.replace(/^erro:\s*/, ""), 502);
+    }
+    this.passo(n.id, n.estado, n.estado, quem, "enviada ao app do cliente pelo painel");
+    return this.paraTela(depois);
+  }
+
+  /** O que aconteceu com o e-mail da nota (depois do envio). */
+  anotarEmail({ id, email = "" }) {
+    const n = this.exigir(id);
+    this.rodar("UPDATE notas SET email = ? WHERE id = ?", String(email).slice(0, 200), n.id);
+    this.passo(n.id, n.estado, n.estado, "PAVLVS", "e-mail: " + String(email).slice(0, 200));
+    return this.paraTela(this.obter(n.id));
+  }
+
+  /** O certificado e a chave em PEM, para cadastrar o mTLS na Cloudflare (mtls.js). Não sai do Worker. */
+  async parParaMtls() {
+    const c = this.certificadoAtivo();
+    if (!c) throw new ErroEmissor("falta o certificado A1 da nota", 409);
+    const certDer = await decifrar(this.env, c.cert_cifrado, "certificado");
+    const chaveDer = await decifrar(this.env, c.chave_cifrada, "chave");
+    const pem = (rotulo, der) => `-----BEGIN ${rotulo}-----\n` + b64(der).replace(/(.{64})/g, "$1\n").replace(/\n$/, "") + `\n-----END ${rotulo}-----\n`;
+    const saida = { certPem: pem("CERTIFICATE", certDer), chavePem: pem("PRIVATE KEY", chaveDer), documento: c.documento, valido_ate: c.valido_ate, titular: c.titular };
+    chaveDer.fill(0);
+    return saida;
   }
 
   /** Tentar de novo a nota da fila (sempre consulta antes de reenviar). */
@@ -1156,6 +1216,9 @@ export class EmissorNFSe {
           municipio: (tabelas.municipio(prest.municipio) || {}).nome || prest.municipio }, calculo: n.calculo };
       }
       case "marcar_depois": return this.marcarDepois(d);
+      case "enviar_cliente": return this.enviarAoCliente(d);
+      case "anotar_email": return this.anotarEmail(d);
+      case "par_para_mtls": return this.parParaMtls();
       default: throw new ErroEmissor("ação desconhecida", 404);
     }
   }
@@ -1193,8 +1256,35 @@ export function notaParaCliente(nota) {
     id: idNoCliente(nota.id), conta: nota.conta, pagamento: nota.pagamento || "", numero: nota.numero_nfse || "", chave: nota.chave || "",
     competencia: String(r.competencia || "").slice(0, 7), valor: Number(nota.centavos || 0) / 100, descricao: r.descricao || "",
     ambiente: nota.ambiente, emitida_em: nota.dh_proc || nota.atualizado_em || "",
-    xml_b64: b64(utf8.encode(nota.xml_nfse || "")), pdf_b64: "", email: false,
+    xml_b64: b64(utf8.encode(nota.xml_nfse || "")), email: false,
   };
+}
+
+/** As listas das escolhas da tela (Parâmetros, Cancelar, Substituir). */
+export function opcoesDaTela() {
+  return {
+    motivos_cancelamento: tabelas.dominio("motivo_cancelamento"), motivos_substituicao: tabelas.dominio("motivo_substituicao"),
+    opcao_simples: tabelas.dominio("opcao_simples"), regime_especial: tabelas.dominio("regime_especial"),
+    regime_apuracao_sn: tabelas.dominio("regime_apuracao_sn"), quando_reter: { ...QUANDO_RETER }, retencoes: { ...RETENCOES },
+  };
+}
+
+// As notas emitidas que ainda esperam o PDF (e o e-mail): o painel pede logo
+// depois de emitir; o Cron de cada minuto (index.js, depoisPendentes) pega as
+// que ficaram (emissão automática, nota que saiu da fila).
+export const K_DEPOIS = "admin:nfse-depois";
+
+export async function anotarParaDepois(env, id, agora = new Date()) {
+  let lista = [];
+  try {
+    lista = JSON.parse((await env.APOIOS.get(K_DEPOIS)) || "[]");
+  } catch {
+    lista = [];
+  }
+  if (!Array.isArray(lista)) lista = [];
+  if (lista.some((x) => x && x.id === id)) return;
+  lista.push({ id, quando: agora.toISOString() });
+  await env.APOIOS.put(K_DEPOIS, JSON.stringify(lista.slice(-200)));
 }
 
 export function fraseMunicipio(cmun, situacao, detalhes = "") {

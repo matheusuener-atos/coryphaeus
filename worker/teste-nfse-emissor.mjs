@@ -132,7 +132,7 @@ instancia.agora = () => (relogio === null ? new Date() : new Date(relogio));
 const esperando = [];
 const ctx = { waitUntil: (p) => esperando.push(p) };
 async function api(metodo, caminho, corpo) {
-  const req = new Request("https://paulus.ia.br/api/nfse-emissor/" + caminho, { method: metodo,
+  const req = new Request("https://paulus.ia.br/api/admin/nfse/emissor/" + caminho, { method: metodo,
     headers: { "content-type": "application/json" }, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
   const r = await atenderEmissor(req, env, ctx, { quem: "teste" });
   const tipo = r.headers.get("content-type") || "";
@@ -176,7 +176,7 @@ r = await api("POST", "certificado", { certificado: cert.certPem, chave: b64(out
 checar(r.status === 400 && /não é a deste certificado/.test(r.dados.erro), "chave de outro certificado é recusada", r.dados);
 r = await api("POST", "certificado", { certificado: cert.certPem, chave: "-----BEGIN PRIVATE KEY-----\n" + b64(cert.chavePkcs8) + "\n-----END PRIVATE KEY-----",
   titular: cert.titular, documento: cert.documento });
-checar(r.status === 200 && r.dados.instalado && r.dados.documento === "11222333000181" && r.dados.valido_ate === cert.validoAte.replace(/\.\d+Z$/, ".000Z"),
+checar(r.status === 200 && r.dados.certificado.instalado && r.dados.certificado.documento === "11222333000181" && r.dados.certificado.valido_ate === cert.validoAte.replace(/\.\d+Z$/, ".000Z"),
   "certificado guardado; a validade sai do próprio certificado", r.dados);
 const linhaCert = storage.db.prepare("SELECT * FROM certificado WHERE ativo = 1").get();
 checar(linhaCert.chave_cifrada.startsWith("v1.") && !linhaCert.chave_cifrada.includes(b64(cert.chavePkcs8).slice(10, 40)),

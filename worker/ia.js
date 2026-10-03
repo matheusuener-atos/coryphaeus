@@ -39,6 +39,7 @@
 // DEEPINFRA_KEY: sem os tres, as rotas respondem 404 (ou 503, sem a chave).
 
 import { donoDoToken } from "./tunel.js";
+import { emitirAutomatico } from "./nfse/api.js";
 
 const DEEPINFRA = "https://api.deepinfra.com/v1/openai/chat/completions";
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
@@ -161,7 +162,7 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   }
   const rec = p.match(/^\/api\/ia\/recarga\/([A-Za-z0-9_-]{6,64})$/);
   if (rec && m === "GET") return situacaoDaRecarga(env, conta, quem.id, rec[1], mp);
-  // As NFS-e que o PAULUS da casa emitiu para esta conta (worker/nfse-casa.js).
+  // As NFS-e que o PAVLVS emitiu para esta conta (o emissor da nuvem grava por worker/nfse-casa.js).
   if (p === "/api/ia/nfse" && m === "GET") return json({ notas: await notasDoCliente(env, quem.id) });
   const nf = p.match(/^\/api\/ia\/nfse\/([A-Za-z0-9_.-]{1,64})\/(pdf|xml)$/);
   if (nf && m === "GET") return arquivoDoCliente(env, quem.id, nf[1], nf[2]);
@@ -720,6 +721,10 @@ async function anotarPagamento(env, p) {
   const chave = "admin:nfse:" + p.id;
   if (await env.APOIOS.get(chave)) return;
   await env.APOIOS.put(chave, JSON.stringify({ ...p, quando: new Date().toISOString(), nota: "pendente" }));
+  // Com "Emitir ao confirmar o pagamento" ligado no painel, a NFS-e sai agora
+  // (o aviso do Mercado Pago ja roda em ctx.waitUntil, worker/index.js). Sem o
+  // tomador completo, o motivo fica no pagamento e a nota fica pendente.
+  await emitirAutomatico(env, p.id);
 }
 
 /* Os ultimos avisos tratados, para a Visao geral do painel: so o id da conta,

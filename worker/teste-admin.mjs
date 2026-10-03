@@ -151,7 +151,7 @@ r = await admin("GET", "/api/admin/visao", { email: "suporte@paulus.ia.br", cook
 checar(r.status === 401, "o cookie de uma pessoa nao vale com o Access de outra");
 r = await admin("GET", "/api/admin/sessao", { cookie: sessao });
 d = await r.json();
-checar(d.pronto && d.papel === "dono" && d.github.login === "matheus" && d.worker === "0.9.22" && d.config.nfse.ligado === true && d.config.tuneis.ligado === false, "sessao pronta, papel e o que falta configurar (a NFS-e liga com a nuvem)", d);
+checar(d.pronto && d.papel === "dono" && d.github.login === "matheus" && d.worker === "0.9.22" && d.config.nfse.ligado === false && d.config.nfse.falta.includes("EMISSOR_NFSE") && d.config.tuneis.ligado === false, "sessao pronta, papel e o que falta configurar (sem o DO, o emissor de NFS-e diz que falta)", d);
 const como = (extra = {}) => ({ cookie: sessao, ...extra });
 
 // ------------------------------------------------------------ as contas
@@ -290,20 +290,11 @@ checar(varredura("CNPJ 12.345.678/0001-90").cnpj === 1 && varredura("CNPJ 12.345
 console.log("nfse e equipe");
 r = await admin("GET", "/api/admin/nfse", como());
 d = await r.json();
-checar(d.emissor.ligado && d.fatos.some((f) => f.k === "Emissor" && f.v === "PAULUS da casa · ainda não conectou"), "nuvem ligada e sem conexao: ainda nao conectou (sem segredo)", d.fatos);
-r = await admin("GET", "/api/admin/nfse", { ...como(), envUsado: { ...env, IA_ATIVA: "" } });
+checar(r.status === 200 && !d.emissor.ligado && d.emissor.falta.includes("EMISSOR_NFSE") && Array.isArray(d.notas) && Array.isArray(d.pagamentos) && d.pode.emitir === true,
+  "sem o DO do emissor: a aba abre e diz o que falta (o resto em teste-nfse-admin.mjs)", d);
+r = await admin("POST", "/api/admin/nfse/emissor/notas", como({ corpo: { valor: 1 } }));
 d = await r.json();
-checar(!d.emissor.ligado && d.fatos.some((f) => f.k === "Emissor" && f.v.includes("ponte desligada") && f.v.includes("IA_ATIVA")), "nuvem desligada: ponte desligada", d.fatos);
-guardados.set("admin:nfse-casa:visto", JSON.stringify({ quando: "2026-10-03T15:00:00.000Z", email: "matheus@paulus.ia.br" }));
-r = await admin("GET", "/api/admin/nfse", como());
-d = await r.json();
-checar(d.fatos.some((f) => f.k === "Emissor" && f.v === "PAULUS da casa · matheus@paulus.ia.br · última conexão 03/10/2026 12:00"), "a ultima conexao da casa, com o e-mail", d.fatos);
-guardados.set("admin:nfse-casa:visto", "2026-10-03T15:00:00.000Z");
-r = await admin("GET", "/api/admin/nfse", como());
-d = await r.json();
-checar(d.fatos.some((f) => f.k === "Emissor" && f.v === "PAULUS da casa · última conexão 03/10/2026 12:00"), "formato antigo (so a ISO) ainda vale", d.fatos);
-guardados.delete("admin:nfse-casa:visto");
-checar(d.config.mail === false, "o interruptor do e-mail da nota comeca desligado", d.config);
+checar(r.status === 503 && d.erro.includes("EMISSOR_NFSE"), "emitir sem o DO: 503 dizendo o que falta", d);
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.config", dados: { auto: true, email: false, mail: true }, texto: "Liguei: mandar também por e-mail" } }));
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
 d = await r.json();
@@ -313,10 +304,7 @@ d = await r.json();
 checar(d.config.mail === true && d.config.auto === true, "e o painel le o mail de volta", d.config);
 guardados.delete("admin:nfse:config");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.emitir", dados: { ids: ["x"] }, texto: "Emiti" } }));
-r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
-d = await r.json();
-checar(!d.ok && d.resultados[0].erro.includes("Notas Admin"), "o painel nao emite: diz que e no PAULUS da casa", d);
-await admin("DELETE", "/api/admin/alteracoes/" + d.resultados[0].id, como());
+checar(r.status === 400, "nfse.emitir saiu da fila: emitir e na hora, pelo emissor");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "equipe.papel", dados: { email: "dono@paulus.ia.br", papel: "suporte" }, texto: "Rebaixei o dono" } }));
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
 d = await r.json();

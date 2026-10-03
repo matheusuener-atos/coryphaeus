@@ -66,7 +66,7 @@ export class ClienteSefin {
   constructor({ ambiente, fetch, producaoLiberada = false, urls = null }) {
     if (!URLS[ambiente]) throw new Error("ambiente desconhecido");
     if (ambiente === "producao" && !producaoLiberada) {
-      throw new ProducaoBloqueada("a produção ainda não foi liberada pelo titular (Notas Admin › Produção)");
+      throw new ProducaoBloqueada("a produção ainda não foi liberada pelo titular (painel › Notas fiscais › Parâmetros › Produção)");
     }
     if (typeof fetch !== "function") throw new NaoChegou("sem conexão com a Sefin configurada (SEFIN_MTLS)");
     this.ambiente = ambiente;
