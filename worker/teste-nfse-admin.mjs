@@ -297,7 +297,7 @@ checar(c1.corpo.ca === false && c1.corpo.certificates.startsWith("-----BEGIN CER
 checar(c2.metodo === "PUT" && c2.caminho === `/accounts/${CF_CONTA}/workers/scripts/paulus-nfse-mtls` && c2.metadata.main_module === "index.js"
   && JSON.stringify(c2.metadata.bindings) === JSON.stringify([{ type: "mtls_certificate", name: "SEFIN", certificate_id: "mtls-1" }]),
   "2ª chamada: PUT do auxiliar paulus-nfse-mtls com o binding mtls_certificate SEFIN -> o certificado novo", c2.metadata);
-checar(c2.script === readFileSync(join(AQUI, "nfse-mtls", "index.js"), "utf8") && c2.script === CODIGO_AUXILIAR && c2.tipoScript.startsWith("application/javascript+module"),
+checar(c2.script === readFileSync(join(AQUI, "nfse-mtls", "index.js"), "utf8").replace(/\r\n/g, "\n") && c2.script === CODIGO_AUXILIAR && c2.tipoScript.startsWith("application/javascript+module"),
   "o script publicado é o de worker/nfse-mtls/index.js (módulo)");
 checar(kvJson("admin:nfse-cf:mtls").id === "mtls-1" && kvJson("admin:nfse-cf:mtls").documento === "11222333000181", "o mTLS em uso fica anotado");
 x = await nf("POST", "cloudflare", { token: TOKEN_CF });
