@@ -140,6 +140,15 @@ def main() -> int:
         pronto = re.search(r'd\.fase === "pronto"\) \{[^}]*\}', html)
         checar(pronto and "voltar()" in pronto.group(0) and "paulus://" not in pronto.group(0),
                "login pronto: a página pede ao PAULUS que venha para a frente, sem o diálogo do paulus://")
+        chamado = []
+        antes_externo = api.estado.ao_pedido_externo
+        api.estado.ao_pedido_externo = lambda tipo, caminho: chamado.append(tipo)
+        try:
+            api.estado.vinculo._voltar_ao_paulus()
+        finally:
+            api.estado.ao_pedido_externo = antes_externo
+        checar(api.estado.vinculo.ao_voltar is api._trazer_o_paulus and chamado == ["mostrar"],
+               "o login da trava (destravar, vincular) também traz o PAULUS para a frente", chamado)
         checar(html.count("paulus://voltar") == 1 and ".catch(function () { try { window.location.href = \"paulus://voltar\"" in html,
                "o paulus:// só se o PAULUS não responder")
         checar(TITULO in porteiro.PAGINA_RECUSADA and "janela do PAULUS" in porteiro.PAGINA_RECUSADA, "fora da janela: o título e o motivo")

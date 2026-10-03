@@ -8883,6 +8883,10 @@ def _trazer_o_paulus() -> None:
         estado.ao_pedido_externo("mostrar", "")
 
 
+# O login da trava (destravar, vincular, confirmar) tambem volta para o PAULUS.
+estado.vinculo.ao_voltar = _trazer_o_paulus
+
+
 @app.get("/api/email/oauth")
 def email_oauth_info() -> dict:
     return _info_oauth()

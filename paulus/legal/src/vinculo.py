@@ -81,6 +81,9 @@ class Vinculo:
         self.contas = contas_do_acesso
         self.credenciais = credenciais          # () -> {client_id, client_secret} do cliente desktop
         self.abrir = abrir
+        # O "Voltar ao PAULUS" da pagina de volta do Google: a janela vem para a
+        # frente (o api.py liga em _trazer_o_paulus; sem janela, nada).
+        self.ao_voltar = None
         self.relogio = relogio
         self._trava = threading.Lock()
         self.destravado = False
@@ -173,10 +176,15 @@ class Vinculo:
                     "google", credenciais, self._voltou, abrir=self.abrir,
                     escopos=ESCOPOS_COM_SERVICOS if self._com_servicos else ESCOPOS_IDENTIDADE,
                     so_identidade=not self._com_servicos,
-                    login_hint=self.dados().get("email", "") if finalidade in ("destravar", "confirmar") else "")
+                    login_hint=self.dados().get("email", "") if finalidade in ("destravar", "confirmar") else "",
+                    ao_voltar=self._voltar_ao_paulus)
             except correio_oauth.ErroOAuth as exc:
                 raise ErroVinculo(str(exc)) from exc
         return self.entrada.iniciar()
+
+    def _voltar_ao_paulus(self) -> None:
+        if self.ao_voltar:
+            self.ao_voltar()
 
     def _voltou(self, provedor: str, tokens: dict, email: str, nome: str) -> dict:
         email = str(email or "").strip().lower()
