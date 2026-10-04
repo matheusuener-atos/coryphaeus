@@ -47,7 +47,7 @@
       <span class="pg-titulo-cartao">Cartão de crédito ou débito</span>
       <div class="campo" role="group" aria-labelledby="pg-r-numero">
         <span class="rotulo" id="pg-r-numero">Número do cartão</span>
-        <div class="caixa-campo pg-seguro-caixa"><span class="icon" aria-hidden="true">credit_card</span>
+        <div class="caixa-campo pg-seguro-caixa"><span class="icon" id="pg-bandeira-icone" aria-hidden="true">credit_card</span><img id="pg-bandeira" class="pg-bandeira" alt="" hidden>
           <div id="pg-numero" class="pg-seguro" data-mp-secure-field="cardNumber"></div></div>
       </div>
       <div class="pg-dupla">
@@ -69,11 +69,17 @@
           <select id="pg-doc-tipo" aria-labelledby="pg-r-doc" data-mp-sdk-required-field="identificationType"></select>
           <input id="pg-doc" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" aria-labelledby="pg-r-doc" required></span></div>
       <label class="campo" id="pg-campo-parcelas"><span class="rotulo">Parcelas</span>
-        <span class="caixa-campo"><span class="icon" aria-hidden="true">payments</span><select id="pg-parcelas" data-mp-sdk-required-field="installments"></select></span></label>
+        <span class="caixa-campo"><span class="icon" aria-hidden="true">payments</span><select id="pg-parcelas" data-mp-sdk-required-field="installments"></select></span>
+        <span class="nota-campo" id="pg-juros" aria-live="polite"></span></label>
       <select id="pg-emissor" hidden aria-hidden="true" tabindex="-1" data-mp-sdk-required-field="issuer"></select>
       <button type="submit" class="btn-duplo largo pg-pagar" id="pg-pagar"><span><span class="icon" aria-hidden="true">lock</span>Pagar</span></button>
     </form>
     <p class="erro-campo" id="pg-erro" role="alert" hidden></p>
+    <!-- O plano B: o formulario nao carregou (bloqueador, rede) -->
+    <div class="pg-fora" id="pg-fora" hidden>
+      <p class="nota-campo">O formulário do cartão não carregou aqui. Dá para pagar na página do próprio Mercado Pago, com o mesmo valor:</p>
+      <button type="button" class="btn-duplo largo" id="pg-fora-botao"><span>Pagar na página do Mercado Pago</span></button>
+    </div>
     <!-- Pronto: assinatura ativa ou ano pago -->
     <div class="pronto" id="pg-pronto" hidden>
       <h2><span class="selo-icone"><span class="icon" aria-hidden="true">check</span></span><span id="pg-pronto-titulo">Pagamento aprovado</span></h2>

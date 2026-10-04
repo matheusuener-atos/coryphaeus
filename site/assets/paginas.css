@@ -99,6 +99,7 @@
 .pg-doc #pg-doc-tipo { flex: none; padding-right: 4px; border-right: 1px solid var(--line); }
 .pg-form select option { background: var(--panel); color: var(--ink); }
 .pg-pagar { margin-top: 4px; }
+.pg-bandeira { width: 28px; height: 18px; object-fit: contain; flex: none; border-radius: 3px; }
 .pg-pagar .icon { font-size: 16px; }
 @media (max-width: 420px) { .pg-dupla { grid-template-columns: 1fr; } }
 .pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }

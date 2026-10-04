@@ -221,6 +221,22 @@
     desenharTroca();
   }
 
+  /* A volta do plano B (a pagina do Mercado Pago): o aviso pode chegar uns
+     segundos depois, entao a situacao e conferida algumas vezes. */
+  async function conferirVolta(token) {
+    for (var i = 0; i < 6; i++) {
+      var conta;
+      try { conta = await pedir("/api/ia/site/situacao", { id_token: token }); } catch (e) { return entrar(token); }
+      estado.token = token;
+      mostrarConta(conta);
+      if (conta.plano_vigente) return conta;
+      mostrarErro("cd-conta-erro", "Conferindo o pagamento no Mercado Pago…");
+      await new Promise(function (ok) { setTimeout(ok, 5000); });
+    }
+    mostrarErro("cd-conta-erro", "O Mercado Pago ainda não confirmou o pagamento. Se você concluiu, recarregue esta página em alguns minutos.");
+    return null;
+  }
+
   async function entrar(token) {
     mostrarErro("cd-conta-erro", "");
     try {
@@ -374,6 +390,9 @@
     var pedido = new URLSearchParams(location.search);
     if (pedido.get("periodo") === "anual") { estado.periodo = "anual"; desenharPeriodo(); }
     if (pedido.get("plano")) estado.escolhido = pedido.get("plano");
-    if (guardado) entrar(guardado);
+    if (guardado) {
+      // Voltou da pagina do Mercado Pago (o plano B do pagamento): confere la.
+      if (/[?&]voltou=1/.test(location.search)) conferirVolta(guardado); else entrar(guardado);
+    }
   });
 })();

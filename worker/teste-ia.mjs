@@ -103,7 +103,11 @@ globalThis.fetch = async (url, init = {}) => {
       const id = "pre" + mpPreapprovals.size + "abc";
       const status = corpo.card_token_id ? "authorized" : "pending";
       mpPreapprovals.set(id, { id, status, external_reference: corpo.external_reference, auto_recurring: corpo.auto_recurring });
-      return new Response(JSON.stringify({ id, status }), { status: 201 });
+      return new Response(JSON.stringify({ id, status, ...(status === "pending" ? { init_point: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=" + id } : {}) }), { status: 201 });
+    }
+    if (caminho === "/checkout/preferences" && metodo === "POST") {
+      const id = "PREF" + mpPedidos.length;
+      return new Response(JSON.stringify({ id, init_point: "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=" + id }), { status: 201 });
     }
     if (caminho === "/v1/payments" && metodo === "POST") {
       // O pagamento do cartao: "tokrecusa..." sem limite, "tokanalise..." em analise, o resto aprovado.
@@ -769,6 +773,26 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
     && csp.includes("frame-ancestors 'none'") && csp.includes("object-src 'none'"), "a página de pagamento sai com a CSP: só scripts do site, do Mercado Pago e do Google", csp);
   const inicio = await worker.fetch(new Request("https://paulus.ia.br/"), { ...envReal, ASSETS: html }, ctx);
   checar(!inicio.headers.get("content-security-policy"), "as outras páginas não mudam");
+
+  // O plano B: o formulario nao carregou e a pessoa paga na pagina do Mercado Pago.
+  donos["tk-807"] = { sub: "807", email: "fora@a.br" };
+  const fo = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-807", instalacao_id: "inst-807-0001" }));
+  const fora = (corpo) => pedir(envReal, "POST", "/api/ia/site/pagar-fora", { id_token: "tk-807", plano: "advogado", periodo: "mensal", ...corpo });
+  checar((await fora({})).status === 409, "plano B sem os dados do escritório: não abre");
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-807" });
+  let fr = await corpoDe(await fora({ valor: 1 }));
+  const preFora = mpPedidos.filter((x) => x.caminho === "/preapproval" && x.metodo === "POST").at(-1).corpo;
+  checar(fr.link.startsWith("https://www.mercadopago.com.br/") && preFora.status === "pending" && !preFora.card_token_id && preFora.auto_recurring.transaction_amount === 449
+    && preFora.back_url === "https://paulus.ia.br/cadastro/?voltou=1", "plano B mensal: a assinatura pendente de R$ 449 na página do Mercado Pago", preFora);
+  let cf = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, fo.segredo));
+  checar(!cf.plano_vigente && cf.assinatura.situacao === "pending", "e o plano espera o cartão entrar lá", cf.assinatura);
+  fr = await corpoDe(await fora({ periodo: "anual" }));
+  const prefFora = mpPedidos.filter((x) => x.caminho === "/checkout/preferences").at(-1).corpo;
+  checar(fr.link.includes("pref_id=") && prefFora.items[0].unit_price === 3990 && prefFora.payment_methods.installments === 12
+    && /^ia-anual-[0-9a-f]{24}-advogado-/.test(prefFora.external_reference), "plano B anual: R$ 3.990 no Checkout Pro, em até 12 vezes", prefFora);
+  mpPagamentos.set("9907", { id: 9907, status: "approved", external_reference: prefFora.external_reference, transaction_amount: 3990 });
+  const volta = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/situacao", { id_token: "tk-807" }));
+  checar(volta.plano_vigente && volta.periodo === "anual", "na volta, a consulta acha o pagamento do ano e o plano entra", volta.periodo);
 
   // O cupom no anual vale sobre o ano.
   guardados.set("admin:cupom:ANO10", JSON.stringify({ codigo: "ANO10", desconto: 10, meses: 1, ativo: true, planos: [] }));

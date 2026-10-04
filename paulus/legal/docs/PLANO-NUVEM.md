@@ -177,3 +177,12 @@ Mercado Pago (`secure-fields.mercadopago.com`); a página recebe só o token.
 Pago (`/mp-integrate test-setup`) e rodar `/mp-review` antes de produção; ligar
 a verificação em duas etapas no GitHub e na Cloudflare (quem publica o site
 publica a página do cartão).
+
+**Depois (03/10):** o formulário virou CardForm (campos do site; número, validade
+e código seguem em quadros do Mercado Pago), com a miniatura da bandeira, as
+parcelas cortadas em 12 e o total com juros abaixo delas. **Plano B:** se o
+formulário não carrega (bloqueador, rede, 15 s sem os quadros), aparece "Pagar na
+página do Mercado Pago": `POST /api/ia/site/pagar-fora` cria a assinatura pendente
+(mensal) ou a preferência do Checkout Pro (anual), com o valor da mesma oferta; a
+volta é `/cadastro/?voltou=1`, que confere a situação. Agora há dois lugares que
+criam cobrança (`pagar` e `pagarFora`), os dois a partir de `ofertaDoPagamento`.

@@ -41,6 +41,31 @@
     el.hidden = !texto;
   }
 
+  /* O plano B: o formulario nao carregou. O Worker cria a assinatura (ou o
+     pagamento do ano) na pagina do Mercado Pago, com o valor conferido la, e a
+     pessoa vai para ela; a volta e a pagina de cadastro, que confere. */
+  var semFormulario = false;
+  function planoB(motivo) {
+    if (semFormulario) return;
+    semFormulario = true;
+    estado("");
+    erro(motivo);
+    if (token && pedido.plano) $("pg-fora").hidden = false;
+  }
+  async function pagarFora() {
+    var b = $("pg-fora-botao");
+    b.disabled = true;
+    try {
+      var r = await pedir("/api/ia/site/pagar-fora", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
+      if (!r.link || !/^https:\/\/[a-z0-9.-]*mercadopago\.com(\.br)?\//.test(r.link)) throw new Error("o Mercado Pago não devolveu a página de pagamento");
+      window.location.assign(r.link);
+    } catch (e) {
+      b.disabled = false;
+      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
+      erro(e.message);
+    }
+  }
+
   async function pedir(caminho, corpo) {
     var r = await fetch(caminho, corpo
       ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo), cache: "no-store" }
@@ -100,6 +125,7 @@
   }
 
   var montado = null;  // a chave e a oferta, para remontar quando o tema muda
+  var montouEm = 0;    // quando os quadros seguros ficaram prontos
 
   function montar(publicKey, oferta) {
     montado = { publicKey: publicKey, oferta: oferta };
@@ -125,6 +151,20 @@
       }).observe(parcelas, { childList: true });
     }
     parcelas.dataset.teto = String(oferta.parcelas_max);
+    // Os juros: cada opcao do Mercado Pago traz o total no cartao entre
+    // parenteses; a diferenca para o valor do plano e o juro do parcelamento.
+    var juros = function () {
+      var o = parcelas.options[parcelas.selectedIndex];
+      var m = o && o.textContent.match(/\(R\$\s*([\d.]+,\d{2})\)\s*$/);
+      if (!m || !anual) { $("pg-juros").textContent = ""; return; }
+      var total = Number(m[1].replace(/\./g, "").replace(",", "."));
+      var dif = Math.round((total - oferta.valor) * 100) / 100;
+      $("pg-juros").textContent = dif > 0.009
+        ? "Total no cartão: " + brl(total) + ", com " + brl(dif) + " de juros do parcelamento."
+        : "Sem juros: total de " + brl(total) + ".";
+    };
+    parcelas.onchange = juros;
+    new MutationObserver(juros).observe(parcelas, { childList: true });
 
     var mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
     var estilo = estiloDosQuadros();
@@ -149,12 +189,28 @@
             estado("");
             if (e) {
               console.error(e);
-              erro("o formulário do cartão não carregou. Se houver bloqueador de anúncios, libere este site e recarregue a página");
+              planoB("o formulário do cartão não carregou");
+            } else {
+              montouEm = Date.now();
             }
           },
           onSubmit: function (ev) {
             ev.preventDefault();
             pagar();
+          },
+          // A bandeira lida dos primeiros digitos: a miniatura do Mercado Pago no lugar do icone.
+          onPaymentMethodsReceived: function (e, metodos) {
+            var m = !e && metodos && metodos[0];
+            var img = $("pg-bandeira");
+            if (m && (m.secure_thumbnail || m.thumbnail)) {
+              img.src = m.secure_thumbnail || m.thumbnail;
+              img.alt = m.name || m.id || "";
+              img.hidden = false;
+              $("pg-bandeira-icone").hidden = true;
+            } else {
+              img.hidden = true;
+              $("pg-bandeira-icone").hidden = false;
+            }
           },
         },
       });
@@ -166,8 +222,7 @@
     if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de assinatura"); return; }
     if (!token) { voltarAoCadastro("entre com o Google na página de assinatura antes de pagar"); return; }
     if (typeof window.MercadoPago !== "function") {
-      estado("");
-      erro("o MercadoPago.js não carregou. Se houver bloqueador de anúncios, libere este site e recarregue a página");
+      planoB("o formulário do cartão não carregou (um bloqueador de anúncios pode ter barrado o Mercado Pago)");
       return;
     }
     try {
@@ -175,6 +230,10 @@
       var oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
       if (!oferta.cadastro_completo) { voltarAoCadastro("preencha os dados do escritório antes de pagar"); return; }
       montar(config.publicKey, oferta);
+      // Sem os quadros seguros em 15 segundos, o plano B aparece.
+      setTimeout(function () {
+        if (!montouEm && !$("pg-form").hidden) planoB("o formulário do cartão está demorando para carregar");
+      }, 15000);
     } catch (e) {
       if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
       estado("");
@@ -237,5 +296,6 @@
   window.addEventListener("pagehide", function () {
     if (controle) { try { controle.unmount(); } catch (e) { /* ja saiu */ } controle = null; }
   });
+  document.addEventListener("DOMContentLoaded", function () { $("pg-fora-botao").addEventListener("click", pagarFora); });
   document.addEventListener("DOMContentLoaded", iniciar);
 })();

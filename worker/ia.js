@@ -751,6 +751,50 @@ function cartaoDoBloco(c, parcelasMax) {
    o pagamento do ano (/v1/payments), em ate 12 parcelas, com os juros do
    parcelamento por conta de quem parcela. E o unico lugar que cria cobranca
    do plano. */
+/* O plano B: se o formulario do cartao nao carregar na pagina (bloqueador,
+   rede, o MercadoPago.js fora do ar), a pessoa paga na pagina do Mercado Pago.
+   Mensal: a assinatura pendente (/preapproval, status pending), que vira
+   autorizada quando o cartao entra la (o aviso subscription_preapproval).
+   Anual: o pagamento do ano no Checkout Pro (/checkout/preferences), em ate 12
+   parcelas, confirmado pelo aviso payment ou pela consulta do pendente. O
+   valor e o mesmo da oferta, conferido aqui. */
+async function pagarFora(env, conta, id, dono, mp, d) {
+  const atual = await conta.pedir("ler_cadastro");
+  if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
+  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
+  if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
+  const { plano, valor } = oferta;
+  const volta = "https://paulus.ia.br/cadastro/?voltou=1";
+  if (oferta.periodo === "mensal") {
+    const r = await mp(env, "/preapproval", "POST", {
+      reason: "PAULUS - plano " + plano.nome + (oferta.cupom ? " (cupom " + oferta.cupom.codigo + ")" : ""),
+      external_reference: "ia-assinatura-" + id,
+      payer_email: dono.email,
+      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: valor, currency_id: "BRL" },
+      back_url: volta,
+      status: "pending",
+    });
+    if (!r.ok || !r.dados || !r.dados.init_point) return json({ erro: "o Mercado Pago não abriu a página de assinatura: tente de novo em instantes" }, 502);
+    await conta.pedir("assinatura", { plano: plano.id, cupom: oferta.cupom, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
+    if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
+    return json({ link: r.dados.init_point, periodo: "mensal" });
+  }
+  const ref = "ia-anual-" + id + "-" + plano.id + "-" + aleatorio(4);
+  const r = await mp(env, "/checkout/preferences", "POST", {
+    items: [{ id: "paulus-" + plano.id + "-anual", title: "PAULUS - plano " + plano.nome + " (anual)", quantity: 1, unit_price: valor, currency_id: "BRL" }],
+    payer: { email: dono.email },
+    external_reference: ref,
+    payment_methods: { installments: 12 },
+    back_urls: { success: volta, pending: volta, failure: volta },
+    auto_return: "approved",
+    statement_descriptor: "PAULUS",
+  });
+  if (!r.ok || !r.dados || !r.dados.init_point) return json({ erro: "o Mercado Pago não abriu a página de pagamento: tente de novo em instantes" }, 502);
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, cupom: oferta.cupom });
+  if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
+  return json({ link: r.dados.init_point, periodo: "anual" });
+}
+
 async function pagar(env, conta, id, dono, mp, d) {
   const atual = await conta.pedir("ler_cadastro");
   if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
@@ -1045,6 +1089,7 @@ async function atenderSite(request, env, p, deps) {
     return json({ ...o, email: dono.email, cadastro_completo: Boolean(aberta.cadastro) });
   }
   if (p === "/api/ia/site/pagar") return pagar(env, conta, id, dono, deps.chamarMP, d);
+  if (p === "/api/ia/site/pagar-fora") return pagarFora(env, conta, id, dono, deps.chamarMP, d);
   return json({ erro: "rota não existe" }, 404);
 }
 
