@@ -41,7 +41,7 @@
 // DEEPINFRA_KEY: sem os tres, as rotas respondem 404 (ou 503, sem a chave).
 
 import { donoDoToken } from "./tunel.js";
-import { emitirAutomatico } from "./nfse/api.js";
+import { chamar as chamarEmissor, emitirAutomatico, faltaDoEmissor } from "./nfse/api.js";
 
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
 const MAX_SEGREDOS = 3;
@@ -213,6 +213,7 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     const ids = modelosDoPlano(r.plano);
     return json({ modelos: ids, info: catalogo(ids) });
   }
+  if (p === "/api/ia/desistir" && m === "POST") return desistir(env, conta, quem.id, deps.chamarMP, "o cliente, pelo PAULUS");
   if (p === "/api/ia/adiantar" && m === "POST") {
     const r = await conta.pedir("adiantar");
     return json(r, r.ok === false ? r.status || 409 : 200);
@@ -1170,6 +1171,7 @@ async function atenderSite(request, env, p, deps) {
       email: dono.email, cadastro_completo: Boolean(aberta.cadastro) });
   }
   if (p === "/api/ia/site/pagar") return d.meio === "pix" ? pagarPix(env, conta, id, dono, deps.chamarMP, d) : pagar(env, conta, id, dono, deps.chamarMP, d);
+  if (p === "/api/ia/site/desistir") return desistir(env, conta, id, deps.chamarMP, "o cliente, pelo site (" + dono.email + ")");
   if (p === "/api/ia/site/pix") return situacaoDoPix(env, conta, id, deps.chamarMP, String(d.pagamento || ""));
   if (p === "/api/ia/site/pagar-fora") return pagarFora(env, conta, id, dono, deps.chamarMP, d);
   return json({ erro: "rota não existe" }, 404);
@@ -1240,6 +1242,112 @@ async function situacaoDaRecarga(env, conta, id, pedido, mp) {
   return json({ id: pedido, pago: true, conta: feito });
 }
 
+// ------------------------------------------------------------- o reembolso
+
+/* Devolve um pagamento inteiro pelo Mercado Pago (o cartao ou o Pix de origem)
+   e tira da conta o que ele pagou: o anual e o mes no Pix acabam (ou, se eram
+   a renovacao paga antes, o pago_ate volta); a mensalidade cancela a
+   assinatura e fecha o ciclo dela; a recarga tira os creditos que sobram dela.
+   A nota fiscal do pagamento sai: descartada, cancelada no prazo do municipio
+   ou, fora dele, com a analise fiscal pedida (nfse/emissor.js, notaDoReembolso).
+   A chave de idempotencia e a do pagamento: de novo, nao devolve duas vezes.
+   Usado pelo painel (admin.js, a fila) e pela desistencia do cliente.
+   -> {conta, nota, aviso}: aviso quando algo ficou por fazer. */
+export async function devolverPagamento(env, mp, contaId, ref, { por = "", agora = Date.now(), texto = "" } = {}) {
+  const conta = medidor(env, contaId);
+  const det = await conta.pedir("admin_detalhe");
+  const p = (det.pagamentos || []).find((x) => String(x.ref) === String(ref));
+  if (!p) throw new Error("esse pagamento não está na conta");
+  if (p.reembolso) throw new Error("esse pagamento já foi reembolsado");
+  const chave = { "X-Idempotency-Key": "reembolso-" + p.ref };
+  let res;
+  if (p.tipo === "recarga") {
+    res = await mp(env, "/v1/orders/" + encodeURIComponent(p.ref) + "/refund", "POST", {}, chave);
+  } else {
+    let pagamento = p.ref;
+    if (p.tipo === "assinatura") {
+      // A mensalidade guarda a cobranca da assinatura; o pagamento e o dela.
+      const ap = await mp(env, "/authorized_payments/" + encodeURIComponent(p.ref), "GET");
+      pagamento = ap.ok && ap.dados && ap.dados.payment && ap.dados.payment.id;
+      if (!pagamento) throw new Error("o Mercado Pago não achou o pagamento desta mensalidade");
+    }
+    res = await mp(env, "/v1/payments/" + encodeURIComponent(pagamento) + "/refunds", "POST", {}, chave);
+  }
+  if (!res.ok) {
+    const msg = res.dados && (res.dados.message || (res.dados.errors && res.dados.errors[0] && res.dados.errors[0].message));
+    throw new Error("o Mercado Pago recusou o reembolso (HTTP " + res.status + (msg ? ": " + msg : "") + ")");
+  }
+  // A mensalidade devolvida: a assinatura sai do Mercado Pago, para nao cobrar de novo.
+  let cancelada = false;
+  const a = det.assinatura;
+  const mensalAtiva = p.tipo === "assinatura" && a && a.id && !prepago(a.periodo) && a.situacao !== "cancelled";
+  if (mensalAtiva) {
+    const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
+    cancelada = r.ok;
+  }
+  const r = await conta.pedir("admin_reembolsado", { ref: p.ref, por, cancelada });
+  // A nota fiscal do pagamento.
+  let nota = { acao: "sem_emissor", frase: "o emissor de NFS-e não está ligado: confira a nota em Notas fiscais" };
+  if (!faltaDoEmissor(env)) {
+    try {
+      const n = await chamarEmissor(env, "nota_do_reembolso", { pagamento: String(p.ref), quem: por || "PAVLVS", texto });
+      nota = n.status === 200 ? n.dados : { acao: "erro", frase: "a nota não foi cancelada: " + ((n.dados && n.dados.erro) || "HTTP " + n.status) };
+    } catch (e) {
+      nota = { acao: "erro", frase: "a nota não foi cancelada: " + String((e && e.message) || e).slice(0, 160) };
+    }
+  }
+  // A fila das notas: o pagamento devolvido nao pede mais nota.
+  if (env.APOIOS) {
+    const chaveNf = "admin:nfse:" + p.ref;
+    let nf = null;
+    try {
+      nf = JSON.parse((await env.APOIOS.get(chaveNf)) || "null");
+    } catch {
+      nf = null;
+    }
+    if (nf) {
+      nf.reembolso = { quando: new Date(agora).toISOString(), por, nota: nota.frase };
+      if (!nf.nota || nf.nota === "pendente") nf.nota = "reembolsado";
+      await env.APOIOS.put(chaveNf, JSON.stringify(nf));
+    }
+    await anotarAviso(env, { conta: contaId, tipo: "reembolso", status: "refunded", valor: Number(p.valor) || 0, texto: "" });
+  }
+  const aviso = mensalAtiva && !cancelada
+    ? "o dinheiro foi devolvido, mas o Mercado Pago não cancelou a assinatura: cancele em Ações para não cobrar de novo"
+    : ["erro", "cancelamento_recusado", "analise_recusada", "em_andamento"].includes(nota.acao) ? "o dinheiro foi devolvido; " + nota.frase : "";
+  return { conta: r, nota, aviso };
+}
+
+/* A desistencia do cliente, nos 7 dias (CDC, art. 49), sem passar pelo painel:
+   devolve os pagamentos do plano feitos nesse prazo e acaba o plano. Uma vez por
+   conta; depois, so pelo painel. Sem a primeira cobranca do cartao ainda (o
+   aviso chega depois), a assinatura e cancelada e a cobranca, quando vier, e
+   devolvida sozinha (avisoDaIA, desistencia_pendente). */
+async function desistir(env, conta, id, mp, por) {
+  if (!mp) return json({ erro: "o Mercado Pago não está ligado" }, 503);
+  const x = await conta.pedir("desistencia");
+  if (!x.pode) return json({ erro: x.motivo }, 409);
+  const notas = [];
+  const avisos = [];
+  for (const ref of x.refs) {
+    try {
+      const r = await devolverPagamento(env, mp, id, ref, { por });
+      notas.push(r.nota);
+      if (r.aviso) avisos.push(r.aviso);
+    } catch (e) {
+      return json({ erro: "não consegui devolver agora: " + String((e && e.message) || e) + ". Tente de novo ou escreva para contato@paulus.ia.br" }, 502);
+    }
+  }
+  // O cartao sem cobranca ainda: so a assinatura sai.
+  if (x.mensal_sem_cobranca) {
+    const r = await mp(env, "/preapproval/" + encodeURIComponent(x.mensal_sem_cobranca), "PUT", { status: "cancelled" });
+    if (!r.ok) return json({ erro: "o Mercado Pago não cancelou a assinatura agora: tente de novo em instantes" }, 502);
+    await conta.pedir("admin_assinatura_cancelada");
+  }
+  const fim = await conta.pedir("desistiu", { sem_cobranca: Boolean(x.mensal_sem_cobranca), valor: x.valor, por });
+  return json({ ok: true, valor: x.valor, conta: fim, notas, avisos });
+}
+
 /* O plano escrito na referencia do Pix da recarga ("" no Pix de antes dos planos de 03/10). */
 function planoDaRecarga(ref) {
   return (String(ref || "").match(/^ia-recarga-[0-9a-f]{24}-[0-9a-f]+-([a-z0-9-]{2,24})$/) || [])[1] || "";
@@ -1304,6 +1412,11 @@ export async function avisoDaIA(env, tipo, dados, mp) {
       const r = await medidor(env, m[1]).pedir("renovar", { cobranca: String(dados.id), quando: dados.debit_date || dados.date_created || "",
         valor: Number(dados.transaction_amount) || 0 });
       await anotarPagamento(env, { id: String(dados.id), conta: m[1], tipo: "mensalidade", valor: Number(dados.transaction_amount) || 0 });
+      // O cliente desistiu antes de a primeira cobranca chegar: ela volta agora.
+      if (r && r.desistencia_pendente && mp) {
+        await devolverPagamento(env, mp, m[1], String(dados.id), { por: "o cliente (desistência)" }).catch(() => null);
+        await medidor(env, m[1]).pedir("desistencia_paga");
+      }
       // O cupom acabou: a proxima cobranca volta ao valor cheio do plano.
       if (r && r.cupom && r.cupom.voltar && pre.dados && pre.dados.id) {
         const v = await mp(env, "/preapproval/" + encodeURIComponent(pre.dados.id), "PUT",
@@ -1567,8 +1680,44 @@ export class ContaIA {
       if (d.aplicado && conta.google_pendente && conta.google_pendente.id === d.aplicado) delete conta.google_pendente;
       return [this.resumo(conta, n, agora), conta];
     }
+    if (acao === "desistencia") return [this.desistencia(conta, agora), null];
+    if (acao === "desistiu") {
+      conta.desistencias = (conta.desistencias || 0) + 1;
+      conta.desistencia = { quando: new Date(agora).toISOString(), valor: Number(d.valor) || 0, por: d.por || "" };
+      if (d.sem_cobranca) {
+        // A primeira cobranca do cartao ainda vem: o plano acaba agora e ela volta quando chegar.
+        conta.desistencia_pendente = true;
+        const c = this.cicloAberto(conta, agora);
+        if (c) c.fim = new Date(agora).toISOString();
+      }
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "desistencia_paga") {
+      delete conta.desistencia_pendente;
+      return [this.resumo(conta, n, agora), conta];
+    }
     if (acao.startsWith("admin_")) return this.fazerAdmin(acao, conta, d, n, agora);
     return [{ ok: false, erro: "ação desconhecida", status: 400 }, null];
+  }
+
+  /* A desistencia nos 7 dias: o que se devolve, ou por que nao. Os pagamentos do
+     plano feitos nos ultimos 7 dias; da mensalidade no cartao, so a do contrato
+     novo (a assinatura de ate 7 dias). Uma vez por conta. */
+  desistencia(conta, agora) {
+    const a = conta.assinatura || {};
+    if (conta.cortesia) return { pode: false, motivo: "o plano de cortesia não tem o que devolver" };
+    if ((conta.desistencias || 0) >= 1) {
+      return { pode: false, motivo: "a desistência pelo PAULUS já foi usada nesta conta; para outro reembolso, escreva para contato@paulus.ia.br" };
+    }
+    const novo = agora - Date.parse(a.desde || "") <= ARREPENDIMENTO_MS;
+    const pgs = (conta.pagamentos || []).filter((p) => !p.reembolso && (prepago(p.tipo) || (p.tipo === "assinatura" && novo))
+      && agora - Date.parse(p.quando) <= ARREPENDIMENTO_MS);
+    const temCobranca = pgs.some((p) => p.tipo === "assinatura");
+    const semCobranca = a.id && !prepago(a.periodo) && a.situacao === "authorized" && novo && !temCobranca ? a.id : "";
+    if (!pgs.length && !semCobranca) return { pode: false, motivo: "o prazo de 7 dias para desistir já passou, ou não há pagamento nele" };
+    const inicio = Math.min(...pgs.map((p) => Date.parse(p.quando)), semCobranca ? Date.parse(a.desde) : Infinity);
+    const valor = pgs.reduce((t, p) => t + (Number(p.valor) || 0), 0) + (semCobranca ? Number(a.valor) || 0 : 0);
+    return { pode: true, refs: pgs.map((p) => p.ref), mensal_sem_cobranca: semCobranca, valor, ate: new Date(inicio + ARREPENDIMENTO_MS).toISOString() };
   }
 
   cicloAberto(conta, agora) {
@@ -1786,6 +1935,9 @@ export class ContaIA {
       periodo: conta.periodo || "mensal",
       pago_ate: conta.pago_ate || null,
       agora: new Date(agora).toISOString(),
+      // A desistencia nos 7 dias: se pode, quanto volta e ate quando (sem as referencias).
+      desistencia: (({ pode, motivo, valor, ate }) => ({ pode, motivo: motivo || "", valor: valor || 0, ate: ate || "" }))(this.desistencia(conta, agora)),
+      desistencia_pendente: Boolean(conta.desistencia_pendente),
       anual_pendente: conta.anual_pendente ? { ref: conta.anual_pendente.ref, plano: conta.anual_pendente.plano, valor: conta.anual_pendente.valor } : null,
       // Ainda no prazo de arrependimento (os 7 primeiros dias da assinatura).
       arrependimento_ate: a && a.desde ? new Date(Date.parse(a.desde) + ARREPENDIMENTO_MS).toISOString() : null,

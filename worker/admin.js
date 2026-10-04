@@ -27,7 +27,7 @@
 // Tudo no KV APOIOS com o prefixo "admin:". O envio de e-mail e pelo Resend
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
 
-import { medidor, numeros, PLANO_PADRAO, TOLERANCIA_MS, lerCupom, MODELOS } from "./ia.js";
+import { MODELOS, PLANO_PADRAO, TOLERANCIA_MS, devolverPagamento, lerCupom, medidor, numeros } from "./ia.js";
 import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
   anotarHistorico, cfConfigurado,
@@ -558,61 +558,14 @@ async function avisarTunel(c, slug) {
 
 // ------------------------------------------------------------ o reembolso
 
-/* Devolve um pagamento inteiro pelo Mercado Pago (o cartao ou o Pix de origem)
-   e tira da conta o que ele pagou: o anual e o mes no Pix acabam (ou, se eram
-   a renovacao paga antes, o pago_ate volta); a mensalidade cancela a
-   assinatura e fecha o ciclo dela; a recarga tira os creditos que sobram dela.
-   A chave de idempotencia e a do pagamento: aplicar de novo nao devolve duas
-   vezes. A nota fiscal ja emitida nao e cancelada aqui (Notas fiscais). */
+/* O reembolso pelo painel (a fila): o mesmo de worker/ia.js, devolverPagamento,
+   que tambem cuida da nota fiscal. */
 async function reembolsar(c, d) {
-  const { env } = c;
   const mp = c.deps.chamarMP;
   if (!mp) throw new Error("sem o Mercado Pago");
-  const conta = medidor(env, d.id);
-  const det = await conta.pedir("admin_detalhe");
-  const p = (det.pagamentos || []).find((x) => String(x.ref) === String(d.pagamento));
-  if (!p) throw new Error("esse pagamento não está na conta");
-  if (p.reembolso) throw new Error("esse pagamento já foi reembolsado");
-  const chave = { "X-Idempotency-Key": "reembolso-" + p.ref };
-  let res;
-  if (p.tipo === "recarga") {
-    res = await mp(env, "/v1/orders/" + encodeURIComponent(p.ref) + "/refund", "POST", {}, chave);
-  } else {
-    let pagamento = p.ref;
-    if (p.tipo === "assinatura") {
-      // A mensalidade guarda a cobranca da assinatura; o pagamento e o dela.
-      const ap = await mp(env, "/authorized_payments/" + encodeURIComponent(p.ref), "GET");
-      pagamento = ap.ok && ap.dados && ap.dados.payment && ap.dados.payment.id;
-      if (!pagamento) throw new Error("o Mercado Pago não achou o pagamento desta mensalidade");
-    }
-    res = await mp(env, "/v1/payments/" + encodeURIComponent(pagamento) + "/refunds", "POST", {}, chave);
-  }
-  if (!res.ok) {
-    const msg = res.dados && (res.dados.message || (res.dados.errors && res.dados.errors[0] && res.dados.errors[0].message));
-    throw new Error("o Mercado Pago recusou o reembolso (HTTP " + res.status + (msg ? ": " + msg : "") + ")");
-  }
-  // A mensalidade devolvida: a assinatura sai do Mercado Pago, para nao cobrar de novo.
-  let cancelada = false;
-  const a = det.assinatura;
-  if (p.tipo === "assinatura" && a && a.id && a.periodo !== "anual" && a.periodo !== "avulso" && a.situacao !== "cancelled") {
-    const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
-    cancelada = r.ok;
-  }
-  const r = await conta.pedir("admin_reembolsado", { ref: p.ref, por: c.quem.email, cancelada });
-  // A fila das notas: o pagamento devolvido nao pede mais nota.
-  const nfse = await kvJSON(env, "admin:nfse:" + p.ref, null);
-  if (nfse) {
-    nfse.reembolso = { quando: new Date(c.agora).toISOString(), por: c.quem.email };
-    if (!nfse.nota || nfse.nota === "pendente") nfse.nota = "reembolsado";
-    await env.APOIOS.put("admin:nfse:" + p.ref, JSON.stringify(nfse));
-  }
-  const avisos = (await kvJSON(env, "admin:avisos", [])) || [];
-  avisos.unshift({ conta: d.id, tipo: "reembolso", status: "refunded", valor: Number(p.valor) || 0, texto: "", quando: new Date(c.agora).toISOString() });
-  await env.APOIOS.put("admin:avisos", JSON.stringify(avisos.slice(0, 50)));
-  if (cancelada === false && p.tipo === "assinatura" && a && a.situacao === "authorized" && a.periodo !== "anual" && a.periodo !== "avulso") {
-    throw new Error("o dinheiro foi devolvido, mas o Mercado Pago não cancelou a assinatura: cancele em Ações para não cobrar de novo");
-  }
-  return r;
+  const r = await devolverPagamento(c.env, mp, d.id, String(d.pagamento), { por: c.quem.email, agora: c.agora });
+  if (r.aviso) throw new Error(r.aviso);
+  return r.conta;
 }
 
 // ------------------------------------------------------- a visao geral

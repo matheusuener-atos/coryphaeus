@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { atenderAdmin } from "./admin.js";
-import { avisoDaIA, ContaIA, numeros } from "./ia.js";
+import { avisoDaIA, ContaIA, devolverPagamento, numeros } from "./ia.js";
 import { EmissorNFSe, K_DEPOIS } from "./nfse/emissor.js";
 import { depoisPendentes } from "./nfse/api.js";
 import { SefinSimulada } from "./nfse/sefin-simulada.js";
@@ -443,6 +443,29 @@ x = await nf("POST", "notas/" + n1.id + "/substituir", { motivo: "99", texto: "V
 checar(x.status === 200 && x.dados.nota.estado === "emitida" && x.dados.nota.centavos === 29990 && x.dados.original.estado === "substituida",
   "substituta emitida pelo painel; a original fica substituída", x.dados);
 checar(kvJson("nfse:nota:" + base1).cancelada === true && kvJson("nfse:nota:" + base1).substituta === x.dados.nota.numero, "o app do cliente vê a original cancelada com o número da substituta");
+// O reembolso: a nota do pagamento devolvido sai sozinha.
+let rb = await devolverPagamento(env, chamarMP, ANA, "ORD-ANA-2", { por: "dono@paulus.ia.br" });
+const notaRb = instancia.listar({}).find((n) => n.pagamento === "ORD-ANA-2");
+checar(rb.nota.acao === "cancelada" && notaRb.estado === "cancelada" && !rb.aviso && kvJson("admin:nfse:ORD-ANA-2").reembolso,
+  "reembolso no prazo do município: a nota do pagamento é cancelada (motivo 9, o texto da desistência)", { nota: rb.nota, estado: notaRb.estado });
+const evRb = instancia.todos("SELECT tipo, motivo, texto FROM eventos WHERE nota_id = ? ORDER BY id DESC", notaRb.id)[0];
+checar(evRb.tipo === "101101" && evRb.motivo === "9" && /arrependimento/.test(evRb.texto), "o evento de cancelamento com o motivo 9 e o texto", evRb);
+await avisoDaIA(env, "order", { id: "ORD-ANA-3", external_reference: "ia-recarga-" + ANA + "-3", status: "processed", total_amount: 50 }, chamarMP);
+x = await nf("POST", "notas", { conta: ANA, pagamento: "ORD-ANA-3", tomador: cAna.tomador });
+const notaFora = x.dados;
+sim.usar("fora_do_prazo");
+rb = await devolverPagamento(env, chamarMP, ANA, "ORD-ANA-3", { por: "dono@paulus.ia.br" });
+sim.usar("sucesso");
+const evFora = instancia.todos("SELECT tipo, estado FROM eventos WHERE nota_id = ? ORDER BY id", notaFora.id);
+checar(rb.nota.acao === "analise_fiscal" && instancia.obter(notaFora.id).estado === "emitida" && evFora.some((e) => e.tipo === "101103" && e.estado === "registrado"),
+  "fora do prazo (a Sefin diz E0822): a análise fiscal é pedida ao município (e101103) e a nota continua emitida", { nota: rb.nota, evFora });
+const pedidoAnalise = instancia.todos("SELECT xml_pedido FROM eventos WHERE nota_id = ? AND tipo = '101103'", notaFora.id)[0].xml_pedido;
+checar(/<e101103><xDesc>Solicitação de Análise Fiscal para Cancelamento de NFS-e<\/xDesc><cMotivo>9<\/cMotivo><xMotivo>/.test(pedidoAnalise), "o pedido da análise com o xDesc do XSD e o motivo 9");
+checar(/análise fiscal/.test(kvJson("admin:nfse:ORD-ANA-3").reembolso.nota), "o pagamento guarda o que aconteceu com a nota", kvJson("admin:nfse:ORD-ANA-3").reembolso);
+// O município defere: a consulta da situação vê o e105104 e a nota fica cancelada.
+await sim.registrarEvento(instancia.obter(notaFora.id).chave, "<evento><infEvento><e105104><xDesc>Cancelamento de NFS-e Deferido por Análise Fiscal</xDesc></e105104></infEvento></evento>", "105104");
+await instancia.atualizarSituacao(notaFora.id, "teste");
+checar(instancia.obter(notaFora.id).estado === "cancelada", "deferida a análise, a consulta da situação cancela a nota");
 x = await nf("POST", "producao/liberar", {}, "fin@paulus.ia.br");
 checar(x.status === 200 && x.dados.ambiente === "producao" && x.dados.producao_liberada, "Mudar para produção (já há nota emitida em testes)", x.dados.ambiente);
 x = await nf("POST", "producao/voltar");

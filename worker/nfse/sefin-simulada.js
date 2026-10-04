@@ -176,7 +176,7 @@ export class SefinSimulada {
         const tipo = inf.filhos.find((f) => f.tipo === "el" && /^e\d+$/.test(f.nome)).nome.slice(1);
         this.pedidosEvento.set(chave + tipo, (this.pedidosEvento.get(chave + tipo) || 0) + 1);
         if (!this.chaveGerada(chave)) return this.resposta(400, { erros: [{ Codigo: "E0820", Descricao: "NFS-e não encontrada" }] });
-        if (modo === "fora_do_prazo") return this.resposta(400, { erros: [{ Codigo: "E0822", Descricao: "O prazo para o cancelamento da NFS-e expirou" }] });
+        if (modo === "fora_do_prazo" && tipo === "101101") return this.resposta(400, { erros: [{ Codigo: "E0822", Descricao: "O prazo para o cancelamento da NFS-e expirou" }] });
         if (modo === "timeout_antes") throw Object.assign(new Error("sem resposta (simulado)"), { name: "TimeoutError" });
         if ((this.eventos.get(chave) || []).some((x) => ["101101", "105102"].includes(x.tipo))) {
           return this.resposta(400, { erros: [{ Codigo: "E0840", Descricao: "Já existe evento de cancelamento vinculado" }] });

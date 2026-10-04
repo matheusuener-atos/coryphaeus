@@ -119,6 +119,12 @@
           <span class="nota-campo">O valor novo é cobrado na próxima renovação, e os créditos do plano novo entram com ela. O ciclo já pago continua no plano de agora.</span>
           <p class="erro-campo" id="cd-troca-erro" hidden></p>
         </div>
+        <!-- Os 7 dias de arrependimento: desistir devolve o que foi pago (worker/ia.js, desistencia). -->
+        <div class="troca" id="cd-desistir" hidden>
+          <p id="cd-desistir-texto"></p>
+          <button type="button" class="btn-texto" id="cd-desistir-botao">Desistir e receber de volta</button>
+          <p class="erro-campo" id="cd-desistir-erro" hidden></p>
+        </div>
       </div>
 
       <span class="nota-campo nota-centro">Depois, entre no programa com ela em Configurações › Modelos; o plano já vem junto.</span>

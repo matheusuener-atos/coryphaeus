@@ -1,5 +1,7 @@
-// O pedido de registro de evento (pedRegEvento 1.01): cancelamento (e101101)
-// e o cancelamento por substituição (e105102). Porte de
+// O pedido de registro de evento (pedRegEvento 1.01): cancelamento (e101101),
+// o cancelamento por substituição (e105102) e a solicitação de análise fiscal
+// para cancelamento (e101103, fora do prazo do município; o município responde
+// com e105104, deferido, ou e105105, indeferido). Porte de
 // eventos.Eventos._pedido_xml (paulus/legal/src/nfse/eventos.py); o XML sai
 // idêntico ao do Python (worker/teste-nfse-emissor.mjs).
 
@@ -10,7 +12,12 @@ import { anexar, novo, serializar } from "./xml.js";
 export const CANCELAMENTO = "101101";
 export const POR_SUBSTITUICAO = "105102";
 export const POR_OFICIO = "305101";
-export const DESCRICOES = { [CANCELAMENTO]: "Cancelamento de NFS-e", [POR_SUBSTITUICAO]: "Cancelamento de NFS-e por Substituição" };
+export const ANALISE_FISCAL = "101103";
+export const ANALISE_DEFERIDA = "105104";
+export const ANALISE_INDEFERIDA = "105105";
+// O xDesc de cada evento: o texto fixo do XSD (tiposEventos_v1.01.xsd).
+export const DESCRICOES = { [CANCELAMENTO]: "Cancelamento de NFS-e", [POR_SUBSTITUICAO]: "Cancelamento de NFS-e por Substituição",
+  [ANALISE_FISCAL]: "Solicitação de Análise Fiscal para Cancelamento de NFS-e" };
 
 function sub(pai, nome, valor) {
   const el = novo(nome);

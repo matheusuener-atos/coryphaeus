@@ -217,3 +217,17 @@ A ficha da conta, no /admin, lista os pagamentos com **Reembolsar** (dono e fina
 - **Registro**: o pagamento fica marcado com quem devolveu e quando. Ele sai de "Pagamentos sem nota" e entra nos avisos da Visão geral.
 - **Nota fiscal**: a nota já emitida não é cancelada sozinha; cancela-se em Notas fiscais.
 - **Estorno feito no próprio Mercado Pago**: o aviso de estorno do anual e do mês no Pix também marca o pagamento, e não mexe de novo no que o painel já fez.
+
+## Desistência sozinha e a nota do reembolso (04/10)
+
+- **Desistência pelo cliente, nos 7 dias:**
+  - Onde: em Plano e consumo (botão "Desistir e receber de volta") ou em /cadastro, com a conta ativa. As rotas são `POST /api/ia/desistir` (PAULUS) e `/api/ia/site/desistir` (site).
+  - O que volta: os pagamentos do plano dos últimos 7 dias; da mensalidade no cartão, só a do contrato novo. A regra está em `ContaIA.desistencia`, e o resumo da conta traz `desistencia: {pode, motivo, valor, ate}`.
+  - Uma vez por conta; as seguintes, pelo painel.
+  - Cartão sem a primeira cobrança ainda: a assinatura é cancelada, o plano acaba e a cobrança, quando chegar, volta sozinha (`desistencia_pendente`, em `avisoDaIA`).
+- **O núcleo é um só:** `devolverPagamento` em worker/ia.js, usado pelo painel e pela desistência. Ele devolve o dinheiro, ajusta a conta e trata a nota (`nota_do_reembolso` no emissor):
+  - nota não emitida: descarta;
+  - emitida e no prazo do município: cancela (e101101, motivo 9, "Desistência do contratante no prazo de arrependimento...");
+  - fora do prazo, ou se a Sefin responde E0822: pede a análise fiscal (e101103). A nota continua emitida até o município responder. "Atualizar situação" lê o e105104 (deferido: cancela) ou o e105105 (indeferido: a nota segue valendo).
+  - O resultado fica em `admin:nfse:<ref>.reembolso.nota`.
+- **Falta:** a consulta periódica da resposta à análise fiscal. Por enquanto, é pelo "Atualizar situação" da nota.

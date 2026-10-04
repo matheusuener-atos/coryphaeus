@@ -140,6 +140,13 @@ globalThis.fetch = async (url, init = {}) => {
       const o = mpOrders.get(decodeURIComponent(m[1]));
       return o ? new Response(JSON.stringify(o), { status: 200 }) : new Response("{}", { status: 404 });
     }
+    m = caminho.match(/^\/v1\/payments\/(\w+)\/refunds$/);
+    if (m && metodo === "POST") {
+      const pg = mpPagamentos.get(m[1]);
+      if (!pg) return new Response("{}", { status: 404 });
+      pg.status = "refunded";
+      return new Response(JSON.stringify({ id: 9000 + mpPagamentos.size, payment_id: pg.id, status: "approved", amount: pg.transaction_amount }), { status: 201 });
+    }
     m = caminho.match(/^\/v1\/payments\/search\?external_reference=([^&]+)/);
     if (m) {
       const ref = decodeURIComponent(m[1]);
@@ -868,6 +875,49 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar(r.status === 409 && (await corpoDe(r)).erro.includes("cartão já está ativa"), "e o Pix do mês é recusado com o motivo");
   const ofAno = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-809", plano: "advogado", periodo: "anual" }));
   checar(ofAno.meios && ofAno.meios.pix === "" && ofAno.meios.cartao === "", "mas passar ao anual, no cartão ou no Pix, pode", ofAno.meios);
+
+  // A desistência nos 7 dias: o cliente desiste sozinho e o dinheiro volta.
+  donos["tk-810"] = { sub: "810", email: "desiste@a.br" };
+  const ds = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-810", instalacao_id: "inst-810-0001" }));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-810" });
+  const qrD = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-810", plano: "advogado", periodo: "mensal", meio: "pix" }));
+  mpPagamentos.get(qrD.pagamento).status = "approved";
+  let sd = (await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-810", pagamento: qrD.pagamento }))).conta;
+  checar(sd.plano_vigente && sd.desistencia.pode && sd.desistencia.valor === 449 && sd.desistencia.ate, "pago há pouco: o resumo diz que dá para desistir, quanto volta e até quando", sd.desistencia);
+  r = await pedir(envReal, "POST", "/api/ia/site/desistir", { id_token: "tk-810" });
+  const des = await corpoDe(r);
+  const refund = mpPedidos.filter((x) => x.caminho === "/v1/payments/" + qrD.pagamento + "/refunds").at(-1);
+  checar(r.status === 200 && des.valor === 449 && refund && refund.headers["X-Idempotency-Key"] === "reembolso-" + qrD.pagamento && !des.conta.plano_vigente
+    && des.conta.assinatura.situacao === "refunded", "desistiu pelo site: o Pix volta no Mercado Pago e o plano acaba na hora", { status: r.status, des });
+  checar(des.notas[0].acao === "sem_emissor", "sem o emissor de NFS-e ligado, a nota fica para conferir no painel", des.notas);
+  checar((await pedir(envReal, "POST", "/api/ia/site/desistir", { id_token: "tk-810" })).status === 409, "desistir de novo: não há mais o que devolver");
+  // Assina de novo e desiste outra vez: a desistência pelo PAULUS é uma por conta.
+  const qrD2 = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-810", plano: "advogado", periodo: "mensal", meio: "pix" }));
+  mpPagamentos.get(qrD2.pagamento).status = "approved";
+  sd = (await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-810", pagamento: qrD2.pagamento }))).conta;
+  r = await pedir(envReal, "POST", "/api/ia/desistir", null, ds.segredo);
+  checar(r.status === 409 && (await corpoDe(r)).erro.includes("já foi usada") && !sd.desistencia.pode, "a segunda desistência não é sozinha: fica para o painel");
+  // O cartão sem a primeira cobrança ainda: a assinatura sai e a cobrança, quando vier, volta.
+  donos["tk-811"] = { sub: "811", email: "cartao2@a.br" };
+  const dc2 = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-811", instalacao_id: "inst-811-0001" }));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-811" });
+  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-811", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000011") });
+  const preD = [...mpPreapprovals.keys()].at(-1);
+  r = await pedir(envReal, "POST", "/api/ia/desistir", null, dc2.segredo);
+  const d2 = await corpoDe(r);
+  checar(r.status === 200 && mpPreapprovals.get(preD).status === "cancelled" && !d2.conta.plano_vigente && d2.conta.desistencia_pendente,
+    "desistiu pelo PAULUS antes da primeira cobrança: a assinatura é cancelada e a cobrança fica para devolver quando chegar", { status: r.status, d2 });
+  // Passados os 7 dias, não há desistência sozinha.
+  donos["tk-812"] = { sub: "812", email: "tarde@a.br" };
+  const tt = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-812", instalacao_id: "inst-812-0001" }));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-812" });
+  const qrT = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-812", plano: "advogado", periodo: "anual", meio: "pix" }));
+  mpPagamentos.get(qrT.pagamento).status = "approved";
+  await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-812", pagamento: qrT.pagamento });
+  relogio += 8 * 864e5;
+  r = await pedir(envReal, "POST", "/api/ia/desistir", null, tt.segredo);
+  checar(r.status === 409 && (await corpoDe(r)).erro.includes("7 dias"), "depois dos 7 dias: recusado, com o motivo");
+  relogio -= 8 * 864e5;
 }
 
 function aviso(dataId, tipo, ts = Date.now()) {

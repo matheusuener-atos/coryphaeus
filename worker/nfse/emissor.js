@@ -35,7 +35,7 @@ import { cifrar, decifrar, derDoPem } from "./cofre.js";
 import { conferir, CAMPOS as NOMES_CAMPOS } from "./conferencia.js";
 import { centavosDeTexto, centavosDoXml, reais } from "./dinheiro.js";
 import { hojeBrasilia, montarDps } from "./dps.js";
-import { CANCELAMENTO, montarPedidoEvento, POR_OFICIO, POR_SUBSTITUICAO } from "./eventos.js";
+import { ANALISE_DEFERIDA, ANALISE_FISCAL, ANALISE_INDEFERIDA, CANCELAMENTO, montarPedidoEvento, POR_OFICIO, POR_SUBSTITUICAO } from "./eventos.js";
 import { deGzipB64 } from "./gzip.js";
 import { AMBIENTES, conferirPrestador, fundir, padrao, QUANDO_RETER, RETENCOES } from "./prestador.js";
 import {
@@ -1035,6 +1035,58 @@ export class EmissorNFSe {
     return { evento: ev, nota: this.paraTela(this.obter(nota.id)), prazo };
   }
 
+  /** Fora do prazo: a solicitação de análise fiscal para cancelamento (e101103). A nota
+      continua emitida até o município deferir (e105104); atualizarSituacao lê a resposta. */
+  async pedirAnaliseFiscal({ id, motivo = "9", texto, quem = "PAVLVS" }) {
+    const nota = this.exigir(id);
+    if (nota.estado !== EMITIDA) throw new ErroEmissor("só se pede análise fiscal de nota emitida", 409);
+    if (!["1", "2", "9"].includes(String(motivo))) throw new ErroEmissor("o motivo da análise fiscal é 1, 2 ou 9 (TSCodJustAnaliseFiscalCanc)");
+    texto = juntarEspacos(String(texto || ""));
+    if (tamanho(texto) < 15 || tamanho(texto) > 255) throw new ErroEmissor("descreva o motivo com 15 a 255 caracteres (regra do leiaute do evento)");
+    if (this.um("SELECT id FROM eventos WHERE nota_id = ? AND tipo = ? AND estado <> ?", nota.id, ANALISE_FISCAL, EV_REJEITADO)) {
+      throw new ErroEmissor("já há um pedido de análise fiscal desta nota", 409);
+    }
+    const agora = this.agoraIso();
+    const evId = this.um(`INSERT INTO eventos (nota_id, tipo, estado, motivo, texto, pedido_por, criado_em, atualizado_em)
+      VALUES (?,?,?,?,?,?,?,?) RETURNING id`, nota.id, ANALISE_FISCAL, EV_PEDIDO, String(motivo), texto, quem, agora, agora).id;
+    this.passo(nota.id, EMITIDA, EMITIDA, quem, `análise fiscal para cancelamento pedida ao município (motivo ${motivo})`, evId);
+    const ev = await this.comNota(nota.id, () => this.enviarEvento(evId, quem));
+    return { evento: ev, nota: this.paraTela(this.obter(nota.id)) };
+  }
+
+  /** O pagamento foi devolvido (o reembolso): a nota dele sai. Não emitida, é
+      descartada; emitida e no prazo do município, cancelada; fora do prazo (ou
+      a Sefin dizendo E0822), a análise fiscal. -> {acao, frase, nota?}. */
+  async notaDoReembolso({ pagamento, texto, quem = "PAVLVS" }) {
+    const notas = this.todos("SELECT id FROM notas WHERE pagamento = ? AND estado NOT IN (?,?,?) ORDER BY id DESC", String(pagamento), DESCARTADA, CANCELADA, SUBSTITUIDA)
+      .map((x) => this.obter(x.id));
+    if (!notas.length) return { acao: "sem_nota", frase: "o pagamento não tinha nota" };
+    const nota = notas[0];
+    texto = texto || "Desistência do contratante no prazo de arrependimento (CDC, art. 49): o valor foi devolvido integralmente.";
+    if ([RASCUNHO, REJEITADA].includes(nota.estado)) {
+      this.descartar(nota.id, quem);
+      return { acao: "descartada", frase: "a nota ainda não emitida foi descartada", nota: nota.id };
+    }
+    if (nota.estado !== EMITIDA) {
+      return { acao: "em_andamento", frase: `a nota está “${nota.estado_rotulo || nota.estado}”: quando sair, cancele em Notas fiscais`, nota: nota.id };
+    }
+    const prazo = this.prazoDeCancelamento(nota);
+    if (prazo.dentro) {
+      const r = await this.cancelar({ id: nota.id, motivo: "9", texto, quem });
+      const ev = r.evento || {};
+      const foraDoPrazo = ev.estado === EV_REJEITADO && (ev.rejeicao || []).some((e) => e.codigo === "E0822");
+      if (!foraDoPrazo) {
+        return { acao: ev.estado === EV_REJEITADO ? "cancelamento_recusado" : "cancelada",
+          frase: ev.estado === EV_REJEITADO ? "a Sefin recusou o cancelamento: " + (ev.ultimo_erro || "veja a nota") : "a nota foi cancelada", nota: nota.id };
+      }
+    }
+    const a = await this.pedirAnaliseFiscal({ id: nota.id, motivo: "9", texto, quem });
+    const ev = a.evento || {};
+    return { acao: ev.estado === EV_REJEITADO ? "analise_recusada" : "analise_fiscal",
+      frase: ev.estado === EV_REJEITADO ? "a Sefin recusou o pedido de análise fiscal: " + (ev.ultimo_erro || "veja a nota")
+        : "o prazo de cancelamento passou: a análise fiscal foi pedida ao município", nota: nota.id };
+  }
+
   obterEvento(id) {
     const e = this.um("SELECT * FROM eventos WHERE id = ?", id);
     if (e) e.rejeicao = lerJson(e.rejeicao, []);
@@ -1125,15 +1177,18 @@ export class EmissorNFSe {
       } catch {
         continue;
       }
-      for (const t of [CANCELAMENTO, POR_SUBSTITUICAO, POR_OFICIO]) if (xml.includes(`<e${t}`)) tipos.add(t);
+      for (const t of [CANCELAMENTO, POR_SUBSTITUICAO, POR_OFICIO, ANALISE_FISCAL, ANALISE_DEFERIDA, ANALISE_INDEFERIDA]) if (xml.includes(`<e${t}`)) tipos.add(t);
     }
-    if (nota.estado === EMITIDA && (tipos.has(CANCELAMENTO) || tipos.has(POR_OFICIO))) {
-      const como = tipos.has(POR_OFICIO) && !tipos.has(CANCELAMENTO) ? "por ofício (o município cancelou)" : "no Sistema Nacional";
+    if (nota.estado === EMITIDA && (tipos.has(CANCELAMENTO) || tipos.has(POR_OFICIO) || tipos.has(ANALISE_DEFERIDA))) {
+      const como = tipos.has(ANALISE_DEFERIDA) ? "pela análise fiscal (o município deferiu)"
+        : tipos.has(POR_OFICIO) && !tipos.has(CANCELAMENTO) ? "por ofício (o município cancelou)" : "no Sistema Nacional";
       await this.avisarCancelada(this.mudarEstado(nota.id, CANCELADA, quem, `a consulta mostrou a nota cancelada ${como}`));
     } else if (nota.estado === EMITIDA && tipos.has(POR_SUBSTITUICAO)) {
       this.mudarEstado(nota.id, SUBSTITUIDA, quem, "a consulta mostrou a nota cancelada por substituição");
     } else {
-      this.passo(nota.id, nota.estado, nota.estado, quem, "situação consultada: " + ([...tipos].sort().join(", ") || "sem eventos de cancelamento"));
+      const analise = tipos.has(ANALISE_INDEFERIDA) ? " · a análise fiscal foi indeferida pelo município: a nota continua valendo"
+        : tipos.has(ANALISE_FISCAL) ? " · a análise fiscal espera a resposta do município" : "";
+      this.passo(nota.id, nota.estado, nota.estado, quem, "situação consultada: " + ([...tipos].sort().join(", ") || "sem eventos de cancelamento") + analise);
     }
     return this.obter(nota.id);
   }
@@ -1214,6 +1269,8 @@ export class EmissorNFSe {
       case "descartar": return this.paraTela(this.descartar(d.id, d.quem));
       case "fila": return { feitas: await this.processarFila(d.quem || "fila") };
       case "cancelar": return this.cancelar(d);
+      case "analise_fiscal": return this.pedirAnaliseFiscal(d);
+      case "nota_do_reembolso": return this.notaDoReembolso(d);
       case "substituir": return this.substituir(d);
       case "atualizar_situacao": return this.paraTela(await this.atualizarSituacao(d.id, d.quem));
       case "liberar_producao": return this.liberarProducao(d);

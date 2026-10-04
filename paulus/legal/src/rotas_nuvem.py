@@ -267,6 +267,15 @@ def montar(estado, app, dados_dir) -> None:
         plano.esquecer()
         return {"conta": d}
 
+    @app.post("/api/nuvem/paulus/desistir")
+    def nuvem_paulus_desistir() -> dict:
+        """A desistencia nos 7 dias (CDC, art. 49): o Worker devolve o que foi pago no prazo, o plano
+        acaba e a nota fiscal sai (worker/ia.js, desistir). Uma vez por conta; depois, pelo suporte."""
+        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/desistir", {}))
+        nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
+        plano.esquecer()
+        return d
+
     @app.post("/api/nuvem/paulus/plano")
     def nuvem_paulus_plano(payload: Email) -> dict:
         """Trocar de plano com a assinatura ativa: o valor novo e os tokens novos valem na renovacao (worker/ia.js)."""

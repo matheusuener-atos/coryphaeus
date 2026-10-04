@@ -452,11 +452,15 @@ function blocoPlano(d, c) {
       ? '<p class="sv-dica">Ao cancelar, nada mais é cobrado e os créditos do ciclo pago valem até ' + esc(pcData(k.fim) || "o fim dele") + ". " +
         '<button type="button" class="pc-sublinhado" data-pc-cancelar="1">Cancelar assinatura</button></p>'
       : '<p class="sv-dica">Cada plano tem o seu modelo de IA, a profundidade, as pessoas e os recursos. “Ver planos” compara.</p>';
+  // Os 7 dias de arrependimento: desistir devolve o que foi pago (worker/ia.js, desistencia).
+  const des = c.desistencia || {};
+  const desistir = des.pode ? '<p class="sv-dica">Nos 7 primeiros dias, até ' + esc(pcData(des.ate)) + ", dá para desistir e receber " + esc(reais(des.valor)) +
+    ' de volta. <button type="button" class="pc-sublinhado" data-pc-desistir="1">Desistir e receber de volta</button></p>' : "";
   return '<section class="sv-secao pc-secao" aria-labelledby="pc-t-plano"><div class="sv-secao-cabeca">' +
     '<span class="sv-secao-titulo" id="pc-t-plano">' + ic("workspace_premium", 16) + "Seu plano</span>" +
     '<span class="sv-secao-meta">' + esc(linha) + "</span>" +
     (c.cortesia ? "" : '<button type="button" class="sv-ligacao" data-pc-upgrade="1">' + ic("arrow_upward", 15) + "Ver planos</button>") + "</div>" +
-    '<div class="pc-plano-miolo">' + ficha + troca + blocoRecarga(c) + "</div>" + rodape + "</section>";
+    '<div class="pc-plano-miolo">' + ficha + troca + blocoRecarga(c) + "</div>" + rodape + desistir + "</section>";
 }
 
 /* O que cada plano tem, em frases curtas, para a comparacao (os recursos do Worker). */
@@ -588,6 +592,21 @@ async function cancelarAssinatura() {
   await carregarConsumo(true);
 }
 
+/* A desistencia nos 7 dias: o dinheiro volta no cartao ou no Pix de origem, o
+   plano acaba agora e a nota fiscal do pagamento e cancelada. */
+async function desistirDoPlano() {
+  const des = (pc.dados.conta || {}).desistencia || {};
+  const ok = await confirmar({ titulo: "Desistir do plano?", contexto: "Plano e consumo",
+    texto: "Você recebe " + reais(des.valor) + " de volta, no cartão ou no Pix em que pagou (o banco leva alguns dias para mostrar). O plano acaba agora e o PAULUS segue sem a IA da nuvem; " +
+      "os seus documentos e conversas ficam neste computador. A desistência por aqui é uma vez por conta.",
+    confirmar: "Desistir e receber de volta", cancelar: "Manter o plano", perigo: true });
+  if (!ok) return;
+  const r = await nuvemPost("/api/nuvem/paulus/desistir", {});
+  if (!r) return;
+  avisoCert(reais(r.valor || des.valor) + " a caminho de volta. O plano acabou." + ((r.avisos || []).length ? " " + r.avisos[0] : ""));
+  await carregarConsumo(true);
+}
+
 /* ------------------------------------------------ 5. a recarga rapida */
 
 function blocoRecarga(c) {
@@ -669,6 +688,7 @@ function ligarConsumo() {
   clique("[data-pc-cartao]", () => window.open(PC_MP_ASSINATURAS, "_blank"));
   clique("[data-pc-nota]", pedirNotaFiscal);
   clique("[data-pc-cancelar]", cancelarAssinatura);
+  clique("[data-pc-desistir]", desistirDoPlano);
   clique("[data-pc-adiantar]", adiantarSemana);
   clique("[data-pc-convidar]", () => convidarDaEquipe(() => carregarConsumo(false)));
   clique("[data-pc-papel]", (b) => mudarPapel(Number(b.dataset.pcPapel)));

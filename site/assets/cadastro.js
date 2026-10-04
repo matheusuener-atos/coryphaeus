@@ -191,6 +191,48 @@
     desenharResumo();
     atualizarBotao();
     desenharTroca();
+    desenharDesistencia();
+  }
+
+  /* Os 7 dias de arrependimento: o que volta e ate quando. */
+  var confirmandoDesistencia = false;
+  function desenharDesistencia() {
+    var d = (estado.conta || {}).desistencia || {};
+    var pode = Boolean(estado.conta && estado.conta.plano_vigente && d.pode);
+    $("cd-desistir").hidden = !pode;
+    if (!pode) return;
+    confirmandoDesistencia = false;
+    $("cd-desistir-texto").textContent = "Nos 7 primeiros dias, até " + new Date(d.ate).toLocaleDateString("pt-BR") + ", dá para desistir e receber " +
+      brl(d.valor) + " de volta, no cartão ou no Pix em que você pagou. O plano acaba na hora.";
+    $("cd-desistir-botao").textContent = "Desistir e receber de volta";
+  }
+
+  async function desistir() {
+    mostrarErro("cd-desistir-erro", "");
+    if (!estado.token) { mostrarErro("cd-desistir-erro", "Entre com o Google de novo para desistir."); return; }
+    var botao = $("cd-desistir-botao");
+    // Duas vezes: a primeira pede a confirmacao.
+    if (!confirmandoDesistencia) {
+      confirmandoDesistencia = true;
+      botao.textContent = "Confirmar: desistir e receber " + brl(((estado.conta || {}).desistencia || {}).valor || 0) + " de volta";
+      return;
+    }
+    botao.disabled = true;
+    try {
+      var r = await pedir("/api/ia/site/desistir", { id_token: estado.token });
+      var conta = await pedir("/api/ia/site/situacao", { id_token: estado.token });
+      mostrarConta(conta);
+      $("cd-pronto").hidden = false;
+      $("cd-form").hidden = true;
+      $("cd-pronto-titulo").textContent = "Desistência feita";
+      $("cd-pronto-texto").textContent = brl(r.valor) + " a caminho de volta, no cartão ou no Pix em que você pagou (o banco leva alguns dias para mostrar). O plano acabou." +
+        ((r.avisos || []).length ? " " + r.avisos[0].charAt(0).toUpperCase() + r.avisos[0].slice(1) + "." : "");
+    } catch (e) {
+      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo para desistir."); return; }
+      mostrarErro("cd-desistir-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
+    } finally {
+      botao.disabled = false;
+    }
   }
 
   /* A volta do plano B (a pagina do Mercado Pago): o aviso pode chegar uns
@@ -339,6 +381,7 @@
     iniciarGoogle();
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
+    $("cd-desistir-botao").addEventListener("click", desistir);
     $("cd-cupom").addEventListener("input", function () { clearTimeout(esperaCupom); esperaCupom = setTimeout(conferirCupom, 500); });
     $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });
