@@ -90,7 +90,35 @@
 
   /* ------------------------------------------------------ o bloco */
 
+  /* As cores do site (as variaveis do :root, do tema claro ou do escuro) nas
+     variaveis que o bloco do Mercado Pago aceita (customVariables). O botao
+     Pagar fica como os do site: a tinta como fundo, o fundo como letra. */
+  function coresDoSite() {
+    var css = getComputedStyle(document.documentElement);
+    var v = function (nome) { return css.getPropertyValue(nome).trim(); };
+    return {
+      formBackgroundColor: v("--panel"),
+      inputBackgroundColor: v("--bg"),
+      textPrimaryColor: v("--ink"),
+      textSecondaryColor: v("--ink2"),
+      baseColor: v("--ink"),
+      baseColorFirstVariant: v("--ink2"),
+      baseColorSecondVariant: v("--ink3"),
+      buttonTextColor: v("--bg"),
+      outlinePrimaryColor: v("--line3"),
+      outlineSecondaryColor: v("--line"),
+      errorColor: v("--erro"),
+      successColor: v("--ok"),
+      borderRadiusSmall: "6px",
+      borderRadiusMedium: "8px",
+      borderRadiusLarge: "10px",
+    };
+  }
+
+  var montado = null;  // a chave e a oferta, para remontar quando o tema muda
+
   async function montar(publicKey, oferta) {
+    montado = { publicKey: publicKey, oferta: oferta };
     var anual = oferta.periodo === "anual";
     $("pg-plano").textContent = "Plano " + oferta.plano.nome + (anual ? " · anual" : " · mensal");
     $("pg-valor").textContent = brl(oferta.valor) + (anual ? "/ano" : "/mês");
@@ -105,7 +133,7 @@
     var settings = {
       initialization: { amount: oferta.valor, payer: { email: oferta.email } },
       customization: {
-        visual: { style: { theme: escuro ? "dark" : "default" } },
+        visual: { style: { theme: escuro ? "dark" : "default", customVariables: coresDoSite() } },
         paymentMethods: { minInstallments: 1, maxInstallments: oferta.parcelas_max },
       },
       callbacks: {
@@ -159,6 +187,15 @@
       erro(e.message);
     }
   }
+
+  // Trocou o tema: o bloco e montado de novo com as cores do tema novo (as
+  // variaveis sao lidas na montagem). Depois de pago, nao ha bloco.
+  new MutationObserver(function () {
+    if (!controle || !montado) return;
+    try { controle.unmount(); } catch (e) { /* ja saiu */ }
+    controle = null;
+    montar(montado.publicKey, montado.oferta);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // Saiu da pagina: o bloco e desmontado (o Mercado Pago pede).
   window.addEventListener("pagehide", function () {
