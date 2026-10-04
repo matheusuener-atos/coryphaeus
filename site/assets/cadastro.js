@@ -249,7 +249,7 @@
     });
     // O botao e o do Google (so ele entrega a identidade), no tema escuro e na largura da coluna.
     var claro = document.documentElement.getAttribute("data-theme") === "light";
-    google.accounts.id.renderButton($("cd-google"), { theme: claro ? "outline" : "filled_black", size: "large", text: "continue_with", shape: "rectangular", width: 360, locale: "pt-BR" });
+    google.accounts.id.renderButton($("cd-google"), { theme: claro ? "outline" : "filled_black", size: "large", text: "continue_with", shape: "rectangular", width: Math.min(360, $("cd-google").clientWidth || 360), locale: "pt-BR" });
   }
 
   /* ------------------------------------------------------- o formulario */

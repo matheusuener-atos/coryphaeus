@@ -39,7 +39,7 @@
 </header>
 
 <main id="conteudo" class="entrada">
-  <div class="entrada-col">
+  <div class="entrada-col cd-col">
     <div class="entrada-marca">
       <h1 class="logo">Paulus está te esperando.</h1>
       <p>Entre com o Google e preencha os dados do escritório.</p>
@@ -64,27 +64,37 @@
       <form class="campos" id="cd-form" novalidate hidden>
         <label class="campo"><span class="rotulo">Escritório</span>
           <span class="caixa-campo"><input id="cd-nome" name="nome_escritorio" autocomplete="organization" maxlength="80" placeholder="Silva &amp; Souza Advogados" required></span></label>
-        <label class="campo"><span class="rotulo">CPF ou CNPJ</span>
-          <span class="caixa-campo mono"><input id="cd-documento" name="documento" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="000.000.000-00" required></span></label>
-        <label class="campo"><span class="rotulo">Telefone ou WhatsApp</span>
-          <span class="caixa-campo mono"><input id="cd-telefone" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(91) 90000-0000" required></span></label>
-        <label class="campo"><span class="rotulo">OAB</span>
-          <span class="caixa-campo mono"><input id="cd-oab" name="oab" autocomplete="off" maxlength="16" placeholder="PA 12345" required></span></label>
-        <label class="campo"><span class="rotulo">CEP</span>
-          <span class="caixa-campo mono"><input id="cd-cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="66000-000" required></span></label>
+        <div class="cd-dupla">
+          <label class="campo"><span class="rotulo">CPF ou CNPJ</span>
+            <span class="caixa-campo mono"><input id="cd-documento" name="documento" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="000.000.000-00" required></span></label>
+          <label class="campo"><span class="rotulo">Telefone ou WhatsApp</span>
+            <span class="caixa-campo mono"><input id="cd-telefone" name="telefone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="(91) 90000-0000" required></span></label>
+          </div>
+        <div class="cd-dupla">
+          <label class="campo"><span class="rotulo">OAB</span>
+            <span class="caixa-campo mono"><input id="cd-oab" name="oab" autocomplete="off" maxlength="16" placeholder="PA 12345" required></span></label>
+          <label class="campo"><span class="rotulo">CEP</span>
+            <span class="caixa-campo mono"><input id="cd-cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="66000-000" required></span></label>
+          </div>
         <span class="nota-campo" id="cd-cep-nota" hidden></span>
-        <label class="campo"><span class="rotulo">Rua</span>
-          <span class="caixa-campo"><input id="cd-logradouro" name="logradouro" autocomplete="address-line1" maxlength="125" placeholder="Av. Presidente Vargas" required></span></label>
-        <label class="campo"><span class="rotulo">Número</span>
-          <span class="caixa-campo mono"><input id="cd-numero" name="numero" autocomplete="off" maxlength="20" placeholder="100 ou S/N" required></span></label>
-        <label class="campo"><span class="rotulo">Complemento <span class="opcional">(opcional)</span></span>
-          <span class="caixa-campo"><input id="cd-complemento" name="complemento" autocomplete="address-line2" maxlength="60" placeholder="Sala 1203"></span></label>
-        <label class="campo"><span class="rotulo">Bairro</span>
-          <span class="caixa-campo"><input id="cd-bairro" name="bairro" autocomplete="off" maxlength="60" placeholder="Campina" required></span></label>
-        <label class="campo"><span class="rotulo">Cidade</span>
-          <span class="caixa-campo"><input id="cd-cidade" name="cidade" autocomplete="address-level2" maxlength="60" placeholder="Belém" required></span></label>
-        <label class="campo"><span class="rotulo">UF</span>
-          <span class="caixa-campo mono"><input id="cd-uf" name="uf" autocomplete="address-level1" maxlength="2" placeholder="PA" required></span></label>
+        <div class="cd-dupla cd-larga">
+          <label class="campo"><span class="rotulo">Rua</span>
+            <span class="caixa-campo"><input id="cd-logradouro" name="logradouro" autocomplete="address-line1" maxlength="125" placeholder="Av. Presidente Vargas" required></span></label>
+          <label class="campo"><span class="rotulo">Número</span>
+            <span class="caixa-campo mono"><input id="cd-numero" name="numero" autocomplete="off" maxlength="20" placeholder="100 ou S/N" required></span></label>
+          </div>
+        <div class="cd-dupla">
+          <label class="campo"><span class="rotulo">Complemento <span class="opcional">(opcional)</span></span>
+            <span class="caixa-campo"><input id="cd-complemento" name="complemento" autocomplete="address-line2" maxlength="60" placeholder="Sala 1203"></span></label>
+          <label class="campo"><span class="rotulo">Bairro</span>
+            <span class="caixa-campo"><input id="cd-bairro" name="bairro" autocomplete="off" maxlength="60" placeholder="Campina" required></span></label>
+          </div>
+        <div class="cd-dupla cd-larga">
+          <label class="campo"><span class="rotulo">Cidade</span>
+            <span class="caixa-campo"><input id="cd-cidade" name="cidade" autocomplete="address-level2" maxlength="60" placeholder="Belém" required></span></label>
+          <label class="campo"><span class="rotulo">UF</span>
+            <span class="caixa-campo mono"><input id="cd-uf" name="uf" autocomplete="address-level1" maxlength="2" placeholder="PA" required></span></label>
+          </div>
         <input type="hidden" id="cd-cmun" name="cmun">
         <label class="campo"><span class="rotulo">Cupom <span class="opcional">(opcional)</span></span>
           <span class="caixa-campo mono"><input id="cd-cupom" name="cupom" autocomplete="off" maxlength="24" placeholder="PILOTO30" spellcheck="false"></span></label>
