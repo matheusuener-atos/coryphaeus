@@ -170,7 +170,7 @@
   }
 
   function voltarAoCadastro(motivo) {
-    var ida = "../?plano=" + encodeURIComponent(pedido.plano) + "&periodo=" + pedido.periodo;
+    var ida = pedido.plano ? "../?plano=" + encodeURIComponent(pedido.plano) + "&periodo=" + pedido.periodo : "../../assinatura/";
     $("pg-voltar").href = ida;
     estado("");
     erro(motivo);
@@ -321,8 +321,8 @@
 
   async function iniciar() {
     try { token = sessionStorage.getItem(CHAVE) || ""; } catch (e) { token = ""; }
-    if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de assinatura"); return; }
-    if (!token) { voltarAoCadastro("entre com o Google na página de assinatura antes de pagar"); return; }
+    if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de planos"); return; }
+    if (!token) { voltarAoCadastro("entre com o Google no cadastro antes de pagar"); return; }
     if (typeof window.MercadoPago !== "function") {
       planoB("o formulário do cartão não carregou (um bloqueador de anúncios pode ter barrado o Mercado Pago)");
       return;
