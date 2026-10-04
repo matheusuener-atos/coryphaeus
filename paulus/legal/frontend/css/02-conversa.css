@@ -229,6 +229,8 @@
   .ass-doc .glifo { width: 15px; height: 15px; font-size: 9px; }
   .ass-doc small { font: 400 10.5px var(--mono); color: var(--ink3); }
   .ass-meta { padding: 0 4px; white-space: nowrap; }
+  .ass-aviso { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font: 400 12px var(--sans); color: var(--ink3); }
+  .ass-aviso .icon { flex: none; }
   .assinatura :is(.ass-acao, .apr-nota) {
     width: 28px; height: 28px; justify-content: center; border-radius: 6px; color: var(--ink3);
   }

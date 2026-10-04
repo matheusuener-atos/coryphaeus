@@ -742,7 +742,9 @@ function linhaAssinatura(segundos, citados, pergunta, quem, como, fontes) {
   // A profundidade escolhida (js/92-entrevista.js): o nível na frente do modelo.
   if (como && como.profundidade && como.profundidade.nome) quem = como.profundidade.nome + " · " + (quem || estado.modelo || "assistente local");
   const meta = [segundos ? segundosBR(segundos) : "", quem || estado.modelo || "assistente local"].filter(Boolean).join(" · ");
-  return '<div class="assinatura">' + etiquetasDosCitados(fontes) +
+  // O aviso da nuvem (worker/ia.js): ex., na primeira semana do Plus, o Opus libera no 8º dia.
+  const aviso = como && como.nuvem && como.nuvem.aviso ? '<p class="ass-aviso">' + ic("schedule", 14) + "<span>" + esc(como.nuvem.aviso) + ".</span></p>" : "";
+  return aviso + '<div class="assinatura">' + etiquetasDosCitados(fontes) +
     '<span class="ass-meta">' + esc(meta) + "</span>" +
     '<span class="vazio-flex"></span>' +
     // L1: gostei / nao gostei (js/63-aprendizado.js), so nas respostas de uma pergunta.

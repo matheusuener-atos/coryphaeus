@@ -55,6 +55,7 @@ import re
 import threading
 import time
 import uuid
+from urllib.parse import unquote
 from datetime import datetime
 from pathlib import Path
 
@@ -592,9 +593,14 @@ def chamar(provedor: str, modelo: str, k: str, mensagens: list[dict], on_token, 
     if r.status_code >= 400:
         raise _erro_http(r, provedor)
     uso = {"tokens_entrada": 0, "tokens_saida": 0}
-    real = str((getattr(r, "headers", None) or {}).get("x-paulus-modelo") or "")
+    cab = getattr(r, "headers", None) or {}
+    real = str(cab.get("x-paulus-modelo") or "")
     if real:
         uso["modelo"] = real
+    # O aviso do Worker (ex.: na primeira semana do Plus, o Opus libera no 8º dia).
+    aviso = unquote(str(cab.get("x-paulus-aviso") or ""))[:240]
+    if aviso:
+        uso["aviso"] = aviso
     for linha in r.iter_lines(decode_unicode=True):
         if parar is not None and parar():
             break
@@ -879,6 +885,7 @@ class Envio:
                      lambda t: on_token(desm.entrar(t)), parar=parar, max_tokens=teto, nivel=self.profundidade)
         # O modelo que respondeu de fato (o do plano, no PAULUS nuvem).
         self.modelo = uso.pop("modelo", "") or self.modelo
+        self.aviso = uso.pop("aviso", "")
         resto = desm.fim()
         if resto:
             on_token(resto)
@@ -900,7 +907,8 @@ class Envio:
     def resumo(self) -> dict:
         return {"onde": "nuvem" if self.foi else "computador", "provedor": self.nome_do_provedor, "modelo": self.modelo,
                 "motivo": self.motivo, "caracteres": self.caracteres, "como": self.como,
-                "mascarados": dict(self.mascara.contagem) if self.mascara else {}, **self.uso}
+                "mascarados": dict(self.mascara.contagem) if self.mascara else {}, **self.uso,
+                **({"aviso": self.aviso} if getattr(self, "aviso", "") else {})}
 
 
 def liberar_da_fila(pedido) -> str:
@@ -997,6 +1005,7 @@ class ClienteNuvem:
         uso = chamar(self.provedor, self.modelo, chave(self.estado, self.provedor), mensagens, entrou, parar=parar,
                      json_mode=json_mode, max_tokens=4000 if self.provedor in ("paulus", "deepinfra") else MAX_TOKENS)
         self.modelo = uso.pop("modelo", "") or self.modelo
+        aviso = uso.pop("aviso", "")
         resto = desm.fim()
         if resto:
             partes.append(resto)
@@ -1010,7 +1019,7 @@ class ClienteNuvem:
             "pessoa": quem_envia(self.estado), "pergunta": TAREFAS.get(self.tarefa, self.tarefa), **uso})
         self.ultima = {"prompt_eval_count": uso.get("tokens_entrada", 0), "eval_count": uso.get("tokens_saida", 0),
                        "truncou": False, "nuvem": {"onde": "nuvem", "provedor": PROVEDORES.get(self.provedor, {}).get("nome", ""),
-                                                   "modelo": self.modelo, **uso}}
+                                                   "modelo": self.modelo, **uso, **({"aviso": aviso} if aviso else {})}}
         return "".join(partes).strip()
 
     def _aqui(self, motivo: str) -> None:
@@ -1118,6 +1127,7 @@ def chamada(estado, mensagens: list[dict], *, pessoa=None, trabalho=None, etapa:
     uso = chamar(provedor, modelo, chave(estado, provedor), mensagens, entrou, parar=parar, json_mode=json_mode,
                  max_tokens=max_tokens, nivel=profundidade)
     modelo = uso.pop("modelo", "") or modelo
+    aviso = uso.pop("aviso", "")
     resto = desm.fim()
     if resto:
         partes.append(resto)
@@ -1132,4 +1142,4 @@ def chamada(estado, mensagens: list[dict], *, pessoa=None, trabalho=None, etapa:
         "pessoa": quem_envia(estado, pessoa), "pergunta": " ".join(str(pergunta or "").split())[:140],
         "etapa": etapa, "profundidade": profundidade, **uso})
     return "".join(partes).strip(), {**uso, "provedor": PROVEDORES.get(provedor, {}).get("nome", provedor),
-                                     "modelo": modelo}
+                                     "modelo": modelo, **({"aviso": aviso} if aviso else {})}
