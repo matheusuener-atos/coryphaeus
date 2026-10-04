@@ -113,6 +113,67 @@
 .cd-resumo-texto b { font: 600 15px var(--sans); color: var(--ink); }
 .cd-resumo-texto small { font-size: 12.5px; color: var(--ink2); }
 .cd-resumo-trocar { flex: none; font: 500 13px var(--sans); color: var(--ink); border-bottom: 1px solid var(--line3); }
+/* ---------- Pagamento (o formulario do cartao, com os campos seguros do Mercado Pago) ---------- */
+.pg-col { max-width: 440px; gap: 24px; }
+.pg-total { display: grid; gap: 4px; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+.pg-total small { font-size: 12px; line-height: 1.45; color: var(--ink3); }
+.pg-estado { text-align: center; }
+/* O formulario do cartao: os tres campos do cartao sao quadros do Mercado
+   Pago (CardForm); a caixa, o icone e o rotulo sao do site. */
+.pg-form { padding: 18px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.pg-titulo-cartao { font: 500 15px var(--sans); color: var(--ink); }
+.pg-form .caixa-campo { background: var(--bg); }
+.pg-form .caixa-campo > .icon { font-size: 18px; color: var(--ink3); flex: none; }
+.pg-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pg-seguro { position: relative; flex: 1; min-width: 0; height: 22px; }
+.pg-seguro iframe { display: block; width: 100%; height: 100%; border: 0; }
+.pg-form select { border: 0; outline: none; background: transparent; color: var(--ink); font: 400 14px var(--sans); }
+.pg-form #pg-parcelas { flex: 1; min-width: 0; }
+.pg-doc #pg-doc-tipo { flex: none; padding-right: 4px; border-right: 1px solid var(--line); }
+.pg-form select option { background: var(--panel); color: var(--ink); }
+.pg-pagar { margin-top: 4px; }
+/* A lista no estilo do sistema: o select original fica no formulario (o
+   CardForm do Mercado Pago preenche e le dele), invisivel; quem aparece e o
+   botao e o menu. */
+.pg-nativo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.pg-form .caixa-campo { position: relative; }
+.pg-combo { flex: 1; min-width: 0; display: flex; }
+.pg-doc .pg-combo { flex: none; }
+.pg-combo-botao {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 38px;
+  padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 14px var(--sans); text-align: left; cursor: pointer;
+}
+.pg-combo-botao span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-combo-botao .icon { font-size: 18px; color: var(--ink3); flex: none; }
+.pg-doc .pg-combo-botao { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
+.pg-combo-menu {
+  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 300px; overflow-y: auto;
+  margin: 0; padding: 6px; list-style: none; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
+}
+/* A barra de rolagem do menu e a do sistema (frontend/css/00-tokens.css):
+   6 px, sem trilho, o polegar na tinta a 12% (25% sob o mouse). As regras
+   -webkit-, e nao scrollbar-width, pelo mesmo motivo de la (Chromium no Windows). */
+.pg-combo-menu::-webkit-scrollbar { width: 6px; }
+.pg-combo-menu::-webkit-scrollbar-track { background: transparent; }
+.pg-combo-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.pg-combo-menu::-webkit-scrollbar-thumb:hover { background: var(--line3); }
+.pg-combo-menu li { padding: 8px 10px; border-radius: 7px; font: 400 13.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
+.pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--pill); color: var(--ink); outline: none; }
+.pg-combo-menu li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
+/* O preenchimento automatico do navegador nos campos do site: o fundo e a
+   letra do tema, no lugar do azul (nos quadros do Mercado Pago, nao da). */
+.pg-form input:-webkit-autofill, .pg-form input:-webkit-autofill:hover, .pg-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink); caret-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 40px var(--bg) inset; box-shadow: 0 0 0 40px var(--bg) inset;
+}
+.pg-form input:autofill { background: var(--bg); color: var(--ink); }
+.pg-bandeira { width: 28px; height: 18px; object-fit: contain; flex: none; border-radius: 3px; }
+.pg-pagar .icon { font-size: 16px; }
+@media (max-width: 420px) { .pg-dupla { grid-template-columns: 1fr; } }
+.pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.pg-voltar .icon { font-size: 16px; }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }
 .conta-linha { font-size: 13px; line-height: 1.55; color: var(--ink2); text-align: center; }
 .conta-linha b { color: var(--ink); font-weight: 500; }
