@@ -118,6 +118,13 @@
   margin: 0; padding: 6px; list-style: none; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line);
   box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
 }
+/* A barra de rolagem do menu e a do sistema (frontend/css/00-tokens.css):
+   6 px, sem trilho, o polegar na tinta a 12% (25% sob o mouse). As regras
+   -webkit-, e nao scrollbar-width, pelo mesmo motivo de la (Chromium no Windows). */
+.pg-combo-menu::-webkit-scrollbar { width: 6px; }
+.pg-combo-menu::-webkit-scrollbar-track { background: transparent; }
+.pg-combo-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.pg-combo-menu::-webkit-scrollbar-thumb:hover { background: var(--line3); }
 .pg-combo-menu li { padding: 8px 10px; border-radius: 7px; font: 400 13.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
 .pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--pill); color: var(--ink); outline: none; }
 .pg-combo-menu li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
