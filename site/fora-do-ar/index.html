@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Escritório fora do ar — PAVLVS</title>
+<link rel="icon" href="https://paulus.ia.br/favicon.ico" sizes="any">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400&family=Manrope:wght@400;500;600&family=Fira+Code:wght@500&display=swap">
+<!--
+  A pagina de erro dos enderecos dos escritorios (<escritorio>.paulus.ia.br),
+  para quando o computador do escritorio esta desligado ou sem internet e o
+  tunel nao responde (docs/PLANO-AREA-CLIENTE.md). Serve a quem vem pelo link
+  da Area do cliente e a equipe que entra de fora.
+
+  Quem a mostra e a Cloudflare, no lugar da pagina de erro do tunel: a regra
+  e configurada no painel da zona (o Worker nao faz proxy desses enderecos).
+  Por isso ela e inteira aqui dentro - estilo embutido, enderecos absolutos:
+  servida no endereco do escritorio, um caminho relativo apontaria para o
+  proprio servidor que esta fora do ar.
+
+  O marcador ::CLOUDFLARE_ERROR_500S_BOX:: e exigido pelas paginas
+  personalizadas de erro 5xx da Cloudflare; fica escondido.
+-->
+<style>
+  :root {
+    --bg: #faf9f6; --surf: #ffffff; --ink: #1c1c1a; --ink2: #5c5b56; --ink3: #8a8a86;
+    --fio: rgba(28, 28, 26, .12); --acento: #2a2a27; --sobre: #f2f1ec;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131312; --surf: #1a1a18; --ink: #f2f1ec; --ink2: #a8a69e; --ink3: #85837b;
+      --fio: rgba(242, 241, 236, .12); --acento: #f2f1ec; --sobre: #1c1c1a;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--ink);
+    font: 400 15px/1.6 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  main {
+    flex: 1; width: 100%; max-width: 460px; margin: 0 auto; padding: 18vh 20px 32px; padding-top: 18dvh;
+    display: grid; gap: 18px; align-content: start; text-align: center;
+  }
+  .kicker { font: 500 11px 'Fira Code', ui-monospace, monospace; letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
+  .sinal { width: 56px; height: 56px; margin: 0 auto 4px; border-radius: 50%; border: 1px solid var(--fio); display: grid; place-items: center; }
+  .sinal i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink3); animation: pulso 2.4s ease-in-out infinite; }
+  @keyframes pulso { 0%, 100% { opacity: .35; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }
+  h1 { margin: 0; font: 400 38px/1.1 'EB Garamond', Georgia, serif; letter-spacing: -.015em; text-wrap: balance; }
+  p { margin: 0; color: var(--ink2); text-wrap: pretty; }
+  .caixa { margin-top: 6px; padding: 14px 16px; border: 1px solid var(--fio); border-radius: 14px; background: var(--surf);
+    text-align: left; display: grid; gap: 8px; font-size: 14px; }
+  .caixa b { color: var(--ink); font-weight: 600; }
+  button {
+    justify-self: center; min-height: 48px; padding: 10px 26px; border: 0; border-radius: 12px; background: var(--acento); color: var(--sobre);
+    font: 600 15px 'Manrope', system-ui, sans-serif; cursor: pointer;
+  }
+  button:hover { opacity: .9; }
+  .nota { font-size: 12.5px; color: var(--ink3); }
+  footer { padding: 20px; text-align: center; font: 400 13px 'EB Garamond', Georgia, serif; letter-spacing: .22em; color: var(--ink3); }
+  .cf { display: none; }
+  @media (prefers-reduced-motion: reduce) { .sinal i { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="sinal" aria-hidden="true"><i></i></div>
+  <span class="kicker">Fora do ar agora</span>
+  <h1>O escritório não está respondendo.</h1>
+  <p>O computador do escritório, onde ficam a sua pasta e os documentos, está desligado ou sem internet neste momento.</p>
+  <div class="caixa">
+    <span><b>Nada se perdeu.</b> Seus dados continuam guardados no escritório.</span>
+    <span>Assim que o computador voltar, este mesmo endereço volta a abrir — não é preciso pedir um link novo.</span>
+  </div>
+  <button type="button" id="tentar">Tentar de novo</button>
+  <p class="nota" id="sozinho">Esta página tenta de novo sozinha a cada minuto. Se a demora passar de algumas horas, fale com o escritório pelo telefone ou pelo e-mail de sempre.</p>
+  <div class="cf">::CLOUDFLARE_ERROR_500S_BOX::</div>
+</main>
+<footer>PAVLVS</footer>
+<script>
+  (function () {
+    var b = document.getElementById("tentar");
+    b.onclick = function () { b.disabled = true; b.textContent = "tentando…"; location.reload(); };
+    // Na propria paulus.ia.br/fora-do-ar (a previa), nao recarrega sozinha.
+    if (location.hostname === "paulus.ia.br" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+      document.getElementById("sozinho").textContent =
+        "Esta é a página que aparece no endereço do escritório quando o computador dele está desligado. Lá, ela tenta de novo sozinha a cada minuto.";
+      return;
+    }
+    setTimeout(function () { location.reload(); }, 60000);
+  })();
+</script>
+</body>
+</html>

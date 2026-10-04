@@ -174,9 +174,13 @@ O que ficou diferente do plano:
    domínio `paulus.ia.br` verificado no Resend para `naoresponda@`. Sem ela,
    compartilhar funciona e a tela oferece o link para mandar por outro
    caminho, mas o código de entrada não chega — o cliente não entra.
-2. **Página de erro do túnel (opcional):** se quiser uma página própria quando
-   o servidor está desligado, uma regra de erro personalizada na Cloudflare
-   para `*.paulus.ia.br` (painel da zona › Regras › Páginas de erro).
+2. **Página de erro do túnel:** a página está pronta em
+   `https://paulus.ia.br/fora-do-ar/` (`site/fora-do-ar/index.html`, embutida,
+   com o marcador `::CLOUDFLARE_ERROR_500S_BOX::` escondido). Falta ligá-la
+   no painel da Cloudflare, na zona `paulus.ia.br`: Regras › Páginas de erro
+   personalizadas (Custom Error Rules), para os erros 5xx/1033 de
+   `*.paulus.ia.br`, apontando para esse endereço. Conferir no painel se o
+   plano da zona permite; sem a regra, continua a página padrão do túnel.
 3. **Teste real:** com o acesso de fora ligado, compartilhar uma pasta com um
    e-mail seu, abrir o link no celular (4G), entrar com o código, abrir um
    documento, mandar uma foto numa pendência e confirmar um horário; conferir
