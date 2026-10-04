@@ -328,7 +328,7 @@
     h += '<div class="barra-filtros">' +
       seg("contas.filtro", [["todas", "Todas"], ["ativa", "Ativas"], ["vencida", "Vencidas"], ["cortesia", "Cortesias"], ["cancelada", "Canceladas"]], U.contas.filtro) +
       seg("contas.agrupar", [["conta", "Por conta"], ["escritorio", "Por escritório"]], U.contas.agrupar) +
-      '<label class="caixa-campo caixa-busca">' + ic("search") + '<input id="contas-q" data-in="contasQ" value="' + esc(U.contas.q) + '" placeholder="nome, e-mail, escritório, OAB" aria-label="Buscar contas" spellcheck="false"></label></div>';
+      '<label class="caixa-campo caixa-busca">' + ic("search") + '<input id="contas-q" data-in="contasQ" value="' + esc(U.contas.q) + '" placeholder="nome, e-mail, escritório, OAB ou RG" aria-label="Buscar contas" spellcheck="false"></label></div>';
     var est = estadoLeitura(["contas"], "contas"); if (est) return h + est;
     h += erroRecente("contas", "contas");
     var lista = contasFiltradas();
@@ -995,7 +995,7 @@
     var gtxt = det.google ? (det.google.escopos || []).join(" · ") || "ligado, sem escopos" : "não ligado";
     if (det.google_pendente) gtxt += " · revogação pendente no PAULUS";
     h += '<dl class="fatos-p">' + fato("Escritório", (esc_.nome || "—") + (esc_.slug ? " · " + esc_.slug + ".paulus.ia.br" : "")) + fato("CPF/CNPJ", cad.documento || esc_.documento || "—") +
-      fato("OAB", cad.oab || det.oab || "—") + fato("Telefone", cad.telefone || "—") + fato("Conta desde", ddmmaaaa(det.criada)) + fato("Google", gtxt) +
+      fato("OAB, RG ou CNH", cad.oab || det.oab || "—") + fato("Telefone", cad.telefone || "—") + fato("Conta desde", ddmmaaaa(det.criada)) + fato("Google", gtxt) +
       fato("Consentimento", con ? "termos " + con.versao + " · " + (con.quem || "") + (con.quando ? " · " + ddmmaaaa(con.quando) : "") : "—") + fato("Mercado Pago", mp) + "</dl>";
     // instalacoes
     var inst = det.instalacoes || [], podeI = pode("conta.instalacao.apagar");

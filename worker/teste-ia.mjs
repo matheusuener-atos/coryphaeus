@@ -476,7 +476,7 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar((await erro({ endereco: { ...base.endereco, cmun: "150140" } })).includes("IBGE"), "código IBGE com 6 dígitos é recusado");
   checar((await erro({ documento: "111.111.111-11" })).includes("CPF ou CNPJ"), "CPF com dígito errado é recusado");
   checar((await erro({ telefone: "98888-7777" })).includes("DDD"), "telefone sem DDD é recusado");
-  checar((await erro({ oab: "12345" })).includes("UF"), "OAB sem a UF é recusada");
+  checar((await erro({ oab: "abc" })).includes("RG"), "sem OAB, RG ou CNH é recusado");
   checar((await erro({ aceite: false })).includes("aceitar"), "sem aceitar os termos, não cadastra");
   checar((await erro({ plano: "ouro" })) === "esse plano não existe", "plano que não existe é recusado");
 

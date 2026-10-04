@@ -994,6 +994,18 @@ export function oabNormal(t) {
   return uf + " " + numero[1] + (numero[2] || "");
 }
 
+/* O documento de quem assina: OAB, RG ou CNH (nenhum se consulta daqui, entao
+   so a forma e conferida). OAB reconhecida vai normalizada ("PA 12345"); o
+   resto vai como veio, em maiusculas, com 5 a 20 letras e numeros. "" se nao
+   servir. */
+export function identificacaoNormal(t) {
+  const oab = oabNormal(t);
+  if (oab) return oab;
+  const s = String(t || "").toUpperCase().replace(/[^A-Z0-9./\- ]/g, "").replace(/\s+/g, " ").trim();
+  const n = s.replace(/[^A-Z0-9]/g, "").length;
+  return n >= 5 && n <= 20 && /\d/.test(s) ? s : "";
+}
+
 /* O endereco do cadastro (vai como tomador na NFS-e) conferido, ou {erro}.
    cmun e o codigo IBGE do municipio (a pagina preenche pela ViaCEP); vazio
    quando a pessoa digitou a mao. */
@@ -1027,8 +1039,8 @@ export function conferirCadastro(d, { exigirEndereco = true } = {}) {
   if (!(documento.length === 11 ? cpfValido(documento) : cnpjValido(documento))) return { erro: "o CPF ou CNPJ não confere" };
   const telefone = soDigitos(d.telefone);
   if (telefone.length < 10 || telefone.length > 13) return { erro: "o telefone precisa do DDD" };
-  const oab = oabNormal(d.oab);
-  if (!oab) return { erro: "a OAB vai com a UF e o número, por exemplo: PA 12345" };
+  const oab = identificacaoNormal(d.oab);
+  if (!oab) return { erro: "falta o número da OAB, do RG ou da CNH" };
   let endereco = null;
   if ((d.endereco !== undefined && d.endereco !== null) || exigirEndereco) {
     const e = conferirEndereco(d.endereco);
