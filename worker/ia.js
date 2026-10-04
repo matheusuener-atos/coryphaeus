@@ -133,6 +133,16 @@ export function modelosDoPlano(plano) {
   return [...new Set([plano.modelos.padrao, ...Object.values(plano.modelos)])];
 }
 
+/* Ate quando vale a primeira semana da assinatura (ISO), ou "" fora dela: nela,
+   so o modelo principal do plano responde. A cortesia nao tem a trava. */
+export function primeiraSemanaAte(resumo) {
+  const a = (resumo && resumo.assinatura) || {};
+  if (!resumo || resumo.cortesia || !a.desde) return "";
+  const ate = Date.parse(a.desde) + 7 * 24 * 3600 * 1000;
+  const agora = Date.parse(resumo.agora || "") || Date.now();
+  return agora < ate ? new Date(ate).toISOString() : "";
+}
+
 /* O modelo que responde: o do nivel no plano; senao o pedido, se o plano o
    tem; senao o padrao do plano (o PAULUS antigo pede sempre o Llama). */
 export function modeloParaPedido(plano, pedido, nivel) {
@@ -206,7 +216,7 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   const quem = await autenticar(request, env);
   if (quem.erro) return json({ erro: quem.erro }, quem.status);
   const conta = quem.conta;
-  if (p === "/api/ia/conta" && m === "GET") return json(await conta.pedir("resumo"));
+  if (p === "/api/ia/conta" && m === "GET") return json(await comDesistencia(env, conta, await conta.pedir("resumo")));
   // Os modelos do plano desta conta (o padrao primeiro), com nome e empresa.
   if (p === "/api/ia/modelos" && m === "GET") {
     const r = await conta.pedir("resumo");
@@ -542,7 +552,15 @@ async function completar(request, env, ctx, conta) {
     return json({ erro: "a profundidade " + nivel + " não faz parte do plano " + plano.nome + (quem ? "; ela vem no plano " + quem.nome : ""),
       motivo: "profundidade" }, 403);
   }
-  const modelo = modeloParaPedido(plano, pedido, nivel);
+  let modelo = modeloParaPedido(plano, pedido, nivel);
+  // Nos 7 primeiros dias da assinatura (o prazo de arrependimento), so o modelo
+  // principal do plano: no Plus, o Sonnet; o Opus libera no 8o dia.
+  const travadoAte = primeiraSemanaAte(atual);
+  let aviso = "";
+  if (travadoAte && modelo !== plano.modelos.padrao) {
+    aviso = (MODELOS[modelo] || {}).nome + " libera no 8º dia da assinatura (" + dataBR(travadoAte) + "); até lá, responde o " + (MODELOS[plano.modelos.padrao] || {}).nome;
+    modelo = plano.modelos.padrao;
+  }
   const info = MODELOS[modelo];
   const peso = info.peso || 1;
   const mensagens = d.messages
@@ -568,6 +586,7 @@ async function completar(request, env, ctx, conta) {
   if (info.provedor !== "anthropic") for (const k of ["temperature", "top_p"]) if (Number.isFinite(Number(d[k]))) corpo[k] = Number(d[k]);
   if (d.response_format && d.response_format.type === "json_object") corpo.response_format = { type: "json_object" };
   const cabecalhos = { "cache-control": "no-store", "x-paulus-modelo": modelo };
+  if (aviso) cabecalhos["x-paulus-aviso"] = encodeURIComponent(aviso);
 
   let up;
   try {
@@ -817,6 +836,7 @@ async function pagar(env, conta, id, dono, mp, d) {
   if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
   const cartao = cartaoDoFormulario(d.cartao, oferta.parcelas_max);
   if (cartao.erro) return json({ erro: cartao.erro }, 400);
+  await conta.pedir("documento", { hash: await resumoDoDocumento(cartao.identificacao.number) });
   const { plano, valor } = oferta;
   if (oferta.periodo === "mensal") {
     const r = await mp(env, "/preapproval", "POST", {
@@ -1126,7 +1146,7 @@ async function atenderSite(request, env, p, deps) {
   const cortesias = String(env.IA_CORTESIA || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   // Entrar abre a conta (a mesma que o PAULUS instalado usa, pela conta Google), sem segredo de instalacao.
   const aberta = await conta.pedir("abrir", { id, dono, cortesia: cortesias.includes(await sha256(dono.email)) });
-  if (p === "/api/ia/site/entrar") return json(aberta);
+  if (p === "/api/ia/site/entrar") return json(await comDesistencia(env, conta, aberta));
   if (p === "/api/ia/site/plano") {
     const r = await trocarPlano(env, conta, deps.chamarMP, String(d.plano || ""));
     if (!r.ok) return r;
@@ -1142,7 +1162,7 @@ async function atenderSite(request, env, p, deps) {
         await conta.pedir("assinatura", { assinatura: { ...a, situacao: r.dados.status } });
       }
     }
-    return json(await conta.pedir("ler_cadastro"));
+    return json(await comDesistencia(env, conta, await conta.pedir("ler_cadastro")));
   }
   if (p === "/api/ia/site/cadastro") {
     // Conta que ja tinha cadastro sem endereco (de antes do endereco) continua
@@ -1318,6 +1338,35 @@ export async function devolverPagamento(env, mp, contaId, ref, { por = "", agora
   return { conta: r, nota, aviso };
 }
 
+/* O documento (CPF ou CNPJ) de quem assina, em resumo: o do cadastro e o do
+   titular do cartao. Guardado so o resumo, para a desistencia valer uma vez
+   por documento, e nao so por conta Google. */
+async function resumoDoDocumento(doc) {
+  const d = soDigitos(doc);
+  return d.length === 11 || d.length === 14 ? (await sha256("documento:" + d)).slice(0, 32) : "";
+}
+
+/* Algum documento desta conta ja desistiu (em qualquer conta)? -> a conta que desistiu, ou "". */
+async function documentoJaDesistiu(env, x) {
+  if (!env.APOIOS) return "";
+  const docs = new Set([...(x.docs || []), await resumoDoDocumento(x.doc_cadastro)].filter(Boolean));
+  for (const h of docs) {
+    const v = await env.APOIOS.get("admin:desistencia:" + h);
+    if (v) return v;
+  }
+  return "";
+}
+
+const JA_DESISTIU = "a desistência pelo PAULUS já foi usada por este CPF ou CNPJ; para outro reembolso, escreva para contato@paulus.ia.br";
+
+/* O resumo com a desistencia conferida tambem pelo documento (o medidor so sabe da conta). */
+async function comDesistencia(env, conta, r) {
+  if (!r || !r.desistencia || !r.desistencia.pode) return r;
+  const x = await conta.pedir("desistencia");
+  if (await documentoJaDesistiu(env, x)) r.desistencia = { pode: false, motivo: JA_DESISTIU, valor: 0, ate: "" };
+  return r;
+}
+
 /* A desistencia do cliente, nos 7 dias (CDC, art. 49), sem passar pelo painel:
    devolve os pagamentos do plano feitos nesse prazo e acaba o plano. Uma vez por
    conta; depois, so pelo painel. Sem a primeira cobranca do cartao ainda (o
@@ -1327,6 +1376,7 @@ async function desistir(env, conta, id, mp, por) {
   if (!mp) return json({ erro: "o Mercado Pago não está ligado" }, 503);
   const x = await conta.pedir("desistencia");
   if (!x.pode) return json({ erro: x.motivo }, 409);
+  if (await documentoJaDesistiu(env, x)) return json({ erro: JA_DESISTIU }, 409);
   const notas = [];
   const avisos = [];
   for (const ref of x.refs) {
@@ -1345,6 +1395,11 @@ async function desistir(env, conta, id, mp, por) {
     await conta.pedir("admin_assinatura_cancelada");
   }
   const fim = await conta.pedir("desistiu", { sem_cobranca: Boolean(x.mensal_sem_cobranca), valor: x.valor, por });
+  // Os documentos desta conta ficam marcados: a proxima desistencia deles e pelo painel.
+  if (env.APOIOS) {
+    const marca = JSON.stringify({ conta: id, quando: new Date().toISOString() });
+    for (const h of new Set([...(x.docs || []), await resumoDoDocumento(x.doc_cadastro)].filter(Boolean))) await env.APOIOS.put("admin:desistencia:" + h, marca);
+  }
   return json({ ok: true, valor: x.valor, conta: fim, notas, avisos });
 }
 
@@ -1681,6 +1736,12 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "desistencia") return [this.desistencia(conta, agora), null];
+    if (acao === "documento") {
+      // O resumo do documento do titular do cartao (o do cadastro vem dele mesmo).
+      if (!d.hash || (conta.docs || []).includes(d.hash)) return [{ ok: true }, null];
+      conta.docs = [...(conta.docs || []), String(d.hash)].slice(-5);
+      return [{ ok: true }, conta];
+    }
     if (acao === "desistiu") {
       conta.desistencias = (conta.desistencias || 0) + 1;
       conta.desistencia = { quando: new Date(agora).toISOString(), valor: Number(d.valor) || 0, por: d.por || "" };
@@ -1717,7 +1778,8 @@ export class ContaIA {
     if (!pgs.length && !semCobranca) return { pode: false, motivo: "o prazo de 7 dias para desistir já passou, ou não há pagamento nele" };
     const inicio = Math.min(...pgs.map((p) => Date.parse(p.quando)), semCobranca ? Date.parse(a.desde) : Infinity);
     const valor = pgs.reduce((t, p) => t + (Number(p.valor) || 0), 0) + (semCobranca ? Number(a.valor) || 0 : 0);
-    return { pode: true, refs: pgs.map((p) => p.ref), mensal_sem_cobranca: semCobranca, valor, ate: new Date(inicio + ARREPENDIMENTO_MS).toISOString() };
+    return { pode: true, refs: pgs.map((p) => p.ref), mensal_sem_cobranca: semCobranca, valor, ate: new Date(inicio + ARREPENDIMENTO_MS).toISOString(),
+      docs: conta.docs || [], doc_cadastro: (conta.cadastro || {}).documento || "" };
   }
 
   cicloAberto(conta, agora) {

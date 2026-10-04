@@ -617,6 +617,27 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
     && !claude.at(-1).corpo.thinking, "no Ministro, o Opus 5.5 com esforço alto e folga para pensar", claude.at(-1).corpo);
   depois = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, sp));
   checar(depois.semana.usados === 1050 + 2 * 1050, "o Opus gasta dois créditos por token", depois.semana);
+  // Nos 7 primeiros dias da assinatura paga, o Plus responde só com o Sonnet; no 8º dia, o Opus.
+  const spPago = await contaNoPlano("8011", "pluspago@a.br", "plus");
+  const oPago = objetoDe("8011");
+  const cPago = oPago.dados.get("conta");
+  cPago.cortesia = false;
+  cPago.assinatura = { id: "preplus", situacao: "authorized", valor: 3490, desde: new Date(relogio).toISOString() };
+  cPago.ciclo = { inicio: new Date(relogio).toISOString(), fim: new Date(relogio + 30 * 864e5).toISOString(), tokens: 40000000, usados: 0, origem: "assinatura",
+    semana: Math.round(40000000 * 7 / 30), por_semana: {} };
+  oPago.dados.set("conta", cPago);
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, paulus_nivel: "ministro", max_tokens: 1000 }, spPago);
+  await r.text();
+  await Promise.all(pendentes.splice(0));
+  checar(r.status === 200 && claude.at(-1).corpo.model === "claude-sonnet-5-5" && r.headers.get("x-paulus-modelo") === "claude-sonnet-5-5"
+    && /Opus 5.5 libera no 8º dia/.test(decodeURIComponent(r.headers.get("x-paulus-aviso") || "")), "primeira semana do Plus: o Ministro responde com o Sonnet, e o aviso diz quando o Opus libera",
+    { modelo: claude.at(-1).corpo.model, aviso: decodeURIComponent(r.headers.get("x-paulus-aviso") || "") });
+  relogio += 8 * 864e5;
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, paulus_nivel: "ministro", max_tokens: 1000 }, spPago);
+  await r.text();
+  await Promise.all(pendentes.splice(0));
+  checar(claude.at(-1).corpo.model === "claude-opus-5-5" && !r.headers.get("x-paulus-aviso"), "no 8º dia, o Opus", claude.at(-1).corpo.model);
+  relogio -= 8 * 864e5;
   r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, stream: false, response_format: { type: "json_object" } }, sp);
   const dj = await corpoDe(r);
   checar(r.status === 200 && dj.choices[0].message.content === '{"ok":true}' && dj.paulus.tokens === 120 && dj.paulus.modelo === "claude-sonnet-5-5"
@@ -900,13 +921,28 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   // O cartão sem a primeira cobrança ainda: a assinatura sai e a cobrança, quando vier, volta.
   donos["tk-811"] = { sub: "811", email: "cartao2@a.br" };
   const dc2 = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-811", instalacao_id: "inst-811-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-811" });
-  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-811", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000011") });
+  // Outro CPF (o do tk-810 já desistiu): no cadastro e no cartão.
+  const outro = { type: "CPF", number: "111.444.777-35" };
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, documento: outro.number, id_token: "tk-811" });
+  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-811", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000011", { payer: { identification: outro } }) });
   const preD = [...mpPreapprovals.keys()].at(-1);
   r = await pedir(envReal, "POST", "/api/ia/desistir", null, dc2.segredo);
   const d2 = await corpoDe(r);
   checar(r.status === 200 && mpPreapprovals.get(preD).status === "cancelled" && !d2.conta.plano_vigente && d2.conta.desistencia_pendente,
     "desistiu pelo PAULUS antes da primeira cobrança: a assinatura é cancelada e a cobrança fica para devolver quando chegar", { status: r.status, d2 });
+  // Outra conta Google com o mesmo CPF da que já desistiu: a desistência sozinha não vale de novo.
+  donos["tk-813"] = { sub: "813", email: "outraconta@a.br" };
+  const oc = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-813", instalacao_id: "inst-813-0001" }));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, documento: "123.456.789-09", id_token: "tk-813" });
+  // O cadastro com outro CPF, mas o cartão no nome de quem já desistiu (o do tk-810).
+  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-813", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000013") });
+  const c813 = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, oc.segredo));
+  checar(c813.plano_vigente && !c813.desistencia.pode && c813.desistencia.motivo.includes("CPF ou CNPJ"), "outra conta Google, cartão no CPF que já desistiu: o resumo já não oferece", c813.desistencia);
+  r = await pedir(envReal, "POST", "/api/ia/desistir", null, oc.segredo);
+  checar(r.status === 409 && (await corpoDe(r)).erro.includes("CPF ou CNPJ"), "e desistir é recusado, com o motivo");
+  const guardadoDoc = [...guardados.keys()].filter((k) => k.startsWith("admin:desistencia:"));
+  checar(guardadoDoc.length >= 2 && guardadoDoc.every((k) => /^admin:desistencia:[0-9a-f]{32}$/.test(k)) && ![...guardados.values()].some((v) => String(v).includes("52998224725") && String(v).includes("desistencia")),
+    "o KV guarda só o resumo do documento, não o número", guardadoDoc);
   // Passados os 7 dias, não há desistência sozinha.
   donos["tk-812"] = { sub: "812", email: "tarde@a.br" };
   const tt = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-812", instalacao_id: "inst-812-0001" }));

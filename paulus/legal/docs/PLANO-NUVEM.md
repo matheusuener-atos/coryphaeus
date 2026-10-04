@@ -231,3 +231,13 @@ A ficha da conta, no /admin, lista os pagamentos com **Reembolsar** (dono e fina
   - fora do prazo, ou se a Sefin responde E0822: pede a análise fiscal (e101103). A nota continua emitida até o município responder. "Atualizar situação" lê o e105104 (deferido: cancela) ou o e105105 (indeferido: a nota segue valendo).
   - O resultado fica em `admin:nfse:<ref>.reembolso.nota`.
 - **Falta:** a consulta periódica da resposta à análise fiscal. Por enquanto, é pelo "Atualizar situação" da nota.
+
+## Uma desistência por documento e o Opus no 8º dia (04/10)
+
+- **Uma desistência por documento.** A desistência sozinha vale uma vez por CPF/CNPJ, e não só por conta Google: o do cadastro e o do titular do cartão.
+  - O titular do cartão é guardado na conta, ao pagar, só como resumo (`conta.docs`).
+  - Quem desiste deixa `admin:desistencia:<resumo>` no KV, com o resumo SHA-256 do documento, nunca o número.
+  - Outra conta Google com um desses documentos já não vê o botão (`comDesistencia` em /api/ia/conta, /site/entrar e /site/situacao), e a rota recusa.
+- **Primeira semana só com o modelo principal.** Nos 7 primeiros dias da assinatura paga (`primeiraSemanaAte`), o plano com mais de um modelo responde só com o principal. No Plus, o Sonnet; o Ministro sai no Sonnet, com o cabeçalho `x-paulus-aviso` ("o Claude Opus 5.5 libera no 8º dia...").
+  - A cortesia não tem essa trava.
+  - O PAULUS instalado ainda não mostra o `x-paulus-aviso`.

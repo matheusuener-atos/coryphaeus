@@ -598,7 +598,7 @@ async function desistirDoPlano() {
   const des = (pc.dados.conta || {}).desistencia || {};
   const ok = await confirmar({ titulo: "Desistir do plano?", contexto: "Plano e consumo",
     texto: "Você recebe " + reais(des.valor) + " de volta, no cartão ou no Pix em que pagou (o banco leva alguns dias para mostrar). O plano acaba agora e o PAULUS segue sem a IA da nuvem; " +
-      "os seus documentos e conversas ficam neste computador. A desistência por aqui é uma vez por conta.",
+      "os seus documentos e conversas ficam neste computador. A desistência por aqui é uma vez por CPF ou CNPJ.",
     confirmar: "Desistir e receber de volta", cancelar: "Manter o plano", perigo: true });
   if (!ok) return;
   const r = await nuvemPost("/api/nuvem/paulus/desistir", {});

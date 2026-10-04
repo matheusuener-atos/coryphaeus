@@ -30,7 +30,9 @@
     var modelos = p.modelos_info || [];
     var empresas = modelos.map(function (m) { return m.empresa; }).filter(function (e, i, l) { return l.indexOf(e) === i; });
     var ia = ["IA " + modelos.map(function (m) { return m.nome; }).join(" e ") + (empresas.length ? ", da " + empresas.join(" e da ") : ""),
-      "Com " + milhoes(p.tokens) + " por mês, liberados por semana." + (r.profundidade ? " Profundidade até " + (NIVEL[r.profundidade] || r.profundidade) + "." : "")];
+      "Com " + milhoes(p.tokens) + " por mês, liberados por semana." + (r.profundidade ? " Profundidade até " + (NIVEL[r.profundidade] || r.profundidade) + "." : "") +
+      // worker/ia.js, primeiraSemanaAte: nos 7 primeiros dias, so o modelo principal.
+      (modelos.length > 1 ? " Nos 7 primeiros dias da assinatura, responde só o " + modelos[0].nome + "; o " + modelos.slice(1).map(function (m) { return m.nome; }).join(" e o ") + " libera no 8º dia." : "")];
     var pessoas = p.pessoas > 1 ? ["Até " + p.pessoas + " pessoas", "Cada uma com login Google, código no celular, permissões próprias, e-mail e agenda próprios." +
       (r.consumo_por_pessoa ? " Consumo de IA por pessoa, com limite definido por você." : "")] : null;
     var nfse = r.nfse_mes === null ? ["NFS-e sem limite", "Nota fiscal de serviço nacional" + (r.nfse_recorrente ? ", com notas recorrentes." : ".")]
