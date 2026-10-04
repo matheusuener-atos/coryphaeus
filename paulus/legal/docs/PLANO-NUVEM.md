@@ -201,3 +201,19 @@ A página de pagamento tem **Pix | Cartão**, com o Pix primeiro e escolhido de 
 - **O que cada meio permite** vem da oferta (`meios`): com a assinatura mensal no cartão ativa, o mês no Pix fica fechado (passar ao anual pode); com o mês no Pix pago, a assinatura no cartão espera ele vencer.
 - **A regra dos 45 dias** de renovação usa a hora do medidor (`agora` no resumo), e não a do Worker.
 - **O cupom** é gasto ao gerar o Pix, como no Checkout Pro do plano B.
+
+## Reembolso pelo painel (04/10)
+
+A ficha da conta, no /admin, lista os pagamentos com **Reembolsar** (dono e financeiro). O reembolso entra na fila de alterações e só acontece no "comitar e pushar":
+
+- **Devolução no Mercado Pago**, sempre do valor inteiro, no cartão ou no Pix de origem. A chave de idempotência é `reembolso-<ref>`, para não devolver duas vezes. O caminho depende do tipo:
+  - mês no Pix e anual: `/v1/payments/<id>/refunds`;
+  - recarga: `/v1/orders/<id>/refund`;
+  - mensalidade: busca o pagamento em `/authorized_payments/<id>`, devolve e cancela a assinatura.
+- **Efeito na conta** (`admin_reembolsado`):
+  - mês no Pix e anual: o plano acaba agora. Se era a renovação paga antes, o `pago_ate` volta ao fim do período anterior. Pagamento antigo, que não é o mais recente: só o dinheiro volta.
+  - mensalidade: o ciclo pago acaba.
+  - recarga: os créditos que sobram dela saem.
+- **Registro**: o pagamento fica marcado com quem devolveu e quando. Ele sai de "Pagamentos sem nota" e entra nos avisos da Visão geral.
+- **Nota fiscal**: a nota já emitida não é cancelada sozinha; cancela-se em Notas fiscais.
+- **Estorno feito no próprio Mercado Pago**: o aviso de estorno do anual e do mês no Pix também marca o pagamento, e não mexe de novo no que o painel já fez.

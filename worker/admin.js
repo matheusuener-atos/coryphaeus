@@ -50,6 +50,7 @@ const PODE = {
   "conta.creditar": ["dono", "financeiro"],
   "conta.instalacao.apagar": ["dono", "suporte"],
   "conta.cancelar": ["dono", "financeiro"],
+  "conta.reembolsar": ["dono", "financeiro"],
   "google.servicos": ["dono", "suporte"],
   "google.desvincular": ["dono", "suporte"],
   "tunel.apagar": ["dono", "suporte"],
@@ -73,7 +74,7 @@ export const MATRIZ = [
   ["Revogar o Google e desvincular instalações", ["dono", "suporte"]],
   ["Apagar e mudar túneis", ["dono", "suporte"]],
   ["Cupons e planos", ["dono", "financeiro"]],
-  ["Cancelar assinatura e creditar tokens", ["dono", "financeiro"]],
+  ["Cancelar assinatura, reembolsar pagamentos e creditar tokens", ["dono", "financeiro"]],
   ["Ver as notas fiscais e baixar PDF e XML", TODOS],
   ["Emitir, cancelar e substituir notas fiscais; certificado e parâmetros", PODE_NFSE],
   ["Mudar papéis da equipe", ["dono"]],
@@ -520,7 +521,7 @@ async function contaParaTela(c, id) {
     cadastro: d.cadastro ? { documento: d.cadastro.documento, telefone: d.cadastro.telefone, oab: d.cadastro.oab, termos: d.cadastro.termos, quando: d.cadastro.quando } : null,
     consentimento: d.consentimento || null, assinatura: d.assinatura || null, plano_proximo: d.plano_proximo || null,
     instalacoes: d.instalacoes_lista || [], pagamentos: d.pagamentos || [], recargas: d.recargas || [],
-    google_pendente: d.google_pendente || null, desvinculado: d.desvinculado || null,
+    google_pendente: d.google_pendente || null, desvinculado: d.desvinculado || null, pago_ate: d.pago_ate || null, periodo: d.periodo || "mensal",
   };
 }
 
@@ -553,6 +554,65 @@ async function avisarTunel(c, slug) {
   if (!r.ok) return json({ erro: r.erro }, r.status || 502);
   await anotarHistorico(c.env, slug, "Aviso enviado a " + t.responsavel + (prazo ? " · limpeza " + prazo : ""), c.agora);
   return json({ ok: true });
+}
+
+// ------------------------------------------------------------ o reembolso
+
+/* Devolve um pagamento inteiro pelo Mercado Pago (o cartao ou o Pix de origem)
+   e tira da conta o que ele pagou: o anual e o mes no Pix acabam (ou, se eram
+   a renovacao paga antes, o pago_ate volta); a mensalidade cancela a
+   assinatura e fecha o ciclo dela; a recarga tira os creditos que sobram dela.
+   A chave de idempotencia e a do pagamento: aplicar de novo nao devolve duas
+   vezes. A nota fiscal ja emitida nao e cancelada aqui (Notas fiscais). */
+async function reembolsar(c, d) {
+  const { env } = c;
+  const mp = c.deps.chamarMP;
+  if (!mp) throw new Error("sem o Mercado Pago");
+  const conta = medidor(env, d.id);
+  const det = await conta.pedir("admin_detalhe");
+  const p = (det.pagamentos || []).find((x) => String(x.ref) === String(d.pagamento));
+  if (!p) throw new Error("esse pagamento não está na conta");
+  if (p.reembolso) throw new Error("esse pagamento já foi reembolsado");
+  const chave = { "X-Idempotency-Key": "reembolso-" + p.ref };
+  let res;
+  if (p.tipo === "recarga") {
+    res = await mp(env, "/v1/orders/" + encodeURIComponent(p.ref) + "/refund", "POST", {}, chave);
+  } else {
+    let pagamento = p.ref;
+    if (p.tipo === "assinatura") {
+      // A mensalidade guarda a cobranca da assinatura; o pagamento e o dela.
+      const ap = await mp(env, "/authorized_payments/" + encodeURIComponent(p.ref), "GET");
+      pagamento = ap.ok && ap.dados && ap.dados.payment && ap.dados.payment.id;
+      if (!pagamento) throw new Error("o Mercado Pago não achou o pagamento desta mensalidade");
+    }
+    res = await mp(env, "/v1/payments/" + encodeURIComponent(pagamento) + "/refunds", "POST", {}, chave);
+  }
+  if (!res.ok) {
+    const msg = res.dados && (res.dados.message || (res.dados.errors && res.dados.errors[0] && res.dados.errors[0].message));
+    throw new Error("o Mercado Pago recusou o reembolso (HTTP " + res.status + (msg ? ": " + msg : "") + ")");
+  }
+  // A mensalidade devolvida: a assinatura sai do Mercado Pago, para nao cobrar de novo.
+  let cancelada = false;
+  const a = det.assinatura;
+  if (p.tipo === "assinatura" && a && a.id && a.periodo !== "anual" && a.periodo !== "avulso" && a.situacao !== "cancelled") {
+    const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
+    cancelada = r.ok;
+  }
+  const r = await conta.pedir("admin_reembolsado", { ref: p.ref, por: c.quem.email, cancelada });
+  // A fila das notas: o pagamento devolvido nao pede mais nota.
+  const nfse = await kvJSON(env, "admin:nfse:" + p.ref, null);
+  if (nfse) {
+    nfse.reembolso = { quando: new Date(c.agora).toISOString(), por: c.quem.email };
+    if (!nfse.nota || nfse.nota === "pendente") nfse.nota = "reembolsado";
+    await env.APOIOS.put("admin:nfse:" + p.ref, JSON.stringify(nfse));
+  }
+  const avisos = (await kvJSON(env, "admin:avisos", [])) || [];
+  avisos.unshift({ conta: d.id, tipo: "reembolso", status: "refunded", valor: Number(p.valor) || 0, texto: "", quando: new Date(c.agora).toISOString() });
+  await env.APOIOS.put("admin:avisos", JSON.stringify(avisos.slice(0, 50)));
+  if (cancelada === false && p.tipo === "assinatura" && a && a.situacao === "authorized" && a.periodo !== "anual" && a.periodo !== "avulso") {
+    throw new Error("o dinheiro foi devolvido, mas o Mercado Pago não cancelou a assinatura: cancele em Ações para não cobrar de novo");
+  }
+  return r;
 }
 
 // ------------------------------------------------------- a visao geral
@@ -629,6 +689,7 @@ async function avisos(c, contas) {
     let texto = a.texto || "";
     if (a.tipo === "authorized_payment") texto = (a.status === "approved" ? "Cobrança mensal · " : "Cobrança recusada · ") + nome + plano;
     else if (a.tipo === "order · pix") texto = (a.status === "processed" ? "Recarga · " : "Pix " + a.status + " · ") + nome;
+    else if (a.tipo === "reembolso") texto = "Reembolso pelo painel · " + nome + plano;
     else if (/^payment · /.test(a.tipo || "")) {
       const o_que = String(a.tipo).slice(10);
       texto = ({ approved: "Pagamento · ", refunded: "Reembolso · ", charged_back: "Contestação · " }[a.status] || "Pagamento " + a.status + " · ") + o_que + " · " + nome + plano;
@@ -1109,6 +1170,13 @@ async function conferirAlteracao(c, tipo, d) {
     if (!/^[0-9a-f]{24}$/.test(String(d.id || ""))) return "conta inválida";
   }
   if (tipo === "conta.creditar" && !(Number(d.tokens) > 0 && Number(d.tokens) <= 1e9)) return "quantos tokens?";
+  if (tipo === "conta.reembolsar") {
+    if (!/^[A-Za-z0-9-]{3,40}$/.test(String(d.pagamento || ""))) return "qual pagamento?";
+    const det = await medidor(c.env, d.id).pedir("admin_detalhe");
+    const p = (det.pagamentos || []).find((x) => String(x.ref) === String(d.pagamento));
+    if (!p) return "esse pagamento não está na conta";
+    if (p.reembolso) return "esse pagamento já foi reembolsado";
+  }
   if (tipo.startsWith("tunel.") && !/^[a-z0-9-]{3,24}$/.test(String(d.slug || ""))) return "endereço inválido";
   if (tipo === "tunel.endereco") {
     const motivo = await motivoDoEnderecoNovo(c.env, String(d.novo || ""));
@@ -1185,10 +1253,13 @@ async function aplicar(c, alt) {
       if (!r.apagados) throw new Error("essa instalação já não estava na conta");
       return r;
     }
+    case "conta.reembolsar":
+      return reembolsar(c, d);
     case "conta.cancelar": {
       const r = await medidor(env, d.id).pedir("resumo");
       const a = r.assinatura;
       if (!a || !a.id || a.situacao === "cancelled") throw new Error("não há assinatura ativa");
+      if (a.periodo === "anual" || a.periodo === "avulso") throw new Error("o plano pago de uma vez não renova sozinho: não há o que cancelar (para devolver o dinheiro, use Reembolsar)");
       if (!mp) throw new Error("sem o Mercado Pago");
       const res = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
       if (!res.ok) throw new Error("o Mercado Pago recusou cancelar (HTTP " + res.status + ")");

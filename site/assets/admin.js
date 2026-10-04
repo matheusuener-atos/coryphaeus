@@ -79,7 +79,7 @@
   // O papel que pode cada tipo da fila (a tabela do contrato).
   var DF = ["dono", "financeiro"], DS = ["dono", "suporte"];
   var PAPEIS = {
-    "conta.creditar": DF, "conta.instalacao.apagar": DS, "conta.cancelar": DF, "google.servicos": DS, "google.desvincular": DS,
+    "conta.creditar": DF, "conta.instalacao.apagar": DS, "conta.cancelar": DF, "conta.reembolsar": DF, "google.servicos": DS, "google.desvincular": DS,
     "tunel.apagar": DS, "tunel.endereco": DS, "tunel.ativo": DS, "cupom.criar": DF, "cupom.ativo": DF, "plano.editar": DF,
     "plano.criar": DF, "nfse.config": DF, "equipe.papel": ["dono"],
   };
@@ -990,7 +990,10 @@
       h += '<div class="entre s12"><span>Sem ciclo aberto</span><span>' + esc(tok(det.restantes)) + ' restantes <span class="c-ink3">(+' + esc(tok(det.extra)) + " recarga)</span></span></div>";
     }
     var cad = det.cadastro || {}, esc_ = det.escritorio || {}, con = det.consentimento, ass = det.assinatura;
-    var mp = ass ? "preapproval " + ass.situacao + " · " + ass.id + (ass.desde ? " · desde " + ddmmaaaa(ass.desde) : "") : "sem assinatura";
+    var prepago = ass && (ass.periodo === "anual" || ass.periodo === "avulso");
+    var mp = !ass ? "sem assinatura"
+      : prepago ? (ass.periodo === "anual" ? "anual" : "um mês no Pix") + " · " + (SIT_PAGO[ass.situacao] || ass.situacao) + (det.pago_ate ? " · até " + ddmmaaaa(det.pago_ate) : "")
+      : "preapproval " + ass.situacao + " · " + ass.id + (ass.desde ? " · desde " + ddmmaaaa(ass.desde) : "");
     if (det.plano_proximo) mp += " · troca para " + (det.plano_proximo.nome || det.plano_proximo.id || det.plano_proximo) + " na renovação";
     var gtxt = det.google ? (det.google.escopos || []).join(" · ") || "ligado, sem escopos" : "não ligado";
     if (det.google_pendente) gtxt += " · revogação pendente no PAULUS";
@@ -1004,6 +1007,19 @@
       return '<div class="linha"><span class="txt2"><b class="corta">' + esc(i.instalacao) + "</b><small>segredo " + esc(i.hash8) + " · desde " + esc(ddmm(i.criado)) + "</small></span>" +
         (podeI ? '<button type="button" class="mini" style="height:26px" data-a="instDesvincular" data-hash="' + esc(i.hash8) + '" data-inst="' + esc(i.instalacao) + '"' + attrDis(fila, "já está na fila de alterações") + ">" + (fila ? "Na fila" : "Desvincular") + "</button>" : "") + "</div>";
     }).join("") : '<p class="vazio-linha" style="padding:14px">Nenhuma instalação ligada.</p>') + "</div></div>";
+    // pagamentos
+    var pgs = (det.pagamentos || []).slice().reverse(), podeR = pode("conta.reembolsar"), mpDesl = desligado(cfg("mercado_pago"));
+    h += '<div class="pilha" style="gap:10px"><span class="rotulo">Pagamentos · ' + pgs.length + '</span><div class="inst">' + (pgs.length ? pgs.map(function (x) {
+      var fila = naFila("conta.reembolsar", det.id + ":" + x.ref);
+      var dias = Math.floor((Date.now() - Date.parse(x.quando)) / 864e5);
+      var sub = x.reembolso ? "reembolsado em " + ddmm(x.reembolso.quando) + (x.reembolso.por ? " · " + x.reembolso.por : "")
+        : (dias <= 7 ? "há " + dias + (dias === 1 ? " dia · no prazo de arrependimento" : " dias · no prazo de arrependimento") : "há " + dias + " dias · fora dos 7 dias");
+      var botao = !podeR || x.reembolso ? "" : '<button type="button" class="mini" style="height:26px" data-a="contaReembolsar" data-ref="' + esc(x.ref) + '"' +
+        attrDis(fila || mpDesl, fila ? "já está na fila de alterações" : cfg("mercado_pago").falta) + ">" + (fila ? "Na fila" : "Reembolsar") + "</button>";
+      return '<div class="linha"><span class="txt2"><b class="corta">' + esc(TIPO_PAG[x.tipo] || x.tipo) + " · " + esc(brl(x.valor)) + " · " + esc(ddmm(x.quando)) + "</b><small" +
+        (x.reembolso ? ' class="c-ink3"' : "") + ">" + esc(sub) + "</small></span>" + botao + "</div>";
+    }).join("") : '<p class="vazio-linha" style="padding:14px">Nenhum pagamento.</p>') + "</div>" +
+      (podeR && pgs.some(function (x) { return !x.reembolso; }) ? '<span class="nota-campo">Reembolsar devolve o valor inteiro pelo Mercado Pago, no cartão ou no Pix de origem, e tira da conta o que ele pagou: o anual e o mês no Pix acabam, a mensalidade cancela a assinatura, a recarga sai dos créditos. Entra na fila e acontece ao confirmar. A nota fiscal já emitida se cancela em Notas fiscais.</span>' : "") + "</div>";
     // acoes
     var nome1 = primeiro(det.nome), mpOff = desligado(cfg("mercado_pago"));
     var A = [];
@@ -1011,10 +1027,12 @@
     if (pode("conta.creditar")) A.push(acaoG("account_balance_wallet", naFila("conta.creditar", det.id) ? "Cortesia na fila (+10M)" : "Creditar tokens de cortesia", "contaCreditar"));
     if (pode("google.servicos") && det.google) A.push(acaoG("shield", "Revogar permissões do Google", "modalGoogle", naFila("google.servicos", det.id) ? "já está na fila de alterações" : ""));
     if (pode("google.desvincular") && det.google) A.push(acaoG("link_off", naFila("google.desvincular", det.id) ? "Desvinculação na fila" : "Desvincular conta Google", "contaDesvincular", naFila("google.desvincular", det.id) ? "já está na fila de alterações" : ""));
-    if (pode("conta.cancelar") && ass && ass.situacao !== "cancelled" && det.situacao !== "cancelada") A.push(acaoG("close", naFila("conta.cancelar", det.id) ? "Cancelamento na fila" : "Cancelar assinatura no Mercado Pago", "contaCancelar", mpOff ? cfg("mercado_pago").falta : naFila("conta.cancelar", det.id) ? "já está na fila de alterações" : "", true));
+    if (pode("conta.cancelar") && ass && !prepago && ass.situacao !== "cancelled" && det.situacao !== "cancelada") A.push(acaoG("close", naFila("conta.cancelar", det.id) ? "Cancelamento na fila" : "Cancelar assinatura no Mercado Pago", "contaCancelar", mpOff ? cfg("mercado_pago").falta : naFila("conta.cancelar", det.id) ? "já está na fila de alterações" : "", true));
     h += '<div class="pilha" style="gap:10px"><span class="rotulo">Ações</span><div class="pilha" style="gap:6px">' + A.join("") + "</div>" + (mpOff && pode("conta.cancelar") && ass ? '<span class="nota-campo">' + esc(cfg("mercado_pago").falta) + "</span>" : "") + "</div>";
     return h + "</div></aside>";
   }
+  var TIPO_PAG = { assinatura: "Mensalidade", anual: "Anual", avulso: "Mês no Pix", recarga: "Recarga" };
+  var SIT_PAGO = { authorized: "em dia", expired: "vencido", refunded: "reembolsado" };
   function acaoG(icone, rot, a, travado, vermelho) {
     return '<button type="button" class="acao-g' + (vermelho ? " vermelho" : "") + '" data-a="' + a + '" data-id="' + esc(E.gaveta.id) + '"' + attrDis(!!travado, travado) + ">" + ic(icone) + '<span class="rot">' + esc(rot) + "</span>" + ic("arrow_forward") + "</button>";
   }
@@ -1471,6 +1489,12 @@
   A.contaCancelar = function () {
     var c = E.gaveta.det || E.gaveta.resumo; if (!c) return;
     enfileirar("contas", "conta.cancelar", c.id, { id: c.id }, "Cancelei a assinatura de " + c.nome + (c.plano ? " (" + c.plano.nome + ")" : ""));
+  };
+  A.contaReembolsar = function (el) {
+    var c = E.gaveta.det; if (!c) return;
+    var p = (c.pagamentos || []).filter(function (x) { return String(x.ref) === el.dataset.ref; })[0]; if (!p) return;
+    enfileirar("contas", "conta.reembolsar", c.id + ":" + p.ref, { id: c.id, pagamento: p.ref },
+      "Reembolsei " + brl(p.valor) + " (" + (TIPO_PAG[p.tipo] || p.tipo).toLowerCase() + " de " + ddmm(p.quando) + ") de " + c.nome);
   };
   A.instDesvincular = function (el) {
     var c = E.gaveta.det; if (!c) return;

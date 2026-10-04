@@ -428,11 +428,11 @@ export async function resumoParaPainel(env) {
   const falta = faltaDoEmissor(env);
   const { pagamentos } = env.APOIOS ? await listarPagamentos(env) : { pagamentos: [] };
   const base = { config, emissor: { ligado: !falta, falta }, situacao: null, notas: [], cloudflare: env.APOIOS ? await situacaoCf(env) : null, erro: "" };
-  if (falta) return { ...base, pagamentos: pagamentos.filter((x) => x.nota !== "emitida" && x.nota !== "cancelada") };
+  if (falta) return { ...base, pagamentos: pagamentos.filter((x) => x.nota !== "emitida" && x.nota !== "cancelada" && x.nota !== "reembolsado") };
   const [s, l] = await Promise.all([chamar(env, "situacao", {}), chamar(env, "listar", { limite: 300 })]);
   const notas = l.status === 200 ? l.dados.notas : [];
   const comNota = new Set(notas.filter((n) => n.pagamento && n.estado !== "descartada").map((n) => n.pagamento));
-  const semNota = pagamentos.filter((x) => !comNota.has(x.id) && x.nota !== "emitida" && x.nota !== "cancelada");
+  const semNota = pagamentos.filter((x) => !comNota.has(x.id) && x.nota !== "emitida" && x.nota !== "cancelada" && x.nota !== "reembolsado");
   return { ...base, situacao: s.status === 200 ? s.dados : null, notas, pagamentos: semNota,
     erro: s.status !== 200 ? s.dados.erro : l.status !== 200 ? l.dados.erro : "" };
 }

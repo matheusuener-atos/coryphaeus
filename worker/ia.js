@@ -1324,6 +1324,14 @@ const SEMANA_MS = 7 * 24 * 3600 * 1000;
 // leva mais do que uma semana de IA.
 const ARREPENDIMENTO_MS = 7 * 24 * 3600 * 1000;
 
+function menosUmMes(ms) {
+  const d = new Date(ms);
+  const dia = d.getUTCDate();
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  if (d.getUTCDate() < dia) d.setUTCDate(0);
+  return d.getTime();
+}
+
 function maisUmMes(ms) {
   const d = new Date(ms);
   const dia = d.getUTCDate();
@@ -1478,6 +1486,10 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "anual_estornado") {
+      // Ja devolvido pelo painel (admin_reembolsado): o aviso do estorno nao mexe de novo.
+      const pg = (conta.pagamentos || []).find((p) => prepago(p.tipo) && String(p.ref) === String(d.pagamento));
+      if (pg && pg.reembolso) return [this.resumo(conta, n, agora), null];
+      if (pg) pg.reembolso = { quando: new Date(agora).toISOString(), por: "Mercado Pago" };
       const a = conta.assinatura || {};
       if ((a.id !== "anual-" + d.pagamento && a.id !== "avulso-" + d.pagamento) || a.situacao === "refunded") return [this.resumo(conta, n, agora), null];
       // O reembolso (os 7 dias): o plano acaba agora, e o ciclo junto.
@@ -1813,7 +1825,7 @@ export class ContaIA {
         ...this.resumo(conta, n, agora), id: conta.id, criada: conta.criada || "", cadastro: conta.cadastro || null,
         instalacoes_lista: (conta.segredos || []).map((x) => ({ instalacao: x.instalacao, hash8: String(x.hash).slice(0, 8), criado: x.criado })),
         pagamentos: conta.pagamentos || [], uso: conta.uso || [], uso_mes: conta.uso_mes || {}, google: conta.google || null,
-        desvinculado: conta.desvinculado || null, plano_id: conta.plano || null,
+        desvinculado: conta.desvinculado || null, plano_id: conta.plano || null, extra: conta.extra || 0, recargas: conta.recargas || [],
       }, null];
     }
     if (acao === "admin_creditar") {
@@ -1837,6 +1849,42 @@ export class ContaIA {
       conta.desvinculado = { quando: new Date(agora).toISOString(), por: d.por || "", email: (conta.dono || {}).email || "" };
       conta.segredos = [];
       return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "admin_reembolsado") {
+      const pg = (conta.pagamentos || []).find((p) => String(p.ref) === String(d.ref));
+      if (!pg) return [{ ok: false, erro: "pagamento não encontrado", status: 404 }, null];
+      if (pg.reembolso) return [this.resumo(conta, n, agora), null];
+      const agoraIso = new Date(agora).toISOString();
+      pg.reembolso = { quando: agoraIso, por: d.por || "" };
+      const c = this.cicloAberto(conta, agora);
+      if (prepago(pg.tipo)) {
+        const a = conta.assinatura || {};
+        const meses = pg.tipo === "anual" ? 12 : 1;
+        let inicio = Date.parse(conta.pago_ate || "");
+        for (let i = 0; i < meses; i++) inicio = menosUmMes(inicio);
+        if (a.id !== pg.tipo + "-" + pg.ref) {
+          // Um pagamento que nao e o mais novo (o ano passado, por exemplo): so o dinheiro volta.
+        } else if (inicio > agora) {
+          // A renovacao paga antes, que ainda nao comecou: o pago_ate volta ao fim do anterior.
+          conta.pago_ate = new Date(inicio).toISOString();
+        } else {
+          // O periodo em curso: o plano acaba agora, e o ciclo junto.
+          conta.assinatura = { ...a, situacao: "refunded" };
+          conta.pago_ate = agoraIso;
+          if (c) c.fim = agoraIso;
+        }
+      } else if (pg.tipo === "assinatura") {
+        if (d.cancelada && conta.assinatura) conta.assinatura = { ...conta.assinatura, situacao: "cancelled" };
+        // O mes devolvido: o ciclo que ele pagou acaba agora.
+        if (c && (c.cobranca === pg.ref || (c.origem === "assinatura" && !c.cobranca))) c.fim = agoraIso;
+      } else if (pg.tipo === "recarga") {
+        const r = (conta.recargas || []).find((x) => x.pedido === pg.ref);
+        const tirar = Math.min(conta.extra || 0, r ? r.tokens : 0);
+        conta.extra = (conta.extra || 0) - tirar;
+        pg.tokens_tirados = tirar;
+        if (r) r.reembolso = { quando: agoraIso };
+      }
+      return [{ ...this.resumo(conta, n, agora), reembolsado: pg }, conta];
     }
     if (acao === "admin_assinatura_cancelada") {
       if (conta.assinatura) conta.assinatura = { ...conta.assinatura, situacao: "cancelled" };

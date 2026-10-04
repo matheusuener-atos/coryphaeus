@@ -50,8 +50,10 @@ globalThis.fetch = async (url, init = {}) => {
   }
   return new Response("{}", { status: 404 });
 };
-async function chamarMP(env, caminho, metodo, corpo) {
-  mp.push({ caminho, metodo, corpo });
+async function chamarMP(env, caminho, metodo, corpo, extra = {}) {
+  mp.push({ caminho, metodo, corpo, extra });
+  // A cobranca da assinatura traz o pagamento dela (o reembolso da mensalidade).
+  if (/^\/authorized_payments\//.test(caminho)) return { ok: true, status: 200, dados: { id: caminho.split("/").pop(), payment: { id: 555 } } };
   return { ok: true, status: 200, dados: {} };
 }
 
@@ -312,6 +314,54 @@ checar(!d.ok && d.resultados[0].erro.includes("pelo menos um dono"), "a equipe n
 r = await admin("GET", "/api/admin/equipe", como());
 d = await r.json();
 checar(d.membros.length === 2 && d.matriz.length >= 6, "equipe e matriz de permissoes");
+
+// ----------------------------------------------------------- reembolso
+console.log("reembolso");
+const contaDo = (id, acao, dados = {}) => CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados }) }).then((x) => x.json());
+for (const quem of ["carla", "dani"]) await ia("/api/ia/ativar", { id_token: quem, instalacao_id: "inst-" + quem + "-123", nome_escritorio: "Escritório " + quem });
+const idCarla = (await (await ia("/api/ia/ativar", { id_token: "carla", instalacao_id: "inst-carla-123" })).json()).segredo.split("_")[1];
+const idDani = (await (await ia("/api/ia/ativar", { id_token: "dani", instalacao_id: "inst-dani-123" })).json()).segredo.split("_")[1];
+// Carla: um mês no Pix e uma recarga; Dani: a assinatura mensal no cartão, com a primeira cobrança.
+let rc = await contaDo(idCarla, "anual_pago", { pagamento: "PAYMES1", plano: "advogado", valor: 449, meses: 1 });
+checar(rc.plano_vigente && rc.periodo === "avulso", "Carla com o mês no Pix", rc.periodo);
+guardados.set("admin:nfse:PAYMES1", JSON.stringify({ id: "PAYMES1", conta: idCarla, tipo: "mês avulso", valor: 449, quando: new Date(relogio).toISOString(), nota: "pendente" }));
+rc = await contaDo(idCarla, "creditar", { pedido: "ORD9", valor: 120, plano: "advogado" });
+const extraAntes = (await contaDo(idCarla, "admin_detalhe")).extra;
+await contaDo(idDani, "assinatura", { plano: "advogado", assinatura: { id: "preDani", situacao: "authorized", valor: 449 } });
+let rd = await contaDo(idDani, "renovar", { cobranca: "COB1", valor: 449, quando: new Date(relogio).toISOString() });
+checar(rd.plano_vigente, "Dani com a mensalidade paga", rd.ciclo);
+const fila = async () => (await (await admin("GET", "/api/admin/alteracoes", como())).json()).pendentes;
+for (const x of await fila()) await admin("DELETE", "/api/admin/alteracoes/" + x.id, como());
+const reemb = (id, pagamento) => admin("POST", "/api/admin/alteracoes", como({ corpo: { tela: "contas", tipo: "conta.reembolsar", alvo: id + ":" + pagamento, dados: { id, pagamento }, texto: "Reembolsei " + pagamento } }));
+checar((await reemb(idCarla, "NAOEXISTE")).status === 400, "reembolsar pagamento que não é da conta: recusado na fila");
+checar((await reemb(idCarla, "PAYMES1")).status === 200 && (await reemb(idCarla, "ORD9")).status === 200 && (await reemb(idDani, "COB1")).status === 200, "três reembolsos na fila");
+let antesMP = mp.length;
+checar(!(await contaDo(idCarla, "resumo")).pagamentos, "na fila, nada mudou ainda");
+r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
+d = await r.json();
+checar(d.ok && d.resultados.length === 3, "publicar aplica os três", d);
+const feitos = mp.slice(antesMP);
+checar(feitos.some((x) => x.caminho === "/v1/payments/PAYMES1/refunds" && x.metodo === "POST" && x.extra["X-Idempotency-Key"] === "reembolso-PAYMES1"),
+  "o mês no Pix volta pelo /v1/payments/<id>/refunds, com a chave de idempotência do pagamento", feitos);
+checar(feitos.some((x) => x.caminho === "/v1/orders/ORD9/refund"), "a recarga volta pelo /v1/orders/<id>/refund", feitos);
+checar(feitos.some((x) => x.caminho === "/authorized_payments/COB1") && feitos.some((x) => x.caminho === "/v1/payments/555/refunds")
+  && feitos.some((x) => x.caminho === "/preapproval/preDani" && x.corpo.status === "cancelled"), "a mensalidade: acha o pagamento da cobrança, devolve e cancela a assinatura", feitos);
+const dc = await contaDo(idCarla, "admin_detalhe");
+checar(!dc.plano_vigente && dc.assinatura.situacao === "refunded" && dc.pagamentos.find((x) => x.ref === "PAYMES1").reembolso.por === "dono@paulus.ia.br",
+  "Carla: o mês acaba na hora e o pagamento fica marcado com quem devolveu", dc.assinatura);
+checar(extraAntes > 0 && dc.extra === 0 && dc.pagamentos.find((x) => x.ref === "ORD9").tokens_tirados === extraAntes, "a recarga devolvida sai dos créditos", { antes: extraAntes, depois: dc.extra, pg: dc.pagamentos.find((x) => x.ref === "ORD9") });
+checar(JSON.parse(guardados.get("admin:nfse:PAYMES1")).nota === "reembolsado", "a fila de notas não pede nota do pagamento devolvido");
+const dd = await contaDo(idDani, "admin_detalhe");
+checar(!dd.plano_vigente && dd.assinatura.situacao === "cancelled", "Dani: a assinatura cancelada e o ciclo pago fechado", { a: dd.assinatura, c: dd.ciclo });
+checar((await reemb(idCarla, "PAYMES1")).status === 400, "reembolsar de novo: recusado");
+// O aviso do estorno, que o Mercado Pago manda depois, não mexe de novo.
+const estornoDepois = await contaDo(idCarla, "anual_estornado", { pagamento: "PAYMES1" });
+checar(estornoDepois.assinatura.situacao === "refunded", "o aviso do estorno depois do painel não muda nada");
+d = await (await admin("GET", "/api/admin/visao", como())).json();
+checar((d.avisos || []).some((x) => x.tipo === "reembolso" && x.texto.startsWith("Reembolso pelo painel")), "o reembolso aparece nos avisos da visão geral", d.avisos);
+// O suporte não reembolsa.
+r = await admin("POST", "/api/admin/alteracoes", { email: "suporte@paulus.ia.br", corpo: { tipo: "conta.reembolsar", dados: { id: idCarla, pagamento: "ORD9" } } });
+checar(r.status === 401 || r.status === 403, "o suporte não reembolsa", r.status);
 
 // --------------------------------------------------------- privacidade
 const pessoais = [...guardados.entries()].filter(([k]) => !k.startsWith("admin:"));
