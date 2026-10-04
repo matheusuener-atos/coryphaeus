@@ -85,8 +85,13 @@
 .pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
 .pg-total small { font-size: 12px; line-height: 1.45; color: var(--ink3); }
 .pg-estado { text-align: center; }
+.pg-cartao { display: grid; gap: 12px; }
+.pg-titulo-cartao { font: 500 15px var(--sans); color: var(--ink); }
 .pg-bloco { min-height: 1px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .pg-bloco:empty, .pg-bloco[hidden] { border: 0; }
+.pg-pagar { justify-self: center; }
+.pg-pagar > span { padding: 0 28px; }
+.pg-pagar .icon { font-size: 16px; }
 .pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .pg-voltar .icon { font-size: 16px; }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }

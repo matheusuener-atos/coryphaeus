@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pagamento — PAVLVS</title>
+<title>Falta muito pouco — PAVLVS</title>
 <meta name="description" content="O pagamento da assinatura do PAVLVS, com o cartão no bloco seguro do Mercado Pago.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#131312">
@@ -32,7 +32,7 @@
 <main id="conteudo" class="entrada">
   <div class="entrada-col pg-col" data-mp-public-key-source="runtime-endpoint" data-mp-bricks-page="card-payment" data-mp-subscriptions-page="without-plan-authorized">
     <div class="entrada-marca">
-      <h1 class="logo">Pagamento</h1>
+      <h1 class="logo">Falta muito pouco</h1>
       <p id="pg-plano">O plano e o valor aparecem aqui.</p>
     </div>
     <!-- O total vem do servidor (worker/ia.js, /api/ia/site/oferta), nunca do bloco. -->
@@ -42,7 +42,11 @@
       <small id="pg-detalhe"></small>
     </div>
     <p class="nota-campo pg-estado" id="pg-estado" role="status" aria-live="polite">Carregando o pagamento…</p>
-    <div id="cardPaymentBrick_container" class="pg-bloco"></div>
+    <div class="pg-cartao">
+      <span class="pg-titulo-cartao" id="pg-titulo-cartao" hidden>Cartão de crédito ou débito</span>
+      <div id="cardPaymentBrick_container" class="pg-bloco"></div>
+      <button type="button" class="btn-duplo pg-pagar" id="pg-pagar" hidden><span><span class="icon" aria-hidden="true">lock</span>Pagar</span></button>
+    </div>
     <p class="erro-campo" id="pg-erro" role="alert" hidden></p>
     <!-- Pronto: assinatura ativa ou ano pago -->
     <div class="pronto" id="pg-pronto" hidden>

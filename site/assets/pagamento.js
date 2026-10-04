@@ -133,30 +133,15 @@
     var settings = {
       initialization: { amount: oferta.valor, payer: { email: oferta.email } },
       customization: {
-        visual: { style: { theme: escuro ? "dark" : "default", customVariables: coresDoSite() } },
+        // O titulo e o botao sao os da pagina (na fonte e no tamanho do site);
+        // o botao pede os dados ao bloco com getFormData.
+        visual: { hideFormTitle: true, hidePaymentButton: true, style: { theme: escuro ? "dark" : "default", customVariables: coresDoSite() } },
         paymentMethods: { minInstallments: 1, maxInstallments: oferta.parcelas_max },
       },
       callbacks: {
-        onReady: function () { estado(""); },
+        onReady: function () { estado(""); $("pg-pagar").hidden = false; $("pg-titulo-cartao").hidden = false; },
         // Volta uma Promise que so termina depois da resposta do servidor:
         // sem isso, o bloco fica carregando para sempre.
-        onSubmit: function (formData) {
-          erro("");
-          estado("Processando o pagamento…");
-          return new Promise(function (resolve, reject) {
-            pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom,
-              idempotencia: idempotencia, cartao: formData })
-              .then(function (r) { resolve(); pronto(r); })
-              .catch(function (e) {
-                estado("");
-                if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte, entre com o Google de novo e pague"); reject(); return; }
-                // Recusado (cartao, banco, risco): a proxima tentativa e outra compra.
-                if (e.status === 402 || e.status === 400) idempotencia = novaChave();
-                erro(e.message);
-                reject();
-              });
-          });
-        },
         onError: function (e) {
           console.error(e);
           estado("");
@@ -187,6 +172,40 @@
       erro(e.message);
     }
   }
+
+  /* O botao Pagar da pagina: os dados (com o token) vem do bloco; o valor, do servidor. */
+  var enviando = false;
+  async function pagar() {
+    if (enviando || !controle) return;
+    erro("");
+    var formData;
+    try {
+      formData = await controle.getFormData();
+    } catch (e) {
+      return; // o bloco marca os campos que faltam
+    }
+    if (!formData) return;
+    enviando = true;
+    $("pg-pagar").disabled = true;
+    estado("Processando o pagamento…");
+    try {
+      var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom,
+        idempotencia: idempotencia, cartao: formData });
+      $("pg-pagar").hidden = true;
+      $("pg-titulo-cartao").hidden = true;
+      pronto(r);
+    } catch (e) {
+      estado("");
+      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte, entre com o Google de novo e pague"); return; }
+      // Recusado (cartao, banco, risco): a proxima tentativa e outra compra.
+      if (e.status === 402 || e.status === 400) idempotencia = novaChave();
+      erro(e.message);
+    } finally {
+      enviando = false;
+      $("pg-pagar").disabled = false;
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function () { $("pg-pagar").addEventListener("click", pagar); });
 
   // Trocou o tema: o bloco e montado de novo com as cores do tema novo (as
   // variaveis sao lidas na montagem). Depois de pago, nao ha bloco.
