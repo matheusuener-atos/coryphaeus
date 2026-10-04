@@ -1,8 +1,9 @@
 /* A pagina de cadastro (paulus.ia.br/cadastro): entrar com o Google, os dados
-   do escritorio, o plano e o pagamento no Mercado Pago, pelo Worker
-   (worker/ia.js, /api/ia/planos e /api/ia/site/*). O id_token do Google vale
-   uma hora e fica so nesta aba (sessionStorage): e com ele que a pagina sabe,
-   na volta do Mercado Pago, de quem e a assinatura. */
+   do escritorio e o plano, pelo Worker (worker/ia.js, /api/ia/planos e
+   /api/ia/site/*). O pagamento e a pagina seguinte, /cadastro/pagamento
+   (assets/pagamento.js), com o cartao no bloco do Mercado Pago. O id_token do
+   Google vale uma hora e fica so nesta aba (sessionStorage): e com ele que a
+   pagina de pagamento sabe de quem e a assinatura. */
 (function () {
   "use strict";
 
@@ -70,8 +71,8 @@
     });
     $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "o ano, em até 12×" : "cobrança mensal";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
-      ? "O ano é pago de uma vez no Mercado Pago, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela). A cota de IA continua mensal. O anual não renova sozinho."
-      : "O cartão é digitado na página do Mercado Pago, nunca aqui. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
+      ? "O ano é pago de uma vez, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela), no bloco do Mercado Pago da próxima página. A cota de IA continua mensal. O anual não renova sozinho."
+      : "No próximo passo, o cartão é digitado no bloco do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
   }
 
   function desenharPlanos() {
@@ -335,31 +336,16 @@
         telefone: $("cd-telefone").value, oab: $("cd-oab").value, endereco: endereco(), aceite: true, plano: estado.escolhido, periodo: estado.periodo,
         cupom: estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom.codigo : "",
       });
-      if (!r.link) throw new Error("o Mercado Pago não devolveu a página de pagamento");
-      window.location.href = r.link;
+      if (!r.proximo) throw new Error("o site não devolveu a página de pagamento");
+      var cupom = estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom.codigo : "";
+      // Mesma origem: so o caminho e a busca do endereco que o Worker devolveu.
+      var ida = new URL(r.proximo, location.origin);
+      window.location.assign(ida.pathname + ida.search + (cupom ? "&cupom=" + encodeURIComponent(cupom) : ""));
     } catch (e) {
       botao.disabled = false;
       if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo e confira os dados."); return; }
       mostrarErro("cd-form-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
     }
-  }
-
-  /* --------------------------------------------- a volta do Mercado Pago */
-
-  async function conferirVolta(token) {
-    // O aviso do Mercado Pago pode chegar uns segundos depois da volta.
-    for (var i = 0; i < 6; i++) {
-      var conta;
-      try { conta = await pedir("/api/ia/site/situacao", { id_token: token }); } catch (e) { return entrar(token); }
-      estado.token = token;
-      mostrarConta(conta);
-      if (conta.plano_vigente) return conta;
-      $("cd-conta-erro").hidden = false;
-      $("cd-conta-erro").textContent = "Conferindo o pagamento no Mercado Pago…";
-      await new Promise(function (ok) { setTimeout(ok, 5000); });
-    }
-    mostrarErro("cd-conta-erro", "O Mercado Pago ainda não confirmou o pagamento. Se você concluiu, recarregue esta página em alguns minutos.");
-    return null;
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -384,8 +370,10 @@
     $("cd-uf").addEventListener("input", function () { this.value = this.value.replace(/[^A-Za-z]/g, "").toUpperCase(); $("cd-cmun").value = ""; });
     var guardado = "";
     try { guardado = sessionStorage.getItem(CHAVE) || ""; } catch (e) { guardado = ""; }
-    if (guardado) {
-      if (/[?&]voltou=1/.test(location.search)) conferirVolta(guardado); else entrar(guardado);
-    }
+    // Vindo do PAULUS instalado (?plano=&periodo=): o plano e o periodo ja escolhidos.
+    var pedido = new URLSearchParams(location.search);
+    if (pedido.get("periodo") === "anual") { estado.periodo = "anual"; desenharPeriodo(); }
+    if (pedido.get("plano")) estado.escolhido = pedido.get("plano");
+    if (guardado) entrar(guardado);
   });
 })();

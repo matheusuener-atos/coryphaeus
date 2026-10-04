@@ -17,7 +17,9 @@
 //   POST /api/ia/consentimento     o sim do titular (versao do termo), ou o nao
 //   GET  /api/ia/modelos           os modelos que o portao aceita
 //   POST /api/ia/v1/chat/completions  o formato OpenAI; vai ao DeepInfra
-//   POST /api/ia/assinar           a assinatura mensal (link do Mercado Pago)
+//   POST /api/ia/assinar           o link da pagina de pagamento (paulus.ia.br/cadastro/pagamento)
+//   GET  /api/ia/mp-config         a chave publica do Mercado Pago (para o bloco de cartao)
+//   POST /api/ia/site/oferta|pagar o valor da assinatura e a cobranca com o token do cartao
 //   GET  /api/ia/assinatura        a situacao, conferida no Mercado Pago
 //   POST /api/ia/assinatura/cancelar
 //   POST /api/ia/recarga           o Pix da recarga (QR)
@@ -181,6 +183,13 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
     const r = await conferirCupom(env, url.searchParams.get("codigo"), url.searchParams.get("plano"), url.searchParams.get("periodo") === "anual" ? "anual" : "mensal");
     return json(r.erro ? { ok: false, erro: r.erro } : { ok: true, ...r.cupom, valor: r.valor, valor_cheio: r.valor_cheio });
+  }
+  // A chave publica do Mercado Pago, para o bloco de cartao da pagina de
+  // pagamento. Nao e segredo (o token de acesso fica so aqui, como segredo).
+  if (p === "/api/ia/mp-config" && m === "GET") {
+    if (!env.MP_PUBLIC_KEY) return json({ erro: "a chave pública do Mercado Pago não está configurada" }, 503);
+    return new Response(JSON.stringify({ publicKey: env.MP_PUBLIC_KEY }), {
+      status: 200, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store, max-age=0" } });
   }
   if (p === "/api/ia/planos" && m === "GET") {
     const n = numeros(env);
@@ -649,77 +658,153 @@ async function completar(request, env, ctx, conta) {
 
 async function assinar(request, env, conta, id, mp) {
   const d = (await lerJSON(request)) || {};
-  return criarAssinatura(env, conta, id, mp, { email: d.email, plano: d.plano, origem: "", cupom: d.cupom, periodo: d.periodo });
+  return json(await linkDoPagamento(env, conta, { plano: d.plano, periodo: d.periodo }));
 }
 
 // O anual pode ser renovado nos ultimos 45 dias: o ano novo comeca no fim do pago.
 const RENOVA_ANUAL_MS = 45 * 24 * 3600 * 1000;
+const PAGINA_DO_PAGAMENTO = "https://paulus.ia.br/cadastro/pagamento/";
 
-/* A assinatura do plano escolhido: o link da pagina do Mercado Pago onde a
-   pessoa paga. Mensal: a assinatura recorrente no cartao. Anual: o ano de uma
-   vez (Checkout Pro), parcelavel em ate 12 vezes, com os juros do
-   parcelamento por conta de quem parcela. Sem plano no pedido, o da conta. */
-async function criarAssinatura(env, conta, id, mp, { email, plano, origem, cupom, periodo }) {
+/* O PAULUS instalado nao cobra: ele abre a pagina de pagamento do site, onde
+   o cartao e digitado no bloco do Mercado Pago (Checkout Bricks), na conta
+   Google de quem assina. Volta o endereco com o plano e o periodo. */
+async function linkDoPagamento(env, conta, { plano, periodo }) {
   const atual = await conta.pedir("resumo");
-  // Sem e-mail no pedido, o da conta Google da nuvem (o pagador recebe o recibo nele).
-  const para = String(email || atual.email || "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para) || para.length > 120) return json({ erro: "e-mail inválido" }, 400);
-  if (periodo && !["mensal", "anual"].includes(periodo)) return json({ erro: "o período é mensal ou anual" }, 400);
+  const n = numeros(env);
+  const escolhido = planoDe(n, plano || (atual.plano || {}).id);
+  const p = periodo === "anual" ? "anual" : "mensal";
+  return { link: PAGINA_DO_PAGAMENTO + "?plano=" + encodeURIComponent(escolhido.id) + "&periodo=" + p, plano: escolhido, periodo: p };
+}
+
+/* O que a assinatura pedida custa, conferido no servidor: o plano, o periodo,
+   o valor (com o cupom) e por que nao pode, se nao puder. Usado pela pagina
+   de pagamento (o total que ela mostra) e pela cobranca. */
+async function ofertaDoPagamento(env, atual, { plano, periodo, cupom }) {
+  if (!["mensal", "anual"].includes(periodo)) return { erro: "o período é mensal ou anual", status: 400 };
+  const n = numeros(env);
+  if (!n.planos.some((x) => x.id === plano)) return { erro: "esse plano não existe", status: 400 };
+  const escolhido = planoDe(n, plano);
   const anual = periodo === "anual";
   const a = atual.assinatura;
+  if (atual.cortesia && atual.plano_vigente) return { erro: "esta conta tem o plano de cortesia: não há o que pagar", status: 409 };
   if (a && a.situacao === "authorized") {
     if (atual.periodo === "anual") {
       if (!anual || Date.parse(atual.pago_ate) - Date.now() > RENOVA_ANUAL_MS) {
-        return json({ erro: "o plano anual está pago até " + dataBR(atual.pago_ate) + "; a renovação abre 45 dias antes" }, 409);
+        return { erro: "o plano anual está pago até " + dataBR(atual.pago_ate) + "; a renovação abre 45 dias antes", status: 409 };
       }
-    } else if (!anual) return json({ erro: "a assinatura já está ativa" }, 409);
+    } else if (!anual) return { erro: "a assinatura mensal já está ativa; para mudar de plano, use a troca de plano", status: 409 };
   }
-  const n = numeros(env);
-  if (plano && !n.planos.some((x) => x.id === plano)) return json({ erro: "esse plano não existe" }, 400);
-  const escolhido = planoDe(n, plano || (atual.plano || {}).id);
-  // O cupom (painel admin): no mensal, o valor com desconto pelos meses
-  // combinados, e depois a renovacao volta ao valor cheio (avisoDaIA,
-  // cupom_voltar); no anual, o desconto vale sobre o ano.
   const cheio = anual ? escolhido.valor_anual : escolhido.valor;
-  let comCupom = null;
   let valor = cheio;
+  let comCupom = null;
   if (cupom) {
-    const c = await conferirCupom(env, cupom, escolhido.id, anual ? "anual" : "mensal");
-    if (c.erro) return json({ erro: c.erro }, 400);
+    const c = await conferirCupom(env, cupom, escolhido.id, periodo);
+    if (c.erro) return { erro: c.erro, status: 400 };
     comCupom = { codigo: c.cupom.codigo, desconto: c.cupom.desconto, meses: c.cupom.meses, brinde: c.cupom.brinde, valor_cheio: cheio, cobrados: 0 };
     valor = c.valor;
   }
-  if (anual) {
-    const ref = "ia-anual-" + id + "-" + escolhido.id + "-" + aleatorio(4);
-    const volta = origem === "site" ? "https://paulus.ia.br/cadastro/?voltou=1" : "https://paulus.ia.br/";
-    const r = await mp(env, "/checkout/preferences", "POST", {
-      items: [{ id: "paulus-" + escolhido.id + "-anual", title: "PAULUS - plano " + escolhido.nome + " (anual)" + (comCupom ? " - cupom " + comCupom.codigo : ""),
-        quantity: 1, unit_price: valor, currency_id: "BRL" }],
-      payer: { email: para },
-      external_reference: ref,
-      payment_methods: { installments: 12 },
-      back_urls: { success: volta, pending: volta, failure: volta },
-      auto_return: "approved",
-      statement_descriptor: "PAULUS",
+  return { plano: escolhido, periodo, valor, cupom: comCupom, parcelas_max: anual ? 12 : 1 };
+}
+
+// Os motivos de recusa do cartao, em portugues (status_detail do Mercado Pago).
+const RECUSAS = {
+  cc_rejected_insufficient_amount: "o cartão não tem limite suficiente para este valor",
+  cc_rejected_bad_filled_security_code: "o código de segurança não confere",
+  cc_rejected_bad_filled_date: "a validade do cartão não confere",
+  cc_rejected_bad_filled_card_number: "o número do cartão não confere",
+  cc_rejected_bad_filled_other: "confira os dados do cartão",
+  cc_rejected_call_for_authorize: "o banco pede que você autorize este pagamento: ligue para ele e tente de novo",
+  cc_rejected_card_disabled: "o cartão está desativado: ligue para o banco ou use outro",
+  cc_rejected_duplicated_payment: "esse pagamento já foi feito há pouco: confira antes de tentar de novo",
+  cc_rejected_high_risk: "o pagamento foi recusado pela análise de risco: tente outro cartão",
+  cc_rejected_max_attempts: "foram muitas tentativas com este cartão: use outro",
+  cc_rejected_invalid_installments: "o cartão não aceita esse número de parcelas",
+  cc_rejected_blacklist: "o cartão não pode ser usado: tente outro",
+};
+function motivoDaRecusa(detalhe) {
+  return RECUSAS[String(detalhe || "")] || "o pagamento foi recusado: confira os dados ou use outro cartão";
+}
+
+/* O que veio do bloco de cartao, conferido: so o que o Mercado Pago precisa.
+   O valor nunca vem daqui (ofertaDoPagamento). */
+function cartaoDoBloco(c, parcelasMax) {
+  const x = c && typeof c === "object" ? c : {};
+  const token = String(x.token || "");
+  if (!/^[A-Za-z0-9]{16,64}$/.test(token)) return { erro: "o cartão não foi lido: digite de novo" };
+  const metodo = String(x.payment_method_id || "");
+  if (!/^[a-z0-9_]{2,30}$/.test(metodo)) return { erro: "a bandeira do cartão não foi reconhecida" };
+  const parcelas = Math.round(Number(x.installments) || 1);
+  if (parcelas < 1 || parcelas > parcelasMax) return { erro: parcelasMax === 1 ? "a assinatura mensal é sem parcelas" : "o anual vai em até " + parcelasMax + " parcelas" };
+  const pagador = x.payer && typeof x.payer === "object" ? x.payer : {};
+  const ident = pagador.identification && typeof pagador.identification === "object" ? pagador.identification : {};
+  const tipo = String(ident.type || "").toUpperCase();
+  const numero = soDigitos(ident.number);
+  const identificacao = (tipo === "CPF" && cpfValido(numero)) || (tipo === "CNPJ" && cnpjValido(numero)) ? { type: tipo, number: numero } : null;
+  if (!identificacao) return { erro: "o CPF ou CNPJ do titular do cartão não confere" };
+  const emissor = Number(x.issuer_id);
+  return { token, metodo, parcelas, identificacao, emissor: Number.isFinite(emissor) && emissor > 0 ? emissor : null };
+}
+
+/* A cobranca, com o token do cartao que o bloco do Mercado Pago gerou na
+   pagina /cadastro/pagamento. Mensal: a assinatura ja autorizada no cartao
+   (/preapproval, status authorized), que o Mercado Pago cobra todo mes. Anual:
+   o pagamento do ano (/v1/payments), em ate 12 parcelas, com os juros do
+   parcelamento por conta de quem parcela. E o unico lugar que cria cobranca
+   do plano. */
+async function pagar(env, conta, id, dono, mp, d) {
+  const atual = await conta.pedir("ler_cadastro");
+  if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
+  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
+  if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
+  const cartao = cartaoDoBloco(d.cartao, oferta.parcelas_max);
+  if (cartao.erro) return json({ erro: cartao.erro }, 400);
+  const { plano, valor } = oferta;
+  if (oferta.periodo === "mensal") {
+    const r = await mp(env, "/preapproval", "POST", {
+      reason: "PAULUS - plano " + plano.nome + (oferta.cupom ? " (cupom " + oferta.cupom.codigo + ")" : ""),
+      external_reference: "ia-assinatura-" + id,
+      payer_email: dono.email,
+      card_token_id: cartao.token,
+      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: valor, currency_id: "BRL" },
+      back_url: "https://paulus.ia.br/cadastro/",
+      status: "authorized",
     });
-    if (!r.ok) return json({ erro: "o Mercado Pago recusou criar o pagamento do ano", status: r.status }, 502);
-    await conta.pedir("anual_pendente", { ref, plano: escolhido.id, valor, cupom: comCupom });
-    if (comCupom) await usarCupom(env, comCupom.codigo);
-    return json({ id: r.dados.id, situacao: "pending", link: r.dados.init_point || "", plano: escolhido, valor, periodo: "anual", parcelas: 12, cupom: comCupom });
+    if (!r.ok || !r.dados || !r.dados.id) {
+      return json({ erro: "o Mercado Pago não aceitou o cartão para a assinatura: confira os dados ou use outro cartão de crédito", status_mp: r.status }, 402);
+    }
+    const resumo = await conta.pedir("assinatura", { plano: plano.id, cupom: oferta.cupom,
+      assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
+    if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
+    return json({ ok: true, periodo: "mensal", situacao: r.dados.status, conta: resumo });
   }
-  const r = await mp(env, "/preapproval", "POST", {
-    reason: "PAULUS - plano " + escolhido.nome + (comCupom ? " (cupom " + comCupom.codigo + ")" : ""),
-    external_reference: "ia-assinatura-" + id,
-    payer_email: para,
-    auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: valor, currency_id: "BRL" },
-    // Quem assina pelo site volta para a pagina de cadastro, que diz o que fazer em seguida.
-    back_url: origem === "site" ? "https://paulus.ia.br/cadastro/?voltou=1" : "https://paulus.ia.br/",
-    status: "pending",
-  });
-  if (!r.ok) return json({ erro: "o Mercado Pago recusou criar a assinatura", status: r.status }, 502);
-  await conta.pedir("assinatura", { plano: escolhido.id, cupom: comCupom, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
-  if (comCupom) await usarCupom(env, comCupom.codigo);
-  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido, valor, periodo: "mensal", cupom: comCupom });
+  // O anual: a referencia leva a conta e o plano; o pendente fica anotado para a conferencia.
+  const ref = "ia-anual-" + id + "-" + plano.id + "-" + aleatorio(4);
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, cupom: oferta.cupom });
+  const chave = /^[A-Za-z0-9-]{16,64}$/.test(String(d.idempotencia || "")) ? String(d.idempotencia) : crypto.randomUUID();
+  const corpo = {
+    transaction_amount: valor,
+    token: cartao.token,
+    description: "PAULUS - plano " + plano.nome + " (anual)",
+    installments: cartao.parcelas,
+    payment_method_id: cartao.metodo,
+    payer: { email: dono.email, identification: cartao.identificacao },
+    external_reference: ref,
+    statement_descriptor: "PAULUS",
+  };
+  if (cartao.emissor) corpo.issuer_id = cartao.emissor;
+  const r = await mp(env, "/v1/payments", "POST", corpo, { "X-Idempotency-Key": chave });
+  if (!r.ok || !r.dados) return json({ erro: "o Mercado Pago não respondeu ao pagamento: tente de novo em instantes", status_mp: r.status }, 502);
+  const pg = r.dados;
+  if (oferta.cupom && pg.status !== "rejected") await usarCupom(env, oferta.cupom.codigo);
+  if (pg.status === "approved") {
+    await confirmarAnual(env, pg, mp);
+    return json({ ok: true, periodo: "anual", situacao: "approved", pagamento: String(pg.id), paymentId: pg.id, conta: await conta.pedir("ler_cadastro") });
+  }
+  if (pg.status === "in_process" || pg.status === "pending") {
+    return json({ ok: true, periodo: "anual", situacao: "in_process", pagamento: String(pg.id), paymentId: pg.id,
+      mensagem: "o pagamento está em análise no Mercado Pago; o plano entra assim que for aprovado (costuma levar minutos)" });
+  }
+  return json({ erro: motivoDaRecusa(pg.status_detail), situacao: pg.status || "rejected" }, 402);
 }
 
 function dataBR(iso) {
@@ -945,10 +1030,21 @@ async function atenderSite(request, env, p, deps) {
     const antes = aberta.cadastro || null;
     const c = conferirCadastro(d, { exigirEndereco: !antes || Boolean(antes.endereco) });
     if (c.erro) return json({ erro: c.erro }, 400);
+    if (d.plano && !numeros(env).planos.some((x) => x.id === String(d.plano))) return json({ erro: "esse plano não existe" }, 400);
     await conta.pedir("cadastro", { cadastro: { ...c.cadastro, quando: new Date().toISOString() } });
-    if (!d.plano) return json(await conta.pedir("ler_cadastro"));
-    return criarAssinatura(env, conta, id, deps.chamarMP, { email: dono.email, plano: String(d.plano), origem: "site", cupom: d.cupom, periodo: d.periodo });
+    const salvo = await conta.pedir("ler_cadastro");
+    if (!d.plano) return json(salvo);
+    // Com o plano: o proximo passo e a pagina de pagamento, com o cartao no bloco do Mercado Pago.
+    const ida = await linkDoPagamento(env, conta, { plano: String(d.plano), periodo: d.periodo });
+    return json({ ...salvo, proximo: ida.link });
   }
+  if (p === "/api/ia/site/oferta") {
+    // O que a pagina de pagamento mostra: o valor calculado aqui, e nao no navegador.
+    const o = await ofertaDoPagamento(env, await conta.pedir("ler_cadastro"), { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
+    if (o.erro) return json({ erro: o.erro }, o.status);
+    return json({ ...o, email: dono.email, cadastro_completo: Boolean(aberta.cadastro) });
+  }
+  if (p === "/api/ia/site/pagar") return pagar(env, conta, id, dono, deps.chamarMP, d);
   return json({ erro: "rota não existe" }, 404);
 }
 

@@ -340,10 +340,10 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
     const anual = b.dataset.nuvemAssinar === "anual";
     const r = await nuvemPost("/api/nuvem/paulus/assinar", { plano: nuvemTela.plano, periodo: anual ? "anual" : "mensal" });
     if (!r) return;
-    if (!r.link) { avisoCert("o Mercado Pago não devolveu a página da assinatura", { tom: "erro" }); return; }
+    if (!r.link) { avisoCert("paulus.ia.br não devolveu a página de pagamento", { tom: "erro" }); return; }
     window.open(r.link, "_blank");
-    avisoCert(anual ? "Pague o ano na página do Mercado Pago que abriu (em até 12 vezes); depois, “Já paguei o ano”."
-      : "Ponha o cartão na página do Mercado Pago que abriu; depois, “Já pus o cartão”.");
+    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: o cartão vai no bloco do Mercado Pago" +
+      (anual ? ", em até 12 vezes." : ".") + " O plano aparece aqui assim que o pagamento for aprovado.");
     await carregarContaNuvem(true); redesenhar();
   }; });
   clique("[data-nuvem-conferir]", async () => {

@@ -80,6 +80,7 @@ export default {
         return json({ erro: "falha no servidor da nuvem" }, 500);
       }
     }
+    if (url.pathname === "/cadastro" || url.pathname.startsWith("/cadastro/")) return comCSP(await env.ASSETS.fetch(request));
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
       if (url.pathname === "/api/public/desenvolvimento" && request.method === "GET") return await publicoEmCache(request, ctx, () => desenvolvimento(request, env));
@@ -111,6 +112,39 @@ export default {
   },
 };
 
+/* A pagina de assinar e pagar (site/cadastro): o cartao e digitado nela, no
+   bloco do Mercado Pago. So rodam scripts do proprio site, do Mercado Pago e
+   do botao do Google; um script injetado (o golpe dos campos falsos por cima do
+   formulario) e bloqueado pelo navegador. O 'sha256-' e o do script de uma
+   linha do tema, no <head> das paginas (mudou o script, muda o resumo). O
+   MercadoPago.js injeta um script inline de telemetria (sendCookies /
+   setDeprecationLab), diferente a cada carga: ele fica bloqueado de proposito
+   - libera-lo pediria 'unsafe-inline' - e o bloco de cartao funciona sem ele
+   (conferido no Edge com a chave de teste, 03/10/2026). */
+export const CSP_CADASTRO = [
+  "default-src 'self'",
+  "script-src 'self' 'sha256-qoQyNfhaeU9+2dUXxZbTxEyCVcy00VHnE32+0mE38pc=' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://accounts.google.com/gsi/",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: https:",
+  "connect-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://accounts.google.com https://viacep.com.br",
+  "frame-src https://*.mercadopago.com https://*.mercadolibre.com https://*.mercadolivre.com https://accounts.google.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+function comCSP(resposta) {
+  const r = new Response(resposta.body, resposta);
+  if ((r.headers.get("content-type") || "").includes("text/html")) {
+    r.headers.set("content-security-policy", CSP_CADASTRO);
+    r.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+    r.headers.set("x-content-type-options", "nosniff");
+  }
+  return r;
+}
+
 function json(dados, status = 200) {
   return new Response(JSON.stringify(dados), {
     status,
@@ -133,9 +167,12 @@ async function lerPedido(request) {
   }
 }
 
-async function chamarMP(env, caminho, metodo, corpo) {
+/* `extra`: cabecalhos a mais; a cobranca com cartao manda a sua X-Idempotency-Key
+   (a mesma numa nova tentativa do mesmo pagamento nao cobra duas vezes). */
+async function chamarMP(env, caminho, metodo, corpo, extra = {}) {
   const headers = { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}`, "Content-Type": "application/json" };
   if (metodo === "POST") headers["X-Idempotency-Key"] = crypto.randomUUID();
+  Object.assign(headers, extra);
   const resposta = await fetch(MP + caminho, { method: metodo, headers, body: corpo ? JSON.stringify(corpo) : undefined });
   let dados = null;
   try {

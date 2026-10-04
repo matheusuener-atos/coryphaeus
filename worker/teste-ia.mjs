@@ -96,11 +96,24 @@ globalThis.fetch = async (url, init = {}) => {
     const caminho = u.slice("https://api.mercadopago.com".length);
     const metodo = init.method || "GET";
     const corpo = init.body ? JSON.parse(init.body) : null;
-    mpPedidos.push({ caminho, metodo, corpo });
+    mpPedidos.push({ caminho, metodo, corpo, headers: init.headers || {} });
     if (caminho === "/preapproval" && metodo === "POST") {
+      // Com o token do cartao, a assinatura ja nasce autorizada; o token "tokrecusa..." e recusado.
+      if (String(corpo.card_token_id || "").startsWith("tokrecusa")) return new Response(JSON.stringify({ message: "Card token invalid" }), { status: 400 });
       const id = "pre" + mpPreapprovals.size + "abc";
-      mpPreapprovals.set(id, { id, status: "pending", external_reference: corpo.external_reference, auto_recurring: corpo.auto_recurring });
-      return new Response(JSON.stringify({ id, status: "pending", init_point: "https://mp/assinar/" + id }), { status: 201 });
+      const status = corpo.card_token_id ? "authorized" : "pending";
+      mpPreapprovals.set(id, { id, status, external_reference: corpo.external_reference, auto_recurring: corpo.auto_recurring });
+      return new Response(JSON.stringify({ id, status }), { status: 201 });
+    }
+    if (caminho === "/v1/payments" && metodo === "POST") {
+      // O pagamento do cartao: "tokrecusa..." sem limite, "tokanalise..." em analise, o resto aprovado.
+      const id = String(7000 + mpPagamentos.size);
+      const t = String(corpo.token || "");
+      const status = t.startsWith("tokrecusa") ? "rejected" : t.startsWith("tokanalise") ? "in_process" : "approved";
+      const pg = { id: Number(id), status, status_detail: status === "rejected" ? "cc_rejected_insufficient_amount" : status === "approved" ? "accredited" : "pending_contingency",
+        external_reference: corpo.external_reference, transaction_amount: corpo.transaction_amount, date_approved: status === "approved" ? new Date(relogio).toISOString() : null };
+      mpPagamentos.set(id, pg);
+      return new Response(JSON.stringify(pg), { status: 201 });
     }
     let m = caminho.match(/^\/preapproval\/(.+)$/);
     if (m) {
@@ -119,10 +132,6 @@ globalThis.fetch = async (url, init = {}) => {
     if (m) {
       const o = mpOrders.get(decodeURIComponent(m[1]));
       return o ? new Response(JSON.stringify(o), { status: 200 }) : new Response("{}", { status: 404 });
-    }
-    if (caminho === "/checkout/preferences" && metodo === "POST") {
-      const id = "PREF" + mpPedidos.length;
-      return new Response(JSON.stringify({ id, init_point: "https://mp/pagar/" + id }), { status: 201 });
     }
     m = caminho.match(/^\/v1\/payments\/search\?external_reference=([^&]+)/);
     if (m) {
@@ -144,8 +153,8 @@ globalThis.fetch = async (url, init = {}) => {
   return new Response("{}", { status: 404 });
 };
 
-async function chamarMP(env, caminho, metodo, corpo) {
-  const r = await fetch("https://api.mercadopago.com" + caminho, { method: metodo, headers: {}, body: corpo ? JSON.stringify(corpo) : undefined });
+async function chamarMP(env, caminho, metodo, corpo, extra = {}) {
+  const r = await fetch("https://api.mercadopago.com" + caminho, { method: metodo, headers: { ...extra }, body: corpo ? JSON.stringify(corpo) : undefined });
   let dados = null;
   try { dados = await r.json(); } catch { dados = null; }
   return { ok: r.ok, status: r.status, dados };
@@ -189,6 +198,12 @@ async function ia(metodo, caminho, corpo, segredo) {
   return atenderIA(req, env, new URL(req.url), ctx, deps);
 }
 const corpoDe = async (r) => r.json();
+// O que o bloco de cartao do Mercado Pago entrega no onSubmit (o token e de mentira).
+const cartao = (token = "tokaprovado00000000001", extra = {}) => ({ token, payment_method_id: "master", issuer_id: "24", installments: 1,
+  transaction_amount: 1, payer: { email: "qualquer@x.com", identification: { type: "CPF", number: "529.982.247-25" } }, ...extra });
+// Os dados do escritorio (a pagina de cadastro), sem o id_token.
+const CADASTRO = { nome_escritorio: "Moura Advogados", documento: "529.982.247-25", telefone: "(91) 98888-7777", oab: "OAB/PA 12.345", aceite: true,
+  endereco: { cep: "66.010-000", logradouro: "Av. Presidente Vargas", numero: "100", complemento: "", bairro: "Campina", cidade: "Belém", uf: "PA", cmun: "1501402" } };
 
 // ------------------------------------------------ desligada
 {
@@ -233,15 +248,33 @@ const pergunta = { model: "meta-llama/Llama-3.3-70B-Instruct", messages: [{ role
 // ------------------------------------------------ assinar
 let preId;
 {
-  const r = await ia("POST", "/api/ia/assinar", { email: "dono@escritorio.com.br" }, segredo);
+  const r = await ia("POST", "/api/ia/assinar", { plano: "escritorio" }, segredo);
   const d = await corpoDe(r);
-  preId = d.id;
-  const criado = mpPedidos.find((p) => p.caminho === "/preapproval" && p.metodo === "POST");
-  checar(r.status === 200 && d.link.includes(preId), "assinar devolve o link do Mercado Pago", d);
-  checar(criado.corpo.auto_recurring.transaction_amount === 300 && /^ia-assinatura-[0-9a-f]{24}$/.test(criado.corpo.external_reference),
-    "a assinatura é de R$ 300/mês com a referência da conta", criado.corpo);
-  // O cartão posto: o aviso do Mercado Pago chega pelo Worker inteiro.
-  mpPreapprovals.get(preId).status = "authorized";
+  checar(r.status === 200 && d.link === "https://paulus.ia.br/cadastro/pagamento/?plano=escritorio&periodo=mensal" && !mpPedidos.some((p) => p.caminho === "/preapproval"),
+    "o PAULUS instalado abre a página de pagamento do site; nada é criado no Mercado Pago", d);
+  const pagar = (corpo) => ia("POST", "/api/ia/site/pagar", { id_token: "token-do-dono", plano: "escritorio", periodo: "mensal", cartao: cartao(), ...corpo });
+  checar((await pagar({})).status === 409, "sem os dados do escritório, não cobra");
+  const cad = await corpoDe(await ia("POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "token-do-dono", plano: "escritorio" }));
+  checar(cad.proximo === "https://paulus.ia.br/cadastro/pagamento/?plano=escritorio&periodo=mensal" && cad.cadastro, "o cadastro com o plano leva à página de pagamento", cad);
+  const of = await corpoDe(await ia("POST", "/api/ia/site/oferta", { id_token: "token-do-dono", plano: "escritorio", periodo: "mensal" }));
+  checar(of.valor === 300 && of.parcelas_max === 1 && of.email === "dono@escritorio.com.br" && of.cadastro_completo, "a oferta: o valor e as parcelas vêm do servidor", of);
+  checar((await pagar({ cartao: cartao(undefined, { installments: 3 }) })).status === 400, "a assinatura mensal é sem parcelas");
+  checar((await pagar({ cartao: cartao("12") })).status === 400, "token que não parece do bloco é recusado");
+  checar((await pagar({ cartao: cartao(undefined, { payer: { identification: { type: "CPF", number: "111.111.111-11" } } }) })).status === 400,
+    "o CPF do titular do cartão é conferido");
+  const ruim = await pagar({ cartao: cartao("tokrecusa000000000001") });
+  checar(ruim.status === 402 && (await corpoDe(ruim)).erro.includes("não aceitou o cartão"), "cartão recusado na assinatura: 402, com a frase");
+  const r2 = await pagar({});
+  const d2 = await corpoDe(r2);
+  const criado = mpPedidos.filter((p) => p.caminho === "/preapproval" && p.metodo === "POST").at(-1).corpo;
+  preId = [...mpPreapprovals.keys()].at(-1);
+  checar(r2.status === 200 && d2.situacao === "authorized" && criado.status === "authorized" && criado.card_token_id === "tokaprovado00000000001"
+    && criado.auto_recurring.transaction_amount === 300 && /^ia-assinatura-[0-9a-f]{24}$/.test(criado.external_reference)
+    && criado.payer_email === "dono@escritorio.com.br" && criado.init_point === undefined,
+    "o token do cartão vira a assinatura autorizada de R$ 300/mês (o valor é o do servidor, e não o do bloco)", criado);
+  checar(d2.conta.plano_vigente, "e o plano vale na hora, sem esperar o aviso");
+  checar((await pagar({ cartao: cartao("tokaprovado00000000009") })).status === 409, "com a assinatura ativa, não cobra de novo");
+  // O aviso do Mercado Pago chega pelo Worker inteiro e não muda nada.
   const av = await worker.fetch(aviso(preId, "subscription_preapproval"), env, ctx);
   await Promise.all(pendentes.splice(0));
   checar(av.status === 200, "o aviso da assinatura é aceito");
@@ -446,14 +479,14 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const antes = mpPreapprovals.size;
   r = await ia("POST", "/api/ia/site/cadastro", { ...base, plano: "advogado" });
   const assinou = await corpoDe(r);
+  checar(r.status === 200 && assinou.proximo.endsWith("?plano=advogado&periodo=mensal") && mpPreapprovals.size === antes,
+    "o cadastro com o plano Advogado leva ao pagamento, sem criar nada antes do cartão", assinou);
+  await ia("POST", "/api/ia/site/pagar", { id_token: "token-novo", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000003") });
   const pre = [...mpPreapprovals.values()].at(-1);
-  checar(r.status === 200 && assinou.link && mpPreapprovals.size === antes + 1 && pre.auto_recurring.transaction_amount === 150,
-    "o cadastro com o plano Advogado cria a assinatura de R$ 150 no Mercado Pago", assinou);
   const pedidoMP = mpPedidos.filter((x) => x.caminho === "/preapproval" && x.metodo === "POST").at(-1).corpo;
-  checar(pedidoMP.back_url === "https://paulus.ia.br/cadastro/?voltou=1" && pedidoMP.payer_email === "nova@advocacia.com.br",
-    "quem assina pelo site volta para a página de cadastro; o recibo vai ao e-mail do Google", pedidoMP);
+  checar(mpPreapprovals.size === antes + 1 && pre.auto_recurring.transaction_amount === 150 && pedidoMP.back_url === "https://paulus.ia.br/cadastro/"
+    && pedidoMP.payer_email === "nova@advocacia.com.br", "pago no bloco: a assinatura de R$ 150; o recibo vai ao e-mail do Google", pedidoMP);
 
-  pre.status = "authorized";
   const situacao = await corpoDe(await ia("POST", "/api/ia/site/situacao", { id_token: "token-novo" }));
   checar(situacao.plano_vigente && situacao.plano.id === "advogado" && situacao.ciclo.tokens === 12000000,
     "cartão aceito: o plano Advogado vale, com 12 milhões de tokens", { plano: situacao.plano, ciclo: situacao.ciclo });
@@ -648,27 +681,31 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const refRec = mpPedidos.filter((x) => x.caminho === "/v1/orders").at(-1).corpo.external_reference;
   checar(rec.valor === "120.00" && rec.tokens === 10000000 && refRec.endsWith("-escritorio"), "a recarga do Escritório: 10 milhões por R$ 120", { rec, refRec });
 
-  // O anual: paga o ano (parcelável), o plano vale 12 meses, e cada mês abre o seu ciclo.
+  // O anual: paga o ano no bloco de cartão (em até 12 parcelas), o plano vale 12 meses e cada mês abre o seu ciclo.
   donos["tk-804"] = { sub: "804", email: "anual@a.br" };
   const an = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-804", instalacao_id: "inst-804-0001" }));
-  r = await pedir(envReal, "POST", "/api/ia/assinar", { plano: "advogado", periodo: "anual" }, an.segredo);
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-804" });
+  const pagarAno = (tk, plano, corpo = {}) => pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: tk, plano, periodo: "anual", ...corpo });
+  checar((await pagarAno("tk-804", "advogado", { periodo: "trimestral", cartao: cartao() })).status === 400, "período que não existe é recusado");
+  checar((await pagarAno("tk-804", "advogado", { cartao: cartao(undefined, { installments: 13 }) })).status === 400, "o anual vai em até 12 parcelas");
+  r = await pagarAno("tk-804", "advogado", { idempotencia: "chave-anual-0000000001", cartao: cartao("tokaprovado00000000004", { installments: 12, transaction_amount: 1 }) });
   const pa = await corpoDe(r);
-  const pref = mpPedidos.filter((x) => x.caminho === "/checkout/preferences").at(-1).corpo;
-  checar(r.status === 200 && pa.link.startsWith("https://mp/pagar/") && pa.parcelas === 12 && pref.items[0].unit_price === 3990
-    && pref.payment_methods.installments === 12 && /^ia-anual-[0-9a-f]{24}-advogado-[0-9a-f]+$/.test(pref.external_reference),
-    "o anual do Advogado: R$ 3.990 no Checkout Pro, em até 12 vezes", pref);
-  checar((await pedir(envReal, "POST", "/api/ia/assinar", { plano: "advogado", periodo: "trimestral" }, an.segredo)).status === 400, "período que não existe é recusado");
-  mpPagamentos.set("9001", { id: 9001, status: "approved", external_reference: pref.external_reference, transaction_amount: 3990, date_approved: new Date(relogio).toISOString() });
-  // Sem o aviso ainda: a consulta da situação acha o pagamento.
-  let sa2 = await corpoDe(await pedir(envReal, "GET", "/api/ia/assinatura", null, an.segredo));
+  const pg = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1);
+  checar(r.status === 200 && pa.situacao === "approved" && pg.corpo.transaction_amount === 3990 && pg.corpo.installments === 12 && pg.corpo.payment_method_id === "master"
+    && pg.corpo.issuer_id === 24 && pg.headers["X-Idempotency-Key"] === "chave-anual-0000000001" && pg.corpo.payer.email === "anual@a.br"
+    && pg.corpo.payer.identification.number === "52998224725" && /^ia-anual-[0-9a-f]{24}-advogado-[0-9a-f]+$/.test(pg.corpo.external_reference),
+    "o anual do Advogado: R$ 3.990 (do servidor) em 12 parcelas, com a chave de idempotência da página", pg);
+  let sa2 = pa.conta;
   checar(sa2.plano_vigente && sa2.periodo === "anual" && sa2.plano.id === "advogado" && sa2.assinatura.periodo === "anual"
     && Date.parse(sa2.pago_ate) - relogio > 364 * 24 * 3600 * 1000 && sa2.ciclo.tokens === 30000000,
-    "pago: o ano vale, com o ciclo do mês aberto", { periodo: sa2.periodo, pago_ate: sa2.pago_ate, ciclo: sa2.ciclo });
+    "aprovado: o ano vale na hora, com o ciclo do mês aberto", { periodo: sa2.periodo, pago_ate: sa2.pago_ate, ciclo: sa2.ciclo });
+  checar(!mpPedidos.some((x) => x.caminho === "/checkout/preferences"), "nenhum redirecionamento ao Checkout Pro");
   // O aviso depois não credita de novo.
-  await worker.fetch(aviso("9001", "payment"), envReal, ctx);
+  await worker.fetch(aviso(pa.pagamento, "payment"), envReal, ctx);
   await Promise.all(pendentes.splice(0));
   const pagos = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "804").dados.get("conta").pagamentos;
-  checar(pagos.length === 1 && [...guardados.keys()].includes("admin:nfse:9001"), "o aviso repetido não paga duas vezes; a nota fiscal entra na fila", pagos);
+  checar(pagos.length === 1 && [...guardados.keys()].includes("admin:nfse:" + pa.pagamento), "o aviso repetido não paga duas vezes; a nota fiscal entra na fila", pagos);
+  checar((await pagarAno("tk-804", "advogado", { cartao: cartao("tokaprovado00000000005") })).status === 409, "ano pago: só renova nos últimos 45 dias");
   checar((await pedir(envReal, "POST", "/api/ia/assinatura/cancelar", null, an.segredo)).status === 409, "o anual não tem o que cancelar: não renova sozinho");
   checar((await pedir(envReal, "POST", "/api/ia/plano", { plano: "plus" }, an.segredo)).status === 409, "no anual, a troca de plano é na renovação");
   relogio += 40 * 24 * 3600 * 1000;
@@ -680,33 +717,58 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar(!sa2.plano_vigente && sa2.assinatura.situacao === "expired", "depois do ano, sem renovar, o plano acaba", sa2.assinatura);
   relogio -= 370 * 24 * 3600 * 1000;
 
+  // Recusado e em análise.
+  donos["tk-806"] = { sub: "806", email: "recusa@a.br" };
+  const rc = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-806", instalacao_id: "inst-806-0001" }));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-806" });
+  r = await pagarAno("tk-806", "escritorio", { cartao: cartao("tokrecusa000000000002", { installments: 3 }) });
+  const dr = await corpoDe(r);
+  checar(r.status === 402 && dr.erro === "o cartão não tem limite suficiente para este valor", "recusado: 402, com o motivo em português", dr);
+  r = await pagarAno("tk-806", "escritorio", { cartao: cartao("tokanalise000000000001", { installments: 3 }) });
+  const dan = await corpoDe(r);
+  let crc = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, rc.segredo));
+  checar(r.status === 200 && dan.situacao === "in_process" && !crc.plano_vigente && crc.anual_pendente, "em análise: o plano espera a aprovação", dan);
+  mpPagamentos.get(dan.pagamento).status = "approved";
+  await worker.fetch(aviso(dan.pagamento, "payment"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  crc = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, rc.segredo));
+  checar(crc.plano_vigente && crc.periodo === "anual" && crc.plano.id === "escritorio" && !crc.anual_pendente, "aprovado depois, pelo aviso: o ano entra", crc.plano);
+
   // Do mensal para o anual: a assinatura mensal sai do Mercado Pago.
   donos["tk-805"] = { sub: "805", email: "troca@a.br" };
   const tr = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-805", instalacao_id: "inst-805-0001" }));
-  const mensal = await corpoDe(await pedir(envReal, "POST", "/api/ia/assinar", { plano: "escritorio" }, tr.segredo));
-  checar(mpPreapprovals.get(mensal.id).auto_recurring.transaction_amount === 1290, "o mensal do Escritório é de R$ 1.290");
-  mpPreapprovals.get(mensal.id).status = "authorized";
-  await worker.fetch(aviso(mensal.id, "subscription_preapproval"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  await pedir(envReal, "POST", "/api/ia/assinar", { plano: "plus", periodo: "anual" }, tr.segredo);
-  const refTr = mpPedidos.filter((x) => x.caminho === "/checkout/preferences").at(-1).corpo.external_reference;
-  mpPagamentos.set("9002", { id: 9002, status: "approved", external_reference: refTr, transaction_amount: 30990 });
-  await worker.fetch(aviso("9002", "payment"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-805" });
+  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-805", plano: "escritorio", periodo: "mensal", cartao: cartao("tokaprovado00000000006") });
+  const mensalId = [...mpPreapprovals.keys()].at(-1);
+  checar(mpPreapprovals.get(mensalId).auto_recurring.transaction_amount === 1290 && mpPreapprovals.get(mensalId).status === "authorized", "o mensal do Escritório é de R$ 1.290");
+  const pt = await corpoDe(await pagarAno("tk-805", "plus", { cartao: cartao("tokaprovado00000000007", { installments: 6 }) }));
   let ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
-  checar(mpPreapprovals.get(mensal.id).status === "cancelled" && ct.plano.id === "plus" && ct.periodo === "anual" && ct.ciclo.tokens === 40000000,
-    "passou ao anual do Plus: o mensal é cancelado no Mercado Pago e o ciclo novo é do Plus", { mp: mpPreapprovals.get(mensal.id).status, plano: ct.plano.id });
+  checar(mpPreapprovals.get(mensalId).status === "cancelled" && ct.plano.id === "plus" && ct.periodo === "anual" && ct.ciclo.tokens === 40000000,
+    "passou ao anual do Plus: o mensal é cancelado no Mercado Pago e o ciclo novo é do Plus", { mp: mpPreapprovals.get(mensalId).status, plano: ct.plano.id });
   // O aviso do mensal cancelado, que chega depois, não mexe no anual.
-  await worker.fetch(aviso(mensal.id, "subscription_preapproval"), envReal, ctx);
+  await worker.fetch(aviso(mensalId, "subscription_preapproval"), envReal, ctx);
   await Promise.all(pendentes.splice(0));
   ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
   checar(ct.assinatura.situacao === "authorized" && ct.assinatura.periodo === "anual", "o aviso do mensal cancelado não derruba o anual", ct.assinatura);
   // O reembolso dos 7 dias (estorno no Mercado Pago): o plano acaba na hora.
-  mpPagamentos.get("9002").status = "refunded";
-  await worker.fetch(aviso("9002", "payment"), envReal, ctx);
+  mpPagamentos.get(pt.pagamento).status = "refunded";
+  await worker.fetch(aviso(pt.pagamento, "payment"), envReal, ctx);
   await Promise.all(pendentes.splice(0));
   ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
   checar(!ct.plano_vigente && ct.assinatura.situacao === "refunded", "estornado, o plano anual acaba", ct.assinatura);
+
+  // A chave pública e a CSP da página de pagamento.
+  const cfg = await pedir({ ...envReal, MP_PUBLIC_KEY: "TEST-chave-publica" }, "GET", "/api/ia/mp-config");
+  checar(cfg.status === 200 && (await corpoDe(cfg)).publicKey === "TEST-chave-publica" && cfg.headers.get("cache-control").includes("no-store"),
+    "a chave pública sai do Worker, sem cache");
+  checar((await pedir(envReal, "GET", "/api/ia/mp-config")).status === 503, "sem a chave pública: 503");
+  const html = { fetch: async () => new Response("<!doctype html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }) };
+  const pagina = await worker.fetch(new Request("https://paulus.ia.br/cadastro/pagamento/"), { ...envReal, ASSETS: html }, ctx);
+  const csp = pagina.headers.get("content-security-policy") || "";
+  checar(/script-src 'self' 'sha256-[A-Za-z0-9+\/=]+' https:\/\/sdk\.mercadopago\.com/.test(csp) && !/script-src[^;]*'unsafe-inline'/.test(csp)
+    && csp.includes("frame-ancestors 'none'") && csp.includes("object-src 'none'"), "a página de pagamento sai com a CSP: só scripts do site, do Mercado Pago e do Google", csp);
+  const inicio = await worker.fetch(new Request("https://paulus.ia.br/"), { ...envReal, ASSETS: html }, ctx);
+  checar(!inicio.headers.get("content-security-policy"), "as outras páginas não mudam");
 
   // O cupom no anual vale sobre o ano.
   guardados.set("admin:cupom:ANO10", JSON.stringify({ codigo: "ANO10", desconto: 10, meses: 1, ativo: true, planos: [] }));

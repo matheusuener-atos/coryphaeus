@@ -146,3 +146,34 @@ O dono fechou três planos que diferem em IA e em recursos, não só em tokens:
 cliente (não aparecem nas telas nem no site); o desconto do uso
 de IA no reembolso (CDC, art. 49: devolução integral; a semana sem
 adiantamento limita o risco).
+
+### O pagamento embutido (03/10/2026)
+
+O cartão deixou de ir para a página do Mercado Pago: ele é digitado em
+`paulus.ia.br/cadastro/pagamento/`, no bloco de cartão do Mercado Pago (Card
+Payment Brick, `site/assets/pagamento.js`). Os campos do cartão são quadros do
+Mercado Pago (`secure-fields.mercadopago.com`); a página recebe só o token.
+
+- **Um lugar só cobra:** `pagar` em `worker/ia.js` (`POST /api/ia/site/pagar`).
+  Mensal: `/preapproval` com `card_token_id` e `status: authorized` (o plano vale
+  na hora). Anual: `/v1/payments` em até 12 parcelas, com a `X-Idempotency-Key`
+  da página (nova depois de uma recusa). O valor é o de `ofertaDoPagamento`,
+  nunca o do bloco. Recusas com o motivo em português (`RECUSAS`).
+- **O PAULUS instalado** não cria mais cobrança: `/api/ia/assinar` devolve o
+  link da página de pagamento, que se abre no navegador com a mesma conta Google.
+- **Chave pública:** `MP_PUBLIC_KEY` no `wrangler.jsonc` (a da aba Produção do
+  app "PAULUS Apoio"), lida pela página em `GET /api/ia/mp-config`, sem cache.
+- **CSP** em `/cadastro/*` (`CSP_CADASTRO` em `worker/index.js`; `/cadastro`
+  entrou no `run_worker_first`): só scripts do site, do Mercado Pago e do Google.
+  Conferido no Edge com a chave de teste: o bloco monta sob a CSP; fica bloqueado
+  só um script inline de telemetria do SDK (`sendCookies`), de propósito.
+- **Validadores do plugin do Mercado Pago** (`validate-bricks-integration`,
+  `validate-subscriptions-integration`): não passam, por convenções de app
+  Node/Express (rotas `/api/mp-config` e `/api/subscriptions/:id`,
+  `process.env.PORT`, a URL da API literal no `fetch`); o equivalente de cada
+  um existe aqui com outro nome.
+
+**Falta do dono:** testar um pagamento com usuário e cartão de teste do Mercado
+Pago (`/mp-integrate test-setup`) e rodar `/mp-review` antes de produção; ligar
+a verificação em duas etapas no GitHub e na Cloudflare (quem publica o site
+publica a página do cartão).

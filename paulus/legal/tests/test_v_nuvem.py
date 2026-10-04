@@ -122,7 +122,7 @@ class Nuvem:
         elif url.endswith("/api/ia/modelos"):
             dados = {"modelos": ["meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen2.5-72B-Instruct"]}
         elif url.endswith("/api/ia/assinar"):
-            dados = {"id": "pre1", "link": "https://www.mercadopago.com.br/assinar/pre1"}
+            dados = {"link": "https://paulus.ia.br/cadastro/pagamento/?plano=escritorio&periodo=mensal", "periodo": "mensal"}
         elif url.endswith("/api/ia/recarga"):
             dados = {"id": "ORD1", "valor": "50.00", "tokens": 10000000, "qr_code": "000201pix", "qr_code_base64": "", "vence_em_minutos": 30}
         elif "/api/ia/recarga/" in url:
@@ -358,7 +358,7 @@ def main() -> int:
     r = local.get("/api/nuvem/paulus/conta?forcar=true").json()
     checar(r["conta"]["plano_vigente"] and r["conta"]["tokens"]["hoje"] == 1200, "a tela lê o plano do Worker", r)
     r = local.post("/api/nuvem/paulus/assinar", json={}).json()
-    checar(r["link"].startswith("https://www.mercadopago.com.br/"), "assinar devolve a página do Mercado Pago", r)
+    checar(r["link"].startswith("https://paulus.ia.br/cadastro/pagamento/"), "assinar devolve a página de pagamento do site (o cartão vai no bloco do Mercado Pago)", r)
     r = local.post("/api/nuvem/paulus/recarga", json={}).json()
     checar(r["qr_code"] == "000201pix" and r["tokens"] == 10000000, "a recarga devolve o Pix", r)
     r = local.get("/api/nuvem/paulus/recarga/ORD1").json()

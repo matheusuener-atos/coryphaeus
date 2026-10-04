@@ -79,6 +79,15 @@
 .plano-itens { display: grid; gap: 4px; margin: 8px 0 4px; padding: 0 2px; list-style: none; font-size: 12.5px; line-height: 1.45; color: var(--ink2); }
 .plano-itens li { display: flex; gap: 8px; }
 .plano-itens li::before { content: "·"; color: var(--ink3); }
+/* ---------- Pagamento (o bloco de cartao do Mercado Pago) ---------- */
+.pg-col { max-width: 440px; gap: 24px; }
+.pg-total { display: grid; gap: 4px; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+.pg-total small { font-size: 12px; line-height: 1.45; color: var(--ink3); }
+.pg-estado { text-align: center; }
+.pg-bloco { min-height: 1px; }
+.pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.pg-voltar .icon { font-size: 16px; }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }
 .conta-linha { font-size: 13px; line-height: 1.55; color: var(--ink2); text-align: center; }
 .conta-linha b { color: var(--ink); font-weight: 500; }

@@ -515,7 +515,7 @@ async function verUpgrade() {
     titulo: "Planos", contexto: "Plano e consumo", classe: "pc-dialogo pc-dialogo-planos", confirmar: "Fechar", semCancelar: true,
     html: '<p class="pc-texto">' + (anual ? "O plano anual vale até " + esc(pcData(c.pago_ate)) + ". A troca de plano é na renovação, que abre 45 dias antes."
       : ativa ? "Trocar no mensal vale na próxima renovação: o valor novo é cobrado nela, e os créditos do plano novo entram com ela. Passar ao anual vale assim que o ano é pago; a assinatura mensal é cancelada no Mercado Pago."
-        : "O mensal abre no Mercado Pago, onde se põe o cartão. O anual paga o ano de uma vez, em até 12 vezes no cartão, com os juros do parcelamento por conta de quem parcela.") +
+        : "O pagamento abre em paulus.ia.br, com o cartão no bloco do Mercado Pago. O anual paga o ano de uma vez, em até 12 vezes no cartão, com os juros do parcelamento por conta de quem parcela.") +
       " Os 7 primeiros dias são de arrependimento, com o dinheiro de volta.</p>" + '<div class="pc-planos">' + colunas + "</div>" });
   document.querySelectorAll("#veu-dialogo [data-pc-opcao]").forEach((b) => b.addEventListener("click", () => {
     escolhido = b.dataset.pcOpcao;
@@ -533,8 +533,8 @@ async function verUpgrade() {
     const res = await nuvemPost("/api/nuvem/paulus/assinar", { plano: escolhido, periodo: periodo });
     if (!res) return;
     if (res.link) window.open(res.link, "_blank");
-    avisoCert(periodo === "anual" ? "Pague o ano na página do Mercado Pago que abriu; o plano entra assim que o pagamento for aprovado."
-      : "Ponha o cartão na página do Mercado Pago que abriu.");
+    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: o cartão vai no bloco do Mercado Pago" +
+      (periodo === "anual" ? ", em até 12 vezes" : "") + ". O plano entra assim que o pagamento for aprovado.");
   }
   await carregarConsumo(true);
 }
