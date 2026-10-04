@@ -13,11 +13,10 @@
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   var CHAVE = "pv-cadastro-token";
   var $ = function (id) { return document.getElementById(id); };
-  var estado = { planos: [], escolhido: "escritorio", periodo: "mensal", token: "", conta: null, cupom: null };
+  var estado = { planos: [], escolhido: "escritorio", periodo: "mensal", token: "", conta: null, cupom: null, aberto: {} };
 
   function brl(v) { return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }); }
   function milhoes(t) { return (t / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " milhões de créditos"; }
-  function perguntas(t) { return "~" + (Math.round(t / 3500 / 100) * 100).toLocaleString("pt-BR") + " perguntas por mês"; }
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
   function mostrarErro(id, texto) {
@@ -41,27 +40,63 @@
   /* ------------------------------------------------------------ planos */
 
   var NIVEL = { estagiario: "Estagiário", bacharel: "Bacharel", advogado: "Advogado", juiz: "Juiz", ministro: "Ministro" };
+  var PARA = { advogado: "Para quem advoga sozinho.", escritorio: "Para escritórios com equipe.", plus: "Para escritórios que querem a melhor IA do mercado." };
+  var HERANCA = { escritorio: "Tudo do Advogado, e mais", plus: "Tudo do Escritório, e mais" };
+  // O plano que a pagina recomenda (a faixa). "Recomendado", e nao "mais
+  // escolhido": a pagina so diz o que e verdade.
+  var RECOMENDADO = "escritorio";
 
-  /* O que o plano tem (os recursos que o Worker manda): so o que o programa faz hoje. */
+  /* Os itens de cada plano: [titulo, o que abre]. Os numeros (creditos,
+     pessoas, NFS-e, agentes, profundidade, o modelo) vem do Worker; o texto e
+     daqui. "(em breve)" no texto marca o que ainda nao existe. Plano que o
+     Worker tiver e esta lista nao, mostra so os numeros. */
   function itensDoPlano(p) {
     var r = p.recursos || {};
-    var ia = (p.modelos_info || []).map(function (m) { return m.nome + " (" + m.empresa + ")"; }).join(" + ");
-    var itens = ["IA " + ia, milhoes(p.tokens) + " por mês, renovados por semana", r.profundidade ? "Profundidade até " + (NIVEL[r.profundidade] || r.profundidade) : "",
-      p.pessoas === 1 ? "1 pessoa" : "Até " + p.pessoas + " pessoas, cada uma com a sua conta"];
-    if (r.nfse_mes === null) itens.push("Emissor de NFS-e sem limite" + (r.nfse_recorrente ? ", com notas recorrentes" : ""));
-    else if (r.nfse_mes > 0) itens.push("Emissor de NFS-e, até " + r.nfse_mes + " por mês");
-    if (r.datajud) itens.push("Processos acompanhados no DataJud");
-    if (r.gravacao) itens.push("Gravação e transcrição de reuniões");
-    if (r.ao_vivo) itens.push("Sugestões jurídicas ao vivo na reunião");
-    if (r.word) itens.push("Assistente dentro do Word");
-    if (r.mcp) itens.push("Conexão MCP com outras IAs");
-    if (r.agentes) itens.push("Até " + r.agentes + " agentes personalizados");
-    else if (r.agentes === null) itens.push("Agentes personalizados sem limite");
-    return itens.filter(Boolean);
+    var modelos = p.modelos_info || [];
+    var empresas = modelos.map(function (m) { return m.empresa; }).filter(function (e, i, l) { return l.indexOf(e) === i; });
+    var ia = ["IA " + modelos.map(function (m) { return m.nome; }).join(" e ") + (empresas.length ? ", da " + empresas.join(" e da ") : ""),
+      "Com " + milhoes(p.tokens) + " por mês, liberados por semana." + (r.profundidade ? " Profundidade até " + (NIVEL[r.profundidade] || r.profundidade) + "." : "")];
+    var pessoas = p.pessoas > 1 ? ["Até " + p.pessoas + " pessoas", "Cada uma com login Google, código no celular, permissões próprias, e-mail e agenda próprios." +
+      (r.consumo_por_pessoa ? " Consumo de IA por pessoa, com limite definido por você." : "")] : null;
+    var nfse = r.nfse_mes === null ? ["NFS-e sem limite", "Nota fiscal de serviço nacional" + (r.nfse_recorrente ? ", com notas recorrentes." : ".")]
+      : r.nfse_mes > 0 ? ["Nota fiscal de serviço", "NFS-e nacional: até " + r.nfse_mes + " por mês." + (r.horas ? " Horas por serviço que viram cobrança no financeiro." : "")] : null;
+    var agentes = r.agentes ? ["Até " + r.agentes + " agentes personalizados", "Agentes com as suas instruções, para tarefas que se repetem."]
+      : r.agentes === null && r.autonomia ? ["Agentes sem limite", "Inclusive o que faz sozinho tarefas de vários passos."] : null;
+    var porPlano = {
+      advogado: [ia,
+        ["Converse com os seus documentos", "Toda resposta mostra o trecho de onde saiu. Prazos, valores e partes lidos sozinhos dos documentos, inclusive de PDF escaneado. Foto de documento pelo celular, que vira PDF pesquisável."],
+        ["Processos, prazos e intimações", "Pastas de processo com etapas, e os prazos entram na Agenda. Intimações do DJEN pela sua OAB, todo dia, com o prazo contado em dias úteis."],
+        ["Agenda, e-mail e reuniões", "Agenda, tarefas, Google Agenda e Google Meet. E-mail: acompanha a caixa, acha prazos e traduz mensagens."],
+        ["Clientes e financeiro", "Cadastro de clientes e financeiro, com relatórios em PDF e Excel."],
+        ["Editores e assinatura digital", "Editor de peças, planilha com fórmulas em português e editor de PDF. Assinatura digital com certificado A1."],
+        ["Biblioteca jurídica", "Constituição, 11 códigos, súmulas e temas do STJ, e a sua posição sobre cada artigo."],
+        agentes,
+        ["Acesso pelo celular", "De qualquer lugar, no seu endereço nome.paulus.ia.br."],
+        ["Nada sai sem a sua aprovação", "Nada sai do programa sem a sua aprovação. Backup, WhatsApp, foco e bem-estar."]],
+      escritorio: [ia, pessoas, nfse,
+        r.datajud ? ["Processos no DataJud", "Processos acompanhados no DataJud todo dia. A IA explicando cada movimentação do processo (em breve)."] : null,
+        r.gravacao ? ["Gravação de reuniões", "Com transcrição no seu computador e resumo."] : null,
+        r.muralha ? ["Alerta de conflito de interesses", "Alerta de conflito de interesses entre clientes."] : null,
+        agentes,
+        r.jurisprudencia_stj ? ["Jurisprudência completa do STJ", "No seu computador."] : null],
+      plus: [ia, pessoas,
+        r.word ? ["Assistente dentro do Word", "Nos documentos criados pelo PAVLVS."] : null,
+        nfse,
+        r.ao_vivo ? ["Reuniões e cliente", "Sugestões jurídicas ao vivo durante a reunião. Página para o seu cliente acompanhar o processo (em breve)."] : null,
+        r.mcp ? ["Conexão com outras IAs pelo MCP", "Conecte o PAVLVS a outras IAs e ferramentas pelo protocolo MCP."] : null,
+        ["Implantação assistida", "Implantação assistida e suporte prioritário."]],
+    };
+    return (porPlano[p.id] || [ia, pessoas, nfse, agentes]).filter(Boolean);
   }
 
   function valorDe(p) { return estado.periodo === "anual" ? p.valor_anual : p.valor; }
   function sufixo() { return estado.periodo === "anual" ? "/ano" : "/mês"; }
+
+  /* "3 meses grátis": quantos meses inteiros o anual poupa (o menor entre os planos). */
+  function mesesGratis() {
+    var m = estado.planos.map(function (p) { return Math.floor((p.valor * 12 - p.valor_anual) / p.valor); });
+    return m.length ? Math.min.apply(null, m) : 0;
+  }
 
   function desenharPeriodo() {
     ["mensal", "anual"].forEach(function (x) {
@@ -69,34 +104,77 @@
       b.setAttribute("aria-checked", String(estado.periodo === x));
       b.classList.toggle("on", estado.periodo === x);
     });
+    var gratis = mesesGratis();
+    $("cd-selo-anual").textContent = gratis > 0 ? gratis + (gratis === 1 ? " mês grátis" : " meses grátis") : "";
     $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "o ano, em até 12×" : "cobrança mensal";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
       ? "O ano é pago de uma vez, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela), nos campos seguros do Mercado Pago da próxima página. A cota de IA continua mensal. O anual não renova sozinho."
       : "No próximo passo, o cartão é digitado nos campos seguros do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
   }
 
+  function brlFino(v) { return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: Number(v) % 1 ? 2 : 0, maximumFractionDigits: 2 }); }
+
+  function cartao(p, on, travado, selo) {
+    var anual = estado.periodo === "anual";
+    var mesAno = Math.round((p.valor_anual / 12) * 100) / 100;
+    var det = anual ? "Equivale a " + brlFino(mesAno) + " por mês. Você economiza " + brlFino(p.valor * 12 - p.valor_anual) + "."
+      : "Ou " + brlFino(p.valor_anual) + " por ano, equivalente a " + brlFino(mesAno) + " por mês.";
+    var porPessoa = p.pessoas > 1 ? brlFino(Math.round(((anual ? mesAno : p.valor) / p.pessoas) * 100) / 100) + " por pessoa, por mês." : "";
+    var itens = itensDoPlano(p).map(function (it, i) {
+      var chave = p.id + ":" + i;
+      var aberto = Boolean(estado.aberto[chave]);
+      var breve = /\(em breve\)/.test(it[1]);
+      return '<div class="cd-item"><button type="button" class="cd-item-botao" data-item="' + esc(chave) + '" aria-expanded="' + aberto + '">' +
+        '<span class="icon" aria-hidden="true">check</span><span>' + esc(it[0]) + (breve ? '<span class="cd-breve">parte em breve</span>' : "") + "</span>" +
+        '<span class="icon cd-seta" aria-hidden="true">expand_more</span></button>' + (aberto ? "<p>" + esc(it[1]) + "</p>" : "") + "</div>";
+    }).join("");
+    // A licenca do Llama pede o "Built with Llama" visivel onde ele e oferecido.
+    var llama = (p.modelos_info || []).some(function (m) { return /llama/i.test(m.nome); });
+    var acao = travado ? "Plano de cortesia" : on ? "Assinar " + p.nome : "Escolher " + p.nome;
+    return '<article class="cd-cartao' + (on ? " on" : "") + (travado ? " travado" : "") + '" data-plano="' + esc(p.id) + '" aria-label="Plano ' + esc(p.nome) + '">' +
+      (p.id === RECOMENDADO ? '<span class="cd-faixa">recomendado</span>' : "") +
+      '<div class="cd-cabeca"><span class="cd-nome"><b>' + esc(p.nome) + (selo ? "<em>" + selo + "</em>" : "") + '</b><span class="cd-radio" aria-hidden="true"></span></span>' +
+      '<span class="cd-preco"><span class="cd-valor"><strong>' + brlFino(valorDe(p)) + "</strong><span>" + (anual ? "por ano" : "por mês") + "</span></span>" +
+      "<small>" + esc(det) + "</small>" + (porPessoa ? "<small>" + esc(porPessoa) + "</small>" : "") + "</span>" +
+      (PARA[p.id] ? '<span class="cd-para">' + esc(PARA[p.id]) + "</span>" : "") + "</div>" +
+      '<div class="cd-numeros"><span><b>' + esc((p.tokens / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " milhões") + "</b><small>créditos de IA por mês</small></span>" +
+      "<span><b>" + (p.pessoas === 1 ? "1 pessoa" : "até " + p.pessoas + " pessoas") + "</b><small>" + (p.pessoas === 1 ? "uma licença" : "cada uma com o seu login") + "</small></span></div>" +
+      '<div class="cd-itens">' + (HERANCA[p.id] ? '<span class="cd-heranca"><span class="icon" aria-hidden="true">add</span>' + esc(HERANCA[p.id]) + "</span>" : "") + itens + "</div>" +
+      '<div class="cd-pe">' + (llama ? "<small>Built with Llama</small>" : "") +
+      '<button type="button" class="cd-acao" data-acao="' + esc(p.id) + '"' + (travado ? " disabled" : "") + ' aria-pressed="' + on + '">' + esc(acao) + "</button></div></article>";
+  }
+
+  function escolher(id, irAoCadastro) {
+    estado.escolhido = id;
+    desenharPlanos(); atualizarBotao(); desenharTroca();
+    if ($("cd-cupom").value.trim()) conferirCupom();
+    if (irAoCadastro) {
+      var passos = $("cd-passos");
+      passos.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }
+  }
+
   function desenharPlanos() {
     // Com a assinatura de cortesia nao ha o que trocar; com a paga, o cartao
     // escolhido vira a troca (desenharTroca).
-    var travado = estado.conta && estado.conta.plano_vigente && estado.conta.cortesia;
+    var travado = Boolean(estado.conta && estado.conta.plano_vigente && estado.conta.cortesia);
     var c = estado.conta || {};
     var atual = c.plano_vigente && c.plano ? c.plano.id : "";
     var proximo = c.plano_proximo ? c.plano_proximo.id : "";
     $("cd-planos").innerHTML = estado.planos.map(function (p) {
-      var on = p.id === estado.escolhido;
-      var selo = p.id === atual ? "seu plano" : p.id === proximo ? "na renovação" : "";
-      return '<button type="button" class="plano' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-plano="' + esc(p.id) + '"' +
-        (travado ? " disabled" : "") + ' title="' + esc(perguntas(p.tokens)) + '">' +
-        '<span class="plano-radio" aria-hidden="true"></span>' +
-        '<span class="plano-nome"><b>' + esc(p.nome) + (selo ? "<em>" + selo + "</em>" : "") + "</b><small>" +
-        esc(((p.modelos_info || [])[0] || {}).nome || "") + " · " + milhoes(p.tokens) + " por mês</small></span>" +
-        '<span class="plano-valor">' + brl(valorDe(p)) + '<small>' + sufixo() + "</small></span></button>";
+      return cartao(p, p.id === estado.escolhido, travado, p.id === atual ? "seu plano" : p.id === proximo ? "na renovação" : "");
     }).join("");
-    $("cd-planos").querySelectorAll("[data-plano]").forEach(function (b) {
-      b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); desenharTroca(); if ($("cd-cupom").value.trim()) conferirCupom(); };
+    if (travado) return;
+    $("cd-planos").querySelectorAll(".cd-cartao").forEach(function (el) {
+      // Clicar no card escolhe; o botao do card escolhido leva ao cadastro.
+      el.onclick = function (e) { if (!e.target.closest("button")) escolher(el.dataset.plano, false); };
     });
-    var escolhido = estado.planos.filter(function (x) { return x.id === estado.escolhido; })[0];
-    $("cd-plano-itens").innerHTML = escolhido ? itensDoPlano(escolhido).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") : "";
+    $("cd-planos").querySelectorAll("[data-acao]").forEach(function (b) {
+      b.onclick = function () { escolher(b.dataset.acao, b.dataset.acao === estado.escolhido); };
+    });
+    $("cd-planos").querySelectorAll("[data-item]").forEach(function (b) {
+      b.onclick = function () { estado.aberto[b.dataset.item] = !estado.aberto[b.dataset.item]; desenharPlanos(); };
+    });
   }
 
   /* A troca de plano, com a assinatura paga ativa: o cartao escolhido que nao
@@ -175,6 +253,7 @@
         $("cd-recarga").textContent = "Uma pergunta sobre documentos gasta, em média, 3.500 créditos. A cota é do mês, liberada por semana; " +
           "uma vez por mês dá para adiantar a semana seguinte. Se acabar, a recarga é no Pix, no preço do plano, e não vence na renovação.";
       }
+      desenharPeriodo();
       desenharPlanos();
       atualizarBotao();
     } catch (e) {

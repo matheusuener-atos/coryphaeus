@@ -52,94 +52,61 @@
 .selo-dir span { font: 400 9.5px var(--sans); color: var(--mute); }
 
 /* ---------- Assinar ---------- */
-.planos { display: grid; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
-.plano {
-  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 14px; border: 0;
-  border-bottom: 1px solid var(--line2); background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
-}
-.plano:last-child { border-bottom: 0; }
-.plano:hover:not(:disabled) { background: var(--panel2); }
-.plano.on { background: var(--panel2); }
-.plano:disabled { cursor: default; }
-.plano-radio { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 1px solid var(--line3); background: var(--pill); box-sizing: border-box; }
-.plano.on .plano-radio { border: 4px solid var(--ink); background: var(--panel); }
-.plano-nome { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.plano-nome b { font: 500 13.5px var(--sans); }
-.plano-nome b em { margin-left: 6px; font: 400 10.5px var(--mono); font-style: normal; color: var(--ok); }
-.plano-nome small { font: 400 11px var(--mono); color: var(--ink3); }
-.plano-valor { font: 400 13px var(--mono); color: var(--ink2); white-space: nowrap; }
-.plano-valor small { font-size: 10.5px; color: var(--ink3); }
-.plano.on .plano-valor { color: var(--ink); }
-/* Mensal ou anual: dois botoes lado a lado acima dos planos. */
-.periodo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; margin-bottom: 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.periodo-op { display: grid; gap: 1px; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink2); font: 500 13px var(--sans); cursor: pointer; }
-.periodo-op small { font: 400 10.5px var(--mono); color: var(--ink3); }
-.periodo-op.on { background: var(--panel2); color: var(--ink); }
-/* O que o plano escolhido tem. */
-.plano-itens { display: grid; gap: 4px; margin: 8px 0 4px; padding: 0 2px; list-style: none; font-size: 12.5px; line-height: 1.45; color: var(--ink2); }
-.plano-itens li { display: flex; gap: 8px; }
-.plano-itens li::before { content: "·"; color: var(--ink3); }
-/* ---------- Pagamento (o formulario do cartao, com os campos seguros do Mercado Pago) ---------- */
-.pg-col { max-width: 440px; gap: 24px; }
-.pg-total { display: grid; gap: 4px; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
-.pg-total small { font-size: 12px; line-height: 1.45; color: var(--ink3); }
-.pg-estado { text-align: center; }
-/* O formulario do cartao: os tres campos do cartao sao quadros do Mercado
-   Pago (CardForm); a caixa, o icone e o rotulo sao do site. */
-.pg-form { padding: 18px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.pg-titulo-cartao { font: 500 15px var(--sans); color: var(--ink); }
-.pg-form .caixa-campo { background: var(--bg); }
-.pg-form .caixa-campo > .icon { font-size: 18px; color: var(--ink3); flex: none; }
-.pg-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.pg-seguro { position: relative; flex: 1; min-width: 0; height: 22px; }
-.pg-seguro iframe { display: block; width: 100%; height: 100%; border: 0; }
-.pg-form select { border: 0; outline: none; background: transparent; color: var(--ink); font: 400 14px var(--sans); }
-.pg-form #pg-parcelas { flex: 1; min-width: 0; }
-.pg-doc #pg-doc-tipo { flex: none; padding-right: 4px; border-right: 1px solid var(--line); }
-.pg-form select option { background: var(--panel); color: var(--ink); }
-.pg-pagar { margin-top: 4px; }
-/* A lista no estilo do sistema: o select original fica no formulario (o
-   CardForm do Mercado Pago preenche e le dele), invisivel; quem aparece e o
-   botao e o menu. */
-.pg-nativo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.pg-form .caixa-campo { position: relative; }
-.pg-combo { flex: 1; min-width: 0; display: flex; }
-.pg-doc .pg-combo { flex: none; }
-.pg-combo-botao {
-  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 38px;
-  padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 14px var(--sans); text-align: left; cursor: pointer;
-}
-.pg-combo-botao span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pg-combo-botao .icon { font-size: 18px; color: var(--ink3); flex: none; }
-.pg-doc .pg-combo-botao { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
-.pg-combo-menu {
-  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 300px; overflow-y: auto;
-  margin: 0; padding: 6px; list-style: none; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
-}
-/* A barra de rolagem do menu e a do sistema (frontend/css/00-tokens.css):
-   6 px, sem trilho, o polegar na tinta a 12% (25% sob o mouse). As regras
-   -webkit-, e nao scrollbar-width, pelo mesmo motivo de la (Chromium no Windows). */
-.pg-combo-menu::-webkit-scrollbar { width: 6px; }
-.pg-combo-menu::-webkit-scrollbar-track { background: transparent; }
-.pg-combo-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
-.pg-combo-menu::-webkit-scrollbar-thumb:hover { background: var(--line3); }
-.pg-combo-menu li { padding: 8px 10px; border-radius: 7px; font: 400 13.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
-.pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--pill); color: var(--ink); outline: none; }
-.pg-combo-menu li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
-/* O preenchimento automatico do navegador nos campos do site: o fundo e a
-   letra do tema, no lugar do azul (nos quadros do Mercado Pago, nao da). */
-.pg-form input:-webkit-autofill, .pg-form input:-webkit-autofill:hover, .pg-form input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--ink); caret-color: var(--ink);
-  -webkit-box-shadow: 0 0 0 40px var(--bg) inset; box-shadow: 0 0 0 40px var(--bg) inset;
-}
-.pg-form input:autofill { background: var(--bg); color: var(--ink); }
-.pg-bandeira { width: 28px; height: 18px; object-fit: contain; flex: none; border-radius: 3px; }
-.pg-pagar .icon { font-size: 16px; }
-@media (max-width: 420px) { .pg-dupla { grid-template-columns: 1fr; } }
-.pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.pg-voltar .icon { font-size: 16px; }
+/* Os planos: cards lado a lado (no celular, um embaixo do outro). */
+.cd-entrada { gap: 40px; }
+.cd-planos-secao { width: 100%; max-width: 1180px; display: grid; gap: 20px; }
+.cd-planos-topo { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ciclo { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.ciclo-op { height: 30px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--mute); font: 500 13px var(--sans); white-space: nowrap; cursor: pointer; }
+.ciclo-op.on { background: var(--pill); color: var(--ink); }
+.ciclo-selo { font: 500 10px var(--mono); color: var(--ok); }
+.ciclo-selo:empty { display: none; }
+.cd-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; align-items: start; }
+.cd-cartao { position: relative; display: grid; align-content: start; overflow: hidden; border-radius: 12px; background: var(--panel);
+  border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.cd-cartao:hover { border-color: var(--line3); }
+.cd-cartao.on { background: var(--panel2); border-color: var(--line3); box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .55); }
+.cd-cartao.travado { cursor: default; }
+.cd-faixa { position: absolute; top: 0; right: 20px; height: 20px; padding: 0 8px; display: flex; align-items: center; border-radius: 0 0 6px 6px;
+  background: var(--okfill); color: #fff; font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.cd-cabeca { display: grid; gap: 14px; padding: 24px 22px 20px; }
+.cd-nome { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cd-nome b { font: 600 17px var(--sans); color: var(--ink); }
+.cd-nome em { margin-left: 8px; font: 400 10.5px var(--mono); font-style: normal; color: var(--ok); }
+.cd-radio { width: 16px; height: 16px; flex: none; box-sizing: border-box; border-radius: 50%; background: var(--pill); border: 1px solid var(--line3); }
+.cd-cartao.on .cd-radio { border: 5px solid var(--ink); }
+.cd-preco { display: grid; gap: 6px; }
+.cd-valor { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cd-valor strong { font: 400 44px/1 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+.cd-valor span { font-size: 13px; color: var(--ink2); }
+.cd-preco small { font-size: 12.5px; line-height: 1.5; color: var(--mute); }
+.cd-para { font-size: 14px; color: var(--ink2); }
+.cd-numeros { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line2); border-bottom: 1px solid var(--line2); }
+.cd-numeros > span { display: grid; gap: 1px; padding: 12px 22px; }
+.cd-numeros > span + span { border-left: 1px solid var(--line2); }
+.cd-numeros b { font: 400 20px/1.2 var(--serif); color: var(--ink); }
+.cd-numeros small { font-size: 11.5px; color: var(--mute); }
+.cd-itens { display: grid; padding: 6px 0 4px; }
+.cd-heranca { display: flex; align-items: center; gap: 10px; padding: 12px 22px 6px; font: 400 11px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
+.cd-heranca .icon { font-size: 14px; letter-spacing: 0; text-transform: none; }
+.cd-item + .cd-item, .cd-heranca + .cd-item { border-top: 1px solid var(--line2); }
+.cd-item-botao { width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr) 16px; gap: 10px; align-items: center; padding: 9px 18px 9px 22px;
+  border: 0; background: transparent; color: var(--ink); font: 400 13px/1.45 var(--sans); text-align: left; cursor: pointer; }
+.cd-item-botao:hover { background: var(--line2); }
+.cd-item-botao .icon { font-size: 14px; color: var(--ok); }
+.cd-item-botao .cd-seta { font-size: 16px; color: var(--ink3); transition: transform .15s, color .15s; }
+.cd-item-botao[aria-expanded="true"] .cd-seta { transform: rotate(180deg); color: var(--ink); }
+.cd-breve { margin-left: 6px; font: 400 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+.cd-item p { margin: 0; padding: 0 22px 12px 46px; font-size: 12.5px; line-height: 1.55; color: var(--ink2); }
+.cd-pe { display: grid; gap: 10px; padding: 16px 22px 22px; border-top: 1px solid var(--line2); }
+.cd-pe small { font: 400 11px var(--mono); color: var(--ink3); }
+.cd-acao { height: 42px; padding: 0 22px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--line3);
+  background: transparent; color: var(--ink); font: 600 14px var(--sans); cursor: pointer; transition: background .15s; }
+.cd-cartao.on .cd-acao { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.cd-acao:disabled { opacity: .5; cursor: default; }
+.cd-nota-planos { text-align: center; }
+.cd-passos { scroll-margin-top: 24px; }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }
 .conta-linha { font-size: 13px; line-height: 1.55; color: var(--ink2); text-align: center; }
 .conta-linha b { color: var(--ink); font-weight: 500; }
