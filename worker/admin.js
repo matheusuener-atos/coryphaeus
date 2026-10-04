@@ -629,8 +629,11 @@ async function avisos(c, contas) {
     let texto = a.texto || "";
     if (a.tipo === "authorized_payment") texto = (a.status === "approved" ? "Cobrança mensal · " : "Cobrança recusada · ") + nome + plano;
     else if (a.tipo === "order · pix") texto = (a.status === "processed" ? "Recarga · " : "Pix " + a.status + " · ") + nome;
-    else if (a.tipo === "preapproval") texto = ({ authorized: "Assinatura ativa · ", cancelled: "Assinatura cancelada · ", paused: "Assinatura pausada · ", pending: "Assinatura pendente · " }[a.status] || "Assinatura · ") + nome + plano;
-    const tom = a.status === "approved" || a.status === "processed" || a.status === "authorized" ? "entrada" : a.status === "cancelled" ? "cancelado" : a.status === "rejected" ? "recusado" : "neutro";
+    else if (/^payment · /.test(a.tipo || "")) {
+      const o_que = String(a.tipo).slice(10);
+      texto = ({ approved: "Pagamento · ", refunded: "Reembolso · ", charged_back: "Contestação · " }[a.status] || "Pagamento " + a.status + " · ") + o_que + " · " + nome + plano;
+    } else if (a.tipo === "preapproval") texto = ({ authorized: "Assinatura ativa · ", cancelled: "Assinatura cancelada · ", paused: "Assinatura pausada · ", pending: "Assinatura pendente · " }[a.status] || "Assinatura · ") + nome + plano;
+    const tom = a.status === "approved" || a.status === "processed" || a.status === "authorized" ? "entrada" : a.status === "cancelled" || a.status === "refunded" || a.status === "charged_back" ? "cancelado" : a.status === "rejected" ? "recusado" : "neutro";
     return { quando: a.quando, tipo: a.tipo, texto, valor: Number(a.valor) || 0, tom };
   });
 }

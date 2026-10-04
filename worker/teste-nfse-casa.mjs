@@ -5,7 +5,7 @@
 // confere que a rota responde 404. A emissao pelo painel esta em
 // worker/teste-nfse-admin.mjs.
 import worker from "./index.js";
-import { ContaIA } from "./ia.js";
+import { ContaIA, numeros } from "./ia.js";
 import {
   avisarNotaCancelada, faltasDoTomador, gravarTomador, guardarNotaDoCliente, listarClientes, listarPagamentos,
 } from "./nfse-casa.js";
@@ -47,7 +47,7 @@ const ctx = { waitUntil() {} };
 const segredo = (id) => "pia_" + id + "_" + id.slice(0, 1).repeat(64);
 
 async function doDe(id, acao, dados = {}) {
-  const r = await CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados, numeros: { planos: [{ id: "escritorio", nome: "Escritório", valor: 300, tokens: 1000 }], recargas: [] } }) });
+  const r = await CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados, numeros: numeros({}) }) });
   return r.json();
 }
 const ID_ANA = "a".repeat(24);

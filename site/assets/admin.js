@@ -1770,7 +1770,9 @@
     if (!p) return;
     nfEscolherCliente(M, p.conta || "");
     M.v.valor = Number(p.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    M.v.descricao = p.tipo === "mensalidade" ? "Assinatura do PAULUS — plano mensal" : "Recarga de uso do PAULUS (nuvem)";
+    // O mesmo texto do emissor (worker/nfse/emissor.js, descricaoDoPagamento).
+    M.v.descricao = { mensalidade: "Assinatura do PAULUS — plano mensal", anual: "Assinatura do PAULUS — plano anual",
+      "mês avulso": "Assinatura do PAULUS — um mês, sem renovação" }[p.tipo] || "Recarga de uso do PAULUS (nuvem)";
     if (String(p.quando || "").length >= 7) M.v.competencia = String(p.quando).slice(0, 7);
   }
   A.nfEmitir = function () { nfAbrirEmitir(""); };

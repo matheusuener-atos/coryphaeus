@@ -84,6 +84,15 @@ const JA_EXISTE = new Set(["E0014"]);
 const CAMPOS_TOMADOR = ["nome", "documento", "logradouro", "numero", "complemento", "bairro", "cep", "cmun", "uf",
   "inscricao_municipal", "email", "telefone"];
 
+/* O texto da nota pelo tipo do pagamento da nuvem (worker/ia.js, anotarPagamento). */
+export function descricaoDoPagamento(tipo) {
+  return {
+    mensalidade: "Assinatura do PAULUS — plano mensal",
+    anual: "Assinatura do PAULUS — plano anual",
+    "mês avulso": "Assinatura do PAULUS — um mês, sem renovação",
+  }[tipo] || "Recarga de uso do PAULUS (nuvem)";
+}
+
 export class ErroEmissor extends Error {
   constructor(mensagem, status = 400, extra = {}) {
     super(mensagem);
@@ -619,7 +628,7 @@ export class EmissorNFSe {
     const pag = pagamento && !substituiId ? await this.pagamento(pagamento) : null;
     const dados = { ...d };
     if (pag && !("valor" in dados) && !("valor_centavos" in dados) && pag.valor !== undefined) dados.valor = Number(pag.valor);
-    if (pag && !dados.descricao) dados.descricao = pag.tipo === "mensalidade" ? "Assinatura do PAULUS — plano mensal" : "Recarga de uso do PAULUS (nuvem)";
+    if (pag && !dados.descricao) dados.descricao = descricaoDoPagamento(pag.tipo);
     if (pag && !dados.competencia && pag.quando) dados.competencia = String(pag.quando).slice(0, 7) + "-01";
     const p = this.prestadorAtual();
     let rascunho;

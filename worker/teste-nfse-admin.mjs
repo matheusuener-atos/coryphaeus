@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { atenderAdmin } from "./admin.js";
-import { avisoDaIA, ContaIA } from "./ia.js";
+import { avisoDaIA, ContaIA, numeros } from "./ia.js";
 import { EmissorNFSe, K_DEPOIS } from "./nfse/emissor.js";
 import { depoisPendentes } from "./nfse/api.js";
 import { SefinSimulada } from "./nfse/sefin-simulada.js";
@@ -198,7 +198,7 @@ async function painel(email = "dono@paulus.ia.br") {
 
 // As contas: Ana com o cadastro completo (endereço), Bruno sem endereço.
 async function doDe(id, acao, dados = {}) {
-  const r = await CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados, numeros: { planos: [{ id: "escritorio", nome: "Escritório", valor: 300, tokens: 1000 }], recargas: [] } }) });
+  const r = await CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados, numeros: numeros({}) }) });
   return r.json();
 }
 const ANA = "a".repeat(24);
