@@ -5,8 +5,10 @@
 
    O cartao e digitado nos quadros do Mercado Pago; desta pagina sai so o token
    que ele gera. O valor vem do servidor (oferta), nunca do formulario. Mensal: a
-   assinatura no cartao, sem parcelas. Anual: o ano em ate 12 parcelas. O
-   id_token do Google e o da pagina de cadastro (sessionStorage, uma hora). */
+   assinatura no cartao, sem parcelas. Anual: o ano em ate 12 parcelas. Ou o
+   Pix: o mes avulso (vale um mes e nao renova) ou o ano a vista, com o QR do
+   Mercado Pago e a pagina conferindo sozinha (/api/ia/site/pix). O id_token do
+   Google e o da pagina de cadastro (sessionStorage, uma hora). */
 (function () {
   "use strict";
 
@@ -20,6 +22,8 @@
   };
   var token = "";
   var controle = null;
+  var oferta = null;      // a oferta do servidor (valor, meios)
+  var meio = "pix";       // "pix" (o primeiro) ou "cartao"
   // A mesma chave numa nova tentativa do mesmo pagamento nao cobra duas vezes;
   // depois de uma recusa (cartao novo, token novo), outra chave.
   var idempotencia = novaChave();
@@ -136,10 +140,14 @@
   function planoB(motivo) {
     if (semFormulario) return;
     semFormulario = true;
+    motivoSemFormulario = motivo;
+    $("pg-form").hidden = true;
+    if (meio !== "cartao") return;
     estado("");
     erro(motivo);
     if (token && pedido.plano) $("pg-fora").hidden = false;
   }
+  var motivoSemFormulario = "";
   async function pagarFora() {
     var b = $("pg-fora-botao");
     b.disabled = true;
@@ -180,7 +188,12 @@
 
   function pronto(r) {
     if (controle) { try { controle.unmount(); } catch (e) { /* ja saiu */ } controle = null; }
+    pararPix();
     $("pg-form").hidden = true;
+    $("pg-pix").hidden = true;
+    $("pg-meios").hidden = true;
+    $("pg-meio-nota").hidden = true;
+    $("pg-fora").hidden = true;
     $("pg-total").hidden = true;
     estado("");
     erro("");
@@ -190,10 +203,13 @@
       $("pg-pronto-titulo").textContent = "Pagamento em análise";
       $("pg-pronto-texto").textContent = frase(r.mensagem || "o Mercado Pago está analisando o pagamento; o plano entra assim que for aprovado") +
         " Você pode fechar esta página: o PAVLVS confere sozinho.";
-    } else if (r.periodo === "anual") {
+    } else if (c.periodo === "avulso" || r.periodo === "anual") {
       var ate = c.pago_ate ? new Date(c.pago_ate).toLocaleDateString("pt-BR") : "";
-      $("pg-pronto-titulo").textContent = "Ano pago";
-      $("pg-pronto-texto").textContent = "Plano " + nome + " anual" + (ate ? ", pago até " + ate : "") + ". Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta Google") + ".";
+      var mes = c.periodo === "avulso";
+      $("pg-pronto-titulo").textContent = mes ? "Mês pago" : "Ano pago";
+      $("pg-pronto-texto").textContent = "Plano " + nome + (mes ? ", pago no Pix" : " anual") + (ate ? ", até " + ate : "") + "." +
+        (mes ? " Não renova sozinho: para continuar, pague outro mês em paulus.ia.br/assinatura ou assine no cartão." : "") +
+        " Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta Google") + ".";
     } else {
       $("pg-pronto-titulo").textContent = "Assinatura ativa";
       $("pg-pronto-texto").textContent = "Plano " + nome + ", cobrado todo mês no cartão. Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta Google") + ".";
@@ -246,16 +262,58 @@
       : "Sem juros: total de " + brl(c.total_amount) + ".";
   }
 
+  /* O total e o que ele quer dizer, no meio escolhido. */
+  function textos() {
+    var anual = oferta.periodo === "anual";
+    var pix = meio === "pix";
+    var cupom = oferta.cupom ? " (com o cupom " + oferta.cupom.codigo + ")" : "";
+    $("pg-plano").textContent = "Plano " + oferta.plano.nome + (anual ? " · anual" : pix ? " · um mês" : " · mensal");
+    $("pg-valor").textContent = brl(oferta.valor) + (anual ? "/ano" : pix ? " por um mês" : "/mês");
+    $("pg-detalhe").textContent = pix
+      ? (anual ? "à vista no Pix; vale 12 meses, com a cota de cada mês, e não renova sozinho" : "à vista no Pix; vale um mês e não renova sozinho") + cupom
+      : anual ? "à vista ou em até 12 vezes no cartão de crédito; os juros do parcelamento são de quem parcela"
+        : "cobrado todo mês no cartão de crédito" + cupom;
+    $("pg-total").hidden = false;
+    $("pg-selo").textContent = pix ? "Pix, à vista" : anual ? "o ano, em até 12×" : "cobrança mensal";
+    $("pg-pix-texto").textContent = anual
+      ? "O ano é pago de uma vez. O QR vale 30 minutos; o plano entra assim que o Mercado Pago confirmar, em geral em segundos."
+      : "Um mês do plano, sem assinatura: vale até o mesmo dia do mês que vem e acaba sozinho, sem cobrança nenhuma. O QR vale 30 minutos; o plano entra assim que o Mercado Pago confirmar.";
+  }
+
+  /* Cartao ou Pix: o que o servidor nao permite fica desligado, com o porque. */
+  function desenharMeios() {
+    var meios = oferta.meios || { cartao: "", pix: "" };
+    ["cartao", "pix"].forEach(function (x) {
+      var b = $("pg-meio-" + x);
+      b.setAttribute("aria-checked", String(meio === x));
+      b.classList.toggle("on", meio === x);
+      b.disabled = Boolean(meios[x]);
+      b.title = meios[x] ? frase(meios[x]) : "";
+    });
+    var fechado = meios.cartao ? meios.cartao : meios.pix;
+    $("pg-meio-nota").textContent = fechado ? (meios.cartao ? "Cartão: " : "Pix: ") + frase(fechado) : "";
+    $("pg-meio-nota").hidden = !fechado;
+    $("pg-meios").hidden = false;
+  }
+
+  function escolherMeio(x) {
+    if (x === meio || (oferta.meios || {})[x]) return;
+    meio = x;
+    erro("");
+    estado("");
+    desenharMeios();
+    textos();
+    var pix = meio === "pix";
+    $("pg-pix").hidden = !pix;
+    $("pg-fora").hidden = pix || !semFormulario || !token;
+    $("pg-form").hidden = pix || semFormulario || !montado;
+    if (!pix && semFormulario) erro(motivoSemFormulario);
+    if (!pix && !montado && !semFormulario) montarCartao();
+  }
+
   function montar(publicKey, oferta) {
     montado = { publicKey: publicKey, oferta: oferta };
     var anual = oferta.periodo === "anual";
-    $("pg-plano").textContent = "Plano " + oferta.plano.nome + (anual ? " · anual" : " · mensal");
-    $("pg-valor").textContent = brl(oferta.valor) + (anual ? "/ano" : "/mês");
-    $("pg-detalhe").textContent = anual
-      ? "à vista ou em até 12 vezes no cartão de crédito; os juros do parcelamento são de quem parcela"
-      : "cobrado todo mês no cartão de crédito" + (oferta.cupom ? " (com o cupom " + oferta.cupom.codigo + ")" : "");
-    $("pg-total").hidden = false;
-    $("pg-selo").textContent = anual ? "o ano, em até 12×" : "cobrança mensal";
     // As parcelas so aparecem no anual; no mensal o seletor fica no formulario
     // (o CardForm precisa dele), escondido, e o servidor cobra sem parcelas.
     $("pg-campo-parcelas").hidden = !anual;
@@ -323,25 +381,120 @@
     try { token = sessionStorage.getItem(CHAVE) || ""; } catch (e) { token = ""; }
     if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de planos"); return; }
     if (!token) { voltarAoCadastro("entre com o Google no cadastro antes de pagar"); return; }
-    if (typeof window.MercadoPago !== "function") {
-      planoB("o formulário do cartão não carregou (um bloqueador de anúncios pode ter barrado o Mercado Pago)");
-      return;
-    }
     try {
-      var config = await pedir("/api/ia/mp-config");
-      var oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
-      if (!oferta.cadastro_completo) { voltarAoCadastro("preencha os dados do escritório antes de pagar"); return; }
-      prepararFormulario();
-      montar(config.publicKey, oferta);
-      // Sem os quadros seguros em 15 segundos, o plano B aparece.
-      setTimeout(function () {
-        if (!montouEm && !$("pg-form").hidden) planoB("o formulário do cartão está demorando para carregar");
-      }, 15000);
+      oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
     } catch (e) {
       if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
       estado("");
       erro(e.message);
+      return;
     }
+    if (!oferta.cadastro_completo) { voltarAoCadastro("preencha os dados do escritório antes de pagar"); return; }
+    // Comeca no Pix; com o Pix fechado (a assinatura no cartao ativa, por exemplo), no cartao.
+    if ((oferta.meios || {}).pix && !(oferta.meios || {}).cartao) meio = "cartao";
+    estado("");
+    desenharMeios();
+    textos();
+    $("pg-pix").hidden = meio !== "pix";
+    if (meio === "cartao") montarCartao();
+  }
+
+  /* O formulario do cartao: a chave publica e o CardForm. Sem o MercadoPago.js
+     (bloqueador, rede), o plano B; o Pix continua. */
+  var cartaoPedido = false;
+  async function montarCartao() {
+    if (cartaoPedido) return;
+    cartaoPedido = true;
+    if (typeof window.MercadoPago !== "function") {
+      planoB("o formulário do cartão não carregou (um bloqueador de anúncios pode ter barrado o Mercado Pago); dá para pagar no Pix");
+      return;
+    }
+    estado("Carregando o formulário do cartão…");
+    try {
+      var config = await pedir("/api/ia/mp-config");
+      prepararFormulario();
+      montar(config.publicKey, oferta);
+      if (meio !== "cartao") $("pg-form").hidden = true;
+      // Sem os quadros seguros em 15 segundos, o plano B aparece.
+      setTimeout(function () {
+        if (!montouEm) planoB("o formulário do cartão está demorando para carregar");
+      }, 15000);
+    } catch (e) {
+      estado("");
+      planoB(e.message);
+    }
+  }
+
+  /* ---------------------------------------------------------- o Pix */
+
+  var pix = null;        // {pagamento, vence}
+  var vigia = null;
+  var chavePix = novaChave();
+
+  function pararPix() {
+    if (vigia) { clearTimeout(vigia); vigia = null; }
+  }
+
+  async function gerarPix() {
+    var b = $("pg-pix-gerar");
+    b.disabled = true;
+    erro("");
+    pararPix();
+    try {
+      var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom,
+        meio: "pix", idempotencia: chavePix });
+      pix = { pagamento: r.pagamento, vence: Date.parse(r.vence) || Date.now() + 30 * 60 * 1000 };
+      $("pg-pix-img").src = r.qr_code_base64 ? "data:image/png;base64," + r.qr_code_base64 : "";
+      $("pg-pix-img").hidden = !r.qr_code_base64;
+      $("pg-pix-codigo").value = r.qr_code;
+      $("pg-pix-qr").hidden = false;
+      b.hidden = true;
+      $("pg-meios").hidden = true;
+      $("pg-meio-nota").hidden = true;
+      var hora = new Date(pix.vence).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      $("pg-pix-espera").textContent = "Esperando o pagamento. Este Pix vale até " + hora + "; pode deixar esta página aberta.";
+      vigia = setTimeout(conferirPix, 4000);
+    } catch (e) {
+      b.disabled = false;
+      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte, entre com o Google de novo e pague"); return; }
+      erro(e.message);
+    }
+  }
+
+  async function conferirPix() {
+    vigia = null;
+    if (!pix) return;
+    try {
+      var r = await pedir("/api/ia/site/pix", { id_token: token, pagamento: pix.pagamento });
+      if (r.pago) { pronto({ periodo: pedido.periodo, conta: r.conta }); return; }
+      if (r.situacao === "cancelled" || r.situacao === "rejected" || Date.now() > pix.vence + 60000) { pixVenceu(); return; }
+    } catch (e) {
+      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: se você já pagou, o plano entra sozinho; entre de novo para conferir"); return; }
+      // Rede: tenta de novo na proxima volta.
+    }
+    vigia = setTimeout(conferirPix, 4000);
+  }
+
+  function pixVenceu() {
+    pix = null;
+    chavePix = novaChave();
+    $("pg-pix-qr").hidden = true;
+    $("pg-pix-gerar").hidden = false;
+    $("pg-pix-gerar").disabled = false;
+    desenharMeios();
+    erro("este Pix venceu sem pagamento: gere outro");
+  }
+
+  async function copiarPix() {
+    var campo = $("pg-pix-codigo");
+    try {
+      await navigator.clipboard.writeText(campo.value);
+    } catch (e) {
+      campo.select();
+      try { document.execCommand("copy"); } catch (x) { /* o codigo fica selecionado para copiar a mao */ }
+    }
+    $("pg-pix-copiar-texto").textContent = "Copiado";
+    setTimeout(function () { $("pg-pix-copiar-texto").textContent = "Copiar"; }, 2000);
   }
 
   /* Pagar: o CardForm gera o token (o cartao vai do quadro direto ao Mercado
@@ -399,9 +552,18 @@
   // Saiu da pagina: o formulario e desmontado.
   window.addEventListener("pagehide", function () {
     if (controle) { try { controle.unmount(); } catch (e) { /* ja saiu */ } controle = null; }
+    pararPix();
+  });
+  // Voltou para a aba com o Pix aberto (pagou pelo celular): confere na hora.
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && pix) { pararPix(); conferirPix(); }
   });
   document.addEventListener("DOMContentLoaded", function () {
     $("pg-fora-botao").addEventListener("click", pagarFora);
+    $("pg-meio-cartao").addEventListener("click", function () { escolherMeio("cartao"); });
+    $("pg-meio-pix").addEventListener("click", function () { escolherMeio("pix"); });
+    $("pg-pix-gerar").addEventListener("click", gerarPix);
+    $("pg-pix-copiar").addEventListener("click", copiarPix);
     iniciar();
   });
 })();

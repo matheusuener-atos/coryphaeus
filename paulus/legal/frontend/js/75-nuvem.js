@@ -67,8 +67,8 @@ function painelDoPlano(d) {
     (c.semana ? "<div><dt>Nesta semana</dt><dd>" + esc(tokens(c.semana.usados || 0)) + " de " + esc(tokens(c.semana.limite || 0)) + "</dd></div>" : "") +
     "<div><dt>Hoje</dt><dd>" + esc(tokens(t.hoje || 0)) + "</dd></div>" +
     "<div><dt>Da recarga</dt><dd>" + esc(tokens(t.da_recarga || 0)) + "</dd></div>" +
-    "<div><dt>" + (c.periodo === "anual" ? "Ano pago até" : a.situacao === "authorized" ? "Renova em" : "Vale até") + "</dt><dd>" +
-    esc(c.periodo === "anual" && c.pago_ate ? dataNuvem(c.pago_ate) : vigente && ciclo.fim ? dataNuvem(ciclo.fim) : "—") + "</dd></div>" +
+    "<div><dt>" + (c.periodo === "anual" ? "Ano pago até" : c.periodo === "avulso" ? "Pago no Pix até" : a.situacao === "authorized" ? "Renova em" : "Vale até") + "</dt><dd>" +
+    esc((c.periodo === "anual" || c.periodo === "avulso") && c.pago_ate ? dataNuvem(c.pago_ate) : vigente && ciclo.fim ? dataNuvem(ciclo.fim) : "—") + "</dd></div>" +
     "</dl></div>");
   const nomeDoPlano = (c.plano || {}).nome ? " · plano " + c.plano.nome : "";
   linhas.push('<p class="cfg-explica">' + esc(c.email) + esc(nomeDoPlano) + " · " + esc(situacao) +
@@ -107,7 +107,7 @@ function painelDoPlano(d) {
     " · R$ " + esc(String((c.recarga || {}).valor || "")) + " no Pix</button>");
   if (a.situacao === "pending") botoes.push('<button data-nuvem-conferir="1">Já pus o cartão</button>');
   if (c.anual_pendente) botoes.push('<button data-nuvem-conferir="1">Já paguei o ano</button>');
-  if (a.situacao === "authorized" && c.periodo !== "anual") botoes.push('<button class="perigo" data-nuvem-cancelar="1">Cancelar a assinatura</button>');
+  if (a.situacao === "authorized" && c.periodo !== "anual" && c.periodo !== "avulso") botoes.push('<button class="perigo" data-nuvem-cancelar="1">Cancelar a assinatura</button>');
   botoes.push('<button data-nuvem-sair="1">Desligar esta instalação da conta</button>');
   linhas.push('<div class="linha-form">' + botoes.join("") + "</div>");
   return linhas.join("");

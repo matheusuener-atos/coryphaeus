@@ -113,9 +113,12 @@ globalThis.fetch = async (url, init = {}) => {
       // O pagamento do cartao: "tokrecusa..." sem limite, "tokanalise..." em analise, o resto aprovado.
       const id = String(7000 + mpPagamentos.size);
       const t = String(corpo.token || "");
-      const status = t.startsWith("tokrecusa") ? "rejected" : t.startsWith("tokanalise") ? "in_process" : "approved";
+      const pix = corpo.payment_method_id === "pix";
+      const status = pix ? "pending" : t.startsWith("tokrecusa") ? "rejected" : t.startsWith("tokanalise") ? "in_process" : "approved";
       const pg = { id: Number(id), status, status_detail: status === "rejected" ? "cc_rejected_insufficient_amount" : status === "approved" ? "accredited" : "pending_contingency",
-        external_reference: corpo.external_reference, transaction_amount: corpo.transaction_amount, date_approved: status === "approved" ? new Date(relogio).toISOString() : null };
+        external_reference: corpo.external_reference, transaction_amount: corpo.transaction_amount, date_approved: status === "approved" ? new Date(relogio).toISOString() : null,
+        payment_method_id: corpo.payment_method_id,
+        ...(pix ? { point_of_interaction: { transaction_data: { qr_code: "00020126pix" + id, qr_code_base64: "iVBORpix", ticket_url: "https://www.mercadopago.com.br/payments/" + id + "/ticket" } } } : {}) };
       mpPagamentos.set(id, pg);
       return new Response(JSON.stringify(pg), { status: 201 });
     }
@@ -799,6 +802,72 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const cup = await corpoDe(await pedir(envReal, "GET", "/api/ia/cupom?codigo=ANO10&plano=escritorio&periodo=anual"));
   checar(cup.ok && cup.valor === 10341 && cup.valor_cheio === 11490, "o cupom de 10% no anual do Escritório: R$ 10.341", cup);
   guardados.delete("admin:cupom:ANO10");
+
+  // O Pix: o mês avulso (vale até vencer, não renova) e o ano à vista.
+  donos["tk-808"] = { sub: "808", email: "pix@a.br" };
+  const px = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-808", instalacao_id: "inst-808-0001" }));
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-808" });
+  const pix = (corpo) => pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-808", plano: "advogado", periodo: "mensal", meio: "pix", ...corpo });
+  const of = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-808", plano: "advogado", periodo: "mensal" }));
+  checar(of.meios && of.meios.cartao === "" && of.meios.pix === "" && of.valor === 449, "a oferta diz que cartão e Pix podem", of.meios);
+  r = await pix({ valor: 1 });
+  const qr = await corpoDe(r);
+  const pgPix = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1);
+  checar(r.status === 200 && qr.qr_code.startsWith("00020126pix") && qr.qr_code_base64 && pgPix.corpo.payment_method_id === "pix" && pgPix.corpo.transaction_amount === 449
+    && /^ia-mes-[0-9a-f]{24}-advogado-[0-9a-f]+$/.test(pgPix.corpo.external_reference) && /-03:00$/.test(pgPix.corpo.date_of_expiration)
+    && !pgPix.corpo.token && !pgPix.corpo.installments && pgPix.corpo.payer.identification.number === "52998224725",
+    "o Pix do mês: R$ 449 (do servidor), QR que vence no horário de Brasília, sem cartão", { qr, corpo: pgPix.corpo });
+  let spx = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-808", pagamento: qr.pagamento }));
+  checar(!spx.pago && spx.situacao === "pending" && !spx.conta.plano_vigente, "antes de pagar, o plano espera", spx.situacao);
+  checar((await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-807", pagamento: qr.pagamento })).status === 403, "o Pix de outra conta não se consulta");
+  mpPagamentos.get(qr.pagamento).status = "approved";
+  mpPagamentos.get(qr.pagamento).date_approved = new Date(relogio).toISOString();
+  spx = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-808", pagamento: qr.pagamento }));
+  const um = spx.conta;
+  const mes = Date.parse(um.pago_ate) - relogio;
+  checar(spx.pago && um.plano_vigente && um.periodo === "avulso" && um.assinatura.periodo === "avulso" && mes > 27 * 864e5 && mes < 32 * 864e5
+    && um.ciclo.tokens === 30000000 && um.ciclo.fim === um.pago_ate, "pago: o mês avulso vale na hora, até o fim do mês", { periodo: um.periodo, pago_ate: um.pago_ate });
+  await worker.fetch(aviso(qr.pagamento, "payment"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  const pagosPix = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "808").dados.get("conta").pagamentos;
+  checar(pagosPix.length === 1 && pagosPix[0].tipo === "avulso" && JSON.parse(guardados.get("admin:nfse:" + qr.pagamento)).tipo === "mês avulso",
+    "o aviso depois não paga duas vezes; a nota entra na fila como mês avulso", pagosPix);
+  checar((await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-808", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000008") })).status === 409,
+    "com o mês pago no Pix, a assinatura no cartão espera ele vencer");
+  checar((await pedir(envReal, "POST", "/api/ia/assinatura/cancelar", null, px.segredo)).status === 409, "o mês avulso não tem o que cancelar");
+  // O mês seguinte pago antes: começa no fim do pago.
+  r = await pix({});
+  const qr2 = await corpoDe(r);
+  mpPagamentos.get(qr2.pagamento).status = "approved";
+  const dois = (await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-808", pagamento: qr2.pagamento }))).conta;
+  checar(Date.parse(dois.pago_ate) - Date.parse(um.pago_ate) > 27 * 864e5 && dois.ciclo.inicio === um.ciclo.inicio, "o segundo mês pago antes soma ao fim do primeiro; o ciclo de agora continua", dois.pago_ate);
+  relogio += 40 * 864e5;
+  let cpx = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, px.segredo));
+  checar(cpx.plano_vigente && cpx.ciclo.origem === "avulso" && Date.parse(cpx.ciclo.inicio) <= relogio, "no segundo mês, o ciclo dele abre sozinho", cpx.ciclo);
+  relogio += 30 * 864e5;
+  cpx = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, px.segredo));
+  checar(!cpx.plano_vigente && cpx.assinatura.situacao === "expired", "venceu sem pagar de novo: o plano acaba, sem cobrar nada", cpx.assinatura);
+  // Depois de vencer, o ano à vista no Pix.
+  r = await pix({ periodo: "anual" });
+  const qr3 = await corpoDe(r);
+  const pgAno = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1).corpo;
+  checar(pgAno.transaction_amount === 3990 && /^ia-anual-/.test(pgAno.external_reference), "o ano no Pix: R$ 3.990 à vista", pgAno);
+  mpPagamentos.get(qr3.pagamento).status = "approved";
+  await worker.fetch(aviso(qr3.pagamento, "payment"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  cpx = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, px.segredo));
+  checar(cpx.plano_vigente && cpx.periodo === "anual" && Date.parse(cpx.pago_ate) - relogio > 364 * 864e5, "pago pelo aviso: o ano entra", cpx.periodo);
+  relogio -= 70 * 864e5;
+  // Com a assinatura mensal no cartão ativa, o mês no Pix não é oferecido.
+  donos["tk-809"] = { sub: "809", email: "cartao@a.br" };
+  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-809" });
+  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-809", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000009") });
+  const ofCartao = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-809", plano: "advogado", periodo: "mensal" }));
+  checar(ofCartao.erro && !ofCartao.meios, "com a assinatura no cartão ativa, nem outro mês no cartão nem no Pix", ofCartao);
+  r = await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-809", plano: "advogado", periodo: "mensal", meio: "pix" });
+  checar(r.status === 409 && (await corpoDe(r)).erro.includes("cartão já está ativa"), "e o Pix do mês é recusado com o motivo");
+  const ofAno = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-809", plano: "advogado", periodo: "anual" }));
+  checar(ofAno.meios && ofAno.meios.pix === "" && ofAno.meios.cartao === "", "mas passar ao anual, no cartão ou no Pix, pode", ofAno.meios);
 }
 
 function aviso(dataId, tipo, ts = Date.now()) {

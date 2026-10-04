@@ -663,6 +663,12 @@ async function assinar(request, env, conta, id, mp) {
 
 // O anual pode ser renovado nos ultimos 45 dias: o ano novo comeca no fim do pago.
 const RENOVA_ANUAL_MS = 45 * 24 * 3600 * 1000;
+// Os periodos pagos de uma vez, sem renovar sozinhos: o anual (cartao ou Pix)
+// e o mes avulso (Pix). Vale ate pago_ate; cada mes abre o seu ciclo.
+const PREPAGOS = ["anual", "avulso"];
+const prepago = (periodo) => PREPAGOS.includes(periodo);
+// O Pix vence em 30 minutos; depois, gera-se outro.
+const PIX_VENCE_MS = 30 * 60 * 1000;
 const PAGINA_DO_PAGAMENTO = "https://paulus.ia.br/cadastro/pagamento/";
 
 /* O PAULUS instalado nao cobra: ele abre a pagina de pagamento do site, onde
@@ -677,22 +683,30 @@ async function linkDoPagamento(env, conta, { plano, periodo }) {
 }
 
 /* O que a assinatura pedida custa, conferido no servidor: o plano, o periodo,
-   o valor (com o cupom) e por que nao pode, se nao puder. Usado pela pagina
-   de pagamento (o total que ela mostra) e pela cobranca. */
-async function ofertaDoPagamento(env, atual, { plano, periodo, cupom }) {
+   o meio (cartao ou Pix), o valor (com o cupom) e por que nao pode, se nao
+   puder. Usado pela pagina de pagamento (o total que ela mostra) e pela
+   cobranca. No Pix, o mensal e um mes avulso: vale ate vencer e nao renova. */
+async function ofertaDoPagamento(env, atual, { plano, periodo, cupom, meio }) {
   if (!["mensal", "anual"].includes(periodo)) return { erro: "o período é mensal ou anual", status: 400 };
   const n = numeros(env);
   if (!n.planos.some((x) => x.id === plano)) return { erro: "esse plano não existe", status: 400 };
   const escolhido = planoDe(n, plano);
   const anual = periodo === "anual";
+  const pix = meio === "pix";
   const a = atual.assinatura;
   if (atual.cortesia && atual.plano_vigente) return { erro: "esta conta tem o plano de cortesia: não há o que pagar", status: 409 };
   if (a && a.situacao === "authorized") {
-    if (atual.periodo === "anual") {
-      if (!anual || Date.parse(atual.pago_ate) - Date.now() > RENOVA_ANUAL_MS) {
-        return { erro: "o plano anual está pago até " + dataBR(atual.pago_ate) + "; a renovação abre 45 dias antes", status: 409 };
+    if (prepago(atual.periodo)) {
+      const ate = dataBR(atual.pago_ate);
+      if (!anual && !pix) return { erro: "o plano está pago até " + ate + "; a assinatura mensal no cartão pode começar quando ele vencer", status: 409 };
+      // A hora do medidor (a mesma do pago_ate), e nao a do Worker.
+      if (Date.parse(atual.pago_ate) - (Date.parse(atual.agora || "") || Date.now()) > RENOVA_ANUAL_MS) {
+        return { erro: "o plano " + (atual.periodo === "anual" ? "anual " : "") + "está pago até " + ate + "; a renovação abre 45 dias antes", status: 409 };
       }
-    } else if (!anual) return { erro: "a assinatura mensal já está ativa; para mudar de plano, use a troca de plano", status: 409 };
+    } else if (!anual) {
+      return { erro: pix ? "a assinatura mensal no cartão já está ativa: o mês no Pix é para quem não tem a assinatura no cartão"
+        : "a assinatura mensal já está ativa; para mudar de plano, use a troca de plano", status: 409 };
+    }
   }
   const cheio = anual ? escolhido.valor_anual : escolhido.valor;
   let valor = cheio;
@@ -703,7 +717,7 @@ async function ofertaDoPagamento(env, atual, { plano, periodo, cupom }) {
     comCupom = { codigo: c.cupom.codigo, desconto: c.cupom.desconto, meses: c.cupom.meses, brinde: c.cupom.brinde, valor_cheio: cheio, cobrados: 0 };
     valor = c.valor;
   }
-  return { plano: escolhido, periodo, valor, cupom: comCupom, parcelas_max: anual ? 12 : 1 };
+  return { plano: escolhido, periodo, meio: pix ? "pix" : "cartao", valor, cupom: comCupom, parcelas_max: anual && !pix ? 12 : 1, meses: anual ? 12 : 1 };
 }
 
 // Os motivos de recusa do cartao, em portugues (status_detail do Mercado Pago).
@@ -851,32 +865,81 @@ async function pagar(env, conta, id, dono, mp, d) {
   return json({ erro: motivoDaRecusa(pg.status_detail), situacao: pg.status || "rejected" }, 402);
 }
 
+/* O Pix (/v1/payments, payment_method_id pix): o ano a vista ou um mes avulso,
+   que vale ate vencer e nao renova. O QR vence em 30 minutos. A confirmacao e
+   a mesma do anual no cartao: o aviso payment, a consulta do pendente ou a
+   pagina perguntando por este pagamento (/api/ia/site/pix). */
+async function pagarPix(env, conta, id, dono, mp, d) {
+  const atual = await conta.pedir("ler_cadastro");
+  if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
+  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom, meio: "pix" });
+  if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
+  const { plano, valor } = oferta;
+  const anual = oferta.periodo === "anual";
+  const ref = "ia-" + (anual ? "anual" : "mes") + "-" + id + "-" + plano.id + "-" + aleatorio(4);
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, cupom: oferta.cupom, meses: oferta.meses });
+  const doc = soDigitos(atual.cadastro.documento);
+  const chave = /^[A-Za-z0-9-]{16,64}$/.test(String(d.idempotencia || "")) ? String(d.idempotencia) : crypto.randomUUID();
+  // A data no fuso de Brasilia, no formato que o Mercado Pago pede (yyyy-MM-ddTHH:mm:ss.SSS-03:00).
+  const vence = new Date(Date.now() + PIX_VENCE_MS - 3 * 3600 * 1000).toISOString().replace("Z", "-03:00");
+  const r = await mp(env, "/v1/payments", "POST", {
+    transaction_amount: valor,
+    description: "PAULUS - plano " + plano.nome + (anual ? " (anual)" : " (um mês)"),
+    payment_method_id: "pix",
+    payer: { email: dono.email, identification: { type: doc.length === 11 ? "CPF" : "CNPJ", number: doc } },
+    external_reference: ref,
+    date_of_expiration: vence,
+  }, { "X-Idempotency-Key": chave });
+  const pg = (r.ok && r.dados) || null;
+  const t = (pg && pg.point_of_interaction && pg.point_of_interaction.transaction_data) || {};
+  if (!pg || !t.qr_code) return json({ erro: "o Mercado Pago não gerou o Pix: tente de novo em instantes", status_mp: r.status }, 502);
+  if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
+  return json({ ok: true, meio: "pix", periodo: oferta.periodo, pagamento: String(pg.id), valor, vence,
+    qr_code: t.qr_code, qr_code_base64: t.qr_code_base64 || "", ticket_url: t.ticket_url || "" });
+}
+
+/* A pagina do Pix pergunta se ele ja entrou: o pagamento e desta conta? Pago,
+   o plano entra agora (confirmarAnual e idempotente). */
+async function situacaoDoPix(env, conta, id, mp, pagamento) {
+  if (!/^\d{1,20}$/.test(String(pagamento || ""))) return json({ erro: "pagamento inválido" }, 400);
+  const r = await mp(env, "/v1/payments/" + encodeURIComponent(pagamento), "GET");
+  if (!r.ok || !r.dados) return json({ erro: "não achei esse Pix", status: r.status }, r.status === 404 ? 404 : 502);
+  const m = String(r.dados.external_reference || "").match(/^ia-(?:anual|mes)-([0-9a-f]{24})-/);
+  if (!m || m[1] !== id) return json({ erro: "esse Pix não é desta conta" }, 403);
+  if (r.dados.status === "approved") await confirmarAnual(env, r.dados, mp);
+  return json({ pagamento, situacao: r.dados.status, pago: r.dados.status === "approved", conta: await conta.pedir("ler_cadastro") });
+}
+
 function dataBR(iso) {
   const t = Date.parse(iso || "");
   if (!Number.isFinite(t)) return "";
   return new Date(t - 3 * 3600 * 1000).toISOString().slice(0, 10).split("-").reverse().join("/");
 }
 
-/* O pagamento do ano confirmado (pelo aviso do Mercado Pago ou pela consulta):
-   o ano entra na conta e, se havia a assinatura mensal, ela e cancelada no
+/* O pagamento de uma vez confirmado (pelo aviso do Mercado Pago ou pela
+   consulta): o ano ("ia-anual-", cartao ou Pix) ou o mes avulso ("ia-mes-",
+   Pix) entra na conta e, se havia a assinatura mensal, ela e cancelada no
    Mercado Pago. Estornado (o reembolso dos 7 dias), o plano acaba agora. */
 async function confirmarAnual(env, pagamento, mp) {
-  const m = String((pagamento && pagamento.external_reference) || "").match(/^ia-anual-([0-9a-f]{24})-([a-z0-9-]{2,24})-[0-9a-f]+$/);
-  if (!m) return null;
+  const ref = String((pagamento && pagamento.external_reference) || "").match(/^ia-(anual|mes)-([0-9a-f]{24})-([a-z0-9-]{2,24})-[0-9a-f]+$/);
+  if (!ref) return null;
+  const m = [ref[0], ref[2], ref[3]];
+  const anual = ref[1] === "anual";
   const conta = medidor(env, m[1]);
   const valor = Number(pagamento.transaction_amount) || 0;
+  const tipo = "payment · " + (anual ? "anual" : "mês avulso") + (pagamento.payment_method_id === "pix" ? " (Pix)" : "");
   if (pagamento.status === "approved") {
-    const r = await conta.pedir("anual_pago", { pagamento: String(pagamento.id), plano: m[2], valor, quando: pagamento.date_approved || "" });
-    if (r.novo) await anotarPagamento(env, { id: String(pagamento.id), conta: m[1], tipo: "anual", valor });
+    const r = await conta.pedir("anual_pago", { pagamento: String(pagamento.id), plano: m[2], valor, quando: pagamento.date_approved || "", meses: anual ? 12 : 1 });
+    if (r.novo) await anotarPagamento(env, { id: String(pagamento.id), conta: m[1], tipo: anual ? "anual" : "mês avulso", valor });
     if (r.mensal_para_cancelar && mp) {
       const c = await mp(env, "/preapproval/" + encodeURIComponent(r.mensal_para_cancelar), "PUT", { status: "cancelled" });
       if (c.ok) await conta.pedir("mensal_cancelado", { id: r.mensal_para_cancelar });
     }
-    await anotarAviso(env, { conta: m[1], tipo: "payment · anual", status: "approved", valor });
+    await anotarAviso(env, { conta: m[1], tipo, status: "approved", valor });
     return r;
   }
   if (pagamento.status === "refunded" || pagamento.status === "charged_back") {
-    await anotarAviso(env, { conta: m[1], tipo: "payment · anual", status: String(pagamento.status), valor });
+    await anotarAviso(env, { conta: m[1], tipo, status: String(pagamento.status), valor });
     return conta.pedir("anual_estornado", { pagamento: String(pagamento.id) });
   }
   return conta.pedir("resumo");
@@ -905,8 +968,8 @@ async function trocarPlano(env, conta, mp, plano) {
   const atual = await conta.pedir("resumo");
   const a = atual.assinatura;
   if (!a || !a.id || a.situacao !== "authorized") return json({ erro: "a troca é para quem tem a assinatura ativa; sem ela, é só assinar o plano escolhido" }, 409);
-  if (atual.periodo === "anual") {
-    return json({ erro: "no plano anual, a troca de plano é na renovação (pago até " + dataBR(atual.pago_ate) + "); para antecipar, escreva para contato@paulus.ia.br" }, 409);
+  if (prepago(atual.periodo)) {
+    return json({ erro: "no plano pago de uma vez, a troca de plano é na renovação (pago até " + dataBR(atual.pago_ate) + "); para antecipar, escreva para contato@paulus.ia.br" }, 409);
   }
   const novo = planoDe(n, plano);
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", {
@@ -1072,7 +1135,7 @@ async function atenderSite(request, env, p, deps) {
     const a = aberta.assinatura;
     const mp = deps.chamarMP;
     if (aberta.anual_pendente) await conferirAnualPendente(env, conta, mp);
-    if (a && a.id && mp && a.periodo !== "anual") {
+    if (a && a.id && mp && !prepago(a.periodo)) {
       const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "GET");
       if (r.ok && r.dados && r.dados.status && r.dados.status !== a.situacao) {
         await conta.pedir("assinatura", { assinatura: { ...a, situacao: r.dados.status } });
@@ -1095,12 +1158,19 @@ async function atenderSite(request, env, p, deps) {
     return json({ ...salvo, proximo: ida.link });
   }
   if (p === "/api/ia/site/oferta") {
-    // O que a pagina de pagamento mostra: o valor calculado aqui, e nao no navegador.
-    const o = await ofertaDoPagamento(env, await conta.pedir("ler_cadastro"), { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
-    if (o.erro) return json({ erro: o.erro }, o.status);
-    return json({ ...o, email: dono.email, cadastro_completo: Boolean(aberta.cadastro) });
+    // O que a pagina de pagamento mostra: o valor calculado aqui, e nao no
+    // navegador, com o que cada meio permite ("" quando pode; senao, o porque).
+    const atual = await conta.pedir("ler_cadastro");
+    const pedido = { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom };
+    const cartao = await ofertaDoPagamento(env, atual, { ...pedido, meio: "cartao" });
+    const pix = await ofertaDoPagamento(env, atual, { ...pedido, meio: "pix" });
+    if (cartao.erro && pix.erro) return json({ erro: cartao.erro }, cartao.status);
+    const o = cartao.erro ? pix : cartao;
+    return json({ ...o, parcelas_max: cartao.erro ? 1 : cartao.parcelas_max, meios: { cartao: cartao.erro || "", pix: pix.erro || "" },
+      email: dono.email, cadastro_completo: Boolean(aberta.cadastro) });
   }
-  if (p === "/api/ia/site/pagar") return pagar(env, conta, id, dono, deps.chamarMP, d);
+  if (p === "/api/ia/site/pagar") return d.meio === "pix" ? pagarPix(env, conta, id, dono, deps.chamarMP, d) : pagar(env, conta, id, dono, deps.chamarMP, d);
+  if (p === "/api/ia/site/pix") return situacaoDoPix(env, conta, id, deps.chamarMP, String(d.pagamento || ""));
   if (p === "/api/ia/site/pagar-fora") return pagarFora(env, conta, id, dono, deps.chamarMP, d);
   return json({ erro: "rota não existe" }, 404);
 }
@@ -1108,7 +1178,7 @@ async function atenderSite(request, env, p, deps) {
 async function situacaoDaAssinatura(env, conta, mp) {
   const atual = await conferirAnualPendente(env, conta, mp);
   const a = atual.assinatura;
-  if (!a || !a.id || a.periodo === "anual") return json(atual);
+  if (!a || !a.id || prepago(a.periodo)) return json(atual);
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "GET");
   if (r.ok && r.dados && r.dados.status && r.dados.status !== a.situacao) {
     return json(await conta.pedir("assinatura", { assinatura: { ...a, situacao: r.dados.status } }));
@@ -1120,8 +1190,8 @@ async function cancelar(env, conta, mp) {
   const atual = await conta.pedir("resumo");
   const a = atual.assinatura;
   if (!a || !a.id || a.situacao === "cancelled") return json({ erro: "não há assinatura ativa" }, 409);
-  if (a.periodo === "anual") {
-    return json({ erro: "o plano anual não renova sozinho: ele vale até " + dataBR(atual.pago_ate) + ". Para o reembolso dos 7 dias, escreva para contato@paulus.ia.br" }, 409);
+  if (prepago(a.periodo)) {
+    return json({ erro: "o plano pago de uma vez não renova sozinho: ele vale até " + dataBR(atual.pago_ate) + ". Para o reembolso dos 7 dias, escreva para contato@paulus.ia.br" }, 409);
   }
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou cancelar", status: r.status }, 502);
@@ -1367,33 +1437,36 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "anual_pendente") {
-      conta.anual_pendente = { ref: d.ref, plano: d.plano, valor: d.valor, cupom: d.cupom || null, quando: new Date(agora).toISOString() };
+      conta.anual_pendente = { ref: d.ref, plano: d.plano, valor: d.valor, cupom: d.cupom || null, meses: Number(d.meses) === 1 ? 1 : 12, quando: new Date(agora).toISOString() };
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "anual_pago") {
+      // O ano (12 meses) ou o mes avulso do Pix (1): pago de uma vez, sem renovar sozinho.
+      const meses = Number(d.meses) === 1 ? 1 : 12;
+      const tipo = meses === 12 ? "anual" : "avulso";
       conta.pagamentos = conta.pagamentos || [];
-      if (conta.pagamentos.some((p) => p.tipo === "anual" && p.ref === d.pagamento)) return [{ ...this.resumo(conta, n, agora), novo: false }, null];
+      if (conta.pagamentos.some((p) => prepago(p.tipo) && p.ref === d.pagamento)) return [{ ...this.resumo(conta, n, agora), novo: false }, null];
       const antes = conta.assinatura || {};
       // A assinatura mensal que existia sai no Mercado Pago (confirmarAnual).
-      const mensal = antes.id && antes.periodo !== "anual" && antes.situacao === "authorized" ? antes.id : "";
-      // A renovacao antecipada comeca no fim do ano pago; a primeira, agora.
+      const mensal = antes.id && !prepago(antes.periodo) && antes.situacao === "authorized" ? antes.id : "";
+      // A renovacao antecipada comeca no fim do que ja esta pago; a primeira, agora.
       const pagoAte = Date.parse(conta.pago_ate || "");
-      const inicio = conta.periodo === "anual" && pagoAte > agora ? pagoAte : agora;
+      const inicio = prepago(conta.periodo) && pagoAte > agora ? pagoAte : agora;
       let ate = inicio;
-      for (let i = 0; i < 12; i++) ate = maisUmMes(ate);
+      for (let i = 0; i < meses; i++) ate = maisUmMes(ate);
       conta.pago_ate = new Date(ate).toISOString();
-      conta.periodo = "anual";
+      conta.periodo = tipo;
       conta.plano = d.plano;
       delete conta.plano_proximo;
       if (conta.anual_pendente && conta.anual_pendente.cupom) conta.cupom = { ...conta.anual_pendente.cupom, cobrados: 1, voltou: true };
       delete conta.anual_pendente;
-      conta.assinatura = { id: "anual-" + d.pagamento, situacao: "authorized", valor: Number(d.valor) || 0, periodo: "anual",
+      conta.assinatura = { id: tipo + "-" + d.pagamento, situacao: "authorized", valor: Number(d.valor) || 0, periodo: tipo,
         desde: antes.desde || new Date(agora).toISOString() };
-      conta.pagamentos = [...conta.pagamentos, { tipo: "anual", ref: d.pagamento, valor: Number(d.valor) || 0,
+      conta.pagamentos = [...conta.pagamentos, { tipo, ref: d.pagamento, valor: Number(d.valor) || 0,
         quando: new Date(Date.parse(d.quando || "") || agora).toISOString() }].slice(-60);
       // O ano pago abre um ciclo novo agora, com os creditos do plano pago (a
       // renovacao antecipada espera o fim do ciclo aberto, que ja esta pago).
-      if (inicio === agora) this.abrirCiclo(conta, n, agora, "anual", d.pagamento);
+      if (inicio === agora) this.abrirCiclo(conta, n, agora, tipo, d.pagamento);
       if (conta.cupom && conta.cupom.brinde > 0 && !conta.cupom.brinde_dado) {
         conta.extra = (conta.extra || 0) + Math.round(conta.cupom.brinde);
         conta.cupom.brinde_dado = true;
@@ -1406,7 +1479,7 @@ export class ContaIA {
     }
     if (acao === "anual_estornado") {
       const a = conta.assinatura || {};
-      if (a.id !== "anual-" + d.pagamento || a.situacao === "refunded") return [this.resumo(conta, n, agora), null];
+      if ((a.id !== "anual-" + d.pagamento && a.id !== "avulso-" + d.pagamento) || a.situacao === "refunded") return [this.resumo(conta, n, agora), null];
       // O reembolso (os 7 dias): o plano acaba agora, e o ciclo junto.
       conta.assinatura = { ...a, situacao: "refunded" };
       conta.pago_ate = new Date(agora).toISOString();
@@ -1416,7 +1489,7 @@ export class ContaIA {
     if (acao === "assinatura") {
       // Com o anual em dia, o aviso da assinatura mensal antiga (cancelada ao
       // passar para o anual) nao mexe mais na conta.
-      if (conta.periodo === "anual" && conta.assinatura && d.assinatura && conta.assinatura.id !== d.assinatura.id) {
+      if (prepago(conta.periodo) && conta.assinatura && d.assinatura && conta.assinatura.id !== d.assinatura.id) {
         return [this.resumo(conta, n, agora), null];
       }
       // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
@@ -1542,19 +1615,19 @@ export class ContaIA {
     if (conta.cortesia && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "cortesia");
     // O anual: o ano esta pago, e cada mes abre o seu ciclo, com a cota do mes.
     const pagoAte = Date.parse(conta.pago_ate || "");
-    if (conta.periodo === "anual" && conta.ciclo && !this.cicloAberto(conta, agora) && agora < pagoAte) {
+    if (prepago(conta.periodo) && conta.ciclo && !this.cicloAberto(conta, agora) && agora < pagoAte) {
       let inicio = Date.parse(conta.ciclo.fim);
       while (maisUmMes(inicio) <= agora) inicio = maisUmMes(inicio);
-      this.abrirCiclo(conta, n, inicio, "anual");
+      this.abrirCiclo(conta, n, inicio, conta.periodo);
     }
     const a = conta.assinatura || {};
-    if (conta.periodo === "anual" && a.situacao === "authorized" && agora >= pagoAte) conta.assinatura = { ...a, situacao: "expired" };
+    if (prepago(conta.periodo) && a.situacao === "authorized" && agora >= pagoAte) conta.assinatura = { ...a, situacao: "expired" };
     const c = conta.ciclo;
     if (!c) return false;
     const fim = Date.parse(c.fim);
     if (fim > agora) return true;
     // A tolerancia e da cobranca mensal, que pode atrasar uns dias no Mercado Pago.
-    return conta.periodo !== "anual" && a.situacao === "authorized" && agora < fim + TOLERANCIA_MS;
+    return !prepago(conta.periodo) && a.situacao === "authorized" && agora < fim + TOLERANCIA_MS;
   }
 
   reservado(conta) {
@@ -1700,6 +1773,7 @@ export class ContaIA {
       // Mensal ou anual; no anual, ate quando o ano esta pago.
       periodo: conta.periodo || "mensal",
       pago_ate: conta.pago_ate || null,
+      agora: new Date(agora).toISOString(),
       anual_pendente: conta.anual_pendente ? { ref: conta.anual_pendente.ref, plano: conta.anual_pendente.plano, valor: conta.anual_pendente.valor } : null,
       // Ainda no prazo de arrependimento (os 7 primeiros dias da assinatura).
       arrependimento_ate: a && a.desde ? new Date(Date.parse(a.desde) + ARREPENDIMENTO_MS).toISOString() : null,

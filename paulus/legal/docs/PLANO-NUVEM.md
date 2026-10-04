@@ -186,3 +186,18 @@ página do Mercado Pago": `POST /api/ia/site/pagar-fora` cria a assinatura pende
 (mensal) ou a preferência do Checkout Pro (anual), com o valor da mesma oferta; a
 volta é `/cadastro/?voltou=1`, que confere a situação. Agora há dois lugares que
 criam cobrança (`pagar` e `pagarFora`), os dois a partir de `ofertaDoPagamento`.
+
+## Pix na assinatura (03/10)
+
+A página de pagamento tem **Pix | Cartão**, com o Pix primeiro e escolhido de saída.
+
+- **Mês no Pix (avulso):** um pagamento (`/v1/payments`, `payment_method_id: pix`, referência `ia-mes-<conta>-<plano>-<x>`) que vale um mês e acaba sozinho, sem renovação. Na conta fica `periodo: "avulso"`, com `pago_ate`, como um "anual de 1 mês". O mês seguinte pode ser pago antes e começa no fim do que já está pago.
+- **Ano no Pix:** o mesmo anual de antes (`ia-anual-...`), só que à vista no Pix.
+- **Confirmação:**
+  - o aviso `payment` do Mercado Pago, pelo mesmo `confirmarAnual`;
+  - a consulta do pendente;
+  - a própria página, que pergunta a cada 4 s em `/api/ia/site/pix` (confere se o pagamento é da conta) e de novo ao voltar para a aba.
+- **O QR** vence em 30 min (`date_of_expiration` no fuso -03:00). Vencido, a página pede para gerar outro.
+- **O que cada meio permite** vem da oferta (`meios`): com a assinatura mensal no cartão ativa, o mês no Pix fica fechado (passar ao anual pode); com o mês no Pix pago, a assinatura no cartão espera ele vencer.
+- **A regra dos 45 dias** de renovação usa a hora do medidor (`agora` no resumo), e não a do Worker.
+- **O cupom** é gasto ao gerar o Pix, como no Checkout Pro do plano B.

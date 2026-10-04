@@ -51,15 +51,15 @@
     $("cd-resumo-trocar").href = volta;
     if (!p) { $("cd-resumo-plano").textContent = "Escolha um plano"; $("cd-resumo-preco").textContent = ""; $("cd-resumo-trocar").textContent = "Ver os planos"; return; }
     $("cd-resumo-plano").textContent = p.nome + (estado.periodo === "anual" ? " · anual" : " · mensal");
-    $("cd-resumo-preco").textContent = brl(valorDe(p)) + (estado.periodo === "anual" ? " por ano, em até 12× no cartão" : " por mês");
+    $("cd-resumo-preco").textContent = brl(valorDe(p)) + (estado.periodo === "anual" ? " por ano, à vista no Pix ou em até 12× no cartão" : " por mês, no Pix ou no cartão");
     $("cd-resumo-trocar").textContent = "Trocar";
   }
 
   function desenharPeriodo() {
-    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "o ano, em até 12×" : "cobrança mensal";
+    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "Pix ou até 12×" : "Pix ou cartão";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
-      ? "O ano é pago de uma vez, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela), nos campos seguros do Mercado Pago da próxima página. A cota de IA continua mensal. O anual não renova sozinho."
-      : "No próximo passo, o cartão é digitado nos campos seguros do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
+      ? "O ano é pago de uma vez, na próxima página: à vista no Pix ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela). A cota de IA continua mensal. O anual não renova sozinho."
+      : "Na próxima página, escolha: Pix, que paga um mês e não renova, ou cartão, que renova todo mês e se cancela no PAVLVS, em Configurações › Modelos. O número do cartão é digitado nos campos seguros do Mercado Pago e não passa pelo PAVLVS.";
   }
 
   /* A troca de plano, com a assinatura paga ativa: o plano escolhido em

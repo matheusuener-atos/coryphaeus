@@ -144,7 +144,8 @@
       if (!estado.planos.some(function (p) { return p.id === estado.escolhido; })) estado.escolhido = RECOMENDADO;
       if (d.recarga) {
         $("cd-recarga").textContent = "Uma pergunta sobre documentos gasta, em média, 3.500 créditos. A cota é do mês, liberada por semana; " +
-          "uma vez por mês dá para adiantar a semana seguinte. Se acabar, a recarga é no Pix, no preço do plano, e não vence na renovação.";
+          "uma vez por mês dá para adiantar a semana seguinte. Se acabar, a recarga é no Pix, no preço do plano, e não vence na renovação. " +
+          "Pague no Pix (um mês ou o ano, sem renovação) ou no cartão (o mensal renova sozinho; o anual, em até 12×).";
       }
       desenharPeriodo();
       desenharPlanos();

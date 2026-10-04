@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=arrow_back,badge,calendar_month,check,credit_card,expand_more,dark_mode,download,light_mode,lock,menu,payments,person,pin&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=arrow_back,badge,calendar_month,check,content_copy,credit_card,dark_mode,download,expand_more,light_mode,lock,menu,payments,person,pin,qr_code,schedule&display=block">
 <link rel="stylesheet" href="../../assets/site.css">
 <link rel="stylesheet" href="../../assets/paginas.css">
 <!-- O MercadoPago.js v2 (CardForm): o numero, a validade e o codigo do cartao
@@ -42,6 +42,12 @@
       <strong id="pg-valor"></strong>
       <small id="pg-detalhe"></small>
     </div>
+    <!-- Pix ou cartao (o Pix primeiro): o que cada um permite vem da oferta (meios). -->
+    <div class="ciclo pg-meios" id="pg-meios" role="radiogroup" aria-label="Forma de pagamento" hidden>
+      <button type="button" class="ciclo-op on" role="radio" aria-checked="true" id="pg-meio-pix" data-meio="pix"><svg class="pg-pix-icone" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.917 11.71a2.046 2.046 0 0 1-1.454-.602l-2.1-2.1a.4.4 0 0 0-.551 0l-2.108 2.108a2.044 2.044 0 0 1-1.454.602h-.414l2.66 2.66c.83.83 2.177.83 3.007 0l2.667-2.668h-.253zM4.25 4.282c.55 0 1.066.214 1.454.602l2.108 2.108a.39.39 0 0 0 .552 0l2.1-2.1a2.044 2.044 0 0 1 1.453-.602h.253L9.503 1.623a2.127 2.127 0 0 0-3.007 0l-2.66 2.66h.414z"/><path d="m14.377 6.496-1.612-1.612a.307.307 0 0 1-.114.023h-.733c-.379 0-.75.154-1.017.422l-2.1 2.1a1.005 1.005 0 0 1-1.425 0L5.268 5.32a1.448 1.448 0 0 0-1.018-.422h-.9a.306.306 0 0 1-.109-.021L1.623 6.496c-.83.83-.83 2.177 0 3.008l1.618 1.618a.305.305 0 0 1 .108-.022h.901c.38 0 .75-.153 1.018-.421L7.375 8.57a1.034 1.034 0 0 1 1.426 0l2.1 2.1c.267.268.638.421 1.017.421h.733c.04 0 .079.01.114.024l1.612-1.612c.83-.83.83-2.178 0-3.008z"/></svg>Pix</button>
+      <button type="button" class="ciclo-op" role="radio" aria-checked="false" id="pg-meio-cartao" data-meio="cartao"><span class="icon" aria-hidden="true">credit_card</span>Cartão</button>
+    </div>
+    <p class="nota-campo pg-meio-nota" id="pg-meio-nota" hidden></p>
     <p class="nota-campo pg-estado" id="pg-estado" role="status" aria-live="polite">Carregando o pagamento…</p>
     <form id="pg-form" class="pg-form campos" novalidate hidden>
       <span class="pg-titulo-cartao">Cartão de crédito ou débito</span>
@@ -74,6 +80,19 @@
       <select id="pg-emissor" hidden aria-hidden="true" tabindex="-1" data-mp-sdk-required-field="issuer"></select>
       <button type="submit" class="btn-duplo largo pg-pagar" id="pg-pagar"><span><span class="icon" aria-hidden="true">lock</span>Pagar</span></button>
     </form>
+    <!-- O Pix: o QR e o copia e cola do Mercado Pago; a pagina confere sozinha se entrou. -->
+    <div class="pg-form campos pg-pix" id="pg-pix" hidden>
+      <span class="pg-titulo-cartao">Pix</span>
+      <p class="nota-campo" id="pg-pix-texto"></p>
+      <button type="button" class="btn-duplo largo pg-pagar" id="pg-pix-gerar"><span><span class="icon" aria-hidden="true">qr_code</span>Gerar o Pix</span></button>
+      <div class="pg-pix-qr" id="pg-pix-qr" hidden>
+        <img id="pg-pix-img" alt="QR Code do Pix" width="208" height="208">
+        <div class="campo"><span class="rotulo" id="pg-r-pix">Pix copia e cola</span>
+          <span class="caixa-campo mono"><input id="pg-pix-codigo" readonly aria-labelledby="pg-r-pix">
+            <button type="button" class="pg-copiar" id="pg-pix-copiar"><span class="icon" aria-hidden="true">content_copy</span><span id="pg-pix-copiar-texto">Copiar</span></button></span></div>
+        <span class="nota-campo pg-pix-espera" id="pg-pix-espera" role="status" aria-live="polite"></span>
+      </div>
+    </div>
     <p class="erro-campo" id="pg-erro" role="alert" hidden></p>
     <!-- O plano B: o formulario nao carregou (bloqueador, rede) -->
     <div class="pg-fora" id="pg-fora" hidden>
@@ -88,7 +107,7 @@
       <p class="nota-campo">Instale, abra e entre com a mesma conta Google em Configurações › Modelos.</p>
     </div>
     <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">lock</span></span>Campos seguros do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span id="pg-selo">pagamento seguro</span></span></div>
-    <span class="nota-campo">O número, a validade e o código do cartão são digitados nos campos do Mercado Pago: eles não passam pelo PAVLVS. Nos 7 primeiros dias você pode desistir e receber de volta o que pagou (<a href="../../termos-de-uso/#nuvem">Termos de uso</a>).</span>
+    <span class="nota-campo">O número, a validade e o código do cartão são digitados nos campos do Mercado Pago: eles não passam pelo PAVLVS. O Pix é gerado pelo Mercado Pago, em nome dele. Nos 7 primeiros dias você pode desistir e receber de volta o que pagou (<a href="../../termos-de-uso/#nuvem">Termos de uso</a>).</span>
     <a class="nota-campo nota-centro pg-voltar" id="pg-voltar" href="../"><span class="icon" aria-hidden="true">arrow_back</span> Voltar aos dados do escritório</a>
   </div>
 </main>

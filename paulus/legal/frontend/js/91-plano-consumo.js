@@ -421,6 +421,9 @@ function blocoPlano(d, c) {
   } else if (ativa && anual) {
     cobranca = item("Pago até", pcData(c.pago_ate) + " · plano anual", ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
     pagamento = item("Pagamento", "Mercado Pago · ano pago", "");
+  } else if (ativa && c.periodo === "avulso") {
+    cobranca = item("Pago até", pcData(c.pago_ate) + " · no Pix", ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
+    pagamento = item("Pagamento", "Mercado Pago · Pix, sem renovação", "");
   } else if (ativa) {
     cobranca = item("Próxima cobrança", (k.fim ? pcData(k.fim) + " · " : "") + reais(proximo.valor), ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
     pagamento = item("Pagamento", "Mercado Pago · " + PC_SITUACOES.authorized, ligacao('data-pc-cartao="1"', "Alterar cartão"));
@@ -443,6 +446,8 @@ function blocoPlano(d, c) {
     esc(tokCurto(c.plano_proximo.tokens)) + " créditos, " + esc(reais(c.plano_proximo.valor)) + "/mês).</p>" : "";
   const rodape = ativa && anual
     ? '<p class="sv-dica">O plano anual não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ", com a cota de cada mês. A renovação abre 45 dias antes, em “Ver planos”.</p>"
+    : ativa && c.periodo === "avulso"
+      ? '<p class="sv-dica">O mês pago no Pix não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ". Para continuar, pague outro mês ou assine no cartão, em “Ver planos”.</p>"
     : ativa
       ? '<p class="sv-dica">Ao cancelar, nada mais é cobrado e os créditos do ciclo pago valem até ' + esc(pcData(k.fim) || "o fim dele") + ". " +
         '<button type="button" class="pc-sublinhado" data-pc-cancelar="1">Cancelar assinatura</button></p>'
@@ -493,6 +498,10 @@ async function verUpgrade() {
     let botoes;
     if (!ativa) {
       botoes = botao(p.id, "mensal", "Assinar · " + mensal, true, false) + botao(p.id, "anual", "Anual · " + ano + " (até 12×)", false, false);
+    } else if (c.periodo === "avulso") {
+      // O mes no Pix: outro mes (soma ao fim do pago) ou o ano.
+      botoes = botao(p.id, "mensal", (eAtual ? "Pagar mais um mês · " : "Mais um mês no " + p.nome + " · ") + mensal, eAtual, false) +
+        botao(p.id, "anual", "Passar ao anual · " + ano, false, false);
     } else if (anual) {
       botoes = renovaAnual ? botao(p.id, "anual", "Renovar o ano no " + p.nome + " · " + ano, eAtual, false)
         : botao(p.id, "anual", eAtual ? "Plano atual · anual" : "Troca na renovação do ano", false, true);
@@ -514,8 +523,9 @@ async function verUpgrade() {
   const aberto = dialogo({
     titulo: "Planos", contexto: "Plano e consumo", classe: "pc-dialogo pc-dialogo-planos", confirmar: "Fechar", semCancelar: true,
     html: '<p class="pc-texto">' + (anual ? "O plano anual vale até " + esc(pcData(c.pago_ate)) + ". A troca de plano é na renovação, que abre 45 dias antes."
+      : ativa && c.periodo === "avulso" ? "O mês pago no Pix vale até " + esc(pcData(c.pago_ate)) + ". Outro mês, ou o ano, começa quando ele acabar."
       : ativa ? "Trocar no mensal vale na próxima renovação: o valor novo é cobrado nela, e os créditos do plano novo entram com ela. Passar ao anual vale assim que o ano é pago; a assinatura mensal é cancelada no Mercado Pago."
-        : "O pagamento abre em paulus.ia.br, com o cartão nos campos seguros do Mercado Pago. O anual paga o ano de uma vez, em até 12 vezes no cartão, com os juros do parcelamento por conta de quem parcela.") +
+        : "O pagamento abre em paulus.ia.br: no Pix, um mês ou o ano, sem renovação; ou no cartão, nos campos seguros do Mercado Pago, com o mensal renovando todo mês e o anual em até 12 vezes (os juros do parcelamento são de quem parcela).") +
       " Os 7 primeiros dias são de arrependimento, com o dinheiro de volta.</p>" + '<div class="pc-planos">' + colunas + "</div>" });
   document.querySelectorAll("#veu-dialogo [data-pc-opcao]").forEach((b) => b.addEventListener("click", () => {
     escolhido = b.dataset.pcOpcao;
@@ -524,7 +534,8 @@ async function verUpgrade() {
   }));
   await aberto;
   if (!escolhido) return;
-  if (ativa && !anual && periodo === "mensal") {
+  // O mes no Pix nao tem troca: outro mes e outro pagamento.
+  if (ativa && !anual && c.periodo !== "avulso" && periodo === "mensal") {
     if (escolhido === marcado) return;
     const res = await nuvemPost("/api/nuvem/paulus/plano", { plano: escolhido });
     if (!res) return;
@@ -533,8 +544,8 @@ async function verUpgrade() {
     const res = await nuvemPost("/api/nuvem/paulus/assinar", { plano: escolhido, periodo: periodo });
     if (!res) return;
     if (res.link) window.open(res.link, "_blank");
-    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: o cartão vai nos campos seguros do Mercado Pago" +
-      (periodo === "anual" ? ", em até 12 vezes" : "") + ". O plano entra assim que o pagamento for aprovado.");
+    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: no Pix ou no cartão" +
+      (periodo === "anual" ? " (em até 12 vezes)" : "") + ". O plano entra assim que o pagamento for aprovado.");
   }
   await carregarConsumo(true);
 }
