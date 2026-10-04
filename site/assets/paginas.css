@@ -85,13 +85,22 @@
 .pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
 .pg-total small { font-size: 12px; line-height: 1.45; color: var(--ink3); }
 .pg-estado { text-align: center; }
-.pg-cartao { display: grid; gap: 12px; }
+/* O formulario do cartao: os tres campos do cartao sao quadros do Mercado
+   Pago (CardForm); a caixa, o icone e o rotulo sao do site. */
+.pg-form { padding: 18px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
 .pg-titulo-cartao { font: 500 15px var(--sans); color: var(--ink); }
-.pg-bloco { min-height: 1px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.pg-bloco:empty, .pg-bloco[hidden] { border: 0; }
-.pg-pagar { justify-self: stretch; display: flex; width: 100%; }
-.pg-pagar > span { padding: 0 28px; }
+.pg-form .caixa-campo { background: var(--bg); }
+.pg-form .caixa-campo > .icon { font-size: 18px; color: var(--ink3); flex: none; }
+.pg-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pg-seguro { position: relative; flex: 1; min-width: 0; height: 22px; }
+.pg-seguro iframe { display: block; width: 100%; height: 100%; border: 0; }
+.pg-form select { border: 0; outline: none; background: transparent; color: var(--ink); font: 400 14px var(--sans); }
+.pg-form #pg-parcelas { flex: 1; min-width: 0; }
+.pg-doc #pg-doc-tipo { flex: none; padding-right: 4px; border-right: 1px solid var(--line); }
+.pg-form select option { background: var(--panel); color: var(--ink); }
+.pg-pagar { margin-top: 4px; }
 .pg-pagar .icon { font-size: 16px; }
+@media (max-width: 420px) { .pg-dupla { grid-template-columns: 1fr; } }
 .pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .pg-voltar .icon { font-size: 16px; }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }

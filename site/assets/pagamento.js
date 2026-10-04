@@ -1,9 +1,10 @@
-/* A pagina de pagamento (paulus.ia.br/cadastro/pagamento): o bloco de cartao
-   do Mercado Pago (Card Payment Brick) e a cobranca pelo Worker
+/* A pagina de pagamento (paulus.ia.br/cadastro/pagamento): o formulario do
+   cartao (CardForm do MercadoPago.js, com os tres campos do cartao em quadros
+   seguros do Mercado Pago) e a cobranca pelo Worker
    (worker/ia.js, /api/ia/mp-config, /api/ia/site/oferta e /api/ia/site/pagar).
 
    O cartao e digitado nos quadros do Mercado Pago; desta pagina sai so o token
-   que ele gera. O valor vem do servidor (oferta), nunca do bloco. Mensal: a
+   que ele gera. O valor vem do servidor (oferta), nunca do formulario. Mensal: a
    assinatura no cartao, sem parcelas. Anual: o ano em ate 12 parcelas. O
    id_token do Google e o da pagina de cadastro (sessionStorage, uma hora). */
 (function () {
@@ -66,7 +67,7 @@
 
   function pronto(r) {
     if (controle) { try { controle.unmount(); } catch (e) { /* ja saiu */ } controle = null; }
-    $("cardPaymentBrick_container").hidden = true;
+    $("pg-form").hidden = true;
     $("pg-total").hidden = true;
     estado("");
     erro("");
@@ -88,36 +89,19 @@
     $("pg-voltar").hidden = true;
   }
 
-  /* ------------------------------------------------------ o bloco */
+  /* ------------------------------------------------- o formulario */
 
-  /* As cores do site (as variaveis do :root, do tema claro ou do escuro) nas
-     variaveis que o bloco do Mercado Pago aceita (customVariables). O botao
-     Pagar fica como os do site: a tinta como fundo, o fundo como letra. */
-  function coresDoSite() {
+  /* O estilo do texto dentro dos tres quadros do Mercado Pago (o numero, a
+     validade e o codigo): as cores e a fonte do tema do site. */
+  function estiloDosQuadros() {
     var css = getComputedStyle(document.documentElement);
     var v = function (nome) { return css.getPropertyValue(nome).trim(); };
-    return {
-      formBackgroundColor: v("--panel"),
-      inputBackgroundColor: v("--bg"),
-      textPrimaryColor: v("--ink"),
-      textSecondaryColor: v("--ink2"),
-      baseColor: v("--ink"),
-      baseColorFirstVariant: v("--ink2"),
-      baseColorSecondVariant: v("--ink3"),
-      buttonTextColor: v("--bg"),
-      outlinePrimaryColor: v("--line3"),
-      outlineSecondaryColor: v("--line"),
-      errorColor: v("--erro"),
-      successColor: v("--ok"),
-      borderRadiusSmall: "6px",
-      borderRadiusMedium: "8px",
-      borderRadiusLarge: "10px",
-    };
+    return { color: v("--ink"), placeholderColor: v("--ink3"), fontSize: "14px", fontFamily: "Manrope, system-ui, sans-serif" };
   }
 
   var montado = null;  // a chave e a oferta, para remontar quando o tema muda
 
-  async function montar(publicKey, oferta) {
+  function montar(publicKey, oferta) {
     montado = { publicKey: publicKey, oferta: oferta };
     var anual = oferta.periodo === "anual";
     $("pg-plano").textContent = "Plano " + oferta.plano.nome + (anual ? " · anual" : " · mensal");
@@ -127,29 +111,54 @@
       : "cobrado todo mês no cartão de crédito" + (oferta.cupom ? " (com o cupom " + oferta.cupom.codigo + ")" : "");
     $("pg-total").hidden = false;
     $("pg-selo").textContent = anual ? "o ano, em até 12×" : "cobrança mensal";
+    // As parcelas so aparecem no anual; no mensal o seletor fica no formulario
+    // (o CardForm precisa dele), escondido, e o servidor cobra sem parcelas.
+    $("pg-campo-parcelas").hidden = !anual;
+    $("pg-form").hidden = false;
+    // O Mercado Pago oferece as parcelas do cartao (ate 18); o plano vai ate
+    // parcelas_max, e o servidor recusa acima disso.
+    var parcelas = $("pg-parcelas");
+    if (!parcelas.dataset.teto) {
+      new MutationObserver(function () {
+        var teto = Number(parcelas.dataset.teto) || 1;
+        [].slice.call(parcelas.options).forEach(function (o) { if (Number(o.value) > teto) o.remove(); });
+      }).observe(parcelas, { childList: true });
+    }
+    parcelas.dataset.teto = String(oferta.parcelas_max);
 
     var mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
-    var escuro = document.documentElement.getAttribute("data-theme") !== "light";
-    var settings = {
-      initialization: { amount: oferta.valor, payer: { email: oferta.email } },
-      customization: {
-        // O titulo e o botao sao os da pagina (na fonte e no tamanho do site);
-        // o botao pede os dados ao bloco com getFormData.
-        visual: { hideFormTitle: true, hidePaymentButton: true, style: { theme: escuro ? "dark" : "default", customVariables: coresDoSite() } },
-        paymentMethods: { minInstallments: 1, maxInstallments: oferta.parcelas_max },
-      },
-      callbacks: {
-        onReady: function () { estado(""); $("pg-pagar").hidden = false; $("pg-titulo-cartao").hidden = false; },
-        // Volta uma Promise que so termina depois da resposta do servidor:
-        // sem isso, o bloco fica carregando para sempre.
-        onError: function (e) {
-          console.error(e);
-          estado("");
-          erro("o bloco de pagamento do Mercado Pago não carregou. Se houver bloqueador de anúncios, libere este site e recarregue a página");
+    var estilo = estiloDosQuadros();
+    // Monta com o formulario ja visivel (o Mercado Pago pede quadros com tamanho).
+    requestAnimationFrame(function () {
+      controle = mp.cardForm({
+        amount: String(oferta.valor),
+        iframe: true,
+        form: {
+          id: "pg-form",
+          cardNumber: { id: "pg-numero", placeholder: "0000 0000 0000 0000", style: estilo },
+          expirationDate: { id: "pg-validade", placeholder: "MM/AA", style: estilo },
+          securityCode: { id: "pg-codigo", placeholder: "123", style: estilo },
+          cardholderName: { id: "pg-titular" },
+          issuer: { id: "pg-emissor" },
+          installments: { id: "pg-parcelas", placeholder: "Parcelas" },
+          identificationType: { id: "pg-doc-tipo" },
+          identificationNumber: { id: "pg-doc" },
         },
-      },
-    };
-    controle = await mp.bricks().create("cardPayment", "cardPaymentBrick_container", settings);
+        callbacks: {
+          onFormMounted: function (e) {
+            estado("");
+            if (e) {
+              console.error(e);
+              erro("o formulário do cartão não carregou. Se houver bloqueador de anúncios, libere este site e recarregue a página");
+            }
+          },
+          onSubmit: function (ev) {
+            ev.preventDefault();
+            pagar();
+          },
+        },
+      });
+    });
   }
 
   async function iniciar() {
@@ -165,7 +174,7 @@
       var config = await pedir("/api/ia/mp-config");
       var oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
       if (!oferta.cadastro_completo) { voltarAoCadastro("preencha os dados do escritório antes de pagar"); return; }
-      await montar(config.publicKey, oferta);
+      montar(config.publicKey, oferta);
     } catch (e) {
       if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
       estado("");
@@ -173,31 +182,40 @@
     }
   }
 
-  /* O botao Pagar da pagina: os dados (com o token) vem do bloco; o valor, do servidor. */
+  /* Pagar: o CardForm gera o token (o cartao vai do quadro direto ao Mercado
+     Pago); daqui sai so o token e o que o servidor precisa. O valor e o do
+     servidor. */
   var enviando = false;
   async function pagar() {
     if (enviando || !controle) return;
     erro("");
-    var formData;
+    var d;
     try {
-      formData = await controle.getFormData();
+      d = controle.getCardFormData();
     } catch (e) {
-      return; // o bloco marca os campos que faltam
+      d = null;
     }
-    if (!formData) return;
+    if (!d || !d.token) { erro("confira os dados do cartão: algum campo está incompleto"); return; }
+    var anual = montado && montado.oferta.periodo === "anual";
+    var cartao = {
+      token: d.token,
+      issuer_id: d.issuerId,
+      payment_method_id: d.paymentMethodId,
+      installments: anual ? Number(d.installments) || 1 : 1,
+      payer: { identification: { type: d.identificationType, number: d.identificationNumber } },
+    };
     enviando = true;
     $("pg-pagar").disabled = true;
     estado("Processando o pagamento…");
     try {
       var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom,
-        idempotencia: idempotencia, cartao: formData });
-      $("pg-pagar").hidden = true;
-      $("pg-titulo-cartao").hidden = true;
+        idempotencia: idempotencia, cartao: cartao });
       pronto(r);
     } catch (e) {
       estado("");
       if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte, entre com o Google de novo e pague"); return; }
-      // Recusado (cartao, banco, risco): a proxima tentativa e outra compra.
+      // Recusado (cartao, banco, risco): a proxima tentativa e outra compra,
+      // com outro token - o CardForm gera um novo a cada envio.
       if (e.status === 402 || e.status === 400) idempotencia = novaChave();
       erro(e.message);
     } finally {
@@ -205,18 +223,17 @@
       $("pg-pagar").disabled = false;
     }
   }
-  document.addEventListener("DOMContentLoaded", function () { $("pg-pagar").addEventListener("click", pagar); });
 
-  // Trocou o tema: o bloco e montado de novo com as cores do tema novo (as
-  // variaveis sao lidas na montagem). Depois de pago, nao ha bloco.
+  // Trocou o tema: o formulario e montado de novo, com as cores do tema novo
+  // dentro dos quadros (elas sao lidas na montagem). Depois de pago, nao ha.
   new MutationObserver(function () {
-    if (!controle || !montado) return;
+    if (!controle || !montado || $("pg-form").hidden) return;
     try { controle.unmount(); } catch (e) { /* ja saiu */ }
     controle = null;
     montar(montado.publicKey, montado.oferta);
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
-  // Saiu da pagina: o bloco e desmontado (o Mercado Pago pede).
+  // Saiu da pagina: o formulario e desmontado.
   window.addEventListener("pagehide", function () {
     if (controle) { try { controle.unmount(); } catch (e) { /* ja saiu */ } controle = null; }
   });
