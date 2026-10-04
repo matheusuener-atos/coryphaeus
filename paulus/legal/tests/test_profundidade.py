@@ -274,8 +274,8 @@ def test_conferir() -> None:
         {"pergunta": "Qual o nome do arrendatário?", "porque": "qualifica", "impacto": "alto", "impede": True},
         {"pergunta": "Quem é a parte arrendadora?", "porque": "qualifica", "tipo": "parte", "impacto": "alto"},
         {"pergunta": "Quem o escritório representa?", "porque": "define a quem as cláusulas protegem", "impacto": "alto"}]}, adv, 1)
-    checar([q["pergunta"] for q in baixo["perguntas"]] == ["Quem o escritório representa?"],
-           "impacto baixo vira premissa; qualificação nunca é pergunta; 'quem o escritório representa' fica",
+    checar([q["pergunta"] for q in baixo["perguntas"]] == ["Quem é a parte arrendadora?", "Quem o escritório representa?"],
+           "impacto baixo vira premissa; o nome solto não é pergunta; 'quem é a parte' (Cadastros) e 'quem o escritório representa' ficam",
            [q["pergunta"] for q in baixo["perguntas"]])
     checar(entrevista.conferir(dados, adv, 3)["decisao"] == "executar", "além das rodadas do nível, executa")
     checar(entrevista.conferir({"decisao": "perguntar", "perguntas": []}, adv, 1)["decisao"] == "executar",
@@ -330,6 +330,36 @@ def test_conferir() -> None:
                                                                     ("numero", "anos")],
            "quantidade não é dinheiro: a unidade certa (ha, sacas/ha, anos); R$ só no valor",
            [(q["tipo"], q["unidade"]) for q in un["perguntas"]])
+    novos = entrevista.conferir({"decisao": "perguntar", "perguntas": [
+        {"pergunta": "Quem é o arrendador?", "porque": "qualifica a parte e define a quem o contrato protege", "tipo": "parte",
+         "impacto": "alto"},
+        {"pergunta": "Qual o CPF do arrendador?", "porque": "qualifica", "tipo": "texto", "impacto": "alto"},
+        {"pergunta": "Em qual comarca fica o imóvel?", "porque": "define o foro", "tipo": "escolha", "impacto": "alto",
+         "opcoes": [f"Comarca {n}" for n in range(1, 10)]},
+        {"pergunta": "O imóvel está livre de débitos de ITR?", "porque": "muda a cláusula de tributos", "tipo": "confirmacao",
+         "afirmacao": "O imóvel não tem débitos de ITR", "impacto": "alto"},
+        {"pergunta": "Qual a matrícula do imóvel?", "porque": "o objeto se descreve por ela", "tipo": "documento",
+         "impacto": "alto"}]}, adv, 1)
+    tipos = [(q["pergunta"], q["tipo"]) for q in novos["perguntas"]]
+    checar(tipos == [("Quem é o arrendador?", "parte"), ("Em qual comarca fica o imóvel?", "lista"),
+                     ("O imóvel está livre de débitos de ITR?", "confirmacao"), ("Qual a matrícula do imóvel?", "documento")],
+           "quem é a parte vale como 'parte'; o CPF solto não; 9 opções viram lista; confirmação e documento", tipos)
+    checar(novos["perguntas"][2]["afirmacao"] == "O imóvel não tem débitos de ITR" and len(novos["perguntas"][1]["opcoes"]) == 9,
+           "a afirmação a confirmar e as opções da lista")
+    e2 = entrevista.novo_estado("contrato de arrendamento", "advogado")
+    entrevista.aplicar(e2, novos)
+    ids2 = [q["id"] for q in e2["perguntas"]]
+    entrevista.juntar_respostas(e2, [{"id": ids2[0], "resposta": "joão da silva"},
+                                     {"id": ids2[3], "resposta": "matricula 123.pdf, outro.pdf"}])
+    entrevista.enriquecer(e2, [{"nome": "João da Silva", "documento": "529.982.247-25", "endereco": "Rua A, 1"}],
+                          ["matricula 123.pdf"])
+    r0 = e2["respostas"][0]
+    checar("529.982.247-25" in r0.get("qualificacao", "") and "Rua A, 1" in r0["qualificacao"]
+           and "estado civil" in r0.get("falta_na_ficha", []), "a parte dos Cadastros vira qualificação, e diz o que falta",
+           r0.get("qualificacao"))
+    checar(e2.get("materiais") == ["matricula 123.pdf"], "o documento apontado entra como material (o que não existe, não)",
+           e2.get("materiais"))
+    checar("use esta qualificação" in entrevista.briefing(e2), "a qualificação vai para a redação")
     ab = entrevista.conferir({"decisao": "executar", "trabalho": "Contrato de arrendamento rural",
                               "abertura": "Para criar o contrato, precisamos definir alguns pontos adicionais."}, adv, 1)
     checar(ab["abertura"].startswith("Perfeito, já tenho o necessário") and "contrato de arrendamento rural" in ab["abertura"],
@@ -455,6 +485,29 @@ def main() -> int:
     checar(respondida and respondida[0]["proposta"].get("respondida") is True, "o cartão da rodada 1 fica respondido")
     pessoa = [m for m in t["mensagens"] if m["autor"] == "pessoa"][-1]
     checar("Área rural" in pessoa["texto"], "a resposta da pessoa fica legível na conversa")
+
+    print("\na parte pelos Cadastros")
+    api.estado.cadastros.salvar({"tipo": "cliente", "nome": "Agro Sul Ltda", "documento": "11.222.333/0001-81",
+                                 "endereco": "Av. Brasil, 100"})
+    fake.entrevistas = [{"decisao": "perguntar", "trabalho": "contrato de arrendamento rural", "abertura": "Um ponto.",
+                         "titulo": "Quem é quem", "perguntas": [
+                             {"id": "arrendatario", "pergunta": "Quem é o arrendatário?", "porque": "qualifica a parte",
+                              "tipo": "parte", "impacto": "alto"}]},
+                        {"decisao": "executar", "abertura": "Certo."}]
+    tid_p = nova()
+    evs, t = perguntar(tid_p, {"pergunta": "Preciso fazer um contrato de arrendamento rural para um cliente", "nuvem": True})
+    prop_p = next((d for k, d in evs if k == "proposta"), {})
+    checar("Agro Sul Ltda" in prop_p.get("cadastros", []), "o campo de parte oferece os Cadastros", prop_p.get("cadastros"))
+    evs, t = perguntar(tid_p, {"pergunta": "Quem é o arrendatário? — Agro Sul Ltda", "nuvem": True,
+                               "entrevista": {"id": prop_p["entrevista_id"], "acao": "responder",
+                                              "respostas": [{"id": prop_p["perguntas"][0]["id"], "resposta": "Agro Sul Ltda"}]}})
+    prep_p = next((d for k, d in evs if k == "proposta"), {})
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(tid_p, {"pergunta": "Pode começar.", "nuvem": True,
+                               "entrevista": {"id": prep_p["entrevista_id"], "acao": "comecar"}})
+    pedido_q = json.dumps(fake.chamadas[-1]["corpo"], ensure_ascii=False)
+    checar("AGRO SUL LTDA, pessoa jurídica de direito privado" in pedido_q and "Av. Brasil, 100" in pedido_q
+           and "11.222.333/0001-81" not in pedido_q, "a qualificação da ficha vai à cláusula (com o CNPJ mascarado)")
 
     print("\n'Decida por mim': o plano das cláusulas, antes de redigir")
     n0 = len(fake.chamadas)

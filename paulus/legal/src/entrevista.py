@@ -39,7 +39,8 @@ import re
 import unicodedata
 import uuid
 
-TIPOS = ("escolha", "multipla", "texto", "texto_longo", "data", "valor", "numero", "sim_nao", "parte", "documento")
+TIPOS = ("escolha", "multipla", "lista", "texto", "texto_longo", "data", "valor", "numero", "sim_nao", "confirmacao",
+         "parte", "documento")
 # "valor" é dinheiro (R$). Medido em 03/10: o modelo marcava "quantas sacas por
 # hectare" e "a área em hectares" como valor, e a tela punha "R$" na frente.
 # Quantidade é "numero", com a unidade dela.
@@ -157,8 +158,8 @@ No máximo {maximo} perguntas nesta rodada (rodada {rodada} de no máximo {rodad
 inteligência na escolha das perguntas, não quantidade.
 
 NUNCA PERGUNTE
-- Qualificação: nome, CPF, CNPJ, RG, endereço, estado civil, profissão, nacionalidade, nome do cônjuge, \
-telefone. Isso fica [●] no documento para o advogado preencher.
+- Dados de qualificação: CPF, CNPJ, RG, endereço, estado civil, profissão, nacionalidade, telefone. Para \
+saber quem é uma parte, use o tipo "parte"; o que a ficha não tiver fica [●].
 - O que o próprio pedido já diz, ou o que a definição do instituto já resolve (por exemplo, "o motivo" de \
 uma denúncia vazia: denúncia vazia é justamente sem motivo).
 - Pergunta vaga ("há outros termos?", "algo mais?").
@@ -181,8 +182,12 @@ relevantes) ou "baixo" (ajuste fino - melhor virar premissa).
 - "sugestao": a opção que você recomendaria, se houver uma claramente melhor (copiada de "opcoes").
 - tipo: "escolha" (uma opção), "multipla" (várias - por exemplo, situações especiais a prever), "texto" \
 (curto), "texto_longo", "data", "valor" (só dinheiro, em reais), "numero" (uma quantidade com unidade: hectares, sacas por \
-hectare, anos, %; diga a unidade em "unidade"), "sim_nao", "parte" (uma pessoa ou empresa), "documento" \
-(um documento do Acervo do escritório).
+hectare, anos, %; diga a unidade em "unidade"), "sim_nao", "confirmacao" (uma premissa importante para o \
+advogado confirmar com um interruptor; escreva-a em "afirmacao", por exemplo "O imóvel não tem débitos \
+de ITR"), "lista" (uma escolha entre muitas opções, até 20), "parte" (QUEM é uma das partes: o programa \
+oferece os Cadastros do escritório e qualifica a parte pela ficha - é o jeito certo de saber quem são as \
+partes, sem pedir CPF nem endereço), "documento" (um documento do Acervo ou anexado agora - por exemplo, a \
+matrícula do imóvel ou o contrato anterior).
 - Linguagem de colega, não de formulário.
 - Nas rodadas seguintes, só o que as respostas fizeram surgir (consequências, pontos novos). Resposta "não \
 sei" num ponto decisivo: pode perguntar de novo UMA vez, explicando em "porque" a consequência de cada \
@@ -216,6 +221,9 @@ RE_QUALIFICACAO = re.compile(
     r"locador|locat\w*|autor|r[eé]u|outorgante|outorgado|contratante|contratad\w*|comprador|vendedor|"
     r"notificad\w*|notificante|c[oô]njuge)",
     re.IGNORECASE)
+# "Quem é o arrendador?" / "Qual o nome do locatário?": quem é a parte. Vale com
+# o tipo "parte", que busca a ficha nos Cadastros; o CPF solto, não.
+RE_QUEM_E = re.compile(r"^\s*quem\s+|^\s*(?:qual|quais)\s+(?:é|e|são|sao)?\s*(?:o|a|os|as)?\s*nomes?\b", re.IGNORECASE)
 # Pergunta vaga não decide nada: "há outros termos?", "há cláusulas
 # adicionais que deseja incluir?", "algo mais?". A regra tira.
 RE_VAGA = re.compile(
@@ -280,7 +288,10 @@ def separar_analise(bruto: str) -> tuple[str, str]:
 def _bloco_respostas(estado_e: dict) -> str:
     linhas = []
     for r in estado_e.get("respostas") or []:
-        linhas.append(f"- {r.get('pergunta', '')}: {texto_da_resposta(r)}")
+        linha = f"- {r.get('pergunta', '')}: {texto_da_resposta(r)}"
+        if r.get("qualificacao"):
+            linha += f" (ficha nos Cadastros - use esta qualificação: {r['qualificacao']})"
+        linhas.append(linha)
     for e in estado_e.get("explicacoes") or []:
         linhas.append(f"- (nas palavras do advogado) {e}")
     return "\n".join(linhas)
@@ -352,8 +363,14 @@ def conferir(dados: dict | None, nivel, rodada: int, ja_perguntadas=()) -> dict:
             continue
         texto = _curto(q.get("pergunta"), 220)
         porque = _curto(q.get("porque"), 260)
-        if (len(texto) < 4 or not porque or _plano(texto) in vistas or RE_QUALIFICACAO.search(texto)
-                or RE_VAGA.search(texto)):
+        tipo_pedido = str(q.get("tipo") or "").strip().lower()
+        # "Quem é o arrendador?" vale como tipo "parte": a tela oferece os
+        # Cadastros, e a ficha escolhida qualifica a parte (src/redacao.py).
+        # Pedir o CPF, o endereço ou o estado civil continua proibido.
+        qualificacao = RE_QUALIFICACAO.search(texto)
+        if qualificacao and not (tipo_pedido in ("parte", "pessoa") and RE_QUEM_E.search(texto)):
+            continue
+        if len(texto) < 4 or not porque or _plano(texto) in vistas or RE_VAGA.search(texto):
             continue
         impede = q.get("impede") is True or str(q.get("impede")).lower() == "true"
         impacto = str(q.get("impacto") or "medio").strip().lower()
@@ -384,10 +401,16 @@ def conferir(dados: dict | None, nivel, rodada: int, ja_perguntadas=()) -> dict:
                 opcoes.append(o)
         if tipo == "sim_nao":
             tipo, opcoes = "escolha", ["Sim", "Não"]
-        if tipo in ("escolha", "multipla") and len(opcoes) < 2:
+        # Muitas opções de uma só escolha cabem melhor numa lista suspensa.
+        if tipo == "escolha" and len(opcoes) > 6:
+            tipo = "lista"
+        if tipo in ("escolha", "multipla", "lista") and len(opcoes) < 2:
             tipo, opcoes = "texto", []
-        if tipo not in ("escolha", "multipla"):
+        if tipo not in ("escolha", "multipla", "lista"):
             opcoes = []
+        afirmacao = _curto(q.get("afirmacao"), 200) if tipo == "confirmacao" else ""
+        if tipo == "confirmacao" and not afirmacao:
+            afirmacao = texto
         sugestao = _curto(q.get("sugestao"), 80)
         if sugestao not in opcoes:
             sugestao = ""
@@ -396,8 +419,9 @@ def conferir(dados: dict | None, nivel, rodada: int, ja_perguntadas=()) -> dict:
         while qid in ids:
             qid += "_"
         ids.add(qid)
-        perguntas.append({"id": qid, "pergunta": texto, "porque": porque, "tipo": tipo, "opcoes": opcoes[:6],
-                          "sugestao": sugestao, "unidade": unidade})
+        perguntas.append({"id": qid, "pergunta": texto, "porque": porque, "tipo": tipo,
+                          "opcoes": opcoes[:20] if tipo == "lista" else opcoes[:6],
+                          "sugestao": sugestao, "unidade": unidade, "afirmacao": afirmacao})
         vistas.add(_plano(texto))
         if len(perguntas) >= nivel.perguntas_max:
             break
@@ -474,10 +498,40 @@ def juntar_respostas(estado_e: dict, respostas: list[dict], explicacao: str = ""
             valor = str(valor or "").strip()[:2000]
             if not valor and modo == "valor":
                 continue
-        estado_e["respostas"].append({"id": q["id"], "pergunta": q["pergunta"], "resposta": valor, "modo": modo})
+        estado_e["respostas"].append({"id": q["id"], "pergunta": q["pergunta"], "resposta": valor, "modo": modo,
+                                      "tipo": q.get("tipo", "")})
     explicacao = str(explicacao or "").strip()
     if explicacao:
         estado_e["explicacoes"].append(explicacao[:4000])
+
+
+def enriquecer(estado_e: dict, fichas: list[dict], documentos: list[str]) -> None:
+    """
+    O que a resposta aponta, trazido para o trabalho:
+    - "parte": a ficha dos Cadastros com esse nome vira o parágrafo de
+      qualificação (src/redacao.py) - com o CPF, o endereço, e [ESTADO CIVIL]
+      no que a ficha não tem. Sem ficha, fica o nome, e o resto [●];
+    - "documento": o documento do Acervo (ou anexado agora) com esse nome entra
+      como material do trabalho, lido como os anexos.
+    """
+    import redacao
+
+    por_nome = {_plano(f.get("nome", "")).strip(): f for f in fichas or [] if f.get("nome")}
+    nomes_docs = set(documentos or [])
+    for r in estado_e.get("respostas") or []:
+        if r.get("modo") != "valor":
+            continue
+        valores = r["resposta"] if isinstance(r.get("resposta"), list) else [r.get("resposta")]
+        if r.get("tipo") == "parte" and "qualificacao" not in r:
+            ficha = por_nome.get(_plano(str(valores[0] or "")).strip())
+            if ficha is not None:
+                r["qualificacao"] = redacao.qualificar(ficha)
+                r["falta_na_ficha"] = redacao.o_que_falta(ficha)
+        if r.get("tipo") == "documento":
+            for v in valores:
+                for nome in [x.strip() for x in str(v or "").split(",")]:
+                    if nome in nomes_docs and nome not in estado_e.setdefault("materiais", []):
+                        estado_e["materiais"].append(nome)
 
 
 def resumo_para_conversa(estado_e: dict, respostas: list[dict], explicacao: str = "", acao: str = "") -> str:

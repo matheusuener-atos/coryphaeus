@@ -6000,6 +6000,12 @@ def _seguir_entrevista(trabalho, payload: Pergunta, pergunta: str, pendente, req
         entrevista_mod.juntar_respostas(pendente, e.get("respostas") or [], str(e.get("explicacao") or ""))
     else:
         entrevista_mod.juntar_respostas(pendente, [], pergunta)
+    # A parte escolhida dos Cadastros vira qualificação; o documento apontado, material.
+    try:
+        fichas = estado.cadastros.listar()
+    except Exception:  # noqa: BLE001 - sem os Cadastros, fica o nome
+        fichas = []
+    entrevista_mod.enriquecer(pendente, fichas, [d.name for d in estado.searcher.documents])
     if acao == "decidir":
         respondidas = {r.get("id") for r in pendente["respostas"]}
         for q in pendente.get("perguntas") or []:

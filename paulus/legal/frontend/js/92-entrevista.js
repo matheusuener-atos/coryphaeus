@@ -165,6 +165,17 @@ function campoDaPergunta(q, d, i) {
   const idLista = lista.length ? "ent-lista-" + esc(d.entrevista_id) + "-" + i : "";
   const datalist = lista.length ? '<datalist id="' + idLista + '">' + lista.map((n) => '<option value="' + esc(n) + '">').join("") + "</datalist>" : "";
   if (q.tipo === "texto_longo") return '<textarea class="ent-campo" name="' + nome + '" rows="3"></textarea>';
+  // Muitas opções de uma escolha só: a lista suspensa.
+  if (q.tipo === "lista") {
+    return '<select class="ent-campo ent-curto ent-lista" name="' + nome + '"><option value="">Escolha…</option>' +
+      (q.opcoes || []).map((o) => '<option value="' + esc(o) + '">' + esc(o) + (o === sug ? " (sugerido)" : "") + "</option>").join("") +
+      "</select>";
+  }
+  // A premissa para confirmar: um interruptor. Sem mexer, não é resposta.
+  if (q.tipo === "confirmacao") {
+    return '<label class="ent-switch"><input type="checkbox" role="switch" name="' + nome + '">' +
+      '<span class="ent-trilho" aria-hidden="true"></span><span class="ent-afirmacao">' + esc(q.afirmacao || q.pergunta) + "</span></label>";
+  }
   if (q.tipo === "data") return '<input class="ent-campo ent-curto" type="date" name="' + nome + '">';
   // Dinheiro com "R$" na frente; quantidade com a unidade depois (ha, sacas/ha,
   // anos...). Sem unidade conhecida, o campo fica sem rótulo.
@@ -176,9 +187,17 @@ function campoDaPergunta(q, d, i) {
     return '<span class="ent-valor"><input class="ent-campo ent-curto" type="text" inputmode="decimal" name="' + nome + '">' +
       (q.unidade ? "<span>" + esc(q.unidade) + "</span>" : "") + "</span>";
   }
-  return '<input class="ent-campo" type="text" name="' + nome + '"' + (idLista ? ' list="' + idLista + '"' : "") +
-    (q.tipo === "parte" ? ' placeholder="nome da pessoa ou empresa"' : q.tipo === "documento" ? ' placeholder="nome do documento no Acervo"' : "") +
+  const campo = '<input class="ent-campo" type="text" name="' + nome + '"' + (idLista ? ' list="' + idLista + '"' : "") +
+    (q.tipo === "parte" ? ' placeholder="nome como está nos Cadastros, ou o nome da pessoa"' : q.tipo === "documento" ? ' placeholder="nome do documento no Acervo"' : "") +
     ">" + datalist;
+  // A pessoa: a ficha dos Cadastros qualifica a parte (src/redacao.py); a linha diz se achou.
+  if (q.tipo === "parte") return campo + '<small class="ent-ficha" aria-live="polite"></small>';
+  // O documento: do Acervo pelo nome, ou anexado agora, sem sair da pergunta.
+  if (q.tipo === "documento") {
+    return '<span class="ent-doc">' + campo + '<button type="button" class="com-icone" data-ent-anexar="1">' + ic("attach_file", 15) +
+      "Anexar arquivo</button></span>";
+  }
+  return campo;
 }
 
 function cartaoEntrevista(d) {
@@ -230,6 +249,12 @@ function respostasDoCartao(caixa, d) {
       return;
     }
     const campo = f.querySelector('[name="q' + i + '"]');
+    if (q.tipo === "confirmacao") {
+      if (campo && campo.dataset.tocado) {
+        saida.push({ id: q.id, modo: "valor", resposta: (campo.checked ? "Confirmo: " : "Não confirmo: ") + (q.afirmacao || q.pergunta) });
+      }
+      return;
+    }
     let v = campo ? campo.value.trim() : "";
     if (v && q.tipo === "valor" && !/R\$/i.test(v)) v = "R$ " + v;
     // "410" com a unidade "ha" vira "410 ha"; quem já escreveu a unidade (ou outra) fica como escreveu.
@@ -268,7 +293,42 @@ function ligarEntrevista(caixa, d) {
         b.setAttribute("aria-pressed", String(ligar));
       };
     });
-    f.querySelectorAll(".ent-campo").forEach((c) => { c.addEventListener("input", () => { if (c.value.trim()) limparModo(); }); });
+    f.querySelectorAll(".ent-campo").forEach((c) => {
+      c.addEventListener("input", () => { if (c.value.trim()) limparModo(); });
+      c.addEventListener("change", () => { if (c.value.trim()) limparModo(); });
+    });
+    const interruptor = f.querySelector('.ent-switch input');
+    if (interruptor) interruptor.onchange = () => { interruptor.dataset.tocado = "1"; limparModo(); };
+    // A ficha da pessoa: achou nos Cadastros, a qualificação sai dela.
+    const ficha = f.querySelector(".ent-ficha");
+    if (ficha) {
+      const entrada = f.querySelector("input");
+      const nomes = new Set((d.cadastros || []).map((n) => n.toLowerCase()));
+      const dizer = () => {
+        const v = entrada.value.trim();
+        ficha.textContent = !v ? "" : nomes.has(v.toLowerCase())
+          ? "Está nos Cadastros: a qualificação sai da ficha (CPF ou CNPJ e endereço)."
+          : "Não está nos Cadastros: entra o nome, e o resto da qualificação fica [●].";
+        ficha.classList.toggle("ok", nomes.has(v.toLowerCase()));
+      };
+      entrada.addEventListener("input", dizer);
+      entrada.addEventListener("change", dizer);
+    }
+    // Anexar um arquivo para esta pergunta: o pop-up de sempre, e o nome volta para o campo.
+    const anexar = f.querySelector("[data-ent-anexar]");
+    if (anexar) {
+      anexar.onclick = () => {
+        if (typeof abrirAnexar !== "function") return;
+        abrirAnexar({ titulo: "Anexar para: " + (f.querySelector(".ent-titulo") || {}).textContent, verbo: "Usar",
+          aoAnexar: (nomes) => {
+            if (!nomes || !nomes.length) return;
+            const entrada = f.querySelector("input");
+            const atuais = entrada.value.split(",").map((x) => x.trim()).filter(Boolean);
+            entrada.value = [...new Set(atuais.concat(nomes))].join(", ");
+            limparModo();
+          } });
+      };
+    }
     f.querySelectorAll(".ent-modo").forEach((m) => {
       m.onclick = () => {
         const ligar = !m.classList.contains("on");
@@ -490,7 +550,26 @@ function ligarPreparo(caixa, d) {
     b.onclick = () => { const on = !b.classList.contains("on"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); };
   });
   const anexar = caixa.querySelector('[data-cl="anexar"]');
-  if (anexar) anexar.onclick = () => { if (typeof abrirAnexar === "function") abrirAnexar(); };
+  if (anexar) {
+    anexar.onclick = () => {
+      if (typeof abrirAnexar !== "function") return;
+      abrirAnexar({ titulo: "Anexar a lei ou um modelo", verbo: "Usar", aoAnexar: (nomes) => {
+        let grupo = caixa.querySelector(".cl-modelos");
+        if (!grupo) {
+          caixa.querySelectorAll(".cl-bloco")[caixa.querySelectorAll(".cl-bloco").length - 1]
+            .insertAdjacentHTML("beforeend", '<div class="ent-opcoes cl-modelos"></div>');
+          grupo = caixa.querySelector(".cl-modelos");
+        }
+        (nomes || []).forEach((n) => {
+          if (grupo.querySelector('[data-cl-modelo="' + CSS.escape(n) + '"]')) return;
+          grupo.insertAdjacentHTML("beforeend", '<button type="button" class="ent-op on" data-cl-modelo="' + esc(n) +
+            '" aria-pressed="true" title="' + esc(n) + '">' + ic("attach_file", 14) + esc(nomeCurto(n)) + "</button>");
+          const b = grupo.lastElementChild;
+          b.onclick = () => { const on = !b.classList.contains("on"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); };
+        });
+      } });
+    };
+  }
   caixa.querySelectorAll('[data-cl="comecar"], [data-cl="tudo"]').forEach((b) => {
     b.onclick = () => {
       if (estado.ocupado) { avisoCert("espere a resposta de agora terminar"); return; }

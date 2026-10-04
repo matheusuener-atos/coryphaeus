@@ -249,6 +249,8 @@ ela pede, com os mecanismos concretos (prazos, procedimento, consequência do de
 - Não repita nem contradiga as seções já aprovadas; use os mesmos nomes de partes e termos definidos.
 - Com o bloco LEI ou LEI ANEXADA, fundamente nele e respeite as vedações; o que a lei proíbe não entra (adapte \
 e diga nos pontos). Com o bloco MODELO, siga a estrutura e o nível de detalhe dele, sem copiar dados.
+- Na qualificação das partes, quando o DEFINIDO trouxer a qualificação da ficha dos Cadastros, use-a como \
+está (é o dado do escritório); só o que ela não tiver fica [●].
 - Dado não informado fica [●]. Texto simples, sem markdown, sem "Notas para o advogado".
 - Depois do texto da seção, numa linha só, escreva {separador} e, abaixo, um JSON: {{"pontos": [{{"ponto": \
 "Prazo de pagamento", "atual": "30 dias após a colheita", "alternativas": ["15 dias", "na entrega da \

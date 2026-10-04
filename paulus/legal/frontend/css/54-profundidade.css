@@ -120,3 +120,18 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
 .cl-aviso { margin: 0 0 8px; font: 500 12.5px var(--sans); color: var(--warnt); }
 .cl-corrigir { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .proposta.clausula.respondida, .proposta.preparo.respondida { opacity: .85; }
+
+/* Os campos novos do módulo de perguntas */
+.ent-lista { max-width: 360px; }
+.ent-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font: 500 13px var(--sans); color: var(--ink); }
+.ent-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ent-trilho { position: relative; flex-shrink: 0; width: 34px; height: 20px; border-radius: 999px; background: var(--ink-a2); transition: background .15s; }
+.ent-trilho::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surf); transition: transform .15s; }
+.ent-switch input:checked + .ent-trilho { background: var(--primario); }
+.ent-switch input:checked + .ent-trilho::after { transform: translateX(14px); }
+.ent-switch input:focus-visible + .ent-trilho { outline: 2px solid var(--ink-a35); outline-offset: 2px; }
+.ent-doc { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ent-doc .ent-campo { flex: 1 1 240px; }
+.ent-ficha { display: block; margin-top: 4px; font: 500 12px var(--sans); color: var(--ink3); }
+.ent-ficha.ok { color: var(--okt); }
+.ent-afirmacao { line-height: 1.4; }

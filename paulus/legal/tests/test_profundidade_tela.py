@@ -52,7 +52,10 @@ ENTREVISTA = {
          "tipo": "multipla", "opcoes": ["Benfeitorias", "Subarrendamento", "Garantia", "Rescisão antecipada"]},
         {"id": "prazo", "pergunta": "Prazo pretendido", "porque": "O Estatuto da Terra fixa prazos mínimos por atividade.",
          "tipo": "texto"},
-        {"id": "preco", "pergunta": "Valor anual", "porque": "O preço tem teto legal no arrendamento.", "tipo": "valor"}],
+        {"id": "preco", "pergunta": "Valor anual", "porque": "O preço tem teto legal no arrendamento.", "tipo": "valor"},
+        {"id": "itr", "pergunta": "O imóvel está em dia com o ITR?", "porque": "Muda a cláusula de tributos.",
+         "tipo": "confirmacao", "afirmacao": "O imóvel não tem débitos de ITR"},
+        {"id": "matricula", "pergunta": "A matrícula do imóvel", "porque": "O objeto se descreve por ela.", "tipo": "documento"}],
     "premissas": ["foro da comarca do imóvel"]}
 
 
@@ -135,7 +138,10 @@ def main() -> int:
         pag.wait_for_selector(".proposta.entrevista .ent-q", timeout=30000)
         qs = pag.evaluate("() => [...document.querySelectorAll('.ent-q .ent-titulo')].map(x => x.textContent)")
         checar(qs == [q["pergunta"] for q in ENTREVISTA["perguntas"]], "as perguntas que o modelo montou para este pedido", qs)
-        checar(pag.locator(".ent-porque").count() == 4, "cada pergunta com o porquê")
+        checar(pag.locator(".ent-porque").count() == 6, "cada pergunta com o porquê")
+        checar(pag.locator(".ent-switch input[role=switch]").count() == 1 and "não tem débitos de ITR" in pag.inner_text(".ent-switch"),
+               "a confirmação é um interruptor, com a afirmação")
+        checar(pag.locator(".ent-doc [data-ent-anexar]").count() == 1, "o campo de documento tem o seu Anexar")
         checar(pag.locator(".ent-q").first.locator(".ent-op").count() == 3 and pag.locator(".ent-sug").count() == 1,
                "as opções, com a sugerida marcada")
         modos = pag.evaluate("() => [...document.querySelectorAll('.ent-q')[0].querySelectorAll('.ent-modo')].map(x => x.textContent)")
@@ -157,6 +163,7 @@ def main() -> int:
         pag.click('.ent-q >> nth=1 >> .ent-op >> text="Garantia"')
         pag.fill('.ent-q >> nth=2 >> input', "5 anos")
         pag.click('.ent-q >> nth=3 >> .ent-modo >> text="Decida por mim"')
+        pag.click(".ent-switch")
         pag.click('[data-ent-acao="explicar"]')
         pag.fill(".ent-explicar textarea", "O arrendatário vai plantar soja.")
         pag.click('[data-ent-acao="responder"]')
@@ -164,7 +171,8 @@ def main() -> int:
         pag.wait_for_timeout(300)
         texto = pag.inner_text("#centro")
         checar("Qual é o objeto do arrendamento? — Área rural" in texto and "Benfeitorias, Garantia" in texto
-               and "decida por mim" in texto and "plantar soja" in texto, "as respostas, legíveis na conversa")
+               and "decida por mim" in texto and "plantar soja" in texto and "Confirmo: O imóvel não tem débitos de ITR" in texto,
+               "as respostas, legíveis na conversa (com a confirmação)")
         checar("cláusula por cláusula, juntos, começando pela qualificação das partes" in texto, "diz que vamos fazer juntos, cláusula por cláusula")
         prep = pag.inner_text(".proposta.preparo")
         checar("falta o texto" in prep and "Um modelo já feito" in prep, "pede a lei que falta e o modelo", prep[:300])
