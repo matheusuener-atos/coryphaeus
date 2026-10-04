@@ -732,7 +732,10 @@ function etiquetasDosCitados(fontes) {
 
 function linhaAssinatura(segundos, citados, pergunta, quem, como, fontes) {
   // D4: escrita no aparelho de quem perguntou assina com o modelo de la.
-  if (como && como.escrita && como.escrita.onde === "aparelho" && como.escrita.modelo) quem = como.escrita.modelo;
+  // e diz onde: a marca do D4, que o painel novo deixou de mostrar na linha.
+  if (como && como.escrita && como.escrita.onde === "aparelho") {
+    quem = (como.escrita.modelo || "modelo do aparelho") + " · " + (typeof acessoDeFora !== "undefined" && acessoDeFora.local ? "no aparelho de quem perguntou" : "neste aparelho");
+  }
   // N15: a resposta escrita pela nuvem assina com o modelo dela.
   if (como && como.nuvem && como.nuvem.onde === "nuvem") quem = como.nuvem.modelo + " (" + como.nuvem.provedor + ", nuvem)";
   // A2: o agente que respondeu, e a versao dele.

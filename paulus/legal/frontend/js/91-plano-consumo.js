@@ -152,12 +152,12 @@ function blocoGeral(d, c) {
 function blocoSemana(sem) {
   if (!sem) return "";
   const a = sem.adiantamento || {};
-  if (a.usado) return '<p class="sv-dica pc-semana">' + ic("event_repeat", 15) + "A semana que vem já foi adiantada este mês.</p>";
+  if (a.usado) return '<p class="sv-dica pc-semana">' + ic("event_upcoming", 15) + "A semana que vem já foi adiantada este mês.</p>";
   if (a.pode) {
-    return '<p class="sv-dica pc-semana">' + ic("event_repeat", 15) + "A cota é por semana. Se esta não bastar, dá para trazer a da semana que vem " +
+    return '<p class="sv-dica pc-semana">' + ic("event_upcoming", 15) + "A cota é por semana. Se esta não bastar, dá para trazer a da semana que vem " +
       "(uma vez por mês). " + '<button type="button" class="pc-sublinhado" data-pc-adiantar="1">Adiantar a semana que vem</button></p>';
   }
-  return '<p class="sv-dica pc-semana">' + ic("event_repeat", 15) + "A cota é por semana e não acumula. " +
+  return '<p class="sv-dica pc-semana">' + ic("event_upcoming", 15) + "A cota é por semana e não acumula. " +
     (a.motivo ? "Adiantar a semana que vem: " + esc(a.motivo) + "." : "") + "</p>";
 }
 

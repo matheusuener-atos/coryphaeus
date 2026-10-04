@@ -31,8 +31,8 @@ async function mostrarNotasFiscais(aba) {
   marcarDestino("notas");
   cabecalhoNotas();
   cascaNotas('<p class="nota">lendo…</p>');
-  await carregarNotas();
-  desenharNotas();
+  await nfCarregarNotas();
+  nfDesenharNotas();
 }
 
 function cabecalhoNotas() {
@@ -49,8 +49,8 @@ function cabecalhoNotas() {
       nf.aba = b.dataset.nfAba;
       cabecalhoNotas();
       cascaNotas('<p class="nota">lendo…</p>');
-      await carregarNotas();
-      desenharNotas();
+      await nfCarregarNotas();
+      nfDesenharNotas();
     };
   });
   const emitir = document.querySelector("[data-nf-emitir]");
@@ -63,7 +63,7 @@ function cascaNotas(html) {
   atualizarPostura();
 }
 
-async function carregarNotas() {
+async function nfCarregarNotas() {
   nf.erro = "";
   try {
     if (nf.aba === "emitidas") {
@@ -82,7 +82,7 @@ async function carregarNotas() {
   }
 }
 
-function desenharNotas() {
+function nfDesenharNotas() {
   if (!$("nf-tela")) return;
   cabecalhoNotas();
   cascaNotas(nf.aba === "emitidas" ? blocoEmitidas() : blocoRecebidas());
@@ -175,7 +175,7 @@ function estadoVazioEmitidas(disp) {
 
 async function emitirNotaDaTela() {
   await novaNotaFiscal({}, "manual");
-  if (nf.aba === "emitidas" && $("nf-tela")) { await carregarNotas(); desenharNotas(); }
+  if (nf.aba === "emitidas" && $("nf-tela")) { await nfCarregarNotas(); nfDesenharNotas(); }
 }
 
 /* ------------------------------------------------------------ Recebidas */
@@ -222,12 +222,12 @@ function ligarNotas() {
   const tela = $("nf-tela");
   if (!tela) return;
   const mes = $("nf-mes");
-  if (mes) mes.onchange = async () => { nf.mes = mes.value; await carregarNotas(); desenharNotas(); };
+  if (mes) mes.onchange = async () => { nf.mes = mes.value; await nfCarregarNotas(); nfDesenharNotas(); };
   const sit = $("nf-situacao");
-  if (sit) sit.onchange = () => { nf.situacao = sit.value; desenharNotas(); };
+  if (sit) sit.onchange = () => { nf.situacao = sit.value; nfDesenharNotas(); };
   tela.onclick = async (e) => {
     const b = (s) => e.target.closest(s);
-    if (b("[data-nf-limpar]")) { nf.mes = ""; nf.situacao = ""; await carregarNotas(); desenharNotas(); return; }
+    if (b("[data-nf-limpar]")) { nf.mes = ""; nf.situacao = ""; await nfCarregarNotas(); nfDesenharNotas(); return; }
     if (b("[data-nf-configurar]")) { marcarDestino("config"); mostrarConfig("nfse"); return; }
     if (b("[data-nf-financeiro]")) { abrirDestino("financeiro"); return; }
     if (b("[data-nf-contador]")) { abrirRelatorioNfse(nf.mes || undefined); return; }
@@ -238,7 +238,7 @@ function ligarNotas() {
     const a = b("[data-nf-abrir]");
     if (a) {
       await abrirNotaFiscal(Number(a.dataset.nfAbrir));
-      if ($("nf-tela")) { await carregarNotas(); desenharNotas(); }
+      if ($("nf-tela")) { await nfCarregarNotas(); nfDesenharNotas(); }
     }
   };
 }

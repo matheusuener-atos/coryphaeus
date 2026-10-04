@@ -28,6 +28,10 @@
   .nf-estado.ok { background: var(--okbg); color: var(--okt); }
   .nf-estado.ruim { background: var(--accbg); color: var(--acc); }
   .nf-estado.andamento { background: var(--warnbg); color: var(--warnt); }
+  /* Substituída e rascunho: o cinza da etiqueta, com o texto mais apagado. */
+  .nf-estado.neutro { color: var(--ink3); }
+  /* As abas Emitidas e Recebidas, no lugar das visões do topo: não encolhem. */
+  .nf-abas { flex: none; }
   .nf-amb { font-size: 12.5px; color: var(--ink2); }
   .nf-amb-teste { color: var(--warnt); }
   .nf-aviso { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; border-radius: 10px;

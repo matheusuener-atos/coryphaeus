@@ -31,7 +31,7 @@
 .nfse-passo-cabeca h3 { margin: 2px 0 2px; font-size: 15px; }
 .nfse-passo-cabeca .cfg-explica { margin: 0; }
 .nfse-passo-num { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; border: 1px solid var(--ink-a08); }
-.nfse-passo.feito .nfse-passo-num { background: var(--ink); color: var(--bg, #fff); border-color: var(--ink); }
+.nfse-passo.feito .nfse-passo-num { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .nfse-mais { margin-top: 10px; border-top: 1px solid var(--ink-a08); padding-top: 8px; }
 .nfse-mais > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink2); padding: 4px 0; }
 .nfse-mais h4, .nfse-rec { font-size: 13px; margin: 14px 0 4px; }

@@ -80,7 +80,7 @@ function abrirMenuProfundidade() {
       '<span class="mp-degrau" aria-hidden="true">' + "▮".repeat(i + 1) + '<span class="mp-vazio">' + "▮".repeat(4 - i) + "</span></span>" +
       '<span class="mp-texto"><b>' + esc(n.nome) + (n.id === prof.padrao ? ' <em>padrão</em>' : "") + "</b>" +
       "<span>" + esc(n.resumo) + "</span>" +
-      (n.bloqueado ? '<small class="mp-plano">' + ic("lock", 13) + " " + esc(n.no_plano || "Não faz parte do seu plano.") + "</small>" : "") +
+      (n.bloqueado ? '<small class="mp-plano">' + ic("key", 13) + " " + esc(n.no_plano || "Não faz parte do seu plano.") + "</small>" : "") +
       '<small class="mp-tecnico">' + esc((n.detalhes || []).join(" · ")) + " · consome ~" +
       esc(String(n.consumo).replace(".", ",")) + "× da franquia</small></span></button>").join("") +
     '<label class="mp-perguntar"><input type="checkbox" data-prof-perguntar="1"' + (prof.perguntar ? " checked" : "") + ">" +
