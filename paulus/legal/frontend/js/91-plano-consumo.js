@@ -109,7 +109,7 @@ function blocoGeral(d, c) {
   if (!c) {
     const motivo = d.erro
       ? "Sem conseguir falar com paulus.ia.br agora (" + esc(d.erro) + "): os números do plano voltam quando a internet voltar."
-      : "A conta da IA ainda não está ligada neste PAULUS. Ligue com a conta Google em Configurações › Modelos, ou assine em paulus.ia.br/cadastro.";
+      : "A conta da IA ainda não está ligada neste PAULUS. Ligue com a conta Google em Configurações › Modelos, ou assine em paulus.ia.br/assinatura.";
     return '<header class="pc-geral"><span class="pc-rotulo">Consumo do ciclo</span><p class="pc-texto">' + motivo + "</p>" +
       '<div class="linha-form"><button class="primario" data-pc-ir="modelos">Abrir Configurações › Modelos</button></div></header>';
   }

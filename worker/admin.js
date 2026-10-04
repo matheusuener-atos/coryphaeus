@@ -676,8 +676,8 @@ async function acaoDeRenovacao(c, id, acao) {
       para: item.email, assunto: "Seu plano do PAULUS não renovou",
       titulo: "O plano " + ((item.plano || {}).nome || "") + " não renovou",
       texto: "O ciclo do seu plano venceu em " + new Date(item.fim).toLocaleDateString("pt-BR") + " e o Mercado Pago não confirmou a cobrança do mês." +
-        "\n\nEnquanto isso, o PAULUS funciona sem a IA da nuvem. Para voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/cadastro.",
-      botao: "Abrir a página Assinar", link: SITE + "/cadastro/",
+        "\n\nEnquanto isso, o PAULUS funciona sem a IA da nuvem. Para voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/assinatura.",
+      botao: "Abrir a página Assinar", link: SITE + "/assinatura/",
     });
     if (!e.ok) return json({ erro: e.erro }, e.status || 502);
     marca.lembrete_em = new Date(c.agora).toISOString();

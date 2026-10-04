@@ -112,7 +112,7 @@
 .nuvem-numeros dt { font-size: 12px; color: var(--ink2); }
 .nuvem-numeros dd { margin: 0; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .nuvem-sem-sim { }
-/* Os tres planos, para escolher antes de assinar (o mesmo de paulus.ia.br/cadastro) */
+/* Os tres planos, para escolher antes de assinar (o mesmo de paulus.ia.br/assinatura) */
 .nuvem-planos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 4px 0; }
 .nuvem-plano-op { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px;
   background: transparent; color: var(--ink); cursor: pointer; }

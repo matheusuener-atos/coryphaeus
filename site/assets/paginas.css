@@ -106,7 +106,13 @@
 .cd-cartao.on .cd-acao { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .cd-acao:disabled { opacity: .5; cursor: default; }
 .cd-nota-planos { text-align: center; }
-.cd-passos { scroll-margin-top: 24px; }
+/* O plano escolhido, no alto do cadastro. */
+.cd-resumo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--line); }
+.cd-resumo-texto { display: grid; gap: 2px; min-width: 0; }
+.cd-resumo-texto b { font: 600 15px var(--sans); color: var(--ink); }
+.cd-resumo-texto small { font-size: 12.5px; color: var(--ink2); }
+.cd-resumo-trocar { flex: none; font: 500 13px var(--sans); color: var(--ink); border-bottom: 1px solid var(--line3); }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }
 .conta-linha { font-size: 13px; line-height: 1.55; color: var(--ink2); text-align: center; }
 .conta-linha b { color: var(--ink); font-weight: 500; }

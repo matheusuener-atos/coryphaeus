@@ -28,7 +28,7 @@
     <a href="../">Plataforma</a>
     <a href="../desenvolvimento/">Desenvolvimento</a>
     <a href="../materiais/">Materiais</a>
-    <a href="../cadastro/" aria-current="page">Assinar</a>
+    <a href="../assinatura/" aria-current="page">Assinar</a>
     <a href="../en/" lang="en" hreflang="en">English</a>
     <a class="btn-duplo pequeno" href="../escritorio/"><span>Acessar escritório</span></a>
   </nav>
@@ -38,28 +38,21 @@
   </div>
 </header>
 
-<main id="conteudo" class="entrada cd-entrada">
-  <div class="entrada-marca">
-    <h1 class="logo">Paulus está te esperando.</h1>
-    <p>Assine a IA. O programa é seu.</p>
-  </div>
-
-  <!-- Os planos: os numeros (preco, creditos, pessoas, modelo, limites) vem do
-       Worker (/api/ia/planos); os textos de cada item, de assets/cadastro.js. -->
-  <section class="cd-planos-secao" aria-labelledby="t-planos">
-    <div class="cd-planos-topo">
-      <h2 class="rotulo" id="t-planos">Planos</h2>
-      <div class="ciclo" role="radiogroup" aria-label="Pagamento">
-        <button type="button" class="ciclo-op on" role="radio" aria-checked="true" id="cd-periodo-mensal">Por mês</button>
-        <button type="button" class="ciclo-op" role="radio" aria-checked="false" id="cd-periodo-anual">Por ano <span class="ciclo-selo" id="cd-selo-anual"></span></button>
-      </div>
+<main id="conteudo" class="entrada">
+  <div class="entrada-col">
+    <div class="entrada-marca">
+      <h1 class="logo">Paulus está te esperando.</h1>
+      <p>Entre com o Google e preencha os dados do escritório.</p>
     </div>
-    <div class="cd-cartoes" id="cd-planos"><p class="nota-campo">Carregando os planos…</p></div>
-    <span class="nota-campo cd-nota-planos" id="cd-recarga">Uma pergunta sobre documentos gasta, em média, 3.500 créditos. A cota é do mês, liberada por semana.</span>
-  </section>
 
-  <div class="entrada-col cd-passos" id="cd-passos">
-    <div class="campos">
+    <!-- O plano escolhido em /assinatura (?plano=&periodo=), com o link para trocar. -->
+    <div class="cd-resumo" id="cd-resumo">
+      <span class="cd-resumo-texto"><span class="rotulo">Plano</span><b id="cd-resumo-plano">Carregando…</b><small id="cd-resumo-preco"></small></span>
+      <a class="cd-resumo-trocar" id="cd-resumo-trocar" href="../assinatura/">Trocar</a>
+    </div>
+    <span class="nota-campo" id="cd-recarga" hidden></span>
+
+    <div class="campos" id="cd-passos">
       <!-- 1. a conta: entrar com o Google -->
       <div class="campo" id="cd-passo-conta">
         <p class="conta-linha" id="cd-conta-texto">A conta do PAVLVS é a sua conta Google: é com ela que você entra no programa depois. Nenhuma senha a mais.</p>
