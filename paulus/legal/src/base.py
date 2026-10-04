@@ -1072,6 +1072,122 @@ MIGRACOES: list[tuple[str, str]] = [
         ALTER TABLE nfse_municipio ADD COLUMN mudou_em TEXT DEFAULT '';
         """,
     ),
+    (
+        "042_area_do_cliente",
+        """
+        -- A Area do cliente (docs/PLANO-AREA-CLIENTE.md, src/area_cliente.py):
+        -- o cliente acompanha a pasta do servico pelo endereco do escritorio.
+
+        -- Quem do lado do cliente entra: uma pessoa, um e-mail, um link.
+        -- O link sozinho nao abre nada - o codigo vai ao e-mail.
+        CREATE TABLE IF NOT EXISTS cliente_pessoas (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome          TEXT NOT NULL,
+            email         TEXT NOT NULL,
+            cadastro_id   INTEGER,
+            token         TEXT NOT NULL UNIQUE,
+            criado_em     TEXT NOT NULL,
+            criado_por    TEXT DEFAULT '',
+            revogado_em   TEXT DEFAULT '',
+            ultimo_acesso TEXT DEFAULT ''
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cliente_pessoas_email ON cliente_pessoas(email);
+
+        -- Que pasta cada pessoa ve.
+        CREATE TABLE IF NOT EXISTS cliente_pastas (
+            pessoa_id  INTEGER NOT NULL,
+            servico_id INTEGER NOT NULL,
+            desde      TEXT NOT NULL,
+            por        TEXT DEFAULT '',
+            PRIMARY KEY (pessoa_id, servico_id)
+        );
+
+        -- Documento so aparece com "compartilhar" clicado nele.
+        CREATE TABLE IF NOT EXISTS cliente_documentos (
+            servico_id INTEGER NOT NULL,
+            sha1       TEXT NOT NULL,
+            desde      TEXT NOT NULL,
+            por        TEXT DEFAULT '',
+            PRIMARY KEY (servico_id, sha1)
+        );
+
+        -- O olhinho dos compromissos (o das etapas mora na propria etapa).
+        CREATE TABLE IF NOT EXISTS cliente_ocultos (
+            servico_id INTEGER NOT NULL,
+            tipo       TEXT NOT NULL,
+            item_id    INTEGER NOT NULL,
+            PRIMARY KEY (servico_id, tipo, item_id)
+        );
+
+        -- O codigo de 6 digitos da entrada (so o resumo dele).
+        CREATE TABLE IF NOT EXISTS cliente_codigos (
+            pessoa_id   INTEGER PRIMARY KEY,
+            resumo      TEXT NOT NULL,
+            expira      REAL NOT NULL,
+            tentativas  INTEGER NOT NULL DEFAULT 0,
+            pedidos     TEXT NOT NULL DEFAULT '[]'
+        );
+
+        CREATE TABLE IF NOT EXISTS cliente_sessoes (
+            resumo     TEXT PRIMARY KEY,
+            pessoa_id  INTEGER NOT NULL,
+            csrf       TEXT NOT NULL,
+            criada     REAL NOT NULL,
+            expira     REAL NOT NULL,
+            ip         TEXT DEFAULT ''
+        );
+
+        -- "Atividade do cliente": o que a pessoa fez em cada pasta. A mesma
+        -- linha vai para o registro encadeado de "quem acessou".
+        CREATE TABLE IF NOT EXISTS cliente_atividade (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            pessoa_id  INTEGER NOT NULL,
+            servico_id INTEGER,
+            acao       TEXT NOT NULL,
+            alvo       TEXT DEFAULT '',
+            quando     TEXT NOT NULL,
+            ip         TEXT DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_cliente_atividade_servico ON cliente_atividade(servico_id);
+
+        -- A conversa da pasta, entre o cliente e o escritorio.
+        CREATE TABLE IF NOT EXISTS cliente_mensagens (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            servico_id INTEGER NOT NULL,
+            pessoa_id  INTEGER,
+            de         TEXT NOT NULL,
+            autor      TEXT NOT NULL,
+            texto      TEXT NOT NULL,
+            etapa      TEXT DEFAULT '',
+            anexo      TEXT DEFAULT '',
+            quando     TEXT NOT NULL,
+            lida_em    TEXT DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_cliente_mensagens_servico ON cliente_mensagens(servico_id);
+
+        -- "Confirmar horario": o compromisso em que o escritorio pediu a
+        -- resposta do cliente.
+        CREATE TABLE IF NOT EXISTS cliente_confirmacoes (
+            compromisso_id INTEGER PRIMARY KEY,
+            servico_id     INTEGER NOT NULL,
+            pedido_em      TEXT NOT NULL,
+            resposta       TEXT DEFAULT '',
+            sugestao       TEXT DEFAULT '',
+            quem           TEXT DEFAULT '',
+            respondido_em  TEXT DEFAULT ''
+        );
+
+        -- O resumo que o cliente le: so aparece depois de publicado.
+        CREATE TABLE IF NOT EXISTS cliente_resumos (
+            servico_id    INTEGER PRIMARY KEY,
+            texto         TEXT DEFAULT '',
+            publicado_em  TEXT DEFAULT '',
+            por           TEXT DEFAULT '',
+            rascunho      TEXT DEFAULT '',
+            rascunho_em   TEXT DEFAULT ''
+        );
+        """,
+    ),
 ]
 
 _RENOMEADAS = {

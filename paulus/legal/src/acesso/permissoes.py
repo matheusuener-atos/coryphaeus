@@ -66,7 +66,9 @@ MODULOS: list[dict] = [
                       "POST /api/servicos/{id_}/anotacoes", "POST /api/servicos/{id_}/anotacoes/{indice}",
                       "POST /api/servicos/{id_}/prazos/{origem}/{item_id}",
                       "POST /api/servicos/{id_}/horas", "DELETE /api/servicos/{id_}/horas/{hid}",
-                      "POST /api/servicos/{id_}/horas/cronometro")},
+                      "POST /api/servicos/{id_}/horas/cronometro")
+                   # A Area do cliente: compartilhar, o olhinho, a conversa, o resumo.
+                   | _r(*politicas.ROTAS_DO_ESCRITORIO_NO_CLIENTE)},
     {"id": "gravacoes", "rotulo": "Gravações", "niveis": (NAO, VER, FAZ), "padrao": VER,
      "prefixos": ("/api/gravacoes", "/api/voz/ao-vivo"), "destinos": ("gravacoes",),
      "libera_faz": _r("POST /api/voz/ao-vivo", "POST /api/voz/ao-vivo/{sid}/audio", "POST /api/voz/ao-vivo/{sid}/fim",

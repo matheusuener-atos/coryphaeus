@@ -96,3 +96,11 @@ class Provisao:
 
     def remover(self, segredo: str) -> dict:
         return self._pedir("POST", "/api/tunel/remover", {}, segredo)
+
+    def email_do_cliente(self, segredo: str, dados: dict) -> dict:
+        """
+        O e-mail da Area do cliente (convite, codigo, mensagem nova). Vai o
+        tipo e os campos - o texto e do Worker -, e o link tem de ser do
+        endereco deste escritorio.
+        """
+        return self._pedir("POST", "/api/tunel/cliente-email", dados, segredo)

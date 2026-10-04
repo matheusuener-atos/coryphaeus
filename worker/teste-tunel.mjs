@@ -27,6 +27,7 @@ function kv() {
 
 // ------------------------------------ a Cloudflare e o Turnstile de mentira
 const chamadas = [];
+const emails = [];
 const conta = { tuneis: new Map(), dns: new Map() };
 let falharEm = "";
 let seq = 0;
@@ -58,6 +59,11 @@ globalThis.fetch = async (url, opcoes = {}) => {
     if (corpo.get("secret") !== "segredo-turnstile") return new Response(JSON.stringify({ success: false, "error-codes": ["invalid-input-secret"] }));
     if (token.startsWith("ok:")) return new Response(JSON.stringify({ success: true, hostname: token.slice(3) }));
     return new Response(JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }));
+  }
+  if (u === "https://api.resend.com/emails") {
+    const corpo = JSON.parse(String(opcoes.body));
+    emails.push(corpo);
+    return new Response(JSON.stringify({ id: "email-" + emails.length }), { status: 200 });
   }
   if (!u.startsWith("https://api.cloudflare.com/client/v4/")) return new Response("{}", { status: 404 });
   const caminho = u.replace("https://api.cloudflare.com/client/v4", "");
@@ -213,6 +219,34 @@ checar(tsRuim.ok === false, "Turnstile inválido: ok false");
 checar(JSON.parse(env.ESCRITORIOS.m.get("escritorio:moura-associados")).ultima_conexao, "cada chamada atualiza a última conexão");
 const porta = await (await pedir(env, "/api/tunel/porta", { metodo: "POST", corpo: { porta: 47200 }, cab: bearer(entrega.segredo_instalacao) })).json();
 checar(porta.ok && [...conta.tuneis.values()][0].config.ingress[0].service === "http://127.0.0.1:47200", "trocar a porta atualiza o ingress");
+
+console.log("\no e-mail da Área do cliente");
+{
+  const cli = (corpo) => pedir({ ...env, RESEND_API_KEY: "re_teste" }, "/api/tunel/cliente-email", { metodo: "POST", corpo, cab: bearer(entrega.segredo_instalacao) });
+  const link = "https://moura-associados.paulus.ia.br/cliente/abc123";
+  let r = await cli({ tipo: "convite", para: "Cliente@Exemplo.com", link, escritorio: "Moura Advogados", advogado: "Dra. Ana Moura", pasta: "Revisional", nome: "João Silva" });
+  const e1 = emails[emails.length - 1];
+  checar(r.status === 200 && e1 && e1.to[0] === "cliente@exemplo.com", "convite: sai pelo Resend para o cliente", e1 && e1.to);
+  checar(e1 && e1.from === "Moura Advogados (via PAVLVS) <naoresponda@paulus.ia.br>", "o remetente é o escritório, via PAVLVS", e1 && e1.from);
+  checar(e1 && e1.subject === "Dra. Ana Moura compartilhou uma pasta com você" && e1.html.includes(link), "o assunto diz quem compartilhou, e o link vai no botão", e1 && e1.subject);
+  checar(e1 && e1.html.includes("a pedido do Moura Advogados"), "o rodapé diz que foi a pedido do escritório");
+  r = await cli({ tipo: "codigo", para: "cliente@exemplo.com", link, codigo: "123456", escritorio: "Moura Advogados" });
+  checar(r.status === 200 && emails[emails.length - 1].subject === "Seu código de acesso: 123456", "código: o assunto traz o código");
+  r = await cli({ tipo: "convite", para: "cliente@exemplo.com", link: "https://golpe.com/cliente/x" });
+  checar(r.status === 400, "link de fora do endereço do escritório: recusado", r.status);
+  r = await cli({ tipo: "qualquer", para: "cliente@exemplo.com", link });
+  checar(r.status === 400, "tipo que não existe: recusado (o texto é sempre o daqui)");
+  r = await pedir({ ...env, RESEND_API_KEY: "re_teste" }, "/api/tunel/cliente-email", { metodo: "POST", corpo: { tipo: "codigo", para: "a@b.com", link, codigo: "111111" } });
+  checar(r.status === 401, "sem o segredo da instalação: 401");
+  const antes = emails.length;
+  let ultimo;
+  for (let i = 0; i < 12; i++) ultimo = await cli({ tipo: "codigo", para: "muitos@exemplo.com", link, codigo: "222222" });
+  checar(ultimo.status === 200 && emails.length === antes + 12, "até 12 por hora para a mesma pessoa");
+  ultimo = await cli({ tipo: "codigo", para: "muitos@exemplo.com", link, codigo: "222222" });
+  checar(ultimo.status === 429 && emails.length === antes + 12, "o 13º na mesma hora: 429, e nada sai", ultimo.status);
+  r = await pedir(env, "/api/tunel/cliente-email", { metodo: "POST", corpo: { tipo: "codigo", para: "a@b.com", link, codigo: "333333" }, cab: bearer(entrega.segredo_instalacao) });
+  checar(r.status === 503, "sem RESEND_API_KEY: 503 com a frase do que falta", r.status);
+}
 
 console.log("\nlimites");
 checar((await iniciar(env, "outro-nome")).status === 409, "a mesma instalação não conecta dois escritórios");

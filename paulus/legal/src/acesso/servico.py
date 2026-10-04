@@ -124,6 +124,25 @@ class AcessoDeFora:
             return "indisponivel"
         return "ok" if ok else "recusado"
 
+    def email_do_cliente(self, dados: dict) -> str:
+        """
+        Manda um e-mail da Area do cliente pelo Worker. Devolve "" quando foi,
+        ou a frase do que impediu - sem o acesso de fora conectado, nao ha
+        endereco para o link nem segredo para pedir.
+        """
+        from acesso.provisao import ErroProvisao, ErroRemovido
+
+        if not self.cofre.tem() or self.conexao is None:
+            return "o acesso de fora não está conectado"
+        try:
+            self.conexao.provisao.email_do_cliente(self.cofre.segredo(), dados)
+        except ErroRemovido as exc:
+            self.endereco_liberado(exc.motivo)
+            return "o endereço do escritório não existe mais em paulus.ia.br"
+        except ErroProvisao as exc:
+            return str(exc)
+        return ""
+
     def endereco_liberado(self, motivo: str = "") -> None:
         """
         O Worker diz que o endereco deste PAULUS nao existe mais: desliga o

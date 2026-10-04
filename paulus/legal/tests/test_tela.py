@@ -1153,8 +1153,8 @@ def main() -> int:
                 pagina.evaluate(f"() => abrirServico({id_servico})")
                 pagina.wait_for_selector("#sv-tela .sv-status", timeout=20000)
                 checar(
-                    pagina.evaluate("() => [...document.querySelectorAll('[data-sv-aba]')].map(b => b.textContent).join('|') === 'Visão geral|Arquivos|Processos|Trilha' && document.querySelector('[data-sv-aba=geral]').classList.contains('ativa') && !document.querySelector('#sv-tela .sv-historico')"),
-                    "a pasta abre na Visao geral, com as abas Arquivos, Processos (L2) e Trilha no cabecalho",
+                    pagina.evaluate("() => [...document.querySelectorAll('[data-sv-aba]')].map(b => b.textContent).join('|') === 'Visão geral|Arquivos|Processos|Trilha|Cliente' && document.querySelector('[data-sv-aba=geral]').classList.contains('ativa') && !document.querySelector('#sv-tela .sv-historico')"),
+                    "a pasta abre na Visao geral, com as abas Arquivos, Processos (L2), Trilha e Cliente no cabecalho",
                 )
                 checar(
                     pagina.evaluate("() => !!document.querySelector('.sv-medida .sv-ficha') && !!document.querySelector('.sv-medida .sv-equipe') && document.querySelectorAll('#sv-tela .sv-duas .sv-secao').length === 2 && !document.querySelector('#sv-tela .acervo-painel')"),

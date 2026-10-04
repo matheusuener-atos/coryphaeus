@@ -1,0 +1,240 @@
+/*
+  A Area do cliente (frontend/cliente.html, js/cliente.js; docs/PLANO-AREA-CLIENTE.md).
+
+  Tudo mora dentro de `.pcl-pagina`: a mesma folha serve a pagina que o cliente
+  abre pelo link e a previa "Ver como o cliente", dentro do PAULUS. As cores
+  sao da propria area - na pagina do cliente, seguem o claro/escuro do
+  aparelho dele; na previa, o tema do PAULUS.
+
+  Celular primeiro: uma coluna, ate 640 px, com 16 px de respiro dos lados.
+*/
+
+/* As cores da area. O claro vale tambem sem tema nenhum; a pagina do cliente
+   poe o data-tema pelo aparelho dele (js/cliente.js), e a previa herda o do
+   PAULUS. */
+[data-tema="claro"] .pcl-pagina, .pcl-pagina {
+  --pcl-bg: #faf9f6;
+  --pcl-surf: #ffffff;
+  --pcl-fill: #f2f1ee;
+  --pcl-fill2: #e8e6e0;
+  --pcl-ink: #1c1c1a;
+  --pcl-ink2: #5c5b56;
+  --pcl-ink3: #8a8a86;
+  --pcl-fio: rgba(28, 28, 26, .1);
+  --pcl-fio2: rgba(28, 28, 26, .18);
+  --pcl-acento: #2a2a27;
+  --pcl-sobre-acento: #f2f1ec;
+  --pcl-ok: #2f6b45;
+  --pcl-ok-fundo: #e5f0e8;
+  --pcl-aviso: #8a5a12;
+  --pcl-aviso-fundo: #f6ecd9;
+  --pcl-erro: #a3331f;
+  --pcl-meu: #ecebe5;
+  --pcl-papel: #ffffff;
+  --pcl-veu: #10100f;
+  --pcl-veu-ink: #f2f1ec;
+  --pcl-veu-ink2: #a8a69e;
+  color-scheme: light;
+}
+[data-tema="escuro"] .pcl-pagina {
+  --pcl-bg: #131312;
+  --pcl-surf: #1a1a18;
+  --pcl-fill: #222220;
+  --pcl-fill2: #2c2c29;
+  --pcl-ink: #f2f1ec;
+  --pcl-ink2: #a8a69e;
+  --pcl-ink3: #85837b;
+  --pcl-fio: rgba(242, 241, 236, .1);
+  --pcl-fio2: rgba(242, 241, 236, .18);
+  --pcl-acento: #f2f1ec;
+  --pcl-sobre-acento: #1c1c1a;
+  --pcl-ok: #8fc9a0;
+  --pcl-ok-fundo: rgba(143, 201, 160, .12);
+  --pcl-aviso: #e3b46a;
+  --pcl-aviso-fundo: rgba(227, 180, 106, .12);
+  --pcl-erro: #f0a08e;
+  --pcl-meu: #2a2a27;
+  --pcl-papel: #ffffff;
+  --pcl-veu: #10100f;
+  --pcl-veu-ink: #f2f1ec;
+  --pcl-veu-ink2: #a8a69e;
+  color-scheme: dark;
+}
+[data-tema="escuro"] body.pcl-corpo {
+  background: #131312;
+}
+
+/* --- a pagina sozinha (o link do cliente) */
+body.pcl-corpo { margin: 0; min-height: 100vh; min-height: 100dvh; }
+body.pcl-corpo .pcl-pagina { min-height: 100vh; min-height: 100dvh; }
+
+.pcl-pagina {
+  background: var(--pcl-bg); color: var(--pcl-ink);
+  font: 400 15px/1.55 'Manrope', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  box-sizing: border-box; overflow-wrap: anywhere;
+}
+.pcl-pagina *, .pcl-pagina *::before, .pcl-pagina *::after { box-sizing: border-box; }
+.pcl-pagina button, .pcl-pagina input, .pcl-pagina textarea { font: inherit; color: inherit; }
+.pcl-pagina [hidden] { display: none !important; }
+.pcl-pagina .ic { font-family: 'Material Symbols Outlined'; font-weight: 300; font-size: 20px; line-height: 1;
+  font-style: normal; letter-spacing: 0; text-transform: none; display: inline-block; white-space: nowrap;
+  font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; vertical-align: -4px; flex: none; }
+.pcl-coluna { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 22px; }
+
+/* --- topo */
+.pcl-topo { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.pcl-marca { font: 400 13px 'EB Garamond', Georgia, serif; letter-spacing: .22em; color: var(--pcl-ink3); }
+.pcl-topo .pcl-espaco { flex: 1; }
+.pcl-botao-leve { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 8px 10px; text-decoration: none;
+  border-radius: 8px; color: var(--pcl-ink2); cursor: pointer; font-size: 14px; }
+.pcl-botao-leve:hover { background: var(--pcl-fill); color: var(--pcl-ink); }
+
+/* --- cabeca da pasta */
+.pcl-cabeca { display: grid; gap: 10px; }
+.pcl-kicker { font: 500 11px 'Fira Code', ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--pcl-ink3); }
+.pcl-cabeca h1 { margin: 0; font: 400 34px/1.1 'EB Garamond', Georgia, serif; letter-spacing: -.01em; text-wrap: balance; }
+.pcl-sub { margin: 0; color: var(--pcl-ink2); font-size: 14px; }
+.pcl-situacao { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pcl-selo { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  background: var(--pcl-fill); color: var(--pcl-ink2); font-size: 13px; font-weight: 600; }
+.pcl-selo.aguardando { background: var(--pcl-aviso-fundo); color: var(--pcl-aviso); }
+.pcl-selo.concluido { background: var(--pcl-ok-fundo); color: var(--pcl-ok); }
+.pcl-barra { flex: 1; min-width: 120px; height: 6px; border-radius: 3px; background: var(--pcl-fill2); overflow: hidden; }
+.pcl-barra > i { display: block; height: 100%; background: var(--pcl-acento); border-radius: 3px; }
+.pcl-pct { font: 500 13px 'Fira Code', monospace; color: var(--pcl-ink2); }
+
+/* --- secoes */
+.pcl-secao { display: grid; gap: 10px; }
+.pcl-secao > h2 { margin: 0; display: flex; align-items: baseline; gap: 8px; font: 500 11px 'Fira Code', monospace;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--pcl-ink3); }
+.pcl-secao > h2 small { font: 400 12px 'Manrope', sans-serif; letter-spacing: 0; text-transform: none; }
+.pcl-cartao { background: var(--pcl-surf); border: 1px solid var(--pcl-fio); border-radius: 14px; overflow: hidden; }
+.pcl-vazio { margin: 0; padding: 14px 16px; color: var(--pcl-ink3); font-size: 14px; }
+.pcl-texto { margin: 0; padding: 16px; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+.pcl-nota { margin: 0; color: var(--pcl-ink3); font-size: 12.5px; }
+
+/* --- para voce */
+.pcl-pendencias .pcl-cartao { border-color: var(--pcl-fio2); }
+.pcl-pend { padding: 14px 16px; display: grid; gap: 10px; border-top: 1px solid var(--pcl-fio); }
+.pcl-pend:first-child { border-top: 0; }
+.pcl-pend-titulo { display: flex; gap: 10px; align-items: flex-start; }
+.pcl-pend-titulo b { font-weight: 600; }
+.pcl-pend-titulo small { display: block; color: var(--pcl-ink2); font-size: 13px; margin-top: 2px; }
+.pcl-pend-titulo .ic { color: var(--pcl-aviso); margin-top: 1px; }
+.pcl-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.pcl-botao { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 16px;
+  border-radius: 10px; border: 1px solid var(--pcl-fio2); background: var(--pcl-surf); cursor: pointer; font-size: 14px; font-weight: 600;
+  text-decoration: none; color: var(--pcl-ink); }
+.pcl-botao:hover { background: var(--pcl-fill); }
+.pcl-botao.primario { background: var(--pcl-acento); color: var(--pcl-sobre-acento); border-color: transparent; }
+.pcl-botao.primario:hover { opacity: .9; }
+.pcl-botao:disabled { opacity: .5; cursor: default; }
+.pcl-respondido { font-size: 13px; color: var(--pcl-ok); display: flex; gap: 6px; align-items: center; }
+.pcl-respondido.espera { color: var(--pcl-aviso); }
+.pcl-remarcar { display: grid; gap: 8px; }
+
+/* --- datas */
+.pcl-data { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--pcl-fio); align-items: start; }
+.pcl-data:first-child { border-top: 0; }
+.pcl-dia { display: grid; justify-items: center; line-height: 1.1; padding: 6px 0; border-radius: 10px; background: var(--pcl-fill); }
+.pcl-dia b { font: 400 22px 'EB Garamond', Georgia, serif; }
+.pcl-dia small { font: 500 10px 'Fira Code', monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--pcl-ink2); }
+.pcl-data-corpo { display: grid; gap: 4px; min-width: 0; }
+.pcl-data-corpo b { font-weight: 600; }
+.pcl-data-corpo small { color: var(--pcl-ink2); font-size: 13px; }
+.pcl-data-corpo .pcl-acoes { margin-top: 4px; }
+.pcl-link { display: inline-flex; align-items: center; gap: 4px; color: var(--pcl-ink); font-size: 13px; font-weight: 600; text-decoration: none;
+  background: none; border: 0; padding: 0; cursor: pointer; }
+.pcl-link span:not(.ic) { text-decoration: underline; text-underline-offset: 3px; }
+
+/* --- andamento */
+.pcl-etapa { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; padding: 11px 16px; border-top: 1px solid var(--pcl-fio); align-items: start; }
+.pcl-etapa:first-child { border-top: 0; }
+.pcl-etapa .ic { color: var(--pcl-ink3); }
+.pcl-etapa.feita .ic { color: var(--pcl-ok); }
+.pcl-etapa.feita b { color: var(--pcl-ink2); font-weight: 500; }
+.pcl-etapa b { font-weight: 600; }
+.pcl-etapa small { color: var(--pcl-ink3); font-size: 12.5px; white-space: nowrap; padding-top: 2px; }
+.pcl-etapa .pcl-tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--pcl-aviso-fundo);
+  color: var(--pcl-aviso); font-size: 11.5px; font-weight: 600; vertical-align: 1px; }
+
+/* --- documentos */
+.pcl-doc { display: flex; gap: 12px; align-items: center; width: 100%; padding: 12px 16px; border: 0; border-top: 1px solid var(--pcl-fio);
+  background: none; text-align: left; cursor: pointer; }
+.pcl-doc:first-child { border-top: 0; }
+.pcl-doc:hover { background: var(--pcl-fill); }
+.pcl-doc .ic { color: var(--pcl-ink2); }
+.pcl-doc span { display: grid; min-width: 0; }
+.pcl-doc b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcl-doc small { color: var(--pcl-ink3); font-size: 12.5px; }
+
+/* --- conversa */
+.pcl-conversa { padding: 14px 16px; display: grid; gap: 10px; max-height: 460px; overflow-y: auto; }
+.pcl-msg { max-width: 86%; display: grid; gap: 3px; justify-self: start; }
+.pcl-msg.minha { justify-self: end; }
+.pcl-msg p { margin: 0; padding: 10px 13px; border-radius: 14px 14px 14px 4px; background: var(--pcl-fill); white-space: pre-wrap; font-size: 14.5px; }
+.pcl-msg.minha p { border-radius: 14px 14px 4px 14px; background: var(--pcl-meu); }
+.pcl-msg small { color: var(--pcl-ink3); font-size: 11.5px; padding: 0 4px; }
+.pcl-msg.minha small { text-align: right; }
+.pcl-msg .pcl-citacao { display: block; font-size: 12px; color: var(--pcl-ink2); margin-bottom: 4px; }
+.pcl-escrever { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--pcl-fio); }
+.pcl-escrever textarea { flex: 1; max-width: 100%; min-height: 42px; max-height: 160px; resize: none; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--pcl-fio2); background: var(--pcl-bg); font-size: 15px; line-height: 1.4; }
+.pcl-icone-botao { display: inline-grid; place-items: center; width: 42px; height: 42px; flex: none; border-radius: 10px;
+  border: 1px solid var(--pcl-fio2); background: var(--pcl-surf); cursor: pointer; }
+.pcl-icone-botao.primario { background: var(--pcl-acento); color: var(--pcl-sobre-acento); border-color: transparent; }
+.pcl-icone-botao:disabled { opacity: .5; cursor: default; }
+
+/* --- entrar */
+.pcl-entrada { max-width: 420px; min-width: 0; grid-template-columns: minmax(0, 1fr); margin: 0 auto; padding: 18vh 20px 40px; padding-top: 18dvh; display: grid; gap: 18px; }
+.pcl-entrada h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; text-align: center; text-wrap: balance; }
+.pcl-entrada > p { margin: 0; text-align: center; color: var(--pcl-ink2); text-wrap: pretty; }
+.pcl-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 8px; }
+.pcl-campo { display: grid; gap: 6px; }
+.pcl-campo label { font: 500 11px 'Fira Code', monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--pcl-ink3); }
+.pcl-campo input { width: 100%; min-width: 0; min-height: 48px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--pcl-fio2); background: var(--pcl-surf); font-size: 16px; }
+.pcl-campo input.pcl-codigo { font: 500 24px 'Fira Code', monospace; letter-spacing: .4em; text-align: center; }
+.pcl-marcar { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--pcl-ink2); }
+.pcl-erro { margin: 0; color: var(--pcl-erro); font-size: 14px; }
+.pcl-ok { margin: 0; color: var(--pcl-ok); font-size: 14px; }
+.pcl-form .pcl-botao { min-height: 48px; }
+.pcl-aviso-registro { display: flex; gap: 8px; color: var(--pcl-ink3); font-size: 12.5px; margin: 8px 0 0; }
+
+/* --- lista de pastas */
+.pcl-pastas { display: grid; gap: 10px; }
+.pcl-pasta-item { display: flex; gap: 12px; align-items: center; padding: 16px; border-radius: 14px; border: 1px solid var(--pcl-fio);
+  background: var(--pcl-surf); cursor: pointer; text-align: left; width: 100%; }
+.pcl-pasta-item:hover { background: var(--pcl-fill); }
+.pcl-pasta-item span { flex: 1; display: grid; min-width: 0; }
+.pcl-pasta-item b { font: 400 21px/1.2 'EB Garamond', Georgia, serif; }
+.pcl-pasta-item small { color: var(--pcl-ink2); font-size: 13px; }
+.pcl-bolinha { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--pcl-acento); color: var(--pcl-sobre-acento);
+  font-size: 12px; font-weight: 700; display: inline-grid; place-items: center; }
+
+/* --- o documento aberto */
+.pcl-visor { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: auto 1fr auto; background: var(--pcl-veu); color: var(--pcl-veu-ink); }
+.pcl-visor-topo, .pcl-visor-pe { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+.pcl-visor-topo b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.pcl-visor .pcl-botao-leve { color: var(--pcl-veu-ink2); }
+.pcl-visor .pcl-botao-leve:hover { background: rgba(255, 255, 255, .08); color: var(--pcl-veu-ink); }
+.pcl-visor-pagina { overflow: auto; display: grid; justify-items: center; align-items: start; padding: 8px 12px; }
+.pcl-visor-pagina img { width: 100%; max-width: 900px; height: auto; background: var(--pcl-papel); border-radius: 4px; box-shadow: 0 2px 18px rgba(0, 0, 0, .35); }
+.pcl-visor-pe { justify-content: center; font: 500 13px 'Fira Code', monospace; }
+.pcl-visor-pe small { font: 400 12px 'Manrope', sans-serif; color: var(--pcl-veu-ink2); text-align: center; }
+
+/* --- o aviso que some sozinho */
+.pcl-toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60; margin: 0; width: max-content;
+  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 10px; background: var(--pcl-ink); color: var(--pcl-bg);
+  font-size: 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
+.pcl-toast.ok { background: var(--pcl-ok); color: var(--pcl-bg); }
+
+/* --- previa dentro do PAULUS */
+.pcl-previa-faixa { margin: 0; padding: 8px 16px; background: var(--pcl-aviso-fundo); color: var(--pcl-aviso); font-size: 13px; text-align: center; }
+
+@media print {
+  .pcl-pagina .pcl-visor { position: static; background: var(--pcl-papel); color: var(--pcl-ink); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pcl-coluna > * { animation: pcl-aparece .45s ease both; }
+  @keyframes pcl-aparece { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+}

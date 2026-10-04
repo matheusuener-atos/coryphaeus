@@ -29,6 +29,9 @@
 //   GET  /api/tunel/situacao   o tunel esta conectado?
 //   POST /api/tunel/remover    apaga DNS, tunel e registro; o nome fica livre
 //   POST /api/tunel/dono       de que conta Google e este escritorio (id_token)
+//   POST /api/tunel/cliente-email  o e-mail da Area do cliente (convite, codigo,
+//                              mensagem nova): o texto e daqui, o PAULUS so
+//                              manda o tipo e os campos
 //
 // O endereco e da conta Google que vinculou o PAULUS: POST /api/tunel/meus
 // (com o id_token) lista os dela, e conectar com o mesmo id_token retoma um
@@ -43,6 +46,8 @@
 //
 // Caminhos da API conferidos na documentacao da Cloudflare em 28/09/2026
 // (docs/PROGRESSO-IMPLEMENTACAO.md, R5).
+
+import { enviarEmail } from "./admin.js";
 
 const API = "https://api.cloudflare.com/client/v4";
 const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -92,6 +97,7 @@ export async function atenderTunel(request, env, url, { dentroDoLimite, agora = 
   if (p === "/api/tunel/turnstile" && m === "POST") return comSegredo(request, env, (e, d) => conferirTurnstile(env, e, d, agora));
   if (p === "/api/tunel/porta" && m === "POST") return comSegredo(request, env, (e, d) => trocarPorta(env, e, d));
   if (p === "/api/tunel/dono" && m === "POST") return comSegredo(request, env, (e, d) => definirDono(env, e, d, agora));
+  if (p === "/api/tunel/cliente-email" && m === "POST") return comSegredo(request, env, (e, d) => emailDoCliente(env, e, d, agora));
   if (p === "/api/tunel/situacao" && m === "GET") return comSegredo(request, env, (e) => situacao(env, e, agora), false);
   if (p === "/api/tunel/remover" && m === "POST") return comSegredo(request, env, (e) => remover(env, e, "removido pelo escritório"), false);
   return json({ erro: "rota não existe" }, 404);
@@ -958,4 +964,80 @@ export async function liberarEndereco(env, slug, motivo = "liberado pelo painel"
   if (r.ativo === false) r.dns_id = r.dns_id || "";
   const resposta = await remover(env, { ...r, dns_id: r.dns_id || "sem-dns" }, motivo);
   return resposta.json();
+}
+
+// ------------------------------------------------------ area do cliente
+
+// A Area do cliente (PAULUS, docs/PLANO-AREA-CLIENTE.md): o escritorio
+// compartilha a pasta de um servico, e o cliente entra pelo endereco do
+// escritorio com um codigo que chega no e-mail. Quem manda o e-mail e o
+// Worker, pelo Resend, como "Escritorio Tal (via PAVLVS)".
+//
+// O PAULUS nao escreve o e-mail: manda o TIPO e os campos, e o texto sai
+// daqui. Assim o segredo da instalacao nao vira um jeito de mandar qualquer
+// coisa a qualquer pessoa - o link tem de ser do endereco do proprio
+// escritorio, e ha teto por dia e por destinatario.
+export const CLIENTE_EMAIL_POR_DIA = 300;
+export const CLIENTE_EMAIL_POR_HORA = 12;
+
+function limpo(t, max) {
+  return String(t || "").replace(/[\r\n<>"]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+async function emailDoCliente(env, registro, dados, agora) {
+  const tipo = String(dados.tipo || "");
+  if (!["convite", "codigo", "mensagem"].includes(tipo)) return json({ erro: "tipo de e-mail desconhecido" }, 400);
+  const para = String(dados.para || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para) || para.length > 200) return json({ erro: "e-mail do destinatário inválido" }, 400);
+  const host = registro.slug + "." + DOMINIO;
+  const link = String(dados.link || "");
+  if (!link.startsWith("https://" + host + "/cliente/")) return json({ erro: "o link precisa ser do endereço deste escritório" }, 400);
+  const escritorio = limpo(dados.escritorio || registro.nome, 60) || "Seu escritório";
+  const advogado = limpo(dados.advogado, 60) || escritorio;
+  const pasta = limpo(dados.pasta, 80);
+  const pessoa = limpo(dados.nome, 60);
+
+  const dia = new Date(agora()).toISOString().slice(0, 10);
+  const hora = new Date(agora()).toISOString().slice(0, 13);
+  const chaveDia = "cliemail:" + registro.slug + ":" + dia;
+  const chaveHora = "cliemail:" + registro.slug + ":" + para + ":" + hora;
+  const noDia = (await kvGet(env, chaveDia)) || 0;
+  const naHora = (await kvGet(env, chaveHora)) || 0;
+  if (noDia >= CLIENTE_EMAIL_POR_DIA) return json({ erro: "o escritório chegou ao limite de e-mails de hoje" }, 429);
+  if (naHora >= CLIENTE_EMAIL_POR_HORA) return json({ erro: "muitos e-mails para esta pessoa na última hora — espere um pouco" }, 429);
+
+  let carta;
+  if (tipo === "codigo") {
+    const codigo = String(dados.codigo || "");
+    if (!/^\d{6}$/.test(codigo)) return json({ erro: "código inválido" }, 400);
+    carta = {
+      assunto: "Seu código de acesso: " + codigo, titulo: "Seu código: " + codigo, pre: "Código de acesso à sua pasta no " + escritorio,
+      texto: "Use este código para entrar na área do cliente do " + escritorio + ". Ele vale por 10 minutos.\n\n" +
+        "Se não foi você que pediu, ignore este e-mail: sem o código, ninguém entra.",
+    };
+  } else if (tipo === "convite") {
+    carta = {
+      assunto: advogado + " compartilhou uma pasta com você", titulo: "Sua pasta no " + escritorio,
+      pre: "Acompanhe " + (pasta ? "“" + pasta + "”" : "o seu serviço") + " pela internet",
+      texto: (pessoa ? "Olá, " + pessoa.split(" ")[0] + ".\n\n" : "") + advogado + " compartilhou com você " +
+        (pasta ? "a pasta “" + pasta + "”" : "uma pasta") + ". Por ela você acompanha o andamento, as próximas datas e os documentos que o escritório separar para você.\n\n" +
+        "Para entrar, abra o link e digite este e-mail: um código de acesso chega aqui na hora.",
+      botao: "Abrir a pasta", link,
+    };
+  } else {
+    carta = {
+      assunto: advogado + " te mandou uma mensagem", titulo: "Mensagem nova",
+      pre: "Há uma mensagem nova" + (pasta ? " sobre “" + pasta + "”" : ""),
+      texto: "Há uma mensagem nova" + (pasta ? " sobre “" + pasta + "”" : "") + ". Abra a pasta para ler e responder.",
+      botao: "Abrir a pasta", link,
+    };
+  }
+  const r = await enviarEmail(env, {
+    para, ...carta, de: escritorio + " (via PAVLVS) <naoresponda@paulus.ia.br>",
+    rodape: "Enviado pelo PAVLVS a pedido do " + escritorio + ". Este e-mail é automático e não recebe respostas: fale com o escritório pela própria pasta.",
+  });
+  if (!r.ok) return json({ erro: r.erro }, r.status || 502);
+  await kvPut(env, chaveDia, noDia + 1, 2 * 24 * 3600);
+  await kvPut(env, chaveHora, naHora + 1, 2 * 3600);
+  return json({ ok: true });
 }

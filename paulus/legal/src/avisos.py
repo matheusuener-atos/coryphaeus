@@ -159,6 +159,9 @@ TIPOS: dict[str, dict] = {
     # com a janela na frente: quem esta no escritorio precisa saber na hora.
     "acesso": {"rotulo": "Acesso de fora", "padrao": True, "so_fora": False,
                "explica": "quando uma conta do acesso de fora é bloqueada por tentativas erradas"},
+    # A Area do cliente (src/area_cliente.py): mensagem, arquivo, horario respondido.
+    "cliente": {"rotulo": "Área do cliente", "padrao": True, "so_fora": False,
+                "explica": "quando um cliente escreve, manda um arquivo ou responde sobre um horário"},
 }
 ANTECEDENCIA_DA_AGENDA = timedelta(minutes=15)
 

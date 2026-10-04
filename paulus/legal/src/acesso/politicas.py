@@ -20,6 +20,8 @@ As politicas:
     download   qualquer pessoa com sessao, um arquivo por requisicao, e
                cada um fica registrado em "quem acessou" (R8)
     bloqueado  "disponivel so no computador do escritorio"
+    cliente    a Area do cliente (src/area_cliente.py): sessao propria do
+               cliente, conferida pela PortaDoCliente - nunca a do escritorio
 
 O que nao se encaixou com clareza numa linha da tabela do contrato ficou
 bloqueado, num grupo proprio no fim, e esta listado no PROGRESSO para
@@ -35,7 +37,8 @@ PROPOR = "propor"
 TITULAR = "titular"
 DOWNLOAD = "download"
 BLOQUEADO = "bloqueado"
-POLITICAS = (PUBLICO, PERMITIDO, PROPOR, TITULAR, DOWNLOAD, BLOQUEADO)
+CLIENTE = "cliente"
+POLITICAS = (PUBLICO, PERMITIDO, PROPOR, TITULAR, DOWNLOAD, BLOQUEADO, CLIENTE)
 
 MENSAGEM_BLOQUEADA = "Disponível só no computador do escritório"
 
@@ -98,6 +101,19 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno"),
               # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)
               ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js")}
+
+
+# O que a pagina do cliente carrega antes de ele entrar (frontend/cliente.html).
+ESTATICOS_DO_CLIENTE = {("GET", "/css/cliente.css"), ("GET", "/js/cliente.js"), ("GET", "/fontes.css"),
+                        ("GET", "/favicon.ico"), ("GET", "/img/paulus-logo.png")}
+
+
+def caminho_do_cliente(caminho: str) -> bool:
+    """/cliente/<link> (a pagina) e /api/cliente/* - a Area do cliente."""
+    if caminho.startswith("/api/cliente/"):
+        return True
+    resto = caminho[len("/cliente/"):] if caminho.startswith("/cliente/") else ""
+    return bool(resto) and "/" not in resto
 
 
 def pagina_do_convite(caminho: str) -> bool:
@@ -552,6 +568,29 @@ _declarar(TITULAR, "POST /api/agentes/formulario", "POST /api/agentes/validar",
           # T3 (`Conversa - Criar agente`): o rascunho por regra e o escrito pelo modelo.
           "POST /api/agentes/rascunho", "POST /api/agentes/rascunho/escrever", "POST /api/agentes/rascunho/mudar",
           "GET /api/agentes/da-conversa/{trabalho_id}", "GET /api/agentes/sugestao/conversa")
+
+
+# --- a Area do cliente (src/area_cliente.py, docs/PLANO-AREA-CLIENTE.md)
+# O cliente: sessao propria, pela PortaDoCliente.
+_declarar(CLIENTE,
+          "GET /cliente/{token}", "POST /api/cliente/entrar", "POST /api/cliente/codigo", "GET /api/cliente/eu",
+          "POST /api/cliente/sair", "GET /api/cliente/pastas/{sid}", "GET /api/cliente/pastas/{sid}/documentos/{sha1}/pagina",
+          "GET /api/cliente/pastas/{sid}/documentos/{sha1}/baixar", "POST /api/cliente/evento",
+          "POST /api/cliente/pastas/{sid}/mensagens", "POST /api/cliente/pastas/{sid}/enviar",
+          "POST /api/cliente/pastas/{sid}/etapas/{indice}/feita", "POST /api/cliente/pastas/{sid}/compromissos/{cid}/responder",
+          "GET /api/cliente/pastas/{sid}/compromissos/{cid}/agenda")
+# O escritorio, dentro da pasta: ver e livre para quem ve a pasta (a Equipe);
+# mexer abre pelo nivel "faz" em Servicos (acesso/permissoes.py).
+_declarar(PERMITIDO,
+          "GET /api/servicos/{id_}/cliente", "GET /api/servicos/cliente/nao-lidas", "GET /api/servicos/{id_}/cliente/atividade",
+          "GET /api/servicos/{id_}/como-cliente", "GET /api/servicos/{id_}/como-cliente/documentos/{sha1}/pagina")
+ROTAS_DO_ESCRITORIO_NO_CLIENTE = (
+    "POST /api/servicos/{id_}/cliente/compartilhar", "POST /api/servicos/{id_}/cliente/reenviar",
+    "POST /api/servicos/{id_}/cliente/parar", "POST /api/servicos/{id_}/cliente/etapas/{indice}",
+    "POST /api/servicos/{id_}/cliente/compromissos/{cid}", "POST /api/servicos/{id_}/cliente/documentos/{sha1}",
+    "POST /api/servicos/{id_}/cliente/mensagens", "POST /api/servicos/{id_}/cliente/resumo",
+    "POST /api/servicos/{id_}/cliente/resumo/sugerir")
+_declarar(BLOQUEADO, *ROTAS_DO_ESCRITORIO_NO_CLIENTE)
 
 
 def de(metodo: str, caminho_da_rota: str | None) -> str:

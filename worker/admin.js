@@ -709,7 +709,7 @@ async function configRenovacoes(c, d) {
 // -------------------------------------------------------- os e-mails
 
 /* O e-mail no desenho do site: PAVLVS, o titulo, o texto, o botao e o rodape. */
-export function htmlDoEmail({ titulo = "", texto = "", botao = "", link = "", pre = "", pixel = "" }) {
+export function htmlDoEmail({ titulo = "", texto = "", botao = "", link = "", pre = "", pixel = "", rodape = "" }) {
   const esc = (t) => String(t || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const paragrafos = esc(texto).split(/\n{2,}/).map((p) => '<p style="margin:0 0 16px;font:400 15px/1.65 Arial,sans-serif;color:#44433f">' + p.replace(/\n/g, "<br>") + "</p>").join("");
   return '<!doctype html><html><body style="margin:0;background:#f6f5f1">' +
@@ -720,21 +720,22 @@ export function htmlDoEmail({ titulo = "", texto = "", botao = "", link = "", pr
     'style="display:block;border:0;font:400 18px Georgia,serif;letter-spacing:.12em;color:#8a8982"></div>' +
     (titulo ? '<h1 style="margin:0 0 18px;font:400 26px/1.2 Georgia,serif;color:#1c1c1a">' + esc(titulo) + "</h1>" : "") + paragrafos +
     (botao && link ? '<p style="margin:24px 0"><a href="' + esc(link) + '" style="display:inline-block;padding:10px 22px;border-radius:8px;background:#2a2a27;color:#f2f1ec;font:500 14px Arial,sans-serif;text-decoration:none">' + esc(botao) + "</a></p>" : "") +
-    '<p style="margin:32px 0 0;padding-top:14px;border-top:1px solid #e2e1db;font:400 12px Arial,sans-serif;color:#77766f">PAVLVS · Este e-mail é automático e não recebe respostas. Dúvidas ou para não receber mais avisos: contato@paulus.ia.br</p>' +
+    '<p style="margin:32px 0 0;padding-top:14px;border-top:1px solid #e2e1db;font:400 12px Arial,sans-serif;color:#77766f">' +
+    esc(rodape || "PAVLVS · Este e-mail é automático e não recebe respostas. Dúvidas ou para não receber mais avisos: contato@paulus.ia.br") + "</p>" +
     (pixel ? '<img src="' + esc(pixel) + '" width="1" height="1" alt="" style="display:block">' : "") +
     "</div></body></html>";
 }
 
 /* `anexos` (opcional): [{nome, b64}] -> attachments do Resend (content em base64). */
-export async function enviarEmail(env, { para, assunto, titulo, texto, botao, link, pre, pixel, anexos }) {
+export async function enviarEmail(env, { para, assunto, titulo, texto, botao, link, pre, pixel, anexos, de, rodape }) {
   if (!env.RESEND_API_KEY) return { ok: false, status: 503, erro: "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(para || ""))) return { ok: false, status: 400, erro: "e-mail do destinatário inválido" };
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.EMAIL_DE || DE_EMAIL, reply_to: "contato@paulus.ia.br", to: [para], subject: String(assunto || "").slice(0, 200),
-        html: htmlDoEmail({ titulo, texto, botao, link, pre, pixel }), text: [titulo, texto, botao && link ? botao + ": " + link : ""].filter(Boolean).join("\n\n"),
+      body: JSON.stringify({ from: de || env.EMAIL_DE || DE_EMAIL, reply_to: "contato@paulus.ia.br", to: [para], subject: String(assunto || "").slice(0, 200),
+        html: htmlDoEmail({ titulo, texto, botao, link, pre, pixel, rodape }), text: [titulo, texto, botao && link ? botao + ": " + link : ""].filter(Boolean).join("\n\n"),
         ...(anexos && anexos.length ? { attachments: anexos.map((x) => ({ filename: x.nome, content: x.b64 })) } : {}) }),
     });
     if (!r.ok) {

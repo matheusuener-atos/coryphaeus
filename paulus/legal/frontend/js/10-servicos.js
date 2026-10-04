@@ -38,6 +38,8 @@ async function mostrarServicos(visao) {
     sv.status = d.status || [];
     sv.clientes = d.clientes || [];
     sv.acessoEquipe = d.acesso_da_equipe || {};
+    // A Area do cliente (js/94-area-cliente.js): as mensagens novas, por pasta.
+    sv.clienteNaoLidas = d.cliente_nao_lidas || {};
     if (b) sv.acervo = b.documentos || [];
     if (sv.visao === "trabalho") {
       if (s) sv.aberto = s;
@@ -92,6 +94,7 @@ function desenharServicos() {
   atualizarPostura();
   if (sv.visao === "trabalho" && sv.aba === "processos" && typeof carregarProcessos === "function") carregarProcessos($("pr-servico"), sv.aberto.id);
   if (sv.visao === "trabalho" && sv.aba === "geral" && typeof carregarConflitosDoServico === "function") carregarConflitosDoServico(sv.aberto);
+  if (sv.visao === "trabalho" && sv.aba === "cliente" && typeof carregarAbaDoCliente === "function") carregarAbaDoCliente();
 }
 
 /* ------------------------------------------------------ o cabecalho */
@@ -115,6 +118,8 @@ function cabecalhoServicos() {
     meta.textContent = (s.cliente_nome ? s.cliente_nome + " · " : "") + s.status_rotulo.toLowerCase() + " · " + plural(s.arquivos.length, "arquivo");
     $("acoes-tela").innerHTML =
       '<div class="visoes">' + ABAS_DA_PASTA.map(([v, r]) => botao("aba", v, r)).join("") + "</div>" +
+      (typeof pastaCompartilhada === "function" && pastaCompartilhada()
+        ? '<button class="com-icone" data-acp-ver="1" title="A pasta como o cliente a vê">' + ic("visibility", 16) + "Ver como o cliente</button>" : "") +
       '<button class="com-icone" data-sv-editar="1">' + ic("edit", 16) + "Editar</button>" +
       (s.status === "concluido"
         ? '<button class="com-icone" data-sv-status="andamento">' + ic("restart_alt", 16) + "Reabrir serviço</button>"
@@ -174,6 +179,7 @@ function cartaoDoServico(s) {
       '<span class="cad-avatar" title="' + esc(p.nome) + '">' + esc(iniciaisDoRemetente(p.nome)) + "</span>").join("") + "</span>" : "") +
     "<span>" + plural(s.arquivos_quantos, "arquivo") + " · " + plural(s.prazos_quantos, "prazo") + "</span>" +
     (proximo ? '<span class="' + classeProximo + '">' + ic("event_upcoming", 16) + esc(proximo.texto) + "</span>" : "") +
+    (typeof seloDoClienteNoCartao === "function" ? seloDoClienteNoCartao(s) : "") +
     "</div></div>";
 }
 
@@ -254,7 +260,7 @@ function haQuantoSv(iso) {
    cabeçalho. Visão geral é o trabalho (resumo, ficha, equipe, etapas,
    prazos e anotações); Arquivos, a lista inteira; Trilha, o histórico com o
    assistente. */
-const ABAS_DA_PASTA = [["geral", "Visão geral"], ["arquivos", "Arquivos"], ["processos", "Processos"], ["trilha", "Trilha"]];
+const ABAS_DA_PASTA = [["geral", "Visão geral"], ["arquivos", "Arquivos"], ["processos", "Processos"], ["trilha", "Trilha"], ["cliente", "Cliente"]];
 
 function corpoDoTrabalho() {
   const s = sv.aberto;
@@ -262,6 +268,8 @@ function corpoDoTrabalho() {
   if (sv.aba === "arquivos") miolo = cartaoDosArquivos(s) + cartaoDasGravacoesDoServico(s);
   else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
   else if (sv.aba === "processos") miolo = '<section class="sv-secao"><div id="pr-servico"><p class="nota">abrindo…</p></div></section>';
+  // A Area do cliente (js/94-area-cliente.js): quem ve, o resumo, a conversa, a atividade.
+  else if (sv.aba === "cliente") miolo = typeof secaoDoClienteNaPasta === "function" ? secaoDoClienteNaPasta() : "";
   else {
     miolo = aberturaDoServico(s) + secaoDaEquipe(s) + (typeof secaoDasPartes === "function" ? secaoDasPartes(s) : "") + secaoDasEtapas(s) +
       (typeof secaoDasHoras === "function" ? secaoDasHoras(s) : "") +
@@ -356,6 +364,10 @@ function prazoDaEtapa(e, i) {
 }
 
 function botaoDoResponsavel(e, i) {
+  if (e.cliente) {
+    return '<button type="button" class="sv-etapa-quem com" data-sv-etapa-quem="' + i + '" title="Pendência do cliente: ele manda o arquivo ou marca como feita">' +
+      ic("person", 15) + '<span class="corta">cliente</span></button>';
+  }
   const p = e.responsavel;
   const classe = "sv-etapa-quem" + (p ? " com" : "");
   return '<button type="button" class="' + classe + '" data-sv-etapa-quem="' + i + '" title="' + esc(p ? "Com " + p.nome : "Atribuir a alguém da equipe") + '">' +
@@ -371,7 +383,7 @@ function secaoDasEtapas(s) {
       '<button type="button" class="sv-marca" data-sv-etapa="' + i + '" title="' + (e.feita ? "Reabrir a etapa" : "Concluir a etapa") + '">' +
       (e.feita ? '<span class="ic ic-18 ag-feita-ic">check_circle</span>' : '<span class="ag-circulo"></span>') + "</button>" +
       '<span class="sv-etapa-titulo sv-editavel" data-sv-etapa-editar="' + i + '" title="Clique para editar">' + esc(e.titulo) + "</span>" +
-      botaoDoResponsavel(e, i) + prazoDaEtapa(e, i) +
+      (typeof olhoDaEtapa === "function" ? olhoDaEtapa(e, i) : "") + botaoDoResponsavel(e, i) + prazoDaEtapa(e, i) +
       '<button type="button" class="mais-linha" data-sv-etapa-tirar="' + i + '" title="Remover a etapa">' + ic("close", 15) + "</button></div>";
   }).join("");
   const conta = total ? s.progresso + "% · " + s.etapas_feitas + " de " + plural(total, "etapa") : "nenhuma etapa";
@@ -532,8 +544,9 @@ function cartaoDosArquivos(s) {
   const linhas = mostrar.map((a) => {
     const sub = [a.tipo_rotulo, a.paginas ? plural(a.paginas, "página") : "", a.analise ? "analisado" : "", a.existe === false ? "não está mais no Acervo" : ""]
       .filter(Boolean).join(" · ");
-    return '<div class="tabela-linha colunas-sv-arquivos" data-sv-arquivo="' + esc(a.sha1) + '">' + glifo(a.nome) +
-      '<div class="duas-linhas"><b>' + esc(a.nome) + "</b><small>" + esc(sub || "no Acervo") + "</small></div>" +
+    const selo = typeof seloDoDocumento === "function" ? seloDoDocumento(a.sha1) : "";
+    return '<div class="tabela-linha colunas-sv-arquivos' + (selo ? " com-cliente" : "") + '" data-sv-arquivo="' + esc(a.sha1) + '">' + glifo(a.nome) +
+      '<div class="duas-linhas"><b>' + esc(a.nome) + "</b><small>" + esc(sub || "no Acervo") + "</small></div>" + selo +
       '<span class="sv-data">' + esc(a.modificado || quandoCurtoSv(a.ligado_em)) + "</span>" +
       '<button class="mais-linha" data-sv-arquivo-mais="' + esc(a.sha1) + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>";
   }).join("");
@@ -632,7 +645,7 @@ function secaoDosPrazos(s) {
     const classe = "sv-prazo-quando" + (dias <= 1 ? " perto" : "");
     return '<div class="sv-prazo-linha"><span class="corta sv-editavel" data-sv-prazo-titulo="' + k + '" title="Clique para editar">' + esc(p.titulo) + "</span>" +
       '<button type="button" class="' + classe + '" data-sv-prazo-quando="' + k + '" title="Trocar a data' + (p.origem === "compromisso" ? " e a hora" : "") + '">' +
-      esc(quandoDoPrazoSv(p)) + "</button>" +
+      esc(quandoDoPrazoSv(p)) + "</button>" + (typeof olhoDoPrazo === "function" ? olhoDoPrazo(p) : "") +
       '<button type="button" class="mais-linha" data-sv-prazo-tirar="' + k + '" title="Remover">' + ic("close", 15) + "</button></div>";
   }).join("");
   return '<section class="sv-secao sv-prazos"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("event", 16) + 'Prazos e agendamentos</span>' +
@@ -879,10 +892,11 @@ function escolherPrazoDaEtapa(botao) {
 
 /* Quem cuida da etapa: alguém da equipe, ou ninguém. A etapa com data vai
    para a Agenda com essa pessoa — é o que deixa cada um ver a sua. */
-function menuDoResponsavel(botao, atual, aoEscolher) {
+function menuDoResponsavel(botao, atual, aoEscolher, extra) {
   const equipe = sv.aberto.equipe;
   const itens = equipe.map((p) => ({ rotulo: p.nome, atual: p.id === atual, acao: () => aoEscolher(p) }));
-  if (equipe.length) itens.push("-");
+  if (extra && extra.length) itens.push.apply(itens, extra);
+  if (equipe.length || (extra && extra.length)) itens.push("-");
   if (atual) itens.push({ rotulo: "Ninguém", acao: () => aoEscolher(null) });
   if (podeMudarEquipe()) itens.push({ rotulo: equipe.length ? "Outra pessoa…" : "Montar a equipe…", acao: () => dialogoDaEquipe() });
   menuNaLinha(botao, itens);
@@ -896,7 +910,14 @@ async function editarEtapa(i, dados) {
 
 function responsavelDaEtapa(botao, i) {
   const e = sv.aberto.etapas[i];
-  menuDoResponsavel(botao, e.responsavel_id, (p) => editarEtapa(i, { responsavel_id: p ? p.id : null }));
+  // Com a pasta compartilhada, a etapa pode ser do cliente: vira a pendencia
+  // dele em "Para voce" (js/94-area-cliente.js).
+  const doCliente = typeof pastaCompartilhada === "function" && pastaCompartilhada();
+  const extra = doCliente ? [{ rotulo: "O cliente", atual: Boolean(e.cliente), acao: () => marcarEtapaParaCliente(i, { do_cliente: true }) }] : [];
+  menuDoResponsavel(botao, e.cliente ? -1 : e.responsavel_id, async (p) => {
+    if (e.cliente) await marcarEtapaParaCliente(i, { do_cliente: false });
+    editarEtapa(i, { responsavel_id: p ? p.id : null });
+  }, extra);
 }
 
 function responsavelDaNovaEtapa(botao) {
@@ -1080,6 +1101,7 @@ async function renomearServico(s, novo) {
 
 function ligarServicos() {
   if (typeof ligarHoras === "function" && sv.visao === "trabalho") ligarHoras($("centro"));
+  if (typeof ligarClienteNaPasta === "function" && sv.visao === "trabalho") ligarClienteNaPasta(document);
   const clique = (sel, fn) => document.querySelectorAll(sel).forEach((b) => { b.onclick = (e) => { e.stopPropagation(); fn(b, e); }; });
   const busca = $("sv-busca");
   if (busca) {

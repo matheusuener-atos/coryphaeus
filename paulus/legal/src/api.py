@@ -1071,6 +1071,22 @@ import rotas_nfse_recebidas  # noqa: E402
 
 rotas_nfse_recebidas.montar(estado, app)
 
+# A Area do cliente (src/area_cliente.py, rotas em src/rotas_area_cliente.py):
+# o cliente acompanha a pasta do servico pelo endereco do escritorio.
+import rotas_area_cliente  # noqa: E402
+
+
+def _recebido_do_cliente(servico_id: int, caminho: Path) -> None:
+    """O arquivo que o cliente mandou entra no Acervo e, se o indice o le, no servico."""
+    estado.recarregar()
+    doc = _documentos_por_caminho().get(_chave_do_arquivo(caminho)[0])
+    if doc:
+        estado.servicos.vincular(servico_id, doc.sha1, doc.name, "Área do cliente")
+
+
+rotas_area_cliente.montar(estado, app, DADOS_DIR, modelo_pronto=lambda t: _modelo_pronto(t),
+                          limpar_texto=lambda t: _limpar_sugestao(t), ao_receber=_recebido_do_cliente)
+
 
 def _descrever_para_auditoria(caminho: str) -> str:
     """
@@ -13709,6 +13725,9 @@ def servicos_listar(filtro: str = "", termo: str = "") -> dict:
         "acesso_da_equipe": {str(k): v for k, v in _acesso_da_equipe().items()},
         "servicos": estado.servicos.listar(filtro, termo),
         "contagem": estado.servicos.contagem(),
+        # As mensagens de cliente ainda nao lidas, por pasta (src/area_cliente.py).
+        "cliente_nao_lidas": {str(k): v for k, v in (estado.area_cliente.nao_lidas().items()
+                                                     if getattr(estado, "area_cliente", None) else [])},
         "status": [{"valor": k, "rotulo": v} for k, v in servicos_mod.STATUS.items()],
         "clientes": [{"id": f["id"], "nome": f["nome"], "tipo": f["tipo"], "observacao": f.get("observacao", "")}
                      for f in estado.cadastros.listar()],
@@ -13821,6 +13840,10 @@ def servicos_obter(id_: int) -> dict:
         raise HTTPException(status_code=404, detail="serviço não encontrado")
     s["gravacoes"] = [g for g in estado.gravacoes.listar() if g.get("servico_id") == id_]
     s["pasta_caminho"] = str(pasta) if pasta else ""
+    # A Area do cliente (src/area_cliente.py): o olhinho, os documentos
+    # compartilhados e as mensagens novas do cliente.
+    area = getattr(estado, "area_cliente", None)
+    s["cliente"] = area.para_a_pasta(id_) if area else None
     return s
 
 

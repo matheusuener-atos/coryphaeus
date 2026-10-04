@@ -115,9 +115,9 @@ documento." (LGPD: informar o titular.)
 
 | Id | Etapa | Estado |
 | --- | --- | --- |
-| AC1 | **Ver.** Compartilhar/parar, olhinhos, "compartilhar" nos documentos, "Ver como o cliente"; entrada por código no e-mail (rota no Worker para o envio pelo Resend, pedida pelo servidor com a chave da instalação); a tela do cliente só de leitura (resumo manual por enquanto, datas, andamento, documentos com marca d'água); registro e aba "Atividade do cliente"; travado fora do Plus | a fazer |
-| AC2 | **Agir.** Responsável "cliente" na etapa; "Para você" com envio de arquivo (vai para "Recebidos do cliente" na pasta do serviço no Acervo; tipo conferido pelo conteúdo, limite de tamanho, Windows Defender antes de entrar) e confirmar/remarcar compromisso (+ .ics); conversa da pasta (citando a etapa quando vem dela); aviso aos responsáveis no PAULUS e e-mail ao cliente quando o escritório responde | a fazer |
-| AC3 | **Resumo pela IA.** Escrito em linguagem simples **lendo só o que o cliente vê**; o advogado aprova com um clique (Aprovações) antes de aparecer; sugere novo resumo quando o andamento muda | a fazer |
+| AC1 | **Ver.** Compartilhar/parar, olhinhos, "compartilhar" nos documentos, "Ver como o cliente"; entrada por código no e-mail (rota no Worker para o envio pelo Resend, pedida pelo servidor com a chave da instalação); a tela do cliente só de leitura (resumo, datas, andamento, documentos com marca d'água); registro e aba "Atividade do cliente"; travado fora do Plus | feita (04/10) |
+| AC2 | **Agir.** Responsável "cliente" na etapa; "Para você" com envio de arquivo (vai para "Recebidos do cliente" na pasta do serviço no Acervo; tipo conferido pelo conteúdo, limite de tamanho, Windows Defender antes de entrar) e confirmar/remarcar compromisso (+ .ics); conversa da pasta (citando a etapa quando vem dela); aviso aos responsáveis no PAULUS e e-mail ao cliente quando o escritório responde | feita (04/10) |
+| AC3 | **Resumo pela IA.** Escrito em linguagem simples **lendo só o que o cliente vê**; o advogado lê, ajusta e publica na aba Cliente (o rascunho fica lá até publicar — não passa pela fila de Aprovações) | feita (04/10) |
 | AC4 | **Agente para o cliente.** Só sobre o que está na pasta (status, datas, o que é um documento); não opina sobre estratégia nem chance; o que passa disso vira mensagem ao advogado; tudo visível aos responsáveis; teto de créditos por cliente | depois |
 
 Cada etapa vale sozinha: com a AC1 o cliente já acompanha o processo.
@@ -134,3 +134,51 @@ Cada etapa vale sozinha: com a AC1 o cliente já acompanha o processo.
 - Arquivo do cliente nunca abre sozinho no servidor; entra como qualquer
   arquivo do Acervo, depois da conferência.
 - Texto de tela só promete o que o código faz (sem "registramos prints").
+
+## Como ficou (04/10/2026)
+
+Código: `src/area_cliente.py` (o modelo, a lista fechada, entrar, marca
+d'água, envio, conversa, resumo), `src/rotas_area_cliente.py` (as rotas),
+`frontend/cliente.html` + `js/cliente.js` + `css/cliente.css` (a página do
+cliente, prefixo `pcl-`; o mesmo `cliente.js` desenha a prévia no PAULUS),
+`js/94-area-cliente.js` + `css/56-area-cliente.css` (o lado do escritório,
+prefixo `acp-`), migração `042_area_do_cliente`, rota
+`POST /api/tunel/cliente-email` no Worker (`worker/tunel.js`).
+
+- **Portão:** `/cliente/*` e `/api/cliente/*` têm a política nova `cliente`
+  (`acesso/politicas.py`) e o portão de fora as entrega à `PortaDoCliente`:
+  plano, sessão do cliente e anti-CSRF. A sessão do escritório não alcança
+  essas rotas, e o cookie do cliente não abre nada do escritório.
+- **De fora, o escritório:** ver é `permitido` (só quem está na Equipe da
+  pasta, pelo filtro de serviços); mexer abre pelo nível "faz" em Serviços.
+- **Avisos:** tipo novo "Área do cliente" no aviso do Windows.
+- **Testes:** `tests/test_area_cliente.py` (servidor, de ponta a ponta) e
+  `tests/test_area_cliente_tela.py` (Edge: escritório a 1440 px, cliente a
+  390 px no claro e no escuro); `worker/teste-tunel.mjs` (o e-mail).
+
+O que ficou diferente do plano:
+
+- **"Fora do ar":** se o servidor cai com a página do cliente aberta, ela diz
+  "O escritório está fora do ar agora". Se a página nem abre (o servidor já
+  estava desligado), quem responde é a Cloudflare, com a página de erro do
+  túnel — o Worker não faz proxy dos endereços dos escritórios, de propósito
+  (`wrangler.jsonc`), e isso não mudou.
+- **Documento que não é PDF:** na tela, o cliente vê o texto que o Acervo leu,
+  em páginas, com a marca; o arquivo baixado vai no formato original, sem
+  marca — a tela diz isso antes.
+- **Resumo:** publicado na aba Cliente, sem passar por Aprovações.
+
+## ⏸ O que é do dono
+
+1. **E-mail:** o Worker precisa da `RESEND_API_KEY` (a mesma do painel) e do
+   domínio `paulus.ia.br` verificado no Resend para `naoresponda@`. Sem ela,
+   compartilhar funciona e a tela oferece o link para mandar por outro
+   caminho, mas o código de entrada não chega — o cliente não entra.
+2. **Página de erro do túnel (opcional):** se quiser uma página própria quando
+   o servidor está desligado, uma regra de erro personalizada na Cloudflare
+   para `*.paulus.ia.br` (painel da zona › Regras › Páginas de erro).
+3. **Teste real:** com o acesso de fora ligado, compartilhar uma pasta com um
+   e-mail seu, abrir o link no celular (4G), entrar com o código, abrir um
+   documento, mandar uma foto numa pendência e confirmar um horário; conferir
+   a aba Cliente e "Quem acessou".
+4. **Publicar a versão** quando quiser (o push já põe a rota do Worker no ar).

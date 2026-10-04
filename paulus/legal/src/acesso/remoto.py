@@ -131,6 +131,10 @@ class PortaoRemoto:
         # () -> "" ou a frase de por que o plano nao deixa colaborador entrar
         # (src/recursos_do_plano.py; o api.py liga). O titular entra sempre.
         self.colaborador_barrado = None
+        # A Area do cliente (src/area_cliente.py, PortaDoCliente): /cliente/* e
+        # /api/cliente/* tem sessao propria, que nao e conta do escritorio. O
+        # api.py liga; sem ela, essas rotas respondem 404.
+        self.cliente = None
         self._seguranca = cabecalhos_de_seguranca(politica_de_conteudo())
 
     def _anotar(self, **evento) -> None:
@@ -157,13 +161,24 @@ class PortaoRemoto:
         estado["paulus_pessoa"] = sessao
         PESSOA_DA_VEZ.set(sessao)
 
+        if politica == politicas.CLIENTE or politicas.caminho_do_cliente(caminho_puro):
+            # A Area do cliente nao passa pela sessao do escritorio - nem com
+            # ela: a pessoa de fora com conta do escritorio que abre o link do
+            # cliente e tratada como cliente, e a sessao do escritorio nao
+            # alcanca nada aqui (as rotas leem so o cookie do cliente).
+            if self.cliente is None or not politicas.caminho_do_cliente(caminho_puro):
+                await recusar(scope, send, 404, "não encontrado")
+                return
+            await self.cliente(app, scope, receive, send, cab)
+            return
         if metodo == "GET" and politicas.pagina_do_convite(caminho_puro):
             # Com ou sem sessao: o convite e para quem ainda nao tem conta.
             await self._pagina(send, PAGINA_DO_CONVITE)
             return
         if not sessao:
             if ((metodo, caminho_puro) in politicas.SEM_SESSAO or politicas.estatico_da_entrada(metodo, caminho_puro)
-                    or politicas.api_do_convite(metodo, caminho_puro)):
+                    or politicas.api_do_convite(metodo, caminho_puro)
+                    or (self.cliente is not None and (metodo, caminho_puro) in politicas.ESTATICOS_DO_CLIENTE)):
                 if caminho_puro == "/":
                     await self._pagina_de_entrada(send)
                     return

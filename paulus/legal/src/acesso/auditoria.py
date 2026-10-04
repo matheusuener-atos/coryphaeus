@@ -58,6 +58,23 @@ ACOES = {
     "word_revogado": "desconectou um Word",
     "word_instalado": "instalou o PAVLVS no Word",
     "nfse": "nota fiscal",
+    # A Area do cliente (src/area_cliente.py): a pessoa vem como "Nome (cliente)".
+    "cliente_pediu_codigo": "pediu o código da área do cliente",
+    "cliente_email_errado": "tentou entrar na área do cliente com outro e-mail",
+    "cliente_codigo_errado": "errou o código da área do cliente",
+    "cliente_entrou": "entrou na área do cliente",
+    "cliente_saiu": "saiu da área do cliente",
+    "cliente_abriu_pasta": "abriu a pasta (área do cliente)",
+    "cliente_abriu": "abriu documento (área do cliente)",
+    "cliente_baixou": "baixou (área do cliente)",
+    "cliente_imprimiu": "imprimiu (área do cliente)",
+    "cliente_escreveu": "escreveu ao escritório",
+    "cliente_enviou": "enviou um arquivo",
+    "cliente_envio_barrado": "teve um arquivo barrado",
+    "cliente_concluiu": "marcou uma pendência como feita",
+    "cliente_confirmou": "confirmou um horário",
+    "cliente_remarcar": "pediu para remarcar",
+    "cliente_agenda": "baixou um horário para a agenda",
 }
 CAMPOS = ("quando", "pessoa", "email", "ip", "acao", "alvo")
 
