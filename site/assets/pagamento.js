@@ -41,6 +41,68 @@
     el.hidden = !texto;
   }
 
+  /* Uma lista no estilo do sistema por cima de um <select> que o CardForm
+     preenche: o select continua no formulario (invisivel); o botao mostra a
+     opcao escolhida e o menu escolhe nele, com o evento de mudanca. */
+  function combo(select) {
+    if (select.dataset.combo) return;
+    select.dataset.combo = "1";
+    select.classList.add("pg-nativo");
+    select.tabIndex = -1;
+    var caixa = document.createElement("div");
+    caixa.className = "pg-combo";
+    var botao = document.createElement("button");
+    botao.type = "button";
+    botao.className = "pg-combo-botao";
+    botao.setAttribute("aria-haspopup", "listbox");
+    botao.setAttribute("aria-expanded", "false");
+    var rotulo = select.getAttribute("aria-labelledby");
+    if (rotulo) botao.setAttribute("aria-labelledby", rotulo);
+    botao.innerHTML = '<span></span><span class="icon" aria-hidden="true">expand_more</span>';
+    var menu = document.createElement("ul");
+    menu.className = "pg-combo-menu";
+    menu.setAttribute("role", "listbox");
+    menu.hidden = true;
+    select.parentNode.insertBefore(caixa, select);
+    caixa.appendChild(botao);
+    caixa.appendChild(menu);
+    caixa.appendChild(select);
+    var texto = function () {
+      var o = select.options[select.selectedIndex];
+      botao.firstChild.textContent = o ? o.textContent : (select.getAttribute("data-vazio") || "");
+    };
+    var fechar = function () { menu.hidden = true; botao.setAttribute("aria-expanded", "false"); };
+    var abrir = function () {
+      menu.innerHTML = "";
+      [].slice.call(select.options).forEach(function (o, i) {
+        if (!o.value) return;
+        var li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.textContent = o.textContent;
+        li.setAttribute("aria-selected", String(i === select.selectedIndex));
+        li.onclick = function () {
+          select.selectedIndex = i;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+          texto();
+          fechar();
+          botao.focus();
+        };
+        menu.appendChild(li);
+      });
+      if (!menu.children.length) return;
+      menu.hidden = false;
+      botao.setAttribute("aria-expanded", "true");
+      var sel = menu.querySelector('[aria-selected="true"]');
+      if (sel) sel.scrollIntoView({ block: "nearest" });
+    };
+    botao.onclick = function () { if (menu.hidden) abrir(); else fechar(); };
+    document.addEventListener("click", function (e) { if (!caixa.contains(e.target)) fechar(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { fechar(); botao.focus(); } });
+    select.addEventListener("change", texto);
+    new MutationObserver(texto).observe(select, { childList: true });
+    texto();
+  }
+
   /* O plano B: o formulario nao carregou. O Worker cria a assinatura (ou o
      pagamento do ano) na pagina do Mercado Pago, com o valor conferido la, e a
      pessoa vai para ela; a volta e a pagina de cadastro, que confere. */
@@ -151,6 +213,9 @@
       }).observe(parcelas, { childList: true });
     }
     parcelas.dataset.teto = String(oferta.parcelas_max);
+    parcelas.setAttribute("data-vazio", "Digite o número do cartão para ver as parcelas");
+    combo(parcelas);
+    combo($("pg-doc-tipo"));
     // Os juros: cada opcao do Mercado Pago traz o total no cartao entre
     // parenteses; a diferenca para o valor do plano e o juro do parcelamento.
     var juros = function () {
