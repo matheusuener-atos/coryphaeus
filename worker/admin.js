@@ -1,7 +1,7 @@
 // O painel de administracao do PAVLVS (paulus.ia.br/admin; o contrato das
 // rotas esta em worker/admin-api.md). A equipe ve as contas da nuvem, os
 // tuneis do acesso de fora, as nao renovacoes, as campanhas de e-mail, os
-// cupons, os tokens e a receita, os planos, os materiais para moderar, as
+// tokens e a receita, os planos, os materiais para moderar, as
 // notas fiscais e a propria equipe.
 //
 // As notas fiscais (NFS-e do PAVLVS) sao emitidas daqui: /api/admin/nfse/emissor/*
@@ -27,7 +27,7 @@
 // Tudo no KV APOIOS com o prefixo "admin:". O envio de e-mail e pelo Resend
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
 
-import { MODELOS, PLANO_PADRAO, TOLERANCIA_MS, devolverPagamento, lerCupom, medidor, numeros } from "./ia.js";
+import { MODELOS, PLANO_PADRAO, TOLERANCIA_MS, devolverPagamento, medidor, numeros } from "./ia.js";
 import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
   anotarHistorico, cfConfigurado,
@@ -57,8 +57,6 @@ const PODE = {
   "tunel.endereco": ["dono", "suporte"],
   "tunel.ativo": ["dono", "suporte"],
   "campanha.disparar": TODOS,
-  "cupom.criar": ["dono", "financeiro"],
-  "cupom.ativo": ["dono", "financeiro"],
   "plano.editar": ["dono", "financeiro"],
   "plano.criar": ["dono", "financeiro"],
   "material.situacao": TODOS,
@@ -73,7 +71,7 @@ export const MATRIZ = [
   ["Mandar e-mails e lembretes", TODOS],
   ["Revogar o Google e desvincular instalações", ["dono", "suporte"]],
   ["Apagar e mudar túneis", ["dono", "suporte"]],
-  ["Cupons e planos", ["dono", "financeiro"]],
+  ["Planos", ["dono", "financeiro"]],
   ["Cancelar assinatura, reembolsar pagamentos e creditar tokens", ["dono", "financeiro"]],
   ["Ver as notas fiscais e baixar PDF e XML", TODOS],
   ["Emitir, cancelar e substituir notas fiscais; certificado e parâmetros", PODE_NFSE],
@@ -141,7 +139,6 @@ async function rotear(c, request, url, p, m) {
     }
     if (p === "/api/admin/renovacoes") return json(await renovacoes(c));
     if (p === "/api/admin/campanhas") return json(await campanhasParaTela(c));
-    if (p === "/api/admin/cupons") return json({ cupons: await cupons(c.env) });
     if (p === "/api/admin/tokens") return json(await tokens(c, url.searchParams.get("visao") || "geral", url.searchParams.get("periodo") || "mes"));
     if (p === "/api/admin/planos") return json(await planos(c));
     if (p === "/api/admin/materiais") return json({ materiais: await materiais(c.env) });
@@ -623,9 +620,6 @@ async function pendencias(c, contas, tuneis) {
   if (parados) lista.push({ icone: "dns", titulo: parados + (parados === 1 ? " túnel parado" : " túneis parados"), sub: "sem conexão ou nunca conectaram; a limpeza diária está contando", tela: "tuneis", filtro: "parados" });
   const semDoc = contas.filter((x) => (x.situacao === "ativa" || x.situacao === "vencida") && !x.escritorio.documento).length;
   if (semDoc) lista.push({ icone: "contacts", titulo: semDoc + (semDoc === 1 ? " cadastro sem CPF/CNPJ" : " cadastros sem CPF/CNPJ"), sub: "assinaram antes da página Assinar pedir o cadastro", tela: "contas" });
-  for (const cp of await cupons(c.env)) {
-    if (cp.ativo && cp.limite && cp.usos >= cp.limite) lista.push({ icone: "local_offer", titulo: cp.codigo + " chegou ao limite de usos", sub: cp.usos + " de " + cp.limite, tela: "cupons" });
-  }
   const fila = (await materiais(c.env)).filter((m) => m.situacao === "fila").length;
   if (fila) lista.push({ icone: "menu_book", titulo: fila + (fila === 1 ? " material na fila" : " materiais na fila"), sub: "esperando a leitura antes de publicar", tela: "materiais", filtro: "fila" });
   return lista;
@@ -759,12 +753,12 @@ export async function enviarEmail(env, { para, assunto, titulo, texto, botao, li
 }
 
 function preencher(texto, campos) {
-  return String(texto || "").replace(/\{(nome|escritorio|plano|vence_em|cupom)\}/g, (_, k) => campos[k] || "");
+  return String(texto || "").replace(/\{(nome|escritorio|plano|vence_em)\}/g, (_, k) => campos[k] || "");
 }
 
 function camposDe(conta) {
   const fim = conta._d && conta._d.ciclo ? new Date(conta._d.ciclo.fim).toLocaleDateString("pt-BR") : "";
-  return { nome: String(conta.nome || "").split(" ")[0], escritorio: conta.escritorio.nome || conta.nome, plano: conta.plano ? conta.plano.nome : "", vence_em: fim, cupom: "" };
+  return { nome: String(conta.nome || "").split(" ")[0], escritorio: conta.escritorio.nome || conta.nome, plano: conta.plano ? conta.plano.nome : "", vence_em: fim };
 }
 
 function publicosDe(contas, extra) {
@@ -872,25 +866,6 @@ async function rastreio(env, url) {
     return new Response(null, { status: 302, headers: { location: destino, "cache-control": "no-store" } });
   }
   return new Response(pixel, { headers: { "content-type": "image/gif", "cache-control": "no-store" } });
-}
-
-// ------------------------------------------------------------ cupons
-
-async function cupons(env) {
-  const lista = [];
-  for (const k of await kvPor(env, "admin:cupom:")) {
-    const x = await kvJSON(env, k, null);
-    if (x) lista.push({ codigo: x.codigo, descricao: descricaoDoCupom(x), desconto: x.desconto, meses: x.meses, brinde: x.brinde || 0, limite: x.limite || 0, usos: x.usos || 0, validade: x.validade || null, planos: x.planos || [], ativo: Boolean(x.ativo) });
-  }
-  return lista.sort((a, b) => a.codigo.localeCompare(b.codigo));
-}
-
-function descricaoDoCupom(x) {
-  const partes = [];
-  if (x.desconto) partes.push(x.desconto + "% por " + x.meses + (x.meses === 1 ? " mês" : " meses"));
-  if (x.brinde) partes.push("+" + Math.round(x.brinde / 1e6) + "M tokens de brinde");
-  if (Array.isArray(x.planos) && x.planos.length) partes.push(x.planos.join(", "));
-  return partes.join(" · ");
 }
 
 // ---------------------------------------------- tokens, custos e receita
@@ -1072,7 +1047,7 @@ async function equipe(c) {
 
 async function busca(c, q) {
   const nq = String(q || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-  const vazio = { contas: [], escritorios: [], tuneis: [], cupons: [], planos: [], materiais: [] };
+  const vazio = { contas: [], escritorios: [], tuneis: [], planos: [], materiais: [] };
   if (nq.length < 2) return vazio;
   const bate = (...t) => t.join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(nq);
   const contas = await lerContas(c);
@@ -1082,7 +1057,6 @@ async function busca(c, q) {
     contas: contas.filter((x) => bate(x.nome, x.email, x.oab, x.escritorio.nome)).slice(0, 6).map((x) => ({ titulo: x.nome, desc: x.email + (x.plano ? " · " + x.plano.nome : "") + " · " + x.situacao, tela: "contas", alvo: x.id })),
     escritorios: escritorios.filter((e) => bate(e.nome, e.slug, e.documento)).slice(0, 6).map((e) => ({ titulo: e.nome, desc: e.contas.length + (e.contas.length === 1 ? " conta" : " contas") + (e.slug ? " · " + e.slug + ".paulus.ia.br" : ""), tela: "contas", alvo: e.nome })),
     tuneis: tuneis.filter((t) => bate(t.slug, t.nome, t.responsavel)).slice(0, 6).map((t) => ({ titulo: t.slug + ".paulus.ia.br", desc: t.nome + " · " + t.estado, tela: "tuneis", alvo: t.slug })),
-    cupons: (await cupons(c.env)).filter((x) => bate(x.codigo, x.descricao)).slice(0, 6).map((x) => ({ titulo: x.codigo, desc: x.descricao, tela: "cupons", alvo: x.codigo })),
     planos: numeros(c.env).planos.filter((p) => bate(p.nome, p.id)).slice(0, 6).map((p) => ({ titulo: p.nome, desc: brl(p.valor) + "/mês · " + brl(p.valor_anual) + "/ano · " + Math.round(p.tokens / 1e6) + "M créditos", tela: "planos", alvo: p.id })),
     materiais: (await materiais(c.env)).filter((x) => bate(x.titulo, x.autor, (x.areas || []).join(" "))).slice(0, 6).map((x) => ({ titulo: x.titulo, desc: x.autor + " · " + x.situacao, tela: "materiais", alvo: x.id })),
   };
@@ -1134,14 +1108,6 @@ async function conferirAlteracao(c, tipo, d) {
   if (tipo === "tunel.endereco") {
     const motivo = await motivoDoEnderecoNovo(c.env, String(d.novo || ""));
     if (motivo) return d.novo + ": " + motivo;
-  }
-  if (tipo === "cupom.criar") {
-    const codigo = String(d.codigo || "").trim().toUpperCase();
-    if (!/^[A-Z0-9-]{3,24}$/.test(codigo)) return "o código tem de 3 a 24 letras maiúsculas, números e hífen";
-    if (await lerCupom(c.env, codigo)) return "esse código já existe";
-    if (!(Number(d.desconto) >= 0 && Number(d.desconto) <= 100)) return "o desconto vai de 0 a 100%";
-    if (Number(d.desconto) > 0 && !(Number(d.meses) >= 1 && Number(d.meses) <= 24)) return "de 1 a 24 meses";
-    if (!(Number(d.desconto) > 0) && !(Number(d.brinde) > 0)) return "dê um desconto ou um brinde em tokens";
   }
   if (tipo === "plano.criar") {
     if (!/^[a-z0-9-]{2,24}$/.test(String(d.id || ""))) return "o id tem de 2 a 24 letras minúsculas, números e hífen";
@@ -1230,24 +1196,6 @@ async function aplicar(c, alt) {
       return ativarEndereco(env, d.slug, Boolean(d.ativo), c.agora);
     case "campanha.disparar":
       return dispararCampanha(c, d);
-    case "cupom.criar": {
-      const codigo = String(d.codigo).trim().toUpperCase();
-      if (await lerCupom(env, codigo)) throw new Error("esse código já existe");
-      const cupom = {
-        codigo, desconto: Number(d.desconto) || 0, meses: Math.max(1, Number(d.meses) || 1), brinde: Math.round((Number(d.brinde) || 0) * (Number(d.brinde) < 1000 ? 1e6 : 1)),
-        limite: Number(d.limite) || 0, usos: 0, validade: d.validade || null, planos: Array.isArray(d.planos) ? d.planos : [], ativo: true,
-        criado: new Date(c.agora).toISOString(), por: c.quem.email,
-      };
-      await env.APOIOS.put("admin:cupom:" + codigo, JSON.stringify(cupom));
-      return cupom;
-    }
-    case "cupom.ativo": {
-      const cupom = await lerCupom(env, d.codigo);
-      if (!cupom) throw new Error("esse cupom não existe");
-      cupom.ativo = Boolean(d.ativo);
-      await env.APOIOS.put("admin:cupom:" + cupom.codigo, JSON.stringify(cupom));
-      return cupom;
-    }
     case "plano.criar":
     case "plano.editar":
       return aplicarPlano(c, alt.tipo, d);
@@ -1295,8 +1243,7 @@ async function aplicarPlano(c, tipo, d) {
   const erros = [];
   for (const conta of contas.filter((x) => x.plano && x.plano.id === d.id && (x._d.assinatura || {}).situacao === "authorized")) {
     const a = conta._d.assinatura;
-    // Com cupom ainda correndo, o valor volta ao cheio (o novo) no fim do cupom.
-    if (!mp || (conta._d.cupom && (conta._d.cupom.cobrados || 0) < conta._d.cupom.meses)) continue;
+    if (!mp) continue;
     const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { auto_recurring: { transaction_amount: valor, currency_id: "BRL" } });
     if (!r.ok) erros.push(conta.nome);
   }

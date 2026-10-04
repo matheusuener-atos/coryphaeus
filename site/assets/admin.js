@@ -66,7 +66,6 @@
     { id: "tuneis", label: "Túneis Cloudflare", icon: "dns", chip: "Túneis", o: "os túneis", ler: ["tuneis"] },
     { id: "renovacoes", label: "Não renovações", icon: "notifications", chip: "Não renovações", o: "as não renovações", ler: ["renovacoes"] },
     { id: "emails", label: "Disparo de e-mails", icon: "mail", chip: "E-mails", o: "as campanhas", ler: ["campanhas"] },
-    { id: "cupons", label: "Cupons", icon: "local_offer", chip: "Cupons", o: "os cupons", ler: ["cupons", "planos"] },
     { id: "tokens", label: "Tokens e custos", icon: "token", chip: "Tokens", o: "os tokens e custos", ler: [] },
     { id: "planos", label: "Planos", icon: "payments", chip: "Planos", o: "os planos", ler: ["planos", "tokens:geral:mes"] },
     { id: "materiais", label: "Moderar materiais", icon: "menu_book", chip: "Materiais", o: "os materiais", ler: ["materiais"] },
@@ -80,7 +79,7 @@
   var DF = ["dono", "financeiro"], DS = ["dono", "suporte"];
   var PAPEIS = {
     "conta.creditar": DF, "conta.instalacao.apagar": DS, "conta.cancelar": DF, "conta.reembolsar": DF, "google.servicos": DS, "google.desvincular": DS,
-    "tunel.apagar": DS, "tunel.endereco": DS, "tunel.ativo": DS, "cupom.criar": DF, "cupom.ativo": DF, "plano.editar": DF,
+    "tunel.apagar": DS, "tunel.endereco": DS, "tunel.ativo": DS, "plano.editar": DF,
     "plano.criar": DF, "nfse.config": DF, "equipe.papel": ["dono"],
   };
   var PAPEL_NOME = { dono: "Dono", financeiro: "Financeiro", suporte: "Suporte" };
@@ -97,14 +96,12 @@
     tuneis: { filtro: "todos", sel: {}, aberto: null },
     renovacoes: {},
     emails: { aba: "campanhas", passo: 1, so: null, camp: novaCamp() },
-    cupons: { novo: novoCupom() },
     tokens: { visao: "geral", periodo: "mes" },
     planos: { novo: { nome: "", id: "", valor: "", anual: "", tokens: "" } },
     materiais: { filtro: "fila", aberto: null, checks: {}, recados: {} },
     nfse: { teste: null, testando: false, pfx: null, senha: "", instalando: false, aviso: null },
   };
   function novaCamp() { return { publico: "", nome: "", assunto: "", pre: "", titulo: "", texto: "", botao: "Abrir o PAULUS", link: "https://paulus.ia.br/", quando: "agora" }; }
-  function novoCupom() { return { codigo: "", desconto: "", meses: "", brinde: "", limite: "", validade: "", planos: {} }; }
 
   function pode(tipo) { var p = PAPEIS[tipo]; return !p || (E.sessao && p.indexOf(E.sessao.papel) >= 0); }
   function cfg(nome) { var c = E.sessao && E.sessao.config && E.sessao.config[nome]; return c || { ligado: true, falta: "" }; }
@@ -515,7 +512,7 @@
     var unico = so && pub && pub.id === "conta:" + so.id;
     var val = unico ? { nome: primeiro(so.nome), escritorio: so.escritorio && so.escritorio.nome, plano: so.plano && so.plano.nome, vence_em: so.ciclo && so.ciclo.fim ? ddmm(so.ciclo.fim) : null } : {};
     var s = html ? esc(t) : t;
-    return s.replace(/\{(nome|escritorio|plano|vence_em|cupom)\}/g, function (m, k) {
+    return s.replace(/\{(nome|escritorio|plano|vence_em)\}/g, function (m, k) {
       if (val[k]) return html ? esc(val[k]) : val[k];
       return html ? '<span class="campo-livre">' + m + "</span>" : m;
     });
@@ -564,13 +561,13 @@
         return '<button type="button" class="linha-btn publico' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-a="escolherPublico" data-id="' + esc(p.id) + '"><span class="radio' + (on ? " on" : "") + '"></span><span class="txt2"><b>' + esc(p.label) + "</b><small>" + (p.gmail || 0) + ' no Gmail</small></span><span class="n">' + (p.n || 0) + "</span></button>";
       }).join("") + "</div>";
     } else if (passo === 2) {
-      esq += campoTexto("camp-nome", "Nome da campanha (interno)", camp.nome, "Cupom OAB · outubro", "camp.nome") +
+      esq += campoTexto("camp-nome", "Nome da campanha (interno)", camp.nome, "Lembrete OAB · outubro", "camp.nome") +
         campoTexto("camp-assunto", "Assunto", camp.assunto, "Um presente para o {escritorio}", "camp.assunto") +
         campoTexto("camp-pre", "Pré-cabeçalho", camp.pre, "o texto cinza que aparece ao lado do assunto", "camp.pre") +
         campoTexto("camp-titulo", "Título", camp.titulo, "Desconto no plano {plano}", "camp.titulo") +
         '<label class="campo-adm"><span class="rot">Texto</span><textarea class="area" id="camp-texto" rows="6" data-in="campo" data-campo="camp.texto" placeholder="Olá, {nome}.">' + esc(camp.texto) + "</textarea></label>" +
         '<div class="grade-campos">' + campoTexto("camp-botao", "Texto do botão", camp.botao, "", "camp.botao") + campoTexto("camp-link", "Link do botão", camp.link, "https://", "camp.link") + "</div>" +
-        '<span class="nota-campo">Campos: {nome}, {escritorio}, {plano}, {vence_em}, {cupom}</span>';
+        '<span class="nota-campo">Campos: {nome}, {escritorio}, {plano}, {vence_em}</span>';
     } else {
       var de = (d.envio && d.envio.de) || "naoresponda@paulus.ia.br", ritmo = Number(d.envio && d.envio.ritmo) || 50;
       esq += '<span class="rotulo">Revisar</span><dl class="fatos-p f110">' + fato("Público", pub ? pub.label + " · " + n : "—") + fato("Assunto", trocaCampos(camp.assunto) || "(sem assunto)") + fato("De", "PAVLVS <" + de + ">") +
@@ -596,60 +593,10 @@
     return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo' + (extra || "") + '"><input id="' + id + '" data-in="campo" data-campo="' + campo + '" value="' + esc(val) + '" placeholder="' + esc(ph) + '" spellcheck="false"></span></label>';
   }
 
-  /* ---------- 7. Cupons ---------- */
-  TELAS_RENDER.cupons = function () {
-    var h = cab("Cupons promocionais", "O cupom entra na página Assinar e abate o valor da assinatura no Mercado Pago pelos meses combinados. Tokens de brinde entram como recarga.");
-    var est = estadoLeitura(["cupons"], "cupons"); if (est) return h + est;
-    h += erroRecente("cupons", "cupons");
-    var podeC = pode("cupom.criar"), podeA = pode("cupom.ativo");
-    var planos = (dadosDe("planos") || {}).planos || [];
-    if (podeC) {
-      var nc = U.cupons.novo;
-      h += '<div class="pilha"><span class="rotulo">Novo cupom</span><div class="grade-cupom">' +
-        '<label class="campo-adm"><span class="rot">Código</span><span class="caixa-campo mono maiusc"><input id="cupom-codigo" data-in="campo" data-campo="cupom.codigo" value="' + esc(nc.codigo) + '" placeholder="OAB2026" maxlength="24" spellcheck="false" autocapitalize="characters"></span></label>' +
-        campoNum("cupom-desconto", "Desconto", nc.desconto, "cupom.desconto", "", "%") + campoNum("cupom-meses", "Meses", nc.meses, "cupom.meses") +
-        campoNum("cupom-brinde", "Brinde", nc.brinde, "cupom.brinde", "", "M") + campoNum("cupom-limite", "Limite", nc.limite, "cupom.limite") + "</div>" +
-        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px">' +
-        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="t13 c-mute">Planos</span><span class="chips">' +
-        (planos.length ? planos.map(function (p) { var on = !!nc.planos[p.id]; return '<button type="button" class="mini' + (on ? " cheia" : "") + '" aria-pressed="' + on + '" data-a="cupomPlano" data-id="' + esc(p.id) + '"' + (on ? "" : ' style="color:var(--mute)"') + ">" + esc(p.nome) + "</button>"; }).join("") : '<span class="t125 c-ink3">' + (D.planos && D.planos.erro ? "não consegui ler os planos: " + esc(D.planos.erro) : "carregando os planos…") + "</span>") + "</span></div>" +
-        '<label style="display:flex;align-items:center;gap:10px"><span class="t13 c-mute">Até</span><span class="caixa-campo mono" style="height:32px"><input type="date" id="cupom-validade" data-in="campo" data-campo="cupom.validade" value="' + esc(nc.validade) + '" aria-label="Válido até"></span></label>' +
-        '<button type="button" class="btn-duplo" data-a="criarCupom" style="margin-left:auto"><span>' + ic("local_offer") + "Criar cupom</span></button></div>" +
-        '<span class="t125">' + esc(resumoCupom(planos)) + "</span></div>";
-    } else {
-      h += '<p class="nota-pe">O papel ' + esc(PAPEL_NOME[E.sessao.papel] || E.sessao.papel) + " vê os cupons, mas não cria nem pausa.</p>";
-    }
-    var cs = dadosDe("cupons").cupons || [];
-    var cols = "minmax(0,1fr) 76px 70px 72px";
-    var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    var linhas = cs.map(function (c) {
-      var v = dt(c.validade), venc = v && v < hoje, fila = naFila("cupom.ativo", c.codigo);
-      return '<div class="grade-linha p12"><span class="cel-nome"><b class="mono" style="font-weight:500;font-size:13px;letter-spacing:.04em">' + esc(c.codigo) + '</b><small class="sans corta">' + esc(c.descricao || descreverCupom(c, planos)) + (c.ativo === false ? " · pausado" : "") + "</small></span>" +
-        '<span class="num dir c-ink2">' + (c.usos || 0) + " / " + (c.limite ? c.limite : "∞") + '</span><span class="num dir" style="color:' + (venc ? "var(--erro)" : "var(--ink2)") + '">' + esc(c.validade ? ddmm(c.validade) : "—") + "</span>" +
-        (podeA ? '<button type="button" class="mini" data-a="cupomAtivo" data-id="' + esc(c.codigo) + '"' + attrDis(fila, "já está na fila de alterações") + ">" + (fila ? "Na fila" : c.ativo === false ? "Reativar" : "Pausar") + "</button>" : "<span></span>") + "</div>";
-    }).join("") || '<p class="vazio-linha">Nenhum cupom ainda.</p>';
-    h += '<div class="painel">' + grade(cols, 0, '<span>Código</span><span class="dir">Usos</span><span class="dir">Até</span><span></span>', linhas) + "</div>";
-    return h;
-  };
   function campoNum(id, rot, val, campo, pre, suf) {
     return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo mono">' + (pre ? '<span class="pre">' + pre + "</span>" : "") +
       '<input id="' + id + '" data-in="campo" data-campo="' + campo + '" value="' + esc(val) + '" inputmode="decimal" style="width:0">' + (suf ? '<span class="sufixo">' + suf + "</span>" : "") + "</span></label>";
   }
-  function descreverCupom(c, planos) {
-    var nomes = (c.planos || []).map(function (id) { var p = planos.filter(function (x) { return x.id === id; })[0]; return p ? p.nome : id; });
-    var partes = [];
-    if (Number(c.desconto)) partes.push(c.desconto + "% por " + c.meses + (Number(c.meses) === 1 ? " mês" : " meses"));
-    if (Number(c.brinde)) partes.push(tok(Number(c.brinde)) + " tokens de brinde");
-    return partes.join(" + ") + (nomes.length ? " · " + nomes.join(", ") : "");
-  }
-  function resumoCupom(planos) {
-    var nc = U.cupons.novo, des = num(nc.desconto), mes = num(nc.meses), bri = numDec(nc.brinde), lim = num(nc.limite);
-    var esc_ = planos.filter(function (p) { return nc.planos[p.id]; });
-    var maior = esc_.reduce(function (m, p) { return Math.max(m, Number(p.valor) || 0); }, 0);
-    return (nc.codigo.trim().toUpperCase() || "O cupom") + ": " + des + "% por " + mes + (mes === 1 ? " mês" : " meses") + (bri ? " + " + dec(bri, 1) + "M tokens de brinde" : "") +
-      " em " + (esc_.map(function (p) { return p.nome; }).join(", ") || "nenhum plano") + (lim ? " · até " + lim + " usos" : " · sem limite de usos") +
-      (nc.validade ? " · válido até " + ddmmaaaa(nc.validade) : " · sem data de fim") + ". Custo máximo: " + brl(maior * des / 100 * mes * (lim || 1)) + (lim ? "" : " por uso") + ".";
-  }
-
   /* ---------- 8. Tokens, custos e receita ---------- */
   TELAS_RENDER.tokens = function () {
     var h = cab("Tokens, custos e receita", "Entrada e saída medidas no portão (ContaIA), custo pelo preço do DeepInfra por milhão, receita pelo que o Mercado Pago confirmou.");
@@ -1323,15 +1270,14 @@
   }
 
   /* ---------- busca ---------- */
-  var ICONE_GRUPO = { contas: "contacts", escritorios: "group", tuneis: "dns", cupons: "local_offer", planos: "payments", materiais: "menu_book" };
-  var NOME_GRUPO = { contas: "Contas", escritorios: "Escritórios", tuneis: "Túneis", cupons: "Cupons", planos: "Planos", materiais: "Materiais" };
-  var TELA_GRUPO = { contas: "contas", escritorios: "contas", tuneis: "tuneis", cupons: "cupons", planos: "planos", materiais: "materiais" };
+  var ICONE_GRUPO = { contas: "contacts", escritorios: "group", tuneis: "dns", planos: "payments", materiais: "menu_book" };
+  var NOME_GRUPO = { contas: "Contas", escritorios: "Escritórios", tuneis: "Túneis", planos: "Planos", materiais: "Materiais" };
+  var TELA_GRUPO = { contas: "contas", escritorios: "contas", tuneis: "tuneis", planos: "planos", materiais: "materiais" };
   function rapidas() {
     var c = contagens(), l = [];
     l.push({ icon: "campaign", t: "E-mails › Nova campanha", d: "público, conteúdo e disparo em 3 passos", ir: function () { U.emails.aba = "nova"; U.emails.passo = 1; irPara("emails"); } });
     if (podeNf()) l.push({ icon: "receipt_long", t: "Notas fiscais › Emitir NFS-e", d: c.nfse != null ? c.nfse + " pendências (pagamentos sem nota e notas na fila)" : "pagamentos sem nota", ir: function () { irPara("nfse"); } });
     l.push({ icon: "publish", t: "Confirmar alterações › Commitar e pushar", d: c.alteracoes + " pendentes", ir: function () { irPara("alteracoes"); } });
-    if (pode("cupom.criar")) l.push({ icon: "local_offer", t: "Cupons › Novo cupom", d: "desconto por meses, brinde em tokens", ir: function () { irPara("cupons"); setTimeout(function () { var i = $("cupom-codigo"); if (i) i.focus(); }, 60); } });
     l.push({ icon: "dns", t: "Túneis › Perto de apagar", d: "os que a limpeza diária vai pegar", ir: function () { U.tuneis.filtro = "risco"; irPara("tuneis"); } });
     l.push({ icon: "notifications", t: "Não renovações › Abertas", d: c.renovacoes != null ? c.renovacoes + " ciclos sem cobrança" : "ciclos sem cobrança", ir: function () { irPara("renovacoes"); } });
     l.push({ icon: "menu_book", t: "Materiais › Na fila", d: c.materiais != null ? c.materiais + " para ler" : "para ler", ir: function () { U.materiais.filtro = "fila"; irPara("materiais"); } });
@@ -1347,7 +1293,7 @@
     var ac = rapidas().filter(function (r) { return bate(r.t + " " + r.d); });
     if (ac.length) g.push(["Ações", ac]);
     var res = B.res || {};
-    ["contas", "escritorios", "tuneis", "cupons", "planos", "materiais"].forEach(function (k) {
+    ["contas", "escritorios", "tuneis", "planos", "materiais"].forEach(function (k) {
       var it = (res[k] || []).slice(0, 6).map(function (x) {
         return { icon: ICONE_GRUPO[k], t: NOME_GRUPO[k] + " › " + x.titulo, d: x.desc, ir: function () { abrirResultado(k, x); } };
       });
@@ -1381,7 +1327,7 @@
     if (q && !total) corpo += B.carregando ? '<p class="vazio-linha">Buscando…</p>' : '<p class="vazio-linha" style="padding:28px 16px">Nada com "' + esc(q) + '". Tente o nome de uma conta, um escritório ou uma tela.</p>';
     if (q && B.erro) corpo += '<p class="erro-linha" style="margin:8px 16px">' + ic("warning") + "<span>Não consegui buscar nas contas agora: " + esc(B.erro) + "</span></p>";
     return '<div class="veu forte veu-busca" data-a="fecharBusca"></div><div class="busca" role="dialog" aria-modal="true" aria-label="Buscar em tudo">' +
-      '<div class="busca-campo">' + ic("search") + '<input id="busca-q" data-in="buscaQ" value="' + esc(B.q) + '" placeholder="Buscar em tudo: telas, ações, contas, escritórios, túneis, cupons…" spellcheck="false" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="busca-lista" aria-activedescendant="bi-' + B.idx + '">' +
+      '<div class="busca-campo">' + ic("search") + '<input id="busca-q" data-in="buscaQ" value="' + esc(B.q) + '" placeholder="Buscar em tudo: telas, ações, contas, escritórios, túneis, planos…" spellcheck="false" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="busca-lista" aria-activedescendant="bi-' + B.idx + '">' +
       '<button type="button" data-a="fecharBusca" aria-label="Fechar a busca"><kbd class="tecla">Esc</kbd></button></div>' +
       '<div class="busca-res" id="busca-lista" role="listbox" aria-label="Resultados">' + corpo + "</div>" +
       '<div class="busca-pe"><span><kbd class="tecla">↑</kbd><kbd class="tecla">↓</kbd><span>para navegar</span></span><span><kbd class="tecla">↵</kbd><span>para abrir</span></span></div></div>';
@@ -1623,27 +1569,6 @@
     if (ok) { var keep = { botao: c.botao, link: c.link }; U.emails.camp = novaCamp(); U.emails.camp.botao = keep.botao; U.emails.camp.link = keep.link; U.emails.so = null; U.emails.aba = "campanhas"; U.emails.passo = 1; render(); }
   };
   A.enviarTeste = function () { naHora("POST", "/api/admin/campanhas/teste", { campanha: dadosCampanha() }, "Teste enviado para " + (E.sessao.access && E.sessao.access.email || "você")); };
-
-  // cupons
-  A.cupomPlano = function (el) { var p = U.cupons.novo.planos; p[el.dataset.id] = !p[el.dataset.id]; render(); };
-  A.criarCupom = async function () {
-    var nc = U.cupons.novo, cod = nc.codigo.trim().toUpperCase();
-    var planos = (dadosDe("planos") || {}).planos || [], ids = planos.filter(function (p) { return nc.planos[p.id]; }).map(function (p) { return p.id; });
-    var des = num(nc.desconto), mes = num(nc.meses), bri = numDec(nc.brinde), lim = num(nc.limite);
-    var erro = !/^[A-Z0-9-]{3,24}$/.test(cod) ? "O código precisa de 3 a 24 letras, números ou hífen" :
-      des < 0 || des > 100 ? "O desconto vai de 0 a 100%" : des > 0 && mes < 1 ? "Diga por quantos meses vale o desconto" :
-      !des && !bri ? "Dê um desconto ou um brinde em tokens" : !ids.length ? "Escolha pelo menos um plano" :
-      ((dadosDe("cupons") || {}).cupons || []).some(function (c) { return c.codigo === cod; }) ? "Já existe um cupom " + cod : "";
-    if (erro) { toast(erro, true); return; }
-    var dados = { codigo: cod, desconto: des, meses: mes, brinde: Math.round(bri * 1e6), limite: lim, planos: ids, validade: nc.validade || null };
-    var ok = await enfileirar("cupons", "cupom.criar", cod, dados, "Criei o cupom " + cod + (des ? " · " + des + "% por " + mes + (mes === 1 ? " mês" : " meses") : "") + (bri ? " · " + dec(bri, 1) + "M tokens de brinde" : ""));
-    if (ok) { U.cupons.novo = novoCupom(); render(); }
-  };
-  A.cupomAtivo = function (el) {
-    var cod = el.dataset.id, c = ((dadosDe("cupons") || {}).cupons || []).filter(function (x) { return x.codigo === cod; })[0]; if (!c) return;
-    var ativo = c.ativo === false;
-    enfileirar("cupons", "cupom.ativo", cod, { codigo: cod, ativo: ativo }, (ativo ? "Reativei" : "Pausei") + " o cupom " + cod);
-  };
 
   // planos
   A.copiarJson = async function () {
@@ -2000,7 +1925,7 @@
   var IN = {
     contasQ: function (el) { U.contas.q = el.value; render(); },
     campo: function (el) {
-      var p = el.dataset.campo.split("."), alvo = p[0] === "camp" ? U.emails.camp : p[0] === "cupom" ? U.cupons.novo : U.planos.novo;
+      var p = el.dataset.campo.split("."), alvo = p[0] === "camp" ? U.emails.camp : U.planos.novo;
       alvo[p[1]] = el.value; render();
     },
     recado: function (el) { U.materiais.recados[U.materiais.aberto] = el.value; },

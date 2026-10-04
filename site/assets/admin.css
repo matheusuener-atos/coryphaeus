@@ -269,7 +269,6 @@ button.mini:disabled, .btn-duplo:disabled { opacity: .45; cursor: default; point
 .area:focus { border-color: var(--line3); }
 .area::placeholder { color: var(--ink3); }
 .grade-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grade-cupom { display: grid; grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)); gap: 12px; }
 .maiusc input { text-transform: uppercase; }
 
 /* ---------- Visao geral ---------- */
@@ -505,8 +504,6 @@ a.mini .icon { font-size: 14px; }
   .busca-btn { margin: 0; }
   .adm-main { padding: 24px 16px 96px; }
   .tunel-det { padding-left: 14px; }
-  .grade-cupom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grade-cupom > :first-child { grid-column: 1 / -1; }
   .cab-tela h1 { font-size: 30px; }
 }
 @media (max-width: 420px) {

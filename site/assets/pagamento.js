@@ -18,7 +18,6 @@
   var pedido = {
     plano: params.get("plano") || "",
     periodo: params.get("periodo") === "anual" ? "anual" : "mensal",
-    cupom: params.get("cupom") || "",
   };
   var token = "";
   var controle = null;
@@ -152,7 +151,7 @@
     var b = $("pg-fora-botao");
     b.disabled = true;
     try {
-      var r = await pedir("/api/ia/site/pagar-fora", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
+      var r = await pedir("/api/ia/site/pagar-fora", { id_token: token, plano: pedido.plano, periodo: pedido.periodo });
       if (!r.link || !/^https:\/\/[a-z0-9.-]*mercadopago\.com(\.br)?\//.test(r.link)) throw new Error("o Mercado Pago não devolveu a página de pagamento");
       window.location.assign(r.link);
     } catch (e) {
@@ -266,13 +265,12 @@
   function textos() {
     var anual = oferta.periodo === "anual";
     var pix = meio === "pix";
-    var cupom = oferta.cupom ? " (com o cupom " + oferta.cupom.codigo + ")" : "";
     $("pg-plano").textContent = "Plano " + oferta.plano.nome + (anual ? " · anual" : pix ? " · um mês" : " · mensal");
     $("pg-valor").textContent = brl(oferta.valor) + (anual ? "/ano" : pix ? " por um mês" : "/mês");
     $("pg-detalhe").textContent = pix
-      ? (anual ? "à vista no Pix; vale 12 meses, com a cota de cada mês, e não renova sozinho" : "à vista no Pix; vale um mês e não renova sozinho") + cupom
+      ? (anual ? "à vista no Pix; vale 12 meses, com a cota de cada mês, e não renova sozinho" : "à vista no Pix; vale um mês e não renova sozinho")
       : anual ? "à vista ou em até 12 vezes no cartão de crédito; os juros do parcelamento são de quem parcela"
-        : "cobrado todo mês no cartão de crédito" + cupom;
+        : "cobrado todo mês no cartão de crédito";
     $("pg-total").hidden = false;
     $("pg-selo").textContent = pix ? "Pix, à vista" : anual ? "o ano, em até 12×" : "cobrança mensal";
     $("pg-pix-texto").textContent = anual
@@ -382,7 +380,7 @@
     if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de planos"); return; }
     if (!token) { voltarAoCadastro("entre com o Google no cadastro antes de pagar"); return; }
     try {
-      oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
+      oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo });
     } catch (e) {
       if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
       estado("");
@@ -441,7 +439,7 @@
     erro("");
     pararPix();
     try {
-      var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom,
+      var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo,
         meio: "pix", idempotencia: chavePix });
       pix = { pagamento: r.pagamento, vence: Date.parse(r.vence) || Date.now() + 30 * 60 * 1000 };
       $("pg-pix-img").src = r.qr_code_base64 ? "data:image/png;base64," + r.qr_code_base64 : "";
@@ -523,7 +521,7 @@
     $("pg-pagar").disabled = true;
     estado("Processando o pagamento…");
     try {
-      var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom,
+      var r = await pedir("/api/ia/site/pagar", { id_token: token, plano: pedido.plano, periodo: pedido.periodo,
         idempotencia: idempotencia, cartao: cartao });
       pronto(r);
     } catch (e) {

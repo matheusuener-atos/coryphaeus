@@ -61,7 +61,6 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
 - `GET /api/admin/campanhas` -> `{campanhas: [{id, nome, situacao: "enviada"|"agendada"|"na fila"|"enviando"|"rascunho",
   publico: {id, label}, enviados, abertos, cliques, devolvidos, quando}], publicos: [{id, label, n, gmail}],
   stats: {enviados, abertura, cliques, devolvidos}, envio: {ligado, falta, de: "naoresponda@paulus.ia.br", ritmo: 50}}`
-- `GET /api/admin/cupons` -> `{cupons: [{codigo, descricao, desconto, meses, brinde, limite, usos, validade, planos: [id], ativo}]}`
 - `GET /api/admin/tokens?visao=geral|escritorio|conta&periodo=mes|30|ano` ->
   `{kpis: {entrada, saida, custo_usd, receita, contas}, linhas: [{nome, entrada, saida, custo_usd, receita}],
   precos: {entrada, saida, cambio}}` (custo em US$; a pagina converte pelo cambio)
@@ -76,7 +75,7 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   (nenhuma nota do emissor com aquele pagamento, fora as descartadas); `motivo` diz por que a emissao
   automatica nao saiu. `Situacao`, `Nota` e `Cloudflare` estao em "Notas fiscais", abaixo.
 - `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo}], matriz: [{acao, dono, financeiro, suporte}]}`
-- `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], cupons: [...], planos: [...],
+- `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], planos: [...],
   materiais: [...]}` (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
 - `GET /api/admin/alteracoes` -> `{pendentes: [Alteracao], publicacoes: [{quando, commit, resumo, n, por}]}`
   onde `Alteracao = {id, quando, tela, tipo, alvo, dados, texto}`
@@ -117,8 +116,6 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `tunel.endereco` | `{slug, novo}` | dono, suporte |
 | `tunel.ativo` | `{slug, ativo}` | dono, suporte |
 | `campanha.disparar` | `{nome, publico, assunto, pre, titulo, texto, botao, link, quando: "agora"|"amanha"|"segunda"}` | todos |
-| `cupom.criar` | `{codigo, desconto, meses, brinde, limite, planos, validade}` | dono, financeiro |
-| `cupom.ativo` | `{codigo, ativo}` | dono, financeiro |
 | `plano.editar` | `{id, valor, valor_anual, tokens}` | dono, financeiro |
 | `plano.criar` | `{id, nome, valor, valor_anual, tokens}` (modelo e recursos: os do Escritorio) | dono, financeiro |
 | `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |

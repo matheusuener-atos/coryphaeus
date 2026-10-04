@@ -13,10 +13,9 @@
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   var CHAVE = "pv-cadastro-token";
   var $ = function (id) { return document.getElementById(id); };
-  var estado = { planos: [], escolhido: "escritorio", periodo: "mensal", pedido: false, token: "", conta: null, cupom: null };
+  var estado = { planos: [], escolhido: "escritorio", periodo: "mensal", pedido: false, token: "", conta: null };
 
   function brl(v) { return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }); }
-  function milhoes(t) { return (t / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " milhões de créditos"; }
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
   function mostrarErro(id, texto) {
@@ -101,33 +100,7 @@
 
   function atualizarBotao() {
     var p = plano();
-    var c = estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom : null;
-    $("cd-pagar-texto").textContent = p ? (estado.periodo === "anual" ? "Pagar o ano do " : "Assinar o ") + p.nome + " · " + brl(c ? c.valor : valorDe(p)) + sufixo() : "Ir para o pagamento";
-  }
-
-  /* O cupom (criado no painel admin): o Worker diz se vale para o plano e
-     quanto fica; a cobranca usa o mesmo calculo (worker/ia.js, conferirCupom). */
-  var esperaCupom = null;
-  async function conferirCupom() {
-    var codigo = $("cd-cupom").value.trim().toUpperCase();
-    var nota = $("cd-cupom-nota");
-    estado.cupom = null;
-    if (!codigo) { nota.hidden = true; atualizarBotao(); return; }
-    try {
-      var periodo = estado.periodo;
-      var d = await pedir("/api/ia/cupom?codigo=" + encodeURIComponent(codigo) + "&plano=" + encodeURIComponent(estado.escolhido) + "&periodo=" + periodo);
-      if ($("cd-cupom").value.trim().toUpperCase() !== codigo || periodo !== estado.periodo) return;
-      if (!d.ok) throw new Error(d.erro || "esse cupom não vale");
-      estado.cupom = { codigo: codigo, plano: estado.escolhido, periodo: periodo, valor: d.valor };
-      var texto = !d.desconto ? "Cupom válido." : periodo === "anual" ? brl(d.valor) + " pelo ano (" + d.desconto + "% de desconto sobre " + brl(d.valor_cheio) + ")."
-        : brl(d.valor) + "/mês nos primeiros " + d.meses + (d.meses === 1 ? " mês" : " meses") + " (" + d.desconto + "% de desconto); depois, " + brl(d.valor_cheio) + "/mês.";
-      if (d.brinde) texto += " Mais " + milhoes(d.brinde) + " de brinde quando o cartão for confirmado.";
-      nota.textContent = texto;
-    } catch (e) {
-      nota.textContent = e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".";
-    }
-    nota.hidden = false;
-    atualizarBotao();
+    $("cd-pagar-texto").textContent = p ? (estado.periodo === "anual" ? "Pagar o ano do " : "Assinar o ") + p.nome + " · " + brl(valorDe(p)) + sufixo() : "Ir para o pagamento";
   }
 
   async function carregarPlanos() {
@@ -363,13 +336,11 @@
       var r = await pedir("/api/ia/site/cadastro", {
         id_token: estado.token, nome_escritorio: $("cd-nome").value, documento: $("cd-documento").value,
         telefone: $("cd-telefone").value, oab: $("cd-oab").value, endereco: endereco(), aceite: true, plano: estado.escolhido, periodo: estado.periodo,
-        cupom: estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom.codigo : "",
       });
       if (!r.proximo) throw new Error("o site não devolveu a página de pagamento");
-      var cupom = estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom.codigo : "";
       // Mesma origem: so o caminho e a busca do endereco que o Worker devolveu.
       var ida = new URL(r.proximo, location.origin);
-      window.location.assign(ida.pathname + ida.search + (cupom ? "&cupom=" + encodeURIComponent(cupom) : ""));
+      window.location.assign(ida.pathname + ida.search);
     } catch (e) {
       botao.disabled = false;
       if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo e confira os dados."); return; }
@@ -382,7 +353,6 @@
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
     $("cd-desistir-botao").addEventListener("click", desistir);
-    $("cd-cupom").addEventListener("input", function () { clearTimeout(esperaCupom); esperaCupom = setTimeout(conferirCupom, 500); });
     $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });
     $("cd-cep").addEventListener("input", function () { this.value = mascararCep(this.value); buscarCep(); });

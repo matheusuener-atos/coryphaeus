@@ -200,7 +200,7 @@ A página de pagamento tem **Pix | Cartão**, com o Pix primeiro e escolhido de 
 - **O QR** vence em 30 min (`date_of_expiration` no fuso -03:00). Vencido, a página pede para gerar outro.
 - **O que cada meio permite** vem da oferta (`meios`): com a assinatura mensal no cartão ativa, o mês no Pix fica fechado (passar ao anual pode); com o mês no Pix pago, a assinatura no cartão espera ele vencer.
 - **A regra dos 45 dias** de renovação usa a hora do medidor (`agora` no resumo), e não a do Worker.
-- **O cupom** é gasto ao gerar o Pix, como no Checkout Pro do plano B.
+- **Cupom:** saiu do sistema em 04/10 (ver "Sem cupom", abaixo).
 
 ## Reembolso pelo painel (04/10)
 
@@ -241,3 +241,16 @@ A ficha da conta, no /admin, lista os pagamentos com **Reembolsar** (dono e fina
 - **Primeira semana só com o modelo principal.** Nos 7 primeiros dias da assinatura paga (`primeiraSemanaAte`), o plano com mais de um modelo responde só com o principal. No Plus, o Sonnet; o Ministro sai no Sonnet, com o cabeçalho `x-paulus-aviso` ("o Claude Opus 5.5 libera no 8º dia...").
   - A cortesia não tem essa trava.
   - O PAULUS instalado ainda não mostra o `x-paulus-aviso`.
+
+## Sem cupom (04/10)
+
+O dono decidiu tirar o cupom do sistema. Saiu de todos os lugares:
+- o Worker: a rota `/api/ia/cupom`, o desconto na oferta, o brinde em tokens, a volta ao valor cheio na cobrança e o `cupom` da conta;
+- o painel: a tela Cupons e as alterações `cupom.criar` e `cupom.ativo`;
+- o cadastro: o campo Cupom;
+- a página de pagamento;
+- a política de privacidade.
+
+O valor cobrado é sempre o do plano. Um `cupom` mandado no pedido é ignorado.
+
+Na produção não havia nenhum `admin:cupom:*` no KV, então nenhuma assinatura ficou com desconto.

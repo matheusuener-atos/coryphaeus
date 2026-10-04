@@ -196,24 +196,22 @@ checar(r.status === 200 && (await r.json()).pendentes.length === 1, "creditar en
 let resumoBruno = await (await CONTAS_IA.get(idBruno).fetch("https://conta-ia/resumo", { method: "POST", body: JSON.stringify({ acao: "resumo" }) })).json();
 checar(!resumoBruno.recargas.length, "antes de publicar, a conta nao mudou");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "conta.instalacao.apagar", dados: { id: idAna, hash8 }, texto: "Desvinculei a instalação da Ana" } }));
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "cupom.criar", dados: { codigo: "piloto30", desconto: 30, meses: 3, brinde: 5, limite: 10, planos: [] }, texto: "Criei PILOTO30" } }));
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "plano.editar", dados: { id: "escritorio", valor: 320, valor_anual: 3200, tokens: 32 }, texto: "Escritório a R$ 320" } }));
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "coisa.estranha", dados: {} } }));
 checar(r.status === 400, "tipo desconhecido e recusado");
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "cupom.criar", dados: { codigo: "x", desconto: 10, meses: 1 } } }));
-checar(r.status === 400, "codigo de cupom invalido e recusado antes da fila");
+r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "cupom.criar", dados: { codigo: "PILOTO30", desconto: 30, meses: 3 } } }));
+checar(r.status === 400, "o cupom saiu do sistema: criar cupom e alteracao desconhecida");
+checar((await admin("GET", "/api/admin/cupons", como())).status === 404, "e a tela de cupons nao tem mais rota");
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "commitar e pushar" } }));
 checar(r.status === 400, "publicar com a frase errada nao publica");
 r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
 d = await r.json();
-checar(d.ok && d.resultados.length === 4 && d.publicacao.n === 4, "publicar aplica as quatro", d);
+checar(d.ok && d.resultados.length === 3 && d.publicacao.n === 3, "publicar aplica as tres", d);
 resumoBruno = await (await CONTAS_IA.get(idBruno).fetch("https://conta-ia/resumo", { method: "POST", body: JSON.stringify({ acao: "resumo" }) })).json();
 checar(resumoBruno.recargas.length === 1 && resumoBruno.recargas[0].tokens === 1000, "depois de publicar, os tokens estao na conta");
 const resumoAna = await (await CONTAS_IA.get(idAna).fetch("https://conta-ia/resumo", { method: "POST", body: JSON.stringify({ acao: "resumo" }) })).json();
 checar(resumoAna.instalacoes === 0, "a instalacao da Ana saiu");
 r = await (await fetch("https://nada")).status; // so para nao ficar fetch pendurado
-const cupom = JSON.parse(guardados.get("admin:cupom:PILOTO30"));
-checar(cupom.ativo && cupom.desconto === 30 && cupom.brinde === 5e6, "cupom gravado em maiusculas com o brinde em tokens", cupom);
 const planosKV = JSON.parse(guardados.get("admin:planos"));
 checar(planosKV.find((p) => p.id === "escritorio").valor === 320 && planosKV.find((p) => p.id === "escritorio").valor_anual === 3200 && planosKV.find((p) => p.id === "escritorio").tokens === 32e6, "plano editado no KV, com o valor do ano", planosKV);
 r = await admin("GET", "/api/admin/alteracoes", como());

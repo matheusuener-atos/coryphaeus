@@ -188,12 +188,6 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
     return ativar(request, env, deps);
   }
-  // O cupom da pagina Assinar: vale? quanto fica? (sem conta: so o codigo e o plano)
-  if (p === "/api/ia/cupom" && m === "GET") {
-    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-    const r = await conferirCupom(env, url.searchParams.get("codigo"), url.searchParams.get("plano"), url.searchParams.get("periodo") === "anual" ? "anual" : "mensal");
-    return json(r.erro ? { ok: false, erro: r.erro } : { ok: true, ...r.cupom, valor: r.valor, valor_cheio: r.valor_cheio });
-  }
   // A chave publica do Mercado Pago, para o formulario do cartao da pagina de
   // pagamento. Nao e segredo (o token de acesso fica so aqui, como segredo).
   if (p === "/api/ia/mp-config" && m === "GET") {
@@ -703,10 +697,10 @@ async function linkDoPagamento(env, conta, { plano, periodo }) {
 }
 
 /* O que a assinatura pedida custa, conferido no servidor: o plano, o periodo,
-   o meio (cartao ou Pix), o valor (com o cupom) e por que nao pode, se nao
+   o meio (cartao ou Pix), o valor e por que nao pode, se nao
    puder. Usado pela pagina de pagamento (o total que ela mostra) e pela
    cobranca. No Pix, o mensal e um mes avulso: vale ate vencer e nao renova. */
-async function ofertaDoPagamento(env, atual, { plano, periodo, cupom, meio }) {
+async function ofertaDoPagamento(env, atual, { plano, periodo, meio }) {
   if (!["mensal", "anual"].includes(periodo)) return { erro: "o período é mensal ou anual", status: 400 };
   const n = numeros(env);
   if (!n.planos.some((x) => x.id === plano)) return { erro: "esse plano não existe", status: 400 };
@@ -728,16 +722,8 @@ async function ofertaDoPagamento(env, atual, { plano, periodo, cupom, meio }) {
         : "a assinatura mensal já está ativa; para mudar de plano, use a troca de plano", status: 409 };
     }
   }
-  const cheio = anual ? escolhido.valor_anual : escolhido.valor;
-  let valor = cheio;
-  let comCupom = null;
-  if (cupom) {
-    const c = await conferirCupom(env, cupom, escolhido.id, periodo);
-    if (c.erro) return { erro: c.erro, status: 400 };
-    comCupom = { codigo: c.cupom.codigo, desconto: c.cupom.desconto, meses: c.cupom.meses, brinde: c.cupom.brinde, valor_cheio: cheio, cobrados: 0 };
-    valor = c.valor;
-  }
-  return { plano: escolhido, periodo, meio: pix ? "pix" : "cartao", valor, cupom: comCupom, parcelas_max: anual && !pix ? 12 : 1, meses: anual ? 12 : 1 };
+  const valor = anual ? escolhido.valor_anual : escolhido.valor;
+  return { plano: escolhido, periodo, meio: pix ? "pix" : "cartao", valor, parcelas_max: anual && !pix ? 12 : 1, meses: anual ? 12 : 1 };
 }
 
 // Os motivos de recusa do cartao, em portugues (status_detail do Mercado Pago).
@@ -795,13 +781,13 @@ function cartaoDoFormulario(c, parcelasMax) {
 async function pagarFora(env, conta, id, dono, mp, d) {
   const atual = await conta.pedir("ler_cadastro");
   if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
-  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
+  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || "") });
   if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
   const { plano, valor } = oferta;
   const volta = "https://paulus.ia.br/cadastro/?voltou=1";
   if (oferta.periodo === "mensal") {
     const r = await mp(env, "/preapproval", "POST", {
-      reason: "PAULUS - plano " + plano.nome + (oferta.cupom ? " (cupom " + oferta.cupom.codigo + ")" : ""),
+      reason: "PAULUS - plano " + plano.nome,
       external_reference: "ia-assinatura-" + id,
       payer_email: dono.email,
       auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: valor, currency_id: "BRL" },
@@ -809,8 +795,7 @@ async function pagarFora(env, conta, id, dono, mp, d) {
       status: "pending",
     });
     if (!r.ok || !r.dados || !r.dados.init_point) return json({ erro: "o Mercado Pago não abriu a página de assinatura: tente de novo em instantes" }, 502);
-    await conta.pedir("assinatura", { plano: plano.id, cupom: oferta.cupom, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
-    if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
+    await conta.pedir("assinatura", { plano: plano.id, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
     return json({ link: r.dados.init_point, periodo: "mensal" });
   }
   const ref = "ia-anual-" + id + "-" + plano.id + "-" + aleatorio(4);
@@ -824,15 +809,14 @@ async function pagarFora(env, conta, id, dono, mp, d) {
     statement_descriptor: "PAULUS",
   });
   if (!r.ok || !r.dados || !r.dados.init_point) return json({ erro: "o Mercado Pago não abriu a página de pagamento: tente de novo em instantes" }, 502);
-  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, cupom: oferta.cupom });
-  if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor });
   return json({ link: r.dados.init_point, periodo: "anual" });
 }
 
 async function pagar(env, conta, id, dono, mp, d) {
   const atual = await conta.pedir("ler_cadastro");
   if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
-  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
+  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || "") });
   if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
   const cartao = cartaoDoFormulario(d.cartao, oferta.parcelas_max);
   if (cartao.erro) return json({ erro: cartao.erro }, 400);
@@ -840,7 +824,7 @@ async function pagar(env, conta, id, dono, mp, d) {
   const { plano, valor } = oferta;
   if (oferta.periodo === "mensal") {
     const r = await mp(env, "/preapproval", "POST", {
-      reason: "PAULUS - plano " + plano.nome + (oferta.cupom ? " (cupom " + oferta.cupom.codigo + ")" : ""),
+      reason: "PAULUS - plano " + plano.nome,
       external_reference: "ia-assinatura-" + id,
       payer_email: dono.email,
       card_token_id: cartao.token,
@@ -851,14 +835,13 @@ async function pagar(env, conta, id, dono, mp, d) {
     if (!r.ok || !r.dados || !r.dados.id) {
       return json({ erro: "o Mercado Pago não aceitou o cartão para a assinatura: confira os dados ou use outro cartão de crédito", status_mp: r.status }, 402);
     }
-    const resumo = await conta.pedir("assinatura", { plano: plano.id, cupom: oferta.cupom,
+    const resumo = await conta.pedir("assinatura", { plano: plano.id,
       assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
-    if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
     return json({ ok: true, periodo: "mensal", situacao: r.dados.status, conta: resumo });
   }
   // O anual: a referencia leva a conta e o plano; o pendente fica anotado para a conferencia.
   const ref = "ia-anual-" + id + "-" + plano.id + "-" + aleatorio(4);
-  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, cupom: oferta.cupom });
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor });
   const chave = /^[A-Za-z0-9-]{16,64}$/.test(String(d.idempotencia || "")) ? String(d.idempotencia) : crypto.randomUUID();
   const corpo = {
     transaction_amount: valor,
@@ -874,7 +857,6 @@ async function pagar(env, conta, id, dono, mp, d) {
   const r = await mp(env, "/v1/payments", "POST", corpo, { "X-Idempotency-Key": chave });
   if (!r.ok || !r.dados) return json({ erro: "o Mercado Pago não respondeu ao pagamento: tente de novo em instantes", status_mp: r.status }, 502);
   const pg = r.dados;
-  if (oferta.cupom && pg.status !== "rejected") await usarCupom(env, oferta.cupom.codigo);
   if (pg.status === "approved") {
     await confirmarAnual(env, pg, mp);
     return json({ ok: true, periodo: "anual", situacao: "approved", pagamento: String(pg.id), paymentId: pg.id, conta: await conta.pedir("ler_cadastro") });
@@ -893,12 +875,12 @@ async function pagar(env, conta, id, dono, mp, d) {
 async function pagarPix(env, conta, id, dono, mp, d) {
   const atual = await conta.pedir("ler_cadastro");
   if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
-  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom, meio: "pix" });
+  const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), meio: "pix" });
   if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
   const { plano, valor } = oferta;
   const anual = oferta.periodo === "anual";
   const ref = "ia-" + (anual ? "anual" : "mes") + "-" + id + "-" + plano.id + "-" + aleatorio(4);
-  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, cupom: oferta.cupom, meses: oferta.meses });
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor, meses: oferta.meses });
   const doc = soDigitos(atual.cadastro.documento);
   const chave = /^[A-Za-z0-9-]{16,64}$/.test(String(d.idempotencia || "")) ? String(d.idempotencia) : crypto.randomUUID();
   // A data no fuso de Brasilia, no formato que o Mercado Pago pede (yyyy-MM-ddTHH:mm:ss.SSS-03:00).
@@ -914,7 +896,6 @@ async function pagarPix(env, conta, id, dono, mp, d) {
   const pg = (r.ok && r.dados) || null;
   const t = (pg && pg.point_of_interaction && pg.point_of_interaction.transaction_data) || {};
   if (!pg || !t.qr_code) return json({ erro: "o Mercado Pago não gerou o Pix: tente de novo em instantes", status_mp: r.status }, 502);
-  if (oferta.cupom) await usarCupom(env, oferta.cupom.codigo);
   return json({ ok: true, meio: "pix", periodo: oferta.periodo, pagamento: String(pg.id), valor, vence,
     qr_code: t.qr_code, qr_code_base64: t.qr_code_base64 || "", ticket_url: t.ticket_url || "" });
 }
@@ -999,43 +980,6 @@ async function trocarPlano(env, conta, mp, plano) {
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor da assinatura", status: r.status }, 502);
   return json(await conta.pedir("plano_proximo", { plano: novo.id, valor: novo.valor }));
-}
-
-// ------------------------------------------------------------- o cupom
-//
-// Criado no painel admin (worker/admin.js) e guardado no KV APOIOS em
-// "admin:cupom:<CODIGO>": {codigo, desconto (%), meses, brinde (tokens),
-// limite (0 = sem), usos, validade (ISO), planos [id], ativo}.
-
-export async function lerCupom(env, codigo) {
-  const c = String(codigo || "").trim().toUpperCase();
-  if (!/^[A-Z0-9-]{3,24}$/.test(c) || !env.APOIOS) return null;
-  try {
-    return JSON.parse((await env.APOIOS.get("admin:cupom:" + c)) || "null");
-  } catch {
-    return null;
-  }
-}
-
-/* {cupom, valor, valor_cheio} ou {erro}. No anual, o desconto vale sobre o valor do ano. */
-export async function conferirCupom(env, codigo, plano, periodo = "mensal") {
-  const c = await lerCupom(env, codigo);
-  if (!c || !c.ativo) return { erro: "esse cupom não existe ou está pausado" };
-  if (c.validade && Date.parse(c.validade) < Date.now()) return { erro: "esse cupom venceu" };
-  if (c.limite && (c.usos || 0) >= c.limite) return { erro: "esse cupom chegou ao limite de usos" };
-  const n = numeros(env);
-  const p = n.planos.find((x) => x.id === plano) || planoDe(n, plano);
-  if (Array.isArray(c.planos) && c.planos.length && !c.planos.includes(p.id)) return { erro: "esse cupom não vale para o plano " + p.nome };
-  const cheio = periodo === "anual" ? p.valor_anual : p.valor;
-  const valor = Math.round(cheio * (1 - Math.min(100, Math.max(0, Number(c.desconto) || 0)) / 100) * 100) / 100;
-  return { cupom: { codigo: c.codigo, desconto: Number(c.desconto) || 0, meses: Number(c.meses) || 1, brinde: Number(c.brinde) || 0 }, valor, valor_cheio: cheio };
-}
-
-async function usarCupom(env, codigo) {
-  const c = await lerCupom(env, codigo);
-  if (!c) return;
-  c.usos = (c.usos || 0) + 1;
-  await env.APOIOS.put("admin:cupom:" + c.codigo, JSON.stringify(c));
 }
 
 // ------------------------------------------------------- o site (cadastro)
@@ -1182,7 +1126,7 @@ async function atenderSite(request, env, p, deps) {
     // O que a pagina de pagamento mostra: o valor calculado aqui, e nao no
     // navegador, com o que cada meio permite ("" quando pode; senao, o porque).
     const atual = await conta.pedir("ler_cadastro");
-    const pedido = { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom };
+    const pedido = { plano: String(d.plano || ""), periodo: String(d.periodo || "") };
     const cartao = await ofertaDoPagamento(env, atual, { ...pedido, meio: "cartao" });
     const pix = await ofertaDoPagamento(env, atual, { ...pedido, meio: "pix" });
     if (cartao.erro && pix.erro) return json({ erro: cartao.erro }, cartao.status);
@@ -1472,12 +1416,6 @@ export async function avisoDaIA(env, tipo, dados, mp) {
         await devolverPagamento(env, mp, m[1], String(dados.id), { por: "o cliente (desistência)" }).catch(() => null);
         await medidor(env, m[1]).pedir("desistencia_paga");
       }
-      // O cupom acabou: a proxima cobranca volta ao valor cheio do plano.
-      if (r && r.cupom && r.cupom.voltar && pre.dados && pre.dados.id) {
-        const v = await mp(env, "/preapproval/" + encodeURIComponent(pre.dados.id), "PUT",
-          { auto_recurring: { transaction_amount: r.cupom.valor_cheio, currency_id: "BRL" } });
-        if (v.ok) await medidor(env, m[1]).pedir("cupom_voltou", {});
-      }
     }
     return true;
   }
@@ -1613,7 +1551,7 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "anual_pendente") {
-      conta.anual_pendente = { ref: d.ref, plano: d.plano, valor: d.valor, cupom: d.cupom || null, meses: Number(d.meses) === 1 ? 1 : 12, quando: new Date(agora).toISOString() };
+      conta.anual_pendente = { ref: d.ref, plano: d.plano, valor: d.valor, meses: Number(d.meses) === 1 ? 1 : 12, quando: new Date(agora).toISOString() };
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "anual_pago") {
@@ -1634,7 +1572,6 @@ export class ContaIA {
       conta.periodo = tipo;
       conta.plano = d.plano;
       delete conta.plano_proximo;
-      if (conta.anual_pendente && conta.anual_pendente.cupom) conta.cupom = { ...conta.anual_pendente.cupom, cobrados: 1, voltou: true };
       delete conta.anual_pendente;
       conta.assinatura = { id: tipo + "-" + d.pagamento, situacao: "authorized", valor: Number(d.valor) || 0, periodo: tipo,
         desde: antes.desde || new Date(agora).toISOString() };
@@ -1643,10 +1580,6 @@ export class ContaIA {
       // O ano pago abre um ciclo novo agora, com os creditos do plano pago (a
       // renovacao antecipada espera o fim do ciclo aberto, que ja esta pago).
       if (inicio === agora) this.abrirCiclo(conta, n, agora, tipo, d.pagamento);
-      if (conta.cupom && conta.cupom.brinde > 0 && !conta.cupom.brinde_dado) {
-        conta.extra = (conta.extra || 0) + Math.round(conta.cupom.brinde);
-        conta.cupom.brinde_dado = true;
-      }
       return [{ ...this.resumo(conta, n, agora), novo: true, mensal_para_cancelar: mensal }, conta];
     }
     if (acao === "mensal_cancelado") {
@@ -1674,17 +1607,11 @@ export class ContaIA {
       }
       // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
       if (d.plano) conta.plano = d.plano;
-      if (d.cupom !== undefined) conta.cupom = d.cupom || null;
       const antes = conta.assinatura || {};
       conta.assinatura = { ...antes, ...d.assinatura, desde: antes.desde || new Date(agora).toISOString() };
       // Cartao posto e aceito: o primeiro ciclo comeca agora; a cobranca do
       // Mercado Pago, que vem em seguida, so confirma (renovar e idempotente).
       if (conta.assinatura.situacao === "authorized" && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "assinatura");
-      // O brinde do cupom entra uma vez, quando a assinatura fica ativa.
-      if (conta.assinatura.situacao === "authorized" && conta.cupom && conta.cupom.brinde > 0 && !conta.cupom.brinde_dado) {
-        conta.extra = (conta.extra || 0) + Math.round(conta.cupom.brinde);
-        conta.cupom.brinde_dado = true;
-      }
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "renovar") {
@@ -1694,7 +1621,6 @@ export class ContaIA {
       const quando = Date.parse(d.quando || "") || agora;
       conta.pagamentos = [...(conta.pagamentos || []), { tipo: "assinatura", ref: d.cobranca,
         valor: Number(d.valor) || (conta.assinatura || {}).valor || planoDe(n, conta.plano).valor, quando: new Date(quando).toISOString() }].slice(-60);
-      if (conta.cupom) conta.cupom.cobrados = (conta.cupom.cobrados || 0) + 1;
       // A primeira cobranca logo depois da assinatura e a do ciclo que acabou
       // de abrir; as outras abrem o ciclo seguinte.
       const aberto = this.cicloAberto(conta, agora);
@@ -1721,10 +1647,6 @@ export class ContaIA {
       conta.extra = (conta.extra || 0) + tokens;
       conta.recargas = [...conta.recargas, { pedido: d.pedido, tokens, valor: d.valor, quando: new Date(agora).toISOString() }].slice(-50);
       conta.pagamentos = [...(conta.pagamentos || []), { tipo: "recarga", ref: d.pedido, valor: pago, quando: new Date(agora).toISOString() }].slice(-60);
-      return [this.resumo(conta, n, agora), conta];
-    }
-    if (acao === "cupom_voltou") {
-      if (conta.cupom) conta.cupom.voltou = true;
       return [this.resumo(conta, n, agora), conta];
     }
     // O que o PAULUS instalado conta da conta Google dele (so o nome dos
@@ -2025,9 +1947,6 @@ export class ContaIA {
       // A ordem do painel para o PAULUS instalado: que servicos do Google
       // continuam ligados (o resto ele desliga; nenhum: revoga o acesso todo).
       google_pendente: conta.google_pendente || null,
-      cupom: conta.cupom ? { codigo: conta.cupom.codigo, desconto: conta.cupom.desconto, meses: conta.cupom.meses,
-        cobrados: conta.cupom.cobrados || 0, valor_cheio: conta.cupom.valor_cheio,
-        voltar: !conta.cupom.voltou && (conta.cupom.cobrados || 0) >= conta.cupom.meses } : null,
     };
   }
 

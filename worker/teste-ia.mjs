@@ -825,11 +825,8 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const volta = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/situacao", { id_token: "tk-807" }));
   checar(volta.plano_vigente && volta.periodo === "anual", "na volta, a consulta acha o pagamento do ano e o plano entra", volta.periodo);
 
-  // O cupom no anual vale sobre o ano.
-  guardados.set("admin:cupom:ANO10", JSON.stringify({ codigo: "ANO10", desconto: 10, meses: 1, ativo: true, planos: [] }));
-  const cup = await corpoDe(await pedir(envReal, "GET", "/api/ia/cupom?codigo=ANO10&plano=escritorio&periodo=anual"));
-  checar(cup.ok && cup.valor === 10341 && cup.valor_cheio === 11490, "o cupom de 10% no anual do Escritório: R$ 10.341", cup);
-  guardados.delete("admin:cupom:ANO10");
+  // O cupom saiu do sistema: a rota não existe e um "cupom" mandado no pagamento é ignorado (o valor é o do plano).
+  checar((await pedir(envReal, "GET", "/api/ia/cupom?codigo=ANO10&plano=escritorio&periodo=anual")).status === 401, "a rota do cupom não existe mais (cai na autenticação)");
 
   // O Pix: o mês avulso (vale até vencer, não renova) e o ano à vista.
   donos["tk-808"] = { sub: "808", email: "pix@a.br" };
@@ -838,7 +835,7 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const pix = (corpo) => pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-808", plano: "advogado", periodo: "mensal", meio: "pix", ...corpo });
   const of = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-808", plano: "advogado", periodo: "mensal" }));
   checar(of.meios && of.meios.cartao === "" && of.meios.pix === "" && of.valor === 449, "a oferta diz que cartão e Pix podem", of.meios);
-  r = await pix({ valor: 1 });
+  r = await pix({ valor: 1, cupom: "PILOTO30" });
   const qr = await corpoDe(r);
   const pgPix = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1);
   checar(r.status === 200 && qr.qr_code.startsWith("00020126pix") && qr.qr_code_base64 && pgPix.corpo.payment_method_id === "pix" && pgPix.corpo.transaction_amount === 449
