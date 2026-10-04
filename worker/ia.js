@@ -18,7 +18,7 @@
 //   GET  /api/ia/modelos           os modelos que o portao aceita
 //   POST /api/ia/v1/chat/completions  o formato OpenAI; vai ao DeepInfra
 //   POST /api/ia/assinar           o link da pagina de pagamento (paulus.ia.br/cadastro/pagamento)
-//   GET  /api/ia/mp-config         a chave publica do Mercado Pago (para o bloco de cartao)
+//   GET  /api/ia/mp-config         a chave publica do Mercado Pago (para o formulario do cartao)
 //   POST /api/ia/site/oferta|pagar o valor da assinatura e a cobranca com o token do cartao
 //   GET  /api/ia/assinatura        a situacao, conferida no Mercado Pago
 //   POST /api/ia/assinatura/cancelar
@@ -184,7 +184,7 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     const r = await conferirCupom(env, url.searchParams.get("codigo"), url.searchParams.get("plano"), url.searchParams.get("periodo") === "anual" ? "anual" : "mensal");
     return json(r.erro ? { ok: false, erro: r.erro } : { ok: true, ...r.cupom, valor: r.valor, valor_cheio: r.valor_cheio });
   }
-  // A chave publica do Mercado Pago, para o bloco de cartao da pagina de
+  // A chave publica do Mercado Pago, para o formulario do cartao da pagina de
   // pagamento. Nao e segredo (o token de acesso fica so aqui, como segredo).
   if (p === "/api/ia/mp-config" && m === "GET") {
     if (!env.MP_PUBLIC_KEY) return json({ erro: "a chave pública do Mercado Pago não está configurada" }, 503);
@@ -666,7 +666,7 @@ const RENOVA_ANUAL_MS = 45 * 24 * 3600 * 1000;
 const PAGINA_DO_PAGAMENTO = "https://paulus.ia.br/cadastro/pagamento/";
 
 /* O PAULUS instalado nao cobra: ele abre a pagina de pagamento do site, onde
-   o cartao e digitado no bloco do Mercado Pago (Checkout Bricks), na conta
+   o cartao e digitado nos campos seguros do Mercado Pago (CardForm), na conta
    Google de quem assina. Volta o endereco com o plano e o periodo. */
 async function linkDoPagamento(env, conta, { plano, periodo }) {
   const atual = await conta.pedir("resumo");
@@ -725,9 +725,9 @@ function motivoDaRecusa(detalhe) {
   return RECUSAS[String(detalhe || "")] || "o pagamento foi recusado: confira os dados ou use outro cartão";
 }
 
-/* O que veio do bloco de cartao, conferido: so o que o Mercado Pago precisa.
-   O valor nunca vem daqui (ofertaDoPagamento). */
-function cartaoDoBloco(c, parcelasMax) {
+/* O que veio do formulario do cartao (o token do CardForm e o que o Mercado
+   Pago precisa), conferido. O valor nunca vem daqui (ofertaDoPagamento). */
+function cartaoDoFormulario(c, parcelasMax) {
   const x = c && typeof c === "object" ? c : {};
   const token = String(x.token || "");
   if (!/^[A-Za-z0-9]{16,64}$/.test(token)) return { erro: "o cartão não foi lido: digite de novo" };
@@ -745,7 +745,7 @@ function cartaoDoBloco(c, parcelasMax) {
   return { token, metodo, parcelas, identificacao, emissor: Number.isFinite(emissor) && emissor > 0 ? emissor : null };
 }
 
-/* A cobranca, com o token do cartao que o bloco do Mercado Pago gerou na
+/* A cobranca, com o token do cartao que o CardForm do Mercado Pago gerou na
    pagina /cadastro/pagamento. Mensal: a assinatura ja autorizada no cartao
    (/preapproval, status authorized), que o Mercado Pago cobra todo mes. Anual:
    o pagamento do ano (/v1/payments), em ate 12 parcelas, com os juros do
@@ -800,7 +800,7 @@ async function pagar(env, conta, id, dono, mp, d) {
   if (!atual.cadastro) return json({ erro: "preencha os dados do escritório antes de pagar" }, 409);
   const oferta = await ofertaDoPagamento(env, atual, { plano: String(d.plano || ""), periodo: String(d.periodo || ""), cupom: d.cupom });
   if (oferta.erro) return json({ erro: oferta.erro }, oferta.status);
-  const cartao = cartaoDoBloco(d.cartao, oferta.parcelas_max);
+  const cartao = cartaoDoFormulario(d.cartao, oferta.parcelas_max);
   if (cartao.erro) return json({ erro: cartao.erro }, 400);
   const { plano, valor } = oferta;
   if (oferta.periodo === "mensal") {
@@ -1078,7 +1078,7 @@ async function atenderSite(request, env, p, deps) {
     await conta.pedir("cadastro", { cadastro: { ...c.cadastro, quando: new Date().toISOString() } });
     const salvo = await conta.pedir("ler_cadastro");
     if (!d.plano) return json(salvo);
-    // Com o plano: o proximo passo e a pagina de pagamento, com o cartao no bloco do Mercado Pago.
+    // Com o plano: o proximo passo e a pagina de pagamento, com o cartao nos campos seguros do Mercado Pago.
     const ida = await linkDoPagamento(env, conta, { plano: String(d.plano), periodo: d.periodo });
     return json({ ...salvo, proximo: ida.link });
   }

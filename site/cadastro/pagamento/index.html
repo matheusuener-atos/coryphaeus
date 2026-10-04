@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Falta muito pouco — PAVLVS</title>
-<meta name="description" content="O pagamento da assinatura do PAVLVS, com o cartão no bloco seguro do Mercado Pago.">
+<meta name="description" content="O pagamento da assinatura do PAVLVS, com o cartão nos campos seguros do Mercado Pago.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#131312">
 <link rel="icon" href="../../favicon.ico" sizes="any">
 <link rel="icon" href="../../assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
+<script src="../../assets/tema-cedo.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
@@ -36,7 +36,7 @@
       <h1 class="logo">Falta muito pouco</h1>
       <p id="pg-plano">O plano e o valor aparecem aqui.</p>
     </div>
-    <!-- O total vem do servidor (worker/ia.js, /api/ia/site/oferta), nunca do bloco. -->
+    <!-- O total vem do servidor (worker/ia.js, /api/ia/site/oferta), nunca do formulário. -->
     <div class="pg-total" id="pg-total" hidden>
       <span class="rotulo">Total</span>
       <strong id="pg-valor"></strong>
@@ -69,7 +69,7 @@
           <select id="pg-doc-tipo" aria-labelledby="pg-r-doc" data-mp-sdk-required-field="identificationType"></select>
           <input id="pg-doc" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" aria-labelledby="pg-r-doc" required></span></div>
       <div class="campo" id="pg-campo-parcelas"><span class="rotulo" id="pg-r-parcelas">Parcelas</span>
-        <span class="caixa-campo"><span class="icon" aria-hidden="true">payments</span><select id="pg-parcelas" aria-labelledby="pg-r-parcelas" data-mp-sdk-required-field="installments"></select></span>
+        <span class="caixa-campo"><span class="icon" aria-hidden="true">payments</span><select id="pg-parcelas" aria-labelledby="pg-r-parcelas" data-vazio="Digite o número do cartão para ver as parcelas" data-mp-sdk-required-field="installments"></select></span>
         <span class="nota-campo" id="pg-juros" aria-live="polite"></span></div>
       <select id="pg-emissor" hidden aria-hidden="true" tabindex="-1" data-mp-sdk-required-field="issuer"></select>
       <button type="submit" class="btn-duplo largo pg-pagar" id="pg-pagar"><span><span class="icon" aria-hidden="true">lock</span>Pagar</span></button>

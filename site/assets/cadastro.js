@@ -1,7 +1,7 @@
 /* A pagina de cadastro (paulus.ia.br/cadastro): entrar com o Google, os dados
    do escritorio e o plano, pelo Worker (worker/ia.js, /api/ia/planos e
    /api/ia/site/*). O pagamento e a pagina seguinte, /cadastro/pagamento
-   (assets/pagamento.js), com o cartao no bloco do Mercado Pago. O id_token do
+   (assets/pagamento.js), com o cartao nos campos seguros do Mercado Pago. O id_token do
    Google vale uma hora e fica so nesta aba (sessionStorage): e com ele que a
    pagina de pagamento sabe de quem e a assinatura. */
 (function () {
@@ -71,8 +71,8 @@
     });
     $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "o ano, em até 12×" : "cobrança mensal";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
-      ? "O ano é pago de uma vez, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela), no bloco do Mercado Pago da próxima página. A cota de IA continua mensal. O anual não renova sozinho."
-      : "No próximo passo, o cartão é digitado no bloco do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
+      ? "O ano é pago de uma vez, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela), nos campos seguros do Mercado Pago da próxima página. A cota de IA continua mensal. O anual não renova sozinho."
+      : "No próximo passo, o cartão é digitado nos campos seguros do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
   }
 
   function desenharPlanos() {

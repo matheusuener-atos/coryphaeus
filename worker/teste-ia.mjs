@@ -769,7 +769,7 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const html = { fetch: async () => new Response("<!doctype html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }) };
   const pagina = await worker.fetch(new Request("https://paulus.ia.br/cadastro/pagamento/"), { ...envReal, ASSETS: html }, ctx);
   const csp = pagina.headers.get("content-security-policy") || "";
-  checar(/script-src 'self' 'sha256-[A-Za-z0-9+\/=]+' https:\/\/sdk\.mercadopago\.com/.test(csp) && !/script-src[^;]*'unsafe-inline'/.test(csp)
+  checar(/script-src 'self' https:\/\/sdk\.mercadopago\.com/.test(csp) && !/'sha256-/.test(csp) && !/script-src[^;]*'unsafe-inline'/.test(csp)
     && csp.includes("frame-ancestors 'none'") && csp.includes("object-src 'none'"), "a página de pagamento sai com a CSP: só scripts do site, do Mercado Pago e do Google", csp);
   const inicio = await worker.fetch(new Request("https://paulus.ia.br/"), { ...envReal, ASSETS: html }, ctx);
   checar(!inicio.headers.get("content-security-policy"), "as outras páginas não mudam");

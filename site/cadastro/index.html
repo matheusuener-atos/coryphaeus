@@ -10,7 +10,7 @@
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link rel="icon" href="../assets/paulus-logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('pv-tema')==='claro'?'light':'dark')}catch(e){}</script>
+<script src="../assets/tema-cedo.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
@@ -96,8 +96,8 @@
         <span class="nota-campo">O CPF ou CNPJ e o endereço vão na nota fiscal da assinatura; o telefone, para suporte e avisos de cobrança; a OAB confirma que o PAVLVS é usado por advogado. O que fazemos com esses dados está na <a href="../politica-de-privacidade/#cadastro">Política de privacidade</a>.</span>
         <label class="aceite"><input type="checkbox" id="cd-aceite"> <span>Li e aceito os <a href="../termos-de-uso/" target="_blank" rel="noopener">Termos de uso</a> e a <a href="../politica-de-privacidade/" target="_blank" rel="noopener">Política de privacidade</a>.</span></label>
         <button type="submit" class="btn-duplo largo" id="cd-pagar"><span><span class="icon" aria-hidden="true">lock</span><span id="cd-pagar-texto">Ir para o pagamento</span></span></button>
-        <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">credit_card</span></span>Cartão no bloco do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span id="cd-selo-periodo">cobrança mensal</span></span></div>
-        <span class="nota-campo" id="cd-pagar-nota">No próximo passo, o cartão é digitado no bloco do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.</span>
+        <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">credit_card</span></span>Campos seguros do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span id="cd-selo-periodo">cobrança mensal</span></span></div>
+        <span class="nota-campo" id="cd-pagar-nota">No próximo passo, o cartão é digitado nos campos seguros do Mercado Pago: o número dele não passa pelo PAVLVS. Dá para cancelar no PAVLVS, em Configurações › Modelos.</span>
         <p class="erro-campo" id="cd-form-erro" hidden></p>
       </form>
 

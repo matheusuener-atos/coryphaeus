@@ -342,7 +342,7 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
     if (!r) return;
     if (!r.link) { avisoCert("paulus.ia.br não devolveu a página de pagamento", { tom: "erro" }); return; }
     window.open(r.link, "_blank");
-    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: o cartão vai no bloco do Mercado Pago" +
+    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: o cartão vai nos campos seguros do Mercado Pago" +
       (anual ? ", em até 12 vezes." : ".") + " O plano aparece aqui assim que o pagamento for aprovado.");
     await carregarContaNuvem(true); redesenhar();
   }; });

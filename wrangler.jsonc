@@ -29,7 +29,7 @@
     // /conectar, a pagina em que o titular confirma o acesso de fora, e
     // /cadastro, a pagina de assinar e pagar: ela sai com a politica de
     // seguranca de conteudo (CSP) do worker/index.js, porque o cartao e
-    // digitado nela (no bloco do Mercado Pago).
+    // digitado nela (nos campos seguros do Mercado Pago).
     "run_worker_first": ["/api/*", "/conectar", "/oauth/*", "/cadastro", "/cadastro/*"]
   },
   // Sem rota nenhuma aqui de proposito: o Worker atende so paulus.ia.br. Os
@@ -98,7 +98,7 @@
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
     "IA_ATIVA": "1",
     // A chave publica do Mercado Pago (aba Producao do app "PAULUS Apoio"), para
-    // o bloco de cartao de /cadastro/pagamento. Nao e segredo: o token de acesso
+    // o formulario do cartao de /cadastro/pagamento. Nao e segredo: o token de acesso
     // (MP_ACCESS_TOKEN) continua so como segredo do Worker. As duas precisam ser
     // da mesma aba, ou o cartao lido nao serve para cobrar.
     "MP_PUBLIC_KEY": "APP_USR-a8fb9ba1-3a56-4388-a1de-de353a72a01f",

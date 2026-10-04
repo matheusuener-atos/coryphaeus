@@ -42,11 +42,15 @@
   }
 
   /* Uma lista no estilo do sistema por cima de um <select> que o CardForm
-     preenche: o select continua no formulario (invisivel); o botao mostra a
-     opcao escolhida e o menu escolhe nele, com o evento de mudanca. */
-  function combo(select) {
-    if (select.dataset.combo) return;
-    select.dataset.combo = "1";
+     preenche e le: o select continua no formulario (invisivel, .pg-nativo); o
+     botao mostra a opcao escolhida e o menu escolhe nele, com o evento de
+     mudanca. `opcoes()` diz o que o menu mostra ([{valor, texto}]); sem ela,
+     as opcoes do proprio select. Teclado: setas, Enter, Esc, Home e End. */
+  function combo(select, opcoes) {
+    var lista = opcoes || function () {
+      return [].slice.call(select.options).filter(function (o) { return o.value; })
+        .map(function (o) { return { valor: o.value, texto: o.textContent }; });
+    };
     select.classList.add("pg-nativo");
     select.tabIndex = -1;
     var caixa = document.createElement("div");
@@ -67,40 +71,62 @@
     caixa.appendChild(botao);
     caixa.appendChild(menu);
     caixa.appendChild(select);
+
     var texto = function () {
-      var o = select.options[select.selectedIndex];
-      botao.firstChild.textContent = o ? o.textContent : (select.getAttribute("data-vazio") || "");
+      var atual = lista().filter(function (x) { return x.valor === select.value; })[0];
+      botao.firstChild.textContent = atual ? atual.texto : lista().length ? "Escolha" : (select.getAttribute("data-vazio") || "");
     };
-    var fechar = function () { menu.hidden = true; botao.setAttribute("aria-expanded", "false"); };
+    var itens = function () { return [].slice.call(menu.children); };
+    var focar = function (i) {
+      var t = itens();
+      if (t.length) t[(i + t.length) % t.length].focus();
+    };
+    var fechar = function (devolverFoco) {
+      menu.hidden = true;
+      botao.setAttribute("aria-expanded", "false");
+      if (devolverFoco) botao.focus();
+    };
+    var escolher = function (valor) {
+      select.value = valor;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      fechar(true);
+    };
     var abrir = function () {
       menu.innerHTML = "";
-      [].slice.call(select.options).forEach(function (o, i) {
-        if (!o.value) return;
+      lista().forEach(function (x) {
         var li = document.createElement("li");
         li.setAttribute("role", "option");
-        li.textContent = o.textContent;
-        li.setAttribute("aria-selected", String(i === select.selectedIndex));
-        li.onclick = function () {
-          select.selectedIndex = i;
-          select.dispatchEvent(new Event("change", { bubbles: true }));
-          texto();
-          fechar();
-          botao.focus();
+        li.tabIndex = -1;
+        li.textContent = x.texto;
+        li.setAttribute("aria-selected", String(x.valor === select.value));
+        li.onclick = function () { escolher(x.valor); };
+        li.onkeydown = function (e) {
+          var i = itens().indexOf(li);
+          if (e.key === "ArrowDown") { e.preventDefault(); focar(i + 1); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); focar(i - 1); }
+          else if (e.key === "Home") { e.preventDefault(); focar(0); }
+          else if (e.key === "End") { e.preventDefault(); focar(-1); }
+          else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); escolher(x.valor); }
+          else if (e.key === "Escape" || e.key === "Tab") { fechar(e.key === "Escape"); }
         };
         menu.appendChild(li);
       });
       if (!menu.children.length) return;
       menu.hidden = false;
       botao.setAttribute("aria-expanded", "true");
-      var sel = menu.querySelector('[aria-selected="true"]');
-      if (sel) sel.scrollIntoView({ block: "nearest" });
+      var sel = menu.querySelector('[aria-selected="true"]') || menu.firstChild;
+      sel.focus();
+      sel.scrollIntoView({ block: "nearest" });
     };
-    botao.onclick = function () { if (menu.hidden) abrir(); else fechar(); };
-    document.addEventListener("click", function (e) { if (!caixa.contains(e.target)) fechar(); });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { fechar(); botao.focus(); } });
+    botao.onclick = function () { if (menu.hidden) abrir(); else fechar(false); };
+    botao.onkeydown = function (e) {
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && menu.hidden) { e.preventDefault(); abrir(); }
+    };
+    document.addEventListener("click", function (e) { if (!caixa.contains(e.target)) fechar(false); });
     select.addEventListener("change", texto);
     new MutationObserver(texto).observe(select, { childList: true });
     texto();
+    return { atualizar: texto };
   }
 
   /* O plano B: o formulario nao carregou. O Worker cria a assinatura (ou o
@@ -185,9 +211,40 @@
     var v = function (nome) { return css.getPropertyValue(nome).trim(); };
     return { color: v("--ink"), placeholderColor: v("--ink3"), fontSize: "14px", fontFamily: "Manrope, system-ui, sans-serif" };
   }
+  // A fonte do site carregada dentro dos quadros (eles sao outra pagina, do Mercado Pago).
+  var FONTES = [{ src: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500&display=swap" }];
 
   var montado = null;  // a chave e a oferta, para remontar quando o tema muda
   var montouEm = 0;    // quando os quadros seguros ficaram prontos
+  // As parcelas que o Mercado Pago ofereceu para o cartao digitado (payer_costs
+  // do onInstallmentsReceived), ja cortadas no teto do plano.
+  var custos = [];
+  var listaDeParcelas = null;
+
+  /* O que se liga uma vez so (o tema pode montar o CardForm de novo): as
+     listas e o aviso dos juros. */
+  function prepararFormulario() {
+    var parcelas = $("pg-parcelas");
+    // A lista das parcelas mostra as do Mercado Pago ate o teto do plano; o
+    // select do CardForm traz todas (ate 18), e o servidor recusa acima do teto.
+    listaDeParcelas = combo(parcelas, function () {
+      return custos.map(function (c) { return { valor: String(c.installments), texto: c.recommended_message }; });
+    });
+    combo($("pg-doc-tipo"));
+    parcelas.addEventListener("change", mostrarJuros);
+  }
+
+  /* O total no cartao e o juro, do proprio Mercado Pago (total_amount da
+     parcela escolhida), so no anual. */
+  function mostrarJuros() {
+    var anual = montado && montado.oferta.periodo === "anual";
+    var c = custos.filter(function (x) { return String(x.installments) === $("pg-parcelas").value; })[0];
+    if (!anual || !c) { $("pg-juros").textContent = ""; return; }
+    var dif = Math.round((c.total_amount - montado.oferta.valor) * 100) / 100;
+    $("pg-juros").textContent = dif > 0.009
+      ? "Total no cartão: " + brl(c.total_amount) + ", com " + brl(dif) + " de juros do parcelamento."
+      : "Sem juros: total de " + brl(c.total_amount) + ".";
+  }
 
   function montar(publicKey, oferta) {
     montado = { publicKey: publicKey, oferta: oferta };
@@ -203,34 +260,6 @@
     // (o CardForm precisa dele), escondido, e o servidor cobra sem parcelas.
     $("pg-campo-parcelas").hidden = !anual;
     $("pg-form").hidden = false;
-    // O Mercado Pago oferece as parcelas do cartao (ate 18); o plano vai ate
-    // parcelas_max, e o servidor recusa acima disso.
-    var parcelas = $("pg-parcelas");
-    if (!parcelas.dataset.teto) {
-      new MutationObserver(function () {
-        var teto = Number(parcelas.dataset.teto) || 1;
-        [].slice.call(parcelas.options).forEach(function (o) { if (Number(o.value) > teto) o.remove(); });
-      }).observe(parcelas, { childList: true });
-    }
-    parcelas.dataset.teto = String(oferta.parcelas_max);
-    parcelas.setAttribute("data-vazio", "Digite o número do cartão para ver as parcelas");
-    combo(parcelas);
-    combo($("pg-doc-tipo"));
-    // Os juros: cada opcao do Mercado Pago traz o total no cartao entre
-    // parenteses; a diferenca para o valor do plano e o juro do parcelamento.
-    var juros = function () {
-      var o = parcelas.options[parcelas.selectedIndex];
-      var m = o && o.textContent.match(/\(R\$\s*([\d.]+,\d{2})\)\s*$/);
-      if (!m || !anual) { $("pg-juros").textContent = ""; return; }
-      var total = Number(m[1].replace(/\./g, "").replace(",", "."));
-      var dif = Math.round((total - oferta.valor) * 100) / 100;
-      $("pg-juros").textContent = dif > 0.009
-        ? "Total no cartão: " + brl(total) + ", com " + brl(dif) + " de juros do parcelamento."
-        : "Sem juros: total de " + brl(total) + ".";
-    };
-    parcelas.onchange = juros;
-    new MutationObserver(juros).observe(parcelas, { childList: true });
-
     var mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
     var estilo = estiloDosQuadros();
     // Monta com o formulario ja visivel (o Mercado Pago pede quadros com tamanho).
@@ -240,9 +269,9 @@
         iframe: true,
         form: {
           id: "pg-form",
-          cardNumber: { id: "pg-numero", placeholder: "0000 0000 0000 0000", style: estilo },
-          expirationDate: { id: "pg-validade", placeholder: "MM/AA", style: estilo },
-          securityCode: { id: "pg-codigo", placeholder: "123", style: estilo },
+          cardNumber: { id: "pg-numero", placeholder: "0000 0000 0000 0000", style: estilo, customFonts: FONTES },
+          expirationDate: { id: "pg-validade", placeholder: "MM/AA", style: estilo, customFonts: FONTES },
+          securityCode: { id: "pg-codigo", placeholder: "123", style: estilo, customFonts: FONTES },
           cardholderName: { id: "pg-titular" },
           issuer: { id: "pg-emissor" },
           installments: { id: "pg-parcelas", placeholder: "Parcelas" },
@@ -262,6 +291,14 @@
           onSubmit: function (ev) {
             ev.preventDefault();
             pagar();
+          },
+          onInstallmentsReceived: function (e, dados) {
+            var teto = montado.oferta.parcelas_max;
+            // A resposta e a de getInstallments: uma lista, com as payer_costs no primeiro item.
+            var r = Array.isArray(dados) ? dados[0] : dados;
+            custos = (!e && r && r.payer_costs ? r.payer_costs : []).filter(function (c) { return c.installments <= teto; });
+            listaDeParcelas.atualizar();
+            mostrarJuros();
           },
           // A bandeira lida dos primeiros digitos: a miniatura do Mercado Pago no lugar do icone.
           onPaymentMethodsReceived: function (e, metodos) {
@@ -294,6 +331,7 @@
       var config = await pedir("/api/ia/mp-config");
       var oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo, cupom: pedido.cupom });
       if (!oferta.cadastro_completo) { voltarAoCadastro("preencha os dados do escritório antes de pagar"); return; }
+      prepararFormulario();
       montar(config.publicKey, oferta);
       // Sem os quadros seguros em 15 segundos, o plano B aparece.
       setTimeout(function () {
@@ -354,6 +392,7 @@
     if (!controle || !montado || $("pg-form").hidden) return;
     try { controle.unmount(); } catch (e) { /* ja saiu */ }
     controle = null;
+    custos = [];
     montar(montado.publicKey, montado.oferta);
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
@@ -361,6 +400,8 @@
   window.addEventListener("pagehide", function () {
     if (controle) { try { controle.unmount(); } catch (e) { /* ja saiu */ } controle = null; }
   });
-  document.addEventListener("DOMContentLoaded", function () { $("pg-fora-botao").addEventListener("click", pagarFora); });
-  document.addEventListener("DOMContentLoaded", iniciar);
+  document.addEventListener("DOMContentLoaded", function () {
+    $("pg-fora-botao").addEventListener("click", pagarFora);
+    iniciar();
+  });
 })();

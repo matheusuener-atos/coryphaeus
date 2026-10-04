@@ -79,7 +79,7 @@
 .plano-itens { display: grid; gap: 4px; margin: 8px 0 4px; padding: 0 2px; list-style: none; font-size: 12.5px; line-height: 1.45; color: var(--ink2); }
 .plano-itens li { display: flex; gap: 8px; }
 .plano-itens li::before { content: "·"; color: var(--ink3); }
-/* ---------- Pagamento (o bloco de cartao do Mercado Pago) ---------- */
+/* ---------- Pagamento (o formulario do cartao, com os campos seguros do Mercado Pago) ---------- */
 .pg-col { max-width: 440px; gap: 24px; }
 .pg-total { display: grid; gap: 4px; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
 .pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
@@ -103,7 +103,8 @@
    CardForm do Mercado Pago preenche e le dele), invisivel; quem aparece e o
    botao e o menu. */
 .pg-nativo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.pg-combo { position: relative; flex: 1; min-width: 0; display: flex; }
+.pg-form .caixa-campo { position: relative; }
+.pg-combo { flex: 1; min-width: 0; display: flex; }
 .pg-doc .pg-combo { flex: none; }
 .pg-combo-botao {
   flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 38px;
@@ -113,19 +114,18 @@
 .pg-combo-botao .icon { font-size: 18px; color: var(--ink3); flex: none; }
 .pg-doc .pg-combo-botao { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
 .pg-combo-menu {
-  position: absolute; z-index: 20; top: calc(100% + 6px); left: -32px; min-width: calc(100% + 32px); max-height: 300px; overflow-y: auto;
+  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 300px; overflow-y: auto;
   margin: 0; padding: 6px; list-style: none; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line);
   box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
 }
 .pg-combo-menu li { padding: 8px 10px; border-radius: 7px; font: 400 13.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
-.pg-combo-menu li:hover, .pg-combo-menu li.foco { background: var(--pill); color: var(--ink); }
+.pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--pill); color: var(--ink); outline: none; }
 .pg-combo-menu li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
 /* O preenchimento automatico do navegador nos campos do site: o fundo e a
    letra do tema, no lugar do azul (nos quadros do Mercado Pago, nao da). */
 .pg-form input:-webkit-autofill, .pg-form input:-webkit-autofill:hover, .pg-form input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--ink); caret-color: var(--ink);
   -webkit-box-shadow: 0 0 0 40px var(--bg) inset; box-shadow: 0 0 0 40px var(--bg) inset;
-  transition: background-color 9999s ease-out 0s;
 }
 .pg-form input:autofill { background: var(--bg); color: var(--ink); }
 .pg-bandeira { width: 28px; height: 18px; object-fit: contain; flex: none; border-radius: 3px; }

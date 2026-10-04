@@ -112,18 +112,17 @@ export default {
   },
 };
 
-/* A pagina de assinar e pagar (site/cadastro): o cartao e digitado nela, no
-   bloco do Mercado Pago. So rodam scripts do proprio site, do Mercado Pago e
+/* A pagina de assinar e pagar (site/cadastro): o cartao e digitado nela, nos
+   campos seguros do Mercado Pago. So rodam scripts do proprio site, do Mercado Pago e
    do botao do Google; um script injetado (o golpe dos campos falsos por cima do
-   formulario) e bloqueado pelo navegador. O 'sha256-' e o do script de uma
-   linha do tema, no <head> das paginas (mudou o script, muda o resumo). O
-   MercadoPago.js injeta um script inline de telemetria (sendCookies /
+   formulario) e bloqueado pelo navegador. Nenhum script inline roda: o do
+   tema, nessas paginas, e o assets/tema-cedo.js. O MercadoPago.js injeta um script inline de telemetria (sendCookies /
    setDeprecationLab), diferente a cada carga: ele fica bloqueado de proposito
-   - libera-lo pediria 'unsafe-inline' - e o bloco de cartao funciona sem ele
-   (conferido no Edge com a chave de teste, 03/10/2026). */
+   - libera-lo pediria 'unsafe-inline' - e o formulario do cartao funciona sem
+   ele (conferido no Edge com a chave de teste, 03/10/2026). */
 export const CSP_CADASTRO = [
   "default-src 'self'",
-  "script-src 'self' 'sha256-qoQyNfhaeU9+2dUXxZbTxEyCVcy00VHnE32+0mE38pc=' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://accounts.google.com/gsi/",
+  "script-src 'self' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://accounts.google.com/gsi/",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: https:",
