@@ -89,7 +89,7 @@
 .pg-titulo-cartao { font: 500 15px var(--sans); color: var(--ink); }
 .pg-bloco { min-height: 1px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .pg-bloco:empty, .pg-bloco[hidden] { border: 0; }
-.pg-pagar { justify-self: center; }
+.pg-pagar { justify-self: stretch; display: flex; width: 100%; }
 .pg-pagar > span { padding: 0 28px; }
 .pg-pagar .icon { font-size: 16px; }
 .pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
