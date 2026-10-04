@@ -29,7 +29,9 @@ prof.perguntar = lerGuardado("paulus.perguntar_antes", "1") !== "0";
 
 function nivelAtual() {
   const id = prof.escolhido || prof.padrao;
-  return prof.niveis.find((n) => n.id === id) || prof.niveis.find((n) => n.id === prof.padrao) || null;
+  // O nivel guardado que o plano nao tem mais (bloqueado) volta ao padrao.
+  const n = prof.niveis.find((x) => x.id === id && !x.bloqueado);
+  return n || prof.niveis.find((x) => x.id === prof.padrao) || null;
 }
 
 /* A situação da nuvem chega por js/75-nuvem.js; a pílula do nível só existe
@@ -72,11 +74,13 @@ function abrirMenuProfundidade() {
   menu.innerHTML = '<div class="mp-cabeca"><b>Quanto o PAULUS trabalha este pedido</b>' +
     "<small>Você escolhe o esforço; o modelo e as etapas são por conta do programa.</small></div>" +
     prof.niveis.map((n, i) =>
-      '<button type="button" role="menuitemradio" class="mp-nivel' + (atual && atual.id === n.id ? " on" : "") +
-      '" aria-checked="' + Boolean(atual && atual.id === n.id) + '" data-prof-nivel="' + esc(n.id) + '">' +
+      '<button type="button" role="menuitemradio" class="mp-nivel' + (atual && atual.id === n.id ? " on" : "") + (n.bloqueado ? " travado" : "") +
+      '" aria-checked="' + Boolean(atual && atual.id === n.id) + '"' + (n.bloqueado ? ' aria-disabled="true" title="' + esc(n.no_plano || "") + '"' : "") +
+      ' data-prof-nivel="' + esc(n.id) + '">' +
       '<span class="mp-degrau" aria-hidden="true">' + "▮".repeat(i + 1) + '<span class="mp-vazio">' + "▮".repeat(4 - i) + "</span></span>" +
       '<span class="mp-texto"><b>' + esc(n.nome) + (n.id === prof.padrao ? ' <em>padrão</em>' : "") + "</b>" +
       "<span>" + esc(n.resumo) + "</span>" +
+      (n.bloqueado ? '<small class="mp-plano">' + ic("lock", 13) + " " + esc(n.no_plano || "Não faz parte do seu plano.") + "</small>" : "") +
       '<small class="mp-tecnico">' + esc((n.detalhes || []).join(" · ")) + " · consome ~" +
       esc(String(n.consumo).replace(".", ",")) + "× da franquia</small></span></button>").join("") +
     '<label class="mp-perguntar"><input type="checkbox" data-prof-perguntar="1"' + (prof.perguntar ? " checked" : "") + ">" +
@@ -97,6 +101,7 @@ function abrirMenuProfundidade() {
   b.setAttribute("aria-expanded", "true");
   menu.querySelectorAll("[data-prof-nivel]").forEach((x) => {
     x.onclick = () => {
+      if (x.classList.contains("travado")) return;
       prof.escolhido = x.dataset.profNivel;
       guardar("paulus.profundidade", prof.escolhido);
       fecharMenuProfundidade();

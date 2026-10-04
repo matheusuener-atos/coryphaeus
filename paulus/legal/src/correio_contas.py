@@ -334,6 +334,9 @@ class Contas:
         self.caminho = Path(caminho)
         self._trava = threading.Lock()
         self.itens: list[Conta] = []
+        # (contas que ja existem) -> levanta se o plano nao tem vaga para mais
+        # uma (src/recursos_do_plano.py; o api.py liga).
+        self.vaga = None
         # Senha digitada agora, guardada so na memoria do processo. Existe para
         # quem escolheu nao guardar a senha em disco nao ter que redigitar a
         # cada mensagem aberta.
@@ -395,6 +398,8 @@ class Contas:
 
         conta = self.obter(str(dados.get("id", ""))) or self.por_email(email)
         novo = conta is None
+        if novo and self.vaga is not None:
+            self.vaga(len(self.itens))
         if novo:
             conta = Conta(id=uuid.uuid4().hex[:12])
 
@@ -474,6 +479,8 @@ class Contas:
         if conta is not None and dono is not None and int(conta.dono or 0) != int(dono):
             raise ValueError("esse e-mail já é uma conta do escritório ou de outra pessoa")
         novo = conta is None
+        if novo and self.vaga is not None:
+            self.vaga(len(self.itens))
         if novo:
             conta = Conta(id=uuid.uuid4().hex[:12], email=email)
         if dono is not None:

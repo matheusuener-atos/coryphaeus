@@ -128,6 +128,9 @@ class PortaoRemoto:
         # (sessao, metodo, caminho, corpo, tipo) -> dict do pedido na fila.
         # Quem monta e o AcessoDeFora, que conhece a fila.
         self.propor = None
+        # () -> "" ou a frase de por que o plano nao deixa colaborador entrar
+        # (src/recursos_do_plano.py; o api.py liga). O titular entra sempre.
+        self.colaborador_barrado = None
         self._seguranca = cabecalhos_de_seguranca(politica_de_conteudo())
 
     def _anotar(self, **evento) -> None:
@@ -182,6 +185,11 @@ class PortaoRemoto:
         # Quem mexe no que (E2): o nivel desta pessoa no modulo da rota, por
         # cima da tabela - pode fechar (nao ve, so ve), transformar proposta
         # em gravar direto (faz), ou abrir o que so faltava decidir.
+        if sessao and sessao.get("papel") != "titular" and self.colaborador_barrado is not None:
+            barrado = self.colaborador_barrado()
+            if barrado:
+                await recusar(scope, send, 403, barrado)
+                return
         politica, motivo_do_nivel = permissoes.politica_efetiva(sessao, metodo, getattr(rota, "path", None), politica)
         if metodo not in SEGUROS and not self.contas.csrf_confere(sessao, cab.get(CABECALHO_CSRF)):
             await recusar(scope, send, 403, "pedido sem o token da sessão")

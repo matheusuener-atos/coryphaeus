@@ -264,6 +264,8 @@ class Contas:
         self._disponivel = (lambda: True) if proteger else segredos.disponivel
         self.relogio = relogio
         self.ao_bloquear = ao_bloquear
+        # (contas que ja existem) -> levanta se o plano nao tem vaga para mais uma.
+        self.vaga = None
         self._trava = threading.RLock()
         self._pendentes: dict[str, tuple[int, float, str, str]] = {}
         with self._db() as c:
@@ -368,7 +370,11 @@ class Contas:
         senha = senha or secrets.token_urlsafe(32)
         conferir_forca(senha)
         with self._trava:
-            primeira = not self.listar()
+            existentes = self.listar()
+            primeira = not existentes
+            # O plano diz quantas pessoas cabem (src/recursos_do_plano.py; o api.py liga).
+            if not primeira and self.vaga is not None:
+                self.vaga(len(existentes))
             papel = "titular" if primeira else papel
             if papel not in PAPEIS:
                 raise ErroConta("papel inválido")

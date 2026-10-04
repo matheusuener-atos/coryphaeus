@@ -41,7 +41,6 @@
 import { donoDoToken } from "./tunel.js";
 import { emitirAutomatico } from "./nfse/api.js";
 
-const DEEPINFRA = "https://api.deepinfra.com/v1/openai/chat/completions";
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
 const MAX_SEGREDOS = 3;
 // Reserva sem liquidar (o Worker caiu no meio): depois disto, conta inteira.
@@ -52,50 +51,114 @@ export const TOLERANCIA_MS = 5 * 24 * 3600 * 1000;
 // Portugues tem ~4 caracteres por token; 3 estima para cima (a reserva e teto).
 const CARACTERES_POR_TOKEN = 3;
 
-// Os planos (02/10/2026). O "escritorio" e o de antes: quem ja assinava fica
-// nele, com o valor e os tokens de IA_PLANO_VALOR e IA_PLANO_TOKENS. IA_PLANOS
-// (JSON, [{id, nome, valor, tokens}]) troca a lista inteira sem mexer no codigo.
+// Os modelos da nuvem (03/10/2026): o id que o PAULUS pede, o provedor que
+// responde, o peso em creditos (quantos creditos da cota cada token gasta) e
+// o preco em dolar por milhao de tokens (entrada, saida), que o painel usa
+// para o custo. `folga`: tokens a mais na saida para o modelo pensar antes de
+// escrever (o Opus 5.5 sempre pensa, e o pensamento conta como saida).
+export const MODELOS = {
+  "meta-llama/Llama-3.3-70B-Instruct": { nome: "Llama 3.3 70B", empresa: "Meta", provedor: "deepinfra", peso: 1, usd: [0.23, 0.4] },
+  "Qwen/Qwen2.5-72B-Instruct": { nome: "Qwen 2.5 72B", empresa: "Alibaba", provedor: "deepinfra", peso: 1, usd: [0.23, 0.4] },
+  "mistral-large-latest": { nome: "Mistral Large 3", empresa: "Mistral AI", provedor: "mistral", peso: 1, usd: [0.5, 1.5] },
+  "claude-sonnet-5-5": { nome: "Claude Sonnet 5.5", empresa: "Anthropic", provedor: "anthropic", peso: 1, usd: [2, 10] },
+  "claude-opus-5-5": { nome: "Claude Opus 5.5", empresa: "Anthropic", provedor: "anthropic", peso: 2, usd: [4, 20], folga: 4000 },
+};
+
+// A ordem da profundidade (paulus/legal/src/profundidade.py): o plano diz ate onde vai.
+export const NIVEIS = ["estagiario", "bacharel", "advogado", "juiz", "ministro"];
+
+// Os planos (03/10/2026). Cada um: o valor mensal e o anual (o anual paga o
+// ano de uma vez, parcelavel no cartao; a cota continua mensal), os creditos
+// do mes, as pessoas, o modelo de cada nivel ("padrao" para os outros), a
+// recarga e os recursos que o PAULUS instalado libera. Nos recursos, null e
+// "sem limite". IA_PLANOS (JSON, a lista publicada pelo painel admin) troca os
+// numeros sem mexer no codigo; o que faltar num plano vem do de fabrica.
 export const PLANO_PADRAO = "escritorio";
 
-function lerPlanos(env, valor, tokens) {
+const RECURSOS_ESCRITORIO = { profundidade: "juiz", agentes: null, equipe: true, emails: null, consumo_por_pessoa: true,
+  nfse_mes: 20, nfse_recorrente: false, datajud: true, gravacao: true, ao_vivo: false, horas: true, muralha: true,
+  autonomia: true, jurisprudencia_stj: true, word: false, mcp: false, pagina_cliente: false };
+
+export const PLANOS_DE_FABRICA = [
+  { id: "advogado", nome: "Advogado", valor: 449, valor_anual: 3990, tokens: 30000000, pessoas: 1,
+    modelos: { padrao: "meta-llama/Llama-3.3-70B-Instruct" }, recarga: { valor: 50, tokens: 10000000 },
+    recursos: { ...RECURSOS_ESCRITORIO, profundidade: "advogado", agentes: 3, equipe: false, emails: 1, consumo_por_pessoa: false,
+      nfse_mes: 0, datajud: false, gravacao: false, horas: false, muralha: false, autonomia: false, jurisprudencia_stj: false } },
+  { id: PLANO_PADRAO, nome: "Escritório", valor: 1290, valor_anual: 11490, tokens: 60000000, pessoas: 5,
+    modelos: { padrao: "mistral-large-latest" }, recarga: { valor: 120, tokens: 10000000 }, recursos: { ...RECURSOS_ESCRITORIO } },
+  { id: "plus", nome: "Escritório Plus", valor: 3490, valor_anual: 30990, tokens: 40000000, pessoas: 15,
+    modelos: { padrao: "claude-sonnet-5-5", ministro: "claude-opus-5-5" }, recarga: { valor: 300, tokens: 5000000 },
+    recursos: { ...RECURSOS_ESCRITORIO, profundidade: "ministro", nfse_mes: null, nfse_recorrente: true, ao_vivo: true,
+      word: true, mcp: true, pagina_cliente: true } },
+];
+
+/* Um plano completo: o publicado por cima do de fabrica do mesmo id (ou do Escritorio, se for novo). */
+function planoCompleto(p) {
+  const base = PLANOS_DE_FABRICA.find((x) => x.id === p.id) || PLANOS_DE_FABRICA.find((x) => x.id === PLANO_PADRAO);
+  const modelos = { ...base.modelos, ...(p.modelos || {}) };
+  for (const [nivel, m] of Object.entries(modelos)) if (!MODELOS[m]) modelos[nivel] = base.modelos[nivel] || base.modelos.padrao;
+  return {
+    id: p.id, nome: String(p.nome || base.nome), valor: Number(p.valor) || base.valor, valor_anual: Number(p.valor_anual) || base.valor_anual,
+    tokens: Number(p.tokens) || base.tokens, pessoas: Number(p.pessoas) || base.pessoas, modelos,
+    recarga: { ...base.recarga, ...(p.recarga || {}) }, recursos: { ...base.recursos, ...(p.recursos || {}) },
+  };
+}
+
+function lerPlanos(env) {
   try {
     const l = JSON.parse(env.IA_PLANOS || "");
-    const ok = Array.isArray(l) && l.length && l.every((p) => p && /^[a-z0-9-]{2,24}$/.test(p.id) && p.nome && Number(p.valor) > 0 && Number(p.tokens) > 0);
-    if (ok && l.some((p) => p.id === PLANO_PADRAO)) return l.map((p) => ({ id: p.id, nome: String(p.nome), valor: Number(p.valor), tokens: Number(p.tokens) }));
+    // A lista de antes dos planos de 03/10 (sem valor anual) nao vale mais: fica a de fabrica.
+    const ok = Array.isArray(l) && l.length && l.every((p) => p && /^[a-z0-9-]{2,24}$/.test(p.id) && p.nome && Number(p.valor) > 0
+      && Number(p.valor_anual) > 0 && Number(p.tokens) > 0);
+    if (ok && l.some((p) => p.id === PLANO_PADRAO)) return l.map(planoCompleto);
   } catch {
     // sem a lista (ou quebrada): a de fabrica
   }
-  return [
-    { id: "advogado", nome: "Advogado", valor: 150, tokens: 12000000 },
-    { id: PLANO_PADRAO, nome: "Escritório", valor, tokens },
-    { id: "plus", nome: "Escritório Plus", valor: 550, tokens: 60000000 },
-  ];
+  return PLANOS_DE_FABRICA.map(planoCompleto);
 }
 
 export function planoDe(n, id) {
   return n.planos.find((p) => p.id === id) || n.planos.find((p) => p.id === PLANO_PADRAO) || n.planos[0];
 }
 
+/* Os pacotes da recarga de um plano: metade, a recarga do plano e o dobro, no mesmo preco por credito. */
+export function recargasDe(plano) {
+  return [0.5, 1, 2].map((f) => ({ id: String(f), tokens: Math.round(plano.recarga.tokens * f), valor: Math.round(plano.recarga.valor * f * 100) / 100 }));
+}
+
+/* Os modelos de um plano, sem repetir, o padrao primeiro. */
+export function modelosDoPlano(plano) {
+  return [...new Set([plano.modelos.padrao, ...Object.values(plano.modelos)])];
+}
+
+/* O modelo que responde: o do nivel no plano; senao o pedido, se o plano o
+   tem; senao o padrao do plano (o PAULUS antigo pede sempre o Llama). */
+export function modeloParaPedido(plano, pedido, nivel) {
+  if (nivel && plano.modelos[nivel]) return plano.modelos[nivel];
+  if (pedido && modelosDoPlano(plano).includes(pedido)) return pedido;
+  return plano.modelos.padrao;
+}
+
 export function numeros(env) {
   const n = (v, padrao) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : padrao);
-  const planoValor = n(env.IA_PLANO_VALOR, 300);
-  const planoTokens = n(env.IA_PLANO_TOKENS, 30000000);
+  const planos = lerPlanos(env);
+  const padrao = planoDe({ planos }, PLANO_PADRAO);
   return {
-    planoValor,
-    planoTokens,
-    planos: lerPlanos(env, planoValor, planoTokens),
-    recargaValor: n(env.IA_RECARGA_VALOR, 50),
-    recargaTokens: n(env.IA_RECARGA_TOKENS, 10000000),
-    // Os pacotes da recarga rapida (02/10/2026): metade, a recarga de sempre e
-    // o dobro, no mesmo preco por token.
-    recargas: [0.5, 1, 2].map((f) => ({ id: String(f), tokens: Math.round(n(env.IA_RECARGA_TOKENS, 10000000) * f),
-      valor: Math.round(n(env.IA_RECARGA_VALOR, 50) * f * 100) / 100 })),
+    planos,
+    // A recarga do Escritorio, para quem ainda le um numero so (o painel, o PAULUS antigo).
+    recargaValor: padrao.recarga.valor,
+    recargaTokens: padrao.recarga.tokens,
+    recargas: recargasDe(padrao),
     maxSaida: n(env.IA_MAX_SAIDA, 4000),
     maxEntradaCaracteres: n(env.IA_MAX_ENTRADA_CARACTERES, 240000),
     porMinuto: n(env.IA_POR_MINUTO, 40),
-    modelos: String(env.IA_MODELOS || "meta-llama/Llama-3.3-70B-Instruct,Qwen/Qwen2.5-72B-Instruct")
-      .split(",").map((m) => m.trim()).filter(Boolean),
+    modelos: Object.keys(MODELOS),
   };
+}
+
+/* Os modelos para a tela: id, nome e empresa. */
+export function catalogo(ids) {
+  return ids.filter((m) => MODELOS[m]).map((m) => ({ id: m, nome: MODELOS[m].nome, empresa: MODELOS[m].empresa }));
 }
 
 // ------------------------------------------------------------- entrada
@@ -116,12 +179,13 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   // O cupom da pagina Assinar: vale? quanto fica? (sem conta: so o codigo e o plano)
   if (p === "/api/ia/cupom" && m === "GET") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-    const r = await conferirCupom(env, url.searchParams.get("codigo"), url.searchParams.get("plano"));
+    const r = await conferirCupom(env, url.searchParams.get("codigo"), url.searchParams.get("plano"), url.searchParams.get("periodo") === "anual" ? "anual" : "mensal");
     return json(r.erro ? { ok: false, erro: r.erro } : { ok: true, ...r.cupom, valor: r.valor, valor_cheio: r.valor_cheio });
   }
   if (p === "/api/ia/planos" && m === "GET") {
     const n = numeros(env);
-    return json({ planos: n.planos, recarga: { valor: n.recargaValor, tokens: n.recargaTokens }, recargas: n.recargas });
+    return json({ planos: n.planos.map((x) => ({ ...x, modelos_info: catalogo(modelosDoPlano(x)), recargas: recargasDe(x) })),
+      recarga: { valor: n.recargaValor, tokens: n.recargaTokens }, recargas: n.recargas, niveis: NIVEIS });
   }
   // A pagina de cadastro do site (site/cadastro): o id_token do Google a cada
   // pedido, sem segredo de instalacao - quem assina pelo site ainda nao
@@ -134,7 +198,16 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   if (quem.erro) return json({ erro: quem.erro }, quem.status);
   const conta = quem.conta;
   if (p === "/api/ia/conta" && m === "GET") return json(await conta.pedir("resumo"));
-  if (p === "/api/ia/modelos" && m === "GET") return json({ modelos: numeros(env).modelos });
+  // Os modelos do plano desta conta (o padrao primeiro), com nome e empresa.
+  if (p === "/api/ia/modelos" && m === "GET") {
+    const r = await conta.pedir("resumo");
+    const ids = modelosDoPlano(r.plano);
+    return json({ modelos: ids, info: catalogo(ids) });
+  }
+  if (p === "/api/ia/adiantar" && m === "POST") {
+    const r = await conta.pedir("adiantar");
+    return json(r, r.ok === false ? r.status || 409 : 200);
+  }
   if (p === "/api/ia/consentimento" && m === "POST") {
     const d = (await lerJSON(request)) || {};
     const versao = String(d.versao || "").slice(0, 40);
@@ -318,13 +391,150 @@ export function usoDoFim(cauda) {
   return null;
 }
 
+// Os provedores: a chave de cada um e segredo do Worker (npx wrangler secret
+// put DEEPINFRA_KEY / MISTRAL_KEY / ANTHROPIC_KEY). Os tres falam ao PAULUS
+// no formato OpenAI: o do Claude e traduzido aqui (claudeParaOpenAI).
+const PROVEDORES = {
+  deepinfra: { url: "https://api.deepinfra.com/v1/openai/chat/completions", chave: "DEEPINFRA_KEY" },
+  mistral: { url: "https://api.mistral.ai/v1/chat/completions", chave: "MISTRAL_KEY" },
+  anthropic: { url: "https://api.anthropic.com/v1/messages", chave: "ANTHROPIC_KEY" },
+};
+
+/* O pedido no formato do Claude: o system a parte, os papeis alternados e o
+   ultimo do usuario (o Claude 5.5 nao aceita resposta comecada). */
+export function pedidoParaClaude(modelo, mensagens, maxTokens, stream, jsonPedido) {
+  const system = mensagens.filter((x) => x.role === "system").map((x) => x.content).join("\n\n");
+  const msgs = [];
+  for (const x of mensagens.filter((y) => y.role !== "system")) {
+    const ultima = msgs[msgs.length - 1];
+    if (ultima && ultima.role === x.role) ultima.content += "\n\n" + x.content;
+    else msgs.push({ role: x.role, content: x.content });
+  }
+  while (msgs.length && msgs[0].role !== "user") msgs.shift();
+  while (msgs.length && msgs[msgs.length - 1].role !== "user") msgs.pop();
+  const corpo = { model: modelo, max_tokens: maxTokens, messages: msgs, stream, fallbacks: "default" };
+  const instrucao = system + (jsonPedido ? "\n\nResponda somente com um objeto JSON válido, sem texto antes ou depois." : "");
+  if (instrucao.trim()) corpo.system = instrucao.trim();
+  // O Sonnet responde sem pensar antes (o dia a dia, mais barato); o Opus, que
+  // e o do nivel Ministro, pensa com esforco alto.
+  if (modelo === "claude-sonnet-5-5") corpo.thinking = { type: "between_tools" };
+  if (modelo === "claude-opus-5-5") corpo.output_config = { effort: "high" };
+  return corpo;
+}
+
+function usoDoClaude(u) {
+  const x = u || {};
+  return { entrada: (Number(x.input_tokens) || 0) + (Number(x.cache_creation_input_tokens) || 0) + (Number(x.cache_read_input_tokens) || 0),
+    saida: Number(x.output_tokens) || 0 };
+}
+
+/* A resposta inteira do Claude no formato OpenAI; null se ele recusou. */
+export function respostaDoClaude(dado) {
+  if (!dado || dado.stop_reason === "refusal") return null;
+  const texto = (dado.content || []).filter((b) => b && b.type === "text").map((b) => b.text || "").join("");
+  const u = usoDoClaude(dado.usage);
+  return { id: dado.id, model: dado.model, choices: [{ index: 0, message: { role: "assistant", content: texto }, finish_reason: dado.stop_reason === "max_tokens" ? "length" : "stop" }],
+    usage: { prompt_tokens: u.entrada, completion_tokens: u.saida } };
+}
+
+/* Os eventos do Claude (message_start, content_block_delta, message_delta,
+   message_stop) viram os pedacos do OpenAI, com o uso no fim - o mesmo que o
+   DeepInfra manda, e o PAULUS ja le. */
+export function claudeParaOpenAI() {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  let resto = "";
+  let uso = { entrada: 0, saida: 0 };
+  let modelo = "";
+  let fechado = false;
+  const pedaco = (obj) => enc.encode("data: " + JSON.stringify(obj) + "\n\n");
+  const fim = (c) => {
+    if (fechado) return;
+    fechado = true;
+    c.enqueue(pedaco({ model: modelo, choices: [], usage: { prompt_tokens: uso.entrada, completion_tokens: uso.saida } }));
+    c.enqueue(enc.encode("data: [DONE]\n\n"));
+  };
+  const linha = (l, c) => {
+    if (!l.startsWith("data:")) return;
+    let e;
+    try {
+      e = JSON.parse(l.slice(5).trim());
+    } catch {
+      return;
+    }
+    if (e.type === "message_start" && e.message) {
+      modelo = e.message.model || modelo;
+      uso = usoDoClaude(e.message.usage);
+    } else if (e.type === "content_block_delta" && e.delta && e.delta.type === "text_delta") {
+      c.enqueue(pedaco({ model: modelo, choices: [{ index: 0, delta: { content: e.delta.text || "" } }] }));
+    } else if (e.type === "message_delta") {
+      if (e.usage && Number.isFinite(Number(e.usage.output_tokens))) uso.saida = Number(e.usage.output_tokens);
+      if (e.delta && e.delta.stop_reason === "refusal") {
+        c.enqueue(pedaco({ model: modelo, choices: [{ index: 0, delta: { content: "\n\n(O provedor do modelo interrompeu esta resposta.)" }, finish_reason: "content_filter" }] }));
+      }
+    } else if (e.type === "message_stop") {
+      fim(c);
+    }
+  };
+  return new TransformStream({
+    transform(chunk, c) {
+      resto += dec.decode(chunk, { stream: true });
+      const linhas = resto.split("\n");
+      resto = linhas.pop();
+      for (const l of linhas) linha(l.trim(), c);
+    },
+    flush(c) {
+      if (resto.trim()) linha(resto.trim(), c);
+      fim(c);
+    },
+  });
+}
+
+/* O pedido ao provedor do modelo; a resposta sempre no formato OpenAI (ou o erro dele). */
+async function chamarProvedor(env, modelo, corpoOpenAI) {
+  const info = MODELOS[modelo];
+  const prov = PROVEDORES[info.provedor];
+  const chave = env[prov.chave];
+  if (info.provedor !== "anthropic") {
+    const corpo = { ...corpoOpenAI };
+    // O DeepInfra so manda o uso no fim quando pedido; a Mistral manda sempre.
+    if (corpo.stream && info.provedor === "deepinfra") corpo.stream_options = { include_usage: true };
+    return fetch(prov.url, { method: "POST", headers: { Authorization: "Bearer " + chave, "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  }
+  const corpo = pedidoParaClaude(modelo, corpoOpenAI.messages, corpoOpenAI.max_tokens, corpoOpenAI.stream, Boolean(corpoOpenAI.response_format));
+  const up = await fetch(prov.url, {
+    method: "POST",
+    headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "anthropic-beta": "server-side-fallback-2026-07-01", "content-type": "application/json" },
+    body: JSON.stringify(corpo),
+  });
+  if (!up.ok) return up;
+  if (corpoOpenAI.stream) return new Response(up.body.pipeThrough(claudeParaOpenAI()), { status: 200, headers: { "content-type": "text/event-stream" } });
+  const convertido = respostaDoClaude(await up.json());
+  if (!convertido) return new Response(JSON.stringify({ error: { message: "o modelo recusou responder a este pedido" } }), { status: 422 });
+  return new Response(JSON.stringify(convertido), { status: 200, headers: { "content-type": "application/json" } });
+}
+
+/* Tokens -> creditos da cota, pelo peso do modelo. */
+const creditos = (modelo, entrada, saida) => Math.ceil((entrada + saida) * ((MODELOS[modelo] || {}).peso || 1));
+
 async function completar(request, env, ctx, conta) {
-  if (!env.DEEPINFRA_KEY) return json({ erro: "a nuvem do PAULUS ainda não está no ar" }, 503);
   const n = numeros(env);
   const d = await lerJSON(request);
   if (!d || !Array.isArray(d.messages) || !d.messages.length) return json({ erro: "pedido inválido" }, 400);
-  const modelo = String(d.model || n.modelos[0] || "");
-  if (!n.modelos.includes(modelo)) return json({ erro: "esse modelo não está na nuvem do PAULUS", modelos: n.modelos }, 400);
+  const pedido = String(d.model || "");
+  if (pedido && !MODELOS[pedido]) return json({ erro: "esse modelo não está na nuvem do PAULUS", modelos: n.modelos }, 400);
+  // O plano da conta diz o modelo e ate que nivel de profundidade vai.
+  const atual = await conta.pedir("resumo");
+  const plano = atual.plano;
+  const nivel = NIVEIS.includes(String(d.paulus_nivel || "")) ? String(d.paulus_nivel) : "";
+  if (nivel && NIVEIS.indexOf(nivel) > NIVEIS.indexOf(plano.recursos.profundidade)) {
+    const quem = n.planos.find((x) => NIVEIS.indexOf(x.recursos.profundidade) >= NIVEIS.indexOf(nivel));
+    return json({ erro: "a profundidade " + nivel + " não faz parte do plano " + plano.nome + (quem ? "; ela vem no plano " + quem.nome : ""),
+      motivo: "profundidade" }, 403);
+  }
+  const modelo = modeloParaPedido(plano, pedido, nivel);
+  const info = MODELOS[modelo];
+  const peso = info.peso || 1;
   const mensagens = d.messages
     .filter((x) => x && ["system", "user", "assistant"].includes(x.role))
     .map((x) => ({ role: x.role, content: String(x.content || "") }));
@@ -333,23 +543,25 @@ async function completar(request, env, ctx, conta) {
     return json({ erro: "o texto passa do teto de um pedido; mande menos trechos", teto: n.maxEntradaCaracteres }, 413);
   }
   const entrada = Math.ceil(tamanho / CARACTERES_POR_TOKEN) + 16 * mensagens.length;
-  const pedida = Math.min(Math.max(Number(d.max_tokens) || n.maxSaida, 1), n.maxSaida);
-  const reserva = await conta.pedir("reservar", { entrada, saida: pedida });
+  const pedida = Math.min(Math.max(Number(d.max_tokens) || n.maxSaida, 1), n.maxSaida) + (info.folga || 0);
+  // A reserva e em creditos; a saida que o modelo pode escrever sai dela.
+  const reserva = await conta.pedir("reservar", { entrada: Math.ceil(entrada * peso), saida: Math.ceil(pedida * peso) });
   if (!reserva.ok) return json({ erro: reserva.erro, motivo: reserva.motivo, conta: reserva.conta }, reserva.status || 402);
+  if (!env[PROVEDORES[info.provedor].chave]) {
+    await conta.pedir("liquidar", { reserva: reserva.id, tokens: 0 });
+    return json({ erro: "o modelo " + info.nome + " ainda não está no ar na nuvem do PAULUS" }, 503);
+  }
+  const maxTokens = Math.max(1, Math.floor(reserva.saida / peso));
 
   const stream = d.stream !== false;
-  const corpo = { model: modelo, messages: mensagens, max_tokens: reserva.saida, stream };
-  if (stream) corpo.stream_options = { include_usage: true };
-  for (const k of ["temperature", "top_p"]) if (Number.isFinite(Number(d[k]))) corpo[k] = Number(d[k]);
+  const corpo = { model: modelo, messages: mensagens, max_tokens: maxTokens, stream };
+  if (info.provedor !== "anthropic") for (const k of ["temperature", "top_p"]) if (Number.isFinite(Number(d[k]))) corpo[k] = Number(d[k]);
   if (d.response_format && d.response_format.type === "json_object") corpo.response_format = { type: "json_object" };
+  const cabecalhos = { "cache-control": "no-store", "x-paulus-modelo": modelo };
 
   let up;
   try {
-    up = await fetch(DEEPINFRA, {
-      method: "POST",
-      headers: { Authorization: "Bearer " + env.DEEPINFRA_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify(corpo),
-    });
+    up = await chamarProvedor(env, modelo, corpo);
   } catch (e) {
     await conta.pedir("liquidar", { reserva: reserva.id, tokens: 0 });
     return json({ erro: "o provedor do modelo não respondeu" }, 502);
@@ -359,7 +571,7 @@ async function completar(request, env, ctx, conta) {
     let msg = "";
     try {
       const e = await up.json();
-      msg = String((e.error && (e.error.message || e.error)) || e.detail || "").slice(0, 160);
+      msg = String((e.error && (e.error.message || e.error)) || e.detail || e.message || "").slice(0, 160);
     } catch {
       msg = "";
     }
@@ -369,15 +581,16 @@ async function completar(request, env, ctx, conta) {
   if (!stream) {
     const dado = await up.json();
     const u = dado.usage || {};
-    const real = (Number(u.prompt_tokens) || entrada) + (Number(u.completion_tokens) || 0);
-    const fim = await conta.pedir("liquidar", { reserva: reserva.id, tokens: real, entrada: Number(u.prompt_tokens) || entrada,
-      saida: Number(u.completion_tokens) || 0, modelo });
-    dado.paulus = { tokens: real, restantes: fim.restantes };
-    return json(dado);
+    const ent = Number(u.prompt_tokens) || entrada;
+    const sai = Number(u.completion_tokens) || 0;
+    const real = creditos(modelo, ent, sai);
+    const fim = await conta.pedir("liquidar", { reserva: reserva.id, tokens: real, entrada: ent, saida: sai, modelo });
+    dado.paulus = { tokens: real, restantes: fim.restantes, modelo };
+    return new Response(JSON.stringify(dado), { status: 200, headers: { "content-type": "application/json; charset=utf-8", ...cabecalhos } });
   }
 
   // Passa os pedacos como vieram. No fim (ou se o PAULUS fechar no meio, o
-  // "parar" da conversa), liquida pelo uso que o DeepInfra mandou; sem ele,
+  // "parar" da conversa), liquida pelo uso que o provedor mandou; sem ele,
   // pela entrada estimada e um token por pedaco.
   const leitor = up.body.getReader();
   const dec = new TextDecoder();
@@ -391,9 +604,10 @@ async function completar(request, env, ctx, conta) {
     if (liquidado) return;
     liquidado = true;
     const u = usoDoFim(cauda);
-    const real = u ? u.entrada + u.saida : entrada + pedacos;
+    const ent = u ? u.entrada : entrada;
+    const sai = u ? u.saida : pedacos;
     try {
-      await conta.pedir("liquidar", { reserva: reserva.id, tokens: real, entrada: u ? u.entrada : entrada, saida: u ? u.saida : pedacos, modelo });
+      await conta.pedir("liquidar", { reserva: reserva.id, tokens: creditos(modelo, ent, sai), entrada: ent, saida: sai, modelo });
     } finally {
       avisar();
     }
@@ -423,41 +637,75 @@ async function completar(request, env, ctx, conta) {
       try {
         await leitor.cancel(motivo);
       } catch {
-        // o DeepInfra ja tinha fechado
+        // o provedor ja tinha fechado
       }
       await liquidar();
     },
   });
-  return new Response(saida, { status: 200, headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store" } });
+  return new Response(saida, { status: 200, headers: { "content-type": "text/event-stream; charset=utf-8", ...cabecalhos } });
 }
 
 // ------------------------------------------------------------- cobranca
 
 async function assinar(request, env, conta, id, mp) {
   const d = (await lerJSON(request)) || {};
-  return criarAssinatura(env, conta, id, mp, { email: d.email, plano: d.plano, origem: "", cupom: d.cupom });
+  return criarAssinatura(env, conta, id, mp, { email: d.email, plano: d.plano, origem: "", cupom: d.cupom, periodo: d.periodo });
 }
 
-/* A assinatura mensal do plano escolhido: o link da pagina do Mercado Pago
-   onde a pessoa poe o cartao. Sem plano no pedido, o da conta (ou o padrao). */
-async function criarAssinatura(env, conta, id, mp, { email, plano, origem, cupom }) {
+// O anual pode ser renovado nos ultimos 45 dias: o ano novo comeca no fim do pago.
+const RENOVA_ANUAL_MS = 45 * 24 * 3600 * 1000;
+
+/* A assinatura do plano escolhido: o link da pagina do Mercado Pago onde a
+   pessoa paga. Mensal: a assinatura recorrente no cartao. Anual: o ano de uma
+   vez (Checkout Pro), parcelavel em ate 12 vezes, com os juros do
+   parcelamento por conta de quem parcela. Sem plano no pedido, o da conta. */
+async function criarAssinatura(env, conta, id, mp, { email, plano, origem, cupom, periodo }) {
   const atual = await conta.pedir("resumo");
   // Sem e-mail no pedido, o da conta Google da nuvem (o pagador recebe o recibo nele).
   const para = String(email || atual.email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para) || para.length > 120) return json({ erro: "e-mail inválido" }, 400);
-  if (atual.assinatura && atual.assinatura.situacao === "authorized") return json({ erro: "a assinatura já está ativa" }, 409);
+  if (periodo && !["mensal", "anual"].includes(periodo)) return json({ erro: "o período é mensal ou anual" }, 400);
+  const anual = periodo === "anual";
+  const a = atual.assinatura;
+  if (a && a.situacao === "authorized") {
+    if (atual.periodo === "anual") {
+      if (!anual || Date.parse(atual.pago_ate) - Date.now() > RENOVA_ANUAL_MS) {
+        return json({ erro: "o plano anual está pago até " + dataBR(atual.pago_ate) + "; a renovação abre 45 dias antes" }, 409);
+      }
+    } else if (!anual) return json({ erro: "a assinatura já está ativa" }, 409);
+  }
   const n = numeros(env);
   if (plano && !n.planos.some((x) => x.id === plano)) return json({ erro: "esse plano não existe" }, 400);
   const escolhido = planoDe(n, plano || (atual.plano || {}).id);
-  // O cupom (painel admin): o valor com desconto pelos meses combinados; depois
-  // deles, a renovacao volta ao valor cheio (avisoDaIA, cupom_voltar).
+  // O cupom (painel admin): no mensal, o valor com desconto pelos meses
+  // combinados, e depois a renovacao volta ao valor cheio (avisoDaIA,
+  // cupom_voltar); no anual, o desconto vale sobre o ano.
+  const cheio = anual ? escolhido.valor_anual : escolhido.valor;
   let comCupom = null;
-  let valor = escolhido.valor;
+  let valor = cheio;
   if (cupom) {
-    const c = await conferirCupom(env, cupom, escolhido.id);
+    const c = await conferirCupom(env, cupom, escolhido.id, anual ? "anual" : "mensal");
     if (c.erro) return json({ erro: c.erro }, 400);
-    comCupom = { codigo: c.cupom.codigo, desconto: c.cupom.desconto, meses: c.cupom.meses, brinde: c.cupom.brinde, valor_cheio: escolhido.valor, cobrados: 0 };
+    comCupom = { codigo: c.cupom.codigo, desconto: c.cupom.desconto, meses: c.cupom.meses, brinde: c.cupom.brinde, valor_cheio: cheio, cobrados: 0 };
     valor = c.valor;
+  }
+  if (anual) {
+    const ref = "ia-anual-" + id + "-" + escolhido.id + "-" + aleatorio(4);
+    const volta = origem === "site" ? "https://paulus.ia.br/cadastro/?voltou=1" : "https://paulus.ia.br/";
+    const r = await mp(env, "/checkout/preferences", "POST", {
+      items: [{ id: "paulus-" + escolhido.id + "-anual", title: "PAULUS - plano " + escolhido.nome + " (anual)" + (comCupom ? " - cupom " + comCupom.codigo : ""),
+        quantity: 1, unit_price: valor, currency_id: "BRL" }],
+      payer: { email: para },
+      external_reference: ref,
+      payment_methods: { installments: 12 },
+      back_urls: { success: volta, pending: volta, failure: volta },
+      auto_return: "approved",
+      statement_descriptor: "PAULUS",
+    });
+    if (!r.ok) return json({ erro: "o Mercado Pago recusou criar o pagamento do ano", status: r.status }, 502);
+    await conta.pedir("anual_pendente", { ref, plano: escolhido.id, valor, cupom: comCupom });
+    if (comCupom) await usarCupom(env, comCupom.codigo);
+    return json({ id: r.dados.id, situacao: "pending", link: r.dados.init_point || "", plano: escolhido, valor, periodo: "anual", parcelas: 12, cupom: comCupom });
   }
   const r = await mp(env, "/preapproval", "POST", {
     reason: "PAULUS - plano " + escolhido.nome + (comCupom ? " (cupom " + comCupom.codigo + ")" : ""),
@@ -471,7 +719,51 @@ async function criarAssinatura(env, conta, id, mp, { email, plano, origem, cupom
   if (!r.ok) return json({ erro: "o Mercado Pago recusou criar a assinatura", status: r.status }, 502);
   await conta.pedir("assinatura", { plano: escolhido.id, cupom: comCupom, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
   if (comCupom) await usarCupom(env, comCupom.codigo);
-  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido, valor, cupom: comCupom });
+  return json({ id: r.dados.id, situacao: r.dados.status, link: r.dados.init_point || "", plano: escolhido, valor, periodo: "mensal", cupom: comCupom });
+}
+
+function dataBR(iso) {
+  const t = Date.parse(iso || "");
+  if (!Number.isFinite(t)) return "";
+  return new Date(t - 3 * 3600 * 1000).toISOString().slice(0, 10).split("-").reverse().join("/");
+}
+
+/* O pagamento do ano confirmado (pelo aviso do Mercado Pago ou pela consulta):
+   o ano entra na conta e, se havia a assinatura mensal, ela e cancelada no
+   Mercado Pago. Estornado (o reembolso dos 7 dias), o plano acaba agora. */
+async function confirmarAnual(env, pagamento, mp) {
+  const m = String((pagamento && pagamento.external_reference) || "").match(/^ia-anual-([0-9a-f]{24})-([a-z0-9-]{2,24})-[0-9a-f]+$/);
+  if (!m) return null;
+  const conta = medidor(env, m[1]);
+  const valor = Number(pagamento.transaction_amount) || 0;
+  if (pagamento.status === "approved") {
+    const r = await conta.pedir("anual_pago", { pagamento: String(pagamento.id), plano: m[2], valor, quando: pagamento.date_approved || "" });
+    if (r.novo) await anotarPagamento(env, { id: String(pagamento.id), conta: m[1], tipo: "anual", valor });
+    if (r.mensal_para_cancelar && mp) {
+      const c = await mp(env, "/preapproval/" + encodeURIComponent(r.mensal_para_cancelar), "PUT", { status: "cancelled" });
+      if (c.ok) await conta.pedir("mensal_cancelado", { id: r.mensal_para_cancelar });
+    }
+    await anotarAviso(env, { conta: m[1], tipo: "payment · anual", status: "approved", valor });
+    return r;
+  }
+  if (pagamento.status === "refunded" || pagamento.status === "charged_back") {
+    await anotarAviso(env, { conta: m[1], tipo: "payment · anual", status: String(pagamento.status), valor });
+    return conta.pedir("anual_estornado", { pagamento: String(pagamento.id) });
+  }
+  return conta.pedir("resumo");
+}
+
+/* Sem o aviso (ou antes dele): pergunta ao Mercado Pago pelo pagamento do ano pendente. */
+async function conferirAnualPendente(env, conta, mp) {
+  const atual = await conta.pedir("resumo");
+  const p = atual.anual_pendente;
+  if (!p || !p.ref || !mp) return atual;
+  const r = await mp(env, "/v1/payments/search?external_reference=" + encodeURIComponent(p.ref) + "&sort=date_created&criteria=desc", "GET");
+  const achados = (r.ok && r.dados && r.dados.results) || [];
+  const pago = achados.find((x) => x.status === "approved");
+  if (!pago) return atual;
+  await confirmarAnual(env, pago, mp);
+  return conta.pedir("resumo");
 }
 
 /* Trocar de plano com a assinatura ativa: o Mercado Pago passa a cobrar o
@@ -484,6 +776,9 @@ async function trocarPlano(env, conta, mp, plano) {
   const atual = await conta.pedir("resumo");
   const a = atual.assinatura;
   if (!a || !a.id || a.situacao !== "authorized") return json({ erro: "a troca é para quem tem a assinatura ativa; sem ela, é só assinar o plano escolhido" }, 409);
+  if (atual.periodo === "anual") {
+    return json({ erro: "no plano anual, a troca de plano é na renovação (pago até " + dataBR(atual.pago_ate) + "); para antecipar, escreva para contato@paulus.ia.br" }, 409);
+  }
   const novo = planoDe(n, plano);
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", {
     reason: "PAULUS - plano " + novo.nome,
@@ -509,8 +804,8 @@ export async function lerCupom(env, codigo) {
   }
 }
 
-/* {cupom, valor, valor_cheio} ou {erro}. */
-export async function conferirCupom(env, codigo, plano) {
+/* {cupom, valor, valor_cheio} ou {erro}. No anual, o desconto vale sobre o valor do ano. */
+export async function conferirCupom(env, codigo, plano, periodo = "mensal") {
   const c = await lerCupom(env, codigo);
   if (!c || !c.ativo) return { erro: "esse cupom não existe ou está pausado" };
   if (c.validade && Date.parse(c.validade) < Date.now()) return { erro: "esse cupom venceu" };
@@ -518,8 +813,9 @@ export async function conferirCupom(env, codigo, plano) {
   const n = numeros(env);
   const p = n.planos.find((x) => x.id === plano) || planoDe(n, plano);
   if (Array.isArray(c.planos) && c.planos.length && !c.planos.includes(p.id)) return { erro: "esse cupom não vale para o plano " + p.nome };
-  const valor = Math.round(p.valor * (1 - Math.min(100, Math.max(0, Number(c.desconto) || 0)) / 100) * 100) / 100;
-  return { cupom: { codigo: c.codigo, desconto: Number(c.desconto) || 0, meses: Number(c.meses) || 1, brinde: Number(c.brinde) || 0 }, valor, valor_cheio: p.valor };
+  const cheio = periodo === "anual" ? p.valor_anual : p.valor;
+  const valor = Math.round(cheio * (1 - Math.min(100, Math.max(0, Number(c.desconto) || 0)) / 100) * 100) / 100;
+  return { cupom: { codigo: c.codigo, desconto: Number(c.desconto) || 0, meses: Number(c.meses) || 1, brinde: Number(c.brinde) || 0 }, valor, valor_cheio: cheio };
 }
 
 async function usarCupom(env, codigo) {
@@ -533,7 +829,7 @@ async function usarCupom(env, codigo) {
 
 const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
 // A versao dos termos e da politica que a pessoa aceita no cadastro.
-export const TERMOS_VERSAO = "2026-10-02";
+export const TERMOS_VERSAO = "2026-10-03";
 
 function soDigitos(t) {
   return String(t || "").replace(/\D/g, "");
@@ -634,7 +930,8 @@ async function atenderSite(request, env, p, deps) {
   if (p === "/api/ia/site/situacao") {
     const a = aberta.assinatura;
     const mp = deps.chamarMP;
-    if (a && a.id && mp) {
+    if (aberta.anual_pendente) await conferirAnualPendente(env, conta, mp);
+    if (a && a.id && mp && a.periodo !== "anual") {
       const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "GET");
       if (r.ok && r.dados && r.dados.status && r.dados.status !== a.situacao) {
         await conta.pedir("assinatura", { assinatura: { ...a, situacao: r.dados.status } });
@@ -650,15 +947,15 @@ async function atenderSite(request, env, p, deps) {
     if (c.erro) return json({ erro: c.erro }, 400);
     await conta.pedir("cadastro", { cadastro: { ...c.cadastro, quando: new Date().toISOString() } });
     if (!d.plano) return json(await conta.pedir("ler_cadastro"));
-    return criarAssinatura(env, conta, id, deps.chamarMP, { email: dono.email, plano: String(d.plano), origem: "site", cupom: d.cupom });
+    return criarAssinatura(env, conta, id, deps.chamarMP, { email: dono.email, plano: String(d.plano), origem: "site", cupom: d.cupom, periodo: d.periodo });
   }
   return json({ erro: "rota não existe" }, 404);
 }
 
 async function situacaoDaAssinatura(env, conta, mp) {
-  const atual = await conta.pedir("resumo");
+  const atual = await conferirAnualPendente(env, conta, mp);
   const a = atual.assinatura;
-  if (!a || !a.id) return json(atual);
+  if (!a || !a.id || a.periodo === "anual") return json(atual);
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "GET");
   if (r.ok && r.dados && r.dados.status && r.dados.status !== a.situacao) {
     return json(await conta.pedir("assinatura", { assinatura: { ...a, situacao: r.dados.status } }));
@@ -670,6 +967,9 @@ async function cancelar(env, conta, mp) {
   const atual = await conta.pedir("resumo");
   const a = atual.assinatura;
   if (!a || !a.id || a.situacao === "cancelled") return json({ erro: "não há assinatura ativa" }, 409);
+  if (a.periodo === "anual") {
+    return json({ erro: "o plano anual não renova sozinho: ele vale até " + dataBR(atual.pago_ate) + ". Para o reembolso dos 7 dias, escreva para contato@paulus.ia.br" }, 409);
+  }
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou cancelar", status: r.status }, 502);
   return json(await conta.pedir("assinatura", { assinatura: { ...a, situacao: "cancelled" } }));
@@ -682,14 +982,17 @@ async function criarRecarga(request, env, conta, id, mp) {
   const email = String(d.email || atual.email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) return json({ erro: "e-mail inválido" }, 400);
   if (!atual.plano_vigente) return json({ erro: "a recarga é para quem tem o plano em dia: assine antes" }, 409);
-  const n = numeros(env);
-  const pacote = n.recargas.find((x) => x.id === String(d.pacote || "1")) || n.recargas.find((x) => x.id === "1");
-  if (d.pacote && !n.recargas.some((x) => x.id === String(d.pacote))) return json({ erro: "esse pacote de recarga não existe" }, 400);
+  // Os pacotes sao os do plano da conta; a referencia leva o plano, para o
+  // Pix pago creditar pelo preco dele mesmo se o plano mudar antes.
+  const plano = planoDe(numeros(env), (atual.plano || {}).id);
+  const pacotes = recargasDe(plano);
+  const pacote = pacotes.find((x) => x.id === String(d.pacote || "1")) || pacotes.find((x) => x.id === "1");
+  if (d.pacote && !pacotes.some((x) => x.id === String(d.pacote))) return json({ erro: "esse pacote de recarga não existe" }, 400);
   const valor = pacote.valor.toFixed(2);
   const r = await mp(env, "/v1/orders", "POST", {
     type: "online",
     total_amount: valor,
-    external_reference: "ia-recarga-" + id + "-" + aleatorio(6),
+    external_reference: "ia-recarga-" + id + "-" + aleatorio(6) + "-" + plano.id,
     processing_mode: "automatic",
     transactions: { payments: [{ amount: valor, payment_method: { id: "pix", type: "bank_transfer" }, expiration_time: "PT30M" }] },
     payer: { email },
@@ -710,8 +1013,13 @@ async function situacaoDaRecarga(env, conta, id, pedido, mp) {
   if (!ref.startsWith("ia-recarga-" + id + "-")) return json({ erro: "esse Pix não é desta conta" }, 403);
   const pago = r.dados.status === "processed";
   if (!pago) return json({ id: pedido, pago: false, situacao: r.dados.status });
-  const feito = await conta.pedir("creditar", { pedido, valor: Number(r.dados.total_amount) || 0 });
+  const feito = await conta.pedir("creditar", { pedido, valor: Number(r.dados.total_amount) || 0, plano: planoDaRecarga(ref) });
   return json({ id: pedido, pago: true, conta: feito });
+}
+
+/* O plano escrito na referencia do Pix da recarga ("" no Pix de antes dos planos de 03/10). */
+function planoDaRecarga(ref) {
+  return (String(ref || "").match(/^ia-recarga-[0-9a-f]{24}-[0-9a-f]+-([a-z0-9-]{2,24})$/) || [])[1] || "";
 }
 
 /* Cada pagamento confirmado vira uma linha da fila de notas fiscais do painel
@@ -749,11 +1057,12 @@ export async function avisoDaIA(env, tipo, dados, mp) {
   if (tipo === "order") {
     const m = ref.match(/^ia-recarga-([0-9a-f]{24})-/);
     if (!m) return false;
-    if (dados.status === "processed") await medidor(env, m[1]).pedir("creditar", { pedido: String(dados.id), valor: Number(dados.total_amount) || 0 });
+    if (dados.status === "processed") await medidor(env, m[1]).pedir("creditar", { pedido: String(dados.id), valor: Number(dados.total_amount) || 0, plano: planoDaRecarga(ref) });
     if (dados.status === "processed") await anotarPagamento(env, { id: String(dados.id), conta: m[1], tipo: "recarga pix", valor: Number(dados.total_amount) || 0 });
     await anotarAviso(env, { conta: m[1], tipo: "order · pix", status: String(dados.status || ""), valor: Number(dados.total_amount) || 0 });
     return true;
   }
+  if (tipo === "pagamento") return Boolean(await confirmarAnual(env, dados, mp));
   if (tipo === "preapproval") {
     const m = ref.match(/^ia-assinatura-([0-9a-f]{24})$/);
     if (!m) return false;
@@ -785,6 +1094,12 @@ export async function avisoDaIA(env, tipo, dados, mp) {
 }
 
 // ------------------------------------------------------------- o medidor
+
+const SEMANA_MS = 7 * 24 * 3600 * 1000;
+// Os primeiros 7 dias da assinatura sao o prazo de arrependimento (CDC, art.
+// 49): neles a cota e so a da semana, sem adiantamento - quem desiste nao
+// leva mais do que uma semana de IA.
+const ARREPENDIMENTO_MS = 7 * 24 * 3600 * 1000;
 
 function maisUmMes(ms) {
   const d = new Date(ms);
@@ -891,7 +1206,66 @@ export class ContaIA {
       if (conta.assinatura) conta.assinatura.valor = d.valor;
       return [this.resumo(conta, n, agora), conta];
     }
+    if (acao === "adiantar") {
+      const motivo = this.motivoParaNaoAdiantar(conta, n, agora);
+      if (motivo) return [{ ok: false, status: 409, erro: motivo, conta: this.resumo(conta, n, agora) }, null];
+      const c = conta.ciclo;
+      c.adiantamento = { semana: this.semanaDe(c, agora), quando: new Date(agora).toISOString() };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "anual_pendente") {
+      conta.anual_pendente = { ref: d.ref, plano: d.plano, valor: d.valor, cupom: d.cupom || null, quando: new Date(agora).toISOString() };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "anual_pago") {
+      conta.pagamentos = conta.pagamentos || [];
+      if (conta.pagamentos.some((p) => p.tipo === "anual" && p.ref === d.pagamento)) return [{ ...this.resumo(conta, n, agora), novo: false }, null];
+      const antes = conta.assinatura || {};
+      // A assinatura mensal que existia sai no Mercado Pago (confirmarAnual).
+      const mensal = antes.id && antes.periodo !== "anual" && antes.situacao === "authorized" ? antes.id : "";
+      // A renovacao antecipada comeca no fim do ano pago; a primeira, agora.
+      const pagoAte = Date.parse(conta.pago_ate || "");
+      const inicio = conta.periodo === "anual" && pagoAte > agora ? pagoAte : agora;
+      let ate = inicio;
+      for (let i = 0; i < 12; i++) ate = maisUmMes(ate);
+      conta.pago_ate = new Date(ate).toISOString();
+      conta.periodo = "anual";
+      conta.plano = d.plano;
+      delete conta.plano_proximo;
+      if (conta.anual_pendente && conta.anual_pendente.cupom) conta.cupom = { ...conta.anual_pendente.cupom, cobrados: 1, voltou: true };
+      delete conta.anual_pendente;
+      conta.assinatura = { id: "anual-" + d.pagamento, situacao: "authorized", valor: Number(d.valor) || 0, periodo: "anual",
+        desde: antes.desde || new Date(agora).toISOString() };
+      conta.pagamentos = [...conta.pagamentos, { tipo: "anual", ref: d.pagamento, valor: Number(d.valor) || 0,
+        quando: new Date(Date.parse(d.quando || "") || agora).toISOString() }].slice(-60);
+      // O ano pago abre um ciclo novo agora, com os creditos do plano pago (a
+      // renovacao antecipada espera o fim do ciclo aberto, que ja esta pago).
+      if (inicio === agora) this.abrirCiclo(conta, n, agora, "anual", d.pagamento);
+      if (conta.cupom && conta.cupom.brinde > 0 && !conta.cupom.brinde_dado) {
+        conta.extra = (conta.extra || 0) + Math.round(conta.cupom.brinde);
+        conta.cupom.brinde_dado = true;
+      }
+      return [{ ...this.resumo(conta, n, agora), novo: true, mensal_para_cancelar: mensal }, conta];
+    }
+    if (acao === "mensal_cancelado") {
+      conta.mensal_cancelado = { id: d.id, quando: new Date(agora).toISOString() };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "anual_estornado") {
+      const a = conta.assinatura || {};
+      if (a.id !== "anual-" + d.pagamento || a.situacao === "refunded") return [this.resumo(conta, n, agora), null];
+      // O reembolso (os 7 dias): o plano acaba agora, e o ciclo junto.
+      conta.assinatura = { ...a, situacao: "refunded" };
+      conta.pago_ate = new Date(agora).toISOString();
+      if (conta.ciclo && Date.parse(conta.ciclo.fim) > agora) conta.ciclo.fim = new Date(agora).toISOString();
+      return [this.resumo(conta, n, agora), conta];
+    }
     if (acao === "assinatura") {
+      // Com o anual em dia, o aviso da assinatura mensal antiga (cancelada ao
+      // passar para o anual) nao mexe mais na conta.
+      if (conta.periodo === "anual" && conta.assinatura && d.assinatura && conta.assinatura.id !== d.assinatura.id) {
+        return [this.resumo(conta, n, agora), null];
+      }
       // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
       if (d.plano) conta.plano = d.plano;
       if (d.cupom !== undefined) conta.cupom = d.cupom || null;
@@ -936,7 +1310,8 @@ export class ContaIA {
       // Os tokens pelo valor pago, no preco por token da recarga: vale para
       // qualquer pacote, e para o Pix criado antes dos pacotes.
       const pago = Number(d.valor) || 0;
-      const tokens = pago > 0 ? Math.round((pago / n.recargaValor) * n.recargaTokens) : n.recargaTokens;
+      const r = planoDe(n, d.plano || conta.plano).recarga;
+      const tokens = pago > 0 ? Math.round((pago / r.valor) * r.tokens) : r.tokens;
       conta.extra = (conta.extra || 0) + tokens;
       conta.recargas = [...conta.recargas, { pedido: d.pedido, tokens, valor: d.valor, quando: new Date(agora).toISOString() }].slice(-50);
       conta.pagamentos = [...(conta.pagamentos || []), { tipo: "recarga", ref: d.pedido, valor: pago, quando: new Date(agora).toISOString() }].slice(-60);
@@ -966,20 +1341,67 @@ export class ContaIA {
   abrirCiclo(conta, n, inicio, origem, cobranca = "") {
     // Os tokens do plano da conta; sem plano escolhido (quem assinava antes
     // dos tres planos), o Escritorio.
+    // A cota da semana: a do mes vezes 7/30. Nao acumula de uma semana para
+    // a outra; o ciclo inteiro continua sendo o teto.
     const tokens = planoDe(n, conta.plano).tokens;
-    conta.ciclo = { inicio: new Date(inicio).toISOString(), fim: new Date(maisUmMes(inicio)).toISOString(), tokens, usados: 0, origem };
+    conta.ciclo = { inicio: new Date(inicio).toISOString(), fim: new Date(maisUmMes(inicio)).toISOString(), tokens, usados: 0, origem,
+      semana: Math.round((tokens * 7) / 30), por_semana: {} };
     if (cobranca) conta.ciclo.cobranca = cobranca;
+  }
+
+  semanaDe(c, agora) {
+    return Math.max(0, Math.floor((agora - Date.parse(c.inicio)) / SEMANA_MS));
+  }
+
+  /* O teto da semana k: a cota, mais a da semana seguinte se foi adiantada
+     nela, menos a cota se a semana anterior a adiantou. Sem semana (ciclo de
+     antes de 03/10), sem teto semanal. */
+  limiteDaSemana(c, k) {
+    if (!c.semana) return Infinity;
+    const a = c.adiantamento;
+    let l = c.semana;
+    if (a && a.semana === k) l += c.semana;
+    if (a && a.semana === k - 1) l -= c.semana;
+    return Math.max(0, l);
+  }
+
+  livreNaSemana(c, agora) {
+    if (!c || !c.semana) return Infinity;
+    const k = this.semanaDe(c, agora);
+    return Math.max(0, this.limiteDaSemana(c, k) - ((c.por_semana || {})[k] || 0));
+  }
+
+  /* "" se pode adiantar a semana que vem; senao, o porque. */
+  motivoParaNaoAdiantar(conta, n, agora) {
+    if (!this.vigente(conta, n, agora)) return "o plano não está em dia";
+    const c = this.cicloAberto(conta, agora);
+    if (!c || !c.semana) return "este ciclo não tem cota semanal";
+    if (c.adiantamento) return "o adiantamento deste mês já foi usado";
+    const desde = Date.parse((conta.assinatura || {}).desde || conta.criada || "");
+    if (!(agora - desde >= ARREPENDIMENTO_MS)) return "o adiantamento libera depois dos 7 primeiros dias da assinatura (o prazo de arrependimento)";
+    const k = this.semanaDe(c, agora);
+    if (Date.parse(c.inicio) + (k + 1) * SEMANA_MS >= Date.parse(c.fim)) return "esta é a última semana do ciclo: não há semana seguinte para adiantar";
+    return "";
   }
 
   /* O plano vale agora? A cortesia abre o ciclo do mes sozinha. */
   vigente(conta, n, agora) {
     if (conta.cortesia && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "cortesia");
+    // O anual: o ano esta pago, e cada mes abre o seu ciclo, com a cota do mes.
+    const pagoAte = Date.parse(conta.pago_ate || "");
+    if (conta.periodo === "anual" && conta.ciclo && !this.cicloAberto(conta, agora) && agora < pagoAte) {
+      let inicio = Date.parse(conta.ciclo.fim);
+      while (maisUmMes(inicio) <= agora) inicio = maisUmMes(inicio);
+      this.abrirCiclo(conta, n, inicio, "anual");
+    }
+    const a = conta.assinatura || {};
+    if (conta.periodo === "anual" && a.situacao === "authorized" && agora >= pagoAte) conta.assinatura = { ...a, situacao: "expired" };
     const c = conta.ciclo;
     if (!c) return false;
     const fim = Date.parse(c.fim);
     if (fim > agora) return true;
-    const a = conta.assinatura || {};
-    return a.situacao === "authorized" && agora < fim + TOLERANCIA_MS;
+    // A tolerancia e da cobranca mensal, que pode atrasar uns dias no Mercado Pago.
+    return conta.periodo !== "anual" && a.situacao === "authorized" && agora < fim + TOLERANCIA_MS;
   }
 
   reservado(conta) {
@@ -989,19 +1411,28 @@ export class ContaIA {
   restantes(conta, n, agora) {
     if (!this.vigente(conta, n, agora)) return 0;
     const c = conta.ciclo;
-    return Math.max(0, c.tokens - c.usados) + (conta.extra || 0) - this.reservado(conta);
+    const doCiclo = Math.min(Math.max(0, c.tokens - c.usados), this.livreNaSemana(c, agora));
+    return doCiclo + (conta.extra || 0) - this.reservado(conta);
   }
 
   /* Do ciclo primeiro; o que passar, da recarga. */
+  /* `tokens` sao creditos (o token vezes o peso do modelo); det.entrada e
+     det.saida sao os tokens de verdade, para o custo por modelo no painel. */
   gastar(conta, tokens, det = {}) {
+    const agora = this.agora();
     const c = conta.ciclo || { tokens: 0, usados: 0 };
-    const doCiclo = Math.min(tokens, Math.max(0, c.tokens - c.usados));
-    c.usados += doCiclo;
+    const k = c.semana ? this.semanaDe(c, agora) : 0;
+    const doCiclo = Math.min(tokens, Math.max(0, Math.min(c.tokens - c.usados, this.livreNaSemana(c, agora))));
     const resto = tokens - doCiclo;
     const daRecarga = Math.min(resto, conta.extra || 0);
     conta.extra = (conta.extra || 0) - daRecarga;
     // Passou do que havia (a entrada real maior que a estimada): fica no ciclo.
-    c.usados += resto - daRecarga;
+    const doCicloTudo = doCiclo + resto - daRecarga;
+    c.usados += doCicloTudo;
+    if (c.semana) {
+      c.por_semana = c.por_semana || {};
+      c.por_semana[k] = (c.por_semana[k] || 0) + doCicloTudo;
+    }
     if (conta.ciclo) conta.ciclo = c;
     // O uso de cada dia, para a tela dizer "hoje" e "nos ultimos 7 dias".
     // Entrada e saida separadas, o turno (manha, tarde, noite, no horario de
@@ -1010,8 +1441,9 @@ export class ContaIA {
     const dia = brt.toISOString().slice(0, 10);
     const hora = brt.getUTCHours();
     const turno = hora < 12 ? 0 : hora < 18 ? 1 : 2;
-    const saida = Math.max(0, Math.min(tokens, Math.round(Number(det.saida) || 0)));
-    const entrada = tokens - saida;
+    const reais = det.modelo && Number.isFinite(Number(det.entrada));
+    const saida = reais ? Math.max(0, Math.round(Number(det.saida) || 0)) : Math.max(0, Math.min(tokens, Math.round(Number(det.saida) || 0)));
+    const entrada = reais ? Math.max(0, Math.round(Number(det.entrada) || 0)) : tokens - saida;
     conta.uso = conta.uso || [];
     let u = conta.uso[conta.uso.length - 1];
     if (!u || u.dia !== dia) {
@@ -1067,7 +1499,16 @@ export class ContaIA {
     const entrada = Math.max(1, Math.round(Number(d.entrada) || 0));
     // Saldo curto: a saida encolhe para caber; menos de 256 tokens de folga, para.
     const saida = Math.min(Math.round(Number(d.saida) || n.maxSaida), livres - entrada);
-    if (saida < 256) return negar(402, "cota", "os tokens deste ciclo acabaram");
+    if (saida < 256) {
+      const c = conta.ciclo;
+      const semanal = c && c.semana && c.tokens - c.usados > entrada + 256 && this.livreNaSemana(c, agora) < entrada + 256;
+      if (semanal) {
+        const volta = Math.min(Date.parse(c.inicio) + (this.semanaDe(c, agora) + 1) * SEMANA_MS, Date.parse(c.fim));
+        return negar(402, "semana", "a cota desta semana acabou; ela volta em " + dataBR(new Date(volta).toISOString())
+          + ". Dá para adiantar a da semana que vem (uma vez por mês) ou fazer uma recarga");
+      }
+      return negar(402, "cota", "os créditos deste ciclo acabaram");
+    }
     conta.janela.n++;
     const id = aleatorio(8);
     conta.reservas = conta.reservas || {};
@@ -1081,6 +1522,17 @@ export class ContaIA {
     const a = conta.assinatura || null;
     const doCiclo = c && vigente ? Math.max(0, c.tokens - c.usados) : 0;
     const hoje = new Date(agora - 3 * 3600 * 1000).toISOString().slice(0, 10);
+    const plano = planoDe(n, conta.plano);
+    // A semana do ciclo: a cota, o que ja foi, quando volta e o adiantamento.
+    let semana = null;
+    if (c && vigente && c.semana && Date.parse(c.fim) > agora) {
+      const k = this.semanaDe(c, agora);
+      const motivo = this.motivoParaNaoAdiantar(conta, n, agora);
+      semana = { numero: k + 1, cota: c.semana, limite: this.limiteDaSemana(c, k), usados: (c.por_semana || {})[k] || 0,
+        livres: Math.min(this.livreNaSemana(c, agora), doCiclo),
+        volta_em: new Date(Math.min(Date.parse(c.inicio) + (k + 1) * SEMANA_MS, Date.parse(c.fim))).toISOString(),
+        adiantamento: { usado: Boolean(c.adiantamento), pode: !motivo, motivo } };
+    }
     return {
       ok: true,
       conta: conta.id,
@@ -1088,21 +1540,31 @@ export class ContaIA {
       nome: conta.nome || "",
       cortesia: Boolean(conta.cortesia),
       consentimento: conta.consentimento || null,
-      assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde } : null,
+      assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde, periodo: a.periodo || "mensal" } : null,
       plano_vigente: vigente,
-      plano: planoDe(n, conta.plano),
+      plano,
+      modelos: catalogo(modelosDoPlano(plano)),
+      // Mensal ou anual; no anual, ate quando o ano esta pago.
+      periodo: conta.periodo || "mensal",
+      pago_ate: conta.pago_ate || null,
+      anual_pendente: conta.anual_pendente ? { ref: conta.anual_pendente.ref, plano: conta.anual_pendente.plano, valor: conta.anual_pendente.valor } : null,
+      // Ainda no prazo de arrependimento (os 7 primeiros dias da assinatura).
+      arrependimento_ate: a && a.desde ? new Date(Date.parse(a.desde) + ARREPENDIMENTO_MS).toISOString() : null,
       // A troca marcada: vale a partir da proxima renovacao (fim do ciclo).
       plano_proximo: conta.plano_proximo ? planoDe(n, conta.plano_proximo) : null,
-      planos: n.planos,
+      planos: n.planos.map((x) => ({ ...x, modelos_info: catalogo(modelosDoPlano(x)) })),
       cadastro_completo: Boolean(conta.cadastro),
-      recarga: { valor: n.recargaValor, tokens: n.recargaTokens },
-      recargas_pacotes: n.recargas,
+      recarga: { valor: plano.recarga.valor, tokens: plano.recarga.tokens },
+      recargas_pacotes: recargasDe(plano),
       ciclo: c ? { inicio: c.inicio, fim: c.fim, tokens: c.tokens, usados: c.usados, origem: c.origem } : null,
+      semana,
       tokens: {
         do_ciclo: doCiclo,
         da_recarga: vigente ? conta.extra || 0 : 0,
         reservados: this.reservado(conta),
         restantes: this.restantes(conta, n, agora),
+        // O que o ciclo ainda tem no mes (a semana pode estar no teto antes).
+        do_mes: doCiclo,
         hoje: ((conta.uso || []).find((u) => u.dia === hoje) || {}).tokens || 0,
       },
       recargas: (conta.recargas || []).slice(-10).reverse(),

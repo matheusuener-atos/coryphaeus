@@ -22,10 +22,11 @@
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
 //
-// A nuvem do PAULUS (worker/ia.js): /api/ia/*, o portao ate o DeepInfra com o
-// medidor de tokens, a assinatura do plano e a recarga. Desligada sem
-// IA_ATIVA. O aviso do Mercado Pago e entregue a avisoDaIA, que reconhece a
-// assinatura e a recarga pela referencia; o que nao for da nuvem e ignorado.
+// A nuvem do PAULUS (worker/ia.js): /api/ia/*, o portao ate os provedores dos
+// modelos (DeepInfra, Mistral, Anthropic) com o medidor de creditos, a
+// assinatura do plano (mensal ou anual) e a recarga. Desligada sem IA_ATIVA.
+// O aviso do Mercado Pago e entregue a avisoDaIA, que reconhece a assinatura,
+// o pagamento do ano e a recarga pela referencia; o resto e ignorado.
 //
 // O KV APOIOS guarda hoje so a calibracao (chave "calibracao:todas"). O nome
 // vem do antigo "Apoiar o projeto", que saiu; o binding ficou com o nome para
@@ -158,6 +159,10 @@ async function registrarAviso(tipo, id, env) {
   } else if (tipo === "subscription_preapproval" || tipo === "preapproval") {
     const r = await chamarMP(env, "/preapproval/" + encodeURIComponent(id), "GET");
     if (r.ok) await avisoDaIA(env, "preapproval", r.dados, chamarMP);
+  } else if (tipo === "payment") {
+    // O pagamento do plano anual (Checkout Pro): aprovado, estornado.
+    const r = await chamarMP(env, "/v1/payments/" + encodeURIComponent(id), "GET");
+    if (r.ok) await avisoDaIA(env, "pagamento", r.dados, chamarMP);
   } else if (tipo === "subscription_authorized_payment") {
     // Cada cobranca mensal da assinatura.
     const r = await chamarMP(env, "/authorized_payments/" + encodeURIComponent(id), "GET");

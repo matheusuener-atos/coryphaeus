@@ -91,3 +91,58 @@ Worker; o contrato do endpoint dedicado quando houver cliente pagante.
   vendido, "preço de pioneiro"): é decisão do dono, e o site só pode dizer
   isso quando `IA_ATIVA` estiver em "1";
 - medir o tempo economizado por escritório.
+
+## Os planos de 03/10/2026: modelo, recursos, semana e anual
+
+O dono fechou três planos que diferem em IA e em recursos, não só em tokens:
+
+| | Advogado | Escritório | Escritório Plus |
+|---|---|---|---|
+| Mensal / anual | R$ 449 / R$ 3.990 | R$ 1.290 / R$ 11.490 | R$ 3.490 / R$ 30.990 |
+| Modelo | Llama 3.3 70B (DeepInfra) | Mistral Large 3 (Mistral AI) | Claude Sonnet 5.5; no Ministro, Claude Opus 5.5 (Anthropic) |
+| Créditos por mês | 30 mi | 60 mi | 40 mi (o Opus gasta 2 por token) |
+| Pessoas | 1 | 5 | 15 |
+| Recarga | 10 mi por R$ 50 | 10 mi por R$ 120 | 5 mi por R$ 300 |
+
+**Feito:**
+- **Worker** (`worker/ia.js`): `PLANOS_DE_FABRICA` com valor anual, pessoas,
+  modelo por nível, recarga e recursos; `MODELOS` com provedor, peso em
+  créditos e preço (o painel calcula o custo por modelo). O portão escolhe o
+  modelo pelo plano e pelo `paulus_nivel` (o PAULUS antigo, que pede o Llama,
+  recebe o do plano) e recusa nível acima do plano (403). Ponte para a
+  Mistral (formato OpenAI) e para o Claude (Messages API traduzida para o
+  formato OpenAI, com `fallbacks: "default"`; Sonnet sem pensar,
+  `between_tools`; Opus com esforço alto e 4.000 tokens de folga). Cota da
+  semana (mês × 7/30, não acumula) e adiantamento da semana seguinte uma vez
+  por mês, nunca nos 7 primeiros dias (`POST /api/ia/adiantar`). Anual pelo
+  Checkout Pro em até 12× (`/checkout/preferences`, referência
+  `ia-anual-<conta>-<plano>-<n>`), confirmado pelo aviso `payment` ou pela
+  consulta; cada mês abre o seu ciclo; o mensal antigo é cancelado; estorno
+  acaba o plano; não renova sozinho (renova nos últimos 45 dias). 121 testes
+  em `worker/teste-ia.mjs`.
+- **Painel admin**: valor anual nos planos, custo por modelo.
+- **App** (`src/recursos_do_plano.py`, `tests/test_recursos_do_plano.py`): o
+  plano e os recursos guardados em prefs `plano`; travas na profundidade,
+  equipe (contas e colaborador de fora), agentes, agente sozinho e passos,
+  NFS-e (teto do mês só em produção, recorrência), DataJud, gravações,
+  sugestões ao vivo, horas, muralha, jurisprudência STJ, Word, MCP, contas de
+  e-mail e limite por pessoa. Sem cobrança (terminal, testes), tudo liberado.
+  Tela Plano e consumo: semana, adiantar, comparação dos planos com mensal e
+  anual. Termo da nuvem na versão 2026-10-03 (os três provedores).
+- **Site**: cadastro com mensal/anual e o que cada plano tem; termos e
+  política PT/EN (provedores, anual, semana, arrependimento de 7 dias).
+
+**Falta do dono antes do push** (o push na main publica o Worker):
+- `npx wrangler secret put MISTRAL_KEY` e `npx wrangler secret put ANTHROPIC_KEY`
+  (sem elas, Escritório e Plus respondem 503);
+- no Mercado Pago, ligar o tópico **Pagamentos** no webhook (o anual chega
+  como `payment`); conferir se a conta não oferece parcelamento sem juros
+  (o combinado é o juro por conta de quem parcela);
+- rodar a bateria com `mistral-large-latest` e com o Claude antes de anunciar;
+- o reembolso dos 7 dias é feito à mão no Mercado Pago (o estorno chega pelo
+  aviso e acaba o plano).
+
+**Não feito:** a IA explicando a movimentação do DataJud e a página do
+cliente (não aparecem nas telas nem no site); o desconto do uso
+de IA no reembolso (CDC, art. 49: devolução integral; a semana sem
+adiantamento limita o risco).

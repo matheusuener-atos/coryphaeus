@@ -27,7 +27,7 @@
 // Tudo no KV APOIOS com o prefixo "admin:". O envio de e-mail e pelo Resend
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
 
-import { medidor, numeros, PLANO_PADRAO, TOLERANCIA_MS, lerCupom } from "./ia.js";
+import { medidor, numeros, PLANO_PADRAO, TOLERANCIA_MS, lerCupom, MODELOS } from "./ia.js";
 import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
   anotarHistorico, cfConfigurado,
@@ -256,9 +256,26 @@ function precos(env) {
   return { entrada: n(p.entrada, 0.23), saida: n(p.saida, 0.4), cambio: n(env.IA_CAMBIO || p.cambio, 5.6) };
 }
 
-function custoUSD(env, entrada, saida) {
-  const pr = precos(env);
+/* O custo em dolar: pelo preco do modelo, quando se sabe qual (MODELOS, em
+   worker/ia.js); sem modelo (o uso de antes do registro por modelo), pelo
+   IA_PRECOS. */
+function custoUSD(env, entrada, saida, modelo) {
+  const m = modelo && MODELOS[modelo];
+  const pr = m ? { entrada: m.usd[0], saida: m.usd[1] } : precos(env);
   return (entrada / 1e6) * pr.entrada + (saida / 1e6) * pr.saida;
+}
+
+/* O custo de um uso com o detalhe por modelo: cada modelo no preco dele, o resto no IA_PRECOS. */
+function custoDoUso(env, uso) {
+  let entrada = uso.entrada || 0;
+  let saida = uso.saida || 0;
+  let total = 0;
+  for (const [nome, x] of Object.entries(uso.modelos || {})) {
+    total += custoUSD(env, x.entrada || 0, x.saida || 0, nome);
+    entrada -= x.entrada || 0;
+    saida -= x.saida || 0;
+  }
+  return total + custoUSD(env, Math.max(0, entrada), Math.max(0, saida));
 }
 
 // ------------------------------------------------------------- as portas
@@ -895,7 +912,7 @@ async function tokens(c, visaoEscolhida, periodo) {
   const linha = (nome, itens) => {
     const entrada = itens.reduce((s, i) => s + i.uso.entrada, 0);
     const saida = itens.reduce((s, i) => s + i.uso.saida, 0);
-    return { nome, entrada, saida, custo_usd: custoUSD(c.env, entrada, saida), receita: itens.reduce((s, i) => s + i.receita, 0) };
+    return { nome, entrada, saida, custo_usd: itens.reduce((s, i) => s + custoDoUso(c.env, i.uso), 0), receita: itens.reduce((s, i) => s + i.receita, 0) };
   };
   let linhas;
   if (visaoEscolhida === "conta") linhas = porConta.map((i) => linha(i.conta.nome + (i.conta.escritorio.nome && i.conta.escritorio.nome !== i.conta.nome ? " · " + i.conta.escritorio.nome : ""), [i]));
@@ -917,7 +934,9 @@ async function tokens(c, visaoEscolhida, periodo) {
     linhas = Object.entries(modelos).map(([nome, x]) => {
       semModelo.entrada -= x.entrada;
       semModelo.saida -= x.saida;
-      return { nome: nome.split("/").pop() + " · DeepInfra", entrada: x.entrada, saida: x.saida, custo_usd: custoUSD(c.env, x.entrada, x.saida), receita: receitaPaga * ((x.entrada + x.saida) / totalPago) };
+      const m = MODELOS[nome];
+      return { nome: m ? m.nome + " · " + m.empresa : nome.split("/").pop(), entrada: x.entrada, saida: x.saida, custo_usd: custoUSD(c.env, x.entrada, x.saida, nome),
+        receita: receitaPaga * ((x.entrada + x.saida) / totalPago) };
     });
     if (semModelo.entrada + semModelo.saida > 0) {
       linhas.push({ nome: "Antes do registro por modelo", entrada: semModelo.entrada, saida: semModelo.saida, custo_usd: custoUSD(c.env, semModelo.entrada, semModelo.saida),
@@ -937,9 +956,10 @@ async function planos(c) {
   const n = numeros(c.env);
   const contas = await lerContas(c);
   return {
-    planos: n.planos.map((p) => ({ ...p, assinantes: contas.filter((x) => x.plano && x.plano.id === p.id && x.situacao === "ativa").length })),
+    planos: n.planos.map((p) => ({ ...p, assinantes: contas.filter((x) => x.plano && x.plano.id === p.id && x.situacao === "ativa").length,
+      modelo_nome: (MODELOS[p.modelos.padrao] || {}).nome || p.modelos.padrao, custo_modelo: (MODELOS[p.modelos.padrao] || {}).usd || null })),
     padrao: PLANO_PADRAO, recarga: { valor: n.recargaValor, tokens: n.recargaTokens }, precos: precos(c.env),
-    json: JSON.stringify(n.planos.map(({ id, nome, valor, tokens: t }) => ({ id, nome, valor, tokens: t })), null, 2),
+    json: JSON.stringify(n.planos.map(({ id, nome, valor, valor_anual, tokens: t, pessoas, modelos, recarga }) => ({ id, nome, valor, valor_anual, tokens: t, pessoas, modelos, recarga })), null, 2),
   };
 }
 
@@ -1046,7 +1066,7 @@ async function busca(c, q) {
     escritorios: escritorios.filter((e) => bate(e.nome, e.slug, e.documento)).slice(0, 6).map((e) => ({ titulo: e.nome, desc: e.contas.length + (e.contas.length === 1 ? " conta" : " contas") + (e.slug ? " · " + e.slug + ".paulus.ia.br" : ""), tela: "contas", alvo: e.nome })),
     tuneis: tuneis.filter((t) => bate(t.slug, t.nome, t.responsavel)).slice(0, 6).map((t) => ({ titulo: t.slug + ".paulus.ia.br", desc: t.nome + " · " + t.estado, tela: "tuneis", alvo: t.slug })),
     cupons: (await cupons(c.env)).filter((x) => bate(x.codigo, x.descricao)).slice(0, 6).map((x) => ({ titulo: x.codigo, desc: x.descricao, tela: "cupons", alvo: x.codigo })),
-    planos: numeros(c.env).planos.filter((p) => bate(p.nome, p.id)).slice(0, 6).map((p) => ({ titulo: p.nome, desc: brl(p.valor) + "/mês · " + Math.round(p.tokens / 1e6) + "M tokens", tela: "planos", alvo: p.id })),
+    planos: numeros(c.env).planos.filter((p) => bate(p.nome, p.id)).slice(0, 6).map((p) => ({ titulo: p.nome, desc: brl(p.valor) + "/mês · " + brl(p.valor_anual) + "/ano · " + Math.round(p.tokens / 1e6) + "M créditos", tela: "planos", alvo: p.id })),
     materiais: (await materiais(c.env)).filter((x) => bate(x.titulo, x.autor, (x.areas || []).join(" "))).slice(0, 6).map((x) => ({ titulo: x.titulo, desc: x.autor + " · " + x.situacao, tela: "materiais", alvo: x.id })),
   };
 }
@@ -1105,6 +1125,8 @@ async function conferirAlteracao(c, tipo, d) {
     if (!String(d.nome || "").trim()) return "dê um nome ao plano";
   }
   if ((tipo === "plano.criar" || tipo === "plano.editar") && !(Number(d.valor) > 0 && Number(d.tokens) > 0)) return "valor e tokens precisam ser maiores que zero";
+  if (tipo === "plano.criar" && !(Number(d.valor_anual) > 0)) return "diga o valor do ano";
+  if (tipo === "plano.editar" && d.valor_anual !== undefined && !(Number(d.valor_anual) > 0)) return "o valor do ano precisa ser maior que zero";
   if (tipo === "equipe.papel" && !PAPEIS.includes(d.papel)) return "papel inválido";
   if (tipo === "campanha.disparar") {
     if (!String(d.assunto || "").trim() || !String(d.texto || "").trim()) return "a campanha precisa de assunto e texto";
@@ -1228,12 +1250,13 @@ async function aplicarPlano(c, tipo, d) {
   const tokensDoPlano = Math.round(Number(d.tokens) < 10000 ? Number(d.tokens) * 1e6 : Number(d.tokens));
   if (tipo === "plano.criar") {
     if (lista.some((p) => p.id === d.id)) throw new Error("esse id já existe");
-    lista.push({ id: String(d.id), nome: String(d.nome).trim().slice(0, 40), valor, tokens: tokensDoPlano });
+    lista.push({ id: String(d.id), nome: String(d.nome).trim().slice(0, 40), valor, valor_anual: Math.round(Number(d.valor_anual) * 100) / 100, tokens: tokensDoPlano });
   } else {
     const p = lista.find((x) => x.id === d.id);
     if (!p) throw new Error("esse plano não existe");
     p.valor = valor;
     p.tokens = tokensDoPlano;
+    if (d.valor_anual !== undefined) p.valor_anual = Math.round(Number(d.valor_anual) * 100) / 100;
   }
   await env.APOIOS.put("admin:planos", JSON.stringify(lista));
   PLANOS_CACHE = { quando: 0, valor: null };

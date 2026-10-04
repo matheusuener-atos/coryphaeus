@@ -48,8 +48,13 @@
     <div class="campos">
       <div class="campo">
         <span class="rotulo" id="t-planos">Plano</span>
+        <div class="periodo" role="radiogroup" aria-label="Pagamento">
+          <button type="button" class="periodo-op on" role="radio" aria-checked="true" id="cd-periodo-mensal">Mensal</button>
+          <button type="button" class="periodo-op" role="radio" aria-checked="false" id="cd-periodo-anual">Anual <small>cerca de 3 meses a menos</small></button>
+        </div>
         <div class="planos" id="cd-planos" role="radiogroup" aria-labelledby="t-planos"><p class="nota-campo" style="padding:16px 14px">Carregando os planos…</p></div>
-        <span class="nota-campo" id="cd-recarga">Uma pergunta sobre documentos gasta, em média, 3.500 tokens. Os tokens valem por um mês.</span>
+        <ul class="plano-itens" id="cd-plano-itens" aria-label="O que o plano escolhido tem"></ul>
+        <span class="nota-campo" id="cd-recarga">Uma pergunta sobre documentos gasta, em média, 3.500 créditos. A cota é do mês, liberada por semana.</span>
       </div>
 
       <!-- 1. a conta: entrar com o Google -->
@@ -91,7 +96,7 @@
         <span class="nota-campo">O CPF ou CNPJ e o endereço vão na nota fiscal da assinatura; o telefone, para suporte e avisos de cobrança; a OAB confirma que o PAVLVS é usado por advogado. O que fazemos com esses dados está na <a href="../politica-de-privacidade/#cadastro">Política de privacidade</a>.</span>
         <label class="aceite"><input type="checkbox" id="cd-aceite"> <span>Li e aceito os <a href="../termos-de-uso/" target="_blank" rel="noopener">Termos de uso</a> e a <a href="../politica-de-privacidade/" target="_blank" rel="noopener">Política de privacidade</a>.</span></label>
         <button type="submit" class="btn-duplo largo" id="cd-pagar"><span><span class="icon" aria-hidden="true">lock</span><span id="cd-pagar-texto">Ir para o pagamento</span></span></button>
-        <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">credit_card</span></span>Cartão na página do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span>cobrança mensal</span></span></div>
+        <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">credit_card</span></span>Cartão na página do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span id="cd-selo-periodo">cobrança mensal</span></span></div>
         <span class="nota-campo" id="cd-pagar-nota">O cartão é digitado na página do Mercado Pago, nunca aqui. Dá para cancelar no PAVLVS, em Configurações › Modelos.</span>
         <p class="erro-campo" id="cd-form-erro" hidden></p>
       </form>
@@ -105,7 +110,7 @@
         <div class="troca" id="cd-troca" hidden>
           <p id="cd-troca-texto"></p>
           <button type="button" class="btn-texto" id="cd-trocar-plano"></button>
-          <span class="nota-campo">O valor novo é cobrado na próxima renovação, e os tokens do plano novo entram com ela. O ciclo já pago continua no plano de agora.</span>
+          <span class="nota-campo">O valor novo é cobrado na próxima renovação, e os créditos do plano novo entram com ela. O ciclo já pago continua no plano de agora.</span>
           <p class="erro-campo" id="cd-troca-erro" hidden></p>
         </div>
       </div>

@@ -195,7 +195,7 @@ let resumoBruno = await (await CONTAS_IA.get(idBruno).fetch("https://conta-ia/re
 checar(!resumoBruno.recargas.length, "antes de publicar, a conta nao mudou");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "conta.instalacao.apagar", dados: { id: idAna, hash8 }, texto: "Desvinculei a instalação da Ana" } }));
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "cupom.criar", dados: { codigo: "piloto30", desconto: 30, meses: 3, brinde: 5, limite: 10, planos: [] }, texto: "Criei PILOTO30" } }));
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "plano.editar", dados: { id: "escritorio", valor: 320, tokens: 32 }, texto: "Escritório a R$ 320" } }));
+r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "plano.editar", dados: { id: "escritorio", valor: 320, valor_anual: 3200, tokens: 32 }, texto: "Escritório a R$ 320" } }));
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "coisa.estranha", dados: {} } }));
 checar(r.status === 400, "tipo desconhecido e recusado");
 r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "cupom.criar", dados: { codigo: "x", desconto: 10, meses: 1 } } }));
@@ -213,7 +213,7 @@ r = await (await fetch("https://nada")).status; // so para nao ficar fetch pendu
 const cupom = JSON.parse(guardados.get("admin:cupom:PILOTO30"));
 checar(cupom.ativo && cupom.desconto === 30 && cupom.brinde === 5e6, "cupom gravado em maiusculas com o brinde em tokens", cupom);
 const planosKV = JSON.parse(guardados.get("admin:planos"));
-checar(planosKV.find((p) => p.id === "escritorio").valor === 320 && planosKV.find((p) => p.id === "escritorio").tokens === 32e6, "plano editado no KV", planosKV);
+checar(planosKV.find((p) => p.id === "escritorio").valor === 320 && planosKV.find((p) => p.id === "escritorio").valor_anual === 3200 && planosKV.find((p) => p.id === "escritorio").tokens === 32e6, "plano editado no KV, com o valor do ano", planosKV);
 r = await admin("GET", "/api/admin/alteracoes", como());
 d = await r.json();
 checar(!d.pendentes.length && d.publicacoes.length === 1, "fila vazia e a publicacao no historico");

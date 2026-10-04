@@ -3,7 +3,7 @@ A tela Plano e consumo (js/91-plano-consumo.js, desenho A24 · Assinatura v2)
 no Edge, pelo Playwright, com a conta da nuvem simulada (sem rede):
 
   - o consumo do ciclo: o número, a barra com a marca do dia e a ficha
-    (Restantes, Hoje, Da recarga, Ritmo);
+    (Livres agora, Hoje, Da recarga, Ritmo);
   - a equipe com papel e limite; a linha abre o histórico e as ações
     (limite, permissões, titular, tirar o acesso);
   - os limites com o uso; o plano em quatro colunas e a recarga com uso alto;
@@ -45,9 +45,12 @@ def checar(cond, nome: str, detalhe=None) -> None:
 def _conta_simulada() -> dict:
     agora = datetime.now()
     inicio, fim = agora - timedelta(days=18), agora + timedelta(days=12)
-    planos = [{"id": "advogado", "nome": "Advogado", "valor": 150, "tokens": 12_000_000},
-              {"id": "escritorio", "nome": "Escritório", "valor": 300, "tokens": 30_000_000},
-              {"id": "plus", "nome": "Escritório Plus", "valor": 550, "tokens": 60_000_000}]
+    planos = [{"id": "advogado", "nome": "Advogado", "valor": 150, "valor_anual": 1500, "tokens": 12_000_000, "pessoas": 1},
+              {"id": "escritorio", "nome": "Escritório", "valor": 300, "valor_anual": 3000, "tokens": 30_000_000, "pessoas": 5},
+              {"id": "plus", "nome": "Escritório Plus", "valor": 550, "valor_anual": 5500, "tokens": 60_000_000, "pessoas": 15}]
+    for p, nivel, extra in zip(planos, ("advogado", "juiz", "ministro"), ({}, {"datajud": True, "gravacao": True, "nfse_mes": 20},
+                                                                       {"datajud": True, "gravacao": True, "nfse_mes": None, "word": True})):
+        p["recursos"] = {"profundidade": nivel, **extra}
     return {"ok": True, "email": "titular@escritorio.adv.br", "cortesia": False, "plano_vigente": True,
             "assinatura": {"id": "pre1", "situacao": "authorized", "valor": 300, "desde": (agora - timedelta(days=80)).isoformat()},
             "plano": planos[1], "plano_proximo": None, "planos": planos,
@@ -134,7 +137,7 @@ def main() -> int:
                 pag.wait_for_timeout(200)
                 pag.screenshot(path=str(CAPTURAS / f"consumo-{tema}-plano.png"))
                 ficha = pag.evaluate("() => [...document.querySelectorAll('.pc-ficha .sv-kicker')].map(x => x.textContent)")
-                checar(ficha[:4] == ["Restantes", "Hoje", "Da recarga", "Ritmo"], "a ficha do ciclo em faixa", ficha)
+                checar(ficha[:4] == ["Livres agora", "Hoje", "Da recarga", "Ritmo"], "a ficha do ciclo em faixa", ficha)
                 checar(pag.locator(".pc-marca").count() == 1, "a barra tem a marca do dia")
                 checar("acima do esperado" in pag.inner_text(".pc-geral"), "74% usado com 60% do ciclo: o ritmo está acima")
                 nomes = pag.evaluate("() => [...document.querySelectorAll('.pc-pessoa-linha .pc-quem b')].map(x => x.textContent)")
@@ -167,8 +170,10 @@ def main() -> int:
                 pag.click("#acoes-tela [data-pc-upgrade]")
                 pag.wait_for_selector(".pc-planos", timeout=10000)
                 cols = pag.evaluate("() => [...document.querySelectorAll('.pc-plano-col button')].map(x => [x.textContent, x.disabled])")
-                checar(cols == [["Reduzir para o Advogado", False], ["Plano atual", True], ["Mudar para o Escritório Plus", False]],
-                       "os planos em três colunas, com o atual travado", cols)
+                checar(cols == [["Reduzir para o Advogado", False], ["Passar ao anual · R$ 1.500/ano", False],
+                                ["Plano atual", True], ["Passar ao anual · R$ 3.000/ano", False],
+                                ["Mudar para o Escritório Plus", False], ["Passar ao anual · R$ 5.500/ano", False]],
+                       "os planos em três colunas, com o atual travado e o anual de cada um", cols)
                 pag.wait_for_timeout(700)
                 pag.screenshot(path=str(CAPTURAS / f"consumo-{tema}-planos.png"))
                 pag.click('.dialogo [data-dialogo="confirmar"]')

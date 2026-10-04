@@ -347,6 +347,9 @@ def montar(servico, r) -> None:
         host = servico.preferencias().get("hostname", "")
         if not host:
             raise HTTPException(status_code=400, detail="ligue o acesso de fora antes: o convite é um link do endereço do escritório")
+        # O plano tem vaga? (a conta so nasce no aceite, que confere de novo)
+        if servico.contas.vaga is not None:
+            servico.contas.vaga(len(servico.contas.listar()))
         try:
             nivel = dados.seguranca or servico.preferencias().get("seguranca_padrao", "padrao")
             codigo, convite = servico.convites.criar(dados.nome, dados.email, dados.permissoes, dados.email_secundario,

@@ -586,6 +586,10 @@ def montar(estado, app) -> None:
     @app.get("/api/servicos/{id_}/conflitos")
     def servicos_conflitos(id_: int) -> dict:
         """Os conflitos deste Serviço: o cliente dele do outro lado em outro Serviço, e as partes contrárias dele que são clientes."""
+        import recursos_do_plano
+
+        if not recursos_do_plano.pode(estado, "muralha"):
+            return {"conflitos": [], "abertos": 0, "conferido": None, "resolucoes": [], "no_plano": recursos_do_plano.frase(estado, "muralha")}
         if not estado.base.um("SELECT id FROM servicos WHERE id = ?", (id_,)):
             raise HTTPException(status_code=404, detail="serviço não encontrado")
         # N4: cada conflito achado fica guardado como pendência; os já resolvidos vêm com a resolução.
@@ -593,6 +597,10 @@ def montar(estado, app) -> None:
 
     @app.post("/api/clientes/conflitos")
     def clientes_conflitos(payload: Consulta) -> dict:
+        import recursos_do_plano
+
+        if not recursos_do_plano.pode(estado, "muralha"):
+            return {"conflitos": [], "abertos": 0, "conferido": None, "resolucoes": [], "no_plano": recursos_do_plano.frase(estado, "muralha")}
         achados = conflitos(estado.base, payload.nome, payload.documento, papel=payload.papel,
                             servico_id=payload.servico_id, cadastro_id=payload.cadastro_id)
         if payload.cadastro_id or payload.servico_id:
@@ -603,6 +611,10 @@ def montar(estado, app) -> None:
     @app.get("/api/conflitos")
     def conflitos_listar(situacao: str = "", cadastro_id: int | None = None, servico_id: int | None = None, conferir: bool = False) -> dict:
         """As pendências de conflito (N4); `conferir` refaz a conferência de todos os Serviços antes."""
+        import recursos_do_plano
+
+        if not recursos_do_plano.pode(estado, "muralha"):
+            return {"conflitos": [], "abertos": 0, "conferido": None, "resolucoes": [], "no_plano": recursos_do_plano.frase(estado, "muralha")}
         feito = conferir_todos(estado.base) if conferir else None
         return {"conflitos": listar_conflitos(estado.base, estado=situacao, cadastro_id=cadastro_id, servico_id=servico_id),
                 "abertos": estado.base.contar("conflitos", "estado = 'aberto'"), "conferido": feito,
@@ -617,6 +629,9 @@ def montar(estado, app) -> None:
 
     @app.post("/api/conflitos/{id_}/resolver")
     def conflitos_resolver(id_: int, payload: Resolucao, request: Request = None) -> dict:
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "muralha")
         quem = _quem(request) or ((estado.prefs.dados.get("pessoa") or {}).get("nome") or "o escritório")
         try:
             return {"conflito": resolver(estado.base, id_, payload.resolucao, payload.nota, quem)}
@@ -627,6 +642,9 @@ def montar(estado, app) -> None:
 
     @app.post("/api/conflitos/{id_}/reabrir")
     def conflitos_reabrir(id_: int, request: Request = None) -> dict:
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "muralha")
         quem = _quem(request) or ((estado.prefs.dados.get("pessoa") or {}).get("nome") or "o escritório")
         try:
             return {"conflito": reabrir(estado.base, id_, quem)}

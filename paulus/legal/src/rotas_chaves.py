@@ -30,6 +30,11 @@ class Chave(BaseModel):
     ligada: bool
 
 
+# As chaves que ligam um recurso do plano (src/recursos_do_plano.py): ligar pede o plano;
+# desligar, nunca.
+DO_PLANO = {("processos", "acompanhar"): "datajud", ("umbrel", "mcp"): "mcp"}
+
+
 def montar(estado, app) -> None:
     @app.get("/api/chaves")
     def chaves_listar() -> dict:
@@ -39,5 +44,10 @@ def montar(estado, app) -> None:
     def chaves_mudar(payload: Chave) -> dict:
         if payload.bloco not in BLOCOS or payload.chave not in _booleanas(payload.bloco):
             raise HTTPException(status_code=400, detail="essa chave não existe")
+        recurso = DO_PLANO.get((payload.bloco, payload.chave))
+        if recurso and payload.ligada:
+            import recursos_do_plano
+
+            recursos_do_plano.exigir(estado, recurso)
         estado.prefs.atualizar({payload.bloco: {payload.chave: bool(payload.ligada)}})
         return chaves_listar()

@@ -65,7 +65,7 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
 - `GET /api/admin/tokens?visao=geral|escritorio|conta&periodo=mes|30|ano` ->
   `{kpis: {entrada, saida, custo_usd, receita, contas}, linhas: [{nome, entrada, saida, custo_usd, receita}],
   precos: {entrada, saida, cambio}}` (custo em US$; a pagina converte pelo cambio)
-- `GET /api/admin/planos` -> `{planos: [{id, nome, valor, tokens, assinantes}], padrao: "escritorio",
+- `GET /api/admin/planos` -> `{planos: [{id, nome, valor, valor_anual, tokens, pessoas, modelos, recarga, recursos, modelo_nome, custo_modelo, assinantes}], padrao: "escritorio",
   recarga: {valor, tokens}, precos: {entrada, saida, cambio}, json: "..."}`
 - `GET /api/admin/materiais` -> `{materiais: [{id, slug, tipo: "artigo"|"modelo"|"tabela", titulo, areas, licenca,
   autor, oab, enviado, situacao: "fila"|"ajustes"|"publicado"|"recusado", palavras, texto, resumo,
@@ -119,8 +119,8 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `campanha.disparar` | `{nome, publico, assunto, pre, titulo, texto, botao, link, quando: "agora"|"amanha"|"segunda"}` | todos |
 | `cupom.criar` | `{codigo, desconto, meses, brinde, limite, planos, validade}` | dono, financeiro |
 | `cupom.ativo` | `{codigo, ativo}` | dono, financeiro |
-| `plano.editar` | `{id, valor, tokens}` | dono, financeiro |
-| `plano.criar` | `{id, nome, valor, tokens}` | dono, financeiro |
+| `plano.editar` | `{id, valor, valor_anual, tokens}` | dono, financeiro |
+| `plano.criar` | `{id, nome, valor, valor_anual, tokens}` (modelo e recursos: os do Escritorio) | dono, financeiro |
 | `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |
 | `nfse.config` | `{auto, email, mail}` | dono, financeiro |
 | `equipe.papel` | `{email, papel}` | dono |

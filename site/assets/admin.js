@@ -99,7 +99,7 @@
     emails: { aba: "campanhas", passo: 1, so: null, camp: novaCamp() },
     cupons: { novo: novoCupom() },
     tokens: { visao: "geral", periodo: "mes" },
-    planos: { novo: { nome: "", id: "", valor: "", tokens: "" } },
+    planos: { novo: { nome: "", id: "", valor: "", anual: "", tokens: "" } },
     materiais: { filtro: "fila", aberto: null, checks: {}, recados: {} },
     nfse: { teste: null, testando: false, pfx: null, senha: "", instalando: false, aviso: null },
   };
@@ -685,7 +685,13 @@
   function precosPlanos() { var d = dadosDe("tokens:geral:mes"); return d && d.precos ? d.precos : null; }
   // Se o assinante usar o pacote inteiro: a proporcao entrada/saida e uma
   // estimativa (72/28, a do desenho); o preco e o cambio vem da API.
-  function custoCheio(tokens) { var p = precosPlanos(); if (!p) return null; return (tokens * 0.72 / 1e6 * p.entrada + tokens * 0.28 / 1e6 * p.saida) * p.cambio; }
+  // O preco e o do modelo do plano (custo_modelo, [entrada, saida] em dolar); sem ele, o IA_PRECOS.
+  function custoCheio(tokens, usd) {
+    var p = precosPlanos(); if (!p) return null;
+    var e = usd ? usd[0] : p.entrada, s = usd ? usd[1] : p.saida;
+    return (tokens * 0.72 / 1e6 * e + tokens * 0.28 / 1e6 * s) * p.cambio;
+  }
+  function planoPadraoUsd() { var d = dadosDe("planos") || {}; var p = (d.planos || []).filter(function (x) { return x.id === d.padrao; })[0]; return p ? p.custo_modelo : null; }
   TELAS_RENDER.planos = function () {
     var h = cab("Planos de assinatura", "A lista vira a variável IA_PLANOS do Worker. Quem já assina fica no plano de agora; o novo valor só entra na próxima renovação.");
     var est = estadoLeitura(["planos"], "planos"); if (est) return h + est;
@@ -693,21 +699,22 @@
     var d = dadosDe("planos"), ps = d.planos || [], podeE = pode("plano.editar"), podeC = pode("plano.criar");
     var esq = '<div class="pilha g24"><div class="painel">' + ps.map(function (p) {
       var fila = naFila("plano.editar", p.id);
-      return '<div class="linha plano-linha"><span class="txt2"><b>' + esc(p.nome) + (p.id === d.padrao ? "<em>padrão</em>" : "") + "</b><small>" + esc(p.id) + " · " + esc(tok(p.tokens)) + " tokens/mês · " + (p.tokens ? esc(brl(p.valor / (p.tokens / 1e6))) + "/M" : "—") + "</small></span>" +
+      return '<div class="linha plano-linha"><span class="txt2"><b>' + esc(p.nome) + (p.id === d.padrao ? "<em>padrão</em>" : "") + "</b><small>" + esc(p.id) + " · " + esc(p.modelo_nome || "") + " · " + esc(tok(p.tokens)) + " créditos/mês · " + (p.pessoas || 1) + (p.pessoas === 1 ? " pessoa" : " pessoas") + " · " + (p.valor_anual ? esc(brl(p.valor_anual)) + "/ano" : "sem anual") + (p.recarga ? " · recarga " + esc(brl(p.recarga.valor)) + " / " + esc(tok(p.recarga.tokens)) : "") + "</small></span>" +
         '<span class="num c-ink2">' + (p.assinantes || 0) + (p.assinantes === 1 ? " assinante" : " assinantes") + "</span>" +
         '<span class="valor">' + esc(brl(p.valor)) + "/mês</span>" +
         (podeE ? '<button type="button" class="mini quadrado" data-a="modalPlano" data-id="' + esc(p.id) + '" aria-label="Editar plano ' + esc(p.nome) + '"' + attrDis(fila, "já está na fila de alterações") + ">" + ic("edit") + "</button>" : "") + "</div>";
-    }).join("") + (d.recarga ? '<div class="linha plano-linha"><span class="txt2"><b>Recarga (Pix)</b><small>pacotes ½ · 1 · 2 no mesmo preço por token</small></span><span class="valor" style="width:auto">' + esc(brl(d.recarga.valor)) + " / " + esc(tok(d.recarga.tokens)) + "</span></div>" : "") + "</div>" +
+    }).join("") + '<div class="linha plano-linha"><span class="txt2"><b>Recarga (Pix)</b><small>a de cada plano, na linha dele · pacotes ½ · 1 · 2 no mesmo preço por crédito</small></span></div></div>' +
       '<div class="painel"><div class="painel-cab"><span class="rotulo">IA_PLANOS</span><button type="button" class="btn-texto-mudo s12" data-a="copiarJson">Copiar JSON</button></div><pre class="json">' + esc(d.json || JSON.stringify(ps.map(function (p) { return { id: p.id, nome: p.nome, valor: p.valor, tokens: p.tokens }; }), null, 2)) + "</pre></div></div>";
     var dir;
     if (podeC) {
-      var np = U.planos.novo, v = numDec(np.valor), t = numDec(np.tokens) * 1e6, cc = t ? custoCheio(t) : null, mg = cc != null && v ? 1 - cc / v : null;
+      var np = U.planos.novo, v = numDec(np.valor), t = numDec(np.tokens) * 1e6, cc = t ? custoCheio(t, planoPadraoUsd()) : null, mg = cc != null && v ? 1 - cc / v : null;
       dir = '<div class="pilha"><span class="rotulo">Novo plano</span>' +
         campoTexto("plano-nome", "Nome", np.nome, "Escritório Grande", "plano.nome") +
         '<label class="campo-adm"><span class="rot">Id</span><span class="caixa-campo mono"><input id="plano-id" data-in="campo" data-campo="plano.id" value="' + esc(np.id) + '" placeholder="grande" spellcheck="false" maxlength="24"></span><span class="nota-campo">2 a 24 letras minúsculas, números e hífen</span></label>' +
-        '<div class="grade-campos">' + campoNum("plano-valor", "Valor por mês", np.valor, "plano.valor", "R$") + campoNum("plano-tokens", "Tokens por mês", np.tokens, "plano.tokens", "", "M") + "</div>" +
+        '<div class="grade-campos">' + campoNum("plano-valor", "Valor por mês", np.valor, "plano.valor", "R$") + campoNum("plano-anual", "Valor por ano", np.anual, "plano.anual", "R$") + campoNum("plano-tokens", "Créditos por mês", np.tokens, "plano.tokens", "", "M") + "</div>" +
+        '<span class="nota-campo">O plano novo usa o modelo e os recursos do Escritório; para mudar, edite o IA_PLANOS.</span>' +
         '<div class="conta-rapida"><span class="rotulo">Conta rápida</span><span>' + (t ? esc(brl(v / (t / 1e6))) + " por milhão de tokens · uma pergunta média (3.500 tokens) sai a R$ " + esc(dec(v / (t / 3500), 3)) : "Preencha valor e tokens.") + "</span>" +
-        (t ? (cc != null ? '<span style="color:' + (mg >= 0.4 ? "var(--ok)" : "var(--erro)") + '">Se o assinante usar tudo, custa ' + esc(brl(cc)) + " no DeepInfra: margem mínima de " + Math.round(mg * 100) + "%.</span>" : '<span class="c-ink3">Sem os preços do DeepInfra (' + esc(D["tokens:geral:mes"] && D["tokens:geral:mes"].erro || "carregando") + ") não dá para calcular o custo.</span>") : "") + "</div>" +
+        (t ? (cc != null ? '<span style="color:' + (mg >= 0.4 ? "var(--ok)" : "var(--erro)") + '">Se o assinante usar tudo, custa ' + esc(brl(cc)) + " no provedor do modelo: margem mínima de " + Math.round(mg * 100) + "%.</span>" : '<span class="c-ink3">Sem os preços (' + esc(D["tokens:geral:mes"] && D["tokens:geral:mes"].erro || "carregando") + ") não dá para calcular o custo.</span>") : "") + "</div>" +
         '<button type="button" class="btn-duplo inicio" data-a="criarPlano"><span>Criar plano</span></button></div>';
     } else {
       dir = '<p class="nota-pe">O papel ' + esc(PAPEL_NOME[E.sessao.papel] || E.sessao.papel) + " vê os planos, mas não cria nem edita.</p>";
@@ -1038,12 +1045,12 @@
         '<p class="nota-campo">O CNAME antigo é apagado e o novo criado no mesmo túnel; o PAULUS do escritório recebe o endereço novo na próxima conexão. O antigo fica livre para outro escritório.</p></div>' +
         modalPe('<button type="button" class="btn-acao" data-a="enderecoConfirmar" id="modal-ok"' + (ch.ok ? "" : " disabled") + ">" + ic("swap_horiz") + "Trocar endereço</button>");
     } else if (M.tipo === "plano") {
-      var v = numDec(M.valor), t = numDec(M.tokens) * 1e6, cc = t ? custoCheio(t) : null;
+      var v = numDec(M.valor), va = numDec(M.anual), t = numDec(M.tokens) * 1e6, cc = t ? custoCheio(t, M.usd) : null;
       h += modalCab("Editar plano") + '<div class="modal-corpo"><b style="font:500 15px var(--sans)">' + esc(M.nome) + ' <span class="num s11 c-ink3">' + esc(M.id) + "</span></b>" +
-        '<div class="grade-campos">' + campoModal("modal-valor", "Valor por mês", M.valor, "planoValor", "R$") + campoModal("modal-tokens", "Tokens por mês", M.tokens, "planoTokens", "", "M") + "</div>" +
-        '<span class="t125">' + (t ? esc(brl(v / (t / 1e6))) + " por milhão" + (cc != null ? " · se o assinante usar tudo, custa " + esc(brl(cc)) + " no DeepInfra" : "") : "Preencha valor e tokens.") + "</span>" +
+        '<div class="grade-campos">' + campoModal("modal-valor", "Valor por mês", M.valor, "planoValor", "R$") + campoModal("modal-anual", "Valor por ano", M.anual, "planoAnual", "R$") + campoModal("modal-tokens", "Créditos por mês", M.tokens, "planoTokens", "", "M") + "</div>" +
+        '<span class="t125">' + (t ? esc(brl(v / (t / 1e6))) + " por milhão" + (cc != null ? " · se o assinante usar tudo, custa " + esc(brl(cc)) + " no " + esc(M.modelo || "modelo do plano") : "") + (va && v ? " · o anual sai " + Math.round((1 - va / (v * 12)) * 100) + "% abaixo de 12 meses" : "") : "Preencha valor e créditos.") + "</span>" +
         '<p class="nota-campo">Quem já assina continua pagando o valor de agora até a próxima renovação; o PUT no preapproval do Mercado Pago sai na publicação.</p></div>' +
-        modalPe('<button type="button" class="btn-acao" data-a="planoSalvar" id="modal-ok"' + (v > 0 && t > 0 ? "" : " disabled") + ">Salvar</button>");
+        modalPe('<button type="button" class="btn-acao" data-a="planoSalvar" id="modal-ok"' + (v > 0 && va > 0 && t > 0 ? "" : " disabled") + ">Salvar</button>");
     } else if (M.tipo === "commit") {
       h += modalCab("Commitar e pushar");
       if (M.resultado) {
@@ -1621,26 +1628,30 @@
   };
   A.modalPlano = function (el) {
     var p = ((dadosDe("planos") || {}).planos || []).filter(function (x) { return x.id === el.dataset.id; })[0]; if (!p) return;
-    abrirModal({ tipo: "plano", id: p.id, nome: p.nome, va: p.valor, ta: p.tokens, valor: String(p.valor).replace(".", ","), tokens: dec(p.tokens / 1e6, 2) });
+    abrirModal({ tipo: "plano", id: p.id, nome: p.nome, va: p.valor, aa: p.valor_anual, ta: p.tokens, valor: String(p.valor).replace(".", ","),
+      anual: String(p.valor_anual || "").replace(".", ","), tokens: dec(p.tokens / 1e6, 2), usd: p.custo_modelo, modelo: p.modelo_nome });
   };
   A.planoSalvar = function () {
-    var M = E.modal, nv = numDec(M.valor), nt = Math.round(numDec(M.tokens) * 1e6);
-    if (!(nv > 0) || !(nt > 0)) return;
-    if (nv === M.va && nt === M.ta) { fecharModal(); toast("Nada mudou no plano " + M.nome); return; }
-    var txt = nv !== M.va ? (nv < M.va ? "Abaixei" : "Subi") + " o preço do plano " + M.nome + ": " + brl(M.va) + " → " + brl(nv) + (nt !== M.ta ? " · tokens " + tok(M.ta) + " → " + tok(nt) : "")
-      : "Mudei os tokens do plano " + M.nome + ": " + tok(M.ta) + " → " + tok(nt);
+    var M = E.modal, nv = numDec(M.valor), na = numDec(M.anual), nt = Math.round(numDec(M.tokens) * 1e6);
+    if (!(nv > 0) || !(na > 0) || !(nt > 0)) return;
+    if (nv === M.va && na === M.aa && nt === M.ta) { fecharModal(); toast("Nada mudou no plano " + M.nome); return; }
+    var partes = [];
+    if (nv !== M.va) partes.push("mês " + brl(M.va) + " → " + brl(nv));
+    if (na !== M.aa) partes.push("ano " + brl(M.aa) + " → " + brl(na));
+    if (nt !== M.ta) partes.push("créditos " + tok(M.ta) + " → " + tok(nt));
+    var txt = "Mudei o plano " + M.nome + ": " + partes.join(" · ");
     var id = M.id;
     fecharModal();
-    enfileirar("planos", "plano.editar", id, { id: id, valor: nv, tokens: nt }, txt);
+    enfileirar("planos", "plano.editar", id, { id: id, valor: nv, valor_anual: na, tokens: nt }, txt);
   };
   A.criarPlano = async function () {
-    var np = U.planos.novo, id = np.id.trim(), nome = np.nome.trim(), v = numDec(np.valor), t = Math.round(numDec(np.tokens) * 1e6);
+    var np = U.planos.novo, id = np.id.trim(), nome = np.nome.trim(), v = numDec(np.valor), va = numDec(np.anual), t = Math.round(numDec(np.tokens) * 1e6);
     var ps = (dadosDe("planos") || {}).planos || [];
     var erro = !nome ? "Dê um nome ao plano" : !/^[a-z0-9-]{2,24}$/.test(id) ? "O id precisa de 2 a 24 letras minúsculas, números ou hífen" :
-      ps.some(function (p) { return p.id === id; }) ? "Já existe um plano com o id " + id : !(v > 0) ? "Diga o valor por mês" : !(t > 0) ? "Diga os tokens por mês" : "";
+      ps.some(function (p) { return p.id === id; }) ? "Já existe um plano com o id " + id : !(v > 0) ? "Diga o valor por mês" : !(va > 0) ? "Diga o valor por ano" : !(t > 0) ? "Diga os créditos por mês" : "";
     if (erro) { toast(erro, true); return; }
-    var ok = await enfileirar("planos", "plano.criar", id, { id: id, nome: nome, valor: v, tokens: t }, "Criei o plano " + nome + " · " + brl(v) + "/mês · " + tok(t) + " tokens");
-    if (ok) { U.planos.novo = { nome: "", id: "", valor: "", tokens: "" }; render(); }
+    var ok = await enfileirar("planos", "plano.criar", id, { id: id, nome: nome, valor: v, valor_anual: va, tokens: t }, "Criei o plano " + nome + " · " + brl(v) + "/mês · " + brl(va) + "/ano · " + tok(t) + " créditos");
+    if (ok) { U.planos.novo = { nome: "", id: "", valor: "", anual: "", tokens: "" }; render(); }
   };
 
   // materiais
@@ -1970,6 +1981,7 @@
     slugNovo: function (el) { E.modal.novo = el.value; conferirSlug(); renderCamada(); },
     planoValor: function (el) { E.modal.valor = el.value; renderCamada(); },
     planoTokens: function (el) { E.modal.tokens = el.value; renderCamada(); },
+    planoAnual: function (el) { E.modal.anual = el.value; renderCamada(); },
     commitTexto: function (el) { E.modal.texto = el.value; E.modal.erro = ""; renderCamada(); },
     buscaQ: function (el) { E.busca.q = el.value; E.busca.idx = 0; buscar(); renderCamada(); },
     // notas fiscais: os campos dos pop-ups guardam o valor sem redesenhar

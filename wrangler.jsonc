@@ -66,13 +66,16 @@
   // e contra ele que o Worker confere o id_token de quem e dono do endereco.
   //
   // A nuvem do PAULUS (worker/ia.js, paulus/legal/docs/PLANO-NUVEM.md):
-  // IA_ATIVA "1" liga /api/ia/*; a chave do DeepInfra e segredo do Worker
-  // (npx wrangler secret put DEEPINFRA_KEY). Os numeros do plano ficam aqui,
-  // para mudar sem mexer no codigo: valor em reais, tokens por ciclo, a
-  // recarga, o teto de saida e de entrada de um pedido e de pedidos por
-  // minuto. IA_CORTESIA: o SHA-256 dos e-mails Google com o plano de cortesia
-  // (o do fundador, para testar) - o resumo, e nao o e-mail, porque este
-  // arquivo e publico.
+  // IA_ATIVA "1" liga /api/ia/*. As chaves dos provedores dos modelos sao
+  // segredos do Worker: DEEPINFRA_KEY (Llama, plano Advogado), MISTRAL_KEY
+  // (Mistral Large 3, Escritorio) e ANTHROPIC_KEY (Claude, Plus) - npx wrangler
+  // secret put <NOME>. Sem a chave de um, o plano dele responde 503. Os planos
+  // (valor do mes e do ano, creditos, pessoas, modelo, recarga e recursos)
+  // ficam em PLANOS_DE_FABRICA no worker/ia.js; o painel admin publica outros
+  // numeros no KV (IA_PLANOS). Aqui ficam o teto de saida e de entrada de um
+  // pedido e de pedidos por minuto. IA_CORTESIA: o SHA-256 dos e-mails Google
+  // com o plano de cortesia (o do fundador, para testar) - o resumo, e nao o
+  // e-mail, porque este arquivo e publico.
   //
   // O painel admin (worker/admin.js, worker/admin-api.md): ACCESS_TEAM e
   // ACCESS_AUD sao do Cloudflare Access que protege /admin e /api/admin (sem
@@ -90,8 +93,7 @@
     "CF_ACCOUNT_ID": "54164f67b5d5eb33c0a1d325dfebb449",
     "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20",
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
-    "IA_ATIVA": "1", "IA_MODELOS": "meta-llama/Llama-3.3-70B-Instruct,Qwen/Qwen2.5-72B-Instruct",
-    "IA_PLANO_VALOR": "300", "IA_PLANO_TOKENS": "30000000", "IA_RECARGA_VALOR": "50", "IA_RECARGA_TOKENS": "10000000",
+    "IA_ATIVA": "1",
     "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "d64e139883ea6f7246380d9c3c9c35a5bdef62163e768d103527cc4c003fd04f" },
   // O medidor da nuvem: um Durable Object por conta (worker/ia.js, ContaIA).
   // SQLite, o tipo que o plano gratis da Cloudflare aceita.

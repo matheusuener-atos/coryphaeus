@@ -16,6 +16,7 @@ from pydantic import BaseModel
 import nuvem
 import plano
 import profundidade
+import recursos_do_plano
 
 
 class Chave(BaseModel):
@@ -47,6 +48,8 @@ class Email(BaseModel):
     pacote: str = ""
     # O plano escolhido na tela (worker/ia.js: advogado, escritorio, plus); vazio, o da conta.
     plano: str = ""
+    # "mensal" (a assinatura no cartao) ou "anual" (o ano de uma vez, parcelavel); vazio, mensal.
+    periodo: str = ""
 
 
 def _estado_da_tela(estado) -> dict:
@@ -117,7 +120,9 @@ def montar(estado, app, dados_dir) -> None:
                 "nome": nuvem.PROVEDORES.get(prov, {}).get("nome", prov), "modelo": c.get("modelo") or "",
                 "pedir_cada_envio": bool(c.get("pedir_cada_envio")),
                 # O seletor de profundidade (src/profundidade.py): os cinco niveis e o padrao.
-                "profundidade": profundidade.para_tela(estado.prefs.dados)}
+                # Os niveis acima do plano vem travados (src/recursos_do_plano.py).
+                "profundidade": profundidade.para_tela(estado.prefs.dados, recursos_do_plano.nivel_max(estado),
+                                                       lambda n: recursos_do_plano.frase_nivel(estado, n))}
 
     @app.get("/api/nuvem/termo")
     def nuvem_termo(provedor: str = "") -> dict:
@@ -250,8 +255,17 @@ def montar(estado, app, dados_dir) -> None:
     @app.post("/api/nuvem/paulus/assinar")
     def nuvem_paulus_assinar(payload: Email) -> dict:
         email = payload.email.strip() or str((estado.prefs.dados.get("vinculo") or {}).get("email") or "")
-        corpo = {"email": email, **({"plano": payload.plano.strip()} if payload.plano.strip() else {})}
+        corpo = {"email": email, **({"plano": payload.plano.strip()} if payload.plano.strip() else {}),
+                 **({"periodo": payload.periodo.strip()} if payload.periodo.strip() else {})}
         return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/assinar", corpo))
+
+    @app.post("/api/nuvem/paulus/adiantar")
+    def nuvem_paulus_adiantar() -> dict:
+        """Adianta a cota da semana que vem (uma vez por mes, depois dos 7 primeiros dias; worker/ia.js)."""
+        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/adiantar", {}))
+        nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
+        plano.esquecer()
+        return {"conta": d}
 
     @app.post("/api/nuvem/paulus/plano")
     def nuvem_paulus_plano(payload: Email) -> dict:
@@ -297,6 +311,7 @@ def montar(estado, app, dados_dir) -> None:
     def consumo_pessoa(conta_id: int, dias: int = 31) -> dict:
         import consumo
 
+        recursos_do_plano.exigir(estado, "consumo_por_pessoa")
         return {"conta_id": conta_id, "dias": consumo.historico(estado, conta_id, dias=max(1, min(dias, 120)))}
 
     @app.post("/api/consumo/limites")
@@ -304,6 +319,9 @@ def montar(estado, app, dados_dir) -> None:
         """Os limites de uso: diario e mensal do escritorio e de cada pessoa. 0 = sem limite."""
         import consumo
 
+        # O do escritorio e de todos; o de cada pessoa, do plano com equipe.
+        if any(str((v or {}).get(k) or "").strip(" 0.,") for v in ((payload or {}).get("pessoas") or {}).values() for k in ("diario", "mensal")):
+            recursos_do_plano.exigir(estado, "consumo_por_pessoa")
         return {"limites": consumo.guardar_limites(estado, payload or {}), "painel": consumo.painel(estado)}
 
     @app.get("/api/consumo/extrato")

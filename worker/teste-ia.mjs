@@ -43,6 +43,10 @@ function sse(pedacos, uso) {
     },
   });
 }
+const claude = [];
+const mistral = [];
+let respostaDoClaude = "padrao";
+const mpPagamentos = new Map();
 const mpPedidos = [];
 const mpOrders = new Map();
 const mpPreapprovals = new Map();
@@ -57,6 +61,36 @@ globalThis.fetch = async (url, init = {}) => {
     }
     const uso = respostaDoModelo === "sem-uso" ? null : { prompt_tokens: 1000, completion_tokens: 200 };
     return new Response(sse(["O contrato ", "vence em ", "10/10."], uso), { status: 200, headers: { "content-type": "text/event-stream" } });
+  }
+  if (u.startsWith("https://api.anthropic.com/")) {
+    const corpo = JSON.parse(init.body);
+    claude.push({ corpo, headers: init.headers });
+    if (respostaDoClaude === "recusa" && !corpo.stream) {
+      return new Response(JSON.stringify({ id: "msg_r", model: corpo.model, content: [], stop_reason: "refusal", usage: { input_tokens: 50, output_tokens: 0 } }), { status: 200 });
+    }
+    if (!corpo.stream) {
+      return new Response(JSON.stringify({ id: "msg_1", model: corpo.model, content: [{ type: "thinking", thinking: "" }, { type: "text", text: '{"ok":true}' }],
+        stop_reason: "end_turn", usage: { input_tokens: 100, output_tokens: 20 } }), { status: 200 });
+    }
+    const ev = (o) => "event: " + o.type + "\ndata: " + JSON.stringify(o) + "\n\n";
+    const partes = [
+      ev({ type: "message_start", message: { id: "msg_2", model: corpo.model, usage: { input_tokens: 900, cache_read_input_tokens: 100, output_tokens: 1 } } }),
+      ev({ type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }),
+      ev({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Prazo de " } }),
+      ev({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "15 dias." } }),
+      ev({ type: "content_block_stop", index: 0 }),
+      ev({ type: "message_delta", delta: { stop_reason: respostaDoClaude === "recusa" ? "refusal" : "end_turn" }, usage: { output_tokens: 50 } }),
+      ev({ type: "message_stop" }),
+    ].join("");
+    // Partido no meio de uma linha, como a rede entrega.
+    const bytes = new TextEncoder().encode(partes);
+    return new Response(new ReadableStream({ start(c) { c.enqueue(bytes.slice(0, 137)); c.enqueue(bytes.slice(137)); c.close(); } }),
+      { status: 200, headers: { "content-type": "text/event-stream" } });
+  }
+  if (u.startsWith("https://api.mistral.ai/")) {
+    const corpo = JSON.parse(init.body);
+    mistral.push({ corpo, auth: init.headers.Authorization });
+    return new Response(sse(["Mistral ", "responde."], { prompt_tokens: 500, completion_tokens: 100 }), { status: 200, headers: { "content-type": "text/event-stream" } });
   }
   if (u.startsWith("https://api.mercadopago.com")) {
     const caminho = u.slice("https://api.mercadopago.com".length);
@@ -86,6 +120,20 @@ globalThis.fetch = async (url, init = {}) => {
       const o = mpOrders.get(decodeURIComponent(m[1]));
       return o ? new Response(JSON.stringify(o), { status: 200 }) : new Response("{}", { status: 404 });
     }
+    if (caminho === "/checkout/preferences" && metodo === "POST") {
+      const id = "PREF" + mpPedidos.length;
+      return new Response(JSON.stringify({ id, init_point: "https://mp/pagar/" + id }), { status: 201 });
+    }
+    m = caminho.match(/^\/v1\/payments\/search\?external_reference=([^&]+)/);
+    if (m) {
+      const ref = decodeURIComponent(m[1]);
+      return new Response(JSON.stringify({ results: [...mpPagamentos.values()].filter((x) => x.external_reference === ref) }), { status: 200 });
+    }
+    m = caminho.match(/^\/v1\/payments\/(\w+)$/);
+    if (m) {
+      const pg = mpPagamentos.get(m[1]);
+      return pg ? new Response(JSON.stringify(pg), { status: 200 }) : new Response("{}", { status: 404 });
+    }
     m = caminho.match(/^\/authorized_payments\/(.+)$/);
     if (m) {
       return new Response(JSON.stringify({ id: m[1], preapproval_id: "pre0abc", payment: { status: "approved" }, transaction_amount: 300,
@@ -108,8 +156,12 @@ const env = {
   IA_ATIVA: "1",
   CONTAS_IA,
   DEEPINFRA_KEY: "chave-do-deepinfra-so-no-worker",
-  IA_PLANO_TOKENS: "10000",
-  IA_RECARGA_TOKENS: "5000",
+  IA_PLANOS: JSON.stringify([
+    { id: "advogado", nome: "Advogado", valor: 150, valor_anual: 1500, tokens: 12000000, recarga: { valor: 50, tokens: 5000 } },
+    { id: "escritorio", nome: "Escritório", valor: 300, valor_anual: 3000, tokens: 30000, recarga: { valor: 50, tokens: 5000 },
+      modelos: { padrao: "meta-llama/Llama-3.3-70B-Instruct" } },
+    { id: "plus", nome: "Escritório Plus", valor: 550, valor_anual: 5500, tokens: 60000000, recarga: { valor: 50, tokens: 5000 } },
+  ]),
   IA_POR_MINUTO: "100",
   MP_WEBHOOK_SECRET: "segredo-de-teste",
   MP_ACCESS_TOKEN: "sem-token",
@@ -194,13 +246,14 @@ let preId;
   await Promise.all(pendentes.splice(0));
   checar(av.status === 200, "o aviso da assinatura é aceito");
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c.plano_vigente && c.tokens.restantes === 10000 && c.assinatura.situacao === "authorized", "assinatura ativa abre o ciclo com a cota do plano", c);
+  checar(c.plano_vigente && c.tokens.do_mes === 30000 && c.tokens.restantes === 7000 && c.assinatura.situacao === "authorized",
+    "assinatura ativa abre o ciclo com a cota do plano; a da semana é 7/30 dela", c.tokens);
   checar(soAdminSemPessoa(), "a assinatura da nuvem só grava no KV APOIOS o que é do painel, sem dado pessoal", [...guardados.keys()]);
   // A primeira cobrança (logo depois) só confirma o ciclo aberto.
   await worker.fetch(aviso("cob-1", "subscription_authorized_payment"), env, ctx);
   await Promise.all(pendentes.splice(0));
   const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c2.ciclo.inicio === c.ciclo.inicio && c2.tokens.restantes === 10000, "a primeira cobrança não abre um segundo ciclo", c2.ciclo);
+  checar(c2.ciclo.inicio === c.ciclo.inicio && c2.tokens.restantes === 7000, "a primeira cobrança não abre um segundo ciclo", c2.ciclo);
   checar(soAdminSemPessoa() && [...guardados.keys()].includes("admin:nfse:cob-1"), "a cobrança do plano entra na fila de notas fiscais, sem dado pessoal", [...guardados.keys()]);
 }
 
@@ -214,7 +267,8 @@ let preId;
   const enviado = deepinfra[deepinfra.length - 1];
   checar(enviado.auth === "Bearer chave-do-deepinfra-so-no-worker" && enviado.corpo.stream_options.include_usage, "vai ao DeepInfra com a chave do Worker e pedindo o uso");
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c.tokens.restantes === 10000 - 1200 && c.tokens.reservados === 0 && c.tokens.hoje === 1200, "desconta o uso real (1.000 + 200) e solta a reserva", c.tokens);
+  checar(c.tokens.restantes === 7000 - 1200 && c.semana.usados === 1200 && c.tokens.reservados === 0 && c.tokens.hoje === 1200,
+    "desconta o uso real (1.000 + 200) da semana e solta a reserva", c.tokens);
   // max_tokens acima do teto é cortado.
   await (await ia("POST", "/api/ia/v1/chat/completions", { ...pergunta, max_tokens: 99999 }, segredo)).text();
   await Promise.all(pendentes.splice(0));
@@ -294,7 +348,7 @@ let preId;
   await worker.fetch(aviso("cob-2", "subscription_authorized_payment"), env, ctx);
   await Promise.all(pendentes.splice(0));
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c.tokens.do_ciclo === 10000 && c.tokens.da_recarga === 4000, "a cobrança do mês seguinte abre o ciclo novo; a recarga continua", c.tokens);
+  checar(c.tokens.do_ciclo === 30000 && c.tokens.da_recarga === 4000, "a cobrança do mês seguinte abre o ciclo novo; a recarga continua", c.tokens);
   await worker.fetch(aviso("cob-2", "subscription_authorized_payment"), env, ctx);
   await Promise.all(pendentes.splice(0));
   const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
@@ -330,7 +384,7 @@ let preId;
   const envCortesia = { ...env, IA_CORTESIA: createHash("sha256").update("fundador@paulus.ia.br").digest("hex") };
   const req = new Request("https://paulus.ia.br/api/ia/ativar", { method: "POST", body: JSON.stringify({ id_token: "token-cortesia", instalacao_id: "inst-funda-0001" }) });
   const f = await (await atenderIA(req, envCortesia, new URL(req.url), ctx, deps)).json();
-  checar(f.conta.cortesia && f.conta.plano_vigente && f.conta.tokens.restantes === 10000, "o e-mail da cortesia tem o plano sem pagar", f.conta);
+  checar(f.conta.cortesia && f.conta.plano_vigente && f.conta.tokens.restantes === 7000, "o e-mail da cortesia tem o plano sem pagar", f.conta);
   const fs = f.segredo;
   await atenderIA(new Request("https://paulus.ia.br/api/ia/consentimento", { method: "POST", headers: { authorization: "Bearer " + fs }, body: JSON.stringify({ aceito: true, versao: "v" }) }),
     envCortesia, new URL("https://paulus.ia.br/api/ia/consentimento"), ctx, deps);
@@ -363,8 +417,9 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
 {
   donos["token-novo"] = { sub: "555", email: "nova@advocacia.com.br" };
   const planos = await corpoDe(await ia("GET", "/api/ia/planos"));
-  checar(planos.planos.map((p) => p.id).join() === "advogado,escritorio,plus" && planos.planos[1].tokens === 10000,
-    "três planos; o Escritório é o de antes (IA_PLANO_TOKENS)", planos.planos);
+  checar(planos.planos.map((p) => p.id).join() === "advogado,escritorio,plus" && planos.planos[1].tokens === 30000
+    && planos.planos[2].recursos.word && !planos.planos[0].recursos.equipe && planos.planos[2].modelos_info[0].nome === "Claude Sonnet 5.5",
+    "três planos (IA_PLANOS), com o que falta vindo do de fábrica: recursos e modelos", planos.planos);
 
   let r = await ia("POST", "/api/ia/site/entrar", { id_token: "vencido" });
   checar(r.status === 401, "sem o Google confirmado, o site não entra");
@@ -457,8 +512,207 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
     assinatura: { id: "pre-velha", situacao: "authorized", valor: 300 } };
   medidorAntigo.abrirCiclo(contaAntiga, numeros(env), relogio, "assinatura");
   const resumoAntigo = medidorAntigo.resumo(contaAntiga, numeros(env), relogio);
-  checar(resumoAntigo.plano.id === "escritorio" && contaAntiga.ciclo.tokens === 10000 && resumoAntigo.plano_vigente,
+  checar(resumoAntigo.plano.id === "escritorio" && contaAntiga.ciclo.tokens === 30000 && resumoAntigo.plano_vigente,
     "quem assinava antes dos três planos fica no Escritório, com os mesmos tokens", resumoAntigo.plano);
+}
+
+
+// ------------------------------------------------ os planos de 03/10: modelos, profundidade, semana e anual
+{
+  const { createHash } = await import("node:crypto");
+  const hash = (e) => createHash("sha256").update(e).digest("hex");
+  // Os planos de fabrica (sem IA_PLANOS), com as chaves dos tres provedores.
+  const envReal = { ...env, IA_PLANOS: undefined, MISTRAL_KEY: "chave-mistral", ANTHROPIC_KEY: "chave-anthropic",
+    IA_CORTESIA: ["plus@a.br", "adv@a.br", "esc@a.br"].map(hash).join(",") };
+  const pedir = async (e, metodo, caminho, corpo, seg) => {
+    const headers = { "content-type": "application/json" };
+    if (seg) headers.authorization = "Bearer " + seg;
+    const req = new Request("https://paulus.ia.br" + caminho, { method: metodo, headers, body: corpo ? JSON.stringify(corpo) : undefined });
+    return atenderIA(req, e, new URL(req.url), ctx, deps);
+  };
+  const objetoDe = (sub) => [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === sub);
+  // Uma conta de cortesia no plano pedido, com o sim dado.
+  const contaNoPlano = async (sub, email, plano, e = envReal) => {
+    donos["tk-" + sub] = { sub, email };
+    const a = await corpoDe(await pedir(e, "POST", "/api/ia/ativar", { id_token: "tk-" + sub, instalacao_id: "inst-" + sub + "-0001" }));
+    const o = objetoDe(sub);
+    const c = o.dados.get("conta");
+    c.plano = plano;
+    delete c.ciclo;
+    o.dados.set("conta", c);
+    await pedir(e, "POST", "/api/ia/consentimento", { aceito: true, versao: "v" }, a.segredo);
+    return a.segredo;
+  };
+
+  // O Plus fala com o Claude: o Sonnet no dia a dia, o Opus no Ministro.
+  const sp = await contaNoPlano("801", "plus@a.br", "plus");
+  const conta = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, sp));
+  checar(conta.plano.id === "plus" && conta.tokens.do_mes === 40000000 && conta.semana.cota === Math.round(40000000 * 7 / 30)
+    && conta.modelos.map((x) => x.nome).join() === "Claude Sonnet 5.5,Claude Opus 5.5",
+    "a conta do Plus: 40 milhões de créditos no mês, a semana em 7/30, os modelos do Claude", { semana: conta.semana, modelos: conta.modelos });
+  let r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, messages: [...pergunta.messages, { role: "assistant", content: "começo" }] }, sp);
+  const texto = await r.text();
+  await Promise.all(pendentes.splice(0));
+  const pc = claude.at(-1);
+  checar(r.status === 200 && r.headers.get("x-paulus-modelo") === "claude-sonnet-5-5" && pc.corpo.model === "claude-sonnet-5-5",
+    "o PAULUS pede o Llama, mas o Plus responde com o Claude Sonnet 5.5", { status: r.status, modelo: pc && pc.corpo.model });
+  checar(pc.headers["x-api-key"] === "chave-anthropic" && pc.headers["anthropic-beta"] === "server-side-fallback-2026-07-01" && pc.corpo.fallbacks === "default"
+    && pc.corpo.thinking.type === "between_tools" && pc.corpo.system === "Você é o PAULUS." && pc.corpo.messages.length === 1 && pc.corpo.messages[0].role === "user"
+    && pc.corpo.temperature === undefined, "o pedido ao Claude: chave do Worker, fallback, sem pensar, system à parte, termina no usuário", pc.corpo);
+  checar(texto.includes('"content":"Prazo de "') && texto.includes('"content":"15 dias."') && texto.includes('"prompt_tokens":1000') && texto.includes('"completion_tokens":50')
+    && texto.trim().endsWith("data: [DONE]"), "os eventos do Claude viram os pedaços do OpenAI, com o uso no fim", texto);
+  let depois = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, sp));
+  checar(depois.semana.usados === 1050 && depois.tokens.hoje === 1050, "o Sonnet gasta um crédito por token", depois.semana);
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, paulus_nivel: "ministro", max_tokens: 1000 }, sp);
+  await r.text();
+  await Promise.all(pendentes.splice(0));
+  checar(claude.at(-1).corpo.model === "claude-opus-5-5" && claude.at(-1).corpo.output_config.effort === "high" && claude.at(-1).corpo.max_tokens === 5000
+    && !claude.at(-1).corpo.thinking, "no Ministro, o Opus 5.5 com esforço alto e folga para pensar", claude.at(-1).corpo);
+  depois = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, sp));
+  checar(depois.semana.usados === 1050 + 2 * 1050, "o Opus gasta dois créditos por token", depois.semana);
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, stream: false, response_format: { type: "json_object" } }, sp);
+  const dj = await corpoDe(r);
+  checar(r.status === 200 && dj.choices[0].message.content === '{"ok":true}' && dj.paulus.tokens === 120 && dj.paulus.modelo === "claude-sonnet-5-5"
+    && claude.at(-1).corpo.system.includes("JSON"), "sem stream: o JSON do Claude no formato OpenAI", dj);
+  respostaDoClaude = "recusa";
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, stream: false }, sp);
+  checar(r.status === 400 && (await corpoDe(r)).erro.includes("recusou"), "o Claude recusou (depois do fallback): erro, e nada é cobrado");
+  const rs = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", pergunta, sp);
+  const ts = await rs.text();
+  await Promise.all(pendentes.splice(0));
+  checar(ts.includes("interrompeu esta resposta"), "recusa no meio do stream: a resposta diz que foi interrompida", ts);
+  respostaDoClaude = "padrao";
+  checar((await pedir({ ...envReal, ANTHROPIC_KEY: undefined }, "POST", "/api/ia/v1/chat/completions", pergunta, sp)).status === 503,
+    "sem a chave do Anthropic no Worker: 503");
+
+  // O Advogado: o Llama, e a profundidade só até Advogado.
+  const sa = await contaNoPlano("802", "adv@a.br", "advogado");
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, paulus_nivel: "juiz" }, sa);
+  const dn = await corpoDe(r);
+  checar(r.status === 403 && dn.motivo === "profundidade" && dn.erro.includes("Escritório"), "o nível Juiz não é do Advogado: 403, dizendo o plano que tem", dn);
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, model: "claude-opus-5-5", paulus_nivel: "advogado" }, sa);
+  await r.text();
+  await Promise.all(pendentes.splice(0));
+  checar(r.headers.get("x-paulus-modelo") === "meta-llama/Llama-3.3-70B-Instruct" && deepinfra.at(-1).corpo.model === "meta-llama/Llama-3.3-70B-Instruct",
+    "pedir um modelo de outro plano não adianta: vai o do plano");
+  const modelosAdv = await corpoDe(await pedir(envReal, "GET", "/api/ia/modelos", null, sa));
+  checar(modelosAdv.modelos.join() === "meta-llama/Llama-3.3-70B-Instruct", "os modelos da conta são os do plano", modelosAdv);
+
+  // O Escritório: a Mistral, no formato OpenAI dela.
+  const se = await contaNoPlano("803", "esc@a.br", "escritorio");
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", { ...pergunta, temperature: 0.2 }, se);
+  const tm = await r.text();
+  await Promise.all(pendentes.splice(0));
+  const pm = mistral.at(-1);
+  checar(r.status === 200 && pm.auth === "Bearer chave-mistral" && pm.corpo.model === "mistral-large-latest" && !pm.corpo.stream_options && pm.corpo.temperature === 0.2
+    && tm.includes("Mistral "), "o Escritório responde com o Mistral Large 3, sem stream_options", pm.corpo);
+  const ce = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, se));
+  checar(ce.semana.usados === 600, "o uso da Mistral sai do fim do stream", ce.semana);
+
+  // A semana: acabou a cota da semana, com o mês ainda cheio.
+  const oe = objetoDe("803");
+  let c = oe.dados.get("conta");
+  c.ciclo.por_semana = { 0: c.ciclo.semana - 100 };
+  c.ciclo.usados = c.ciclo.semana - 100;
+  oe.dados.set("conta", c);
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", pergunta, se);
+  const dsem = await corpoDe(r);
+  checar(r.status === 402 && dsem.motivo === "semana" && dsem.erro.includes("volta em"), "a cota da semana acabou: 402, dizendo quando volta", dsem);
+  r = await pedir(envReal, "POST", "/api/ia/adiantar", null, se);
+  const dad = await corpoDe(r);
+  checar(r.status === 409 && dad.erro.includes("7 primeiros dias"), "nos 7 primeiros dias, não adianta a semana", dad);
+  // No 9º dia (semana 2): adianta uma vez, a semana dobra e a seguinte fica vazia.
+  relogio += 8 * 24 * 3600 * 1000;
+  c = oe.dados.get("conta");
+  c.ciclo.por_semana[1] = c.ciclo.semana;
+  c.ciclo.usados += c.ciclo.semana;
+  oe.dados.set("conta", c);
+  let cs = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, se));
+  checar(cs.semana.numero === 2 && cs.semana.livres === 0 && cs.semana.adiantamento.pode, "na semana 2, sem cota, o adiantamento está liberado", cs.semana);
+  r = await pedir(envReal, "POST", "/api/ia/adiantar", null, se);
+  cs = await corpoDe(r);
+  checar(r.status === 200 && cs.semana.limite === 2 * cs.semana.cota && cs.semana.livres === cs.semana.cota && cs.semana.adiantamento.usado,
+    "adiantar: a semana ganha a cota da seguinte", cs.semana);
+  r = await pedir(envReal, "POST", "/api/ia/v1/chat/completions", pergunta, se);
+  await r.text();
+  await Promise.all(pendentes.splice(0));
+  checar(r.status === 200, "e a pergunta volta a sair");
+  checar((await pedir(envReal, "POST", "/api/ia/adiantar", null, se)).status === 409, "o segundo adiantamento do mês é recusado");
+  relogio += 7 * 24 * 3600 * 1000;
+  cs = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, se));
+  checar(cs.semana.numero === 3 && cs.semana.limite === 0 && cs.tokens.restantes === 0, "a semana seguinte, já adiantada, fica vazia", cs.semana);
+  relogio -= 15 * 24 * 3600 * 1000;
+
+  // A recarga do plano: o pacote e o preço são os do plano, e a referência leva o plano.
+  const rec = await corpoDe(await pedir(envReal, "POST", "/api/ia/recarga", {}, se));
+  const refRec = mpPedidos.filter((x) => x.caminho === "/v1/orders").at(-1).corpo.external_reference;
+  checar(rec.valor === "120.00" && rec.tokens === 10000000 && refRec.endsWith("-escritorio"), "a recarga do Escritório: 10 milhões por R$ 120", { rec, refRec });
+
+  // O anual: paga o ano (parcelável), o plano vale 12 meses, e cada mês abre o seu ciclo.
+  donos["tk-804"] = { sub: "804", email: "anual@a.br" };
+  const an = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-804", instalacao_id: "inst-804-0001" }));
+  r = await pedir(envReal, "POST", "/api/ia/assinar", { plano: "advogado", periodo: "anual" }, an.segredo);
+  const pa = await corpoDe(r);
+  const pref = mpPedidos.filter((x) => x.caminho === "/checkout/preferences").at(-1).corpo;
+  checar(r.status === 200 && pa.link.startsWith("https://mp/pagar/") && pa.parcelas === 12 && pref.items[0].unit_price === 3990
+    && pref.payment_methods.installments === 12 && /^ia-anual-[0-9a-f]{24}-advogado-[0-9a-f]+$/.test(pref.external_reference),
+    "o anual do Advogado: R$ 3.990 no Checkout Pro, em até 12 vezes", pref);
+  checar((await pedir(envReal, "POST", "/api/ia/assinar", { plano: "advogado", periodo: "trimestral" }, an.segredo)).status === 400, "período que não existe é recusado");
+  mpPagamentos.set("9001", { id: 9001, status: "approved", external_reference: pref.external_reference, transaction_amount: 3990, date_approved: new Date(relogio).toISOString() });
+  // Sem o aviso ainda: a consulta da situação acha o pagamento.
+  let sa2 = await corpoDe(await pedir(envReal, "GET", "/api/ia/assinatura", null, an.segredo));
+  checar(sa2.plano_vigente && sa2.periodo === "anual" && sa2.plano.id === "advogado" && sa2.assinatura.periodo === "anual"
+    && Date.parse(sa2.pago_ate) - relogio > 364 * 24 * 3600 * 1000 && sa2.ciclo.tokens === 30000000,
+    "pago: o ano vale, com o ciclo do mês aberto", { periodo: sa2.periodo, pago_ate: sa2.pago_ate, ciclo: sa2.ciclo });
+  // O aviso depois não credita de novo.
+  await worker.fetch(aviso("9001", "payment"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  const pagos = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "804").dados.get("conta").pagamentos;
+  checar(pagos.length === 1 && [...guardados.keys()].includes("admin:nfse:9001"), "o aviso repetido não paga duas vezes; a nota fiscal entra na fila", pagos);
+  checar((await pedir(envReal, "POST", "/api/ia/assinatura/cancelar", null, an.segredo)).status === 409, "o anual não tem o que cancelar: não renova sozinho");
+  checar((await pedir(envReal, "POST", "/api/ia/plano", { plano: "plus" }, an.segredo)).status === 409, "no anual, a troca de plano é na renovação");
+  relogio += 40 * 24 * 3600 * 1000;
+  sa2 = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, an.segredo));
+  checar(sa2.plano_vigente && sa2.ciclo.origem === "anual" && sa2.ciclo.usados === 0 && Date.parse(sa2.ciclo.inicio) <= relogio && Date.parse(sa2.ciclo.fim) > relogio,
+    "um mês depois, o ano pago abre o ciclo novo sozinho", sa2.ciclo);
+  relogio += 330 * 24 * 3600 * 1000;
+  sa2 = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, an.segredo));
+  checar(!sa2.plano_vigente && sa2.assinatura.situacao === "expired", "depois do ano, sem renovar, o plano acaba", sa2.assinatura);
+  relogio -= 370 * 24 * 3600 * 1000;
+
+  // Do mensal para o anual: a assinatura mensal sai do Mercado Pago.
+  donos["tk-805"] = { sub: "805", email: "troca@a.br" };
+  const tr = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-805", instalacao_id: "inst-805-0001" }));
+  const mensal = await corpoDe(await pedir(envReal, "POST", "/api/ia/assinar", { plano: "escritorio" }, tr.segredo));
+  checar(mpPreapprovals.get(mensal.id).auto_recurring.transaction_amount === 1290, "o mensal do Escritório é de R$ 1.290");
+  mpPreapprovals.get(mensal.id).status = "authorized";
+  await worker.fetch(aviso(mensal.id, "subscription_preapproval"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  await pedir(envReal, "POST", "/api/ia/assinar", { plano: "plus", periodo: "anual" }, tr.segredo);
+  const refTr = mpPedidos.filter((x) => x.caminho === "/checkout/preferences").at(-1).corpo.external_reference;
+  mpPagamentos.set("9002", { id: 9002, status: "approved", external_reference: refTr, transaction_amount: 30990 });
+  await worker.fetch(aviso("9002", "payment"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  let ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
+  checar(mpPreapprovals.get(mensal.id).status === "cancelled" && ct.plano.id === "plus" && ct.periodo === "anual" && ct.ciclo.tokens === 40000000,
+    "passou ao anual do Plus: o mensal é cancelado no Mercado Pago e o ciclo novo é do Plus", { mp: mpPreapprovals.get(mensal.id).status, plano: ct.plano.id });
+  // O aviso do mensal cancelado, que chega depois, não mexe no anual.
+  await worker.fetch(aviso(mensal.id, "subscription_preapproval"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
+  checar(ct.assinatura.situacao === "authorized" && ct.assinatura.periodo === "anual", "o aviso do mensal cancelado não derruba o anual", ct.assinatura);
+  // O reembolso dos 7 dias (estorno no Mercado Pago): o plano acaba na hora.
+  mpPagamentos.get("9002").status = "refunded";
+  await worker.fetch(aviso("9002", "payment"), envReal, ctx);
+  await Promise.all(pendentes.splice(0));
+  ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
+  checar(!ct.plano_vigente && ct.assinatura.situacao === "refunded", "estornado, o plano anual acaba", ct.assinatura);
+
+  // O cupom no anual vale sobre o ano.
+  guardados.set("admin:cupom:ANO10", JSON.stringify({ codigo: "ANO10", desconto: 10, meses: 1, ativo: true, planos: [] }));
+  const cup = await corpoDe(await pedir(envReal, "GET", "/api/ia/cupom?codigo=ANO10&plano=escritorio&periodo=anual"));
+  checar(cup.ok && cup.valor === 10341 && cup.valor_cheio === 11490, "o cupom de 10% no anual do Escritório: R$ 10.341", cup);
+  guardados.delete("admin:cupom:ANO10");
 }
 
 function aviso(dataId, tipo, ts = Date.now()) {

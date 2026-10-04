@@ -61,17 +61,19 @@ function painelDoPlano(d) {
   const vigente = c.plano_vigente;
   const linhas = [];
   linhas.push('<div class="nuvem-plano"><div class="nuvem-restantes"><span class="nuvem-numero">' + esc(tokens(t.restantes)) + "</span>" +
-    "<small>tokens restantes</small></div>" +
+    "<small>créditos livres agora</small></div>" +
     '<dl class="nuvem-numeros">' +
     "<div><dt>Usados neste ciclo</dt><dd>" + esc(tokens(ciclo.usados || 0)) + " de " + esc(tokens(ciclo.tokens || (c.plano || {}).tokens || 0)) + "</dd></div>" +
+    (c.semana ? "<div><dt>Nesta semana</dt><dd>" + esc(tokens(c.semana.usados || 0)) + " de " + esc(tokens(c.semana.limite || 0)) + "</dd></div>" : "") +
     "<div><dt>Hoje</dt><dd>" + esc(tokens(t.hoje || 0)) + "</dd></div>" +
     "<div><dt>Da recarga</dt><dd>" + esc(tokens(t.da_recarga || 0)) + "</dd></div>" +
-    "<div><dt>" + (a.situacao === "authorized" ? "Renova em" : "Vale até") + "</dt><dd>" + esc(vigente && ciclo.fim ? dataNuvem(ciclo.fim) : "—") + "</dd></div>" +
+    "<div><dt>" + (c.periodo === "anual" ? "Ano pago até" : a.situacao === "authorized" ? "Renova em" : "Vale até") + "</dt><dd>" +
+    esc(c.periodo === "anual" && c.pago_ate ? dataNuvem(c.pago_ate) : vigente && ciclo.fim ? dataNuvem(ciclo.fim) : "—") + "</dd></div>" +
     "</dl></div>");
   const nomeDoPlano = (c.plano || {}).nome ? " · plano " + c.plano.nome : "";
   linhas.push('<p class="cfg-explica">' + esc(c.email) + esc(nomeDoPlano) + " · " + esc(situacao) +
     (vigente ? "" : " · sem o plano em dia, o PAULUS funciona sem IA") +
-    ". A recarga não vence na renovação; o ciclo gasta primeiro os tokens do plano.</p>");
+    ". A cota é por semana e não acumula; a recarga não vence na renovação e é gasta depois da cota. Os detalhes estão em Plano e consumo.</p>");
   const botoes = [];
   const ativa = a.situacao === "authorized";
   if (ativa && c.plano_proximo) {
@@ -90,20 +92,22 @@ function painelDoPlano(d) {
       linhas.push('<div class="nuvem-planos" role="radiogroup" aria-label="Plano">' + planos.map((p) =>
         '<button type="button" class="nuvem-plano-op' + (p.id === escolhido.id ? " on" : "") + '" role="radio" aria-checked="' + (p.id === escolhido.id) +
         '" data-nuvem-plano="' + esc(p.id) + '"><b>' + esc(p.nome) + "</b><span>R$ " + esc(String(p.valor)) + "/mês</span><small>" +
-        esc(tokens(p.tokens)) + " tokens por mês</small></button>").join("") + "</div>");
+        esc(tokens(p.tokens)) + " créditos por mês · " + esc(((p.modelos_info || [])[0] || {}).nome || "") + "</small></button>").join("") + "</div>");
     }
     if (!ativa) {
       botoes.push('<button class="primario" data-nuvem-assinar="1">Assinar o ' + esc(escolhido.nome || "plano") + " · R$ " + esc(String(escolhido.valor || "")) + "/mês</button>");
+      botoes.push('<button data-nuvem-assinar="anual">Anual · R$ ' + esc(String(escolhido.valor_anual || "")) + " (até 12×)</button>");
     } else if (escolhido.id && escolhido.id !== vale.id) {
       const desfaz = c.plano_proximo && escolhido.id === (c.plano || {}).id;
       botoes.push('<button class="primario" data-nuvem-trocar="1">' + (desfaz ? "Ficar no " + esc(escolhido.nome) + " (desfazer a troca)"
         : "Trocar para o " + esc(escolhido.nome) + " · R$ " + esc(String(escolhido.valor)) + "/mês na renovação") + "</button>");
     }
   }
-  if (vigente) botoes.push('<button class="com-icone" data-nuvem-recarga="1">' + ic("payments", 16) + "Recarregar " + esc(tokens((c.recarga || {}).tokens)) +
+  if (vigente) botoes.push('<button class="com-icone" data-nuvem-recarga="1">' + ic("payments", 16) + "Recarregar " + esc(tokens((c.recarga || {}).tokens)) + " créditos" +
     " · R$ " + esc(String((c.recarga || {}).valor || "")) + " no Pix</button>");
   if (a.situacao === "pending") botoes.push('<button data-nuvem-conferir="1">Já pus o cartão</button>');
-  if (a.situacao === "authorized") botoes.push('<button class="perigo" data-nuvem-cancelar="1">Cancelar a assinatura</button>');
+  if (c.anual_pendente) botoes.push('<button data-nuvem-conferir="1">Já paguei o ano</button>');
+  if (a.situacao === "authorized" && c.periodo !== "anual") botoes.push('<button class="perigo" data-nuvem-cancelar="1">Cancelar a assinatura</button>');
   botoes.push('<button data-nuvem-sair="1">Desligar esta instalação da conta</button>');
   linhas.push('<div class="linha-form">' + botoes.join("") + "</div>");
   return linhas.join("");
@@ -143,7 +147,7 @@ function cartaoNuvem() {
     " · " + esc(e.como || "") + "</small></span>" +
     '<button data-nuvem-envio="' + esc(e.envio) + '">Ver o que saiu</button></div>').join("");
   const explica = ehPaulus
-    ? '<p class="cfg-texto">O <b>PAULUS (nuvem)</b> escreve as respostas num modelo grande (Llama 3.3 70B ou Qwen 2.5 72B), pelo plano do escritório. ' +
+    ? '<p class="cfg-texto">O <b>PAULUS (nuvem)</b> escreve as respostas no modelo do plano do escritório: Llama 3.3 70B no Advogado, Mistral Large 3 no Escritório e Claude Sonnet 5.5 (com o Claude Opus 5.5 no nível Ministro) no Escritório Plus. ' +
       "A busca, as regras, a conferência e o resto do programa continuam neste computador; só o texto da pergunta vai e volta.</p>"
     : '<p class="cfg-texto">A resposta pode ser escrita por um modelo do provedor, com a <b>chave de API do próprio escritório</b> (paga pelo escritório, ' +
       "direto no provedor). A assinatura de consumidor (ChatGPT Plus, Claude Pro) não serve: os termos proíbem usar o login dela num programa.</p>";
@@ -160,7 +164,7 @@ function cartaoNuvem() {
     '<select id="nuvem-provedor" aria-label="Provedor">' + opProv + "</select></div>" +
     (ehPaulus ? painelDoPlano(d) : chave) +
     (prov.tem_chave ? '<div class="cfg-servico"><span class="duas-linhas cresce"><b>Modelo</b><small>' +
-      (ehPaulus ? "os dois que a bateria comparou; o plano conta os tokens dos dois do mesmo jeito" : "a lista é a que a chave enxerga; cobra por token, na conta do escritório") +
+      (ehPaulus ? "o do plano; quem decide é paulus.ia.br, pelo plano e pela profundidade da pergunta" : "a lista é a que a chave enxerga; cobra por token, na conta do escritório") +
       "</small></span>" + (lista.length ? '<select id="nuvem-modelo" aria-label="Modelo da nuvem">' + opMod + "</select>" : "") + "</div>" : "") +
     blocoDoSim(d) +
     '<p class="sv-kicker">O que vai à nuvem</p>' + tarefas +
@@ -257,7 +261,7 @@ async function recarregarNuvem(redesenhar, pacote) {
   if (!p) return;
   let parar = false;
   const html = '<div class="nuvem-pix">' + (p.qr_code_base64 ? '<img alt="QR do Pix" src="data:image/png;base64,' + esc(p.qr_code_base64) + '">' : "") +
-    '<p>Pix de R$ ' + esc(String(p.valor).replace(".", ",")) + " · " + esc(tokens(p.tokens)) + " tokens · vale " + esc(String(p.vence_em_minutos)) + " min</p>" +
+    '<p>Pix de R$ ' + esc(String(p.valor).replace(".", ",")) + " · " + esc(tokens(p.tokens)) + " créditos · vale " + esc(String(p.vence_em_minutos)) + " min</p>" +
     '<textarea readonly class="nuvem-copia">' + esc(p.qr_code || "") + "</textarea>" +
     '<p class="nota" id="nuvem-pix-situacao">Esperando o pagamento…</p></div>';
   const olhar = async () => {
@@ -269,7 +273,7 @@ async function recarregarNuvem(redesenhar, pacote) {
       const s = await r.json();
       if (s.pago) {
         const el = document.getElementById("nuvem-pix-situacao");
-        if (el) el.textContent = "Pago. Os tokens entraram.";
+        if (el) el.textContent = "Pago. Os créditos entraram.";
         parar = true;
         await carregarContaNuvem(true);
         redesenhar();
@@ -332,14 +336,16 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
     avisoCert(nuvemTela.conta.plano_proximo ? "Troca marcada: o plano novo vale a partir da renovação." : "Troca desfeita: o plano continua o de agora.");
     redesenhar();
   });
-  clique("[data-nuvem-assinar]", async () => {
-    const r = await nuvemPost("/api/nuvem/paulus/assinar", { plano: nuvemTela.plano });
+  raiz.querySelectorAll("[data-nuvem-assinar]").forEach((b) => { b.onclick = async () => {
+    const anual = b.dataset.nuvemAssinar === "anual";
+    const r = await nuvemPost("/api/nuvem/paulus/assinar", { plano: nuvemTela.plano, periodo: anual ? "anual" : "mensal" });
     if (!r) return;
     if (!r.link) { avisoCert("o Mercado Pago não devolveu a página da assinatura", { tom: "erro" }); return; }
     window.open(r.link, "_blank");
-    avisoCert("Ponha o cartão na página do Mercado Pago que abriu; depois, “Já pus o cartão”.");
+    avisoCert(anual ? "Pague o ano na página do Mercado Pago que abriu (em até 12 vezes); depois, “Já paguei o ano”."
+      : "Ponha o cartão na página do Mercado Pago que abriu; depois, “Já pus o cartão”.");
     await carregarContaNuvem(true); redesenhar();
-  });
+  }; });
   clique("[data-nuvem-conferir]", async () => {
     const r = await nuvemPost("/api/nuvem/paulus/assinatura", null, "GET");
     if (r) { nuvemTela.conta = r.conta; redesenhar(); }

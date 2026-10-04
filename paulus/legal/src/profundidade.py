@@ -127,12 +127,26 @@ def modelo_do_nivel(prefs: dict | None, nivel: Nivel, modelo_padrao: str) -> str
     return escolhido or modelo_padrao
 
 
-def para_tela(prefs: dict | None = None) -> dict:
-    """O seletor: os cinco níveis, o padrão e se a entrevista está ligada."""
+def limitar(nivel: Nivel, nivel_max: str) -> Nivel:
+    """O nível pedido, ou o máximo do plano se o pedido passar dele (src/recursos_do_plano.py)."""
+    if nivel_max in ORDEM and ORDEM.index(nivel.id) > ORDEM.index(nivel_max):
+        return NIVEIS[nivel_max]
+    return nivel
+
+
+def para_tela(prefs: dict | None = None, nivel_max: str = "ministro", frase_do_nivel=None) -> dict:
+    """O seletor: os cinco níveis (os acima do plano, travados, com a frase), o padrão e a entrevista."""
+    teto = ORDEM.index(nivel_max) if nivel_max in ORDEM else len(ORDEM) - 1
+    niveis = []
+    for i, n in enumerate(NIVEIS.values()):
+        item = {**{k: v for k, v in asdict(n).items() if k not in ("postura",)}, "etapas": list(n.etapas), "detalhes": list(n.detalhes)}
+        if i > teto:
+            item["bloqueado"] = True
+            item["no_plano"] = frase_do_nivel(n.id) if frase_do_nivel else ""
+        niveis.append(item)
     return {
-        "niveis": [{**{k: v for k, v in asdict(n).items() if k not in ("postura",)},
-                    "etapas": list(n.etapas), "detalhes": list(n.detalhes)} for n in NIVEIS.values()],
-        "padrao": obter("", prefs).id,
+        "niveis": niveis,
+        "padrao": limitar(obter("", prefs), nivel_max).id,
         "entrevista": entrevista_ligada(prefs),
     }
 

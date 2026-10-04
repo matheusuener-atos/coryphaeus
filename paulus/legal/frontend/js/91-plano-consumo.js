@@ -128,20 +128,48 @@ function blocoGeral(d, c) {
   const marca = k.decorrido !== null && c.plano_vigente
     ? '<span class="pc-marca" style="left:' + (k.decorrido * 100).toFixed(1) + '%" title="hoje: ' + Math.round(k.decorrido * 100) + '% do ciclo"></span>' : "";
   const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
+  const sem = c.plano_vigente ? c.semana : null;
   const alertas = (d.painel.alertas || []).map((a) => '<p class="pc-alerta-linha">' + ic("error", 16) + esc(a) + "</p>").join("") +
     (c.plano_vigente ? "" : '<p class="pc-alerta-linha">' + ic("error", 16) + "Sem o plano em dia, o PAULUS funciona sem IA.</p>");
   return '<header class="pc-geral' + classe + '" aria-labelledby="pc-t-geral">' +
     '<div class="pc-geral-topo"><span class="pc-rotulo" id="pc-t-geral">Consumo do ciclo</span>' +
     '<span class="pc-chip">' + esc(plano) + " · " + esc(renova) + "</span></div>" +
     '<div class="pc-numeros"><div class="pc-grande"><b>' + esc(tokCurto(k.usados)) + "</b><span>de " + esc(tokCurto(k.limite)) +
-    " tokens do plano usados</span></div>" + '<span class="pc-pct">' + pct + "%</span></div>" +
+    " créditos do mês usados</span></div>" + '<span class="pc-pct">' + pct + "%</span></div>" +
     '<div class="pc-barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Uso do ciclo">' +
     '<div class="pc-barra-trilho"><i style="width:' + pct + '%"></i></div>' + marca + "</div>" +
     '<div class="sv-ficha pc-ficha">' +
-    item("Restantes", "<b>" + esc(tokCurto(t.restantes || 0)) + "</b>") +
+    item("Livres agora", "<b>" + esc(tokCurto(t.restantes || 0)) + "</b>") +
+    (sem ? item("Esta semana", "<b>" + esc(tokCurto(sem.usados)) + "</b> de " + esc(tokCurto(sem.limite)) + " · volta " + esc(pcData(sem.volta_em))) : "") +
     item("Hoje", "<b>" + esc(tokCurto(t.hoje || 0)) + "</b>") +
     item("Da recarga", "<b>" + esc(tokCurto(t.da_recarga || 0)) + "</b>") +
-    item("Ritmo", ritmo) + "</div>" + alertas + "</header>";
+    item("Ritmo", ritmo) + "</div>" + blocoSemana(sem) + alertas + "</header>";
+}
+
+/* A cota da semana (worker/ia.js): o mes vezes 7/30, sem acumular. Uma vez
+   por mes, depois dos 7 primeiros dias da assinatura, da para adiantar a
+   semana que vem - que entao fica vazia. */
+function blocoSemana(sem) {
+  if (!sem) return "";
+  const a = sem.adiantamento || {};
+  if (a.usado) return '<p class="sv-dica pc-semana">' + ic("event_repeat", 15) + "A semana que vem já foi adiantada este mês.</p>";
+  if (a.pode) {
+    return '<p class="sv-dica pc-semana">' + ic("event_repeat", 15) + "A cota é por semana. Se esta não bastar, dá para trazer a da semana que vem " +
+      "(uma vez por mês). " + '<button type="button" class="pc-sublinhado" data-pc-adiantar="1">Adiantar a semana que vem</button></p>';
+  }
+  return '<p class="sv-dica pc-semana">' + ic("event_repeat", 15) + "A cota é por semana e não acumula. " +
+    (a.motivo ? "Adiantar a semana que vem: " + esc(a.motivo) + "." : "") + "</p>";
+}
+
+async function adiantarSemana() {
+  const res = await dialogo({ titulo: "Adiantar a semana que vem?", contexto: "Plano e consumo",
+    texto: "A cota da semana que vem entra agora, e aquela semana fica sem cota (a recarga continua valendo). Dá para fazer uma vez por mês.",
+    confirmar: "Adiantar", cancelar: "Agora não" });
+  if (!res || !res.ok) return;
+  const r = await nuvemPost("/api/nuvem/paulus/adiantar", {});
+  if (!r) return;
+  avisoCert("A semana que vem entrou agora.");
+  await carregarConsumo(true);
 }
 
 /* --------------------------------------------- 2. quem esta consumindo */
@@ -380,8 +408,9 @@ function blocoPlano(d, c) {
   const a = c.assinatura || null;
   const ativa = (a || {}).situacao === "authorized";
   const k = cicloDe(c);
-  const linha = c.cortesia ? "Cortesia · " + tokCurto(plano.tokens) + " tokens por ciclo"
-    : plano.nome + " · " + tokCurto(plano.tokens) + " tokens por mês · " + reais(plano.valor) + "/mês";
+  const anual = c.periodo === "anual";
+  const linha = c.cortesia ? "Cortesia · " + tokCurto(plano.tokens) + " créditos por mês"
+    : plano.nome + " · " + tokCurto(plano.tokens) + " créditos por mês · " + (anual ? reais(plano.valor_anual) + "/ano" : reais(plano.valor) + "/mês");
   const item = (rotulo, valor, acao) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span><b class=\"corta\">" + esc(valor) + "</b>" + (acao || "") + "</div>";
   const ligacao = (dado, rotulo) => '<button type="button" class="pc-sublinhado" ' + dado + ">" + esc(rotulo) + "</button>";
   const proximo = c.plano_proximo || plano;
@@ -389,6 +418,9 @@ function blocoPlano(d, c) {
   if (c.cortesia) {
     cobranca = item("Próxima cobrança", "nenhuma · cortesia", "");
     pagamento = item("Pagamento", "sem cartão", "");
+  } else if (ativa && anual) {
+    cobranca = item("Pago até", pcData(c.pago_ate) + " · plano anual", ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
+    pagamento = item("Pagamento", "Mercado Pago · ano pago", "");
   } else if (ativa) {
     cobranca = item("Próxima cobrança", (k.fim ? pcData(k.fim) + " · " : "") + reais(proximo.valor), ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
     pagamento = item("Pagamento", "Mercado Pago · " + PC_SITUACOES.authorized, ligacao('data-pc-cartao="1"', "Alterar cartão"));
@@ -403,20 +435,42 @@ function blocoPlano(d, c) {
   }
   const contas = typeof eqp !== "undefined" ? (eqp.contas || []).length : 0;
   const convites = typeof eqp !== "undefined" ? (eqp.convites || []).filter((v) => v.estado === "aberto").length : 0;
-  const ficha = '<div class="sv-ficha pc-ficha pc-ficha-plano">' + cobranca + pagamento +
+  const ia = (c.modelos || []).map((m) => m.nome).join(" + ");
+  const ficha = '<div class="sv-ficha pc-ficha pc-ficha-plano">' + cobranca + pagamento + (ia ? item("IA do plano", ia, "") : "") +
     item("Nota fiscal", "ainda não sai sozinha", ligacao('data-pc-nota="1"', "Pedir por e-mail")) +
     item("Pessoas", plural(contas, "conta") + " com acesso" + (convites ? " · " + plural(convites, "convite") : ""), ligacao('data-pc-convidar="1"', "Convidar")) + "</div>";
   const troca = c.plano_proximo ? '<p class="sv-dica pc-troca">' + ic("schedule", 15) + "A partir da renovação: " + esc(c.plano_proximo.nome) + " (" +
-    esc(tokCurto(c.plano_proximo.tokens)) + " tokens, " + esc(reais(c.plano_proximo.valor)) + "/mês).</p>" : "";
-  const rodape = ativa
-    ? '<p class="sv-dica">Ao cancelar, nada mais é cobrado e os tokens do ciclo pago valem até ' + esc(pcData(k.fim) || "o fim dele") + ". " +
-      '<button type="button" class="pc-sublinhado" data-pc-cancelar="1">Cancelar assinatura</button></p>'
-    : '<p class="sv-dica">Os planos têm os mesmos recursos e servem à equipe inteira; o que muda é a quantidade de tokens.</p>';
+    esc(tokCurto(c.plano_proximo.tokens)) + " créditos, " + esc(reais(c.plano_proximo.valor)) + "/mês).</p>" : "";
+  const rodape = ativa && anual
+    ? '<p class="sv-dica">O plano anual não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ", com a cota de cada mês. A renovação abre 45 dias antes, em “Ver planos”.</p>"
+    : ativa
+      ? '<p class="sv-dica">Ao cancelar, nada mais é cobrado e os créditos do ciclo pago valem até ' + esc(pcData(k.fim) || "o fim dele") + ". " +
+        '<button type="button" class="pc-sublinhado" data-pc-cancelar="1">Cancelar assinatura</button></p>'
+      : '<p class="sv-dica">Cada plano tem o seu modelo de IA, a profundidade, as pessoas e os recursos. “Ver planos” compara.</p>';
   return '<section class="sv-secao pc-secao" aria-labelledby="pc-t-plano"><div class="sv-secao-cabeca">' +
     '<span class="sv-secao-titulo" id="pc-t-plano">' + ic("workspace_premium", 16) + "Seu plano</span>" +
     '<span class="sv-secao-meta">' + esc(linha) + "</span>" +
     (c.cortesia ? "" : '<button type="button" class="sv-ligacao" data-pc-upgrade="1">' + ic("arrow_upward", 15) + "Ver planos</button>") + "</div>" +
     '<div class="pc-plano-miolo">' + ficha + troca + blocoRecarga(c) + "</div>" + rodape + "</section>";
+}
+
+/* O que cada plano tem, em frases curtas, para a comparacao (os recursos do Worker). */
+const PC_NIVEL_NOME = { estagiario: "Estagiário", bacharel: "Bacharel", advogado: "Advogado", juiz: "Juiz", ministro: "Ministro" };
+function itensDoPlano(p) {
+  const r = p.recursos || {};
+  const itens = [(p.modelos_info || []).map((m) => m.nome + " (" + m.empresa + ")").join(" + "),
+    tokCurto(p.tokens) + " créditos por mês, renovados por semana",
+    r.profundidade ? "Profundidade até " + (PC_NIVEL_NOME[r.profundidade] || r.profundidade) : "",
+    p.pessoas === 1 ? "1 pessoa" : "Até " + p.pessoas + " pessoas, cada uma com a sua conta"];
+  if (r.nfse_mes === null) itens.push("NFS-e sem limite" + (r.nfse_recorrente ? ", com recorrência" : ""));
+  else if (r.nfse_mes > 0) itens.push("NFS-e até " + r.nfse_mes + " por mês");
+  if (r.datajud) itens.push("Processos no DataJud");
+  if (r.gravacao) itens.push("Gravação e transcrição de reuniões");
+  if (r.ao_vivo) itens.push("Sugestões jurídicas ao vivo na reunião");
+  if (r.word) itens.push("Assistente no Word");
+  if (r.mcp) itens.push("Conexão MCP com outras IAs");
+  if (r.agentes) itens.push("Até " + r.agentes + " agentes personalizados");
+  return itens.filter(Boolean);
 }
 
 async function verUpgrade() {
@@ -425,45 +479,62 @@ async function verUpgrade() {
   const marcado = (c.plano_proximo || c.plano || {}).id;
   const planos = c.planos || [];
   const ativa = (c.assinatura || {}).situacao === "authorized";
+  const anual = ativa && c.periodo === "anual";
+  // O anual renova nos ultimos 45 dias (worker/ia.js).
+  const renovaAnual = anual && Date.parse(c.pago_ate || "") - Date.now() <= 45 * 864e5;
   const tokensAtual = Number((c.plano || {}).tokens || 0);
+  const botao = (id, periodo, rotulo, primario, desliga) => '<button type="button" class="' + (primario && !desliga ? "primario" : "") +
+    '" data-pc-opcao="' + esc(id) + '" data-pc-periodo="' + periodo + '"' + (desliga ? " disabled" : "") + ">" + esc(rotulo) + "</button>";
   const colunas = planos.map((p) => {
     const eAtual = p.id === atual;
     const eMarcado = p.id === marcado && p.id !== atual;
-    const perguntas = Math.round(p.tokens / 3500 / 100) * 100;
-    let rotulo, desliga = false;
-    if (!ativa) rotulo = "Assinar o " + p.nome;
-    else if (eAtual) { rotulo = c.plano_proximo ? "Ficar no " + p.nome : "Plano atual"; desliga = !c.plano_proximo; }
-    else if (eMarcado) { rotulo = "Troca marcada"; desliga = true; }
-    else rotulo = (p.tokens > tokensAtual ? "Mudar para o " : "Reduzir para o ") + p.nome;
+    const mensal = reais(p.valor) + "/mês";
+    const ano = reais(p.valor_anual) + "/ano";
+    let botoes;
+    if (!ativa) {
+      botoes = botao(p.id, "mensal", "Assinar · " + mensal, true, false) + botao(p.id, "anual", "Anual · " + ano + " (até 12×)", false, false);
+    } else if (anual) {
+      botoes = renovaAnual ? botao(p.id, "anual", "Renovar o ano no " + p.nome + " · " + ano, eAtual, false)
+        : botao(p.id, "anual", eAtual ? "Plano atual · anual" : "Troca na renovação do ano", false, true);
+    } else {
+      let rotulo, desliga = false;
+      if (eAtual) { rotulo = c.plano_proximo ? "Ficar no " + p.nome : "Plano atual"; desliga = !c.plano_proximo; }
+      else if (eMarcado) { rotulo = "Troca marcada"; desliga = true; }
+      else rotulo = (p.tokens > tokensAtual ? "Mudar para o " : "Reduzir para o ") + p.nome;
+      botoes = botao(p.id, "mensal", rotulo, p.tokens > tokensAtual, desliga) + botao(p.id, "anual", "Passar ao anual · " + ano, false, false);
+    }
+    const economia = Math.round((1 - p.valor_anual / (p.valor * 12)) * 100);
     return '<div class="pc-plano-col' + (eAtual ? " atual" : "") + '">' +
       '<div class="pc-plano-nome"><span>' + esc(p.nome) + "</span>" + (eAtual ? '<em class="sv-kicker">atual</em>' : eMarcado ? '<em class="sv-kicker">na renovação</em>' : "") + "</div>" +
-      '<div class="pc-plano-tok"><b>' + esc(tokCurto(p.tokens)) + "</b><small>tokens por mês · " + esc(reais(p.valor)) + "/mês</small></div>" +
-      '<ul class="pc-plano-itens"><li>~' + esc(perguntas.toLocaleString("pt-BR")) + " perguntas por mês</li>" +
-      "<li>" + esc(reais(Math.round((p.valor / p.tokens) * 1e6 * 100) / 100)) + " por milhão de tokens</li>" +
-      "<li>A equipe inteira, com limites por pessoa</li><li>Recarga em pacotes quando faltar</li></ul>" +
-      '<button type="button" class="' + (!desliga && p.tokens > tokensAtual ? "primario" : "") + '" data-pc-opcao="' + esc(p.id) + '"' + (desliga ? " disabled" : "") + ">" + esc(rotulo) + "</button></div>";
+      '<div class="pc-plano-tok"><b>' + esc(mensal) + "</b><small>ou " + esc(ano) + (economia > 0 ? " (" + economia + "% a menos)" : "") + "</small></div>" +
+      '<ul class="pc-plano-itens">' + itensDoPlano(p).map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul>" +
+      '<div class="pc-plano-botoes">' + botoes + "</div></div>";
   }).join("");
-  let escolhido = "";
+  let escolhido = "", periodo = "mensal";
   const aberto = dialogo({
     titulo: "Planos", contexto: "Plano e consumo", classe: "pc-dialogo pc-dialogo-planos", confirmar: "Fechar", semCancelar: true,
-    html: '<p class="pc-texto">' + (ativa ? "Trocar vale na próxima renovação: o valor novo é cobrado nela, e os tokens do plano novo entram com ela. Tokens não usados não passam para o ciclo seguinte."
-      : "A assinatura abre no Mercado Pago, onde se põe o cartão.") + "</p>" + '<div class="pc-planos">' + colunas + "</div>" });
+    html: '<p class="pc-texto">' + (anual ? "O plano anual vale até " + esc(pcData(c.pago_ate)) + ". A troca de plano é na renovação, que abre 45 dias antes."
+      : ativa ? "Trocar no mensal vale na próxima renovação: o valor novo é cobrado nela, e os créditos do plano novo entram com ela. Passar ao anual vale assim que o ano é pago; a assinatura mensal é cancelada no Mercado Pago."
+        : "O mensal abre no Mercado Pago, onde se põe o cartão. O anual paga o ano de uma vez, em até 12 vezes no cartão, com os juros do parcelamento por conta de quem parcela.") +
+      " Os 7 primeiros dias são de arrependimento, com o dinheiro de volta.</p>" + '<div class="pc-planos">' + colunas + "</div>" });
   document.querySelectorAll("#veu-dialogo [data-pc-opcao]").forEach((b) => b.addEventListener("click", () => {
     escolhido = b.dataset.pcOpcao;
+    periodo = b.dataset.pcPeriodo || "mensal";
     if (dialogoAberto) dialogoAberto.fechar(null);
   }));
   await aberto;
   if (!escolhido) return;
-  if (ativa) {
+  if (ativa && !anual && periodo === "mensal") {
     if (escolhido === marcado) return;
     const res = await nuvemPost("/api/nuvem/paulus/plano", { plano: escolhido });
     if (!res) return;
     avisoCert((res.conta || {}).plano_proximo ? "Troca marcada: o plano novo vale a partir da renovação." : "Troca desfeita: o plano continua o de agora.");
   } else {
-    const res = await nuvemPost("/api/nuvem/paulus/assinar", { plano: escolhido });
+    const res = await nuvemPost("/api/nuvem/paulus/assinar", { plano: escolhido, periodo: periodo });
     if (!res) return;
     if (res.link) window.open(res.link, "_blank");
-    avisoCert("Ponha o cartão na página do Mercado Pago que abriu.");
+    avisoCert(periodo === "anual" ? "Pague o ano na página do Mercado Pago que abriu; o plano entra assim que o pagamento for aprovado."
+      : "Ponha o cartão na página do Mercado Pago que abriu.");
   }
   await carregarConsumo(true);
 }
@@ -587,6 +658,7 @@ function ligarConsumo() {
   clique("[data-pc-cartao]", () => window.open(PC_MP_ASSINATURAS, "_blank"));
   clique("[data-pc-nota]", pedirNotaFiscal);
   clique("[data-pc-cancelar]", cancelarAssinatura);
+  clique("[data-pc-adiantar]", adiantarSemana);
   clique("[data-pc-convidar]", () => convidarDaEquipe(() => carregarConsumo(false)));
   clique("[data-pc-papel]", (b) => mudarPapel(Number(b.dataset.pcPapel)));
   clique("[data-pc-remover]", (b) => tirarAcesso(Number(b.dataset.pcRemover)));

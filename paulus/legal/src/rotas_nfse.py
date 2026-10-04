@@ -78,6 +78,20 @@ def _erro(exc: Exception, status: int = 400):
     raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
+def _cota_do_mes(estado, nota: dict) -> None:
+    if nota.get("ambiente") != "producao":
+        return
+    import recursos_do_plano
+    from datetime import date
+
+    from nfse.notas import EMITIDA
+
+    mes = date.today().isoformat()[:7]
+    emitidas = [n for n in estado.nfse.notas.listar((EMITIDA,), limite=5000)
+                if n.get("ambiente") == "producao" and str(n.get("dh_proc") or n.get("atualizado_em") or "")[:7] == mes]
+    recursos_do_plano.exigir_vaga(estado, "nfse_mes", len(emitidas), "NFS-e por mês")
+
+
 def montar(estado, app, dados_dir) -> None:
     import os
 
@@ -90,6 +104,9 @@ def montar(estado, app, dados_dir) -> None:
     if central is not None:
         central.estado_nfse = estado
     estado.nfse.estado_app = estado
+    # A NFS-e por mes do plano (src/recursos_do_plano.py): conta as emitidas em producao
+    # neste mes; a da producao restrita (o teste do assistente) nao conta.
+    estado.nfse.envio.antes_de_enviar = lambda nota: _cota_do_mes(estado, nota)
     # O mapa do programa diz a verdade sobre a emissão no estado de agora (N9).
     import programa
 
@@ -105,6 +122,11 @@ def montar(estado, app, dados_dir) -> None:
 
     @app.post("/api/nfse/ligar")
     def nfse_ligar(payload: Ligar) -> dict:
+        if payload.ligado:
+            import recursos_do_plano
+
+            # Plano sem NFS-e (teto 0): nem liga.
+            recursos_do_plano.exigir_vaga(estado, "nfse_mes", 0, "NFS-e por mês")
         estado.nfse.ligar(payload.ligado)
         return estado.nfse.para_tela()
 
@@ -443,6 +465,9 @@ def montar(estado, app, dados_dir) -> None:
 
     @app.post("/api/nfse/recorrencias")
     def nfse_recorrencia_salvar(payload: Recorrencia) -> dict:
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "nfse_recorrente")
         try:
             r = estado.nfse.recorrencias.salvar(payload.model_dump(), quem="titular")
         except ValueError as exc:

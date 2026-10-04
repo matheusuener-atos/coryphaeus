@@ -150,19 +150,24 @@ def usa(estado, tarefa: str) -> bool:
 
 # ------------------------------------------------------------ o consentimento
 
-TERMO_VERSAO = "2026-10-01"
+# 03/10/2026: cada plano tem o seu provedor (DeepInfra, Mistral AI, Anthropic):
+# o sim dado ao termo de antes, que so falava do DeepInfra, e pedido de novo.
+TERMO_VERSAO = "2026-10-03"
 
 
 def termo(provedor: str) -> list[str]:
     """O texto que o titular lê antes do sim. Cada frase tem código que a garante (tests/test_v_nuvem.py)."""
     if provedor == "paulus":
-        para_onde = ("Para onde: para o portão do PAULUS em paulus.ia.br (Cloudflare), que repassa ao DeepInfra, empresa dos "
-                     "Estados Unidos que roda o modelo. É transferência internacional de dados pessoais (LGPD, art. 33). O "
-                     "portão não guarda o texto: anota só os tokens gastos, as datas e o plano.")
-        politica = ("A política publicada pelo DeepInfra diz que ele não grava em disco nem registra o conteúdo do que recebe "
-                    "pela API, e não usa esse conteúdo para treinar modelos. Isso é a política do provedor, e não isolamento "
-                    "técnico: o servidor é compartilhado com outros clientes dele.")
-        custo = "O que sai gasta os tokens do plano do escritório; quando acabam, as respostas voltam a ser escritas neste computador."
+        para_onde = ("Para onde: para o portão do PAULUS em paulus.ia.br (Cloudflare), que repassa à empresa que roda o modelo "
+                     "do plano: o DeepInfra (Estados Unidos) no Advogado, a Mistral AI (França) no Escritório e a Anthropic "
+                     "(Estados Unidos) no Escritório Plus. É transferência internacional de dados pessoais (LGPD, art. 33). O "
+                     "portão não guarda o texto: anota só os créditos gastos, as datas, o modelo e o plano.")
+        politica = ("As políticas publicadas dizem: o DeepInfra não grava em disco nem registra o conteúdo que recebe pela API; a Mistral "
+                    "e a Anthropic guardam a entrada e a saída da API por até 30 dias (para conferir abuso, e no que a lei "
+                    "pedir) e apagam depois; nenhum dos três usa esse conteúdo para treinar modelos. Isso é a política de cada "
+                    "provedor, e não isolamento técnico: os servidores são compartilhados com outros clientes deles.")
+        custo = ("O que sai gasta os créditos do plano do escritório (por semana, com a cota do mês); quando acabam, as "
+                 "respostas voltam a ser escritas neste computador.")
     else:
         nome = PROVEDORES.get(provedor, {}).get("nome", provedor)
         para_onde = (f"Para onde: direto para a {nome}, com a chave de API do escritório. É transferência internacional de "
@@ -560,8 +565,13 @@ def _mensagens_do_provedor(provedor: str, mensagens: list[dict]) -> tuple[str, l
 
 
 def chamar(provedor: str, modelo: str, k: str, mensagens: list[dict], on_token, parar=None, json_mode: bool = False,
-           max_tokens: int = MAX_TOKENS) -> dict:
-    """Manda e devolve {"tokens_entrada", "tokens_saida"}; cada pedaço do texto vai a `on_token`."""
+           max_tokens: int = MAX_TOKENS, nivel: str = "") -> dict:
+    """
+    Manda e devolve {"tokens_entrada", "tokens_saida"} (e "modelo", o que o
+    Worker usou); cada pedaço do texto vai a `on_token`. No PAULUS (nuvem), o
+    `nivel` da profundidade vai junto: o Worker escolhe o modelo do plano para
+    ele e recusa o nível que o plano não tem.
+    """
     sistema, msgs = _mensagens_do_provedor(provedor, mensagens)
     if provedor == "anthropic":
         corpo = {"model": modelo, "max_tokens": max_tokens, "system": sistema, "messages": msgs, "stream": True}
@@ -571,6 +581,8 @@ def chamar(provedor: str, modelo: str, k: str, mensagens: list[dict], on_token, 
         if provedor in ("paulus", "deepinfra"):
             corpo["max_tokens"] = max_tokens
             corpo["temperature"] = 0.2
+        if provedor == "paulus" and nivel:
+            corpo["paulus_nivel"] = nivel
         if json_mode:
             corpo["response_format"] = {"type": "json_object"}
     try:
@@ -580,6 +592,9 @@ def chamar(provedor: str, modelo: str, k: str, mensagens: list[dict], on_token, 
     if r.status_code >= 400:
         raise _erro_http(r, provedor)
     uso = {"tokens_entrada": 0, "tokens_saida": 0}
+    real = str((getattr(r, "headers", None) or {}).get("x-paulus-modelo") or "")
+    if real:
+        uso["modelo"] = real
     for linha in r.iter_lines(decode_unicode=True):
         if parar is not None and parar():
             break
@@ -861,7 +876,9 @@ class Envio:
 
         teto = profundidade_mod.SAIDA_RESPOSTA.get(self.profundidade, MAX_TOKENS)
         uso = chamar(self.provedor, self.modelo, chave(self.estado, self.provedor), self.mensagens,
-                     lambda t: on_token(desm.entrar(t)), parar=parar, max_tokens=teto)
+                     lambda t: on_token(desm.entrar(t)), parar=parar, max_tokens=teto, nivel=self.profundidade)
+        # O modelo que respondeu de fato (o do plano, no PAULUS nuvem).
+        self.modelo = uso.pop("modelo", "") or self.modelo
         resto = desm.fim()
         if resto:
             on_token(resto)
@@ -979,6 +996,7 @@ class ClienteNuvem:
 
         uso = chamar(self.provedor, self.modelo, chave(self.estado, self.provedor), mensagens, entrou, parar=parar,
                      json_mode=json_mode, max_tokens=4000 if self.provedor in ("paulus", "deepinfra") else MAX_TOKENS)
+        self.modelo = uso.pop("modelo", "") or self.modelo
         resto = desm.fim()
         if resto:
             partes.append(resto)
@@ -1098,7 +1116,8 @@ def chamada(estado, mensagens: list[dict], *, pessoa=None, trabalho=None, etapa:
                 on_token(pronto)
 
     uso = chamar(provedor, modelo, chave(estado, provedor), mensagens, entrou, parar=parar, json_mode=json_mode,
-                 max_tokens=max_tokens)
+                 max_tokens=max_tokens, nivel=profundidade)
+    modelo = uso.pop("modelo", "") or modelo
     resto = desm.fim()
     if resto:
         partes.append(resto)

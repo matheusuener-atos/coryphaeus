@@ -78,8 +78,14 @@ def situacao(estado, forcar: bool = False) -> dict:
         vigente = bool(conta.get("plano_vigente"))
         ate = str((conta.get("ciclo") or {}).get("fim") or "")
         s = {"ia": vigente, "motivo": "" if vigente else "sem_plano", "ate": ate, "fonte": "worker"}
-        if guardado.get("ativo") != vigente or guardado.get("ate") != ate:
-            estado.prefs.atualizar({"plano": {"ativo": vigente, "ate": ate, "conferido_em": _agora_iso()}})
+        # O plano e o que ele libera (src/recursos_do_plano.py), guardados para valer sem internet.
+        p = conta.get("plano") or {}
+        novo = {"ativo": vigente, "ate": ate, "id": str(p.get("id") or ""), "nome": str(p.get("nome") or ""),
+                "recursos": dict(p.get("recursos") or {}), "pessoas": int(p.get("pessoas") or 0),
+                "planos": [{"id": x.get("id"), "nome": x.get("nome"), "pessoas": x.get("pessoas"), "recursos": x.get("recursos") or {}}
+                           for x in conta.get("planos") or []]}
+        if any(guardado.get(k) != v for k, v in novo.items()):
+            estado.prefs.atualizar({"plano": {**novo, "conferido_em": _agora_iso()}})
     _CACHE.update(quando=time.time(), situacao=s)
     return s
 

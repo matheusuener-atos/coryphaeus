@@ -128,6 +128,10 @@ class Envio:
         self.notas = emissor.notas
         self._trava = threading.RLock()
         self.ao_emitir: list = []        # quem precisa saber (N4: Acervo, papeis, e-mail, aviso)
+        # (nota) -> levanta se a nota nao pode sair agora (a cota do plano por
+        # mes, src/recursos_do_plano.py); so no primeiro envio - o reenvio e a consulta
+        # sao da mesma nota.
+        self.antes_de_enviar = None
         self._parar = threading.Event()
         self._fio: threading.Thread | None = None
 
@@ -188,6 +192,8 @@ class Envio:
                 return self.consultar(nota_id, quem, reenviar_se_nao_existe=True)
             if nota["estado"] != ASSINADA:
                 raise ValueError(f"a nota está “{nota['estado_rotulo']}” e não vai ao Sistema Nacional")
+            if self.antes_de_enviar is not None:
+                self.antes_de_enviar(nota)
             return self._enviar(nota, quem)
 
     def _enviar(self, nota: dict, quem: str) -> dict:

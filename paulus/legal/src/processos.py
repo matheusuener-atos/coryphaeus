@@ -390,7 +390,10 @@ def _extras(estado):
 # ------------------------------------------------------------ a volta diária
 
 def ligado(estado) -> bool:
-    return bool((estado.prefs.dados.get("processos") or {}).get("acompanhar"))
+    import recursos_do_plano
+
+    # Ligado e do plano (src/recursos_do_plano.py): o plano que nao tem o DataJud nao consulta.
+    return bool((estado.prefs.dados.get("processos") or {}).get("acompanhar")) and recursos_do_plano.pode(estado, "datajud")
 
 
 def _consultar(numero: str) -> dict:
@@ -572,11 +575,17 @@ def montar(estado, app) -> None:
         """Consultar agora, só este (a pessoa pediu): o novo vira aviso como na volta diária."""
         if not estado.processos.obter(id_):
             raise HTTPException(status_code=404, detail="processo não encontrado")
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "datajud")
         r = estado.processos.atualizar(id_, _CONSULTAR["fn"] or _consultar)
         return dict(r, processo=estado.processos.obter(id_), movimentos=estado.processos.movimentos(id_))
 
     @app.post("/api/processos/acompanhar-agora")
     def processos_rodar() -> dict:
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "datajud")
         if not ligado(estado):
             raise HTTPException(status_code=409, detail="o acompanhamento pelo DataJud está desligado")
         return rodar(estado, _CONSULTAR["fn"] or _consultar, pausa=0)

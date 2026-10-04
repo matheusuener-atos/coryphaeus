@@ -816,8 +816,14 @@ estado = Estado()
 # A IA faz parte da assinatura (src/plano.py): sem ela vigente, o modelo local
 # nao e chamado - em lugar nenhum. Fora do instalado (terminal, testes), livre.
 import plano as plano_mod  # noqa: E402
+import recursos_do_plano  # noqa: E402
 
 LlamaClient.portao = staticmethod(lambda: plano_mod.liberada(estado))
+# A equipe cabe no plano (src/recursos_do_plano.py): vaga para conta nova e colaborador de fora.
+estado.acesso_de_fora.contas.vaga = lambda existentes: recursos_do_plano.exigir_pessoa(estado, existentes)
+estado.acesso_de_fora.portao.colaborador_barrado = lambda: recursos_do_plano.colaborador_barrado(estado)
+# As contas de e-mail do plano (o Advogado tem uma; os outros, uma por pessoa).
+estado.contas.vaga = lambda existentes: recursos_do_plano.exigir_vaga(estado, "emails", existentes, "conta de e-mail")
 
 
 @asynccontextmanager
@@ -857,6 +863,14 @@ async def _fila_cheia(request, exc):
     from fastapi.responses import JSONResponse
 
     return JSONResponse(status_code=429, content={"detail": str(exc)})
+
+
+@app.exception_handler(recursos_do_plano.SemRecurso)
+async def _sem_recurso(request, exc):
+    """Um recurso que o plano nao tem (ou no teto dele): 403, com a frase do plano que tem."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=403, content={"detail": str(exc), "motivo": "plano", "recurso": exc.recurso})
 
 
 @app.exception_handler(plano_mod.SemPlano)
@@ -945,7 +959,7 @@ app.add_middleware(PortaDosServicos)
 # token e travas proprios, e o porteiro o entrega antes da chave da janela.
 estado.mcp = mcp_leis.ServidorMCP(
     leis=estado.leis, conexoes=mcp_leis.Conexoes(DADOS_DIR),
-    ligado=lambda: bool((estado.prefs.dados.get("umbrel") or {}).get("mcp")),
+    ligado=lambda: bool((estado.prefs.dados.get("umbrel") or {}).get("mcp")) and recursos_do_plano.pode(estado, "mcp"),
     registrar=estado.acesso_de_fora.auditoria.registrar, versao=VERSAO, estado=estado)
 # W1: o suplemento do Word (src/word_suplemento.py) - o painel, o pareamento e
 # as rotas com token entram pelo porteiro antes da chave da janela.
@@ -3760,6 +3774,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     envio_nuvem = None
     # A profundidade escolhida na caixa (src/profundidade.py), ou o padrao do escritorio.
     nivel_prof = profundidade_mod.obter(payload.profundidade, estado.prefs.dados)
+    # O plano diz ate onde vai (src/recursos_do_plano.py): acima dele, o maximo do plano.
+    nivel_prof = profundidade_mod.limitar(nivel_prof, recursos_do_plano.nivel_max(estado))
     if payload.nuvem and escrita_no_aparelho is None:
         envio_nuvem = nuvem_mod.Envio(estado, trabalho, pessoa=rotas_do_acesso.pessoa(request))
         envio_nuvem.profundidade = nivel_prof.id
@@ -5524,6 +5540,7 @@ def gravacoes_sugerir(payload: SugestaoAoVivo) -> dict:
     regra antes, modelo so quando a fala toca o que os documentos do caso dizem,
     e a resposta so passa ancorada no trecho. Sem sugestao, `sugestao` e None.
     """
+    recursos_do_plano.exigir(estado, "ao_vivo")  # do plano (src/recursos_do_plano.py)
     import sugestoes_ao_vivo as sav
 
     abertos = {d.name for d in estado.searcher.documents}
@@ -5542,6 +5559,7 @@ class PontosDoCaso(BaseModel):
 @app.post("/api/gravacoes/pontos")
 def gravacoes_pontos(payload: PontosDoCaso) -> dict:
     """Os pontos do caso numa frase, tirada dos trechos dos documentos (ou vazio)."""
+    recursos_do_plano.exigir(estado, "ao_vivo")  # do plano (src/recursos_do_plano.py)
     import sugestoes_ao_vivo as sav
 
     abertos = {d.name for d in estado.searcher.documents}
@@ -13328,6 +13346,7 @@ def horas_ver(id_: int, request: Request) -> dict:
 
 @app.post("/api/servicos/{id_}/horas")
 def horas_registrar(id_: int, dados: RegistroDeHoras, request: Request) -> dict:
+    recursos_do_plano.exigir(estado, "horas")  # do plano (src/recursos_do_plano.py)
     _servico_ou_404(id_)
     q = equipe.quem(request, estado.prefs.dados)
     try:
@@ -13350,6 +13369,7 @@ def horas_apagar(id_: int, hid: int, request: Request) -> dict:
 
 @app.post("/api/servicos/{id_}/horas/cronometro")
 def horas_cronometro(id_: int, dados: Cronometro, request: Request) -> dict:
+    recursos_do_plano.exigir(estado, "horas")  # do plano (src/recursos_do_plano.py)
     _servico_ou_404(id_)
     q = equipe.quem(request, estado.prefs.dados)
     if dados.acao == "comecar":
@@ -13363,6 +13383,7 @@ def horas_cronometro(id_: int, dados: Cronometro, request: Request) -> dict:
 
 @app.post("/api/servicos/{id_}/horas/valor")
 def horas_valor(id_: int, dados: ValorDaHora, request: Request) -> dict:
+    recursos_do_plano.exigir(estado, "horas")  # do plano (src/recursos_do_plano.py)
     import financeiro as financeiro_mod
 
     _servico_ou_404(id_)
@@ -13377,6 +13398,7 @@ def horas_valor(id_: int, dados: ValorDaHora, request: Request) -> dict:
 @app.post("/api/servicos/{id_}/horas/cobrar")
 def horas_cobrar(id_: int, dados: CobrarHoras, request: Request) -> dict:
     """As horas ainda nao cobradas viram um recebimento de honorarios no Financeiro."""
+    recursos_do_plano.exigir(estado, "horas")  # do plano (src/recursos_do_plano.py)
     s = _servico_ou_404(id_)
     h = estado.horas.do_servico(id_)
     valor = int(s.get("valor_hora") or 0)
@@ -14237,6 +14259,7 @@ async def gravacoes_guardar(
     sessao: str = Form(""), request: Request = None,
 ) -> dict:
     """O audio entra por aqui, gravado no navegador ou importado de um arquivo."""
+    recursos_do_plano.exigir(estado, "gravacao")  # do plano (src/recursos_do_plano.py)
     conteudo = await arquivo.read()
     if not conteudo:
         raise HTTPException(status_code=400, detail="o áudio veio vazio")
@@ -14286,6 +14309,7 @@ def gravacoes_obter(id_: int) -> dict:
 @app.post("/api/gravacoes/{id_}/transcrever")
 def gravacoes_transcrever(id_: int) -> dict:
     """Poe a gravacao na fila do Whisper. Volta na hora; a tela acompanha pelo estado."""
+    recursos_do_plano.exigir(estado, "gravacao")  # do plano (src/recursos_do_plano.py)
     g = estado.gravacoes.obter(id_)
     if not g:
         raise HTTPException(status_code=404, detail="gravação não encontrada")
@@ -14309,6 +14333,7 @@ def gravacoes_resumo(id_: int) -> dict:
     em blocos, cada bloco ganha um resumo parcial e os parciais viram um so.
     Demora alguns minutos em CPU; a tela avisa.
     """
+    recursos_do_plano.exigir(estado, "gravacao")  # do plano (src/recursos_do_plano.py)
     g = estado.gravacoes.obter(id_)
     if not g:
         raise HTTPException(status_code=404, detail="gravação não encontrada")

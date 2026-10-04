@@ -253,6 +253,11 @@ def pode_sozinho(estado, agente, ferramenta: str) -> tuple[bool, str]:
         return False, ""
     if not estado.prefs.pode("agentes_sozinhos"):
         return False, ""
+    import recursos_do_plano
+
+    # Fazer sozinho e do plano (src/recursos_do_plano.py); sem ele, o cartao de sempre pede o sim.
+    if not recursos_do_plano.pode(estado, "autonomia"):
+        return False, ""
     if ferramenta not in (getattr(agente, "autonomia", None) or []):
         return False, ""
     if getattr(agente, "precisa_aprovar", False):

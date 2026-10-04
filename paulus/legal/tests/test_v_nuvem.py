@@ -205,10 +205,10 @@ def main() -> int:
            "de fábrica: o PAULUS (nuvem) primeiro, sem o sim, desligada", {k: e[k] for k in ("provedor", "consentido", "ligada")})
     termo = local.get("/api/nuvem/termo?provedor=paulus").json()
     texto = " ".join(termo["texto"])
-    checar(all(x in texto for x in ("O que vai", "DeepInfra", "Estados Unidos", "art. 33", "não grava em disco", "não isolamento técnico",
+    checar(all(x in texto for x in ("O que vai", "DeepInfra", "Mistral AI", "França", "Anthropic", "30 dias", "Estados Unidos", "art. 33", "não grava em disco", "não isolamento técnico",
                                     "Nunca vai", "e-mail", "Drive", "só no escritório", "não anonimiza", "retirado")),
            "o termo diz o que vai, para onde, a política do provedor, o que nunca vai e como retirar")
-    checar("tokens do plano" in texto and "não guarda o texto" in texto, "e que o portão só anota os tokens")
+    checar("créditos do plano" in texto and "não guarda o texto" in texto, "e que o portão só anota os créditos")
     outro = " ".join(local.get("/api/nuvem/termo?provedor=deepinfra").json()["texto"])
     checar("chave de API do escritório" in outro and "contrato é do escritório" in outro, "o termo da chave própria diz que o contrato é do escritório")
     r = local.post("/api/nuvem/consentimento", json={"aceito": True, "versao": "1999-01-01"})
@@ -392,7 +392,7 @@ def main() -> int:
                 pag.wait_for_function("() => typeof cartaoNuvem === 'function' && typeof mostrarConfig === 'function'")
                 checar(pag.locator("#pilula-nuvem").count() == 0, "sem o sim, não há pílula “Nuvem”")
                 pag.evaluate("() => { mostrarConfig('modelos'); }")
-                pag.wait_for_function("() => /tokens restantes/.test((document.getElementById('cfg-tela') || {}).innerText || '')", timeout=15000)
+                pag.wait_for_function("() => /créditos livres agora/.test((document.getElementById('cfg-tela') || {}).innerText || '')", timeout=15000)
                 tela = pag.inner_text("#cfg-tela")
                 checar("30 milhões" in tela and "Renova em" in tela and "01/11/2026" in tela and "Recarregar" in tela and "assinatura ativa" in tela,
                        "o plano: tokens restantes, a renovação, a recarga", tela[tela.find("tokens restantes") - 40:][:400])
@@ -419,7 +419,7 @@ def main() -> int:
                 pag.click("[data-nuvem-recarga]")
                 pag.wait_for_selector(".nuvem-pix", timeout=10000)
                 checar("50,00" in pag.inner_text(".nuvem-pix") and pag.input_value(".nuvem-copia") == "000201pix", "a recarga: o Pix de R$ 50 com o copia e cola")
-                pag.wait_for_function("() => /Pago\\. Os tokens entraram/.test(document.body.innerText)", timeout=15000)
+                pag.wait_for_function("() => /Pago\\. Os créditos entraram/.test(document.body.innerText)", timeout=15000)
                 checar(True, "o pagamento é visto sozinho, sem fechar a janela")
                 pag.screenshot(path=str(TMP / "v-recarga.png"))
                 pag.click('[data-dialogo="confirmar"]')

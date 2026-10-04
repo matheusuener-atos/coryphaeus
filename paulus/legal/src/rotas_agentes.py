@@ -51,6 +51,14 @@ def _exigir_ligada(estado) -> None:
         raise HTTPException(status_code=409, detail=DESLIGADOS)
 
 
+def _exigir_vaga(estado) -> None:
+    """O plano diz quantos agentes do escritorio cabem (src/recursos_do_plano.py); os de exemplo do produto nao contam."""
+    import recursos_do_plano
+
+    feitos = [a for a in estado.agentes.listar() if a.origem != "produto"]
+    recursos_do_plano.exigir_vaga(estado, "agentes", len(feitos), "agentes personalizados")
+
+
 def _http(exc: agentes_mod.ErroDeAgente) -> HTTPException:
     if isinstance(exc, agentes_mod.AgenteNaoEncontrado):
         return HTTPException(status_code=404, detail=str(exc))
@@ -141,6 +149,7 @@ def montar(estado, app, pasta: Path | str, contexto: Callable[[str], object]) ->
     @app.post("/api/agentes")
     def agentes_criar(payload: dict | None = None) -> dict:
         _exigir_ligada(estado)
+        _exigir_vaga(estado)
         try:
             return estado.agentes.criar(_markdown(payload)).ficha()
         except agentes_mod.ErroDeAgente as exc:
@@ -175,6 +184,7 @@ def montar(estado, app, pasta: Path | str, contexto: Callable[[str], object]) ->
     @app.post("/api/agentes/importar")
     def agentes_importar(payload: dict | None = None) -> dict:
         _exigir_ligada(estado)
+        _exigir_vaga(estado)
         try:
             nome_arquivo = str((payload or {}).get("nome_arquivo") or "")[:200]
             return estado.agentes.importar(_markdown(payload), nome_arquivo=nome_arquivo).ficha()

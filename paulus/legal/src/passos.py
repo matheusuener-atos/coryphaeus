@@ -518,6 +518,9 @@ def montar(estado, app, dados_dir: Path) -> None:
 
     @app.post("/api/passos")
     def passos_comecar(payload: NovaTarefa) -> dict:
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "autonomia")
         try:
             return estado.tarefas_de_passos.comecar(payload.tipo, payload.params)
         except ValueError as exc:

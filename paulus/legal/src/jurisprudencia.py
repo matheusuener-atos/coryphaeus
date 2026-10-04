@@ -325,6 +325,9 @@ def montar(estado, app, dados_dir: Path) -> None:
     @app.post("/api/jurisprudencia/baixar")
     def jur_baixar(payload: Baixar) -> dict:
         """Começa (ou continua) o download dos órgãos escolhidos. Só os arquivos públicos do STJ saem pedidos daqui."""
+        import recursos_do_plano
+
+        recursos_do_plano.exigir(estado, "jurisprudencia_stj")
         j = estado.jurisprudencia
         slugs = [s for s in payload.orgaos if s in ORGAOS]
         if not slugs:

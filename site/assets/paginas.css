@@ -67,8 +67,18 @@
 .plano-nome b { font: 500 13.5px var(--sans); }
 .plano-nome b em { margin-left: 6px; font: 400 10.5px var(--mono); font-style: normal; color: var(--ok); }
 .plano-nome small { font: 400 11px var(--mono); color: var(--ink3); }
-.plano-valor { font: 400 13px var(--mono); color: var(--ink2); }
+.plano-valor { font: 400 13px var(--mono); color: var(--ink2); white-space: nowrap; }
+.plano-valor small { font-size: 10.5px; color: var(--ink3); }
 .plano.on .plano-valor { color: var(--ink); }
+/* Mensal ou anual: dois botoes lado a lado acima dos planos. */
+.periodo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; margin-bottom: 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.periodo-op { display: grid; gap: 1px; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink2); font: 500 13px var(--sans); cursor: pointer; }
+.periodo-op small { font: 400 10.5px var(--mono); color: var(--ink3); }
+.periodo-op.on { background: var(--panel2); color: var(--ink); }
+/* O que o plano escolhido tem. */
+.plano-itens { display: grid; gap: 4px; margin: 8px 0 4px; padding: 0 2px; list-style: none; font-size: 12.5px; line-height: 1.45; color: var(--ink2); }
+.plano-itens li { display: flex; gap: 8px; }
+.plano-itens li::before { content: "·"; color: var(--ink3); }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }
 .conta-linha { font-size: 13px; line-height: 1.55; color: var(--ink2); text-align: center; }
 .conta-linha b { color: var(--ink); font-weight: 500; }

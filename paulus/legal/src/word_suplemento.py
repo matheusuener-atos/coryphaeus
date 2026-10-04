@@ -527,7 +527,10 @@ def montar(estado, app, pasta_dados: Path) -> None:
         return nome or "Janela do escritório"
 
     def _ligado() -> bool:
-        return bool((estado.prefs.dados.get("word") or {}).get("ligado"))
+        import recursos_do_plano
+
+        # Ligado e do plano (src/recursos_do_plano.py): sem ele, o painel do Word fica fechado.
+        return bool((estado.prefs.dados.get("word") or {}).get("ligado")) and recursos_do_plano.pode(estado, "word")
 
     # --- o painel, sem token
 
@@ -647,6 +650,10 @@ def montar(estado, app, pasta_dados: Path) -> None:
     @app.post("/api/word/ligar")
     def word_ligar(payload: Ligar, request: Request) -> dict:
         so_local(request)
+        if payload.ligado:
+            import recursos_do_plano
+
+            recursos_do_plano.exigir(estado, "word")
         estado.prefs.atualizar({"word": {"ligado": bool(payload.ligado)}})
         instalacao.aplicar()
         return _situacao()

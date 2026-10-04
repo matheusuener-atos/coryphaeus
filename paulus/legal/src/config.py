@@ -265,8 +265,9 @@ PADRAO: dict = {
     # N15 (src/nuvem.py): a nuvem com a chave do escritorio - desligada de
     # fabrica. A chave nao mora aqui: fica cifrada pela DPAPI em <dados>/nuvem/.
     # A IA faz parte da assinatura (src/plano.py): o ultimo plano conhecido,
-    # para valer sem internet ate o fim do ciclo pago.
-    "plano": {"ativo": False, "ate": "", "conferido_em": ""},
+    # para valer sem internet ate o fim do ciclo pago, com o que ele libera
+    # (src/recursos_do_plano.py) e os outros planos (para dizer qual tem o recurso).
+    "plano": {"ativo": False, "ate": "", "conferido_em": "", "id": "", "nome": "", "recursos": {}, "pessoas": 0, "planos": []},
     # Os limites de uso da IA da nuvem (src/consumo.py, tela Plano e consumo):
     # tokens por dia e por mes do escritorio e, por pessoa da equipe (conta_id
     # -> {diario, mensal}). 0 = sem limite.

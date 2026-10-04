@@ -12,10 +12,10 @@
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   var CHAVE = "pv-cadastro-token";
   var $ = function (id) { return document.getElementById(id); };
-  var estado = { planos: [], escolhido: "escritorio", token: "", conta: null, cupom: null };
+  var estado = { planos: [], escolhido: "escritorio", periodo: "mensal", token: "", conta: null, cupom: null };
 
   function brl(v) { return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }); }
-  function milhoes(t) { return (t / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " milhões de tokens"; }
+  function milhoes(t) { return (t / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " milhões de créditos"; }
   function perguntas(t) { return "~" + (Math.round(t / 3500 / 100) * 100).toLocaleString("pt-BR") + " perguntas por mês"; }
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
@@ -39,6 +39,41 @@
 
   /* ------------------------------------------------------------ planos */
 
+  var NIVEL = { estagiario: "Estagiário", bacharel: "Bacharel", advogado: "Advogado", juiz: "Juiz", ministro: "Ministro" };
+
+  /* O que o plano tem (os recursos que o Worker manda): so o que o programa faz hoje. */
+  function itensDoPlano(p) {
+    var r = p.recursos || {};
+    var ia = (p.modelos_info || []).map(function (m) { return m.nome + " (" + m.empresa + ")"; }).join(" + ");
+    var itens = ["IA " + ia, milhoes(p.tokens) + " por mês, renovados por semana", r.profundidade ? "Profundidade até " + (NIVEL[r.profundidade] || r.profundidade) : "",
+      p.pessoas === 1 ? "1 pessoa" : "Até " + p.pessoas + " pessoas, cada uma com a sua conta"];
+    if (r.nfse_mes === null) itens.push("Emissor de NFS-e sem limite" + (r.nfse_recorrente ? ", com notas recorrentes" : ""));
+    else if (r.nfse_mes > 0) itens.push("Emissor de NFS-e, até " + r.nfse_mes + " por mês");
+    if (r.datajud) itens.push("Processos acompanhados no DataJud");
+    if (r.gravacao) itens.push("Gravação e transcrição de reuniões");
+    if (r.ao_vivo) itens.push("Sugestões jurídicas ao vivo na reunião");
+    if (r.word) itens.push("Assistente dentro do Word");
+    if (r.mcp) itens.push("Conexão MCP com outras IAs");
+    if (r.agentes) itens.push("Até " + r.agentes + " agentes personalizados");
+    else if (r.agentes === null) itens.push("Agentes personalizados sem limite");
+    return itens.filter(Boolean);
+  }
+
+  function valorDe(p) { return estado.periodo === "anual" ? p.valor_anual : p.valor; }
+  function sufixo() { return estado.periodo === "anual" ? "/ano" : "/mês"; }
+
+  function desenharPeriodo() {
+    ["mensal", "anual"].forEach(function (x) {
+      var b = $("cd-periodo-" + x);
+      b.setAttribute("aria-checked", String(estado.periodo === x));
+      b.classList.toggle("on", estado.periodo === x);
+    });
+    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "o ano, em até 12×" : "cobrança mensal";
+    $("cd-pagar-nota").textContent = estado.periodo === "anual"
+      ? "O ano é pago de uma vez no Mercado Pago, à vista ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela). A cota de IA continua mensal. O anual não renova sozinho."
+      : "O cartão é digitado na página do Mercado Pago, nunca aqui. Dá para cancelar no PAVLVS, em Configurações › Modelos.";
+  }
+
   function desenharPlanos() {
     // Com a assinatura de cortesia nao ha o que trocar; com a paga, o cartao
     // escolhido vira a troca (desenharTroca).
@@ -52,12 +87,15 @@
       return '<button type="button" class="plano' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-plano="' + esc(p.id) + '"' +
         (travado ? " disabled" : "") + ' title="' + esc(perguntas(p.tokens)) + '">' +
         '<span class="plano-radio" aria-hidden="true"></span>' +
-        '<span class="plano-nome"><b>' + esc(p.nome) + (selo ? "<em>" + selo + "</em>" : "") + "</b><small>" + milhoes(p.tokens) + " por mês</small></span>" +
-        '<span class="plano-valor">' + brl(p.valor) + "</span></button>";
+        '<span class="plano-nome"><b>' + esc(p.nome) + (selo ? "<em>" + selo + "</em>" : "") + "</b><small>" +
+        esc(((p.modelos_info || [])[0] || {}).nome || "") + " · " + milhoes(p.tokens) + " por mês</small></span>" +
+        '<span class="plano-valor">' + brl(valorDe(p)) + '<small>' + sufixo() + "</small></span></button>";
     }).join("");
     $("cd-planos").querySelectorAll("[data-plano]").forEach(function (b) {
       b.onclick = function () { estado.escolhido = b.dataset.plano; desenharPlanos(); atualizarBotao(); desenharTroca(); if ($("cd-cupom").value.trim()) conferirCupom(); };
     });
+    var escolhido = estado.planos.filter(function (x) { return x.id === estado.escolhido; })[0];
+    $("cd-plano-itens").innerHTML = escolhido ? itensDoPlano(escolhido).map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") : "";
   }
 
   /* A troca de plano, com a assinatura paga ativa: o cartao escolhido que nao
@@ -99,8 +137,8 @@
 
   function atualizarBotao() {
     var p = estado.planos.filter(function (x) { return x.id === estado.escolhido; })[0];
-    var c = estado.cupom && estado.cupom.plano === estado.escolhido ? estado.cupom : null;
-    $("cd-pagar-texto").textContent = p ? "Assinar o " + p.nome + " · " + brl(c ? c.valor : p.valor) + "/mês" : "Ir para o pagamento";
+    var c = estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom : null;
+    $("cd-pagar-texto").textContent = p ? (estado.periodo === "anual" ? "Pagar o ano do " : "Assinar o ") + p.nome + " · " + brl(c ? c.valor : valorDe(p)) + sufixo() : "Ir para o pagamento";
   }
 
   /* O cupom (criado no painel admin): o Worker diz se vale para o plano e
@@ -112,11 +150,13 @@
     estado.cupom = null;
     if (!codigo) { nota.hidden = true; atualizarBotao(); return; }
     try {
-      var d = await pedir("/api/ia/cupom?codigo=" + encodeURIComponent(codigo) + "&plano=" + encodeURIComponent(estado.escolhido));
-      if ($("cd-cupom").value.trim().toUpperCase() !== codigo) return;
+      var periodo = estado.periodo;
+      var d = await pedir("/api/ia/cupom?codigo=" + encodeURIComponent(codigo) + "&plano=" + encodeURIComponent(estado.escolhido) + "&periodo=" + periodo);
+      if ($("cd-cupom").value.trim().toUpperCase() !== codigo || periodo !== estado.periodo) return;
       if (!d.ok) throw new Error(d.erro || "esse cupom não vale");
-      estado.cupom = { codigo: codigo, plano: estado.escolhido, valor: d.valor };
-      var texto = d.desconto ? brl(d.valor) + "/mês nos primeiros " + d.meses + (d.meses === 1 ? " mês" : " meses") + " (" + d.desconto + "% de desconto); depois, " + brl(d.valor_cheio) + "/mês." : "Cupom válido.";
+      estado.cupom = { codigo: codigo, plano: estado.escolhido, periodo: periodo, valor: d.valor };
+      var texto = !d.desconto ? "Cupom válido." : periodo === "anual" ? brl(d.valor) + " pelo ano (" + d.desconto + "% de desconto sobre " + brl(d.valor_cheio) + ")."
+        : brl(d.valor) + "/mês nos primeiros " + d.meses + (d.meses === 1 ? " mês" : " meses") + " (" + d.desconto + "% de desconto); depois, " + brl(d.valor_cheio) + "/mês.";
       if (d.brinde) texto += " Mais " + milhoes(d.brinde) + " de brinde quando o cartão for confirmado.";
       nota.textContent = texto;
     } catch (e) {
@@ -131,8 +171,8 @@
       var d = await pedir("/api/ia/planos");
       estado.planos = d.planos || [];
       if (d.recarga) {
-        $("cd-recarga").textContent = "Uma pergunta sobre documentos gasta, em média, 3.500 tokens. Os tokens valem por um mês. " +
-          "Se acabarem antes, a recarga de " + milhoes(d.recarga.tokens) + " sai por " + brl(d.recarga.valor) + ", no Pix, e não vence na renovação.";
+        $("cd-recarga").textContent = "Uma pergunta sobre documentos gasta, em média, 3.500 créditos. A cota é do mês, liberada por semana; " +
+          "uma vez por mês dá para adiantar a semana seguinte. Se acabar, a recarga é no Pix, no preço do plano, e não vence na renovação.";
       }
       desenharPlanos();
       atualizarBotao();
@@ -171,7 +211,8 @@
       mostrarErro("cd-conta-erro", "");
       var fim = conta.ciclo && conta.ciclo.fim ? new Date(conta.ciclo.fim).toLocaleDateString("pt-BR") : "";
       $("cd-pronto-titulo").textContent = conta.cortesia ? "Plano de cortesia ativo" : "Assinatura ativa";
-      $("cd-pronto-texto").textContent = "Plano " + (conta.plano || {}).nome + (fim ? ", ciclo até " + fim : "") + ". " +
+      var ano = conta.periodo === "anual" && conta.pago_ate ? new Date(conta.pago_ate).toLocaleDateString("pt-BR") : "";
+      $("cd-pronto-texto").textContent = "Plano " + (conta.plano || {}).nome + (ano ? " anual, pago até " + ano : fim ? ", ciclo até " + fim : "") + ". " +
         "Agora é só baixar o PAVLVS e entrar com " + conta.email + ".";
     }
     desenharPlanos();
@@ -291,8 +332,8 @@
     try {
       var r = await pedir("/api/ia/site/cadastro", {
         id_token: estado.token, nome_escritorio: $("cd-nome").value, documento: $("cd-documento").value,
-        telefone: $("cd-telefone").value, oab: $("cd-oab").value, endereco: endereco(), aceite: true, plano: estado.escolhido,
-        cupom: estado.cupom && estado.cupom.plano === estado.escolhido ? estado.cupom.codigo : "",
+        telefone: $("cd-telefone").value, oab: $("cd-oab").value, endereco: endereco(), aceite: true, plano: estado.escolhido, periodo: estado.periodo,
+        cupom: estado.cupom && estado.cupom.plano === estado.escolhido && estado.cupom.periodo === estado.periodo ? estado.cupom.codigo : "",
       });
       if (!r.link) throw new Error("o Mercado Pago não devolveu a página de pagamento");
       window.location.href = r.link;
@@ -317,7 +358,7 @@
       $("cd-conta-erro").textContent = "Conferindo o pagamento no Mercado Pago…";
       await new Promise(function (ok) { setTimeout(ok, 5000); });
     }
-    mostrarErro("cd-conta-erro", "O Mercado Pago ainda não confirmou o cartão. Se você concluiu o pagamento, recarregue esta página em alguns minutos.");
+    mostrarErro("cd-conta-erro", "O Mercado Pago ainda não confirmou o pagamento. Se você concluiu, recarregue esta página em alguns minutos.");
     return null;
   }
 
@@ -326,6 +367,14 @@
     iniciarGoogle();
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
+    ["mensal", "anual"].forEach(function (x) {
+      $("cd-periodo-" + x).addEventListener("click", function () {
+        estado.periodo = x;
+        desenharPeriodo(); desenharPlanos(); atualizarBotao();
+        if ($("cd-cupom").value.trim()) conferirCupom();
+      });
+    });
+    desenharPeriodo();
     $("cd-cupom").addEventListener("input", function () { clearTimeout(esperaCupom); esperaCupom = setTimeout(conferirCupom, 500); });
     $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });

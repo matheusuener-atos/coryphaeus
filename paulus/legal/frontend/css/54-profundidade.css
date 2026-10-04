@@ -27,6 +27,11 @@
 .mp-texto b em { font: 500 11px var(--sans); font-style: normal; color: var(--ink3); margin-left: 4px; }
 .mp-texto > span { font: 500 12.5px var(--sans); color: var(--ink2); line-height: 1.35; }
 .mp-tecnico { font: 500 11px var(--sans); color: var(--ink3); line-height: 1.35; margin-top: 2px; }
+/* O nivel que o plano nao tem: aparece, sem escolher, com o plano que o tem. */
+.mp-nivel.travado { cursor: default; }
+.mp-nivel.travado:hover { background: none; }
+.mp-nivel.travado .mp-degrau, .mp-nivel.travado .mp-texto b, .mp-nivel.travado .mp-texto > span { opacity: .55; }
+.mp-plano { display: flex; align-items: center; gap: 4px; font: 500 11.5px var(--sans); color: var(--ink2); margin-top: 3px; line-height: 1.35; }
 .mp-perguntar {
   display: flex; gap: 10px; align-items: flex-start; margin: 6px 2px 2px; padding: 10px 10px 8px;
   border-top: 1px solid var(--ink-a08); cursor: pointer;
