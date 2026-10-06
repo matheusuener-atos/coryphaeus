@@ -297,7 +297,7 @@ function fcnCampo(chave, rotulo, o) {
   const entrada = o.opcoes
     ? '<select data-fcn="' + chave + '">' + o.opcoes.map(([x, r]) => '<option value="' + esc(x) + '"' + (String(x) === String(valor) ? " selected" : "") + ">" + esc(r) + "</option>").join("") + "</select>"
     : '<input type="' + (o.tipo || "text") + '" data-fcn="' + chave + '" value="' + esc(valor) + '" placeholder="' + esc(o.placeholder || "") + '"' +
-      (o.mono ? ' class="fcn-mono"' : "") + ' autocomplete="off">';
+      (o.mono ? ' class="fcn-mono"' : "") + (o.cnpjBusca ? ' data-cnpj-busca="1"' : "") + marcaCnpj(o.cnpj) + ' autocomplete="off">';
   return '<label class="' + classe + '"><span class="fcn-rotulo">' + esc(rotulo) + fcnNota(chave) + "</span>" + entrada + "</label>";
 }
 
@@ -322,11 +322,12 @@ function htmlDaFicha() {
     topo = fcnTopo('<span class="emc-avatar">' + esc(fcnIniciais(v.nome)) + "</span>", "Novo cliente", "Cadastros › Clientes") +
       '<span class="visoes fcn-abas"><button type="button" data-fcn-pessoa="juridica"' + (pj ? ' class="ativa"' : "") + ">Pessoa jurídica</button>" +
       '<button type="button" data-fcn-pessoa="fisica"' + (!pj ? ' class="ativa"' : "") + ">Pessoa física</button></span>";
-    corpo = fcnCampo("nome", pj ? "Razão social ou nome" : "Nome") +
-      fcnCampo("documento", pj ? "CNPJ / CPF" : "CPF / CNPJ", { placeholder: pj ? "00.000.000/0000-00" : "000.000.000-00" }) +
-      fcnCampo("endereco", "Endereço") +
-      '<div class="fcn-par">' + fcnCampo("telefone", "Telefone", { meia: true, placeholder: "(62) 99999-8888", mono: true }) +
-      fcnCampo("email", "E-mail para cobrança", { meia: true, placeholder: "nome@dominio.org" }) + "</div>" +
+    // O CNPJ digitado preenche nome, endereco e contato com os dados da Receita (js/39-campos.js).
+    corpo = fcnCampo("nome", pj ? "Razão social ou nome" : "Nome", { cnpj: "razao_social" }) +
+      fcnCampo("documento", pj ? "CNPJ / CPF" : "CPF / CNPJ", { placeholder: pj ? "00.000.000/0000-00" : "000.000.000-00", cnpjBusca: true }) +
+      fcnCampo("endereco", "Endereço", { cnpj: "endereco" }) +
+      '<div class="fcn-par">' + fcnCampo("telefone", "Telefone", { meia: true, placeholder: "(62) 99999-8888", mono: true, cnpj: "telefone" }) +
+      fcnCampo("email", "E-mail para cobrança", { meia: true, placeholder: "nome@dominio.org", cnpj: "email" }) + "</div>" +
       '<span class="emc-kicker fcn-secao">Cobrança</span>' +
       '<div class="fcn-par">' + fcnCampo("honorario", "Honorário padrão", { meia: true, placeholder: "R$ 0,00", mono: true }) +
       fcnCampo("dia_vencimento", "Dia de vencimento", { meia: true, opcoes: fcnDias() }) + "</div>" +
@@ -339,9 +340,9 @@ function htmlDaFicha() {
       '<div class="fcn-par">' + fcnCampo("valor", "Valor mensal", { meia: true, placeholder: "R$ 0,00", mono: true }) +
       fcnCampo("dia", "Dia de vencimento", { meia: true, opcoes: fcnDias() }) + "</div>" +
       '<span class="emc-kicker fcn-secao">Fornecedor</span>' +
-      fcnCampo("fornecedor", "Nome") +
-      fcnCampo("documento", "CNPJ / CPF do fornecedor", { mono: true }) +
-      '<div class="fcn-par">' + fcnCampo("email", "E-mail", { meia: true }) + fcnCampo("telefone", "Telefone", { meia: true, mono: true }) + "</div>" +
+      fcnCampo("fornecedor", "Nome", { cnpj: "razao_social" }) +
+      fcnCampo("documento", "CNPJ / CPF do fornecedor", { mono: true, cnpjBusca: true }) +
+      '<div class="fcn-par">' + fcnCampo("email", "E-mail", { meia: true, cnpj: "email" }) + fcnCampo("telefone", "Telefone", { meia: true, mono: true, cnpj: "telefone" }) + "</div>" +
       fcnCampo("observacao", "Anotação") +
       fcnCampo("avisar_dias", "Avisar antes", { opcoes: FCN_AVISAR }) +
       fcnInterruptor("lancar_mensal", "Lançar no Financeiro todo mês", "entra como conta a pagar do mês, vencendo no dia" + (v.dia ? " " + v.dia : " 1º"));
@@ -373,7 +374,7 @@ function htmlDaFicha() {
       '<button type="button" class="primario" data-fcn-salvar="1">' + ic("check", 16) + (v.convidar && local ? "Salvar e convidar" : "Salvar") + "</button>";
   }
   return '<div class="fcn" data-fl-tipo="ficha">' + topo +
-    '<div class="fcn-corpo">' + corpo + "</div>" +
+    '<div class="fcn-corpo" data-cnpj-grupo="1">' + corpo + "</div>" +
     '<div class="fcn-pe"><small class="fcn-resumo" data-fcn-resumo="1"></small><span class="dialogo-aviso" data-fcn-aviso="1"></span>' + pe + "</div></div>";
 }
 

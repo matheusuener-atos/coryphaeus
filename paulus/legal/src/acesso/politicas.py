@@ -177,6 +177,8 @@ _declarar(PERMITIDO,
           "GET /api/agenda", "GET /api/agenda/dia", "GET /api/agenda/livres", "GET /api/google",
           "POST /api/google/sincronizar",
           "GET /api/cadastros", "GET /api/cadastros/sugestoes", "POST /api/cadastros/levantamento",
+          # o CNPJ digitado na ficha: os dados públicos da Receita (src/cnpj_receita.py)
+          "GET /api/cnpj/{cnpj}",
           "GET /api/tarefas", "GET /api/tarefas/sugestoes", "GET /api/tarefas/{id_}/vinculos",
           # a fila: ver (aprovar e do titular)
           "GET /api/aprovacoes",

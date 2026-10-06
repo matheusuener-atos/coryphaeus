@@ -107,17 +107,18 @@ function secaoNfse() {
   const munFrase = mun.situacao === "conveniado" ? "✓ " + (mun.frase || "o município emite pelo nacional")
     : (mun.frase || "Depois de gravar, o PAULUS pergunta ao Sistema Nacional se o seu município emite por ele.");
   const passo2 = passoNfse(2, "Os dados do escritório", configOk || (!!d.documento && munOk), "Como aparecem na nota.",
-    '<div class="cfg-campos">' +
-    '<div class="ag-duas">' + campoNfse("documento", "CNPJ (ou CPF do advogado autônomo)", d.documento, "só números") +
+    // O CNPJ digitado preenche nome, cidade, endereco e contato com os dados da Receita (js/39-campos.js).
+    '<div class="cfg-campos" data-cnpj-grupo="1">' +
+    '<div class="ag-duas">' + campoNfse("documento", "CNPJ (ou CPF do advogado autônomo)", d.documento, "só números", ' data-cnpj-busca="1"') +
     campoNfse("inscricao_municipal", "Inscrição municipal", d.inscricao_municipal, "está no alvará ou no carnê do ISS") + "</div>" +
-    campoNfse("razao_social", "Nome (razão social)", d.razao_social, "como no CNPJ") +
-    '<div class="ag-duas">' + campoNfse("municipio", "Cidade", d.municipio, "digite o nome e escolha", ' list="nfse-municipios" data-nfse-busca-municipio="1"') +
+    campoNfse("razao_social", "Nome (razão social)", d.razao_social, "como no CNPJ", marcaCnpj("razao_social")) +
+    '<div class="ag-duas">' + campoNfse("municipio", "Cidade", d.municipio, "digite o nome e escolha", ' list="nfse-municipios" data-nfse-busca-municipio="1"' + marcaCnpj("codigo_municipio_ibge")) +
     '<div class="ag-campo"><label>&nbsp;</label><input type="text" readonly value="' + esc(p.municipio_nome || "") + '"></div></div>' +
     '<datalist id="nfse-municipios"></datalist>' +
-    '<div class="ag-duas">' + campoNfse("endereco.cep", "CEP", end.cep, "00000000") + campoNfse("endereco.logradouro", "Rua", end.logradouro) + "</div>" +
-    '<div class="ag-duas">' + campoNfse("endereco.numero", "Número", end.numero) + campoNfse("endereco.complemento", "Complemento", end.complemento) + "</div>" +
-    '<div class="ag-duas">' + campoNfse("endereco.bairro", "Bairro", end.bairro) + campoNfse("telefone", "Telefone", d.telefone) + "</div>" +
-    campoNfse("email", "E-mail", d.email) + "</div>" +
+    '<div class="ag-duas">' + campoNfse("endereco.cep", "CEP", end.cep, "00000000", marcaCnpj("cep")) + campoNfse("endereco.logradouro", "Rua", end.logradouro, "", marcaCnpj("logradouro")) + "</div>" +
+    '<div class="ag-duas">' + campoNfse("endereco.numero", "Número", end.numero, "", marcaCnpj("numero")) + campoNfse("endereco.complemento", "Complemento", end.complemento, "", marcaCnpj("complemento")) + "</div>" +
+    '<div class="ag-duas">' + campoNfse("endereco.bairro", "Bairro", end.bairro, "", marcaCnpj("bairro")) + campoNfse("telefone", "Telefone", d.telefone, "", marcaCnpj("telefone")) + "</div>" +
+    campoNfse("email", "E-mail", d.email, "", marcaCnpj("email")) + "</div>" +
     '<p class="cfg-explica">' + esc(munFrase) + "</p>" +
     '<div class="word-acoes"><button class="primario" data-nfse-acao="salvar">' + ic("save", 16) + "Gravar e continuar</button>" +
     (d.municipio ? '<button data-nfse-acao="municipio">' + ic("search", 16) + "Consultar a cidade de novo</button>" : "") + "</div>");

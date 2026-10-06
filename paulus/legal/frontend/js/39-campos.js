@@ -207,11 +207,107 @@ function atributosDoCampo(tipo) {
   return ' data-campo="' + tipo + '" inputmode="' + modo + '" maxlength="' + maximo + '" autocomplete="off" spellcheck="false"';
 }
 
+/* ------------------------------------------- O CNPJ preenche a ficha */
+/*
+   CNPJ completo e certo num campo de CNPJ (data-campo="cnpj" ou "cpf-cnpj";
+   nos campos sem mascara, data-cnpj-busca) pergunta a /api/cnpj, que consulta
+   a Receita pela BrasilAPI (src/cnpj_receita.py), e preenche os campos do
+   mesmo grupo marcados com data-cnpj="<dado>" (os nomes de CNPJ_DADOS). O
+   grupo e o [data-cnpj-grupo] mais perto, ou o dialogo em volta; sem grupo,
+   nada e preenchido.
+
+   So entra em campo vazio, ou no que a consulta anterior preencheu e
+   ninguem mexeu: o que a pessoa escreveu fica. Cada campo preenchido avisa
+   a tela com um "input", como se a pessoa tivesse digitado. O CNPJ com
+   letras nao e consultado: a BrasilAPI ainda nao o conhece.
+*/
+
+const CNPJ_DADOS = ["razao_social", "nome_fantasia", "logradouro", "numero", "complemento", "bairro", "municipio", "uf",
+  "codigo_municipio_ibge", "cep", "endereco", "telefone", "email"];
+
+/* Para quem desenha o campo que a consulta preenche. */
+function marcaCnpj(dado) { return dado ? ' data-cnpj="' + dado + '"' : ""; }
+
+function valorDaReceita(dados, dado) {
+  if (!dados || CNPJ_DADOS.indexOf(dado) < 0 || dados[dado] == null) return "";
+  const v = String(dados[dado]).trim();
+  return dado === "telefone" && v ? formatarTelefone(v) : v;
+}
+
+/* O CNPJ do campo, pronto para consultar; "" se nao e (ainda) o caso. */
+function cnpjParaConsultar(el) {
+  const tipo = el.dataset.campo;
+  if (tipo !== "cnpj" && tipo !== "cpf-cnpj" && !el.dataset.cnpjBusca) return "";
+  if (el.readOnly || el.disabled) return "";
+  const c = limparDocumento(el.value);
+  return c.length === 14 && /^\d+$/.test(c) && cnpjValido(c) ? c : "";
+}
+
+/* A linha abaixo do CNPJ: o que veio da Receita, ou por que nao veio. */
+function notaDoCnpj(el, texto, tom) {
+  const bloco = el.closest(".campo-painel, .ag-campo, .dialogo-campo, .campo, .fcn-campo") || el.parentElement;
+  if (!bloco) return;
+  let nota = bloco.querySelector(".campo-nota");
+  if (!texto) { if (nota) nota.remove(); return; }
+  if (!nota) {
+    nota = document.createElement("span");
+    nota.className = "campo-nota";
+    nota.setAttribute("role", "status");
+    bloco.appendChild(nota);
+  }
+  nota.classList.toggle("alerta", tom === "alerta");
+  nota.textContent = texto;
+}
+
+async function preencherPeloCnpj(el, cnpj) {
+  el.dataset.cnpjConsultado = cnpj;
+  notaDoCnpj(el, "consultando a Receita…");
+  let r = null;
+  try { r = await fetch("/api/cnpj/" + cnpj); } catch (err) { r = null; }
+  // A pessoa mudou o numero enquanto a resposta vinha: vale o numero novo.
+  if (limparDocumento(el.value) !== cnpj) return;
+  if (!r || !r.ok) {
+    const motivo = r ? await erroDe(r) : "sem resposta: confira a internet ou preencha à mão";
+    notaDoCnpj(el, "Não preenchi pela Receita: " + motivo, "alerta");
+    return;
+  }
+  const dados = await r.json();
+  const grupo = el.closest("[data-cnpj-grupo], .dialogo");
+  let preenchidos = 0;
+  if (grupo) grupo.querySelectorAll("[data-cnpj]").forEach((alvo) => {
+    const v = valorDaReceita(dados, alvo.dataset.cnpj);
+    if (!v || alvo === el || alvo.readOnly || alvo.disabled) return;
+    const atual = alvo.value.trim();
+    if (atual && atual !== alvo.dataset.cnpjPos) return;
+    alvo.value = alvo.dataset.campo ? formatarCampo(alvo.dataset.campo, v) : v;
+    alvo.dataset.cnpjPos = alvo.value;
+    alvo.classList.remove("campo-invalido");
+    // Campo dentro de uma parte recolhida (a nota fiscal da ficha): abre.
+    const parte = alvo.closest("details");
+    if (parte) parte.open = true;
+    alvo.dispatchEvent(new Event("input", { bubbles: true }));
+    preenchidos += 1;
+  });
+  const situacao = dados.ativa ? "" : " · situação na Receita: " + String(dados.situacao || "desconhecida").toLowerCase();
+  const quantos = preenchidos ? " · " + preenchidos + (preenchidos === 1 ? " campo preenchido" : " campos preenchidos") : "";
+  notaDoCnpj(el, (dados.razao_social || "CNPJ encontrado") + situacao + quantos + " (Receita, pela BrasilAPI)", dados.ativa ? "" : "alerta");
+}
+
 /* Fora do navegador (o teste roda no Node) nao ha pagina para ouvir. */
 if (typeof document !== "undefined") {
+const cnpjRelogios = new WeakMap();
 document.addEventListener("input", (e) => {
   const el = e.target;
-  if (!el || !el.dataset || !el.dataset.campo) return;
+  if (!el || !el.dataset || !(el.dataset.campo || el.dataset.cnpjBusca)) return;
+  const cnpj = cnpjParaConsultar(el);
+  if (cnpj !== (el.dataset.cnpjConsultado || "")) {
+    clearTimeout(cnpjRelogios.get(el));
+    if (!cnpj) { delete el.dataset.cnpjConsultado; notaDoCnpj(el, ""); }
+    // Uma pausa curta: quem cola o numero inteiro ou digita o ultimo
+    // caractere consulta uma vez so.
+    else cnpjRelogios.set(el, setTimeout(() => { if (cnpjParaConsultar(el) === cnpj) preencherPeloCnpj(el, cnpj); }, 350));
+  }
+  if (!el.dataset.campo) return;
   reformatarNoLugar(el);
   // Enquanto digita, so tira o aviso quando ficar certo; nao acusa no meio.
   if (el.classList.contains("campo-invalido") && !problemaDoCampo(el.dataset.campo, el.value)) mostrarProblemaDoCampo(el);

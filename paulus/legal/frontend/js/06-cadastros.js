@@ -673,6 +673,19 @@ function camposDaNotaCad(v) {
     "</details>";
 }
 
+/* O que o CNPJ digitado preenche com os dados da Receita (js/39-campos.js).
+   Na despesa o nome e a descricao ("aluguel"): so o contato do fornecedor. */
+const CAD_PELO_CNPJ = {
+  nome: "razao_social", telefone: "telefone", email: "email", endereco: "endereco",
+  end_cep: "cep", end_cmun: "codigo_municipio_ibge", end_logradouro: "logradouro", end_numero: "numero",
+  end_complemento: "complemento", end_bairro: "bairro", email_nota: "email",
+};
+
+function cadPeloCnpj(chave) {
+  if (cad.form && cad.form.tipo === "despesa" && chave !== "email" && chave !== "telefone") return "";
+  return CAD_PELO_CNPJ[chave] || "";
+}
+
 /* `tipo` marca o campo formatado (js/39-campos.js): "cpf", "cpf-cnpj" ou
    "telefone". O valor ja aparece formatado, mesmo o que veio sem mascara. */
 function campoCad(chave, rotulo, dica, tipo) {
@@ -681,7 +694,7 @@ function campoCad(chave, rotulo, dica, tipo) {
   const valor = tipo ? formatarCampo(tipo, v[chave] || "") : (v[chave] || "");
   return '<div class="dialogo-campo"><label for="' + id + '">' + esc(rotulo) + '</label><div class="dialogo-caixa">' +
     '<input type="text" id="' + id + '" data-cc="' + chave + '" value="' + esc(valor) + '"' +
-    (dica ? ' placeholder="' + esc(dica) + '"' : "") + (tipo ? atributosDoCampo(tipo) : ' autocomplete="off"') + "></div></div>";
+    (dica ? ' placeholder="' + esc(dica) + '"' : "") + (tipo ? atributosDoCampo(tipo) : ' autocomplete="off"') + marcaCnpj(cadPeloCnpj(chave)) + "></div></div>";
 }
 
 function listaCad(chave, rotulo, opcoes) {

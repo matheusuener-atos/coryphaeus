@@ -112,6 +112,7 @@ import rotas_agentes
 import agentes_medida
 import agentes_tela
 import rotas_avisos
+import cnpj_receita
 import recuperacao as recuperacao_mod
 from lexico import IndiceLexico
 from medicao import Medicao
@@ -1021,6 +1022,8 @@ aprendizado_mod.montar(estado, app, DADOS_DIR)
 captura_mod.montar(estado, app, DADOS_DIR)
 mcp_leis.montar(estado, app)
 rotas_chaves.montar(estado, app)
+# O CNPJ digitado preenche a ficha com os dados da Receita (BrasilAPI, src/cnpj_receita.py).
+cnpj_receita.montar(app)
 rotas_execucoes.montar(estado, app)
 rotas_conversa.montar(estado, app)
 saudacao_mod.montar(estado, app, rotas_do_acesso.pessoa)

@@ -319,7 +319,8 @@ function secaoPerfil() {
     '<button data-cfg-marca="logo">' + ic("upload", 16) + (logo.tem ? "Trocar logo" : "Enviar logo") + "</button>" +
     (logo.tem ? '<button data-cfg-marca-tirar="logo">' + ic("close", 16) + "Remover</button>" : "") +
     '<span class="cfg-explica">vai no alto do papel timbrado</span></div></div>' +
-    '<div class="cfg-campos">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos") +
+    // O CNPJ digitado preenche o nome com a razao social da Receita (js/39-campos.js).
+    '<div class="cfg-campos" data-cnpj-grupo="1">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos", marcaCnpj("razao_social")) +
     '<div class="ag-duas">' + campoCfg("escritorio.cnpj", "CNPJ", formatarCnpj(e.cnpj || ""), "00.000.000/0001-00", atributosDoCampo("cnpj")) + campoCfg("escritorio.oab", "OAB da sociedade", e.oab, "GO 0000") + "</div>" +
     campoCfg("escritorio.rodape", "Rodapé dos documentos", e.rodape, "OAB/GO 00000 · Goiânia · GO") + "</div>" +
     '<p class="cfg-explica">O nome entra nos recibos da folha. CNPJ, OAB e rodapé ficam guardados; nenhum documento os usa ainda.</p>';

@@ -7,10 +7,13 @@
    confere a DPS no XSD oficial, no servidor (src/nfse/notas.py).
 */
 
+/* O terceiro item: o dado da Receita que o CNPJ digitado preenche
+   (js/39-campos.js); no documento, a marca de que ele consulta. */
 const NOTA_CAMPOS_TOMADOR = [
-  ["nome", "Nome ou razão social"], ["documento", "CPF ou CNPJ"], ["logradouro", "Logradouro"], ["numero", "Número"],
-  ["complemento", "Complemento"], ["bairro", "Bairro"], ["cep", "CEP"], ["cmun", "Município (código IBGE)"],
-  ["inscricao_municipal", "Inscrição municipal"], ["email", "E-mail para a nota"],
+  ["nome", "Nome ou razão social", "razao_social"], ["documento", "CPF ou CNPJ"], ["logradouro", "Logradouro", "logradouro"],
+  ["numero", "Número", "numero"], ["complemento", "Complemento", "complemento"], ["bairro", "Bairro", "bairro"], ["cep", "CEP", "cep"],
+  ["cmun", "Município (código IBGE)", "codigo_municipio_ibge"], ["inscricao_municipal", "Inscrição municipal"],
+  ["email", "E-mail para a nota", "email"],
 ];
 
 function centavosTexto(c) {
@@ -33,7 +36,8 @@ function htmlDoCartaoNota(n) {
   const r = n.rascunho || {};
   const t = r.tomador || {};
   const ro = n.editavel ? "" : " readonly";
-  const tomador = NOTA_CAMPOS_TOMADOR.map(([k, rot]) => campoNota("tomador." + k, rot, t[k], ro));
+  const tomador = NOTA_CAMPOS_TOMADOR.map(([k, rot, dado]) =>
+    campoNota("tomador." + k, rot, t[k], ro + (k === "documento" ? ' data-cnpj-busca="1"' : marcaCnpj(dado))));
   const pares = [];
   for (let i = 0; i < tomador.length; i += 2) pares.push('<div class="dialogo-duas">' + tomador[i] + (tomador[i + 1] || "") + "</div>");
   const linhas = ((n.conta && n.conta.linhas) || []).map((l) => '<tr class="nota-' + esc(l.tipo) + '"><td>' + esc(l.rotulo) + "</td><td>" +
@@ -44,7 +48,7 @@ function htmlDoCartaoNota(n) {
   const passos = (n.passos || []).map((p) => "<li>" + esc((p.quando || "").slice(0, 16).replace("T", " ")) + " · " +
     esc(p.para || "") + (p.detalhe ? " — " + esc(p.detalhe) : "") + "</li>").join("");
   const rejeicao = (n.rejeicao || []).map((x) => "<li><b>" + esc(x.codigo || "") + "</b> " + esc(x.frase || x.descricao || "") + "</li>").join("");
-  return '<div class="nota-cartao" data-nota-id="' + n.id + '">' +
+  return '<div class="nota-cartao" data-cnpj-grupo="1" data-nota-id="' + n.id + '">' +
     '<p class="nota-estado"><b>' + esc(n.estado_rotulo || "") + "</b> · " +
     esc(n.ambiente === "producao" ? "produção" : "produção restrita (sem valor fiscal)") +
     (n.numero_nfse ? " · NFS-e nº " + esc(n.numero_nfse) : "") + (n.chave ? " · chave " + esc(n.chave) : "") + "</p>" +

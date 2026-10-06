@@ -950,7 +950,7 @@ function cartaoProposta(d) {
   }
 
   if (d.tipo === "abrir") {
-    return '<div class="proposta"><div class="proposta-topo">' +
+    return '<div class="proposta" data-cnpj-grupo="1"><div class="proposta-topo">' +
       '<span class="rotulo">vou abrir este arquivo</span>' +
       "<b>" + esc(c.nome) + "</b></div>" +
       '<p class="explica">Li isso de ' + esc(d.porque) + ". Mostro aqui na " +
@@ -1275,10 +1275,11 @@ function ligarBotoesDeDocumento(caixa, d) {
 const FERRAMENTAS_DA_CONVERSA = {
   cadastro: {
     rotulo: "vou cadastrar o cliente", botao: "Cadastrar", padrao: "Cliente",
-    // O quarto item marca o campo formatado e conferido (js/39-campos.js).
-    campos: [["nome", "nome completo ou razão social"], ["documento", "CPF ou CNPJ", "text", "cpf-cnpj"],
-      ["telefone", "telefone com DDD", "text", "telefone"], ["email", "e-mail"],
-      ["endereco", "endereço"], ["observacao", "anotação (opcional)"]],
+    // O quarto item marca o campo formatado e conferido (js/39-campos.js); o
+    // quinto, o dado da Receita que o CNPJ digitado preenche (o mesmo arquivo).
+    campos: [["nome", "nome completo ou razão social", "text", "", "razao_social"], ["documento", "CPF ou CNPJ", "text", "cpf-cnpj"],
+      ["telefone", "telefone com DDD", "text", "telefone", "telefone"], ["email", "e-mail", "text", "", "email"],
+      ["endereco", "endereço", "text", "", "endereco"], ["observacao", "anotação (opcional)"]],
   },
   nota: {
     rotulo: "vou preparar a NFS-e", botao: "Preparar a nota", padrao: "NFS-e",
@@ -1307,7 +1308,7 @@ function cartaoFerramenta(d) {
     let foco = "";
     if (d.falta && !valor && !focou) { foco = " autofocus"; focou = true; }
     return '<input type="' + (f[2] || "text") + '" data-pc="' + f[0] + '" value="' + esc(valor) +
-      '" placeholder="' + esc(f[1]) + '"' + (f[3] ? atributosDoCampo(f[3]) : "") + foco + ">";
+      '" placeholder="' + esc(f[1]) + '"' + (f[3] ? atributosDoCampo(f[3]) : "") + marcaCnpj(f[4]) + foco + ">";
   });
   let linhas = "";
   for (let i = 0; i < entradas.length; i += 2) {
