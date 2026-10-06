@@ -113,6 +113,8 @@ def test_consulta() -> None:
     checar("internet" in msg, "sem rede: diz para conferir a internet", msg)
     msg, _ = erro("45.997.418/0001-53", Resposta(503), ConnectionError)
     checar("503" in msg, "BrasilAPI fora: o código", msg)
+    msg, _ = erro("11.222.333/0001-81", Resposta(200, {"planos": []}), ConnectionError)
+    checar("não devolveu" in msg, "200 sem razão social não vira CNPJ encontrado", msg)
 
 
 def test_rota() -> None:

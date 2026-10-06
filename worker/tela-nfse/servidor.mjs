@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, normalize, extname } from "node:path";
 
 import { atenderAdmin } from "../admin.js";
-import { ContaIA } from "../ia.js";
+import { ContaIA, PLANOS_DE_FABRICA } from "../ia.js";
 import { EmissorNFSe } from "../nfse/emissor.js";
 import { SefinSimulada } from "../nfse/sefin-simulada.js";
 import { b64 } from "../nfse/assinatura.js";
@@ -116,7 +116,7 @@ const SESSAO = r.headers.get("set-cookie").match(/pv_admin=([0-9a-f]+)/)[1];
 
 // as contas e um pagamento
 async function doDe(id, acao, dados = {}) {
-  return (await CONTAS_IA.get(id).fetch("https://c/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados, numeros: { planos: [{ id: "escritorio", nome: "Escritório", valor: 300, tokens: 1000 }], recargas: [] } }) })).json();
+  return (await CONTAS_IA.get(id).fetch("https://c/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados, numeros: { planos: PLANOS_DE_FABRICA, recargas: [] } }) })).json();
 }
 const ANA = "a".repeat(24);
 const BRUNO = "b".repeat(24);

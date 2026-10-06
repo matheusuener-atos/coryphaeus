@@ -42,7 +42,7 @@
 <header class="doc-cabeca"><div>
   <h1>Privacy Policy</h1>
   <p class="lead">How PAULUS (PAULUS Legal; app name on Google: PAVLVS) accesses, uses, stores and protects data — especially data from your Google account and Gmail.</p>
-  <span class="data">Last updated: October 3, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
+  <span class="data">Last updated: October 6, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
 </div></header>
 
 <div class="doc"><div class="doc-grade">
@@ -165,6 +165,7 @@
     <ul>
       <li><strong>Legislation:</strong> PAULUS accesses the public website <code>planalto.gov.br</code> to download the text of laws. This access sends no personal data.</li>
       <li><strong>Case law and case lookups (when you ask):</strong> in Library › Case law, PAULUS downloads the STJ (Superior Court of Justice) decisions of the panels you choose, from the court's open data (<code>dadosabertos.web.stj.jus.br</code>); the list of repetitive-appeal themes comes from the same place. Looking up a case by its number queries the public DataJud API of the CNJ (<code>api-publica.datajud.cnj.jus.br</code>) with only that number. No document or office data goes along.</li>
+      <li><strong>CNPJ typed into a record:</strong> when a complete CNPJ (Brazilian company tax ID) is typed into a CNPJ field (Records, My details, invoice), PAULUS queries BrasilAPI (<code>brasilapi.com.br</code>), which returns the public Federal Revenue data (company name, address, phone, e-mail), to fill in the record's empty fields. Only the CNPJ number is sent; no other record or office data. CPF (individual tax ID) is never looked up.</li>
       <li><strong>Court publications (optional):</strong> if you turn on the daily check of court publications, PAULUS queries the public API of Brazil's national judicial electronic gazette (<code>comunicaapi.pje.jus.br</code>) with only the lawyer's bar number (OAB) and state.</li>
       <li><strong>WhatsApp Web:</strong> if you want, the program opens WhatsApp Web inside it. You then use WhatsApp's service directly, subject to WhatsApp's terms and privacy policy.</li>
       <li><strong>Other email providers</strong> (Microsoft or other): the same rules of this policy apply — messages travel only between your computer and the provider.</li>
@@ -230,7 +231,7 @@
       <li><strong>The acceptance:</strong> the version of the Terms of Use and of this policy that the person accepted, with the date.</li>
       <li><strong>Where it is kept:</strong> with the cloud account, in the website's storage (Cloudflare). It is not published, sold or used for advertising. The payer's email, the cardholder's CPF or CNPJ and the amount go to Mercado Pago, which processes the payment; the card is typed only in Mercado Pago's fields.</li>
       <li><strong>For how long:</strong> while the account exists and, after it is closed, for as long as tax law requires for the invoice. To correct or delete it, write to <a href="mailto:contato@paulus.ia.br">contato@paulus.ia.br</a>.</li>
-      <li><strong>On the page:</strong> Google's confirmation is kept only in the browser tab, for up to one hour, so the page knows whose subscription it is when coming back from Mercado Pago. When the postal code (CEP) is typed, the page queries the public ViaCEP service (viacep.com.br) with only the CEP, to fill in street, neighborhood, city and state. No tracking cookies.</li>
+      <li><strong>On the page:</strong> Google's confirmation is kept only in the browser tab, for up to one hour, so the page knows whose subscription it is when coming back from Mercado Pago. When the postal code (CEP) is typed, the page queries the public ViaCEP service (viacep.com.br) with only the CEP, to fill in street, neighborhood, city and state. When a complete CNPJ is typed, the page queries BrasilAPI (brasilapi.com.br) with only the CNPJ, to fill in the name, phone and address with the public Federal Revenue data; CPF is never looked up. No tracking cookies.</li>
     </ul>
 
     <h2 id="admin">Cloud administration and announcements</h2>

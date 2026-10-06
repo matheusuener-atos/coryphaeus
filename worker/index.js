@@ -126,7 +126,7 @@ export const CSP_CADASTRO = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: https:",
-  "connect-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://accounts.google.com https://viacep.com.br",
+  "connect-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://accounts.google.com https://viacep.com.br https://brasilapi.com.br",
   "frame-src https://*.mercadopago.com https://*.mercadolibre.com https://*.mercadolivre.com https://accounts.google.com",
   "object-src 'none'",
   "base-uri 'self'",

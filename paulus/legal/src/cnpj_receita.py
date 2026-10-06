@@ -143,8 +143,10 @@ def consultar(cnpj: str, *, pedir=None) -> dict:
         raise ConnectionError(f"a BrasilAPI respondeu com erro ({resp.status_code}); tente de novo em alguns minutos")
     try:
         dados = resumir(resp.json() or {})
-    except ValueError as exc:
+    except (ValueError, AttributeError) as exc:
         raise ConnectionError("a BrasilAPI não devolveu os dados agora; tente de novo") from exc
+    if not dados["razao_social"]:
+        raise ConnectionError("a BrasilAPI não devolveu os dados agora; tente de novo")
     with _trava:
         _guardado[c] = (time.time(), dados)
     return dados

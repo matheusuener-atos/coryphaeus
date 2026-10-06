@@ -1039,8 +1039,52 @@
   /* ---------- os pop-ups das notas fiscais ---------- */
   function nfId(k) { return "nf-c-" + String(k).replace(/[^A-Za-z0-9_-]/g, "-"); }
   function nfCampo(k, rot, extra) {
-    var v = E.modal.v[k];
-    return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input id="' + nfId(k) + '" data-in="nf" data-k="' + esc(k) + '" value="' + esc(v == null ? "" : v) + '"' + (extra || "") + ' autocomplete="off"></span></label>';
+    var v = E.modal.v[k], nota = (E.modal.cnpjNota || {})[k];
+    return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input id="' + nfId(k) + '" data-in="nf" data-k="' + esc(k) + '" value="' + esc(v == null ? "" : v) + '"' + (extra || "") + ' autocomplete="off"></span>' +
+      (nota ? '<span class="nota-campo" role="status">' + esc(nota) + "</span>" : "") + "</label>";
+  }
+  /* O CNPJ completo e certo no documento (do tomador ou do PAVLVS, em
+     Parâmetros) preenche os campos vizinhos com os dados da Receita, pela
+     BrasilAPI (assets/cnpj.js): só os vazios ou os que a consulta anterior
+     preencheu. No prestador as chaves são as de Parâmetros; no tomador, as
+     de NF_TOMADOR com o mesmo prefixo. */
+  var NF_CNPJ_PRESTADOR = { razao_social: "razao_social", municipio: "codigo_municipio_ibge", "endereco.cep": "cep", "endereco.logradouro": "logradouro",
+    "endereco.numero": "numero", "endereco.complemento": "complemento", "endereco.bairro": "bairro", email: "email", telefone: "telefone" };
+  var NF_CNPJ_TOMADOR = { nome: "razao_social", email: "email", telefone: "telefone", cep: "cep", logradouro: "logradouro", numero: "numero",
+    complemento: "complemento", bairro: "bairro", cmun: "codigo_municipio_ibge", uf: "uf" };
+  function nfCnpj(el) {
+    var M = E.modal, k = el.dataset.k;
+    if (!M || !M.v || !/(^|\.)documento$/.test(k) || !window.PavlvsCnpj || el.disabled) return;
+    var cnpj = PavlvsCnpj.paraConsultar(el.value);
+    M.cnpjLido = M.cnpjLido || {}; M.cnpjNota = M.cnpjNota || {}; M.peloCnpj = M.peloCnpj || {};
+    if (cnpj === (M.cnpjLido[k] || "")) return;
+    M.cnpjLido[k] = cnpj;
+    // O pop-up é redesenhado inteiro: o foco volta a quem estava com ele
+    // (a pessoa pode já estar em outro campo quando a resposta chega).
+    var redesenhar = function () {
+      var ativo = document.activeElement, id = ativo && ativo.id, pos = ativo && ativo.selectionStart;
+      renderCamada();
+      var i = id && $(id);
+      if (i && i !== document.activeElement) { i.focus(); try { if (pos != null) i.setSelectionRange(pos, pos); } catch (x) { /* nada */ } }
+    };
+    if (!cnpj) { if (M.cnpjNota[k]) { delete M.cnpjNota[k]; redesenhar(); } return; }
+    M.cnpjNota[k] = "Consultando a Receita…"; redesenhar();
+    var prefixo = k.slice(0, k.length - "documento".length), mapa = prefixo ? NF_CNPJ_TOMADOR : NF_CNPJ_PRESTADOR;
+    PavlvsCnpj.consultar(cnpj).then(function (d) {
+      if (E.modal !== M || PavlvsCnpj.paraConsultar(M.v[k]) !== cnpj) return;
+      var n = 0;
+      Object.keys(mapa).forEach(function (c) {
+        var alvo = prefixo + c, v = d[mapa[c]] || "", atual = String(M.v[alvo] == null ? "" : M.v[alvo]).trim();
+        if (!v || (atual && atual !== M.peloCnpj[alvo])) return;
+        M.v[alvo] = v; M.peloCnpj[alvo] = v; n += 1;
+        if (mapa[c] === "codigo_municipio_ibge") { NF_MUN[v] = d.municipio + "/" + d.uf; if (M.mun) M.mun[alvo] = {}; }
+      });
+      M.cnpjNota[k] = PavlvsCnpj.frase(d).replace(" (Receita", (n ? " · " + n + (n === 1 ? " campo preenchido" : " campos preenchidos") : "") + " (Receita");
+      redesenhar();
+    }, function (e) {
+      if (E.modal !== M || PavlvsCnpj.paraConsultar(M.v[k]) !== cnpj) return;
+      M.cnpjNota[k] = "Não preenchi pela Receita: " + e.message + "."; redesenhar();
+    });
   }
   function nfEscolha(k, rot, opcoes, inp) {
     var v = String(E.modal.v[k] == null ? "" : E.modal.v[k]);
@@ -1936,7 +1980,7 @@
     commitTexto: function (el) { E.modal.texto = el.value; E.modal.erro = ""; renderCamada(); },
     buscaQ: function (el) { E.busca.q = el.value; E.busca.idx = 0; buscar(); renderCamada(); },
     // notas fiscais: os campos dos pop-ups guardam o valor sem redesenhar
-    nf: function (el) { if (E.modal && E.modal.v) E.modal.v[el.dataset.k] = el.type === "checkbox" ? el.checked : el.value; },
+    nf: function (el) { if (E.modal && E.modal.v) { E.modal.v[el.dataset.k] = el.type === "checkbox" ? el.checked : el.value; nfCnpj(el); } },
     nfMun: function (el) { nfMunDigitar(el); },
     nfCliente: function (el) { nfEscolherCliente(E.modal, el.value); renderCamada(); },
     nfPagamento: function (el) { if (el.value) nfEscolherPagamento(E.modal, el.value); else E.modal.v.pagamento = ""; renderCamada(); },

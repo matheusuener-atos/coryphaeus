@@ -318,6 +318,41 @@
     }
   }
 
+  /* O CNPJ completo e certo preenche o nome, o telefone e o endereco com os
+     dados da Receita, pela BrasilAPI (assets/cnpj.js). So entra no campo
+     vazio ou no que a consulta anterior preencheu; o endereco vai inteiro
+     (com o codigo IBGE) ou nao vai, para nao misturar dois enderecos. */
+  var cnpjLido = "", peloCnpj = {};
+  function livre(id) { var v = $(id).value.trim(); return !v || v === peloCnpj[id]; }
+  function porPeloCnpj(id, v) { if (v && livre(id)) { $(id).value = v; peloCnpj[id] = v; return 1; } return 0; }
+  async function buscarCnpj() {
+    var nota = $("cd-cnpj-nota");
+    var cnpj = window.PavlvsCnpj ? PavlvsCnpj.paraConsultar($("cd-documento").value) : "";
+    if (cnpj === cnpjLido) return;
+    cnpjLido = cnpj;
+    if (!cnpj) { nota.hidden = true; return; }
+    nota.textContent = "Consultando a Receita…";
+    nota.hidden = false;
+    try {
+      var d = await PavlvsCnpj.consultar(cnpj);
+      if (PavlvsCnpj.paraConsultar($("cd-documento").value) !== cnpj) return;
+      var n = porPeloCnpj("cd-nome", d.razao_social) + porPeloCnpj("cd-telefone", mascararTelefone(d.telefone));
+      var ends = ["cd-cep", "cd-logradouro", "cd-numero", "cd-complemento", "cd-bairro", "cd-cidade", "cd-uf"];
+      if (d.cep && ends.every(livre)) {
+        var vals = [mascararCep(d.cep), d.logradouro, d.numero, d.complemento, d.bairro, d.municipio, d.uf];
+        ends.forEach(function (id, i) { $(id).value = vals[i]; peloCnpj[id] = vals[i]; });
+        cepLido = d.cep;
+        $("cd-cep-nota").hidden = true;
+        $("cd-cmun").value = /^\d{7}$/.test(d.codigo_municipio_ibge) ? d.codigo_municipio_ibge : "";
+        n += vals.filter(Boolean).length;
+      }
+      nota.textContent = PavlvsCnpj.frase(d).replace(" (Receita", (n ? " · " + n + (n === 1 ? " campo preenchido" : " campos preenchidos") : "") + " (Receita");
+    } catch (e) {
+      if (PavlvsCnpj.paraConsultar($("cd-documento").value) !== cnpj) return;
+      nota.textContent = "Não preenchi pela Receita: " + e.message + ".";
+    }
+  }
+
   function endereco() {
     return {
       cep: $("cd-cep").value, logradouro: $("cd-logradouro").value, numero: $("cd-numero").value, complemento: $("cd-complemento").value,
@@ -353,7 +388,7 @@
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
     $("cd-desistir-botao").addEventListener("click", desistir);
-    $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); });
+    $("cd-documento").addEventListener("input", function () { this.value = mascararDocumento(this.value); buscarCnpj(); });
     $("cd-telefone").addEventListener("input", function () { this.value = mascararTelefone(this.value); });
     $("cd-cep").addEventListener("input", function () { this.value = mascararCep(this.value); buscarCep(); });
     // Cidade digitada a mao: o codigo IBGE da ViaCEP deixa de valer.

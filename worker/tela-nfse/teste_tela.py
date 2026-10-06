@@ -54,6 +54,9 @@ def entrar(pagina, base, erros):
     # load resource" é o navegador contando uma resposta 4xx (o erro de
     # conferência de propósito) ou a fonte barrada: não é erro de JavaScript.
     pagina.route(re.compile(r"^https://fonts\.(googleapis|gstatic)\.com/.*"), lambda rota: rota.abort())
+    # A BrasilAPI também (o CNPJ digitado a consultaria): sem resposta, o
+    # painel só diz que não preencheu.
+    pagina.route(re.compile(r"^https://brasilapi\.com\.br/.*"), lambda rota: rota.abort())
     pagina.on("pageerror", lambda e: erros.append("pageerror: " + str(e)))
     pagina.on("console", lambda m: erros.append("console: " + m.text) if m.type == "error" and not m.text.startswith("Failed to load resource") else None)
     pagina.goto(base + "/admin/")
