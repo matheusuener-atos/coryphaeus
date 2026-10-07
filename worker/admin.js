@@ -1,7 +1,8 @@
 // O painel de administracao do PAVLVS (paulus.ia.br/admin; o contrato das
 // rotas esta em worker/admin-api.md). A equipe ve as contas da nuvem, os
-// tuneis do acesso de fora, as nao renovacoes, as campanhas de e-mail, os
-// tokens e a receita, os planos, as notas fiscais e a propria equipe.
+// tuneis do acesso externo (com o registro de enderecos), as nao renovacoes,
+// as campanhas de e-mail, os tokens e a receita, os planos, as notas fiscais
+// e a propria equipe.
 //
 // As notas fiscais (NFS-e do PAVLVS) sao emitidas daqui: /api/admin/nfse/emissor/*
 // vai ao emissor da nuvem (worker/nfse/api.js, o Durable Object EmissorNFSe),
@@ -21,17 +22,29 @@
 // O que muda o que esta no ar nao acontece na hora: entra na fila da pessoa
 // ("admin:pendentes:<email>") e so e aplicado em "Commitar e pushar"
 // (POST /api/admin/publicar, com a frase digitada). Comunicacao (lembrete,
-// aviso, e-mail de teste) e marcacao (tratada) sao na hora.
+// mensagem, aviso, e-mail de teste, reenviar convite) e marcacao (tratada)
+// sao na hora. Cada publicacao guarda o retrato do que ela mudou
+// ("admin:retrato:<id>", 30 dias): e com ele que o dono retroage
+// (POST /api/admin/retroagir) o que da para desfazer.
+//
+// Fora do Access ficam so o rastreio dos e-mails (/api/e/*) e a pagina do
+// convite da equipe (/api/equipe/convite): quem foi convidado ainda nao esta
+// na politica do Access. Aceito o convite, o Worker poe o e-mail na politica
+// pela API da Cloudflare (CF_ACCESS_TOKEN, CF_ACCOUNT_ID, ACCESS_APP_ID e
+// ACCESS_POLICY_ID); sem eles, a pagina e o painel dizem que isso e a mao.
 //
 // Tudo no KV APOIOS com o prefixo "admin:". O envio de e-mail e pelo Resend
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
 
-import { MODELOS, PLANO_PADRAO, TOLERANCIA_MS, devolverPagamento, medidor, numeros } from "./ia.js";
+import {
+  MODELOS, PLANO_PADRAO, TOLERANCIA_MS, conferirCadastro, devolverPagamento, medidor, modelosDoPlano, numeros, ofertaDeVolta, planoDe,
+} from "./ia.js";
 import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
-  anotarHistorico, cfConfigurado,
+  anotarHistorico, cfConfigurado, registroDeEnderecos,
 } from "./tunel.js";
-import { atenderEmissor, faltaDoEmissor, resumoParaPainel, PREFIXO as PREFIXO_EMISSOR } from "./nfse/api.js";
+import { atenderEmissor, chamar as chamarEmissor, faltaDoEmissor, resumoParaPainel, PREFIXO as PREFIXO_EMISSOR } from "./nfse/api.js";
+import { buscarMunicipios } from "./nfse/tabelas.js";
 
 const REPO = "matheusuener-atos/coryphaeus";
 const RAMO = "main";
@@ -41,8 +54,16 @@ const SESSAO_S = 24 * 3600;
 const DIA_MS = 24 * 3600 * 1000;
 const CONFIRMACAO = "comitar e pushar";
 const PAPEIS = ["dono", "financeiro", "suporte"];
+const NOME_DO_PAPEL = { dono: "Dono", financeiro: "Financeiro", suporte: "Suporte" };
 const TODOS = PAPEIS;
 const RITMO_POR_MINUTO = 50;
+// O convite da equipe vale 7 dias; reenviar troca o link e conta 7 de novo.
+const CONVITE_MS = 7 * DIA_MS;
+// O retrato do que uma publicacao mudou (para retroagir) vence em 30 dias.
+const RETRATO_S = 30 * 24 * 3600;
+const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Os planos pagos de uma vez (anual, mes no Pix): sem cobranca recorrente no Mercado Pago.
+const prepago = (periodo) => periodo === "anual" || periodo === "avulso";
 
 // Quem pode o que (o painel mostra a mesma matriz em Equipe).
 const PODE = {
@@ -50,16 +71,21 @@ const PODE = {
   "conta.instalacao.apagar": ["dono", "suporte"],
   "conta.cancelar": ["dono", "financeiro"],
   "conta.reembolsar": ["dono", "financeiro"],
+  "conta.plano": ["dono", "financeiro"],
+  "conta.pausar": ["dono", "financeiro"],
+  "conta.cadastro": TODOS,
   "google.servicos": ["dono", "suporte"],
   "google.desvincular": ["dono", "suporte"],
   "tunel.apagar": ["dono", "suporte"],
   "tunel.endereco": ["dono", "suporte"],
   "tunel.ativo": ["dono", "suporte"],
   "campanha.disparar": TODOS,
+  "renov.oferta": ["dono", "financeiro"],
   "plano.editar": ["dono", "financeiro"],
   "plano.criar": ["dono", "financeiro"],
   "nfse.config": ["dono", "financeiro"],
   "equipe.papel": ["dono"],
+  "equipe.membro": ["dono"],
 };
 // O emissor de NFS-e (/api/admin/nfse/emissor/*, na hora): quem emite,
 // cancela, substitui e configura. Os outros papeis so leem (GET).
@@ -67,27 +93,31 @@ const PODE_NFSE = ["dono", "financeiro"];
 export const MATRIZ = [
   ["Ver contas, tokens e receita", TODOS],
   ["Mandar e-mails e lembretes", TODOS],
+  ["Editar o cadastro de uma conta", TODOS],
   ["Revogar o Google e desvincular instalações", ["dono", "suporte"]],
   ["Apagar e mudar túneis", ["dono", "suporte"]],
   ["Planos", ["dono", "financeiro"]],
   ["Cancelar assinatura, reembolsar pagamentos e creditar tokens", ["dono", "financeiro"]],
+  ["Trocar o plano de uma conta, pausar a cobrança e oferecer a volta", ["dono", "financeiro"]],
   ["Ver as notas fiscais e baixar PDF e XML", TODOS],
   ["Emitir, cancelar e substituir notas fiscais; certificado e parâmetros", PODE_NFSE],
-  ["Mudar papéis da equipe", ["dono"]],
+  ["Convidar, editar e tirar pessoas da equipe; mudar papéis", ["dono"]],
+  ["Retroagir uma publicação", ["dono"]],
 ];
 
 // ---------------------------------------------------------------- entrada
 
 export function ehRotaDoAdmin(url) {
-  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/");
+  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/") || url.pathname === "/api/equipe/convite";
 }
 
 export async function atenderAdmin(request, env, url, ctx, deps = {}) {
   const p = url.pathname;
   const m = request.method;
-  // Fora do Access: o rastreio dos e-mails.
+  // Fora do Access: o rastreio dos e-mails e o convite da equipe.
   if (p.startsWith("/api/e/")) return rastreio(env, url);
   if (!env.APOIOS) return json({ erro: "o painel precisa do KV APOIOS" }, 503);
+  if (p === "/api/equipe/convite") return conviteDaEquipe(request, env, url, deps);
 
   const access = await conferirAccess(request, env, deps);
   if (p === "/api/admin/sessao" && m === "GET") return sessaoAtual(request, env, access);
@@ -136,7 +166,13 @@ async function rotear(c, request, url, p, m) {
     }
     if (p === "/api/admin/renovacoes") return json(await renovacoes(c));
     if (p === "/api/admin/campanhas") return json(await campanhasParaTela(c));
-    if (p === "/api/admin/tokens") return json(await tokens(c, url.searchParams.get("visao") || "geral", url.searchParams.get("periodo") || "mes"));
+    if (p === "/api/admin/tokens") {
+      const visaoPedida = url.searchParams.get("visao") || "geral";
+      if (!["geral", "modelo", "escritorio", "conta"].includes(visaoPedida)) return json({ erro: "visão desconhecida: " + visaoPedida }, 400);
+      const per = periodoDosTokens(url.searchParams, c.agora);
+      if (per.erro) return json({ erro: per.erro }, 400);
+      return json(await tokens(c, visaoPedida, per));
+    }
     if (p === "/api/admin/planos") return json(await planos(c));
     if (p === "/api/admin/nfse") return json(await nfse(c));
     if (p === "/api/admin/equipe") return json(await equipe(c));
@@ -147,12 +183,18 @@ async function rotear(c, request, url, p, m) {
     const d = (await lerJSON(request)) || {};
     if (p === "/api/admin/alteracoes") return enfileirar(c, d);
     if (p === "/api/admin/publicar") return publicar(c, d);
+    if (p === "/api/admin/retroagir") return retroagir(c, d);
+    if (p === "/api/admin/sessoes/encerrar") return encerrarSessoes(c.env, c.quem);
     let r = p.match(/^\/api\/admin\/tuneis\/([a-z0-9-]{3,24})\/avisar$/);
     if (r) return avisarTunel(c, r[1]);
     r = p.match(/^\/api\/admin\/renovacoes\/([0-9a-f]{24})\/(lembrete|tratar|reabrir)$/);
     if (r) return acaoDeRenovacao(c, r[1], r[2]);
+    r = p.match(/^\/api\/admin\/renovacoes\/([0-9a-f]{24})\/mensagem$/);
+    if (r) return mensagemDeRenovacao(c, r[1], d);
     if (p === "/api/admin/renovacoes/config") return configRenovacoes(c, d);
     if (p === "/api/admin/campanhas/teste") return campanhaTeste(c, d.campanha || d);
+    r = p.match(/^\/api\/admin\/equipe\/convite\/([^/]{3,200})\/reenviar$/);
+    if (r) return reenviarConvite(c, decodificar(r[1]).trim().toLowerCase());
   }
   if (m === "DELETE") {
     const r = p.match(/^\/api\/admin\/alteracoes\/([a-z0-9]{6,32})$/);
@@ -182,6 +224,47 @@ function aleatorio(n) {
   const b = new Uint8Array(n);
   crypto.getRandomValues(b);
   return [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+function decodificar(s) {
+  try {
+    return decodeURIComponent(String(s || ""));
+  } catch {
+    return "";
+  }
+}
+
+function iso(ms) {
+  return new Date(ms).toISOString();
+}
+
+/* "dd/mm/aaaa" do instante, no horario de Brasilia. */
+function dataBR(quando) {
+  const ms = typeof quando === "number" ? quando : Date.parse(quando || "");
+  return Number.isFinite(ms) ? diaBRT(ms).split("-").reverse().join("/") : "";
+}
+
+/* "dd/mm/aaaa às hh:mm", no horario de Brasilia. */
+function dataHoraBR(ms) {
+  return dataBR(ms) + " às " + new Date(ms - 3 * 3600 * 1000).toISOString().slice(11, 16);
+}
+
+/* "a, b e c". */
+function juntar(lista) {
+  return lista.length < 2 ? lista.join("") : lista.slice(0, -1).join(", ") + " e " + lista[lista.length - 1];
+}
+
+function primeiroNome(nome) {
+  return String(nome || "").trim().split(/\s+/)[0] || "";
+}
+
+/* O nome de uma pessoa para o e-mail e a tela: sem controle nem < > ". */
+function nomeLimpo(t, max = 80) {
+  return String(t || "").replace(/[\u0000-\u001f<>"]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function semAcento(t) {
+  return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 }
 
 async function sha256Hex(texto) {
@@ -353,8 +436,85 @@ function configuracao(env) {
     nfse: cfg(!faltaDoEmissor(env), "o emissor de NFS-e ainda não está ligado: " + faltaDoEmissor(env)),
     tuneis: cfg(cfConfigurado(env), "falta a chave da Cloudflare (CF_API_TOKEN, CF_ACCOUNT_ID, CF_ZONE_ID)"),
     mercado_pago: cfg(env.MP_ACCESS_TOKEN, "falta MP_ACCESS_TOKEN"),
-    nuvem: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA, "a nuvem do PAULUS está desligada (IA_ATIVA)"),
+    nuvem: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA, "a nuvem do Paulus está desligada (IA_ATIVA)"),
+    // A liberacao do convidado no Cloudflare Access (a politica do painel, pela API).
+    equipe: cfg(accessConfigurado(env), "a liberação no Cloudflare Access ainda é à mão: " + faltaDoAccess(env) +
+      ". Quem aceitar o convite entra na equipe, mas o e-mail dela precisa ser incluído na política do Access do painel pelo dono."),
   };
+}
+
+// ------------------------------------------- o Cloudflare Access (a API)
+
+/* O que falta para o Worker mexer na politica do Access do painel ("" se nada). */
+function faltaDoAccess(env) {
+  const falta = ["CF_ACCESS_TOKEN", "CF_ACCOUNT_ID", "ACCESS_APP_ID", "ACCESS_POLICY_ID"].filter((k) => !env[k]);
+  return falta.length ? "falta " + juntar(falta) : "";
+}
+
+function accessConfigurado(env) {
+  return !faltaDoAccess(env);
+}
+
+/* A API da Cloudflare com o token do Access (CF_ACCESS_TOKEN): o result, ou erro com a frase. */
+async function chamarCloudflare(env, metodo, caminho, corpo) {
+  const r = await fetch("https://api.cloudflare.com/client/v4" + caminho, {
+    method: metodo,
+    headers: { Authorization: "Bearer " + env.CF_ACCESS_TOKEN, "Content-Type": "application/json" },
+    body: corpo === undefined ? undefined : JSON.stringify(corpo),
+  });
+  let d = {};
+  try {
+    d = await r.json();
+  } catch {
+    d = {};
+  }
+  if (!r.ok || d.success === false) {
+    const msg = (d.errors && d.errors[0] && d.errors[0].message) || "HTTP " + r.status;
+    throw new Error("a Cloudflare recusou (" + msg + ")");
+  }
+  return d.result;
+}
+
+// A politica da aplicacao do painel no Access (Zero Trust > Access > Applications):
+// PUT /accounts/{conta}/access/apps/{app}/policies/{politica} com a politica inteira;
+// o e-mail entra (ou sai) do include como {email: {email}}. O resto da politica fica.
+const CAMPOS_DA_POLITICA = ["precedence", "session_duration", "approval_required", "approval_groups", "isolation_required",
+  "purpose_justification_required", "purpose_justification_prompt"];
+
+/* Poe (por = true) ou tira o e-mail da politica: {feito, frase}. Nunca lanca. */
+async function politicaDoAccess(env, email, por) {
+  if (!accessConfigurado(env)) return { feito: false, frase: "a liberação no Cloudflare Access é à mão (" + faltaDoAccess(env) + ")" };
+  const caminho = "/accounts/" + env.CF_ACCOUNT_ID + "/access/apps/" + env.ACCESS_APP_ID + "/policies/" + env.ACCESS_POLICY_ID;
+  const alvo = String(email || "").toLowerCase();
+  try {
+    const atual = (await chamarCloudflare(env, "GET", caminho)) || {};
+    const include = Array.isArray(atual.include) ? atual.include : [];
+    const eDele = (regra) => Boolean(regra && regra.email && String(regra.email.email || "").toLowerCase() === alvo);
+    if (include.some(eDele) === por) return { feito: true, frase: por ? "o e-mail já estava liberado no Access" : "o e-mail já não estava na política do Access" };
+    const novo = por ? [...include, { email: { email: alvo } }] : include.filter((x) => !eDele(x));
+    // Uma politica de "permitir" sem ninguem fecharia o painel para todos.
+    if (!novo.length) return { feito: false, frase: "tirar esse e-mail deixaria a política do Access vazia: tire à mão no painel da Cloudflare" };
+    const corpo = { name: atual.name, decision: atual.decision || "allow", include: novo, exclude: atual.exclude || [], require: atual.require || [] };
+    for (const k of CAMPOS_DA_POLITICA) if (atual[k] !== undefined && atual[k] !== null) corpo[k] = atual[k];
+    await chamarCloudflare(env, "PUT", caminho, corpo);
+    return { feito: true, frase: por ? "o e-mail foi liberado no Cloudflare Access" : "o e-mail saiu da política do Cloudflare Access" };
+  } catch (e) {
+    return { feito: false, frase: String((e && e.message) || e).slice(0, 200) };
+  }
+}
+
+/* Derruba as sessoes do Access de um e-mail (todos os aparelhos): {feito, frase}. Nunca lanca.
+   Pede a permissao "Access: Organizations, Identity Providers, and Groups" (Edit) no token. */
+async function revogarNoAccess(env, email) {
+  if (!env.CF_ACCESS_TOKEN || !env.CF_ACCOUNT_ID) {
+    return { feito: false, frase: "as sessões do Cloudflare Access continuam até vencer: falta " + juntar(["CF_ACCESS_TOKEN", "CF_ACCOUNT_ID"].filter((k) => !env[k])) };
+  }
+  try {
+    await chamarCloudflare(env, "POST", "/accounts/" + env.CF_ACCOUNT_ID + "/access/organizations/revoke_user", { email: String(email || "").toLowerCase() });
+    return { feito: true, frase: "as sessões do Cloudflare Access também saíram" };
+  } catch (e) {
+    return { feito: false, frase: "as sessões do Cloudflare Access continuam até vencer: " + String((e && e.message) || e).slice(0, 160) };
+  }
 }
 
 async function sessaoAtual(request, env, access) {
@@ -410,7 +570,40 @@ async function githubRetorno(env, url, access, membro, deps) {
   const id = aleatorio(24);
   await env.APOIOS.put("admin:sessao:" + id, JSON.stringify({ email: access.email, login, token, criada: new Date().toISOString() }), { expirationTtl: SESSAO_S });
   await env.APOIOS.put("admin:acesso:" + access.email, JSON.stringify({ ultimo: new Date().toISOString(), login }));
+  // O indice das sessoes da pessoa: e por ele que "Encerrar todas as sessoes" acha as dos outros aparelhos.
+  const chave = "admin:sessoes:" + access.email;
+  const ids = ((await kvJSON(env, chave, [])) || []).filter((x) => /^[0-9a-f]{48}$/.test(x));
+  await env.APOIOS.put(chave, JSON.stringify([...ids.slice(-19), id]), { expirationTtl: SESSAO_S });
   return new Response(null, { status: 302, headers: { location: "/admin/", "set-cookie": cookie(id, SESSAO_S), "cache-control": "no-store" } });
+}
+
+/* Apaga as sessoes do painel de um e-mail (as do KV): as do indice e, para as
+   de antes dele, uma volta na lista. Devolve quantas. */
+async function apagarSessoesDe(env, email, alem = []) {
+  const ids = new Set([...alem, ...(((await kvJSON(env, "admin:sessoes:" + email, [])) || []))].filter((x) => /^[0-9a-f]{48}$/.test(x)));
+  for (const k of await kvPor(env, "admin:sessao:")) {
+    const id = k.slice("admin:sessao:".length);
+    if (ids.has(id)) continue;
+    const s = await kvJSON(env, k, null);
+    if (s && s.email === email) ids.add(id);
+  }
+  let apagadas = 0;
+  for (const id of ids) {
+    const s = await kvJSON(env, "admin:sessao:" + id, null);
+    if (!s || s.email !== email) continue;
+    await env.APOIOS.delete("admin:sessao:" + id);
+    apagadas++;
+  }
+  await env.APOIOS.delete("admin:sessoes:" + email);
+  return apagadas;
+}
+
+/* "Encerrar todas as sessoes" (Minha conta): todas as sessoes do painel da pessoa,
+   esta tambem; com a chave da API do Access, as sessoes do Access dela tambem. */
+async function encerrarSessoes(env, quem) {
+  const encerradas = await apagarSessoesDe(env, quem.email, [quem.sessao.id]);
+  const access = await revogarNoAccess(env, quem.email);
+  return json({ ok: true, encerradas, access, logout: "/cdn-cgi/access/logout" }, 200, { "set-cookie": cookie("", 0) });
 }
 
 async function chamarGitHub(metodo, url, token, corpo) {
@@ -509,13 +702,45 @@ async function contaParaTela(c, id) {
   const conta = contas.find((x) => x.id === id);
   if (!conta) return { erro: "conta não encontrada" };
   const d = conta._d;
+  const cad = d.cadastro || null;
+  const end = (cad && cad.endereco) || {};
+  const notas = await notasDaConta(c, id);
   return {
     ...publica(conta), criada: d.criada, ciclo: d.ciclo || null,
-    cadastro: d.cadastro ? { documento: d.cadastro.documento, telefone: d.cadastro.telefone, oab: d.cadastro.oab, termos: d.cadastro.termos, quando: d.cadastro.quando } : null,
+    // O endereco vem achatado (cep, logradouro...), como a ficha e o "Editar cadastro" leem.
+    cadastro: cad ? { documento: cad.documento, telefone: cad.telefone, oab: cad.oab, termos: cad.termos, quando: cad.quando,
+      cep: end.cep || "", logradouro: end.logradouro || "", numero: end.numero || "", complemento: end.complemento || "", bairro: end.bairro || "",
+      cidade: end.cidade || "", uf: end.uf || "", cmun: end.cmun || "", ajustado: cad.ajustado || null } : null,
     consentimento: d.consentimento || null, assinatura: d.assinatura || null, plano_proximo: d.plano_proximo || null,
-    instalacoes: d.instalacoes_lista || [], pagamentos: d.pagamentos || [], recargas: d.recargas || [],
+    instalacoes: d.instalacoes_lista || [],
+    pagamentos: (d.pagamentos || []).map((p) => ({ ...p, nfse: notaDoPagamento(notas, p.ref) })),
+    recargas: d.recargas || [],
     google_pendente: d.google_pendente || null, desvinculado: d.desvinculado || null, pago_ate: d.pago_ate || null, periodo: d.periodo || "mensal",
   };
+}
+
+/* As NFS-e de uma conta no emissor da nuvem ([] sem o emissor ou se ele nao responde). */
+async function notasDaConta(c, id) {
+  if (faltaDoEmissor(c.env)) return [];
+  try {
+    const r = await chamarEmissor(c.env, "listar", { limite: 1000 });
+    return r.status === 200 ? ((r.dados && r.dados.notas) || []).filter((n) => n && n.conta === id) : [];
+  } catch {
+    return [];
+  }
+}
+
+/* A nota de um pagamento para o extrato: a emitida (a substituta, se houve
+   substituicao); sem ela, a ultima cancelada ou substituida, com o estado.
+   Os links sao as rotas do painel (atras do Access), as mesmas da aba Notas
+   fiscais: GET /api/admin/nfse/emissor/notas/:id/pdf e /xml. */
+function notaDoPagamento(notas, ref) {
+  const doPagamento = notas.filter((n) => String(n.pagamento || "") === String(ref || "") && ["emitida", "cancelada", "substituida"].includes(n.estado));
+  if (!doPagamento.length) return null;
+  doPagamento.sort((a, b) => Number(b.id) - Number(a.id));
+  const n = doPagamento.find((x) => x.estado === "emitida") || doPagamento[0];
+  return { id: n.id, numero: n.numero || "", estado: n.estado, ambiente: n.ambiente || "", quando: n.quando || "",
+    pdf: SITE + PREFIXO_EMISSOR + "notas/" + n.id + "/pdf?baixar=1", xml: SITE + PREFIXO_EMISSOR + "notas/" + n.id + "/xml" };
 }
 
 // ------------------------------------------------------------ os tuneis
@@ -530,6 +755,8 @@ async function tuneisParaTela(c) {
   return {
     tuneis: await lerTuneis(c), livres: c.env.ESCRITORIOS ? await enderecosLivres(c.env) : [],
     cf: configuracao(c.env).tuneis,
+    // O registro de enderecos (worker/tunel.js, registrarEndereco): os eventos, do mais novo ao mais velho.
+    registro: c.env.ESCRITORIOS ? await registroDeEnderecos(c.env) : [],
   };
 }
 
@@ -539,10 +766,10 @@ async function avisarTunel(c, slug) {
   if (!t.responsavel) return json({ erro: "esse endereço não tem responsável com e-mail" }, 409);
   const prazo = t.limpeza ? (t.limpeza.dias <= 0 ? "hoje" : "em " + t.limpeza.dias + (t.limpeza.dias === 1 ? " dia" : " dias")) : "";
   const r = await enviarEmail(c.env, {
-    para: t.responsavel, assunto: "O acesso de fora do PAULUS está parado",
+    para: t.responsavel, assunto: "O acesso externo do Paulus está parado",
     titulo: "O endereço " + slug + ".paulus.ia.br está sem conexão",
-    texto: "O PAULUS do escritório não se conecta a este endereço há um tempo." + (prazo ? " Se continuar assim, a limpeza automática libera o endereço " + prazo + "." : "") +
-      "\n\nPara manter, abra o PAULUS no computador do escritório com a internet ligada. Se não usa mais o acesso de fora, não precisa fazer nada.",
+    texto: "O Paulus do escritório não se conecta a este endereço há um tempo." + (prazo ? " Se continuar assim, a limpeza automática libera o endereço " + prazo + "." : "") +
+      "\n\nPara manter, abra o Paulus no computador do escritório com a internet ligada. Se não usa mais o acesso externo, não precisa fazer nada.",
   });
   if (!r.ok) return json({ erro: r.erro }, r.status || 502);
   await anotarHistorico(c.env, slug, "Aviso enviado a " + t.responsavel + (prazo ? " · limpeza " + prazo : ""), c.agora);
@@ -642,6 +869,9 @@ async function avisos(c, contas) {
 
 // ------------------------------------------------------ nao renovacoes
 
+// Os motivos de quem cancela pela Minha conta (site/assets/minha-conta.js, MOTIVOS).
+const MOTIVO_DO_CANCELAMENTO = { preco: "está caro para o escritório", uso: "não está usando o bastante", falta: "falta algo de que precisa", outro: "outro motivo" };
+
 async function renovacoes(c) {
   if (c._renovacoes) return c._renovacoes;
   const contas = await lerContas(c);
@@ -649,17 +879,24 @@ async function renovacoes(c) {
   for (const conta of contas) {
     const d = conta._d;
     const a = d.assinatura || {};
-    if (!d.ciclo || conta.situacao === "cortesia" || a.situacao === "cancelled") continue;
+    // Quem cancelou pela Minha conta deixou o motivo (worker/ia.js, cancelarPelaConta):
+    // entra aqui quando o ciclo pago acaba. A cancelada sem motivo (no Mercado Pago, pelo painel) fica fora.
+    const canc = d.cancelamento || null;
+    if (!d.ciclo || conta.situacao === "cortesia" || (a.situacao === "cancelled" && !canc)) continue;
     const fim = Date.parse(d.ciclo.fim);
     if (!(fim < c.agora)) continue;
     const dias = Math.floor((c.agora - fim) / DIA_MS);
     const marca = await kvJSON(c.env, "admin:renov:" + conta.id, null);
-    const motivo = { paused: "assinatura pausada no Mercado Pago", pending: "a assinatura está pendente: o cartão não foi confirmado", authorized: "a cobrança do mês não chegou do Mercado Pago (cartão recusado ou sem limite)" }[a.situacao] ||
+    const motivo = canc ? "cancelou pela Minha conta: " + (MOTIVO_DO_CANCELAMENTO[canc.motivo] || MOTIVO_DO_CANCELAMENTO.outro) + (canc.texto ? " (“" + String(canc.texto).slice(0, 200) + "”)" : "")
+      : { paused: "assinatura pausada no Mercado Pago", pending: "a assinatura está pendente: o cartão não foi confirmado", authorized: "a cobrança do mês não chegou do Mercado Pago (cartão recusado ou sem limite)" }[a.situacao] ||
       (a.situacao ? "assinatura " + a.situacao + " no Mercado Pago" : "sem assinatura no Mercado Pago");
     const r = {
-      id: conta.id, nome: conta.nome, email: conta.email, plano: conta.plano ? { nome: conta.plano.nome, valor: conta.plano.valor } : null,
-      fim: d.ciclo.fim, dias_vencido: dias, tolerancia_dias: a.situacao === "authorized" ? Math.round(TOLERANCIA_MS / DIA_MS) : 0,
-      motivo, lembrete_em: marca && marca.fim === d.ciclo.fim ? marca.lembrete_em || null : null,
+      id: conta.id, nome: conta.nome, email: conta.email, plano: conta.plano ? { id: conta.plano.id, nome: conta.plano.nome, valor: conta.plano.valor } : null,
+      fim: d.ciclo.fim, dias_vencido: dias, tolerancia_dias: a.situacao === "authorized" && !canc ? Math.round(TOLERANCIA_MS / DIA_MS) : 0,
+      motivo, cancelamento: canc ? { quando: canc.quando || null, motivo: canc.motivo || "outro", texto: canc.texto || "" } : null,
+      lembrete_em: marca && marca.fim === d.ciclo.fim ? marca.lembrete_em || null : null,
+      mensagem_em: marca && marca.fim === d.ciclo.fim ? marca.mensagem_em || null : null,
+      oferta: marca && marca.fim === d.ciclo.fim ? marca.oferta || null : null,
     };
     if (marca && marca.fim === d.ciclo.fim && marca.tratada) tratadas.push(r);
     else abertas.push(r);
@@ -678,15 +915,50 @@ async function acaoDeRenovacao(c, id, acao) {
   if (marca.fim !== item.fim) Object.assign(marca, { fim: item.fim, tratada: false, lembrete_em: null });
   if (acao === "lembrete") {
     const e = await enviarEmail(c.env, {
-      para: item.email, assunto: "Seu plano do PAULUS não renovou",
+      para: item.email, assunto: "Seu plano do Paulus não renovou",
       titulo: "O plano " + ((item.plano || {}).nome || "") + " não renovou",
-      texto: "O ciclo do seu plano venceu em " + new Date(item.fim).toLocaleDateString("pt-BR") + " e o Mercado Pago não confirmou a cobrança do mês." +
-        "\n\nEnquanto isso, o PAULUS funciona sem a IA da nuvem. Para voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/assinatura.",
+      texto: "O ciclo do seu plano venceu em " + dataBR(item.fim) + " e o Mercado Pago não confirmou a cobrança do mês." +
+        "\n\nEnquanto isso, o Paulus funciona sem a IA da nuvem. Para voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/assinatura.",
       botao: "Abrir a página Assinar", link: SITE + "/assinatura/",
     });
     if (!e.ok) return json({ erro: e.erro }, e.status || 502);
     marca.lembrete_em = new Date(c.agora).toISOString();
   } else marca.tratada = acao === "tratar";
+  await c.env.APOIOS.put("admin:renov:" + id, JSON.stringify(marca));
+  c._renovacoes = null;
+  return json(await renovacoes(c));
+}
+
+/* A marca da renovacao de uma conta (admin:renov:<id>), do ciclo vencido de agora. */
+async function marcaDaRenovacao(c, item) {
+  const marca = { fim: item.fim, ...((await kvJSON(c.env, "admin:renov:" + item.id, {})) || {}) };
+  if (marca.fim !== item.fim) return { fim: item.fim, tratada: false, lembrete_em: null };
+  return marca;
+}
+
+/* A mensagem do proprio punho (o detalhe aberto da nao renovacao): vai por
+   e-mail para a conta, com o nome de quem escreveu, e fica anotada na marca
+   (quando e quem; o texto nao fica guardado aqui). */
+async function mensagemDeRenovacao(c, id, d) {
+  const texto = String(d.texto || "").replace(/\r/g, "").replace(/[\u0000-\u0008\u000b-\u001f]/g, " ").trim();
+  if (!texto) return json({ erro: "escreva a mensagem" }, 400);
+  if (texto.length > 4000) return json({ erro: "a mensagem passou de 4.000 caracteres" }, 400);
+  const r = await renovacoes(c);
+  const item = [...r.abertas, ...r.tratadas].find((x) => x.id === id);
+  if (!item) return json({ erro: "essa conta não tem ciclo vencido" }, 404);
+  const nome = nomeLimpo(c.quem.nome, 60);
+  // No remetente, so letras e espacos: virgula, parenteses e afins quebram o endereco.
+  const noRemetente = nome.replace(/[,;:()[\]\\@.]/g, " ").replace(/\s+/g, " ").trim();
+  const e = await enviarEmail(c.env, {
+    para: item.email, assunto: "Sobre o seu plano do Paulus", titulo: "Uma mensagem da equipe do Paulus",
+    texto: texto + "\n\n" + (nome ? nome + "\n" : "") + "Equipe PAVLVS",
+    de: (noRemetente ? noRemetente + " (PAVLVS)" : "PAVLVS") + " <naoresponda@paulus.ia.br>",
+    rodape: "PAVLVS · Mensagem escrita " + (nome ? "por " + nome + " " : "") + "no painel do PAVLVS. Para responder, escreva para contato@paulus.ia.br.",
+  });
+  if (!e.ok) return json({ erro: e.erro }, e.status || 502);
+  const marca = await marcaDaRenovacao(c, item);
+  marca.mensagem_em = iso(c.agora);
+  marca.mensagens = [...(marca.mensagens || []), { quando: iso(c.agora), por: c.quem.email }].slice(-20);
   await c.env.APOIOS.put("admin:renov:" + id, JSON.stringify(marca));
   c._renovacoes = null;
   return json(await renovacoes(c));
@@ -752,7 +1024,7 @@ function preencher(texto, campos) {
 }
 
 function camposDe(conta) {
-  const fim = conta._d && conta._d.ciclo ? new Date(conta._d.ciclo.fim).toLocaleDateString("pt-BR") : "";
+  const fim = conta._d && conta._d.ciclo ? dataBR(conta._d.ciclo.fim) : "";
   return { nome: String(conta.nome || "").split(" ")[0], escritorio: conta.escritorio.nome || conta.nome, plano: conta.plano ? conta.plano.nome : "", vence_em: fim };
 }
 
@@ -865,37 +1137,114 @@ async function rastreio(env, url) {
 
 // ---------------------------------------------- tokens, custos e receita
 
-async function tokens(c, visaoEscolhida, periodo) {
+// O medidor guarda o uso de cada dia ("uso": 400 dias desde 07/10/2026; antes,
+// so os ultimos 62 dias com uso) e o de cada mes inteiro ("uso_mes", sem
+// prazo). Um periodo e [de, ate] em dias de Brasilia: o mes que cabe inteiro
+// nele (ate hoje, no mes corrente) vem do uso_mes; o pedaco de mes, dos dias.
+// Quando os dias guardados de um mes somam menos que o mes inteiro, faltam os
+// mais velhos: se o pedaco do periodo comeca antes do primeiro dia guardado,
+// o numero sai menor que o real, e a resposta diz (incompleto, desde, aviso).
+
+/* O periodo pedido: {nome, de, ate} (AAAA-MM-DD, no horario de Brasilia) ou {erro}. */
+function periodoDosTokens(busca, agora) {
+  const nome = String(busca.get("periodo") || "mes");
+  const hoje = diaBRT(agora);
+  if (nome === "mes") return { nome, de: hoje.slice(0, 8) + "01", ate: hoje };
+  if (nome === "30" || nome === "90") return { nome, de: diaBRT(agora - (Number(nome) - 1) * DIA_MS), ate: hoje };
+  if (nome === "ano") return { nome, de: hoje.slice(0, 5) + "01-01", ate: hoje };
+  if (nome !== "custom") return { erro: "período desconhecido: " + nome };
+  const de = String(busca.get("de") || ""), ate = String(busca.get("ate") || "");
+  const valido = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(d + "T12:00:00Z").toISOString().slice(0, 10) === d;
+  if (!valido(de) || !valido(ate)) return { erro: "diga o período com de e ate (AAAA-MM-DD)" };
+  if (de > ate) return { erro: "o início do período vem depois do fim" };
+  return { nome, de, ate };
+}
+
+/* Os meses (AAAA-MM) de um periodo. */
+function mesesDe(de, ate) {
+  const saida = [];
+  let [a, m] = de.slice(0, 7).split("-").map(Number);
+  const fim = ate.slice(0, 7);
+  for (let i = 0; i < 1200; i++) {
+    const mes = a + "-" + String(m).padStart(2, "0");
+    if (mes > fim) break;
+    saida.push(mes);
+    m += 1;
+    if (m > 12) { m = 1; a += 1; }
+  }
+  return saida;
+}
+
+function ultimoDia(mes) {
+  const [a, m] = mes.split("-").map(Number);
+  return mes + "-" + String(new Date(Date.UTC(a, m, 0)).getUTCDate()).padStart(2, "0");
+}
+
+/* O uso de uma conta num periodo: {entrada, saida, modelos, guardado_desde}.
+   guardado_desde: quando falta uso do periodo, o primeiro dia que o medidor
+   ainda guarda ("" se nada falta). */
+function usoNoPeriodo(d, per, hoje) {
+  const t = { entrada: 0, saida: 0, modelos: {}, guardado_desde: "" };
+  const somar = (u) => {
+    if (!u) return;
+    t.entrada += u.entrada !== undefined ? Number(u.entrada) || 0 : Number(u.tokens) || 0;
+    t.saida += Number(u.saida) || 0;
+    for (const [nome, x] of Object.entries(u.modelos || {})) {
+      t.modelos[nome] = t.modelos[nome] || { entrada: 0, saida: 0 };
+      t.modelos[nome].entrada += Number(x.entrada) || 0;
+      t.modelos[nome].saida += Number(x.saida) || 0;
+    }
+  };
+  const dias = d.uso || [];
+  const meses = d.uso_mes || {};
+  const temMeses = Object.keys(meses).length > 0;
+  const primeiroGuardado = dias.length ? String(dias[0].dia || "") : "";
+  const tokensDe = (u) => (u.entrada !== undefined ? Number(u.entrada) || 0 : Number(u.tokens) || 0) + (Number(u.saida) || 0);
+  for (const mes of mesesDe(per.de, per.ate)) {
+    const ini = mes + "-01";
+    const fimDoMes = ultimoDia(mes);
+    // O mes inteiro dentro do periodo (o corrente, ate hoje): o total do mes.
+    if (temMeses && per.de <= ini && per.ate >= (fimDoMes < hoje ? fimDoMes : hoje)) {
+      somar(meses[mes]);
+      continue;
+    }
+    const a = per.de > ini ? per.de : ini;
+    const b = per.ate < fimDoMes ? per.ate : fimDoMes;
+    for (const u of dias) if (u.dia >= a && u.dia <= b) somar(u);
+    // Os dias guardados do mes somam menos que o mes inteiro: faltam os mais velhos.
+    const doMes = dias.filter((u) => u.dia >= ini && u.dia <= fimDoMes).reduce((s, u) => s + tokensDe(u), 0);
+    const mesInteiro = meses[mes] ? (Number(meses[mes].entrada) || 0) + (Number(meses[mes].saida) || 0) : 0;
+    if (mesInteiro > doMes && (!primeiroGuardado || primeiroGuardado > a)) t.guardado_desde = primeiroGuardado || b;
+  }
+  return t;
+}
+
+/* O que a conta pagou no periodo (pela data do pagamento, em Brasilia). */
+function receitaNoPeriodo(d, per) {
+  return (d.pagamentos || []).filter((p) => {
+    const dia = diaBRT(Date.parse(p.quando));
+    return dia >= per.de && dia <= per.ate;
+  }).reduce((s, p) => s + (Number(p.valor) || 0), 0);
+}
+
+const NOME_DO_NIVEL = { estagiario: "Estagiário", bacharel: "Bacharel", advogado: "Advogado", juiz: "Juiz", ministro: "Ministro" };
+
+/* Os planos que usam um modelo: "Escritório", "Escritório Plus (Ministro)". */
+function planosDoModelo(n, id) {
+  const saida = [];
+  for (const p of n.planos) {
+    if (!modelosDoPlano(p).includes(id)) continue;
+    const niveis = Object.entries(p.modelos || {}).filter(([, m]) => m === id).map(([nivel]) => nivel);
+    saida.push(niveis.includes("padrao") ? p.nome : p.nome + " (" + niveis.map((x) => NOME_DO_NIVEL[x] || x).join(", ") + ")");
+  }
+  return saida;
+}
+
+async function tokens(c, visaoEscolhida, per) {
   const contas = await lerContas(c);
   const escritorios = await comEscritorios(c, contas);
-  const agora = c.agora;
-  const mes = mesBRT(agora);
-  const ano = mes.slice(0, 4);
-  const desde30 = diaBRT(agora - 29 * DIA_MS);
-  const usoDe = (d) => {
-    // {entrada, saida, modelos} do periodo
-    const t = { entrada: 0, saida: 0, modelos: {} };
-    const somar = (u) => {
-      const e = u.entrada !== undefined ? u.entrada : u.tokens || 0;
-      t.entrada += e;
-      t.saida += u.saida || 0;
-      for (const [nome, x] of Object.entries(u.modelos || {})) {
-        t.modelos[nome] = t.modelos[nome] || { entrada: 0, saida: 0 };
-        t.modelos[nome].entrada += x.entrada || 0;
-        t.modelos[nome].saida += x.saida || 0;
-      }
-    };
-    if (periodo === "30") (d.uso || []).filter((u) => u.dia >= desde30).forEach(somar);
-    else Object.entries(d.uso_mes || {}).filter(([m]) => (periodo === "ano" ? m.startsWith(ano) : m === mes)).forEach(([, u]) => somar(u));
-    return t;
-  };
-  const receitaDe = (d) => (d.pagamentos || []).filter((p) => {
-    const q = Date.parse(p.quando);
-    if (periodo === "30") return diaBRT(q) >= desde30;
-    if (periodo === "ano") return mesBRT(q).startsWith(ano);
-    return mesBRT(q) === mes;
-  }).reduce((s, p) => s + (Number(p.valor) || 0), 0);
-  const porConta = contas.map((x) => ({ conta: x, uso: usoDe(x._d), receita: receitaDe(x._d) }));
+  const hoje = diaBRT(c.agora);
+  const porConta = contas.map((x) => ({ conta: x, uso: usoNoPeriodo(x._d, per, hoje), receita: receitaNoPeriodo(x._d, per) }));
   const linha = (nome, itens) => {
     const entrada = itens.reduce((s, i) => s + i.uso.entrada, 0);
     const saida = itens.reduce((s, i) => s + i.uso.saida, 0);
@@ -904,6 +1253,7 @@ async function tokens(c, visaoEscolhida, periodo) {
   let linhas;
   if (visaoEscolhida === "conta") linhas = porConta.map((i) => linha(i.conta.nome + (i.conta.escritorio.nome && i.conta.escritorio.nome !== i.conta.nome ? " · " + i.conta.escritorio.nome : ""), [i]));
   else if (visaoEscolhida === "escritorio") linhas = escritorios.map((e) => linha(e.nome, porConta.filter((i) => e.contas.includes(i.conta.id))));
+  else if (visaoEscolhida === "modelo") linhas = linhasPorModelo(c, porConta);
   else {
     // Geral: um por modelo (a receita das contas pagas dividida pelo uso de cada modelo) e as cortesias.
     const pagas = porConta.filter((i) => i.conta.situacao !== "cortesia");
@@ -934,7 +1284,57 @@ async function tokens(c, visaoEscolhida, periodo) {
   }
   linhas.sort((a, b) => b.entrada + b.saida - (a.entrada + a.saida));
   const tot = linha("total", porConta);
-  return { kpis: { entrada: tot.entrada, saida: tot.saida, custo_usd: tot.custo_usd, receita: tot.receita, contas: contas.length }, linhas, precos: precos(c.env) };
+  // O que o medidor ja nao guarda (o uso por dia de antes de 07/10/2026 ficava so 62 dias).
+  const guardados = porConta.map((i) => i.uso.guardado_desde).filter(Boolean).sort();
+  const desde = guardados.length ? guardados[guardados.length - 1] : "";
+  return {
+    kpis: { entrada: tot.entrada, saida: tot.saida, custo_usd: tot.custo_usd, receita: tot.receita, contas: contas.length }, linhas, precos: precos(c.env),
+    periodo: { nome: per.nome, de: per.de, ate: per.ate }, incompleto: Boolean(desde), desde,
+    aviso: desde ? "nem todas as contas têm o uso por dia de antes de " + dataBR(Date.parse(desde + "T12:00:00Z")) + ": o começo do período pode sair menor que o real" : "",
+  };
+}
+
+/* Por modelo: o uso de cada modelo em todas as contas, o preco dele por milhao
+   (em dolar), os planos que o usam e o arrecadado - o que cada conta paga
+   pagou no periodo, dividido pelo uso dela em cada modelo (sem uso no
+   periodo, vai para o modelo principal do plano dela). O uso de antes do
+   registro por modelo fica numa linha propria, no preco do IA_PRECOS. */
+function linhasPorModelo(c, porConta) {
+  const n = numeros(c.env);
+  const pr = precos(c.env);
+  const soma = {};
+  const acumular = (nome, entrada, saida, receita) => {
+    const x = (soma[nome] = soma[nome] || { entrada: 0, saida: 0, receita: 0 });
+    x.entrada += entrada;
+    x.saida += saida;
+    x.receita += receita;
+  };
+  for (const i of porConta) {
+    const paga = i.conta.situacao !== "cortesia";
+    const total = i.uso.entrada + i.uso.saida;
+    const parte = (e, s) => (paga && total > 0 ? i.receita * ((e + s) / total) : 0);
+    let restoE = i.uso.entrada, restoS = i.uso.saida;
+    for (const [nome, x] of Object.entries(i.uso.modelos)) {
+      acumular(nome, x.entrada, x.saida, parte(x.entrada, x.saida));
+      restoE -= x.entrada;
+      restoS -= x.saida;
+    }
+    if (restoE + restoS > 0) acumular("", Math.max(0, restoE), Math.max(0, restoS), parte(Math.max(0, restoE), Math.max(0, restoS)));
+    if (paga && !total && i.receita) acumular(planoDe(n, (i.conta.plano || {}).id).modelos.padrao, 0, 0, i.receita);
+  }
+  return Object.entries(soma).map(([nome, x]) => {
+    const m = MODELOS[nome];
+    if (!nome) {
+      return { nome: "Antes do registro por modelo", sub: "uso sem o modelo anotado · preço médio do IA_PRECOS", preco: [pr.entrada, pr.saida],
+        entrada: x.entrada, saida: x.saida, custo_usd: custoUSD(c.env, x.entrada, x.saida), receita: x.receita };
+    }
+    const planos_ = planosDoModelo(n, nome);
+    return {
+      nome: m ? m.nome : nome.split("/").pop(), modelo: nome, fabricante: m ? m.empresa : "",
+      planos: planos_, sub: [m ? m.empresa : "fora do catálogo", planos_.length ? "plano " + planos_.join(", ") : "nenhum plano usa hoje"].join(" · "),
+      preco: m ? m.usd : [pr.entrada, pr.saida], entrada: x.entrada, saida: x.saida, custo_usd: custoUSD(c.env, x.entrada, x.saida, nome), receita: x.receita,
+    };
+  });
 }
 
 // ------------------------------------------------------------ planos
@@ -977,6 +1377,27 @@ async function nfse(c) {
 }
 
 // ------------------------------------------------------------- equipe
+//
+// A equipe e "admin:equipe" (ou, antes da primeira mudanca, o ADMIN_EQUIPE).
+// Os convites pendentes ficam em "admin:convites": nome, e-mail e papel - nem
+// documento nem endereco -, o resumo SHA-256 do link, quem convidou e ate
+// quando vale (7 dias). O link (/api/equipe/convite?t=...) fica fora do
+// Access: por ele a pessoa aceita, entra na equipe e, com a API do Access
+// configurada, o Worker poe o e-mail dela na politica do painel.
+
+async function convitesPendentes(env) {
+  const l = await kvJSON(env, "admin:convites", []);
+  return Array.isArray(l) ? l.filter((x) => x && x.email && x.h) : [];
+}
+
+async function guardarConvites(env, lista) {
+  if (lista.length) await env.APOIOS.put("admin:convites", JSON.stringify(lista.slice(-50)));
+  else await env.APOIOS.delete("admin:convites");
+}
+
+async function guardarEquipe(env, lista) {
+  await env.APOIOS.put("admin:equipe", JSON.stringify(lista.map((x) => ({ email: String(x.email).toLowerCase(), nome: x.nome || "", papel: x.papel }))));
+}
 
 async function equipe(c) {
   const lista = await listaDaEquipe(c.env);
@@ -985,7 +1406,241 @@ async function equipe(c) {
     const ac = await kvJSON(c.env, "admin:acesso:" + String(m.email).toLowerCase(), null);
     membros.push({ email: String(m.email).toLowerCase(), nome: m.nome || "", papel: m.papel, ultimo: ac ? ac.ultimo : null });
   }
-  return { membros, matriz: MATRIZ.map(([acao, papeis]) => ({ acao, dono: papeis.includes("dono"), financeiro: papeis.includes("financeiro"), suporte: papeis.includes("suporte") })) };
+  // Os convites pendentes: a pessoa ainda nao aceitou (a tela mostra reenviar e cancelar).
+  for (const cv of await convitesPendentes(c.env)) {
+    if (membros.some((x) => x.email === cv.email)) continue;
+    membros.push({ email: cv.email, nome: cv.nome || "", papel: cv.papel, ultimo: null,
+      convite: { criado: cv.criado, vence: cv.vence, por: cv.por || "", vencido: !(Date.parse(cv.vence) > c.agora) } });
+  }
+  return {
+    membros, matriz: MATRIZ.map(([acao, papeis]) => ({ acao, dono: papeis.includes("dono"), financeiro: papeis.includes("financeiro"), suporte: papeis.includes("suporte") })),
+    liberacao: configuracao(c.env).equipe,
+  };
+}
+
+/* O que um equipe.membro pede faz sentido agora? "" se sim; senao, o motivo. */
+async function conferirMembro(c, d) {
+  const acao = String(d.acao || "");
+  if (!["criar", "editar", "excluir", "cancelar_convite"].includes(acao)) return "o que fazer com essa pessoa? (criar, editar, excluir ou cancelar_convite)";
+  const email = String(d.email || "").trim().toLowerCase();
+  if (!RE_EMAIL.test(email) || email.length > 120) return "e-mail inválido";
+  const lista = await listaDaEquipe(c.env);
+  const naEquipe = (e) => lista.some((x) => String(x.email).toLowerCase() === e);
+  const pendentes = await convitesPendentes(c.env);
+  const convidado = (e) => pendentes.some((x) => x.email === e);
+  const comDono = (l) => l.some((x) => x.papel === "dono");
+  if (acao === "criar" || acao === "editar") {
+    if (nomeLimpo(d.nome).length < 2) return "diga o nome da pessoa";
+    if (!PAPEIS.includes(d.papel)) return "papel inválido";
+  }
+  if (acao === "criar") {
+    if (naEquipe(email)) return email + " já está na equipe";
+    if (convidado(email)) return "já há um convite para " + email + ": reenvie ou cancele";
+    if (!c.env.RESEND_API_KEY) return "o convite vai por e-mail, e o envio ainda não está ligado: falta RESEND_API_KEY";
+  }
+  if (acao === "editar") {
+    const de = String(d.de || "").trim().toLowerCase();
+    if (!naEquipe(de)) return (de || "essa pessoa") + " não está na equipe";
+    if (de === email) {
+      if (!comDono(lista.map((x) => (String(x.email).toLowerCase() === de ? { ...x, papel: d.papel } : x)))) return "a equipe precisa de pelo menos um dono";
+    } else {
+      if (naEquipe(email) || convidado(email)) return email + " já está na equipe ou tem convite";
+      if (!c.env.RESEND_API_KEY) return "trocar o e-mail manda um convite para o novo, e o envio ainda não está ligado: falta RESEND_API_KEY";
+      // O e-mail novo so entra quando aceitar: ate la, o antigo ja saiu.
+      if (!comDono(lista.filter((x) => String(x.email).toLowerCase() !== de))) return "a equipe precisa de pelo menos um dono: o e-mail novo só entra quando aceitar o convite. Convide-o como dono antes de trocar este";
+    }
+  }
+  if (acao === "excluir") {
+    if (!naEquipe(email)) return email + " não está na equipe";
+    if (!comDono(lista.filter((x) => String(x.email).toLowerCase() !== email))) return "a equipe precisa de pelo menos um dono";
+  }
+  if (acao === "cancelar_convite" && !convidado(email)) return "não há convite pendente para " + email;
+  return "";
+}
+
+/* equipe.membro na publicacao: convida, edita, tira da equipe ou cancela o convite. */
+async function aplicarMembro(c, d) {
+  const erro = await conferirMembro(c, d);
+  if (erro) throw new Error(erro);
+  const { env } = c;
+  const email = String(d.email).trim().toLowerCase();
+  const nome = nomeLimpo(d.nome);
+  if (d.acao === "criar") return convidar(c, { email, nome, papel: d.papel });
+  if (d.acao === "cancelar_convite") {
+    await guardarConvites(env, (await convitesPendentes(env)).filter((x) => x.email !== email));
+    return {};
+  }
+  const lista = await listaDaEquipe(env);
+  if (d.acao === "excluir") return tirarDaEquipe(env, lista, email);
+  // editar
+  const de = String(d.de).trim().toLowerCase();
+  if (de === email) {
+    await guardarEquipe(env, lista.map((x) => (String(x.email).toLowerCase() === de ? { ...x, nome, papel: d.papel } : x)));
+    return {};
+  }
+  // O e-mail mudou: o novo recebe o convite (se o e-mail nao sai, nada muda) e o antigo sai.
+  const r = await convidar(c, { email, nome, papel: d.papel });
+  const fora = await tirarDaEquipe(env, lista, de);
+  return { ...r, ...fora };
+}
+
+/* Tira da equipe: a lista, a politica do Access (se a API estiver ligada), as sessoes do painel e as do Access. */
+async function tirarDaEquipe(env, lista, email) {
+  await guardarEquipe(env, lista.filter((x) => String(x.email).toLowerCase() !== email));
+  const access = accessConfigurado(env) ? await politicaDoAccess(env, email, false) : { feito: false, frase: "tire " + email + " da política do Cloudflare Access à mão (" + faltaDoAccess(env) + ")" };
+  await apagarSessoesDe(env, email);
+  if (accessConfigurado(env)) await revogarNoAccess(env, email);
+  return { access, ...(access.feito ? {} : { aviso: email + " saiu da equipe, mas não do Access: " + access.frase }) };
+}
+
+/* Um convite novo (ou o mesmo e-mail de novo): guarda e manda o e-mail. Se o e-mail nao sai, o convite tambem nao fica. */
+async function convidar(c, { email, nome, papel }) {
+  const token = aleatorio(32);
+  const cv = { email, nome, papel, h: await sha256Hex("convite:" + token), criado: iso(c.agora), vence: iso(c.agora + CONVITE_MS),
+    por: c.quem.email, por_nome: nomeLimpo(c.quem.nome, 60) };
+  const antes = await convitesPendentes(c.env);
+  await guardarConvites(c.env, [...antes.filter((x) => x.email !== email), cv]);
+  const e = await emailDoConvite(c.env, cv, token);
+  if (!e.ok) {
+    await guardarConvites(c.env, antes);
+    throw new Error(e.erro);
+  }
+  return { convite: email, vence: cv.vence };
+}
+
+function emailDoConvite(env, cv, token) {
+  const auto = accessConfigurado(env);
+  const quem = cv.por_nome || cv.por || "A equipe do Paulus";
+  return enviarEmail(env, {
+    para: cv.email, assunto: "Convite para o painel do Paulus", titulo: "Você foi convidado para a equipe do Paulus",
+    pre: "O link vale até " + dataBR(cv.vence),
+    texto: (cv.nome ? "Olá, " + primeiroNome(cv.nome) + ".\n\n" : "") +
+      quem + " convidou você para o painel de administração do Paulus, com o papel " + (NOME_DO_PAPEL[cv.papel] || cv.papel) + ". O link abaixo vale até " + dataBR(cv.vence) + ".\n\n" +
+      (auto ? "Ao aceitar, o seu e-mail é liberado no Cloudflare Access do painel."
+        : "Depois de aceitar, avise quem convidou: a liberação do seu e-mail no Cloudflare Access do painel ainda é feita à mão.") +
+      " Para entrar, o Access manda um código para este e-mail, e depois você entra com a sua conta do GitHub, que precisa ter escrita no repositório do PAVLVS." +
+      "\n\nSe não esperava este convite, ignore este e-mail.",
+    botao: "Abrir o convite", link: SITE + "/api/equipe/convite?t=" + token,
+  });
+}
+
+/* POST /api/admin/equipe/convite/:email/reenviar (na hora, so o dono): um link novo
+   (o anterior para de valer), mais 7 dias. */
+async function reenviarConvite(c, email) {
+  if (c.quem.papel !== "dono") return json({ erro: "o papel " + c.quem.papel + " não convida: convites são do dono" }, 403);
+  const lista = await convitesPendentes(c.env);
+  const cv = lista.find((x) => x.email === email);
+  if (!cv) return json({ erro: "não há convite pendente para " + (email || "esse e-mail") }, 404);
+  const token = aleatorio(32);
+  const novo = { ...cv, h: await sha256Hex("convite:" + token), vence: iso(c.agora + CONVITE_MS), reenviado: iso(c.agora), por: c.quem.email, por_nome: nomeLimpo(c.quem.nome, 60) };
+  await guardarConvites(c.env, lista.map((x) => (x.email === email ? novo : x)));
+  const e = await emailDoConvite(c.env, novo, token);
+  if (!e.ok) {
+    await guardarConvites(c.env, lista);
+    return json({ erro: e.erro }, e.status || 502);
+  }
+  return json(await equipe(c));
+}
+
+/* A pagina do convite (GET mostra, POST aceita), fora do Access. Aceitar poe a
+   pessoa na equipe e, com a API do Access configurada, o e-mail na politica
+   do painel; sem ela, a pagina diz que essa parte e a mao. */
+async function conviteDaEquipe(request, env, url, deps) {
+  const m = request.method;
+  if (m !== "GET" && m !== "POST") return paginaDoConvite(405, { titulo: "Abra o link do convite", paragrafos: ["Este endereço só abre o convite que chegou por e-mail."] });
+  if (deps.dentroDoLimite && !(await deps.dentroDoLimite(request, env))) {
+    return paginaDoConvite(429, { titulo: "Muitas tentativas seguidas", paragrafos: ["Espere um minuto e abra o link de novo."] });
+  }
+  const agora = (deps.agora || Date.now)();
+  let token = "";
+  if (m === "POST") {
+    try {
+      token = String((await request.formData()).get("t") || "");
+    } catch {
+      token = "";
+    }
+  } else token = String(url.searchParams.get("t") || "");
+  const h = /^[0-9a-f]{64}$/.test(token) ? await sha256Hex("convite:" + token) : "";
+  const cv = h ? (await convitesPendentes(env)).find((x) => x.h === h) : null;
+  if (!cv) {
+    return paginaDoConvite(410, { titulo: "Este convite não vale mais",
+      paragrafos: ["O link foi cancelado, trocado por um novo ou já foi usado. Peça a quem convidou para reenviar o convite."] });
+  }
+  if (!(Date.parse(cv.vence) > agora)) {
+    return paginaDoConvite(410, { titulo: "Este convite venceu",
+      paragrafos: ["Ele valia até " + dataBR(cv.vence) + ". Peça a quem convidou para reenviar: o link novo vale por mais 7 dias."] });
+  }
+  const auto = accessConfigurado(env);
+  const papel = NOME_DO_PAPEL[cv.papel] || cv.papel;
+  const linhas = [["Nome", cv.nome || "—"], ["E-mail", cv.email], ["Papel", papel], ["Vale até", dataBR(cv.vence)]];
+  const github = "Depois, você entra com a sua conta do GitHub, que precisa ter escrita no repositório do PAVLVS.";
+  if (m === "GET") {
+    return paginaDoConvite(200, {
+      titulo: "Entrar na equipe do Paulus?", linhas, form: token, botao: "Aceitar o convite",
+      paragrafos: [(cv.por_nome || cv.por || "A equipe do Paulus") + " convidou você para o painel de administração do Paulus.",
+        auto ? "Ao aceitar, o seu e-mail é liberado no Cloudflare Access do painel. Para entrar, o Access manda um código para " + cv.email + ". " + github
+          : "Ao aceitar, você entra na equipe do painel. A liberação do seu e-mail no Cloudflare Access ainda é feita à mão por quem convidou: avise depois de aceitar. Com ela, o Access manda um código para " + cv.email + ". " + github],
+    });
+  }
+  // Aceitar. A equipe primeiro: com o Access liberado depois (a mao ou de novo pelo link), a pessoa ja tem o papel.
+  const equipeAtual = await listaDaEquipe(env);
+  if (!equipeAtual.some((x) => String(x.email).toLowerCase() === cv.email)) {
+    await guardarEquipe(env, [...equipeAtual, { email: cv.email, nome: cv.nome, papel: cv.papel }]);
+  }
+  if (auto) {
+    const lib = await politicaDoAccess(env, cv.email, true);
+    if (!lib.feito) {
+      // O convite continua valendo: abrir o link de novo tenta o Access outra vez.
+      return paginaDoConvite(502, { titulo: "Quase lá", linhas, paragrafos: ["Você entrou na equipe, mas o Cloudflare Access não liberou o seu e-mail agora: " + lib.frase + ".",
+        "Abra o link de novo em alguns minutos: ele continua valendo até " + dataBR(cv.vence) + ". Se não der, avise quem convidou."] });
+    }
+  }
+  await guardarConvites(env, (await convitesPendentes(env)).filter((x) => x.h !== h));
+  return paginaDoConvite(200, auto ? {
+    titulo: cv.nome ? "Pronto, " + primeiroNome(cv.nome) + "." : "Pronto.", linhas, botao: "Abrir o painel", link: "/admin/",
+    paragrafos: ["Você entrou na equipe, com o papel " + papel + ", e o seu e-mail foi liberado no Cloudflare Access do painel.",
+      "Para entrar: abra o painel, digite " + cv.email + " no Access e use o código que chega nesse e-mail. " + github],
+  } : {
+    titulo: cv.nome ? "Pronto, " + primeiroNome(cv.nome) + "." : "Pronto.", linhas,
+    paragrafos: ["Você entrou na equipe, com o papel " + papel + ".",
+      "Falta um passo, que ainda é feito à mão: quem convidou precisa incluir " + cv.email + " na política do Cloudflare Access do painel. Avise essa pessoa; depois disso, o Access manda um código para esse e-mail quando você abrir paulus.ia.br/admin. " + github],
+  });
+}
+
+/* A pagina do convite, no desenho das paginas do Worker (claro ou escuro, pelo sistema). Sem script. */
+function paginaDoConvite(status, { rotulo = "Convite", titulo = "", paragrafos = [], linhas = [], form = "", botao = "", link = "" }) {
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const tabela = linhas.length ? '<div class="linhas">' + linhas.map(([r, v]) => '<div class="linha"><span class="r">' + esc(r) + "</span><span>" + esc(v) + "</span></div>").join("") + "</div>" : "";
+  const acao = form
+    ? '<form method="post" action="/api/equipe/convite"><input type="hidden" name="t" value="' + esc(form) + '"><button class="principal" type="submit"><span>' + esc(botao) + "</span></button></form>"
+    : botao && link ? '<a class="principal" href="' + esc(link) + '"><span>' + esc(botao) + "</span></a>" : "";
+  const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    "<title>" + esc(titulo) + ' — PAVLVS</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600&family=Fira+Code:wght@400&display=swap"><style>' +
+    ":root{--bg:#f6f5f1;--panel:#efeee9;--pill:#e2e1db;--pill-h:#dad9d2;--ink:#1c1c1a;--ink2:#55544f;--ink3:#77766f;--line:rgba(28,28,26,.12);--line2:rgba(28,28,26,.25);color-scheme:light}" +
+    "@media (prefers-color-scheme:dark){:root{--bg:#131312;--panel:#1a1a18;--pill:#2a2a27;--pill-h:#303030;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#6f6e68;--line:rgba(242,241,236,.1);--line2:rgba(242,241,236,.2);color-scheme:dark}}" +
+    "*{box-sizing:border-box}html,body{margin:0}" +
+    'body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font:400 16px/1.6 Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}' +
+    "header{padding:0 28px;min-height:56px;display:flex;align-items:center;border-bottom:1px solid var(--line)}" +
+    '.marca{font:400 20px/1 "EB Garamond",Georgia,serif;letter-spacing:.12em;color:inherit;text-decoration:none}' +
+    "main{flex:1;width:100%;max-width:560px;margin:0 auto;padding:48px 16px;display:grid;gap:18px;align-content:center}" +
+    '.rotulo{font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}' +
+    'h1{margin:0;font:400 clamp(30px,6vw,40px)/1.1 "EB Garamond",Georgia,serif;text-wrap:balance}' +
+    "p{margin:0;font-size:14px;line-height:1.6;color:var(--ink2);text-wrap:pretty}" +
+    ".linhas{display:grid;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}" +
+    ".linha{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:baseline;padding:10px 12px;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}" +
+    '.linha:first-child{border-top:0}.linha .r{font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}' +
+    "form{margin:0}" +
+    ".principal{display:inline-flex;padding:1px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);font:500 13px Manrope,system-ui,sans-serif;text-decoration:none;cursor:pointer}" +
+    ".principal>span{height:28px;padding:0 22px;display:flex;align-items:center;border-radius:8px;background:var(--pill)}" +
+    ".principal:hover{border-color:var(--line2)}.principal:hover>span{background:var(--pill-h)}.principal:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}" +
+    '</style></head><body><header><a class="marca" href="/">PAVLVS</a></header><main><span class="rotulo">' + esc(rotulo) + "</span><h1>" + esc(titulo) + "</h1>" +
+    paragrafos.map((t) => "<p>" + esc(t) + "</p>").join("") + tabela + (acao ? "<div>" + acao + "</div>" : "") + "</main></body></html>";
+  return new Response(html, {
+    status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
+  });
 }
 
 // -------------------------------------------------------------- busca
@@ -1013,7 +1668,14 @@ function chaveDaFila(c) {
 }
 
 async function alteracoes(c) {
-  return { pendentes: (await kvJSON(c.env, chaveDaFila(c), [])) || [], publicacoes: (await kvJSON(c.env, "admin:publicacoes", [])) || [] };
+  const pubs = (await kvJSON(c.env, "admin:publicacoes", [])) || [];
+  return { pendentes: (await kvJSON(c.env, chaveDaFila(c), [])) || [], publicacoes: pubs.map(publicacaoParaTela) };
+}
+
+/* A publicacao como a tela le: sem o que so o servidor usa (os commits inteiros, o retrato). */
+function publicacaoParaTela(p) {
+  return { id: p.id || "", quando: p.quando, commit: p.commit, resumo: p.resumo, n: p.n, por: p.por, revertida: p.revertida || null,
+    retroagivel: Boolean(p.retrato || (p.commits && p.commits.length) || /^[0-9a-f]{7,40}$/.test(String(p.commit || ""))) };
 }
 
 async function enfileirar(c, d) {
@@ -1037,9 +1699,20 @@ async function tirarDaFila(c, id) {
 
 /* O que da para conferir antes de entrar na fila (formato, existencia). */
 async function conferirAlteracao(c, tipo, d) {
-  if (tipo.startsWith("conta.") || tipo.startsWith("google.")) {
+  if (tipo.startsWith("conta.") || tipo.startsWith("google.") || tipo === "renov.oferta") {
     if (!/^[0-9a-f]{24}$/.test(String(d.id || ""))) return "conta inválida";
   }
+  if (tipo === "conta.plano") {
+    if (!numeros(c.env).planos.some((p) => p.id === String(d.plano || ""))) return "esse plano não existe";
+    return motivoContraTrocaDePlano(c, d.id, String(d.plano));
+  }
+  if (tipo === "conta.cadastro") {
+    const r = await cadastroEditado(c, d);
+    return r.erro || "";
+  }
+  if (tipo === "conta.pausar") return motivoContraPausa(c, d);
+  if (tipo === "equipe.membro") return conferirMembro(c, d);
+  if (tipo === "renov.oferta") return conferirOferta(c, d);
   if (tipo === "conta.creditar" && !(Number(d.tokens) > 0 && Number(d.tokens) <= 1e9)) return "quantos tokens?";
   if (tipo === "conta.reembolsar") {
     if (!/^[A-Za-z0-9-]{3,40}$/.test(String(d.pagamento || ""))) return "qual pagamento?";
@@ -1064,26 +1737,54 @@ async function conferirAlteracao(c, tipo, d) {
   if (tipo === "equipe.papel" && !PAPEIS.includes(d.papel)) return "papel inválido";
   if (tipo === "campanha.disparar") {
     if (!String(d.assunto || "").trim() || !String(d.texto || "").trim()) return "a campanha precisa de assunto e texto";
+    if (d.quando !== undefined && !["agora", "amanha", "segunda", "agendado"].includes(d.quando)) return "quando enviar? (agora, amanha, segunda ou agendado)";
+    if (d.quando === "agendado") {
+      const ms = horaMarcada(d);
+      if (!Number.isFinite(ms)) return "diga o dia (de: AAAA-MM-DD) e a hora (hora: HH:MM, horário de Brasília) do envio";
+      if (ms <= c.agora + 60 * 1000) return "a hora marcada (" + dataHoraBR(ms) + ") já passou: escolha outra";
+      if (ms > c.agora + 366 * DIA_MS) return "agende para no máximo um ano a partir de hoje";
+    }
+    if (d.publico === "escolhidas") {
+      const ids = Array.isArray(d.contas) ? d.contas.map(String) : [];
+      if (!ids.length) return "escolha as contas que recebem";
+      if (ids.length > 2000 || ids.some((x) => !/^[0-9a-f]{24}$/.test(x))) return "a lista de contas escolhidas não confere";
+    }
   }
   return "";
 }
 
-/* Publicar: aplica a fila na ordem. Uma que falha nao desfaz as outras. */
+/* O dia e a hora de uma campanha agendada ({de: "AAAA-MM-DD", hora: "HH:MM"}, em
+   Brasilia, UTC-3) em milissegundos; NaN se nao conferem. */
+function horaMarcada(d) {
+  const dia = String(d.de || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const hora = String(d.hora || "").match(/^(\d{2}):(\d{2})$/);
+  if (!dia || !hora || Number(hora[1]) > 23 || Number(hora[2]) > 59) return NaN;
+  const ms = Date.UTC(Number(dia[1]), Number(dia[2]) - 1, Number(dia[3]), Number(hora[1]) + 3, Number(hora[2]));
+  // 31/02 nao existe: o Date.UTC passaria para marco.
+  return diaBRT(ms) === dia[0] ? ms : NaN;
+}
+
+/* Publicar: aplica a fila na ordem. Uma que falha nao desfaz as outras. Cada
+   publicacao guarda o retrato do que mudou ("admin:retrato:<id>", 30 dias),
+   que e o que o dono usa para retroagir. */
 async function publicar(c, d) {
   if (String(d.confirmacao || "").trim().toLowerCase() !== CONFIRMACAO) return json({ erro: "digite exatamente: " + CONFIRMACAO }, 400);
   const lista = (await kvJSON(c.env, chaveDaFila(c), [])) || [];
   if (!lista.length) return json({ erro: "nada para publicar" }, 409);
   const resultados = [];
   const commits = [];
+  const retratos = [];
   for (const alt of lista) {
     if (!PODE[alt.tipo] || !PODE[alt.tipo].includes(c.quem.papel)) {
       resultados.push({ id: alt.id, ok: false, erro: "o papel " + c.quem.papel + " não pode" });
       continue;
     }
     try {
-      const r = await aplicar(c, alt);
+      const item = { id: alt.id, tipo: alt.tipo, texto: alt.texto };
+      const r = await aplicarComRetrato(c, alt, item);
       if (r && r.commit) commits.push(r.commit);
-      resultados.push({ id: alt.id, ok: true });
+      retratos.push(item);
+      resultados.push({ id: alt.id, ok: true, ...(r && r.aviso ? { aviso: String(r.aviso).slice(0, 300) } : {}) });
     } catch (e) {
       resultados.push({ id: alt.id, ok: false, erro: String((e && e.message) || e).slice(0, 200) });
     }
@@ -1091,17 +1792,270 @@ async function publicar(c, d) {
   const falharam = lista.filter((alt) => resultados.find((r) => r.id === alt.id && !r.ok));
   await c.env.APOIOS.put(chaveDaFila(c), JSON.stringify(falharam));
   const feitas = lista.length - falharam.length;
+  const id = aleatorio(6);
   const publicacao = {
-    quando: new Date(c.agora).toISOString(), commit: commits.length ? commits[commits.length - 1].slice(0, 7) : "kv-" + aleatorio(3).slice(0, 5),
+    id, quando: new Date(c.agora).toISOString(), commit: commits.length ? commits[commits.length - 1].slice(0, 7) : "kv-" + id.slice(0, 5),
     resumo: lista.filter((a) => !falharam.includes(a)).map((a) => a.texto).slice(0, 3).join(" · ") + (feitas > 3 ? " · +" + (feitas - 3) : ""),
     n: feitas, por: c.quem.login || c.quem.email,
   };
   if (feitas) {
+    if (commits.length) publicacao.commits = commits;
+    await c.env.APOIOS.put("admin:retrato:" + id, JSON.stringify({ quando: publicacao.quando, itens: retratos }), { expirationTtl: RETRATO_S });
+    publicacao.retrato = true;
     const pubs = (await kvJSON(c.env, "admin:publicacoes", [])) || [];
     pubs.unshift(publicacao);
     await c.env.APOIOS.put("admin:publicacoes", JSON.stringify(pubs.slice(0, 30)));
   }
-  return json({ ok: !falharam.length, resultados, publicacao });
+  return json({ ok: !falharam.length, resultados, publicacao: publicacaoParaTela(publicacao) });
+}
+
+// ------------------------------------------------------------ o retrato
+//
+// O que cada alteracao mudou, para retroagir (POST /api/admin/retroagir).
+// Volta: o que so mudou o KV do painel (planos, interruptores das notas,
+// papeis), com o valor de antes e o de depois - se mudou de novo depois, nao
+// volta sem desfazer o mais novo; o cadastro editado (o de antes, se havia);
+// a campanha que ainda nao saiu inteira (o resto e cancelado; o que saiu
+// continua); e a pausa da cobranca (o Mercado Pago volta a situacao de antes).
+// O resto mudou fora do painel e e desfeito pela propria tela.
+
+const KV_DA_ALTERACAO = { "plano.criar": ["admin:planos"], "plano.editar": ["admin:planos"], "nfse.config": ["admin:nfse:config"], "equipe.papel": ["admin:equipe"] };
+const ROTULO_DO_KV = { "admin:planos": "os planos", "admin:nfse:config": "os interruptores das notas fiscais", "admin:equipe": "a equipe" };
+const NAO_VOLTA = {
+  "conta.creditar": "os créditos já estão na conta (o medidor não tira créditos pelo painel)",
+  "conta.instalacao.apagar": "a instalação desvinculada só volta ativando o Paulus de novo nela",
+  "conta.cancelar": "a assinatura cancelada no Mercado Pago não volta: a pessoa assina de novo",
+  "conta.reembolsar": "o dinheiro já voltou pelo Mercado Pago",
+  "conta.plano": "para voltar, troque o plano de novo em Contas › Plano",
+  "google.servicos": "o que o Google revogou só volta com o consentimento da pessoa no Paulus",
+  "google.desvincular": "a conta Google desvinculada não volta pelo painel",
+  "tunel.apagar": "o túnel e o DNS apagados não voltam: o escritório conecta de novo",
+  "tunel.endereco": "para voltar, altere o endereço de novo em Túneis",
+  "tunel.ativo": "para voltar, use Ativar ou Desativar acesso em Túneis",
+  "equipe.membro": "convites e acessos voltam pela tela Equipe (convidar de novo ou excluir)",
+  "renov.oferta": "a oferta já foi mandada para a pessoa",
+};
+
+async function aplicarComRetrato(c, alt, item) {
+  const { env } = c;
+  const d = alt.dados || {};
+  const chaves = KV_DA_ALTERACAO[alt.tipo];
+  if (chaves) {
+    const antes = [];
+    for (const k of chaves) antes.push(await env.APOIOS.get(k));
+    const r = await aplicar(c, alt);
+    item.kv = [];
+    for (let i = 0; i < chaves.length; i++) item.kv.push({ chave: chaves[i], antes: antes[i], depois: await env.APOIOS.get(chaves[i]) });
+    if (alt.tipo === "plano.editar") item.plano = String(d.id || "");
+    if (alt.tipo === "plano.criar") item.plano_novo = String(d.id || "");
+    return r;
+  }
+  if (alt.tipo === "conta.cadastro") {
+    const antes = ((await medidor(env, d.id).pedir("admin_detalhe")) || {}).cadastro || null;
+    const r = await aplicar(c, alt);
+    if (antes) item.cadastro = { conta: d.id, antes, depois: (r && r.cadastro) || null };
+    else item.nao_volta = "a conta não tinha cadastro antes";
+    return r;
+  }
+  const r = await aplicar(c, alt);
+  if (alt.tipo === "campanha.disparar") item.campanha = r && r.id;
+  else if (alt.tipo === "conta.pausar") item.pausa = { conta: d.id, assinatura: r.assinatura, de: r.de, para: r.para };
+  else item.nao_volta = NAO_VOLTA[alt.tipo] || "mudou fora do painel";
+  return r;
+}
+
+/* Por que um item do retrato nao volta agora ("" se volta). */
+async function conflitoDoRetrato(c, x, contas) {
+  if (x.desfeito) return "";
+  if (x.nao_volta) return x.nao_volta;
+  if (x.kv) {
+    for (const k of x.kv) {
+      if ((await c.env.APOIOS.get(k.chave)) !== k.depois) return (ROTULO_DO_KV[k.chave] || k.chave) + " mudaram depois dessa publicação: retroaja a mais nova antes";
+    }
+    if (x.plano_novo) {
+      const n = contas.filter((y) => (y._d.plano_id || (y.plano || {}).id) === x.plano_novo || (y._d.plano_proximo && y._d.plano_proximo.id === x.plano_novo)).length;
+      if (n) return n + (n === 1 ? " conta já usa" : " contas já usam") + " o plano " + x.plano_novo;
+    }
+  }
+  if (x.cadastro) {
+    const atual = ((await medidor(c.env, x.cadastro.conta).pedir("admin_detalhe")) || {}).cadastro || null;
+    if (JSON.stringify(atual) !== JSON.stringify(x.cadastro.depois)) return "o cadastro da conta mudou depois dessa publicação";
+  }
+  if (x.pausa) {
+    const a = ((await medidor(c.env, x.pausa.conta).pedir("resumo")) || {}).assinatura || {};
+    if (a.id !== x.pausa.assinatura || a.situacao !== x.pausa.para) return "a assinatura mudou depois (agora: " + (a.situacao || "sem assinatura") + ")";
+  }
+  return "";
+}
+
+/* Desfaz um item do retrato (ja conferido). Devolve um aviso, ou "". */
+async function desfazerDoRetrato(c, x) {
+  const { env } = c;
+  if (x.kv) {
+    for (const k of x.kv) {
+      if (k.antes === null || k.antes === undefined) await env.APOIOS.delete(k.chave);
+      else await env.APOIOS.put(k.chave, k.antes);
+      if (k.chave === "admin:planos") PLANOS_CACHE = { quando: 0, valor: null };
+    }
+    // O plano editado: quem assina volta a pagar o valor de antes (como aplicarPlano fez para o novo).
+    if (x.plano) {
+      const kvPlanos = x.kv.find((k) => k.chave === "admin:planos");
+      const plano = numeros({ ...env, IA_PLANOS: kvPlanos && kvPlanos.antes ? kvPlanos.antes : "" }).planos.find((p) => p.id === x.plano);
+      if (plano) {
+        try {
+          const r = await valorNasAssinaturas(c, x.plano, plano.valor, "o Mercado Pago recusou o valor de antes de: ");
+          return r.aviso || "";
+        } catch (e) {
+          return "o plano voltou, mas " + String((e && e.message) || e);
+        }
+      }
+    }
+    return "";
+  }
+  if (x.cadastro) {
+    await medidor(env, x.cadastro.conta).pedir("cadastro", { cadastro: x.cadastro.antes });
+    return "";
+  }
+  if (x.pausa) {
+    const mp = c.deps.chamarMP;
+    if (!mp) throw new Error("sem o Mercado Pago");
+    const res = await mp(env, "/preapproval/" + encodeURIComponent(x.pausa.assinatura), "PUT", { status: x.pausa.de });
+    if (!res.ok) throw new Error("o Mercado Pago recusou voltar a assinatura para " + x.pausa.de + " (HTTP " + res.status + ")");
+    await medidor(env, x.pausa.conta).pedir("assinatura", { assinatura: { id: x.pausa.assinatura, situacao: x.pausa.de } });
+    return "";
+  }
+  if (x.campanha) return cancelarCampanha(env, x.campanha);
+  return "";
+}
+
+/* O resto de uma campanha sai da fila do Cron (o que ja saiu continua). Devolve o aviso. */
+async function cancelarCampanha(env, id) {
+  const k = "admin:campanha:" + id;
+  const camp = await kvJSON(env, k, null);
+  if (!camp) return "";
+  if (!["na fila", "agendada", "enviando"].includes(camp.situacao)) {
+    return camp.situacao === "enviada" ? "os e-mails da campanha “" + camp.nome + "” já tinham saído e continuam valendo" : "";
+  }
+  const saiu = camp.enviados || 0;
+  camp.situacao = "cancelada";
+  camp.destinatarios = (camp.destinatarios || []).map((y) => ({ t: y.t }));
+  await env.APOIOS.put(k, JSON.stringify(camp));
+  const fila = (await kvJSON(env, "admin:campanhas:fila", [])) || [];
+  await env.APOIOS.put("admin:campanhas:fila", JSON.stringify(fila.filter((y) => y !== id)));
+  return saiu ? saiu + (saiu === 1 ? " e-mail" : " e-mails") + " da campanha “" + camp.nome + "” já tinham saído e continuam valendo; o resto foi cancelado" : "";
+}
+
+/* POST /api/admin/retroagir {publicacao | commit, confirmacao: "retroagir"} - so o dono.
+   Tudo ou nada: se um item nao volta (mudou fora do painel, ou de novo depois),
+   nada muda e a resposta diz qual e por que. O que mudou commits no GitHub
+   volta num commit de reversao na main, com o token do GitHub de quem esta logado. */
+async function retroagir(c, d) {
+  if (c.quem.papel !== "dono") return json({ erro: "só o papel dono retroage uma publicação" }, 403);
+  if (String(d.confirmacao || "").trim().toLowerCase() !== "retroagir") return json({ erro: "digite exatamente: retroagir" }, 400);
+  const pubs = (await kvJSON(c.env, "admin:publicacoes", [])) || [];
+  const i = d.publicacao ? pubs.findIndex((p) => p.id === String(d.publicacao)) : pubs.findIndex((p) => d.commit && String(p.commit) === String(d.commit));
+  if (i < 0) return json({ erro: "essa publicação não está no histórico" }, 404);
+  const pub = pubs[i];
+  if (pub.revertida) return json({ erro: "essa publicação já foi retroagida em " + dataHoraBR(Date.parse(pub.revertida.quando)) }, 409);
+  const doGit = pub.commits && pub.commits.length ? pub.commits : /^[0-9a-f]{7,40}$/.test(String(pub.commit || "")) ? [String(pub.commit)] : [];
+  if (!pub.retrato && !doGit.length) {
+    return json({ erro: "essa publicação é de antes do retrato (o painel guarda o valor anterior desde 07/10/2026): não dá para retroagir; desfaça à mão, pela tela de cada alteração" }, 409);
+  }
+  const retrato = pub.retrato ? await kvJSON(c.env, "admin:retrato:" + pub.id, null) : null;
+  if (pub.retrato && !retrato) return json({ erro: "o retrato dessa publicação venceu (vale 30 dias): não dá para retroagir; desfaça à mão" }, 409);
+  const itens = retrato ? retrato.itens || [] : [];
+  const contas = itens.some((x) => x.plano_novo) ? await lerContas(c) : [];
+  const motivos = [];
+  for (const x of itens) {
+    const m = await conflitoDoRetrato(c, x, contas);
+    if (m) motivos.push("“" + x.texto + "”: " + m);
+  }
+  if (motivos.length) return json({ erro: "não dá para retroagir esta publicação: " + motivos.join("; "), itens: motivos }, 409);
+  let commit = pub.git_revertido || "";
+  if (doGit.length && !commit) {
+    try {
+      commit = await reverterNoGitHub(c, doGit, "Painel admin: retroage a publicação de " + dataHoraBR(Date.parse(pub.quando)) + " (" + (pub.resumo || pub.commit) + "), por " + (c.quem.login || c.quem.email));
+    } catch (e) {
+      return json({ erro: "o GitHub não aceitou a reversão: " + String((e && e.message) || e).slice(0, 240) }, 502);
+    }
+    // Anotado ja: se algo do KV parar no meio, tentar de novo nao reverte o GitHub duas vezes.
+    pub.git_revertido = commit;
+    pubs[i] = pub;
+    await c.env.APOIOS.put("admin:publicacoes", JSON.stringify(pubs));
+  }
+  // Da ultima para a primeira; cada uma desfeita fica marcada no retrato (de novo, nao se desfaz duas vezes).
+  const avisos = [];
+  for (const x of [...itens].reverse()) {
+    if (x.desfeito) continue;
+    try {
+      const a = await desfazerDoRetrato(c, x);
+      if (a) avisos.push(a);
+      x.desfeito = true;
+      await c.env.APOIOS.put("admin:retrato:" + pub.id, JSON.stringify(retrato), { expirationTtl: RETRATO_S });
+    } catch (e) {
+      return json({ erro: "parei em “" + x.texto + "”: " + String((e && e.message) || e).slice(0, 200) + ". O que veio antes dela na lista já voltou; tente de novo para terminar", avisos }, 502);
+    }
+  }
+  pub.revertida = { quando: iso(c.agora), por: c.quem.login || c.quem.email, commit: commit ? commit.slice(0, 7) : "kv-" + aleatorio(3).slice(0, 5) };
+  pubs[i] = pub;
+  await c.env.APOIOS.put("admin:publicacoes", JSON.stringify(pubs));
+  return json({ ok: true, commit: pub.revertida.commit, publicacao: publicacaoParaTela(pub), avisos });
+}
+
+/* A reversao, na main, dos commits de uma publicacao (o mais novo por ultimo),
+   pela API do GitHub com o token de quem esta logado: cada arquivo que eles
+   mexeram volta ao que era antes do primeiro (o que eles criaram sai). Se um
+   desses arquivos mudou depois, nao reverte (o git faria um conflito).
+   Devolve o sha do commit de reversao. */
+async function reverterNoGitHub(c, shas, mensagem) {
+  const gh = c.deps.github || chamarGitHub;
+  const token = c.quem.token;
+  if (!token) throw new Error("entre com o GitHub de novo");
+  const api = "https://api.github.com/repos/" + REPO;
+  const caminhoUrl = (p) => String(p).split("/").map(encodeURIComponent).join("/");
+  const ref = await gh("GET", api + "/git/ref/heads/" + RAMO, token);
+  const cabeca = ref.ok && ref.dados && ref.dados.object && ref.dados.object.sha;
+  if (!cabeca) throw new Error("não consegui ler a ponta da " + RAMO + " (HTTP " + ref.status + ")");
+  const topo = await gh("GET", api + "/git/commits/" + cabeca, token);
+  const arvore = topo.ok && topo.dados && topo.dados.tree && topo.dados.tree.sha;
+  if (!arvore) throw new Error("não consegui ler o último commit da " + RAMO);
+  const voltar = new Map(); // caminho -> o blob de antes (null: o arquivo sai)
+  const depois = new Map(); // caminho -> o blob que o commit mais novo deixou (null: apagado)
+  for (const sha of [...shas].reverse()) {
+    const cm = await gh("GET", api + "/commits/" + encodeURIComponent(sha), token);
+    if (!cm.ok || !cm.dados) throw new Error("não achei o commit " + sha + " (HTTP " + cm.status + ")");
+    const pais = cm.dados.parents || [];
+    if (pais.length !== 1) throw new Error("o commit " + sha + " não é um commit simples: retroaja pelo git");
+    const lerAntes = async (caminho) => {
+      const r = await gh("GET", api + "/contents/" + caminhoUrl(caminho) + "?ref=" + pais[0].sha, token);
+      if (r.status === 404) return null;
+      if (!r.ok || !r.dados || !r.dados.sha) throw new Error("não consegui ler " + caminho + " de antes do commit");
+      return r.dados.sha;
+    };
+    for (const f of cm.dados.files || []) {
+      if (!depois.has(f.filename)) depois.set(f.filename, f.status === "removed" ? null : f.sha || null);
+      if (f.status === "renamed" && f.previous_filename) {
+        voltar.set(f.previous_filename, await lerAntes(f.previous_filename));
+        if (!depois.has(f.previous_filename)) depois.set(f.previous_filename, null);
+        voltar.set(f.filename, null);
+      } else voltar.set(f.filename, f.status === "added" ? null : await lerAntes(f.filename));
+    }
+  }
+  if (!voltar.size) throw new Error("os commits não mexeram em arquivo nenhum");
+  for (const [caminho, blob] of depois) {
+    const r = await gh("GET", api + "/contents/" + caminhoUrl(caminho) + "?ref=" + cabeca, token);
+    const agora = r.status === 404 ? null : r.ok && r.dados ? r.dados.sha : undefined;
+    if (agora === undefined) throw new Error("não consegui ler " + caminho + " na " + RAMO);
+    if (agora !== blob) throw new Error(caminho + " mudou depois dessa publicação: retroaja pelo git");
+  }
+  const tree = [...voltar].map(([path, sha]) => ({ path, mode: "100644", type: "blob", sha }));
+  const nova = await gh("POST", api + "/git/trees", token, { base_tree: arvore, tree });
+  if (!nova.ok || !nova.dados || !nova.dados.sha) throw new Error("o GitHub recusou montar a árvore da reversão (HTTP " + nova.status + ")");
+  const commit = await gh("POST", api + "/git/commits", token, { message: mensagem, tree: nova.dados.sha, parents: [cabeca] });
+  if (!commit.ok || !commit.dados || !commit.dados.sha) throw new Error("o GitHub recusou o commit de reversão (HTTP " + commit.status + ")");
+  const mover = await gh("PATCH", api + "/git/refs/heads/" + RAMO, token, { sha: commit.dados.sha, force: false });
+  if (!mover.ok) throw new Error("a " + RAMO + " mudou enquanto eu retroagia: tente de novo");
+  return commit.dados.sha;
 }
 
 async function aplicar(c, alt) {
@@ -1128,18 +2082,31 @@ async function aplicar(c, alt) {
       if (!res.ok) throw new Error("o Mercado Pago recusou cancelar (HTTP " + res.status + ")");
       return medidor(env, d.id).pedir("admin_assinatura_cancelada");
     }
+    case "conta.plano":
+      return aplicarContaPlano(c, d);
+    case "conta.cadastro": {
+      const r = await cadastroEditado(c, d);
+      if (r.erro) throw new Error(r.erro);
+      return medidor(env, d.id).pedir("cadastro", { cadastro: r.cadastro });
+    }
+    case "conta.pausar":
+      return aplicarPausa(c, d);
     case "google.servicos":
       return medidor(env, d.id).pedir("admin_google", { ligados: d.ligados || [] });
     case "google.desvincular":
       return medidor(env, d.id).pedir("admin_desvincular", { por: c.quem.email });
     case "tunel.apagar":
-      return liberarEndereco(env, d.slug, "apagado pelo painel");
+      return liberarEndereco(env, d.slug, "apagado pelo painel", c.quem.email);
     case "tunel.endereco":
-      return alterarEndereco(env, d.slug, String(d.novo), c.agora);
+      return alterarEndereco(env, d.slug, String(d.novo), c.agora, c.quem.email);
     case "tunel.ativo":
-      return ativarEndereco(env, d.slug, Boolean(d.ativo), c.agora);
+      return ativarEndereco(env, d.slug, Boolean(d.ativo), c.agora, c.quem.email);
     case "campanha.disparar":
       return dispararCampanha(c, d);
+    case "renov.oferta":
+      return aplicarOferta(c, d);
+    case "equipe.membro":
+      return aplicarMembro(c, d);
     case "plano.criar":
     case "plano.editar":
       return aplicarPlano(c, alt.tipo, d);
@@ -1158,6 +2125,202 @@ async function aplicar(c, alt) {
     default:
       throw new Error("alteração desconhecida");
   }
+}
+
+// ------------------------------------------------- a conta: plano, cadastro, pausa
+
+/* Por que trocar o plano desta conta pelo painel nao da ("" se da). A troca pelo
+   painel vale na proxima cobranca (a tela promete isso): o ciclo de agora fica
+   no plano em que foi pago. Mais caro agora, com a diferenca, e pela Minha conta. */
+async function motivoContraTrocaDePlano(c, id, plano) {
+  const det = await medidor(c.env, id).pedir("admin_detalhe");
+  if (!det || det.ok === false) return "conta não encontrada";
+  const a = det.assinatura || null;
+  if (det.cortesia && (!a || !a.id)) return "a conta de cortesia não tem assinatura: o plano dela não muda pelo painel";
+  if (!a || !a.id || a.situacao !== "authorized") return "a troca é para quem tem a assinatura mensal ativa; sem ela, a pessoa escolhe o plano ao assinar";
+  if (prepago(det.periodo) || prepago(a.periodo)) {
+    return "no plano pago de uma vez (anual ou mês no Pix), o plano é o que foi pago" + (det.pago_ate ? " (até " + dataBR(det.pago_ate) + ")" : "") + ": a troca é na renovação, quando a pessoa escolhe o plano ao pagar";
+  }
+  if (det.ajuste) return "há uma cobrança com valor ajustado em curso (uma oferta ou a troca anterior): a troca fica para depois dela";
+  const atual = (det.plano || {}).id;
+  if (plano === atual && !det.plano_proximo) return "esse já é o plano da conta";
+  return "";
+}
+
+/* conta.plano: o Mercado Pago passa a cobrar o valor do plano novo na proxima
+   cobranca, e a conta marca a troca (plano_proximo; o ciclo pago fica no
+   plano dele). O plano de agora de novo desfaz a troca marcada. */
+async function aplicarContaPlano(c, d) {
+  const { env } = c;
+  const motivo = await motivoContraTrocaDePlano(c, d.id, String(d.plano));
+  if (motivo) throw new Error(motivo);
+  const mp = c.deps.chamarMP;
+  if (!mp) throw new Error("sem o Mercado Pago");
+  const novo = planoDe(numeros(env), String(d.plano));
+  const a = (await medidor(env, d.id).pedir("resumo")).assinatura;
+  // O mesmo "reason" das assinaturas que o worker/ia.js cria.
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", {
+    reason: "PAULUS - plano " + novo.nome, auto_recurring: { transaction_amount: novo.valor, currency_id: "BRL" } });
+  if (!r.ok) throw new Error("o Mercado Pago recusou mudar o valor da assinatura (HTTP " + r.status + ")");
+  return medidor(env, d.id).pedir("plano_proximo", { plano: novo.id, valor: novo.valor });
+}
+
+const CAMPOS_DO_ENDERECO = ["cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"];
+
+/* O codigo IBGE da cidade (a mesma tabela da NFS-e), ou "" se o nome nao bate exato. */
+function cmunDe(cidade, uf) {
+  const alvo = semAcento(cidade);
+  if (!alvo || !/^[A-Z]{2}$/.test(String(uf || "").toUpperCase())) return "";
+  const m = buscarMunicipios(String(cidade), String(uf).toUpperCase(), 5).find((x) => semAcento(x.nome) === alvo);
+  return m ? m.codigo : "";
+}
+
+/* conta.cadastro: o cadastro de agora com os campos que o painel mudou
+   ({escritorio, documento, telefone, oab, cep, logradouro, numero, complemento,
+   bairro, cidade, uf}), conferido como o do site (conferirCadastro). O aceite
+   dos termos fica o que a pessoa deu (versao e data); a edicao fica anotada
+   em "ajustado". Cidade ou UF novas trazem o codigo IBGE da tabela. -> {cadastro} ou {erro}. */
+async function cadastroEditado(c, d) {
+  const det = await medidor(c.env, d.id).pedir("admin_detalhe");
+  if (!det || det.ok === false) return { erro: "conta não encontrada" };
+  const antes = det.cadastro || null;
+  const end0 = (antes && antes.endereco) || {};
+  const veio = (k) => d[k] !== undefined && d[k] !== null;
+  const mudou = ["escritorio", "documento", "telefone", "oab", ...CAMPOS_DO_ENDERECO].filter(veio);
+  if (!mudou.length) return { erro: "nada mudou no cadastro" };
+  const pedido = {
+    nome_escritorio: veio("escritorio") ? d.escritorio : (antes && antes.nome_escritorio) || det.nome || "",
+    documento: veio("documento") ? d.documento : (antes && antes.documento) || "",
+    telefone: veio("telefone") ? d.telefone : (antes && antes.telefone) || "",
+    oab: veio("oab") ? d.oab : (antes && antes.oab) || "",
+    aceite: true,
+  };
+  const mexeuNoEndereco = CAMPOS_DO_ENDERECO.some(veio);
+  if ((antes && antes.endereco) || mexeuNoEndereco) {
+    const e = {};
+    for (const k of CAMPOS_DO_ENDERECO) e[k] = veio(k) ? d[k] : end0[k] || "";
+    e.cmun = veio("cidade") || veio("uf") ? cmunDe(e.cidade, e.uf) : end0.cmun || "";
+    pedido.endereco = e;
+  }
+  const r = conferirCadastro(pedido, { exigirEndereco: Boolean((antes && antes.endereco) || mexeuNoEndereco) });
+  if (r.erro) return { erro: r.erro };
+  const cadastro = { ...(antes || {}), ...r.cadastro, ajustado: { quando: iso(c.agora), por: c.quem.email, campos: mudou } };
+  // Quem aceitou os termos foi a pessoa, na versao dela: a edicao do painel nao aceita nada por ela.
+  if (antes && antes.termos) cadastro.termos = antes.termos;
+  else delete cadastro.termos;
+  if (antes && antes.quando) cadastro.quando = antes.quando;
+  if (!r.cadastro.endereco && !(antes && antes.endereco)) delete cadastro.endereco;
+  return { cadastro };
+}
+
+/* Por que pausar (ou retomar, com retomar: true) nao da ("" se da). */
+async function motivoContraPausa(c, d) {
+  const det = await medidor(c.env, d.id).pedir("admin_detalhe");
+  if (!det || det.ok === false) return "conta não encontrada";
+  const a = det.assinatura || null;
+  if (det.forma && det.forma.tipo === "pix") return "no Pix mensal não há cobrança automática no Mercado Pago para pausar: o Pix de cada mês vai por e-mail, e a pessoa paga se quiser";
+  if (!a || !a.id) return "a conta não tem assinatura no Mercado Pago";
+  if (prepago(det.periodo) || prepago(a.periodo)) {
+    return "o plano pago de uma vez (anual ou mês no Pix) não tem cobrança mensal no Mercado Pago: não há o que pausar" + (det.pago_ate ? "; ele vale até " + dataBR(det.pago_ate) : "");
+  }
+  if (d.retomar) return a.situacao === "paused" ? "" : "a assinatura não está pausada (está " + (a.situacao || "sem situação") + ")";
+  return a.situacao === "authorized" ? "" : "só a assinatura ativa pausa (esta está " + (a.situacao || "sem situação") + ")";
+}
+
+/* conta.pausar: PUT /preapproval/{id} {status: "paused"} (ou "authorized" para
+   retomar) e a conta anota a situacao nova. -> {assinatura, de, para} (o retrato usa). */
+async function aplicarPausa(c, d) {
+  const { env } = c;
+  const motivo = await motivoContraPausa(c, d);
+  if (motivo) throw new Error(motivo);
+  const mp = c.deps.chamarMP;
+  if (!mp) throw new Error("sem o Mercado Pago");
+  const a = (await medidor(env, d.id).pedir("resumo")).assinatura;
+  const para = d.retomar ? "authorized" : "paused";
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: para });
+  if (!r.ok) throw new Error("o Mercado Pago recusou " + (d.retomar ? "retomar" : "pausar") + " a assinatura (HTTP " + r.status + ")");
+  await medidor(env, d.id).pedir("assinatura", { assinatura: { id: a.id, situacao: para } });
+  return { assinatura: a.id, de: a.situacao, para };
+}
+
+// ------------------------------------------------- a oferta para voltar (Nao renovacoes)
+
+/* renov.oferta {id, tipo: "creditos", tokens} | {id, tipo: "preco", valor, plano}:
+   sem cupom. A conta guarda a oferta (worker/ia.js, ofertaDeVolta): os creditos
+   entram com o proximo pagamento confirmado; o preco especial vale no proximo
+   pagamento do plano - na assinatura que ainda existe, ou na nova pelo site.
+   Vale 60 dias. A pessoa recebe um e-mail contando. */
+async function conferirOferta(c, d) {
+  if (d.tipo === "creditos") {
+    const t = Math.round(Number(d.tokens) || 0);
+    if (!(t >= 1e5 && t <= 5e8)) return "os créditos vão de 0,1 M a 500 M";
+  } else if (d.tipo === "preco") {
+    const n = numeros(c.env);
+    if (!n.planos.some((p) => p.id === String(d.plano || ""))) return "esse plano não existe";
+    const plano = planoDe(n, String(d.plano));
+    const v = Math.round(Number(d.valor) * 100) / 100;
+    if (!(v > 0 && v < plano.valor)) return "o preço especial fica entre zero e o valor do plano (" + brl(plano.valor) + ")";
+  } else return "qual oferta? (créditos ou preço especial)";
+  if (!c.env.RESEND_API_KEY) return "a oferta vai por e-mail para a pessoa, e o envio ainda não está ligado: falta RESEND_API_KEY";
+  const r = await renovacoes(c);
+  if (![...r.abertas, ...r.tratadas].some((x) => x.id === d.id)) return "essa conta não está em Não renovações";
+  return "";
+}
+
+async function aplicarOferta(c, d) {
+  const { env } = c;
+  const erro = await conferirOferta(c, d);
+  if (erro) throw new Error(erro);
+  const oferta = d.tipo === "creditos" ? { tipo: "creditos", tokens: Math.round(Number(d.tokens)) }
+    : { tipo: "preco", valor: Math.round(Number(d.valor) * 100) / 100, plano: String(d.plano) };
+  const r = await ofertaDeVolta(env, c.deps.chamarMP, d.id, oferta, c.quem.email);
+  if (!r || r.ok === false) throw new Error((r && r.erro) || "a oferta não foi guardada na conta");
+  const o = r.oferta_volta || {};
+  const ren = await renovacoes(c);
+  const item = [...ren.abertas, ...ren.tratadas].find((x) => x.id === d.id);
+  // A marca da renovacao guarda a oferta (a tela ve em "oferta").
+  if (item) {
+    const marca = await marcaDaRenovacao(c, item);
+    marca.oferta = { ...oferta, ate: o.ate || "", quando: iso(c.agora), por: c.quem.email, na_assinatura: Boolean(r.na_assinatura) };
+    await env.APOIOS.put("admin:renov:" + d.id, JSON.stringify(marca));
+    c._renovacoes = null;
+  }
+  const email = (item && item.email) || r.email || "";
+  const e = await enviarEmail(env, emailDaOferta(item, oferta, r, numeros(env)));
+  if (!e.ok) return { ...r, aviso: "a oferta ficou guardada na conta, mas o e-mail para " + (email || "a pessoa") + " não saiu: " + e.erro };
+  return r;
+}
+
+function emailDaOferta(item, oferta, r, n) {
+  const o = r.oferta_volta || {};
+  const ate = o.ate ? dataBR(o.ate) : "";
+  const ola = item && item.nome ? "Olá, " + primeiroNome(item.nome) + ".\n\n" : "";
+  const planoDele = item && item.plano ? "O seu plano " + item.plano.nome + " não renovou." : "O seu plano do Paulus não renovou.";
+  if (oferta.tipo === "creditos") {
+    const m = Number(oferta.tokens) / 1e6;
+    const quanto = (Number.isInteger(m) ? String(m) : m.toLocaleString("pt-BR", { maximumFractionDigits: 1 })) + (m === 1 ? " milhão" : " milhões");
+    return {
+      para: (item && item.email) || r.email, assunto: "Créditos extras para você voltar ao Paulus", titulo: quanto + " de créditos para você voltar",
+      texto: ola + planoDele + " Para você voltar, deixamos " + quanto + " de créditos extras na sua conta: eles entram sozinhos com o próximo pagamento confirmado, além dos créditos do plano" +
+        (ate ? ". A oferta vale até " + ate : "") + ".\n\nPara voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/assinatura.",
+      botao: "Voltar ao Paulus", link: SITE + "/assinatura/",
+    };
+  }
+  const plano = planoDe(n, oferta.plano);
+  if (r.na_assinatura) {
+    return {
+      para: (item && item.email) || r.email, assunto: "Um preço especial para você voltar ao Paulus", titulo: "O próximo mês por " + brl(oferta.valor),
+      texto: ola + planoDele + " Para você voltar, a sua assinatura no Mercado Pago passa a cobrar " + brl(oferta.valor) + " no próximo pagamento do plano " + plano.nome +
+        ", no lugar de " + brl(plano.valor) + ". Depois dele, volta ao valor do plano.\n\nPara voltar, confira o cartão na sua conta do Mercado Pago ou em paulus.ia.br/minha-conta.",
+      botao: "Abrir a Minha conta", link: SITE + "/minha-conta/",
+    };
+  }
+  return {
+    para: (item && item.email) || r.email, assunto: "Um preço especial para você voltar ao Paulus", titulo: "O primeiro mês por " + brl(oferta.valor),
+    texto: ola + planoDele + " Para você voltar: assinando o plano " + plano.nome + " de novo pelo site" + (ate ? " até " + ate : "") + ", o primeiro mês sai por " + brl(oferta.valor) +
+      ", no lugar de " + brl(plano.valor) + " (no cartão ou no Pix). Depois dele, volta ao valor do plano.",
+    botao: "Assinar de novo", link: SITE + "/assinatura/",
+  };
 }
 
 async function aplicarPlano(c, tipo, d) {
@@ -1180,24 +2343,52 @@ async function aplicarPlano(c, tipo, d) {
   if (tipo !== "plano.editar") return {};
   // Quem ja assina passa a pagar o valor novo a partir da proxima cobranca
   // (o Mercado Pago cobra o que o preapproval disser); o ciclo pago fica.
-  const contas = await lerContas(c);
+  return valorNasAssinaturas(c, d.id, valor, "o plano mudou, mas o Mercado Pago recusou o valor novo de: ");
+}
+
+/* As assinaturas mensais que o Mercado Pago cobra no proximo mes pelo plano
+   `id` (o plano marcado para a renovacao, se houver, senao o de agora) passam
+   a cobrar `valor`. O pago de uma vez (anual, mes no Pix) nao tem
+   preapproval; quem esta com uma cobranca de valor ajustado (oferta,
+   diferenca de troca) fica com o ajuste, e o aviso diz quem. */
+async function valorNasAssinaturas(c, id, valor, frase) {
+  const { env } = c;
   const mp = c.deps.chamarMP;
+  if (!mp) return {};
+  c._contas = null;
+  const contas = (await lerContas(c)).filter((x) => {
+    const a = x._d.assinatura || {};
+    const proximo = x._d.plano_proximo ? x._d.plano_proximo.id : (x.plano || {}).id;
+    return proximo === id && a.situacao === "authorized" && a.id && !prepago(a.periodo) && !prepago(x._d.periodo);
+  });
   const erros = [];
-  for (const conta of contas.filter((x) => x.plano && x.plano.id === d.id && (x._d.assinatura || {}).situacao === "authorized")) {
-    const a = conta._d.assinatura;
-    if (!mp) continue;
-    const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { auto_recurring: { transaction_amount: valor, currency_id: "BRL" } });
+  const ajustadas = [];
+  for (const conta of contas) {
+    if (conta._d.ajuste) {
+      ajustadas.push(conta.nome);
+      continue;
+    }
+    const r = await mp(env, "/preapproval/" + encodeURIComponent(conta._d.assinatura.id), "PUT", { auto_recurring: { transaction_amount: valor, currency_id: "BRL" } });
     if (!r.ok) erros.push(conta.nome);
   }
-  if (erros.length) throw new Error("o plano mudou, mas o Mercado Pago recusou o valor novo de: " + erros.join(", "));
-  return {};
+  if (erros.length) throw new Error(frase + erros.join(", "));
+  return ajustadas.length ? { aviso: "com cobrança de valor ajustado em curso, ficou o ajuste: " + ajustadas.join(", ") } : {};
 }
 
 /* O disparo de uma campanha: a lista de quem recebe fica no KV ate o fim do
-   envio (o Cron manda 50 por minuto) e sai depois; ficam so os numeros. */
+   envio (o Cron manda 50 por minuto) e sai depois; ficam so os numeros.
+   quando: "agora", "amanha" e "segunda" (9 h de Brasilia) ou "agendado", com
+   de (AAAA-MM-DD) e hora (HH:MM) de Brasilia: fica guardada e o Cron de cada
+   minuto dispara na hora marcada. publico "escolhidas": as contas de `contas`. */
 async function dispararCampanha(c, d) {
   const contas = await lerContas(c);
-  const pub = publicosDe(contas, d.publico).find((x) => x[0] === d.publico);
+  let pub;
+  if (d.publico === "escolhidas") {
+    const ids = new Set((Array.isArray(d.contas) ? d.contas : []).map(String));
+    const cs = contas.filter((x) => ids.has(x.id));
+    if (!cs.length) throw new Error("nenhuma das contas escolhidas existe mais");
+    pub = ["escolhidas", cs.length === 1 ? "Só " + cs[0].nome : cs.length + " contas escolhidas", cs];
+  } else pub = publicosDe(contas, d.publico).find((x) => x[0] === d.publico);
   if (!pub) throw new Error("esse público não existe mais");
   const id = "c" + aleatorio(7);
   const agora = c.agora;
@@ -1208,7 +2399,16 @@ async function dispararCampanha(c, d) {
     const dias = diaSemana === undefined ? 1 : ((diaSemana - hoje.getUTCDay() + 7) % 7) || 7;
     return new Date(base + dias * DIA_MS).toISOString();
   };
-  const envioEm = d.quando === "amanha" ? proxima() : d.quando === "segunda" ? proxima(1) : new Date(agora).toISOString();
+  let envioEm = new Date(agora).toISOString();
+  if (d.quando === "amanha") envioEm = proxima();
+  else if (d.quando === "segunda") envioEm = proxima(1);
+  else if (d.quando === "agendado") {
+    const ms = horaMarcada(d);
+    if (!Number.isFinite(ms)) throw new Error("a campanha agendada precisa do dia e da hora");
+    // Publicada depois da hora marcada: nao sai sozinha atrasada.
+    if (ms <= agora) throw new Error("a hora marcada (" + dataHoraBR(ms) + ") passou antes de publicar: agende de novo");
+    envioEm = new Date(ms).toISOString();
+  }
   const camp = {
     id, nome: String(d.nome || d.assunto || "Campanha").slice(0, 80), publico: { id: pub[0], label: pub[1] },
     assunto: String(d.assunto).slice(0, 200), pre: String(d.pre || "").slice(0, 200), titulo: String(d.titulo || "").slice(0, 160),

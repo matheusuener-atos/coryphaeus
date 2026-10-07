@@ -1102,6 +1102,8 @@
     var est = estadoLeitura(["equipe"], "equipe"); if (est) return h + est;
     h += erroRecente("equipe", "equipe");
     var d = dadosDe("equipe"), podeP = pode("equipe.papel");
+    // Sem a API do Access no Worker, quem aceita o convite entra na equipe, mas o e-mail vai a politica do Access a mao.
+    if (podeP) h += falta(d.liberacao || cfg("equipe"));
     h += '<div class="painel"><div class="painel-cab secao-cab"><span class="rotulo">Pessoas</span>' + (podeP ? '<button type="button" class="mini cheia" data-a="membroNovo">' + ic("person_add") + "Convidar</button>" : "") + "</div>" + (d.membros || []).map(function (m) {
       var p = ultimaNaFila("equipe.papel", m.email), papel = p && p.dados ? p.dados.papel : m.papel, mf = naFila("equipe.membro", m.email);
       // Convite pendente: a pessoa ainda nao entrou; reenviar ou cancelar no lugar do papel.
@@ -1325,10 +1327,12 @@
         '<label class="campo-adm"><span class="rot">Nome</span><span class="caixa-campo"><input id="mb-nome" data-in="membroCampo" data-k="nome" value="' + esc(M.v.nome || "") + '" autocomplete="off"></span></label>' +
         '<label class="campo-adm"><span class="rot">E-mail</span><span class="caixa-campo"><input data-in="membroCampo" data-k="email" value="' + esc(M.v.email || "") + '" placeholder="nome@paulus.ia.br" autocomplete="off" spellcheck="false"></span></label>' +
         '<div class="campo-adm"><span class="rot">Papel</span>' + seg("membro.papel", [["dono", "Dono"], ["financeiro", "Financeiro"], ["suporte", "Suporte"]], M.v.papel) + "</div>" +
-        '<p class="nota-campo">' + (M.novo ? "Ela recebe um e-mail com o link para entrar, válido por 7 dias. No primeiro acesso, o Cloudflare Access manda um código para esse mesmo e-mail, e o painel libera o endereço sozinho." : "Mudar o e-mail troca quem entra: o endereço antigo sai do Cloudflare Access e o novo recebe um convite.") + "</p></div>" +
+        '<p class="nota-campo">' + (desligado(cfg("equipe"))
+          ? (M.novo ? "Ela recebe um e-mail com o link do convite, válido por 7 dias. A liberação no Cloudflare Access ainda é à mão: quando ela aceitar, inclua o e-mail na política do Access do painel." : "Mudar o e-mail troca quem entra: o novo recebe um convite e o antigo sai da equipe. No Cloudflare Access, a troca ainda é à mão.")
+          : (M.novo ? "Ela recebe um e-mail com o link para entrar, válido por 7 dias. No primeiro acesso, o Cloudflare Access manda um código para esse mesmo e-mail, e o painel libera o endereço sozinho." : "Mudar o e-mail troca quem entra: o endereço antigo sai do Cloudflare Access e o novo recebe um convite.")) + "</p></div>" +
         modalPe('<button type="button" class="btn-acao" data-a="membroSalvar"' + (okM ? "" : " disabled") + ">" + (M.novo ? ic("send") + "Enviar convite" : "Salvar") + "</button>");
     } else if (M.tipo === "membroExcluir") {
-      h += modalCab(M.convite ? "Cancelar convite" : "Excluir da equipe") + '<div class="modal-corpo"><p class="t135">' + (M.convite ? "O link enviado para " + esc(M.email) + " deixa de funcionar." : esc(M.nome || M.email) + " (" + esc(M.email) + ") perde o acesso a este painel, e o endereço sai do Cloudflare Access.") + "</p></div>" +
+      h += modalCab(M.convite ? "Cancelar convite" : "Excluir da equipe") + '<div class="modal-corpo"><p class="t135">' + (M.convite ? "O link enviado para " + esc(M.email) + " deixa de funcionar." : esc(M.nome || M.email) + " (" + esc(M.email) + ") perde o acesso a este painel" + (desligado(cfg("equipe")) ? ". O endereço continua na política do Cloudflare Access até você tirar à mão." : ", e o endereço sai do Cloudflare Access.")) + "</p></div>" +
         modalPe('<button type="button" class="btn-acao perigo-cheio" data-a="membroExcluirOk">' + (M.convite ? "Cancelar convite" : "Excluir") + "</button>");
     } else if (M.tipo === "escContas") {
       var todasC = (dadosDe("contas") || {}).contas, qn = norm(M.q || "");
@@ -1422,7 +1426,7 @@
         var arq = function (tipo, icone) { return nf ? '<a class="btn-icone ext-arq" href="' + NF + "notas/" + esc(nf.id) + "/" + tipo + (tipo === "pdf" ? "?baixar=1" : "") + '" download aria-label="' + tipo.toUpperCase() + " da NFS-e " + esc(nf.numero) + '" title="' + tipo.toUpperCase() + '">' + ic(icone) + "</a>" : '<span class="c-ink3">—</span>'; };
         return '<div class="grade-linha p10"><span class="num">' + esc(ddmmaaaa(x.quando)) + '</span><span class="corta">' + esc(descPag(x, M)) + "</span>" + formaHtml(x.forma) +
           '<span class="num dir">' + esc(brl(x.valor)) + '</span><span class="corta">' + esc(MODALIDADE[x.tipo] || "—") + "</span>" +
-          sit(st[0], st[1]) + '<span class="num">' + esc(nf ? nf.numero : "—") + "</span>" + arq("pdf", "picture_as_pdf") + arq("xml", "code") + "</div>";
+          sit(st[0], st[1]) + '<span class="num"' + (nf && nf.estado && nf.estado !== "emitida" ? ' title="NFS-e ' + esc(nf.estado === "substituida" ? "substituída" : nf.estado) + '"' : "") + ">" + esc(nf ? nf.numero : "—") + "</span>" + arq("pdf", "picture_as_pdf") + arq("xml", "code") + "</div>";
       }).join("") || '<p class="vazio-linha">Nenhum pagamento com esse filtro.</p>';
       var pago = itensF.reduce(function (s, x) { return s + (x.reembolso ? 0 : Number(x.valor) || 0); }, 0);
       if (itensF.length) linhasE += '<div class="grade-linha linha-total"><span class="tot-rot"><b>Total pago</b><small>' + itensF.length + (itensF.length === 1 ? " lançamento" : " lançamentos") + "</small></span><span></span>" +
@@ -2199,7 +2203,6 @@
     var id = String(r.id), msg = U.renovacoes.msg[id] || "", of = U.renovacoes.oferta[id] || (U.renovacoes.oferta[id] = { tipo: "creditos", tokens: "10", valor: "", plano: r.plano ? r.plano.id : "" });
     var ps = (dadosDe("planos") || {}).planos; if (!ps && !renovDetHtml.pediu) { renovDetHtml.pediu = true; ler("planos"); }
     ps = ps || (r.plano ? [r.plano] : []);
-    var cupom = "VOLTA-" + String(r.nome || "").split(" ")[0].toUpperCase().normalize("NFD").replace(/[^A-Z]/g, "").slice(0, 8) + "-" + (Number(of.tokens) || 0) + "M";
     var h = '<div class="tunel-det renov-det"><div class="td-esq rd-col"><span class="td-tit">Mensagem para ' + esc(primeiro(r.nome)) + "</span>" +
       '<textarea class="area rd-msg" rows="4" data-in="renovMsg" data-id="' + esc(id) + '" placeholder="Escreva do seu jeito. Sai do e-mail do Paulus, com o seu nome.">' + esc(msg) + "</textarea>" +
       '<div class="res-acoes rd-pe"><span class="nota-campo">Vai para ' + esc(r.email) + "</span>" +
@@ -2207,8 +2210,8 @@
       '<div class="td-dir rd-col"><span class="td-tit">Oferta para voltar</span>' + seg("renovOferta:" + id, [["creditos", "Créditos extras"], ["preco", "Preço especial"]], of.tipo, "pequeno") +
       (of.tipo === "creditos"
         ? '<div class="rd-linha"><label class="campo-adm"><span class="rot">Créditos</span><span class="caixa-campo fundo"><input inputmode="numeric" data-in="renovOf" data-id="' + esc(id) + '" data-k="tokens" value="' + esc(of.tokens) + '" style="width:0"><span class="sufixo">M tokens</span></span></label>' +
-          '<label class="campo-adm"><span class="rot">Cupom</span><span class="caixa-campo fundo mono"><input readonly value="' + esc(cupom) + '" style="width:0"></span></label></div>' +
-          '<p class="nota-campo">Os créditos entram quando a pessoa usar o cupom no Paulus, junto com o pagamento.</p>'
+          '<label class="campo-adm"><span class="rot">Vale por</span><span class="caixa-campo fundo"><input readonly value="60 dias" style="width:0"></span></label></div>' +
+          '<p class="nota-campo">Os créditos entram na conta quando a pessoa voltar a pagar, com o próximo pagamento confirmado. Ela recebe a oferta por e-mail.</p>'
         : '<div class="rd-linha"><label class="campo-adm"><span class="rot">Só este mês por</span><span class="caixa-campo fundo"><span class="pre">R$</span><input inputmode="decimal" data-in="renovOf" data-id="' + esc(id) + '" data-k="valor" value="' + esc(of.valor) + '" placeholder="' + esc(r.plano ? String(Math.round(r.plano.valor * 0.6)) : "") + '" style="width:0"></span></label>' +
           '<label class="campo-adm"><span class="rot">No plano</span><span class="caixa-campo fundo"><select data-in="renovOf" data-id="' + esc(id) + '" data-k="plano">' + ps.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === of.plano ? " selected" : "") + ">" + esc(p.nome) + " · " + esc(brl(p.valor)) + "</option>"; }).join("") + "</select></span></label></div>" +
           '<p class="nota-campo">Vale só para o próximo pagamento; depois volta ao preço do plano.</p>') +
@@ -2225,7 +2228,7 @@
   A.renovOfertaEnviar = function (el) {
     var id = el.dataset.id, of = U.renovacoes.oferta[id], r = (((dadosDe("renovacoes") || {}).abertas) || []).filter(function (x) { return String(x.id) === String(id); })[0]; if (!of || !r) return;
     var dados = of.tipo === "creditos" ? { id: id, tipo: "creditos", tokens: Number(of.tokens) * 1e6 } : { id: id, tipo: "preco", valor: numDec(of.valor), plano: of.plano };
-    var txt = of.tipo === "creditos" ? "Ofereci " + of.tokens + "M tokens em cupom para " + r.nome + " voltar" : "Ofereci a " + r.nome + " o próximo mês por " + brl(numDec(of.valor)) + " no plano " + of.plano;
+    var txt = of.tipo === "creditos" ? "Ofereci " + of.tokens + "M tokens para " + r.nome + " voltar (entram quando voltar a pagar)" : "Ofereci a " + r.nome + " o próximo mês por " + brl(numDec(of.valor)) + " no plano " + of.plano;
     enfileirar("renovacoes", "renov.oferta", id, dados, txt);
   };
   A.renovSelSair = function () { U.renovacoes.sel = null; render(); };
@@ -2319,13 +2322,15 @@
   A.usarPublico = function (el) { U.emails.camp.publico = el.dataset.id; U.emails.aba = "nova"; U.emails.passo = 2; render(); };
   function dadosCampanha() {
     var c = U.emails.camp, pub = publicoAtual();
-    return { nome: c.nome.trim() || c.assunto.trim(), publico: pub ? pub.id : "", contas: pub && pub.id === "escolhidas" ? (U.emails.escolhidas || []).map(function (x) { return x.id; }) : undefined, assunto: c.assunto, pre: c.pre, titulo: c.titulo, texto: c.texto, botao: c.botao, link: c.link, quando: c.quando };
+    return { nome: c.nome.trim() || c.assunto.trim(), publico: pub ? pub.id : "", contas: pub && pub.id === "escolhidas" ? (U.emails.escolhidas || []).map(function (x) { return x.id; }) : undefined, assunto: c.assunto, pre: c.pre, titulo: c.titulo, texto: c.texto, botao: c.botao, link: c.link, quando: c.quando,
+      // Agendada: o dia e a hora do calendario, no horario de Brasilia (o servidor dispara na hora marcada).
+      de: c.quando === "agendado" ? c.de : undefined, hora: c.quando === "agendado" ? c.hora : undefined };
   }
   A.pedirDisparo = async function () {
     var c = U.emails.camp, pub = publicoAtual();
     if (!c.assunto.trim() || !c.texto.trim()) { toast("Preencha o assunto e o texto antes de pedir o disparo", true); U.emails.passo = 2; render(); return; }
     var dd = dadosCampanha(), n = pub ? pub.n || 0 : 0;
-    var q = { agora: "agora", amanha: "amanhã, 9h", segunda: "segunda, 9h" }[c.quando];
+    var q = c.quando === "agendado" ? ddmm(c.de) + " às " + c.hora : { agora: "agora", amanha: "amanhã, 9h", segunda: "segunda, 9h" }[c.quando];
     var ok = await enfileirar("emails", "campanha.disparar", dd.nome, dd, 'Pedi o disparo "' + dd.nome + '" para ' + n + (n === 1 ? " conta" : " contas") + " (" + q + ")");
     if (ok) { var keep = { botao: c.botao, link: c.link }; U.emails.camp = novaCamp(); U.emails.camp.botao = keep.botao; U.emails.camp.link = keep.link; U.emails.so = null; U.emails.aba = "campanhas"; U.emails.passo = 1; render(); }
   };
@@ -2567,7 +2572,11 @@
       var dd = (agora - Date.parse(x.quando)) / 864e5;
       var dia = String(x.quando).slice(0, 10);
       return okT && (fP === "tudo" || (fP === "custom" ? dia >= M.de && dia <= M.ate : fP === "ano" ? dia.slice(0, 4) === ano : dd <= Number(fP)));
-    }).map(function (x) { return { data: (x.quando || "").slice(0, 10), descricao: descPag(x, M), forma: x.forma ? (x.forma.tipo === "pix" ? "Pix " + (x.forma.chave || "") : (x.forma.bandeira || "Cartão") + " •••• " + (x.forma.final || "")) : null, modalidade: MODALIDADE[x.tipo] || null, valor: Number(x.valor) || 0, status: x.reembolso ? "reembolsada" : (x.situacao || "pago"), nfse: x.nfse ? x.nfse.numero : null, ref: x.ref }; });
+    }).map(function (x) {
+      // A NFS-e do pagamento: o numero, o estado e os links do painel para o PDF e o XML (atras do Access).
+      var nf = x.nfse ? { numero: x.nfse.numero, estado: x.nfse.estado || "emitida", pdf: x.nfse.pdf || location.origin + NF + "notas/" + x.nfse.id + "/pdf?baixar=1", xml: x.nfse.xml || location.origin + NF + "notas/" + x.nfse.id + "/xml" } : null;
+      return { data: (x.quando || "").slice(0, 10), descricao: descPag(x, M), forma: x.forma ? (x.forma.tipo === "pix" ? "Pix " + (x.forma.chave || "") : (x.forma.bandeira || "Cartão") + " •••• " + (x.forma.final || "")) : null, modalidade: MODALIDADE[x.tipo] || null, valor: Number(x.valor) || 0, status: x.reembolso ? "reembolsada" : (x.situacao || "pago"), nfse: nf, ref: x.ref };
+    });
   }
   A.contaPausar = function (el) {
     var c = contaAtual() || contaResumo(el.dataset.id); if (!c) return;
@@ -2587,7 +2596,11 @@
     var w = window.open("", "_blank"); if (!w) { toast("O navegador bloqueou a janela do PDF", true); return; }
     w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Extrato · ' + esc(M.nome) + '</title><style>body{font:13px/1.5 system-ui,sans-serif;color:#1c1c1a;margin:32px}h1{font-size:18px;margin:0 0 2px}p{margin:0 0 18px;color:#66655f}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #ddd}th{font-weight:600;font-size:12px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tfoot td{font-weight:600;border-top:2px solid #1c1c1a}</style></head><body>' +
       "<h1>Extrato · " + esc(M.nome) + "</h1><p>" + esc(M.email) + " · gerado em " + esc(ddmmaaaa(new Date().toISOString())) + "</p><table><thead><tr><th>Data</th><th>Descrição</th><th>Forma</th><th class=\"n\">Valor</th><th>Modalidade</th><th>Status</th><th>NFS-e</th></tr></thead><tbody>" +
-      ls.map(function (x) { return "<tr><td>" + esc(ddmmaaaa(x.data)) + "</td><td>" + esc(x.descricao) + "</td><td>" + esc(x.forma || "—") + '</td><td class="n">' + esc(brl(x.valor)) + "</td><td>" + esc(x.modalidade || "—") + "</td><td>" + esc(x.status) + "</td><td>" + esc(x.nfse || "—") + "</td></tr>"; }).join("") +
+      ls.map(function (x) {
+        var nf = x.nfse ? esc(x.nfse.numero || "—") + (x.nfse.estado !== "emitida" ? " (" + esc(x.nfse.estado === "substituida" ? "substituída" : x.nfse.estado) + ")" : "") +
+          ' · <a href="' + esc(x.nfse.pdf) + '">PDF</a> · <a href="' + esc(x.nfse.xml) + '">XML</a>' : "—";
+        return "<tr><td>" + esc(ddmmaaaa(x.data)) + "</td><td>" + esc(x.descricao) + "</td><td>" + esc(x.forma || "—") + '</td><td class="n">' + esc(brl(x.valor)) + "</td><td>" + esc(x.modalidade || "—") + "</td><td>" + esc(x.status) + "</td><td>" + nf + "</td></tr>";
+      }).join("") +
       '</tbody><tfoot><tr><td></td><td>Total pago</td><td></td><td class="n">' + esc(brl(tot)) + "</td><td></td><td></td><td></td></tr></tfoot></table></body></html>");
     w.document.close(); w.focus(); setTimeout(function () { w.print(); }, 200);
   };

@@ -1,9 +1,11 @@
 // Teste do painel admin (worker/admin.js), sem rede:
 //   node worker/teste-admin.mjs
-// O Cloudflare Access assina com uma chave gerada aqui; o GitHub, o Resend e o
-// Mercado Pago sao de mentira; o Durable Object roda aqui sobre um Map.
+// O Cloudflare Access assina com uma chave gerada aqui; o GitHub, o Resend, o
+// Mercado Pago e a API da Cloudflare (tuneis e a politica do Access) sao de
+// mentira; o Durable Object roda aqui sobre um Map.
 import { atenderAdmin, ehRotaDoAdmin, enviarCampanhas, htmlDoEmail } from "./admin.js";
 import { atenderIA, ContaIA } from "./ia.js";
+import { atenderTunel, limparEscritorios, provisionar } from "./tunel.js";
 
 let falhas = 0;
 const checar = (ok, descricao, detalhe) => {
@@ -39,14 +41,43 @@ const CONTAS_IA = {
   }),
 };
 
-// ------------------------------------------------ Resend e Mercado Pago
+// ------------------------------------- Resend, Mercado Pago e a Cloudflare
 const emails = [];
 const mp = [];
+// A API da Cloudflare: os tuneis e o DNS (worker/tunel.js) e a politica da
+// aplicacao do Access do painel (o convite da equipe).
+const cf = {
+  tuneis: new Map(), dns: new Map(), chamadas: [], seq: 0, recusar: "",
+  politica: { id: "pol1", name: "Equipe do painel", decision: "allow", include: [{ email: { email: "dono@paulus.ia.br" } }, { email: { email: "suporte@paulus.ia.br" } }],
+    exclude: [], require: [], precedence: 1, session_duration: "24h" },
+};
+const respCF = (result, ok = true) => new Response(JSON.stringify({ success: ok, errors: ok ? [] : [{ message: "falha de mentira" }], result }), { status: ok ? 200 : 400 });
 globalThis.fetch = async (url, init = {}) => {
   const u = String(url);
   if (u === "https://api.resend.com/emails") {
     emails.push(JSON.parse(init.body));
     return new Response(JSON.stringify({ id: "e" + emails.length }), { status: 200 });
+  }
+  if (u.startsWith("https://api.cloudflare.com/client/v4/")) {
+    const caminho = u.slice("https://api.cloudflare.com/client/v4".length);
+    const metodo = (init.method || "GET").toUpperCase();
+    const corpo = init.body ? JSON.parse(init.body) : null;
+    cf.chamadas.push({ metodo, caminho, corpo, auth: (init.headers || {}).Authorization });
+    if (cf.recusar && caminho.includes(cf.recusar)) return respCF(null, false);
+    let m;
+    if (/\/access\/apps\/[^/]+\/policies\/[^/]+$/.test(caminho)) {
+      if (metodo === "GET") return respCF(structuredClone(cf.politica));
+      if (metodo === "PUT") { cf.politica = { ...cf.politica, ...corpo }; return respCF(cf.politica); }
+    }
+    if (metodo === "POST" && /\/access\/organizations\/revoke_user$/.test(caminho)) return respCF(true);
+    if (metodo === "POST" && /\/cfd_tunnel$/.test(caminho)) { const id = "tun-" + ++cf.seq; cf.tuneis.set(id, { status: "inactive" }); return respCF({ id }); }
+    if (metodo === "PUT" && /\/cfd_tunnel\/[^/]+\/configurations$/.test(caminho)) return respCF({});
+    if (metodo === "GET" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)\/token$/))) return respCF("token-" + m[1]);
+    if (metodo === "GET" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)$/))) return cf.tuneis.has(m[1]) ? respCF({ id: m[1], status: cf.tuneis.get(m[1]).status }) : respCF(null, false);
+    if (metodo === "DELETE" && /\/cfd_tunnel\/[^/]+(\/connections)?$/.test(caminho)) return respCF({});
+    if (metodo === "POST" && /\/dns_records$/.test(caminho)) { const id = "dns-" + ++cf.seq; cf.dns.set(id, corpo); return respCF({ id }); }
+    if ((metodo === "PUT" || metodo === "DELETE") && /\/dns_records\/[^/]+$/.test(caminho)) return respCF({});
+    return respCF(null, false);
   }
   return new Response("{}", { status: 404 });
 };
@@ -72,10 +103,27 @@ async function jwt(email, extra = {}) {
 
 // ------------------------------------------------ o GitHub de mentira
 let permissao = "write";
+// A reversao de um commit antigo (a publicacao de um material, antes de 07/10):
+// o commit abc1234 criou peca.md e mudou materiais.json; a main esta em cabeca000.
+const GH = "https://api.github.com/repos/matheusuener-atos/coryphaeus";
+const ghReversao = { conflito: false, chamadas: [] };
 async function github(metodo, url, token, corpo) {
   if (url.includes("/login/oauth/access_token")) return { ok: true, status: 200, dados: corpo.code === "bom" ? { access_token: "gho_x" } : {} };
   if (url.endsWith("/user")) return { ok: true, status: 200, dados: { login: "matheus" } };
   if (url.includes("/collaborators/")) return { ok: true, status: 200, dados: { permission: permissao } };
+  if (url.startsWith(GH + "/git/") || url.startsWith(GH + "/commits/") || url.startsWith(GH + "/contents/")) ghReversao.chamadas.push({ metodo, url, corpo, token });
+  if (url === GH + "/git/ref/heads/main") return { ok: true, status: 200, dados: { object: { sha: "cabeca000" } } };
+  if (url === GH + "/git/commits/cabeca000") return { ok: true, status: 200, dados: { tree: { sha: "arvore000" } } };
+  if (url === GH + "/commits/abc1234") {
+    return { ok: true, status: 200, dados: { sha: "abc1234ffff", parents: [{ sha: "pai000" }], files: [
+      { filename: "site/materiais/peca.md", status: "added", sha: "blobMd" }, { filename: "site/dados/materiais.json", status: "modified", sha: "blobJson2" }] } };
+  }
+  if (url === GH + "/contents/site/dados/materiais.json?ref=pai000") return { ok: true, status: 200, dados: { sha: "blobJson1" } };
+  if (url === GH + "/contents/site/materiais/peca.md?ref=cabeca000") return { ok: true, status: 200, dados: { sha: "blobMd" } };
+  if (url === GH + "/contents/site/dados/materiais.json?ref=cabeca000") return { ok: true, status: 200, dados: { sha: ghReversao.conflito ? "blobJson3" : "blobJson2" } };
+  if (metodo === "POST" && url === GH + "/git/trees") return { ok: true, status: 201, dados: { sha: "arvore001" } };
+  if (metodo === "POST" && url === GH + "/git/commits") return { ok: true, status: 201, dados: { sha: "reverte0001112223334445556667778889990000" } };
+  if (metodo === "PATCH" && url === GH + "/git/refs/heads/main") return { ok: true, status: 200, dados: {} };
   return { ok: false, status: 404, dados: null };
 }
 
@@ -336,12 +384,570 @@ checar((d.avisos || []).some((x) => x.tipo === "reembolso" && x.texto.startsWith
 r = await admin("POST", "/api/admin/alteracoes", { email: "suporte@paulus.ia.br", corpo: { tipo: "conta.reembolsar", dados: { id: idCarla, pagamento: "ORD9" } } });
 checar(r.status === 401 || r.status === 403, "o suporte não reembolsa", r.status);
 
+// ================================================ etapa 6: o que o painel pedia ao servidor
+const DIA = 24 * 3600 * 1000;
+const publicarFila = async (extra = {}) => (await admin("POST", "/api/admin/publicar", como({ ...extra, corpo: { confirmacao: "comitar e pushar" } }))).json();
+const pedir = (tipo, dados, texto = tipo, extra = {}) => admin("POST", "/api/admin/alteracoes", como({ ...extra, corpo: { tela: "teste", tipo, alvo: String(dados.id || dados.slug || dados.email || ""), dados, texto } }));
+const comoSuporte = (extra = {}) => ({ email: "suporte@paulus.ia.br", cookie: sessaoSuporte, ...extra });
+const limparFila = async () => { for (const x of await fila()) await admin("DELETE", "/api/admin/alteracoes/" + x.id, como()); };
+async function novaConta(nome) {
+  const x = await (await ia("/api/ia/ativar", { id_token: nome, instalacao_id: "inst-" + nome + "-123", nome_escritorio: "Escritório " + nome })).json();
+  return x.segredo.split("_")[1];
+}
+// Mexe direto no que o medidor guarda (o uso de meses atras, um ciclo que ja venceu).
+async function mexerNaConta(id, f) {
+  const st = objetos.get(id).state.storage;
+  const conta = await st.get("conta");
+  f(conta);
+  await st.put("conta", conta);
+}
+const retroagir = (corpo, extra = {}) => admin("POST", "/api/admin/retroagir", como({ ...extra, corpo: { confirmacao: "retroagir", ...corpo } }));
+let antesMP2, det;
+
+// ---------------------------------------------- conta: plano, cadastro e pausa
+console.log("conta: plano, cadastro e pausa");
+await limparFila();
+const idEva = await novaConta("eva");
+await contaDo(idEva, "assinatura", { plano: "advogado", assinatura: { id: "preEva", situacao: "authorized", valor: 449 } });
+antesMP2 = mp.length;
+r = await pedir("conta.plano", { id: idEva, plano: "escritorio" }, "Troquei o plano da Eva: Advogado → Escritório na renovação");
+d = await r.json();
+checar(r.status === 200, "trocar o plano entra na fila", d);
+d = await publicarFila();
+const putEva = mp.slice(antesMP2).find((x) => x.caminho === "/preapproval/preEva" && x.metodo === "PUT");
+checar(d.ok && putEva && putEva.corpo.auto_recurring.transaction_amount === 1290 && putEva.corpo.reason === "PAULUS - plano Escritório",
+  "publicado: o Mercado Pago passa a cobrar o valor do Escritório", { d, putEva });
+det = await (await admin("GET", "/api/admin/contas/" + idEva, como())).json();
+checar(det.plano.id === "advogado" && det.plano_proximo && det.plano_proximo.id === "escritorio", "o ciclo de agora fica no Advogado; o Escritório vale na renovação",
+  { plano: det.plano && det.plano.id, prox: det.plano_proximo });
+r = await pedir("conta.plano", { id: idEva, plano: "nao-existe" });
+checar(r.status === 400, "plano que não existe: recusado");
+const idFabi = await novaConta("fabi");
+await contaDo(idFabi, "anual_pago", { pagamento: "PAYANO1", plano: "advogado", valor: 3990, meses: 12 });
+r = await pedir("conta.plano", { id: idFabi, plano: "escritorio" });
+d = await r.json();
+checar(r.status === 400 && d.erro.includes("pago de uma vez"), "no anual, a troca é na renovação: recusado com o porquê", d);
+r = await pedir("conta.plano", { id: idEva, plano: "plus" }, "x", comoSuporte());
+checar(r.status === 403, "o suporte não troca plano");
+await mexerNaConta(idEva, (x) => { x.ajuste = { motivo: "o preço especial da volta", cobrancas: [99], valor_cheio: 449, atual: 99 }; });
+r = await pedir("conta.plano", { id: idEva, plano: "advogado" });
+d = await r.json();
+checar(r.status === 400 && d.erro.includes("valor ajustado"), "com uma cobrança de valor ajustado em curso: recusado", d);
+await mexerNaConta(idEva, (x) => { delete x.ajuste; });
+
+const cadEva = { nome_escritorio: "Eva Advocacia", documento: "52998224725", telefone: "91988887777", oab: "PA 12345", termos: "2026-10-03", quando: "2026-10-01T12:00:00.000Z",
+  endereco: { cep: "66010000", logradouro: "Rua A", numero: "10", complemento: "", bairro: "Centro", cidade: "Belém", uf: "PA", cmun: "1501402" } };
+await contaDo(idEva, "cadastro", { cadastro: cadEva });
+det = await (await admin("GET", "/api/admin/contas/" + idEva, como())).json();
+checar(det.cadastro.cep === "66010000" && det.cadastro.cidade === "Belém" && det.cadastro.logradouro === "Rua A" && det.cadastro.cmun === "1501402" && det.cadastro.documento === "52998224725",
+  "a ficha traz o endereço do cadastro achatado (CEP, rua, cidade...), como o Editar cadastro lê", det.cadastro);
+r = await pedir("conta.cadastro", { id: idEva, documento: "123" });
+d = await r.json();
+checar(r.status === 400 && d.erro.includes("CPF ou CNPJ"), "cadastro com CPF que não confere: recusado na fila", d);
+r = await pedir("conta.cadastro", { id: idEva, telefone: "(91) 3222-1111", cidade: "Ananindeua" }, "Editei o cadastro da Eva (2 campos)", comoSuporte());
+checar(r.status === 200, "o suporte também edita cadastro (pela fila dele)");
+d = await (await admin("POST", "/api/admin/publicar", comoSuporte({ corpo: { confirmacao: "comitar e pushar" } }))).json();
+const pubCadastro = d.publicacao;
+const cadDepois = (await contaDo(idEva, "admin_detalhe")).cadastro;
+checar(d.ok && cadDepois.telefone === "9132221111" && cadDepois.endereco.cidade === "Ananindeua" && cadDepois.endereco.cmun === "1500800" && cadDepois.endereco.logradouro === "Rua A"
+  && cadDepois.termos === "2026-10-03" && cadDepois.quando === "2026-10-01T12:00:00.000Z" && cadDepois.ajustado.por === "suporte@paulus.ia.br",
+  "publicado: telefone e cidade novos com o código IBGE da cidade; o aceite dos termos continua o da pessoa", cadDepois);
+
+const idGil = await novaConta("gil");
+await contaDo(idGil, "assinatura", { plano: "advogado", assinatura: { id: "preGil", situacao: "authorized", valor: 449 } });
+r = await pedir("conta.pausar", { id: idFabi });
+d = await r.json();
+checar(r.status === 400 && d.erro.includes("não há o que pausar"), "o pago de uma vez não pausa, e a resposta diz por quê", d);
+antesMP2 = mp.length;
+await pedir("conta.pausar", { id: idGil }, "Pausei a cobrança do Gil");
+d = await publicarFila();
+checar(d.ok && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preGil" && x.corpo.status === "paused") && (await contaDo(idGil, "resumo")).assinatura.situacao === "paused",
+  "pausar: PUT status paused no Mercado Pago, e a conta fica pausada", d);
+r = await pedir("conta.pausar", { id: idGil });
+d = await r.json();
+checar(r.status === 400 && d.erro.includes("só a assinatura ativa pausa"), "pausar de novo: recusado", d);
+antesMP2 = mp.length;
+await pedir("conta.pausar", { id: idGil, retomar: true }, "Retomei a cobrança do Gil");
+d = await publicarFila();
+checar(d.ok && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preGil" && x.corpo.status === "authorized") && (await contaDo(idGil, "resumo")).assinatura.situacao === "authorized",
+  "retomar: PUT status authorized", d);
+await pedir("conta.pausar", { id: idGil }, "Pausei a cobrança do Gil de novo");
+d = await publicarFila();
+const pubPausa = d.publicacao;
+
+// ---------------------------------------------- o registro de enderecos
+console.log("registro de endereços");
+const escritorios = new Map();
+const metadados = new Map();
+const ESCRITORIOS = {
+  get: async (k) => (escritorios.has(k) ? escritorios.get(k) : null),
+  put: async (k, v, o = {}) => { escritorios.set(k, v); if (o.metadata) metadados.set(k, o.metadata); },
+  delete: async (k) => { escritorios.delete(k); metadados.delete(k); },
+  list: async ({ prefix }) => ({ list_complete: true, keys: [...escritorios.keys()].filter((k) => k.startsWith(prefix)).sort().map((name) => ({ name, metadata: metadados.get(name) })) }),
+};
+const envT = { ...env, ESCRITORIOS, TUNEL_ATIVO: "1", CF_API_TOKEN: "cf-tuneis", CF_ACCOUNT_ID: "conta1", CF_ZONE_ID: "zona1" };
+const umMinuto = () => { relogio += 60 * 1000; };
+await provisionar(envT, "moura", { nome: "Moura Advocacia", porta: 47123, instalacao_id: "inst-moura-0001", dono: { sub: "111", email: "titular@moura.adv.br" } }, () => relogio);
+umMinuto();
+for (const [tipo, dados] of [["tunel.endereco", { slug: "moura", novo: "moura-adv" }], ["tunel.ativo", { slug: "moura-adv", ativo: false }], ["tunel.ativo", { slug: "moura-adv", ativo: true }], ["tunel.apagar", { slug: "moura-adv" }]]) {
+  r = await pedir(tipo, dados, tipo, { envUsado: envT });
+  d = await publicarFila({ envUsado: envT });
+  if (!d.ok) checar(false, "publicar " + tipo, d);
+  umMinuto();
+}
+const silva = await provisionar(envT, "silva", { nome: "Silva", porta: 47124, instalacao_id: "inst-silva-0001", dono: { sub: "222", email: "titular@silva.adv.br" } }, () => relogio);
+umMinuto();
+const pedidoRemover = new Request("https://paulus.ia.br/api/tunel/remover", { method: "POST", headers: { authorization: "Bearer " + silva.entrega.segredo_instalacao } });
+r = await atenderTunel(pedidoRemover, envT, new URL(pedidoRemover.url), { agora: () => relogio });
+checar(r.status === 200, "o escritório remove o próprio endereço");
+umMinuto();
+await provisionar(envT, "retomado", { nome: "Retomado", porta: 47125, instalacao_id: "inst-reto-0001", dono: { sub: "333", email: "titular@retomado.adv.br" }, retomar: true }, () => relogio);
+umMinuto();
+const oitoDiasAtras = relogio - 8 * DIA;
+await provisionar(envT, "parado", { nome: "Parado", porta: 47126, instalacao_id: "inst-parado-01", dono: null }, () => oitoDiasAtras);
+const limpeza = await limparEscritorios(envT, () => relogio);
+checar(limpeza.removidos.length === 1 && limpeza.removidos[0].slug === "parado", "a limpeza diária libera o que nunca conectou", limpeza);
+r = await admin("GET", "/api/admin/tuneis", como({ envUsado: envT }));
+d = await r.json();
+const reg = d.registro || [];
+const ev = (slug, evento) => reg.find((x) => x.slug === slug && x.evento === evento) || {};
+checar(reg.length === 10, "dez eventos no registro (cada mudança de endereço registra sozinha)", reg);
+checar(reg[0].evento === "liberado" && reg[0].slug === "parado" && reg[0].quem === "limpeza automática" && reg[0].motivo === "nunca conectou em 7 dias" && reg[0].estado === "livre",
+  "do mais novo ao mais velho: a limpeza automática liberou parado", reg[0]);
+checar(ev("moura", "criado").quem === "titular@moura.adv.br" && ev("moura", "criado").estado === "ativo", "criado: quem conectou (o dono do endereço)", ev("moura", "criado"));
+checar(ev("moura-adv", "alterado").de === "moura" && ev("moura-adv", "alterado").quem === "dono@paulus.ia.br" && ev("moura-adv", "alterado").estado === "ativo",
+  "alterado: o endereço novo, o de antes e quem trocou pelo painel", ev("moura-adv", "alterado"));
+checar(ev("moura-adv", "desativado").estado === "desativado" && ev("moura-adv", "reativado").estado === "ativo" && ev("moura-adv", "desativado").quem === "dono@paulus.ia.br",
+  "desativado e reativado, com quem e o estado");
+checar(ev("moura-adv", "liberado").quem === "dono@paulus.ia.br" && ev("moura-adv", "liberado").motivo === "apagado pelo painel" && ev("moura-adv", "liberado").estado === "livre",
+  "liberado pelo painel", ev("moura-adv", "liberado"));
+checar(ev("silva", "liberado").quem === "titular@silva.adv.br" && ev("silva", "liberado").motivo === "removido pelo escritório", "liberado pelo próprio escritório", ev("silva", "liberado"));
+checar(String(ev("retomado", "criado").motivo).includes("retomado") && !ev("retomado", "liberado").evento, "a retomada é um criado só, com o motivo", ev("retomado", "criado"));
+checar(ev("parado", "criado").quem === "o escritório" && ev("parado", "criado").quando === new Date(oitoDiasAtras).toISOString(), "sem dono: \"o escritório\"; o criado fica com a hora em que nasceu");
+checar([...metadados.keys()].filter((k) => k.startsWith("evento:")).length === 10 && reg.every((x) => !JSON.stringify(x).includes("segredo")),
+  "cada evento é uma chave com os metadados (a lista lê sem um get por evento), sem segredo nenhum");
+
+// ---------------------------------------------- a mensagem da nao renovacao
+console.log("mensagem na não renovação");
+emails.length = 0;
+r = await admin("POST", "/api/admin/renovacoes/" + idBruno + "/mensagem", como({ corpo: { texto: "Oi, Bruno. Vi que o cartão recusou: quer ajuda?" } }));
+d = await r.json();
+const msgBruno = emails[0];
+checar(r.status === 200 && msgBruno && msgBruno.to[0] === "bruno@escritorio.com.br" && msgBruno.from === "Matheus (PAVLVS) <naoresponda@paulus.ia.br>" && msgBruno.text.includes("quer ajuda?")
+  && msgBruno.text.includes("Equipe PAVLVS") && msgBruno.reply_to === "contato@paulus.ia.br", "a mensagem vai para a conta, com o nome de quem escreveu", msgBruno);
+const itemBruno = [...d.abertas, ...d.tratadas].find((x) => x.id === idBruno);
+checar(itemBruno && itemBruno.mensagem_em && !guardados.get("admin:renov:" + idBruno).includes("quer ajuda"), "fica anotada na renovação (quando e quem; o texto não fica guardado)", itemBruno);
+r = await admin("POST", "/api/admin/renovacoes/" + idBruno + "/mensagem", como({ corpo: { texto: "   " } }));
+checar(r.status === 400, "mensagem vazia: recusada");
+r = await admin("POST", "/api/admin/renovacoes/" + idBruno + "/mensagem", { ...como(), envUsado: { ...env, RESEND_API_KEY: "" }, corpo: { texto: "Oi" } });
+checar(r.status === 503 && (await r.json()).erro.includes("RESEND_API_KEY"), "sem o provedor de e-mail: 503 dizendo o que falta");
+r = await admin("POST", "/api/admin/renovacoes/" + "0".repeat(24) + "/mensagem", como({ corpo: { texto: "Oi" } }));
+checar(r.status === 404, "conta sem ciclo vencido: 404");
+
+// ---------------------------------------------- tokens: por modelo e outro periodo
+console.log("tokens: por modelo e outro período");
+relogio = Math.max(relogio, Date.parse("2026-11-12T18:00:00Z"));
+const LLAMA = "meta-llama/Llama-3.3-70B-Instruct";
+const SONNET = "claude-sonnet-5-5";
+const MISTRAL = "mistral-large-latest";
+const idTok = await novaConta("toka");
+await mexerNaConta(idTok, (x) => {
+  x.uso = [
+    { dia: "2026-10-20", tokens: 5000, entrada: 3000, saida: 2000, modelos: { [MISTRAL]: { entrada: 3000, saida: 2000 } } },
+    { dia: "2026-11-10", tokens: 1500, entrada: 1000, saida: 500, modelos: { [LLAMA]: { entrada: 1000, saida: 500 } } },
+    { dia: "2026-11-11", tokens: 3000, entrada: 2000, saida: 1000, modelos: { [SONNET]: { entrada: 2000, saida: 1000 } } },
+  ];
+  // Outubro inteiro tem mais que o dia 20: os dias de antes ja nao estao guardados.
+  x.uso_mes = { "2026-10": { entrada: 8000, saida: 3000, modelos: { [MISTRAL]: { entrada: 8000, saida: 3000 } } },
+    "2026-11": { entrada: 3000, saida: 1500, modelos: { [LLAMA]: { entrada: 1000, saida: 500 }, [SONNET]: { entrada: 2000, saida: 1000 } } } };
+  x.pagamentos = [{ tipo: "assinatura", ref: "TOK1", valor: 300, quando: "2026-11-05T15:00:00.000Z" }];
+});
+const tok = async (q) => { const x = await admin("GET", "/api/admin/tokens?" + q, como()); return { status: x.status, d: await x.json() }; };
+const daToka = (t) => (t.d.linhas || []).find((l) => l.nome.startsWith("Escritório toka")) || {};
+let t1 = await tok("visao=conta&periodo=mes");
+checar(t1.status === 200 && daToka(t1).entrada === 3000 && daToka(t1).saida === 1500 && !t1.d.incompleto && t1.d.periodo.de === "2026-11-01" && t1.d.periodo.ate === "2026-11-12",
+  "este mês: o mês inteiro do medidor", { linha: daToka(t1), p: t1.d.periodo });
+t1 = await tok("visao=conta&periodo=30");
+checar(daToka(t1).entrada === 6000 && daToka(t1).saida === 3500 && t1.d.incompleto && t1.d.desde === "2026-10-20" && t1.d.aviso.includes("20/10/2026"),
+  "30 dias: o pedaço de outubro pelos dias guardados, e a resposta diz que antes de 20/10 o medidor não guarda", { linha: daToka(t1), t: { inc: t1.d.incompleto, desde: t1.d.desde, aviso: t1.d.aviso } });
+t1 = await tok("visao=conta&periodo=custom&de=2026-10-25&ate=2026-11-10");
+checar(t1.status === 200 && daToka(t1).entrada === 1000 && daToka(t1).saida === 500 && !t1.d.incompleto && t1.d.periodo.de === "2026-10-25" && t1.d.periodo.ate === "2026-11-10",
+  "outro período (de a ate): só os dias dele, sem faltar nada", { linha: daToka(t1), p: t1.d.periodo, inc: t1.d.incompleto });
+t1 = await tok("visao=conta&periodo=90");
+checar(t1.d.periodo.de === "2026-08-15" && daToka(t1).receita === 300, "90 dias: de 15/08 a hoje, com o arrecadado", t1.d.periodo);
+for (const q of ["periodo=custom&de=2026-11-10&ate=2026-10-25", "periodo=custom&de=2026-02-30&ate=2026-03-01", "periodo=custom", "periodo=semana", "visao=cliente"]) {
+  t1 = await tok(q);
+  if (t1.status !== 400) checar(false, "período ou visão inválidos: 400 (" + q + ")", t1);
+}
+checar(true, "período ao contrário, dia que não existe, sem as datas e visão desconhecida: 400");
+t1 = await tok("visao=modelo&periodo=mes");
+const lSonnet = t1.d.linhas.find((l) => l.modelo === SONNET) || {};
+const lLlama = t1.d.linhas.find((l) => l.modelo === LLAMA) || {};
+checar(lSonnet.nome === "Claude Sonnet 5.5" && lSonnet.fabricante === "Anthropic" && lSonnet.planos.includes("Escritório Plus") && lSonnet.sub.includes("Anthropic")
+  && lSonnet.preco[0] === 2 && lSonnet.preco[1] === 10 && lSonnet.entrada === 2000 && lSonnet.saida === 1000 && Math.abs(lSonnet.receita - 200) < 1e-9
+  && Math.abs(lSonnet.custo_usd - ((2000 / 1e6) * 2 + (1000 / 1e6) * 10)) < 1e-12,
+  "por modelo: fabricante, planos, preço por milhão, uso, custo e o arrecadado da conta dividido pelo uso de cada modelo", lSonnet);
+checar(lLlama.fabricante === "Meta" && lLlama.planos.includes("Advogado") && lLlama.receita >= 100 && !t1.d.linhas.some((l) => l.modelo === MISTRAL),
+  "o Llama com o que a Toka pagou pelo uso dele (e o das contas do Advogado sem uso no mês); o Mistral não usou no mês", lLlama);
+checar(Math.abs(t1.d.linhas.reduce((s, l) => s + l.receita, 0) - t1.d.kpis.receita) < 1e-6, "a soma do arrecadado por modelo é o arrecadado do período");
+t1 = await tok("visao=modelo&periodo=custom&de=2026-10-01&ate=2026-10-31");
+const lMistral = t1.d.linhas.find((l) => l.modelo === MISTRAL) || {};
+checar(lMistral.entrada === 8000 && lMistral.saida === 3000 && lMistral.planos.includes("Escritório") && !t1.d.incompleto, "outubro inteiro sai do total do mês (nada falta)", lMistral);
+
+// ---------------------------------------------- campanha agendada
+console.log("campanha agendada");
+await limparFila();
+emails.length = 0;
+r = await pedir("campanha.disparar", { nome: "Novidade", publico: "todos", assunto: "Oi", texto: "Novidade no Paulus", quando: "agendado", de: "2026-11-20" });
+checar(r.status === 400 && (await r.json()).erro.includes("hora"), "agendada sem a hora: recusada");
+r = await pedir("campanha.disparar", { nome: "Novidade", publico: "todos", assunto: "Oi", texto: "Novidade", quando: "agendado", de: "2026-11-01", hora: "10:00" });
+checar(r.status === 400 && (await r.json()).erro.includes("já passou"), "agendada para trás: recusada");
+r = await pedir("campanha.disparar", { nome: "Novidade", publico: "escolhidas", contas: [], assunto: "Oi", texto: "Novidade", quando: "agora" });
+checar(r.status === 400, "escolher contas sem nenhuma conta: recusada");
+r = await pedir("campanha.disparar", { nome: "Novidade", publico: "escolhidas", contas: [idAna, idEva], assunto: "Oi, {nome}", texto: "Novidade", quando: "agendado", de: "2026-11-20", hora: "14:30" },
+  "Pedi o disparo \"Novidade\" para 2 contas (20/11 às 14:30)");
+checar(r.status === 200, "agendada para 20/11 às 14:30 (Brasília), para duas contas escolhidas");
+d = await publicarFila();
+let camps = (await (await admin("GET", "/api/admin/campanhas", como())).json()).campanhas;
+const novidade = camps.find((x) => x.nome === "Novidade") || {};
+checar(d.ok && novidade.situacao === "agendada" && novidade.quando === "2026-11-20T17:30:00.000Z" && novidade.publico.id === "escolhidas" && novidade.publico.label === "2 contas escolhidas",
+  "fica guardada para 17:30 UTC (14:30 em Brasília), e a tela vê a hora", novidade);
+let envio = await enviarCampanhas(env, Date.parse("2026-11-20T17:29:00Z"));
+checar(envio.enviados === 0 && emails.length === 0, "o Cron de um minuto antes não manda nada", envio);
+envio = await enviarCampanhas(env, Date.parse("2026-11-20T17:30:00Z"));
+checar(envio.enviados === 2 && emails.map((e) => e.to[0]).sort().join() === "ana@escritorio.com.br,eva@escritorio.com.br" && emails.some((e) => e.subject === "Oi, Eva"),
+  "na hora marcada, o Cron manda para as duas escolhidas", emails.map((e) => e.to[0] + " · " + e.subject));
+const daqui = new Date(relogio + 3 * 60 * 1000 - 3 * 3600 * 1000).toISOString();
+r = await pedir("campanha.disparar", { nome: "Atrasada", publico: "todos", assunto: "x", texto: "y", quando: "agendado", de: daqui.slice(0, 10), hora: daqui.slice(11, 16) });
+checar(r.status === 200, "agendada para daqui a três minutos");
+relogio += 10 * 60 * 1000;
+d = await publicarFila();
+checar(!d.ok && d.resultados[0].erro.includes("passou antes de publicar"), "publicada depois da hora: não sai atrasada sozinha, volta para a fila com o porquê", d);
+await limparFila();
+
+// ---------------------------------------------- equipe: convite, Access e reenviar
+console.log("equipe: convite, Access e reenviar");
+let eq = await (await admin("GET", "/api/admin/equipe", como())).json();
+checar(eq.liberacao && eq.liberacao.ligado === false && eq.liberacao.falta.includes("CF_ACCESS_TOKEN") && eq.matriz.some((x) => x.acao.startsWith("Convidar")),
+  "sem a API do Access, a equipe diz que a liberação é à mão", eq.liberacao);
+d = await (await admin("GET", "/api/admin/sessao", como())).json();
+checar(d.config.equipe && d.config.equipe.ligado === false, "a sessão também diz (config.equipe)");
+emails.length = 0;
+r = await pedir("equipe.membro", { acao: "criar", nome: "Bia Souza", email: "Bia@paulus.ia.br", papel: "financeiro" }, "Convidei a Bia");
+checar(r.status === 200, "convidar entra na fila");
+r = await pedir("equipe.membro", { acao: "criar", nome: "Ana", email: "suporte@paulus.ia.br", papel: "suporte" });
+checar(r.status === 400, "convidar quem já está na equipe: recusado");
+r = await pedir("equipe.membro", { acao: "criar", nome: "Xavier", email: "x@paulus.ia.br", papel: "dono" }, "x", comoSuporte());
+checar(r.status === 403, "o suporte não convida");
+r = await admin("POST", "/api/admin/alteracoes", { ...como(), envUsado: { ...env, RESEND_API_KEY: "" }, corpo: { tipo: "equipe.membro", dados: { acao: "criar", nome: "Zé", email: "ze@paulus.ia.br", papel: "suporte" } } });
+checar(r.status === 400 && (await r.json()).erro.includes("RESEND_API_KEY"), "sem o e-mail ligado, o convite nem entra na fila");
+d = await publicarFila();
+const conviteBia = emails.find((e) => e.to[0] === "bia@paulus.ia.br");
+const tokenBia = ((conviteBia && conviteBia.html.match(/convite\?t=([0-9a-f]{64})/)) || [])[1];
+checar(d.ok && conviteBia && tokenBia && conviteBia.text.includes("Financeiro") && conviteBia.text.includes("à mão") && conviteBia.subject === "Convite para o painel do Paulus",
+  "o convite vai por e-mail, com o link e o papel, e diz que o Access ainda é à mão", conviteBia && conviteBia.text);
+const kvConvites = JSON.parse(guardados.get("admin:convites"));
+checar(!guardados.get("admin:convites").includes(tokenBia) && kvConvites[0].nome === "Bia Souza" && kvConvites[0].email === "bia@paulus.ia.br"
+  && Object.keys(kvConvites[0]).sort().join() === "criado,email,h,nome,papel,por,por_nome,vence", "o KV guarda o resumo do link, nunca o link; e só nome, e-mail e papel da pessoa", kvConvites[0]);
+eq = await (await admin("GET", "/api/admin/equipe", como())).json();
+const mBia = eq.membros.find((x) => x.email === "bia@paulus.ia.br") || {};
+checar(mBia.convite && mBia.convite.vence === new Date(relogio + 7 * DIA).toISOString() && mBia.papel === "financeiro" && !mBia.convite.vencido, "a equipe mostra o convite e quando vence (7 dias)", mBia);
+const convite = (metodo, token, envUsado = env) => {
+  const req = metodo === "GET" ? new Request("https://paulus.ia.br/api/equipe/convite?t=" + token)
+    : new Request("https://paulus.ia.br/api/equipe/convite", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "t=" + token });
+  return atenderAdmin(req, envUsado, new URL(req.url), { waitUntil() {} }, deps);
+};
+checar(ehRotaDoAdmin(new URL("https://paulus.ia.br/api/equipe/convite")), "o convite é rota do painel, fora do /api/admin (e do Access)");
+r = await convite("GET", tokenBia);
+let pagina = await r.text();
+checar(r.status === 200 && pagina.includes("Bia Souza") && pagina.includes("Aceitar o convite") && pagina.includes("feita à mão") && !pagina.includes("PAULUS")
+  && r.headers.get("content-security-policy").includes("form-action 'self'") && r.headers.get("referrer-policy") === "no-referrer",
+  "o link abre a página do convite sem o Access, e não promete a liberação automática");
+checar(!guardados.get("admin:equipe") || !guardados.get("admin:equipe").includes("bia@"), "abrir o link não aceita sozinho (quem lê links no e-mail não aceita pela pessoa)");
+r = await convite("GET", "f".repeat(64));
+checar(r.status === 410, "link que não existe: 410");
+r = await convite("POST", tokenBia);
+pagina = await r.text();
+checar(r.status === 200 && pagina.includes("Pronto, Bia.") && pagina.includes("à mão") && !pagina.includes("Abrir o painel"), "aceito: a página diz o passo que ainda é à mão (e não oferece o painel)");
+checar(JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "bia@paulus.ia.br" && x.papel === "financeiro") && !guardados.has("admin:convites"), "a Bia está na equipe e o convite saiu");
+r = await convite("POST", tokenBia);
+checar(r.status === 410, "o link não vale duas vezes");
+d = await (await admin("GET", "/api/admin/sessao", { email: "bia@paulus.ia.br" })).json();
+checar(d.access.ok && d.papel === "financeiro", "com o Access dela, o painel a reconhece como financeiro", d.access);
+
+emails.length = 0;
+await pedir("equipe.membro", { acao: "criar", nome: "Caio", email: "caio@paulus.ia.br", papel: "suporte" }, "Convidei o Caio");
+d = await publicarFila();
+const tokenCaio1 = emails[0].html.match(/convite\?t=([0-9a-f]{64})/)[1];
+relogio += 2 * DIA;
+r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("caio@paulus.ia.br") + "/reenviar", comoSuporte());
+checar(r.status === 403, "o suporte não reenvia convite");
+r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("caio@paulus.ia.br") + "/reenviar", como());
+d = await r.json();
+const tokenCaio2 = emails[emails.length - 1].html.match(/convite\?t=([0-9a-f]{64})/)[1];
+const mCaio = d.membros.find((x) => x.email === "caio@paulus.ia.br") || {};
+checar(r.status === 200 && tokenCaio2 !== tokenCaio1 && mCaio.convite.vence === new Date(relogio + 7 * DIA).toISOString(), "reenviar: link novo, mais 7 dias", mCaio);
+checar((await convite("GET", tokenCaio1)).status === 410 && (await convite("GET", tokenCaio2)).status === 200, "o link antigo para de valer; o novo abre");
+r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("ninguem@paulus.ia.br") + "/reenviar", como());
+checar(r.status === 404, "reenviar sem convite: 404");
+relogio += 8 * DIA;
+r = await convite("GET", tokenCaio2);
+checar(r.status === 410 && (await r.text()).includes("venceu"), "depois dos 7 dias, o convite venceu");
+eq = await (await admin("GET", "/api/admin/equipe", como())).json();
+checar((eq.membros.find((x) => x.email === "caio@paulus.ia.br") || {}).convite.vencido === true, "e a equipe mostra o convite vencido");
+await pedir("equipe.membro", { acao: "cancelar_convite", email: "caio@paulus.ia.br" }, "Cancelei o convite do Caio");
+d = await publicarFila();
+checar(d.ok && !guardados.has("admin:convites"), "cancelar o convite tira o link");
+
+r = await pedir("equipe.membro", { acao: "excluir", email: "dono@paulus.ia.br" });
+checar(r.status === 400 && (await r.json()).erro.includes("pelo menos um dono"), "tirar o único dono: recusado");
+r = await pedir("equipe.membro", { acao: "editar", de: "suporte@paulus.ia.br", email: "suporte@paulus.ia.br", nome: "Ana Lima", papel: "suporte" }, "Editei a Ana");
+d = await publicarFila();
+checar(d.ok && JSON.parse(guardados.get("admin:equipe")).find((x) => x.email === "suporte@paulus.ia.br").nome === "Ana Lima", "editar o nome, com o mesmo e-mail");
+await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia");
+d = await publicarFila();
+checar(d.ok && !JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "bia@paulus.ia.br") && String(d.resultados[0].aviso).includes("Access"),
+  "tirar da equipe: sai da lista; sem a API, o aviso diz que o Access é à mão", d.resultados);
+checar((await admin("GET", "/api/admin/visao", { email: "bia@paulus.ia.br" })).status === 403, "e ela não passa mais do painel");
+
+const envAcc = { ...env, CF_ACCESS_TOKEN: "cfat_teste", CF_ACCOUNT_ID: "conta1", ACCESS_APP_ID: "app1", ACCESS_POLICY_ID: "pol1" };
+const POLITICA = "/accounts/conta1/access/apps/app1/policies/pol1";
+const naPolitica = (email) => cf.politica.include.some((x) => x.email && x.email.email === email);
+emails.length = 0;
+cf.chamadas.length = 0;
+await pedir("equipe.membro", { acao: "criar", nome: "Duda Lima", email: "duda@paulus.ia.br", papel: "suporte" }, "Convidei a Duda", { envUsado: envAcc });
+d = await publicarFila({ envUsado: envAcc });
+const tokenDuda = emails[0].html.match(/convite\?t=([0-9a-f]{64})/)[1];
+checar(d.ok && emails[0].text.includes("é liberado no Cloudflare Access") && !emails[0].text.includes("à mão"), "com a API do Access, o convite diz que a liberação é sozinha");
+cf.recusar = "/policies/";
+r = await convite("POST", tokenDuda, envAcc);
+pagina = await r.text();
+checar(r.status === 502 && pagina.includes("Quase lá") && JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "duda@paulus.ia.br") && guardados.has("admin:convites"),
+  "o Access recusou: ela entra na equipe e o link continua valendo para tentar de novo");
+cf.recusar = "";
+r = await convite("POST", tokenDuda, envAcc);
+pagina = await r.text();
+const putPol = cf.chamadas.filter((x) => x.metodo === "PUT" && x.caminho === POLITICA).pop();
+checar(r.status === 200 && pagina.includes("Abrir o painel") && naPolitica("duda@paulus.ia.br") && naPolitica("dono@paulus.ia.br") && putPol.corpo.name === "Equipe do painel"
+  && putPol.corpo.decision === "allow" && putPol.corpo.session_duration === "24h" && putPol.corpo.precedence === 1 && putPol.auth === "Bearer cfat_teste" && !guardados.has("admin:convites"),
+  "aceito: o e-mail entra na política do Access do painel, que guarda o resto (nome, decisão, duração)", putPol);
+eq = await (await admin("GET", "/api/admin/equipe", como({ envUsado: envAcc }))).json();
+checar(eq.liberacao.ligado === true, "e a equipe diz que a liberação está ligada");
+emails.length = 0;
+await pedir("equipe.membro", { acao: "editar", de: "duda@paulus.ia.br", email: "maria.eduarda@paulus.ia.br", nome: "Maria Eduarda", papel: "suporte" }, "Troquei o e-mail da Duda", { envUsado: envAcc });
+d = await publicarFila({ envUsado: envAcc });
+checar(d.ok && emails[0].to[0] === "maria.eduarda@paulus.ia.br" && !naPolitica("duda@paulus.ia.br") && !JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "duda@paulus.ia.br")
+  && JSON.parse(guardados.get("admin:convites"))[0].email === "maria.eduarda@paulus.ia.br", "trocar o e-mail: o novo recebe convite, o antigo sai da equipe e do Access", d);
+await pedir("equipe.membro", { acao: "cancelar_convite", email: "maria.eduarda@paulus.ia.br" }, "Cancelei", { envUsado: envAcc });
+await publicarFila({ envUsado: envAcc });
+cf.politica.include.push({ email: { email: "bia@paulus.ia.br" } });
+guardados.set("admin:equipe", JSON.stringify([...JSON.parse(guardados.get("admin:equipe")), { email: "bia@paulus.ia.br", nome: "Bia Souza", papel: "financeiro" }]));
+cf.chamadas.length = 0;
+await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: envAcc });
+d = await publicarFila({ envUsado: envAcc });
+checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && cf.chamadas.some((x) => x.caminho === "/accounts/conta1/access/organizations/revoke_user" && x.corpo.email === "bia@paulus.ia.br"),
+  "tirar da equipe com a API: sai da política do Access e as sessões dela no Access caem", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
+
+// ---------------------------------------------- o extrato com as NFS-e
+console.log("extrato com as NFS-e");
+const notasFalsas = [
+  { id: 7, conta: idAna, pagamento: "ORD1", estado: "substituida", numero: "10", ambiente: "producao_restrita" },
+  { id: 9, conta: idAna, pagamento: "ORD1", estado: "emitida", numero: "12", ambiente: "producao_restrita" },
+  { id: 11, conta: idBruno, pagamento: "ORD1", estado: "emitida", numero: "13" },
+];
+const EMISSOR_NFSE = { idFromName: (n) => n, get: () => ({ fetch: async (url, init) => {
+  const { acao, dados } = JSON.parse(init.body);
+  if (acao === "listar") return Response.json({ notas: notasFalsas });
+  if (acao === "nota") return Response.json({ nota: notasFalsas.find((x) => x.id === dados.id) || {} });
+  if (acao === "xml") return Response.json({ xml: "<NFSe>12</NFSe>", nome: "NFS-e 12.xml" });
+  return Response.json({ erro: "ação de mentira" }, { status: 400 });
+} }) };
+const envNf = { ...env, EMISSOR_NFSE, NFSE_CHAVE_MESTRA: "chave-de-teste" };
+det = await (await admin("GET", "/api/admin/contas/" + idAna, como({ envUsado: envNf }))).json();
+const pgOrd1 = (det.pagamentos || []).find((x) => x.ref === "ORD1") || {};
+checar(pgOrd1.nfse && pgOrd1.nfse.id === 9 && pgOrd1.nfse.numero === "12" && pgOrd1.nfse.estado === "emitida"
+  && pgOrd1.nfse.pdf === "https://paulus.ia.br/api/admin/nfse/emissor/notas/9/pdf?baixar=1" && pgOrd1.nfse.xml === "https://paulus.ia.br/api/admin/nfse/emissor/notas/9/xml",
+  "cada pagamento traz a NFS-e (a substituta, não a substituída; a de outra conta não entra) e os links do painel", pgOrd1);
+det = await (await admin("GET", "/api/admin/contas/" + idAna, como())).json();
+checar(det.pagamentos.every((x) => x.nfse === null), "sem o emissor, o extrato não inventa nota");
+guardados.set("admin:nfse-pdf:9", Buffer.from("%PDF-1.4 teste").toString("base64"));
+r = await admin("GET", "/api/admin/nfse/emissor/notas/9/pdf?baixar=1", comoSuporte({ envUsado: envNf }));
+checar(r.status === 200 && r.headers.get("content-type") === "application/pdf" && r.headers.get("content-disposition").startsWith("attachment") && (await r.text()).startsWith("%PDF"),
+  "o link do PDF baixa pelo painel (o suporte também baixa)");
+r = await admin("GET", "/api/admin/nfse/emissor/notas/9/xml", comoSuporte({ envUsado: envNf }));
+checar(r.status === 200 && r.headers.get("content-type").startsWith("application/xml") && (await r.text()).includes("<NFSe>"), "e o do XML");
+r = await admin("GET", "/api/admin/nfse/emissor/notas/9/xml", { semAccess: true, envUsado: envNf });
+checar(r.status === 401, "sem o Cloudflare Access, os links não abrem");
+
+// ---------------------------------------------- a oferta para voltar (sem cupom)
+console.log("oferta para voltar (sem cupom)");
+await limparFila();
+r = await pedir("renov.oferta", { id: idBruno, tipo: "creditos", tokens: 50 });
+checar(r.status === 400, "créditos de menos: recusado");
+r = await pedir("renov.oferta", { id: idBruno, tipo: "creditos", tokens: 10e6 }, "x", comoSuporte());
+checar(r.status === 403, "o suporte não faz oferta");
+r = await pedir("renov.oferta", { id: idEva, tipo: "creditos", tokens: 10e6 });
+checar(r.status === 400 && (await r.json()).erro.includes("Não renovações"), "conta fora de Não renovações: recusada");
+r = await pedir("renov.oferta", { id: idBruno, tipo: "preco", valor: 2000, plano: "escritorio" });
+checar(r.status === 400 && (await r.json()).erro.includes("valor do plano"), "preço especial acima do plano: recusado");
+emails.length = 0;
+await pedir("renov.oferta", { id: idBruno, tipo: "creditos", tokens: 10e6 }, "Ofereci 10M tokens para Bruno voltar (entram quando voltar a pagar)");
+d = await publicarFila();
+const ofCred = emails.find((e) => e.to[0] === "bruno@escritorio.com.br");
+const resBruno = await contaDo(idBruno, "resumo");
+checar(d.ok && ofCred && ofCred.subject.includes("Créditos extras") && ofCred.text.includes("10 milhões") && ofCred.text.includes("próximo pagamento confirmado") && !/cupom/i.test(ofCred.text + ofCred.html),
+  "créditos: a pessoa recebe o e-mail, sem cupom: entram com o próximo pagamento", ofCred && ofCred.text);
+checar(resBruno.oferta_volta && resBruno.oferta_volta.tipo === "creditos" && resBruno.oferta_volta.tokens === 10e6, "e a conta guarda a oferta (worker/ia.js, ofertaDeVolta)", resBruno.oferta_volta);
+d = await (await admin("GET", "/api/admin/renovacoes", como())).json();
+checar(([...d.abertas, ...d.tratadas].find((x) => x.id === idBruno) || {}).oferta.tipo === "creditos", "a não renovação mostra a oferta feita");
+antesMP2 = mp.length;
+emails.length = 0;
+await pedir("renov.oferta", { id: idBruno, tipo: "preco", valor: 99, plano: "escritorio" }, "Ofereci a Bruno o próximo mês por R$ 99");
+d = await publicarFila();
+const ofPreco = emails.find((e) => e.to[0] === "bruno@escritorio.com.br") || {};
+checar(d.ok && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/pre1" && x.corpo.auto_recurring.transaction_amount === 99) && String(ofPreco.subject).includes("preço especial")
+  && String(ofPreco.text).includes("R$ 99") && String(ofPreco.text).includes("Depois dele, volta ao valor do plano"),
+  "preço especial: a assinatura que ainda existe passa a cobrar o valor, e o e-mail conta", { d, texto: ofPreco.text });
+
+// ---------------------------------------------- quem cancelou pela Minha conta
+console.log("não renovações: quem cancelou pela Minha conta");
+const idIvo = await novaConta("ivo");
+await contaDo(idIvo, "assinatura", { plano: "advogado", assinatura: { id: "preIvo", situacao: "authorized", valor: 449 } });
+await contaDo(idIvo, "assinatura", { assinatura: { id: "preIvo", situacao: "cancelled" } });
+await contaDo(idIvo, "cancelamento", { motivo: "preco", texto: "ficou caro", por: "ivo@escritorio.com.br" });
+const idJoe = await novaConta("joe");
+await contaDo(idJoe, "assinatura", { plano: "advogado", assinatura: { id: "preJoe", situacao: "authorized", valor: 449 } });
+await contaDo(idJoe, "assinatura", { assinatura: { id: "preJoe", situacao: "cancelled" } });
+for (const id of [idIvo, idJoe]) await mexerNaConta(id, (x) => { x.ciclo.fim = new Date(relogio - 2 * DIA).toISOString(); });
+d = await (await admin("GET", "/api/admin/renovacoes", como())).json();
+const rIvo = d.abertas.find((x) => x.id === idIvo) || {};
+checar(String(rIvo.motivo).startsWith("cancelou pela Minha conta: está caro para o escritório") && rIvo.motivo.includes("ficou caro") && rIvo.cancelamento.motivo === "preco"
+  && rIvo.tolerancia_dias === 0 && rIvo.plano.id === "advogado", "quem cancelou pela Minha conta aparece, com o motivo e o plano", rIvo);
+checar(!d.abertas.some((x) => x.id === idJoe), "a cancelada sem motivo (no Mercado Pago ou pelo painel) continua fora");
+
+// ---------------------------------------------- retroagir
+console.log("retroagir");
+await limparFila();
+guardados.set("admin:nfse:config", JSON.stringify({ auto: false, email: true, mail: false }));
+await pedir("nfse.config", { auto: true, email: true, mail: true }, "Liguei tudo nas notas");
+d = await publicarFila();
+const pubNf = d.publicacao;
+checar(d.ok && pubNf.id && pubNf.retroagivel && !("retrato" in pubNf) && guardados.has("admin:retrato:" + pubNf.id), "cada publicação guarda o retrato (fora da lista que a tela lê)", pubNf);
+r = await retroagir({ publicacao: pubNf.id, confirmacao: "retroagi" });
+checar(r.status === 400, "sem a palavra certa: 400");
+r = await admin("POST", "/api/admin/retroagir", comoSuporte({ corpo: { publicacao: pubNf.id, confirmacao: "retroagir" } }));
+checar(r.status === 403, "o suporte não retroage");
+r = await retroagir({ commit: pubNf.commit });
+d = await r.json();
+checar(r.status === 200 && d.ok && d.commit.startsWith("kv-") && d.publicacao.revertida && JSON.parse(guardados.get("admin:nfse:config")).mail === false
+  && JSON.parse(guardados.get("admin:nfse:config")).auto === false, "retroagir pelo commit (como a tela manda): os interruptores voltam ao que eram", d);
+r = await retroagir({ commit: pubNf.commit });
+checar(r.status === 409, "de novo: já foi retroagida");
+d = await (await admin("GET", "/api/admin/alteracoes", como())).json();
+checar(d.publicacoes.find((x) => x.id === pubNf.id).revertida.por === "matheus", "o histórico mostra a publicação retroagida");
+
+await pedir("conta.creditar", { id: idAna, tokens: 1000 }, "Creditei 1.000 tokens à Ana");
+await pedir("nfse.config", { auto: true, email: false, mail: false }, "Liguei o automático");
+d = await publicarFila();
+r = await retroagir({ publicacao: d.publicacao.id });
+const naoVolta = await r.json();
+checar(r.status === 409 && naoVolta.erro.includes("créditos já estão na conta") && JSON.parse(guardados.get("admin:nfse:config")).auto === true,
+  "com uma alteração que não volta, nada volta (tudo ou nada), e a resposta diz qual e por quê", naoVolta);
+
+const idHana = await novaConta("hana");
+await contaDo(idHana, "assinatura", { plano: "advogado", assinatura: { id: "preHana", situacao: "authorized", valor: 449 } });
+const planosAntesA = guardados.get("admin:planos");
+await pedir("plano.editar", { id: "advogado", valor: 459, valor_anual: 4090, tokens: 30 }, "Advogado a R$ 459");
+const pA = (await publicarFila()).publicacao;
+await pedir("plano.editar", { id: "advogado", valor: 469, valor_anual: 4190, tokens: 30 }, "Advogado a R$ 469");
+const pB = (await publicarFila()).publicacao;
+checar(mp.some((x) => x.caminho === "/preapproval/preHana" && x.corpo.auto_recurring && x.corpo.auto_recurring.transaction_amount === 469)
+  && !mp.some((x) => x.caminho === "/preapproval/preEva" && x.corpo.auto_recurring && [459, 469].includes(x.corpo.auto_recurring.transaction_amount)),
+  "o valor novo do plano vai para quem o Advogado cobra na renovação (a Eva, que troca para o Escritório, fica de fora)");
+r = await retroagir({ publicacao: pA.id });
+checar(r.status === 409 && (await r.json()).erro.includes("mudaram depois"), "retroagir a mais velha com uma mais nova por cima: recusado");
+antesMP2 = mp.length;
+r = await retroagir({ publicacao: pB.id });
+checar(r.status === 200 && JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "advogado").valor === 459
+  && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preHana" && x.corpo.auto_recurring.transaction_amount === 459), "a mais nova volta primeiro, e quem assina volta a pagar o valor de antes");
+r = await retroagir({ publicacao: pA.id });
+checar(r.status === 200 && guardados.get("admin:planos") === planosAntesA, "depois, a mais velha: os planos ficam como eram antes das duas");
+
+antesMP2 = mp.length;
+r = await retroagir({ publicacao: pubPausa.id });
+checar(r.status === 200 && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preGil" && x.corpo.status === "authorized") && (await contaDo(idGil, "resumo")).assinatura.situacao === "authorized",
+  "a pausa volta: a assinatura é retomada no Mercado Pago", await r.clone().json());
+r = await admin("POST", "/api/admin/retroagir", comoSuporte({ corpo: { publicacao: pubCadastro.id, confirmacao: "retroagir" } }));
+checar(r.status === 403, "nem a publicação do próprio suporte: só o dono retroage");
+r = await retroagir({ publicacao: pubCadastro.id });
+const cadVolta = (await contaDo(idEva, "admin_detalhe")).cadastro;
+checar(r.status === 200 && cadVolta.telefone === "91988887777" && cadVolta.endereco.cidade === "Belém" && !cadVolta.ajustado, "o cadastro editado volta ao que era", cadVolta);
+
+const daqui2 = new Date(relogio + 2 * DIA - 3 * 3600 * 1000).toISOString();
+await pedir("campanha.disparar", { nome: "Volta", publico: "todos", assunto: "x", texto: "y", quando: "agendado", de: daqui2.slice(0, 10), hora: daqui2.slice(11, 16) }, "Agendei Volta");
+const pCamp = (await publicarFila()).publicacao;
+const idVolta = (await (await admin("GET", "/api/admin/campanhas", como())).json()).campanhas.find((x) => x.nome === "Volta").id;
+r = await retroagir({ publicacao: pCamp.id });
+const volta = JSON.parse(guardados.get("admin:campanha:" + idVolta));
+checar(r.status === 200 && volta.situacao === "cancelada" && !JSON.parse(guardados.get("admin:campanhas:fila")).includes(idVolta) && volta.destinatarios.every((x) => !x.email),
+  "a campanha agendada que ainda não saiu é cancelada", volta.situacao);
+
+const pubs0 = JSON.parse(guardados.get("admin:publicacoes"));
+pubs0.push({ quando: "2026-10-01T12:00:00.000Z", commit: "kv-0a1b2", resumo: "Antiga", n: 1, por: "matheus" });
+pubs0.push({ quando: "2026-09-30T12:00:00.000Z", commit: "abc1234", resumo: "Publiquei a peça", n: 2, por: "matheus" });
+guardados.set("admin:publicacoes", JSON.stringify(pubs0));
+r = await retroagir({ commit: "kv-0a1b2" });
+checar(r.status === 409 && (await r.json()).erro.includes("antes do retrato"), "publicação de antes do retrato: não dá para retroagir, e a resposta diz");
+ghReversao.conflito = true;
+r = await retroagir({ commit: "abc1234" });
+checar(r.status === 502 && (await r.json()).erro.includes("mudou depois"), "commit cujo arquivo mudou depois na main: não reverte");
+ghReversao.conflito = false;
+ghReversao.chamadas.length = 0;
+r = await retroagir({ commit: "abc1234" });
+d = await r.json();
+const arvore = ghReversao.chamadas.find((x) => x.metodo === "POST" && x.url === GH + "/git/trees") || {};
+const commitNovo = ghReversao.chamadas.find((x) => x.metodo === "POST" && x.url === GH + "/git/commits") || {};
+const mover = ghReversao.chamadas.find((x) => x.metodo === "PATCH") || {};
+checar(r.status === 200 && d.commit === "reverte" && arvore.corpo.base_tree === "arvore000" && arvore.corpo.tree.find((x) => x.path === "site/materiais/peca.md").sha === null
+  && arvore.corpo.tree.find((x) => x.path === "site/dados/materiais.json").sha === "blobJson1" && commitNovo.corpo.parents[0] === "cabeca000" && commitNovo.corpo.tree === "arvore001"
+  && mover.corpo.sha.startsWith("reverte") && mover.corpo.force === false && arvore.token === "gho_x",
+  "commit no GitHub: um commit de reversão na main (o arquivo criado sai, o mudado volta), com o token de quem está logado", { d, arvore: arvore.corpo, commitNovo: commitNovo.corpo });
+r = await retroagir({ publicacao: "naoexiste" });
+checar(r.status === 404, "publicação que não está no histórico: 404");
+
 // --------------------------------------------------------- privacidade
 const pessoais = [...guardados.entries()].filter(([k]) => !k.startsWith("admin:"));
 checar(!pessoais.length, "o painel so grava chaves admin: no APOIOS", pessoais.map(([k]) => k));
 
 r = await admin("POST", "/api/admin/sair", como());
 checar(r.status === 200 && /Max-Age=0/.test(r.headers.get("set-cookie")) && !guardados.has("admin:sessao:" + sessao), "sair apaga a sessao");
+
+// --------------------------------------------------------- encerrar todas as sessoes
+console.log("encerrar todas as sessões");
+async function entrar(email) {
+  let x = await admin("GET", "/api/admin/github/entrar", { email });
+  const st_ = new URL(x.headers.get("location")).searchParams.get("state");
+  x = await admin("GET", "/api/admin/github/retorno?code=bom&state=" + st_, { email });
+  return (x.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)[1];
+}
+const s1 = await entrar("dono@paulus.ia.br");
+const s2 = await entrar("dono@paulus.ia.br");
+const sOutra = await entrar("suporte@paulus.ia.br");
+// Uma sessao de antes do indice (que o indice nao conhece).
+guardados.set("admin:sessao:" + "a".repeat(48), JSON.stringify({ email: "dono@paulus.ia.br", login: "matheus", token: "gho_x" }));
+r = await admin("POST", "/api/admin/sessoes/encerrar", { cookie: s1 });
+d = await r.json();
+checar(r.status === 200 && d.encerradas === 3 && /Max-Age=0/.test(r.headers.get("set-cookie")) && !guardados.has("admin:sessao:" + s1) && !guardados.has("admin:sessao:" + s2)
+  && !guardados.has("admin:sessao:" + "a".repeat(48)) && guardados.has("admin:sessao:" + sOutra) && !guardados.has("admin:sessoes:dono@paulus.ia.br"),
+  "encerra todas as sessões do painel da pessoa (esta também, e as de antes do índice), e só as dela", d);
+checar(d.access.feito === false && d.access.frase.includes("CF_ACCESS_TOKEN"), "sem a API do Access, diz que as sessões do Access ficam até vencer", d.access);
+checar((await admin("GET", "/api/admin/visao", { cookie: s2 })).status === 401, "a sessão do outro aparelho não vale mais");
+const s3 = await entrar("dono@paulus.ia.br");
+cf.chamadas.length = 0;
+r = await admin("POST", "/api/admin/sessoes/encerrar", { cookie: s3, envUsado: { ...env, CF_ACCESS_TOKEN: "cfat_teste", CF_ACCOUNT_ID: "conta1" } });
+d = await r.json();
+checar(d.ok && d.access.feito && cf.chamadas.some((x) => x.caminho === "/accounts/conta1/access/organizations/revoke_user" && x.corpo.email === "dono@paulus.ia.br"),
+  "com a API do Access, as sessões do Access dela caem também", d);
 
 console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  painel admin: todos os testes passaram");
 process.exit(falhas ? 1 : 0);

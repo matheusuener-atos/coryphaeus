@@ -40,6 +40,10 @@
 // E, uma vez por dia (Cron Trigger), a limpeza: endereco que nunca conectou
 // em 7 dias, ou parado ha mais de 180, e removido.
 //
+// Toda mudanca de endereco (criado, alterado, desativado, reativado,
+// liberado) entra no registro de enderecos, que o painel admin mostra
+// (registrarEndereco, mais abaixo): cada funcao que muda registra sozinha.
+//
 // Tudo atras de TUNEL_ATIVO === "1" e do KV ESCRITORIOS: sem os dois, as
 // rotas respondem 404 e a limpeza nao faz nada. E isso que deixa este codigo
 // ir ao ar no deploy de cada push sem ligar nada.
@@ -99,7 +103,7 @@ export async function atenderTunel(request, env, url, { dentroDoLimite, agora = 
   if (p === "/api/tunel/dono" && m === "POST") return comSegredo(request, env, (e, d) => definirDono(env, e, d, agora));
   if (p === "/api/tunel/cliente-email" && m === "POST") return comSegredo(request, env, (e, d) => emailDoCliente(env, e, d, agora));
   if (p === "/api/tunel/situacao" && m === "GET") return comSegredo(request, env, (e) => situacao(env, e, agora), false);
-  if (p === "/api/tunel/remover" && m === "POST") return comSegredo(request, env, (e) => remover(env, e, "removido pelo escritório"), false);
+  if (p === "/api/tunel/remover" && m === "POST") return comSegredo(request, env, (e) => remover(env, e, "removido pelo escritório", { quando: agora }), false);
   return json({ erro: "rota não existe" }, 404);
 }
 
@@ -645,8 +649,10 @@ async function confirmar(request, env, agora) {
   if (antigo && pedido.retomar && mesmoDono(antigo, pedido.dono)) {
     // O mesmo dono: o tunel, o DNS e o segredo antigos saem (o nome do tunel
     // e o DNS nao podem existir duas vezes); o PAULUS antigo, se ainda
-    // existir, ouve "endereço removido" na proxima conversa.
-    await remover(env, antigo, "retomado pela mesma conta Google em outra instalação");
+    // existir, ouve "endereço removido" na proxima conversa. No registro de
+    // enderecos isto e um evento so, o "criado" de provisionar (com o motivo):
+    // o nome nao fica livre em momento nenhum.
+    await remover(env, antigo, "retomado pela mesma conta Google em outra instalação", { registrar: false });
   } else if (antigo) {
     return pagina("Nome em uso", { rotulo: "Nome em uso", h1: "Esse endereço acabou de ser usado.",
       texto: "<p>Outro escritório ficou com ele há pouco. Volte ao Paulus do escritório e escolha outro nome.</p>",
@@ -706,6 +712,8 @@ export async function provisionar(env, slug, pedido, agora = () => Date.now()) {
     await kvPut(env, "segredo:" + registro.hash_segredo, { slug });
     await kvPut(env, "instalacao:" + pedido.instalacao_id, { slug });
     await anotarDono(env, slug, registro.dono);
+    await registrarEndereco(env, { slug, evento: "criado", quem: (registro.dono && registro.dono.email) || "o escritório", estado: "ativo",
+      motivo: pedido.retomar ? "retomado pela mesma conta Google em outra instalação" : "" }, agora);
     return {
       registro,
       entrega: { endereco: "https://" + host, hostname: host, tunnel_token: token, turnstile_sitekey: env.TURNSTILE_SITEKEY || "",
@@ -798,7 +806,10 @@ async function situacao(env, registro, agora) {
   return json({ hostname: registro.slug + "." + DOMINIO, status: t.status || "desconhecido", conectado, porta: registro.porta });
 }
 
-async function remover(env, registro, motivo) {
+/* Apaga DNS, tunel e registro; o nome fica livre. `quem` vai para o registro
+   de enderecos (sem ele, o dono do endereco ou "o escritório"); `registrar`
+   false so na retomada, que e o "criado" de provisionar. */
+async function remover(env, registro, motivo, { quem, registrar = true, quando } = {}) {
   const a = "/accounts/" + env.CF_ACCOUNT_ID;
   const erros = [];
   const tentar = async (f) => { try { await f(); } catch (e) { erros.push(e.message); } };
@@ -810,6 +821,10 @@ async function remover(env, registro, motivo) {
   await env.ESCRITORIOS.delete("instalacao:" + registro.instalacao_id);
   await esquecerDono(env, registro);
   await kvPut(env, "removido:" + registro.hash_segredo, { slug: registro.slug, motivo, quando: new Date().toISOString() }, LEMBRAR_REMOVIDO_S);
+  if (registrar) {
+    await registrarEndereco(env, { slug: registro.slug, evento: "liberado", estado: "livre", motivo,
+      quem: quem !== undefined ? quem : (registro.dono && registro.dono.email) || "o escritório" }, quando);
+  }
   return json({ ok: true, avisos: erros });
 }
 
@@ -847,7 +862,7 @@ export async function limparEscritorios(env, agora = () => Date.now()) {
       if (!conectadoAgora && !ultima && agora() - criado > NUNCA_CONECTOU_DIAS * DIA_MS) motivo = "nunca conectou em 7 dias";
       else if (!conectadoAgora && ultima && agora() - ultima > PARADO_DIAS * DIA_MS) motivo = "parado há mais de 180 dias";
       if (motivo) {
-        await remover(env, registro, motivo);
+        await remover(env, registro, motivo, { quem: "limpeza automática", quando: agora });
         feito.removidos.push({ slug: registro.slug, motivo });
       } else {
         if (ultima !== antes) await marcarConexao(env, registro, ultima);
@@ -867,6 +882,60 @@ export async function limparEscritorios(env, agora = () => Date.now()) {
 // escritorio). Tudo grava um evento no historico do registro.
 
 export const LIMPEZA = { NUNCA_CONECTOU_DIAS, PARADO_DIAS };
+
+// ------------------------------------------------- o registro de enderecos
+//
+// Cada mudanca de endereco vira um evento: criado (provisionar, tambem na
+// retomada, com o motivo), alterado (alterarEndereco), desativado e reativado
+// (ativarEndereco) e liberado (remover: pelo escritorio, pela limpeza diaria
+// ou pelo painel). Quem muda o endereco registra sozinho - nenhum chamador
+// precisa lembrar. O painel le em GET /api/admin/tuneis (o "registro").
+//
+// No KV ESCRITORIOS, uma chave por evento, "evento:<instante ISO>:<sorteio>"
+// (sem disputa entre dois eventos ao mesmo tempo), com o evento nos metadados:
+// a lista do painel le tudo numa listagem so, sem um get por evento. Vence em
+// 400 dias, como o "removido:". So o endereco, o que aconteceu, quem fez (o
+// e-mail de quem mexeu, "o escritório" ou "limpeza automática") e o motivo.
+const EVENTOS_DE_ENDERECO = { criado: "ativo", alterado: "ativo", reativado: "ativo", desativado: "desativado", liberado: "livre" };
+const REGISTRO_MAX = 2000;
+
+/* Anota um evento no registro de enderecos. {slug, para?, de?}: o endereco
+   depois do evento e o de antes (na troca, slug/de = o antigo e para = o novo).
+   Nunca derruba a mudanca: sem o KV, ou com erro, so nao anota. */
+export async function registrarEndereco(env, { slug, evento, quem, de, para, estado, motivo } = {}, quando = Date.now()) {
+  if (!env || !env.ESCRITORIOS || !(evento in EVENTOS_DE_ENDERECO)) return null;
+  const ms = typeof quando === "function" ? quando() : Number(quando) || Date.now();
+  const corta = (t, n) => String(t || "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, n);
+  const atual = corta(para || slug, 24);
+  const antes = corta(de || (para && slug !== para ? slug : ""), 24);
+  const ev = {
+    quando: new Date(ms).toISOString(), slug: atual, de: antes !== atual ? antes : "", evento, quem: corta(quem, 120),
+    estado: ["ativo", "desativado", "livre"].includes(estado) ? estado : EVENTOS_DE_ENDERECO[evento], motivo: corta(motivo, 160),
+  };
+  try {
+    await env.ESCRITORIOS.put("evento:" + ev.quando + ":" + aleatorio(3), JSON.stringify(ev), { expirationTtl: LEMBRAR_REMOVIDO_S, metadata: ev });
+    return ev;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* O registro de enderecos, do mais novo ao mais velho (os ultimos REGISTRO_MAX). */
+export async function registroDeEnderecos(env, limite = REGISTRO_MAX) {
+  if (!env.ESCRITORIOS) return [];
+  const eventos = [];
+  let cursor;
+  do {
+    const lista = await env.ESCRITORIOS.list({ prefix: "evento:", cursor });
+    for (const k of lista.keys) {
+      // Os metadados trazem o evento; sem eles (um KV que nao os devolve), o valor.
+      const ev = k.metadata && k.metadata.evento ? k.metadata : await kvGet(env, k.name);
+      if (ev && ev.evento && ev.quando) eventos.push(ev);
+    }
+    cursor = lista.list_complete ? undefined : lista.cursor;
+  } while (cursor);
+  return eventos.sort((a, b) => String(b.quando).localeCompare(String(a.quando))).slice(0, limite);
+}
 
 /* Quantos dias faltam para a limpeza diaria apagar o endereco, e por que - ou null. */
 export function previsaoDaLimpeza(registro, conectadoAgora, agora = Date.now()) {
@@ -950,8 +1019,9 @@ export async function anotarHistorico(env, slug, texto, agora = Date.now()) {
 }
 
 /* Troca o endereco: o CNAME passa a ter o nome novo (no mesmo tunel), o ingress
-   do tunel aponta para ele, e o registro e os indices mudam de chave. */
-export async function alterarEndereco(env, slug, novo, agora = Date.now()) {
+   do tunel aponta para ele, e o registro e os indices mudam de chave. `quem`
+   (o e-mail de quem pediu) vai para o registro de enderecos. */
+export async function alterarEndereco(env, slug, novo, agora = Date.now(), quem = "") {
   const r = await kvGet(env, "escritorio:" + slug);
   if (!r) throw new Error("esse endereço não existe mais");
   const motivo = await motivoDoEnderecoNovo(env, novo);
@@ -971,12 +1041,13 @@ export async function alterarEndereco(env, slug, novo, agora = Date.now()) {
     const indice = (await kvGet(env, "dono:" + r.dono.sub)) || { slugs: [] };
     await kvPut(env, "dono:" + r.dono.sub, { slugs: [...(indice.slugs || []).filter((s) => s !== slug), novo] });
   }
+  await registrarEndereco(env, { slug, para: novo, evento: "alterado", quem, estado: r.ativo !== false ? "ativo" : "desativado" }, agora);
   return registro;
 }
 
 /* Desativar tira o CNAME (o endereco deixa de responder) e mantem o tunel;
-   ativar cria o CNAME de novo. */
-export async function ativarEndereco(env, slug, ativo, agora = Date.now()) {
+   ativar cria o CNAME de novo. `quem`, como em alterarEndereco. */
+export async function ativarEndereco(env, slug, ativo, agora = Date.now(), quem = "") {
   const r = await kvGet(env, "escritorio:" + slug);
   if (!r) throw new Error("esse endereço não existe mais");
   if (Boolean(ativo) === (r.ativo !== false)) return r;
@@ -993,15 +1064,17 @@ export async function ativarEndereco(env, slug, ativo, agora = Date.now()) {
   const registro = { ...r, ativo: Boolean(ativo), dns_id: dnsId,
     historico: comEvento(r, ativo ? "Acesso reativado · CNAME de volta" : "Acesso desativado · CNAME tirado, o túnel fica", agora) };
   await kvPut(env, "escritorio:" + slug, registro);
+  await registrarEndereco(env, { slug, evento: ativo ? "reativado" : "desativado", quem }, agora);
   return registro;
 }
 
-/* Liberar: o mesmo remover do escritorio - conexoes, tunel, CNAME e registro. */
-export async function liberarEndereco(env, slug, motivo = "liberado pelo painel") {
+/* Liberar: o mesmo remover do escritorio - conexoes, tunel, CNAME e registro.
+   `quem`, como em alterarEndereco. */
+export async function liberarEndereco(env, slug, motivo = "liberado pelo painel", quem = "") {
   const r = await kvGet(env, "escritorio:" + slug);
   if (!r) throw new Error("esse endereço não existe mais");
   if (r.ativo === false) r.dns_id = r.dns_id || "";
-  const resposta = await remover(env, { ...r, dns_id: r.dns_id || "sem-dns" }, motivo);
+  const resposta = await remover(env, { ...r, dns_id: r.dns_id || "sem-dns" }, motivo, { quem });
   return resposta.json();
 }
 

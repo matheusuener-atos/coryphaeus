@@ -18,6 +18,10 @@ contrato entre a pagina e o Worker; quem mudar um lado muda o outro e este texto
 3. O papel (`dono` | `financeiro` | `suporte`) vem de `ADMIN_EQUIPE` (JSON
    `[{email, nome, papel}]`) ou, depois de publicado, de `admin:equipe` no KV.
 
+Fora do Access ficam so o rastreio dos e-mails (`/api/e/*`) e a pagina do convite
+da equipe (`/api/equipe/convite`, abaixo): quem foi convidado ainda nao esta na
+politica do Access.
+
 Toda resposta e JSON com `cache-control: no-store`. Erro: `{erro: "frase"}`
 com o status. Sem a sessao do GitHub: 401 `{erro, passo: "github"}`; sem o
 Access: 401 `{erro, passo: "access"}`; papel sem permissao: 403
@@ -27,12 +31,20 @@ Access: 401 `{erro, passo: "access"}`; papel sem permissao: 403
 
 - `GET /api/admin/sessao` - nunca 401: `{access: {ok, email}, github: {ok, login},
   papel, nome, worker: "0.x", pronto: bool, config: {access, github, email, nfse,
-  tuneis, mercado_pago, nuvem}}` (cada `config.x` = `{ligado: bool, falta: "frase"}`).
+  tuneis, mercado_pago, nuvem, equipe}}` (cada `config.x` = `{ligado: bool, falta: "frase"}`;
+  `equipe` e a liberacao automatica do convidado no Access, abaixo).
 - `GET /api/admin/github/entrar` - 302 para o GitHub (state no KV, 10 min).
 - `GET /api/admin/github/retorno?code&state` - confere o push e grava a sessao;
-  302 para `/admin/` (ou `/admin/?erro=frase`).
+  302 para `/admin/` (ou `/admin/?erro=frase`). A sessao entra tambem no indice
+  `admin:sessoes:<email>` (24 h), por onde "Encerrar todas as sessoes" acha as dos outros aparelhos.
 - `POST /api/admin/sair` - apaga a sessao; a pagina vai depois a
   `/cdn-cgi/access/logout`.
+- `POST /api/admin/sessoes/encerrar` - apaga todas as sessoes do painel da pessoa logada
+  (as do indice e, para as de antes dele, uma volta em `admin:sessao:*`), esta tambem ->
+  `{ok, encerradas, access: {feito, frase}, logout}` e o cookie apagado. Com `CF_ACCESS_TOKEN`
+  (permissao "Access: Organizations, Identity Providers, and Groups" Edit) e `CF_ACCOUNT_ID`,
+  derruba tambem as sessoes do Access dela (`POST /accounts/{conta}/access/organizations/revoke_user
+  {email}`); sem eles, `access.feito: false` e a frase diz que as do Access ficam ate vencer.
 
 ## Leitura
 
@@ -49,21 +61,54 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   situacao: "ativa"|"vencida"|"cortesia"|"pendente"|"cancelada", restantes, usados, extra,
   ultimo_uso, google: {escopos: [], conferido} | null}`
 - `GET /api/admin/contas/:id` -> `Conta + {criada, ciclo: {inicio, fim, tokens, usados} | null,
-  cadastro: {documento, telefone, oab, termos, quando} | null, consentimento: {versao, quem, quando} | null,
+  cadastro: {documento, telefone, oab, termos, quando, cep, logradouro, numero, complemento, bairro, cidade, uf,
+  cmun, ajustado: {quando, por, campos} | null} | null, consentimento: {versao, quem, quando} | null,
   assinatura: {id, situacao, valor, desde} | null, plano_proximo, instalacoes: [{instalacao, hash8, criado}],
-  pagamentos: [{tipo: "assinatura"|"recarga", valor, quando, ref}], recargas, google_pendente | null}`
+  pagamentos: [{tipo: "assinatura"|"anual"|"avulso"|"recarga", valor, quando, ref, reembolso?, nfse: Nfse | null}], recargas,
+  google_pendente | null}`. O endereco do cadastro vem achatado (o medidor guarda em `cadastro.endereco`).
+  `Nfse = {id, numero, estado: "emitida"|"cancelada"|"substituida", ambiente, quando, pdf, xml}`: a nota do pagamento no
+  emissor da nuvem (a emitida - a substituta, quando houve substituicao; sem ela, a ultima cancelada ou substituida);
+  `pdf` e `xml` sao as rotas do painel, atras do Access, de "Notas fiscais" abaixo
+  (`https://paulus.ia.br/api/admin/nfse/emissor/notas/:id/pdf?baixar=1` e `.../xml`; todos os papeis baixam).
+  Sem o emissor ligado, `nfse` e `null` em todos. O extrato da aba Pagamentos (JSON e PDF, montados na pagina) leva o
+  numero, o estado e esses dois links.
 - `GET /api/admin/tuneis` -> `{tuneis: [{slug, nome, responsavel, estado: "healthy"|"degraded"|"inactive"|"down"|"desativado",
   ultima_conexao, criado_em, tunnel_id, porta, ativo, limpeza: {dias, motivo} | null,
-  historico: [{quando, texto}]}], livres: [slug], cf: {ligado, falta}}`
+  historico: [{quando, texto}]}], livres: [slug], cf: {ligado, falta}, registro: [Evento]}` onde
+  `Evento = {quando, slug, de, evento: "criado"|"alterado"|"desativado"|"reativado"|"liberado", quem, estado: "ativo"|"desativado"|"livre", motivo}`,
+  do mais novo ao mais velho (ate 2.000). `slug` e o endereco depois do evento; `de`, o de antes (so na troca);
+  `quem`, o e-mail de quem mexeu (o titular, quem esta no painel), `"o escritório"` (sem dono) ou
+  `"limpeza automática"`; `motivo`, o da liberacao ou da retomada. O registro (o de enderecos, nao o do escritorio)
+  e do `worker/tunel.js`: cada funcao que muda endereco registra sozinha (`registrarEndereco`: provisionar, tambem
+  na retomada, que e um "criado" com o motivo; `remover`, pelo escritorio, pela limpeza diaria e pelo painel;
+  `alterarEndereco(env, slug, novo, agora, quem)`; `ativarEndereco(env, slug, ativo, agora, quem)`;
+  `liberarEndereco(env, slug, motivo, quem)`). No KV `ESCRITORIOS`, uma chave por evento,
+  `evento:<instante ISO>:<sorteio>`, com o evento nos metadados (a lista le sem um get por evento), 400 dias.
 - `GET /api/admin/tuneis/disponivel?nome=` -> `{ok, motivo}` (as regras de `escritorio/index.html`)
 - `GET /api/admin/renovacoes` -> `{abertas: [Renovacao], tratadas: [Renovacao], config: {email, resumo, whats, tol}}`
-  onde `Renovacao = {id (da conta), nome, email, plano: {nome, valor}, fim, dias_vencido, tolerancia_dias (o total: 5 com a assinatura autorizada, 0 sem), motivo, lembrete_em}`
-- `GET /api/admin/campanhas` -> `{campanhas: [{id, nome, situacao: "enviada"|"agendada"|"na fila"|"enviando"|"rascunho",
+  onde `Renovacao = {id (da conta), nome, email, plano: {id, nome, valor}, fim, dias_vencido, tolerancia_dias (o total: 5 com a
+  assinatura autorizada, 0 sem), motivo, cancelamento: {quando, motivo: "preco"|"uso"|"falta"|"outro", texto} | null,
+  lembrete_em, mensagem_em, oferta: {tipo, tokens?, valor?, plano?, ate, quando, por, na_assinatura} | null}`. Quem cancelou
+  pela Minha conta (`admin_detalhe.cancelamento`, de `cancelarPelaConta` no `worker/ia.js`) entra quando o ciclo pago acaba,
+  com o motivo ("cancelou pela Minha conta: está caro para o escritório (“texto”)"); a cancelada sem motivo (no Mercado
+  Pago ou pelo painel) continua fora.
+- `GET /api/admin/campanhas` -> `{campanhas: [{id, nome, situacao: "enviada"|"agendada"|"na fila"|"enviando"|"cancelada"|"rascunho",
   publico: {id, label}, enviados, abertos, cliques, devolvidos, quando}], publicos: [{id, label, n, gmail}],
-  stats: {enviados, abertura, cliques, devolvidos}, envio: {ligado, falta, de: "naoresponda@paulus.ia.br", ritmo: 50}}`
-- `GET /api/admin/tokens?visao=geral|escritorio|conta&periodo=mes|30|ano` ->
-  `{kpis: {entrada, saida, custo_usd, receita, contas}, linhas: [{nome, entrada, saida, custo_usd, receita}],
-  precos: {entrada, saida, cambio}}` (custo em US$; a pagina converte pelo cambio)
+  stats: {enviados, abertura, cliques, devolvidos}, envio: {ligado, falta, de: "naoresponda@paulus.ia.br", ritmo: 50}}`.
+  Na agendada, `quando` e a hora marcada (ISO, UTC).
+- `GET /api/admin/tokens?visao=geral|modelo|escritorio|conta&periodo=mes|30|90|ano|custom[&de=AAAA-MM-DD&ate=AAAA-MM-DD]` ->
+  `{kpis: {entrada, saida, custo_usd, receita, contas}, linhas: [Linha], precos: {entrada, saida, cambio},
+  periodo: {nome, de, ate}, incompleto, desde, aviso}` (custo em US$; a pagina converte pelo cambio). O periodo e
+  `[de, ate]` em dias de Brasilia: `mes` (do dia 1 a hoje), `30` e `90` (os ultimos dias, hoje incluido), `ano` e
+  `custom` (`de` e `ate` obrigatorios; ao contrario ou dia que nao existe: 400). O mes que cabe inteiro no periodo
+  vem do total do mes do medidor (`uso_mes`); o pedaco de mes, do uso por dia (`uso`; 400 dias desde 07/10/2026,
+  antes so os 62 ultimos dias com uso). Quando falta dia que o medidor ja nao guarda, `incompleto: true`, `desde`
+  (o primeiro dia guardado) e `aviso` dizem que o comeco do periodo pode sair menor. A receita e a dos pagamentos
+  com data no periodo. `Linha = {nome, entrada, saida, custo_usd, receita}`; na visao `modelo`, tambem `{modelo (o id),
+  fabricante, planos: ["Escritório Plus (Ministro)"...], sub: "fabricante · plano ...", preco: [US$ entrada, US$ saida]
+  por milhao}`, e a receita de cada conta paga vai para os modelos que ela usou, na proporcao do uso (sem uso no
+  periodo, para o modelo principal do plano dela); o uso de antes do registro por modelo e uma linha propria, no
+  preco do `IA_PRECOS`.
 - `GET /api/admin/planos` -> `{planos: [{id, nome, valor, valor_anual, tokens, pessoas, modelos, recarga, recursos, modelo_nome, custo_modelo, assinantes}], padrao: "escritorio",
   recarga: {valor, tokens}, precos: {entrada, saida, cambio}, json: "..."}`
 - `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, situacao: Situacao | null,
@@ -71,11 +116,15 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   motivo, erro}], cloudflare: Cloudflare, pode: {emitir: bool}, erro}`. `pagamentos` sao so os sem nota
   (nenhuma nota do emissor com aquele pagamento, fora as descartadas); `motivo` diz por que a emissao
   automatica nao saiu. `Situacao`, `Nota` e `Cloudflare` estao em "Notas fiscais", abaixo.
-- `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo}], matriz: [{acao, dono, financeiro, suporte}]}`
+- `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo, convite?: {criado, vence, por, vencido}}],
+  matriz: [{acao, dono, financeiro, suporte}], liberacao: {ligado, falta}}`. Os convites pendentes vem como membros
+  com `convite` (a tela mostra reenviar e cancelar); `liberacao` e a liberacao automatica no Access (abaixo).
 - `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], planos: [...]}`
   (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
-- `GET /api/admin/alteracoes` -> `{pendentes: [Alteracao], publicacoes: [{quando, commit, resumo, n, por}]}`
-  onde `Alteracao = {id, quando, tela, tipo, alvo, dados, texto}`
+- `GET /api/admin/alteracoes` -> `{pendentes: [Alteracao], publicacoes: [Publicacao]}`
+  onde `Alteracao = {id, quando, tela, tipo, alvo, dados, texto}` e
+  `Publicacao = {id, quando, commit, resumo, n, por, revertida: {quando, por, commit} | null, retroagivel}`
+  (`commit` e o sha curto, quando virou commit no GitHub, ou `"kv-xxxxx"`).
 
 ## Na hora (sem passar pela fila)
 
@@ -83,9 +132,15 @@ Comunicacao e marcacao, que nao mudam o que esta no ar:
 
 - `POST /api/admin/tuneis/:slug/avisar` -> e-mail ao responsavel com o prazo da limpeza
 - `POST /api/admin/renovacoes/:id/lembrete` -> e-mail "seu plano nao renovou"
+- `POST /api/admin/renovacoes/:id/mensagem` `{texto}` (ate 4.000 caracteres) -> a mensagem do proprio punho por
+  e-mail para a conta, de `"<Nome> (PAVLVS) <naoresponda@paulus.ia.br>"`, assinada com o nome de quem escreveu
+  (resposta: `contato@paulus.ia.br`) -> `{abertas, tratadas, config}`. A marca da renovacao anota `mensagem_em` e
+  `mensagens: [{quando, por}]` (o texto nao fica guardado). Conta sem ciclo vencido: 404; texto vazio: 400.
 - `POST /api/admin/renovacoes/:id/tratar` / `.../reabrir`
 - `POST /api/admin/renovacoes/config` `{email, resumo, whats, tol}`
 - `POST /api/admin/campanhas/teste` `{campanha}` -> um e-mail de teste para quem esta na sessao
+- `POST /api/admin/equipe/convite/:email/reenviar` (so o dono) -> um link novo (o anterior para de valer), mais
+  7 dias, e o e-mail de novo -> `GET /api/admin/equipe`. Sem convite para o e-mail: 404.
 - Sem o provedor de e-mail (`RESEND_API_KEY`), essas rotas respondem 503
   `{erro: "o envio de e-mail ainda nao esta ligado: falta RESEND_API_KEY"}`.
 
@@ -95,10 +150,12 @@ Tudo o que muda o que esta no ar entra na fila da sessao e so acontece em "Commi
 
 - `POST /api/admin/alteracoes` `{tela, tipo, alvo, dados, texto}` -> `{pendentes}`.
   `texto` e a frase no passado que a lista mostra ("Apaguei moura-associados").
+  O que da para conferir antes (formato, se a conta tem assinatura, se o e-mail esta ligado) volta 400 com o porque.
 - `DELETE /api/admin/alteracoes/:id` -> `{pendentes}`
 - `POST /api/admin/publicar` `{confirmacao: "comitar e pushar"}` ->
-  `{ok, resultados: [{id, ok, erro}], publicacao: {quando, commit, resumo, n, por}}`.
-  Aplica em ordem; uma que falha nao desfaz as outras, e volta com o motivo.
+  `{ok, resultados: [{id, ok, erro, aviso?}], publicacao: Publicacao}`.
+  Aplica em ordem; uma que falha nao desfaz as outras, e volta com o motivo. `aviso`: feita, mas com uma parte
+  a mao (ex.: tirada da equipe, mas nao do Access).
 
 Tipos (`tipo` -> `dados`), e o papel que pode:
 
@@ -107,18 +164,101 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `conta.creditar` | `{id, tokens}` | dono, financeiro |
 | `conta.instalacao.apagar` | `{id, hash8}` | dono, suporte |
 | `conta.cancelar` | `{id}` | dono, financeiro |
+| `conta.plano` | `{id, plano}` | dono, financeiro |
+| `conta.pausar` | `{id, retomar?}` | dono, financeiro |
+| `conta.cadastro` | `{id, escritorio?, documento?, telefone?, oab?, cep?, logradouro?, numero?, complemento?, bairro?, cidade?, uf?}` | todos |
 | `google.servicos` | `{id, ligados: [escopo]}` | dono, suporte |
 | `google.desvincular` | `{id}` | dono, suporte |
 | `tunel.apagar` | `{slug}` | dono, suporte |
 | `tunel.endereco` | `{slug, novo}` | dono, suporte |
 | `tunel.ativo` | `{slug, ativo}` | dono, suporte |
-| `campanha.disparar` | `{nome, publico, assunto, pre, titulo, texto, botao, link, quando: "agora"|"amanha"|"segunda"}` | todos |
+| `campanha.disparar` | `{nome, publico, contas?, assunto, pre, titulo, texto, botao, link, quando, de?, hora?}` | todos |
+| `renov.oferta` | `{id, tipo: "creditos", tokens}` ou `{id, tipo: "preco", valor, plano}` | dono, financeiro |
 | `plano.editar` | `{id, valor, valor_anual, tokens}` | dono, financeiro |
 | `plano.criar` | `{id, nome, valor, valor_anual, tokens}` (modelo e recursos: os do Escritorio) | dono, financeiro |
 | `nfse.config` | `{auto, email, mail}` | dono, financeiro |
 | `equipe.papel` | `{email, papel}` | dono |
+| `equipe.membro` | `{acao: "criar", nome, email, papel}`, `{acao: "editar", de, nome, email, papel}`, `{acao: "excluir", email}` ou `{acao: "cancelar_convite", email}` | dono |
 
 Ver contas, tokens e receita, mandar e-mails e lembretes: todos os papeis.
+
+O que cada tipo novo faz na publicacao:
+
+- `conta.plano` - vale na proxima cobranca (a tela promete isso): `PUT /preapproval/{id}` com o valor do plano novo
+  (`reason: "PAULUS - plano <nome>"`, o mesmo das assinaturas do `worker/ia.js`) e a conta marca `plano_proximo`; o
+  ciclo pago fica no plano em que foi pago. O plano de agora de novo desfaz a troca marcada. Recusado (400, na fila):
+  sem assinatura mensal ativa, cortesia, pago de uma vez (anual ou mes no Pix: a troca e na renovacao) e com uma
+  cobranca de valor ajustado em curso (oferta ou a diferenca de uma troca). A troca para um mais caro valendo agora,
+  com a diferenca, e a da Minha conta (`trocarPlanoAgora`), nao a do painel.
+- `conta.cadastro` - so os campos que mudaram; o resto vem do cadastro de agora, e o conjunto e conferido como o do
+  site (`conferirCadastro`): CPF/CNPJ com digito, telefone com DDD, OAB/RG/CNH, endereco completo (obrigatorio se a
+  conta ja tinha endereco ou se a edicao mexe nele). Cidade ou UF novas trazem o codigo IBGE pela tabela da NFS-e
+  (nome exato na UF; sem bater, fica vazio e o painel completa em Notas fiscais > Clientes). O aceite dos termos
+  (`termos`, `quando`) continua o que a pessoa deu; a edicao fica em `cadastro.ajustado: {quando, por, campos}`.
+- `conta.pausar` - `PUT /preapproval/{id} {status: "paused"}` (com `retomar: true`, `"authorized"`), e a conta anota a
+  situacao. Recusado: o pago de uma vez (anual ou mes no Pix) e o Pix mensal ("nao ha cobranca automatica no Mercado
+  Pago para pausar"), sem assinatura, ou na situacao errada (so a ativa pausa, so a pausada retoma). Retomar depois
+  do fim do ciclo: o aviso do Mercado Pago (`avisoDaIA`) abre o ciclo como numa assinatura nova.
+- `campanha.disparar` - `quando`: `"agora"`, `"amanha"` e `"segunda"` (9 h de Brasilia) ou `"agendado"` com `de`
+  (`AAAA-MM-DD`) e `hora` (`HH:MM`), no horario de Brasilia: fica guardada (`agendada`, com `envio_em`) e o Cron de cada
+  minuto (`enviarCampanhas`) manda na hora marcada. Na fila, sem dia ou hora, ou com a hora ja passada (ou a mais de
+  um ano): 400; publicada depois da hora marcada: falha ("passou antes de publicar: agende de novo"), para nao sair
+  atrasada sem ninguem ver. `publico: "escolhidas"` com `contas: [id]` (ate 2.000) manda so para elas.
+- `renov.oferta` - a oferta para quem nao renovou, sem cupom (o cupom saiu do sistema em 04/10/2026), pelo
+  `ofertaDeVolta(env, mp, conta, oferta, por)` do `worker/ia.js`: os creditos (de 0,1 M a 500 M) entram com o
+  proximo pagamento confirmado; o preco especial (entre zero e o valor do plano) vale no proximo pagamento do plano -
+  na assinatura mensal que ainda existe, no mesmo plano e sem outro ajuste (`na_assinatura: true`; o Mercado Pago
+  passa a cobrar o valor e volta ao cheio depois de pago), ou na assinatura nova pelo site. Vale 60 dias. A pessoa
+  recebe um e-mail contando, e a marca da renovacao guarda a oferta (`Renovacao.oferta`). Na fila: a conta precisa
+  estar em Nao renovacoes e o e-mail ligado (`RESEND_API_KEY`). Se a oferta ficou na conta mas o e-mail nao saiu, a
+  publicacao diz no `aviso`.
+- `equipe.membro` - `criar`: o convite (abaixo), so com nome, e-mail e papel (nem documento nem endereco); precisa do
+  e-mail ligado. `editar` com o mesmo e-mail muda nome e papel; com outro, o novo recebe um convite e o antigo sai da
+  equipe (e do Access). `excluir`: sai da equipe, as sessoes do painel dela caem e, com a API do Access, sai da
+  politica e as sessoes do Access dela caem; sem a API, o `aviso` diz que o Access e a mao. `cancelar_convite`: o
+  link para de valer. A equipe nunca fica sem dono.
+- `plano.editar` - o valor novo vai para as assinaturas mensais que o plano cobra na proxima cobranca (o plano marcado
+  para a renovacao, se houver, senao o de agora); o pago de uma vez nao tem preapproval, e quem esta com uma cobranca
+  de valor ajustado fica com o ajuste (o `aviso` diz quem).
+
+## O convite da equipe (fora do Access)
+
+- O e-mail do convite (Resend) leva `https://paulus.ia.br/api/equipe/convite?t=<64 hex>`; vale 7 dias. O KV guarda
+  so o resumo SHA-256 do link, em `admin:convites` (`[{email, nome, papel, h, criado, vence, por, por_nome}]`, ate 50).
+- `GET /api/equipe/convite?t=` -> a pagina do convite (HTML, sem script; CSP com `form-action 'self'`): quem
+  convidou, nome, e-mail, papel e ate quando vale, e o botao Aceitar. Abrir o link nao aceita (os leitores de link
+  dos e-mails nao aceitam pela pessoa). Link que nao existe, cancelado, trocado ou ja usado: 410; vencido: 410
+  "venceu".
+- `POST /api/equipe/convite` (formulario `t`) -> aceita: a pessoa entra na equipe (`admin:equipe`) com o papel do
+  convite e, com a API do Access ligada, o e-mail entra na politica da aplicacao do painel
+  (`GET` e `PUT /accounts/{CF_ACCOUNT_ID}/access/apps/{ACCESS_APP_ID}/policies/{ACCESS_POLICY_ID}`, a politica inteira,
+  com `{email: {email}}` a mais no `include`; o resto - nome, decisao, exclude, require, duracao - fica como esta). O
+  convite sai. Se o Access recusar, 502 "Quase lá": ela ja esta na equipe e o link continua valendo para tentar de novo.
+  Sem a API (`CF_ACCESS_TOKEN`, permissao "Access: Apps and Policies" Edit; `ACCESS_APP_ID` e `ACCESS_POLICY_ID`), a
+  pagina, o e-mail e a tela Equipe (`liberacao`, `config.equipe`) dizem que o e-mail vai a politica a mao, pelo dono.
+- Limite por endereco de internet (`LIMITE`), como as outras rotas publicas.
+
+## Retroagir
+
+- `POST /api/admin/retroagir` `{publicacao (o id) | commit, confirmacao: "retroagir"}` (so o dono) ->
+  `{ok, commit, publicacao: Publicacao, avisos: [frase]}`. A tela manda o `commit`.
+- Cada publicacao guarda, desde 07/10/2026, o retrato do que mudou (`admin:retrato:<id>`, 30 dias). Volta: o que so
+  mudou o KV do painel (`plano.criar`, `plano.editar`, `nfse.config`, `equipe.papel`), com o valor de antes e o de
+  depois - no `plano.editar`, quem assina volta a pagar o valor de antes no Mercado Pago -; `conta.cadastro` (o
+  cadastro de antes); `campanha.disparar` (o que ainda nao saiu e cancelado; os e-mails que sairam continuam, e o
+  aviso diz); `conta.pausar` (o Mercado Pago volta a situacao de antes). O resto mudou fora do painel (creditos,
+  reembolso, cancelamento no Mercado Pago, Google, tuneis, convites, a troca de plano, a oferta) e e desfeito pela
+  propria tela.
+- Tudo ou nada: se um item nao volta, ou o que ele mudou mudou de novo depois (outra publicacao por cima, a equipe
+  com um convite aceito, um plano criado que ja tem conta), 409 com cada um e o porque, e nada muda. Retroaja a mais
+  nova primeiro. Os itens desfeitos ficam marcados: se um parar no meio (o Mercado Pago recusou), tentar de novo
+  termina sem desfazer duas vezes.
+- As publicacoes que viraram commit no GitHub (as dos materiais, antes de 07/10) voltam num commit de reversao na
+  main, pela API do GitHub com o token de quem esta logado: cada arquivo dos commits volta ao que era antes deles (o
+  que eles criaram sai), numa arvore nova sobre a ponta da main (`git/trees`, `git/commits`, `PATCH git/refs/heads/main`
+  sem forcar). Se um desses arquivos mudou depois na main, nao reverte (502: "retroaja pelo git").
+- Sem retrato (as publicacoes de antes de 07/10/2026 que so mudaram o KV) ou com o retrato vencido: 409 dizendo que
+  nao da para retroagir aquela. Ja retroagida: 409.
 
 ## Notas fiscais (emissor da nuvem)
 
