@@ -378,7 +378,7 @@
 
   /* ---------- 3. Permissoes do Google ---------- */
   TELAS_RENDER.google = function () {
-    var h = cab("Permissões do Google", "Quem ligou o Gmail, a Agenda ou o Drive ao Paulus. <b>Revogar</b> tira serviços; <b>Desvincular</b> solta a conta Google inteira.");
+    var h = cab("Permissões do Google", "Quem ligou o Gmail, a Agenda ou o Drive ao Paulus. <b>Revogar</b> manda o Paulus do escritório parar de usar serviços (com todos desligados, ele revoga a concessão no Google); <b>Desvincular</b> tira a conta da nuvem do Paulus.");
     var est = estadoLeitura(["contas"], "google"); if (est) return h + est;
     h += erroRecente("contas", "google");
     var todas = dadosDe("contas").contas || [];
@@ -1214,9 +1214,9 @@
     P.google = secao("Google e termos", [
       fato("Google", det.google ? "ligado" : "desligado"),
       det.google ? largo("Permissões", '<span class="res-perms">' + [["mail.google.com", "gmail", "Gmail"], ["calendar.events", "agenda", "Agenda e Meet"], ["drive.file", "drive", "Drive · enviar"], ["drive.readonly", "drive", "Drive · ler"]].map(function (s) {
-        var on = esc2.indexOf(s[0]) >= 0; return '<span class="res-perm' + (on ? "" : " off") + '" title="' + esc(s[0]) + (on ? "" : " · não autorizado") + '">' + SIMB_G[s[1]] + esc(s[2]) + "</span>";
+        var on = esc2.indexOf(s[0]) >= 0; return '<span class="res-perm' + (on ? "" : " off") + '" title="' + esc(s[0]) + (on ? "" : " · o Paulus não usa") + '">' + SIMB_G[s[1]] + esc(s[2]) + "</span>";
       }).join("") + "</span>") : "",
-      det.google_pendente ? fato("Pendente", "revogação no Paulus") : "",
+      det.google_pendente ? fato("Pendente", "o Paulus do escritório ainda não cumpriu") : "",
       fato("Termos", con ? "versão " + con.versao : "—"),
       con && con.quem ? fato("Aceito por", con.quem) : "",
       con && con.quando ? fato("Aceito em", ddmmaaaa(con.quando)) : ""
@@ -1364,10 +1364,10 @@
         linhaG("calendar.events", "meet", "Meet", "criar reuniões nos eventos", true) +
         linhaG("drive.file", "drive", "Drive", "só os arquivos que o Paulus envia") +
         linhaG("drive.readonly", "drive", "Drive", "ler as pastas escolhidas") +
-        '</div><p class="nota-campo">Desligar um serviço revoga só esse escopo no Google. Com todos desligados, o token inteiro é revogado e o Paulus da pessoa pede o consentimento de novo.</p>' +
+        '</div><p class="nota-campo">Desligar um serviço faz o Paulus do escritório parar de usá-lo (quando ele estiver aberto e falar com paulus.ia.br); o Google não revoga um escopo sozinho, e a permissão continua concedida lá. Com todos desligados, o Paulus revoga a concessão inteira no Google e passa a pedir o consentimento de novo.</p>' +
         (pode("google.desvincular") ? (function () {
           var fila = naFila("google.desvincular", M.id);
-          return '<div class="painel g-desvincular"><div class="painel-cab secao-cab"><span class="rotulo">Desvincular conta Google</span></div><div class="linha"><span class="txt2"><b>Tira a conta Google desta conta</b><small>Revoga todas as permissões de uma vez. Para voltar, a pessoa entra de novo com o Google no Paulus.</small></span>' +
+          return '<div class="painel g-desvincular"><div class="painel-cab secao-cab"><span class="rotulo">Desvincular conta Google</span></div><div class="linha"><span class="txt2"><b>Tira a conta Google da nuvem do Paulus</b><small>As instalações param de usar a nuvem e esta conta Google não ativa de novo (só falando com contato@paulus.ia.br). Não revoga nada no Google: para isso, desligue antes todos os serviços acima e espere o Paulus do escritório cumprir (a ordem sai de Pendente) - depois de desvincular, ele não recebe mais ordens.</small></span>' +
             '<button type="button" class="mini vermelho" data-a="contaDesvincular" data-id="' + esc(M.id) + '"' + attrDis(fila, "já está na fila de alterações") + ">" + (fila ? "Na fila" : "Desvincular") + "</button></div></div>";
         })() : "") + "</div>" +
         modalPe('<button type="button" class="btn-acao" data-a="googleAplicar" id="modal-ok">Aplicar</button>');

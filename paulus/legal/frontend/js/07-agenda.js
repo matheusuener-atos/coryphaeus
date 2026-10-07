@@ -977,6 +977,13 @@ function opcaoDoMeet(v) {
   const d = gg.dados;
   if (!d) return gg.tentou ? "" : '<div class="dialogo-campo ag-meet"><span class="dialogo-dica">lendo a conta Google…</span></div>';
   if (!d.configurado) return "";
+  // A Agenda desligada pela Minha conta (src/google_nuvem.py): conectar aqui nao liga - diz quem desligou e onde ligar.
+  const desligada = d.servicos && d.servicos.agenda && d.servicos.agenda.desligado;
+  if (desligada) {
+    return '<div class="dialogo-campo ag-meet"><div class="ag-meet-linha">' + marca("google-meet", 18) +
+      '<span class="duas-linhas"><b>Sala no Google Meet</b><small>' + esc(maiuscula(desligada)) + ".</small></span></div>" +
+      '<span class="dialogo-dica">Sala de outra plataforma: depois de marcar, use “Convite com link” no compromisso.</span></div>';
+  }
   if (googleConectado("agenda")) {
     if (v.criar_meet === undefined) v.criar_meet = !v.id && Boolean(d.agenda_sincronizar);
     const sub = d.agenda_sincronizar

@@ -351,7 +351,19 @@ class Contas:
         self.credenciais_oauth = lambda provedor: {}
         # Endpoints trocados nos testes, para nunca bater no servidor real.
         self.endpoints_oauth: dict[str, dict] = {}
+        # (conta, ou None quando muda mais de uma) -> nada: o login de uma conta
+        # mudou - entrou, saiu, venceu ou foi apagado. O api.py liga, para a
+        # nuvem saber que servicos do Google o escritorio usa (src/google_nuvem.py).
+        self.ao_mudar = None
         self._carregar()
+
+    def _mudou(self, conta: Conta | None) -> None:
+        if self.ao_mudar is None:
+            return
+        try:
+            self.ao_mudar(conta)
+        except Exception:  # noqa: BLE001 - avisar e de quem ouve; o login segue
+            pass
 
     def _carregar(self) -> None:
         if not self.caminho.exists():
@@ -421,6 +433,7 @@ class Contas:
             if campo in dados:
                 setattr(conta, campo, bool(dados[campo]))
 
+        saiu_do_login = False
         if senha:
             if conta.por_login:
                 # Quem digita uma senha de app numa conta que entrava pelo
@@ -430,6 +443,7 @@ class Contas:
                 conta.precisa_entrar = False
                 self._tokens.pop(conta.id, None)
                 self._refresh_vivos.pop(conta.id, None)
+                saiu_do_login = True
             if conta.guardar_senha:
                 conta.senha_protegida = segredos.proteger(senha)
             conta.ultimo_erro = ""
@@ -438,6 +452,8 @@ class Contas:
             if novo:
                 self.itens.append(conta)
         self.salvar()
+        if saiu_do_login:
+            self._mudou(conta)
         return conta
 
     def lembrar(self, id_: str, senha: str) -> None:
@@ -508,6 +524,7 @@ class Contas:
             if novo:
                 self.itens.append(conta)
         self.salvar()
+        self._mudou(conta)
         return conta
 
     def _guardar_refresh(self, conta: Conta, refresh: str) -> None:
@@ -528,6 +545,34 @@ class Contas:
         if conta.por_login:
             return bool(self._refresh(conta)) and not conta.precisa_entrar
         return bool(self.senha(conta))
+
+    def token_para_revogar(self, conta: Conta) -> str:
+        """
+        O que se manda ao provedor para revogar a autorizacao da conta: o
+        refresh token (desfaz a concessao inteira) ou, sem ele, o access token
+        que estiver na memoria. Vazio: nao ha nada guardado para revogar.
+        """
+        if not conta.por_login:
+            return ""
+        return self._refresh(conta) or self._tokens.get(conta.id, ("", 0.0))[0]
+
+    def esquecer_login(self, conta: Conta, motivo: str = "") -> None:
+        """
+        Apaga a autorizacao guardada de UMA conta de login: o refresh token, o
+        access token da memoria e os escopos que ela tinha concedido. A conta
+        continua cadastrada - endereco, assinatura, permissoes, a posicao na
+        lista - e o que ja foi baixado dela fica onde esta; ela so passa a
+        pedir para entrar de novo. `motivo` e a frase que a tela mostra.
+        Quem chama conta a quem precisa saber (nao passa por ao_mudar).
+        """
+        with self._trava_token:
+            self._tokens.pop(conta.id, None)
+            self._refresh_vivos.pop(conta.id, None)
+            conta.refresh_protegido = ""
+            conta.precisa_entrar = True
+            conta.escopos = ""
+            conta.ultimo_erro = motivo or "a autorização desta conta foi apagada - entre de novo"
+        self.salvar()
 
     def credencial(self, conta: Conta) -> str:
         """
@@ -588,6 +633,7 @@ class Contas:
             "- entre de novo"
         )
         self.salvar()
+        self._mudou(conta)
 
     def marcar_ok(self, conta: Conta) -> None:
         conta.ultimo_ok = datetime.now().isoformat(timespec="seconds")
@@ -619,6 +665,8 @@ class Contas:
         self._tokens.pop(id_, None)
         self._refresh_vivos.pop(id_, None)
         self.salvar()
+        if conta.por_login:
+            self._mudou(conta)
         return True
 
     def esquecer_senhas(self) -> int:
@@ -641,6 +689,7 @@ class Contas:
         self._tokens.clear()
         self._refresh_vivos.clear()
         self.salvar()
+        self._mudou(None)
         return quantas
 
     def para_tela(self) -> dict:

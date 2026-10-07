@@ -116,8 +116,18 @@ class Google:
         # De quem e a agenda lida agora (E3b: de fora, cada pessoa ve a dela):
         # entra na chave do cache, para um nao ver o do outro.
         self.quem = lambda: ""
+        # (servico) -> a frase de por que ele esta desligado, ou "": o servico
+        # que a Minha conta ou o painel desligou (src/google_nuvem.py) nao e
+        # chamado, mesmo com a permissao ainda concedida no Google. O api.py liga.
+        self.bloqueio = lambda servico: ""
+
+    def _liberado(self, servico: str) -> None:
+        frase = self.bloqueio(servico)
+        if frase:
+            raise ErroGoogle(frase, status=403)
 
     def _chamar(self, servico: str, metodo: str, url: str, **kw) -> dict:
+        self._liberado(servico)
         kw.setdefault("timeout", TEMPO_REDE)
         cabecalhos = dict(kw.pop("headers", {}) or {})
         cabecalhos["Authorization"] = "Bearer " + self.token_de()
@@ -258,6 +268,7 @@ class Google:
 
     def enviar_ao_drive(self, caminho: Path, pasta_id: str) -> dict:
         """Envia um arquivo para a pasta PAULUS. Devolve id, nome e o link para abrir."""
+        self._liberado("drive")
         caminho = Path(caminho)
         dados = caminho.read_bytes()
         meta = {"name": caminho.name, "parents": [pasta_id]}
@@ -325,6 +336,7 @@ class Google:
         no fim: o Acervo nunca le arquivo pela metade). Os do Google saem
         convertidos (EXPORTAR).
         """
+        self._liberado("drive_leitura")
         destino = Path(destino)
         destino.parent.mkdir(parents=True, exist_ok=True)
         exportar = EXPORTAR.get(arquivo.get("mimeType", ""))

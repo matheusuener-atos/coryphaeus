@@ -446,6 +446,48 @@ def renovar(provedor: str, credenciais: dict, refresh_token: str, *, endpoint: s
     return _com_validade(tokens)
 
 
+# Onde se revoga a autorizacao inteira (RFC 7009). So o Google: e o que a
+# ordem de desvincular da Minha conta pede (src/google_nuvem.py).
+REVOGAR = {"google": "https://oauth2.googleapis.com/revoke"}
+
+
+def revogar(provedor: str, token: str, *, endpoint: str = "") -> None:
+    """
+    Revoga no provedor a autorizacao de onde veio o `token` - de preferencia o
+    refresh token. No Google isso desfaz a concessao inteira desta conta ao
+    aplicativo PAULUS: o refresh token e os access tokens dela param de valer,
+    com todos os escopos juntos (o Google nao revoga um escopo sozinho).
+
+    Token que o provedor ja nao reconhece (vencido ou revogado antes) conta
+    como revogado: nao sobra concessao para desfazer. Sem falar com o
+    provedor, ou com outra recusa, levanta ErroOAuth - e quem chamou tenta de
+    novo depois.
+    """
+    url = endpoint or REVOGAR.get(provedor, "")
+    if not url:
+        raise ErroOAuth(f"o {rotulo(provedor)} não tem como revogar por aqui")
+    if not token:
+        return
+    pedido = urllib.request.Request(
+        url, data=urllib.parse.urlencode({"token": token}).encode("ascii"), method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(pedido, timeout=TEMPO_REDE):
+            return
+    except urllib.error.HTTPError as exc:
+        try:
+            bruto = json.loads(exc.read().decode("utf-8") or "{}")
+        except (ValueError, OSError):
+            bruto = {}
+        codigo = str(bruto.get("error", "")) or f"HTTP {exc.code}"
+        if exc.code == 400 and codigo in ("invalid_token", "invalid_grant"):
+            return
+        raise ErroOAuth(f"o {rotulo(provedor)} recusou revogar o acesso: {codigo}") from exc
+    except (urllib.error.URLError, socket.timeout, OSError) as exc:
+        raise ErroOAuth(f"não consegui falar com o {rotulo(provedor)} para revogar o acesso - confira a internet") from exc
+
+
 def quem_entrou(tokens: dict) -> tuple[str, str]:
     """
     (e-mail, nome) do id_token.

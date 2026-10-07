@@ -233,10 +233,19 @@ def _historico_do_sim(estado, linha: dict) -> None:
 # ------------------------------------------------------------ o PAULUS (nuvem)
 
 _CONTA_CACHE: dict = {"quando": 0.0, "dados": None}
+# Quem quer saber de cada leitura da conta no Worker: (estado, dados) -> nada.
+# O api.py liga a ordem do Google do escritorio (src/google_nuvem.py), que vem
+# no mesmo resumo (`google_pendente`). Um erro aqui nao muda a leitura.
+AO_LER_CONTA: list = []
 
 
-def _paulus(estado, metodo: str, caminho: str, corpo: dict | None = None, segredo: str = "") -> dict:
-    """Uma chamada ao Worker com o segredo desta instalação. Levanta ErroNuvem com a frase do Worker."""
+def _paulus(estado, metodo: str, caminho: str, corpo: dict | None = None, segredo: str = "",
+            timeout=None) -> dict:
+    """
+    Uma chamada ao Worker com o segredo desta instalação. Levanta ErroNuvem com
+    a frase do Worker. `timeout` (segundos, ou (conexão, leitura)) troca o de
+    sempre - o da conversa espera a resposta inteira do modelo.
+    """
     # segredo="-": a chamada que ainda não tem segredo (ativar).
     k = "" if segredo == "-" else (segredo or chave(estado, "paulus"))
     # A versão vai só ao paulus.ia.br: é a que a Minha conta mostra na lista de instalações.
@@ -244,7 +253,7 @@ def _paulus(estado, metodo: str, caminho: str, corpo: dict | None = None, segred
     if k:
         cab["Authorization"] = f"Bearer {k}"
     try:
-        r = _pedir(metodo, SITE + caminho, cab, corpo, False)
+        r = _pedir(metodo, SITE + caminho, cab, corpo, False, **({"timeout": timeout} if timeout else {}))
     except Exception as exc:  # noqa: BLE001
         raise ErroNuvem("não consegui falar com paulus.ia.br agora (sem internet?)") from exc
     try:
@@ -333,6 +342,11 @@ def conta_paulus(estado, forcar: bool = False) -> dict | None:
         return _CONTA_CACHE["dados"]
     d = _paulus(estado, "GET", "/api/ia/conta")
     _CONTA_CACHE.update(quando=time.time(), dados=d)
+    for ouvir in list(AO_LER_CONTA):
+        try:
+            ouvir(estado, d)
+        except Exception:  # noqa: BLE001 - quem ouve nao derruba a leitura da conta
+            _log.debug("quem ouvia a conta falhou", exc_info=True)
     return d
 
 
@@ -475,14 +489,14 @@ class Desmascarador:
 
 # ------------------------------------------------------------ a chamada
 
-def _pedir(metodo: str, url: str, cabecalhos: dict, corpo: dict | None, stream: bool):
+def _pedir(metodo: str, url: str, cabecalhos: dict, corpo: dict | None, stream: bool, timeout=None):
     if PEDIR["fn"] is not None:
         return PEDIR["fn"](metodo, url, cabecalhos, corpo, stream)
     import requests
 
     if metodo == "GET":
-        return requests.get(url, headers=cabecalhos, timeout=30)
-    return requests.post(url, headers=cabecalhos, json=corpo, stream=stream, timeout=(15, 180))
+        return requests.get(url, headers=cabecalhos, timeout=timeout or 30)
+    return requests.post(url, headers=cabecalhos, json=corpo, stream=stream, timeout=timeout or (15, 180))
 
 
 def _cabecalhos(provedor: str, k: str) -> dict:

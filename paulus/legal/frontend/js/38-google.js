@@ -11,6 +11,11 @@
    - Drive: só o documento que a pessoa manda, e pela fila de Aprovações.
      Ler o Drive (a permissão à parte, só leitura) só baixa: as pastas
      escolhidas viram cópia no Acervo (src/drive_online.py).
+
+   O serviço desligado de longe - pela Minha conta ou pela equipe do Paulus
+   (src/google_nuvem.py, `nuvem` em /api/google) - aparece com a etiqueta de
+   quem desligou e sem o botão de conectar: ligar de novo é lá. A tela diz
+   que a permissão continua no Google (ele não revoga um serviço sozinho).
 */
 
 const gg = { dados: null, relogio: null, pedido: null, tentou: false };
@@ -54,18 +59,23 @@ function cartaoGoogle() {
   const drive = googleConectado("drive");
   const linha = (icone, nome, sub, estado, acao) => '<div class="cfg-servico"><span class="caixa-tipo">' + ic(icone, 18) +
     '</span><span class="duas-linhas"><b>' + nome + "</b><small>" + esc(sub) + "</small></span>" + estado + '<span class="cfg-botoes">' + acao + "</span></div>";
+  // Desligado pela Minha conta ou pela equipe do Paulus: a etiqueta de quem desligou, sem conectar.
+  const nv = d.nuvem || {};
+  const desl = nv.servicos || {};
+  const desligado = (s) => (desl[s] ? ponto(nv.rotulo || "desligado em paulus.ia.br", "acc") : "");
 
   const sinc = d.ultimo_sinc ? "sincronizada em " + d.ultimo_sinc.slice(8, 10) + "/" + d.ultimo_sinc.slice(5, 7) + " às " + d.ultimo_sinc.slice(11, 16) : "ainda não sincronizada";
   let html =
-    linha("mail", "Gmail", d.conta, d.precisa_entrar ? ponto("entrar de novo", "acc") : ponto("conectado", "ok"), '<button data-gg-email="1">Contas</button>') +
-    linha("calendar_month", "Agenda e Meet", agenda ? sinc : "compromissos na Agenda do Google, com sala do Meet de verdade",
-      agenda ? ponto("conectada", "ok") : ponto("não conectada", ""),
-      agenda ? '<button class="com-icone" data-gg-sinc="1">' + marca("google-agenda", 16) + "Sincronizar agora</button>"
+    linha("mail", "Gmail", d.conta, desligado("gmail") || (d.precisa_entrar ? ponto("entrar de novo", "acc") : ponto("conectado", "ok")), '<button data-gg-email="1">Contas</button>') +
+    linha("calendar_month", "Agenda e Meet", desl.agenda ? "este Paulus não usa a Agenda nem cria sala do Meet nesta conta" : agenda ? sinc : "compromissos na Agenda do Google, com sala do Meet de verdade",
+      desligado("agenda") || (agenda ? ponto("conectada", "ok") : ponto("não conectada", "")),
+      desl.agenda ? "" : agenda ? '<button class="com-icone" data-gg-sinc="1">' + marca("google-agenda", 16) + "Sincronizar agora</button>"
         : '<button class="primario com-icone" data-gg-conectar="agenda">' + marca("google-agenda", 16) + "Conectar</button>") +
-    linha("folder", "Enviar ao Google Drive", drive ? "os documentos que você envia vão para a pasta Paulus do seu Drive" : "enviar documentos do Acervo para o seu Drive",
-      drive ? ponto("conectado", "ok") : ponto("não conectado", ""),
-      drive ? "" : '<button class="primario" data-gg-conectar="drive">Conectar</button>') +
-    linhaDriveNoAcervo(linha, ponto);
+    linha("folder", "Enviar ao Google Drive", desl.drive ? "este Paulus não envia mais documentos ao Drive desta conta"
+      : drive ? "os documentos que você envia vão para a pasta Paulus do seu Drive" : "enviar documentos do Acervo para o seu Drive",
+      desligado("drive") || (drive ? ponto("conectado", "ok") : ponto("não conectado", "")),
+      desl.drive || drive ? "" : '<button class="primario" data-gg-conectar="drive">Conectar</button>') +
+    linhaDriveNoAcervo(linha, ponto, desligado("drive_leitura"));
 
   if (agenda) {
     html += '<div class="cfg-sub">' +
@@ -79,20 +89,25 @@ function cartaoGoogle() {
       ". Assim o Acervo lê o seu Drive inteiro sem pedir permissão nenhuma ao Google."
     : "Outro caminho, sem dar permissão ao Paulus: o Google Drive para computador vira uma pasta do Windows, e aí é só vigiar a pasta no Acervo.") + "</p>";
   if (d.erro) html += '<p class="cfg-explica mod-erro">' + esc(maiuscula(d.erro)) + ".</p>";
+  if (nv.aviso) html += '<p class="cfg-explica">' + esc(nv.aviso) + "</p>";
+  if (nv.desvinculo) html += '<p class="cfg-explica">' + esc(maiuscula(nv.desvinculo.frase)) + ".</p>";
   html += '<p class="cfg-explica">O Paulus só usa o que você conecta aqui. Para tirar as permissões do Google de vez, use myaccount.google.com/permissions.</p>';
   return cartaoCfg("Conta Google", metaCfg(d.conta), html);
 }
 
 /* Ler o Drive pela internet: a permissao so de leitura e as pastas que
-   viraram copia no Acervo, cada uma com a hora da ultima conferida. */
-function linhaDriveNoAcervo(linha, ponto) {
+   viraram copia no Acervo, cada uma com a hora da ultima conferida.
+   `desligado`: a etiqueta de quando a Minha conta desligou a leitura - as
+   copias que ja desceram ficam no Acervo, mas nao sao mais conferidas. */
+function linhaDriveNoAcervo(linha, ponto, desligado) {
   const leitura = googleConectado("drive_leitura");
   const copias = ((gg.dados || {}).drive_online || {}).pastas || [];
   let html = linha("folder_special", "Google Drive no Acervo",
-    leitura ? (copias.length ? plural(copias.length, "pasta") + " do Drive com cópia no Acervo, conferidas a cada 15 minutos" : "escolha as pastas em Acervo › Incluir pasta › Google Drive")
+    desligado ? "este Paulus não lê mais o Drive desta conta" + (copias.length ? "; as cópias que já desceram ficam no Acervo" : "")
+      : leitura ? (copias.length ? plural(copias.length, "pasta") + " do Drive com cópia no Acervo, conferidas a cada 15 minutos" : "escolha as pastas em Acervo › Incluir pasta › Google Drive")
       : "ler pastas do seu Drive pela internet e ter uma cópia delas no Acervo",
-    leitura ? ponto("autorizado", "ok") : ponto("não autorizado", ""),
-    leitura ? (copias.length ? '<button data-gg-drive-sinc="1">Conferir agora</button>' : "") + '<button data-gg-drive-incluir="1">Escolher pasta</button>'
+    desligado || (leitura ? ponto("autorizado", "ok") : ponto("não autorizado", "")),
+    desligado ? "" : leitura ? (copias.length ? '<button data-gg-drive-sinc="1">Conferir agora</button>' : "") + '<button data-gg-drive-incluir="1">Escolher pasta</button>'
       : '<button class="primario" data-gg-conectar="drive_leitura">Autorizar leitura</button>');
   if (copias.length) {
     const quando = (t) => (t ? "conferida " + t.slice(8, 10) + "/" + t.slice(5, 7) + " às " + t.slice(11, 16) : "ainda descendo");

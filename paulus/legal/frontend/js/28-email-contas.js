@@ -123,12 +123,14 @@ function ecCartao() {
     const alguma = contas.some((c) => c.tem_senha);
     corpo = "<h2>Contas</h2>" +
       '<div class="ec-lista">' + contas.map((c) => {
-        const linha = c.por_login && (c.precisa_entrar || !c.tem_senha) ? "Login " + (c.rotulo_autenticacao || "").replace("login ", "") + " vencido · entre de novo"
+        // `desligada`: o Gmail desligado (ou a conta desvinculada) pela Minha conta - src/google_nuvem.py.
+        const linha = c.desligada ? c.desligada
+          : c.por_login && (c.precisa_entrar || !c.tem_senha) ? "Login " + (c.rotulo_autenticacao || "").replace("login ", "") + " vencido · entre de novo"
           : c.por_login && c.ultimo_erro ? "Não conectou · " + c.ultimo_erro
           : c.ultimo_erro ? "Senha recusada · entre de novo"
           : (c.em_uso ? "Envia por padrão · " : "") +
             (c.tem_senha ? (c.quando_ok ? "sincronizada " + c.quando_ok : "ainda não sincronizada") : "senha não guardada");
-        return '<div class="ec-conta' + (c.ultimo_erro ? " problema" : "") + (c.em_uso ? " padrao" : "") + '"><button class="ec-conta-botao" data-ee-abrir="' + esc(c.id) + '">' +
+        return '<div class="ec-conta' + (c.ultimo_erro || c.desligada ? " problema" : "") + (c.em_uso ? " padrao" : "") + '"><button class="ec-conta-botao" data-ee-abrir="' + esc(c.id) + '">' +
           avatarDaConta(c, true) + '<span class="ec-conta-texto"><b>' + esc(c.email) + "</b><small>" + esc(linha) + "</small></span></button>" +
           '<button class="mais-linha ec-mais" data-ee-mais="' + esc(c.id) + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 18) + "</button></div>";
       }).join("") +

@@ -102,8 +102,13 @@ PADRAO: dict = {
     # A conta Google alem do Gmail (src/google_servicos.py): qual conta, se a
     # Agenda sincroniza e mostra os eventos de la, a pasta PAULUS no Drive, e
     # o resultado da ultima sincronizacao.
+    # `desligados` e `ordem` (src/google_nuvem.py): os servicos que a Minha
+    # conta ou o painel desligou - o Paulus para de usa-los, pelo nome curto do
+    # escopo ("calendar.events"...) - e a ultima ordem recebida: de quando,
+    # por quem, a conta, o que ficou ligado e quando foi cumprida aqui.
     "google": {"conta": "", "agenda_sincronizar": False, "agenda_mostrar": False,
-               "drive_pasta": "", "ultimo_sinc": "", "erro": ""},
+               "drive_pasta": "", "ultimo_sinc": "", "erro": "", "desligados": [],
+               "ordem": {"id": "", "por": "", "quando": "", "conta": "", "ligados": [], "cumprida": ""}},
     # As pastas do Google Drive copiadas para o Acervo (src/drive_online.py).
     "drive_online": {"pastas": []},
     # A calibracao compartilhada (src/calibracao_remota.py): desligada de

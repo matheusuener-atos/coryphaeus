@@ -49,4 +49,5 @@ No mesmo projeto do login do Gmail:
 - O PAULUS não edita eventos que nasceram no Google. Só mostra.
 - A sincronização é de ida (compromisso do PAULUS → Google) mais a leitura. Mudar no Google um evento que o PAULUS criou não muda o compromisso aqui, e a próxima sincronização volta com a versão do PAULUS.
 - Não há permissão por serviço para revogar no Google: tirar a permissão de vez é em myaccount.google.com/permissions, e isso tira o Gmail junto.
+- Pela Minha conta (e pelo painel), desligar um serviço faz o PAULUS do escritório parar de usá-lo, quando ele estiver aberto e falar com paulus.ia.br; a permissão continua concedida no Google. Desvincular revoga a concessão inteira (oauth2.googleapis.com/revoke) e a conta pede para entrar de novo. O PAULUS conta à nuvem só os nomes curtos dos serviços em uso (src/google_nuvem.py). Com mais de uma instalação na mesma conta da nuvem, a primeira que cumpre a ordem tira ela de lá.
 - Convite para outras pessoas continua pelo e-mail do PAULUS, pela fila de Aprovações. O Google não manda convite em nome do escritório.

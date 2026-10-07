@@ -79,6 +79,7 @@ import material as material_mod
 import maquina as maquina_mod
 import entrada
 import google_servicos
+import google_nuvem
 import atualizacao as atualizacao_mod
 import calibracao_remota
 from versao import VERSAO
@@ -370,6 +371,9 @@ class Estado:
         self.entrada_oauth: correio_oauth.Entrada | None = None
         # A conta Google alem do Gmail: Agenda, Meet e Drive (src/google_servicos.py).
         self.google = google_servicos.Google(self._token_google)
+        # O servico desligado pela Minha conta ou pelo painel nao e chamado
+        # (src/google_nuvem.py), mesmo com a permissao ainda concedida no Google.
+        self.google.bloqueio = self.google_desligado
         # O Drive pela internet: as pastas escolhidas viram copia no Acervo.
         import drive_online
 
@@ -527,9 +531,24 @@ class Estado:
                             and int(c.dono or 0) == int(pessoa["conta_id"])), None)
             if propria:
                 return propria
-        preferida = str((self.prefs.dados.get("google") or {}).get("conta", "")).lower()
-        contas = [c for c in self.contas.itens if c.autenticacao == "google" and not int(c.dono or 0)]
-        return next((c for c in contas if c.email.lower() == preferida), contas[0] if contas else None)
+        return self.conta_google_do_escritorio()
+
+    def conta_google_do_escritorio(self):
+        """
+        A do escritorio, sem olhar quem pede: a escolhida em Conexoes ou a
+        primeira que entrou pelo Google sem ser de ninguem da equipe. E dela
+        que a nuvem sabe, e e nela que vale a ordem da Minha conta (src/google_nuvem.py).
+        """
+        return google_nuvem.conta_do_escritorio(self)
+
+    def google_desligado(self, servico: str) -> str:
+        """
+        A frase de quando o servico (agenda, drive, drive_leitura, gmail) da
+        conta Google em uso foi desligado pela Minha conta ou pelo painel; ""
+        quando nao foi. So a conta do escritorio recebe a ordem: a que uma
+        pessoa da equipe conectou de fora (E3b) nao muda.
+        """
+        return google_nuvem.frase(self, servico, self.conta_google())
 
     def _token_google(self) -> str:
         conta = self.conta_google()
@@ -541,9 +560,15 @@ class Estado:
             raise google_servicos.ErroGoogle(str(exc), status=401) from exc
 
     def google_tem(self, servico: str) -> bool:
-        """Se a conta Google ja concedeu a permissao do servico (agenda, drive)."""
+        """
+        Se a conta Google ja concedeu a permissao do servico (agenda, drive) e
+        ele nao foi desligado de longe (a Minha conta ou o painel). Desligado,
+        a permissao continua no Google, mas o Paulus nao usa.
+        """
         conta = self.conta_google()
-        return bool(conta and google_servicos.ESCOPOS.get(servico, "-") in conta.escopos.split())
+        if not (conta and google_servicos.ESCOPOS.get(servico, "-") in conta.escopos.split()):
+            return False
+        return not google_nuvem.frase(self, servico, conta)
 
     def prefs_google(self) -> dict:
         return dict(self.prefs.dados.get("google") or {})
@@ -1059,6 +1084,10 @@ jurisprudencia_mod.montar(estado, app, DADOS_DIR)
 import rotas_nuvem  # noqa: E402
 
 rotas_nuvem.montar(estado, app, DADOS_DIR)
+# A ordem da Minha conta e do painel sobre o Google do escritorio
+# (src/google_nuvem.py): depois de entrar ou sair com o Google e a cada leitura
+# da conta na nuvem, o Paulus conta que servicos usa e cumpre a ordem que vier.
+google_nuvem.montar(estado)
 # N1: o emissor de NFS-e pelo Padrao Nacional (src/nfse/, rotas em src/rotas_nfse.py).
 import rotas_nfse  # noqa: E402
 
@@ -6869,7 +6898,8 @@ def agenda_salvar(payload: FichaCompromisso) -> dict:
     # "meet_erro" - a tela avisa, nao finge que criou.
     if payload.meet and c.get("onde") == "online" and not c.get("meet"):
         if not estado.google_tem("agenda"):
-            return {**c, "meet_erro": "conecte a Agenda do Google em Configurações › Conexões para criar a sala"}
+            return {**c, "meet_erro": estado.google_desligado("agenda")
+                    or "conecte a Agenda do Google em Configurações › Conexões para criar a sala"}
         try:
             _enviar_compromisso_ao_google(id_, meet=True)
         except google_servicos.ErroGoogle as exc:
@@ -6976,8 +7006,13 @@ def _google_para_tela() -> dict:
         "conta": conta.email if conta else "",
         "contas": [c.email for c in estado.contas.itens if c.autenticacao == "google"],
         "precisa_entrar": bool(conta and conta.precisa_entrar),
-        "servicos": {s: {"rotulo": google_servicos.ROTULOS[s], "conectado": estado.google_tem(s)}
+        "servicos": {s: {"rotulo": google_servicos.ROTULOS[s], "conectado": estado.google_tem(s),
+                         "desligado": google_nuvem.frase(estado, s, conta)}
                      for s in google_servicos.ESCOPOS},
+        # O que a Minha conta ou o painel desligou (src/google_nuvem.py): os
+        # servicos, a etiqueta, o aviso sobre a permissao que continua no
+        # Google e, depois de desvincular, o que aconteceu.
+        "nuvem": google_nuvem.para_tela(estado, conta),
         "agenda_sincronizar": bool(g.get("agenda_sincronizar")),
         "agenda_mostrar": bool(g.get("agenda_mostrar")),
         "ultimo_sinc": g.get("ultimo_sinc", ""),
@@ -7009,6 +7044,11 @@ def google_conectar(payload: dict) -> dict:
     if not conta:
         raise HTTPException(status_code=400, detail="entre primeiro com a conta Google em E-mail › Contas: "
                                                     "é a mesma conta que ganha a Agenda e o Drive")
+    # Desligado pela Minha conta ou pelo painel: conceder de novo aqui nao
+    # muda nada - quem desligou liga de novo la (src/google_nuvem.py).
+    desligado = google_nuvem.frase(estado, servico, conta)
+    if desligado:
+        raise HTTPException(status_code=409, detail=desligado)
     escopo = google_servicos.ESCOPOS[servico]
     email_da_conta = conta.email
 
@@ -7066,6 +7106,9 @@ def google_drive_navegar(pasta: str = "") -> dict:
     autorizar.
     """
     conta = estado.conta_google()
+    desligado = estado.google_desligado("drive_leitura")
+    if desligado:
+        raise HTTPException(status_code=409, detail=desligado)
     if not conta or not estado.google_tem("drive_leitura"):
         return {"autorizar": True, "conta": conta.email if conta else "", "itens": []}
     try:
@@ -7098,7 +7141,8 @@ def google_drive_copiar(payload: PastaDoDrive) -> dict:
     """Uma pasta do Drive passa a ter copia no Acervo; a primeira descida comeca ja."""
     _drive_leitura_ou_erro()
     if not estado.google_tem("drive_leitura"):
-        raise HTTPException(status_code=403, detail="autorize primeiro a leitura do Google Drive")
+        desligado = estado.google_desligado("drive_leitura")
+        raise HTTPException(status_code=409 if desligado else 403, detail=desligado or "autorize primeiro a leitura do Google Drive")
     if payload.id == "compartilhados":
         raise HTTPException(status_code=400, detail="escolha uma das pastas de “Compartilhados comigo”")
     try:
@@ -7112,6 +7156,9 @@ def google_drive_copiar(payload: PastaDoDrive) -> dict:
 @app.post("/api/google/drive/copias/sincronizar")
 def google_drive_sincronizar() -> dict:
     _drive_leitura_ou_erro()
+    desligado = estado.google_desligado("drive_leitura")
+    if desligado:
+        raise HTTPException(status_code=409, detail=desligado)
     threading.Thread(target=estado.drive_online.sincronizar, name="drive-online-agora", daemon=True).start()
     return estado.drive_online.para_tela()
 
@@ -7127,11 +7174,18 @@ def google_drive_tirar(payload: TirarPastaDoDrive) -> dict:
 
 
 def _drive_online_automatico() -> None:
-    """A cada SINC_MINUTOS, com a leitura autorizada e alguma pasta escolhida."""
+    """
+    O Google em segundo plano, a cada SINC_MINUTOS: primeiro a ordem da Minha
+    conta (src/google_nuvem.py - conta a nuvem o que usa, no maximo a cada 10
+    minutos, e cumpre o que vier: uma leitura do Drive desligada la nao desce
+    mais nesta volta); depois a copia do Drive, com a leitura autorizada e
+    alguma pasta escolhida.
+    """
     import drive_online
 
     time.sleep(90)
     while True:
+        google_nuvem.conferir(estado)
         try:
             if estado.drive_online.pastas() and estado.google_tem("drive_leitura"):
                 estado.drive_online.sincronizar()
@@ -7156,7 +7210,9 @@ def google_preferencias(payload: dict) -> dict:
 def google_sincronizar() -> dict:
     """Manda a Agenda ao Google agora, e relê os eventos de la."""
     if not estado.google_tem("agenda"):
-        raise HTTPException(status_code=400, detail="conecte a Agenda do Google em Configurações › Conexões")
+        desligado = estado.google_desligado("agenda")
+        raise HTTPException(status_code=409 if desligado else 400,
+                            detail=desligado or "conecte a Agenda do Google em Configurações › Conexões")
     estado.google._cache_eventos.clear()
     resultado = _sincronizar_agenda_toda()
     return {**resultado, "google": _google_para_tela()}
@@ -7188,7 +7244,9 @@ def agenda_sala_no_meet(id_: int) -> dict:
     ganha a sala, e o link fica no compromisso (e no convite).
     """
     if not estado.google_tem("agenda"):
-        raise HTTPException(status_code=400, detail="conecte a Agenda do Google em Configurações › Conexões para criar a sala")
+        desligado = estado.google_desligado("agenda")
+        raise HTTPException(status_code=409 if desligado else 400,
+                            detail=desligado or "conecte a Agenda do Google em Configurações › Conexões para criar a sala")
     if not estado.agenda.obter(id_):
         raise HTTPException(status_code=404, detail="compromisso não encontrado")
     try:
@@ -7815,6 +7873,10 @@ def _executar_enviar_ao_drive(pedido) -> str:
     email = str(pedido.dados.get("conta_google") or "")
     conta = estado.contas.por_email(email) if email else None
     do_escritorio = conta is None or not int(conta.dono or 0)
+    # O envio ao Drive desligado pela Minha conta depois do pedido: o sim nao manda.
+    desligado = google_nuvem.frase(estado, "drive", conta or estado.conta_google_do_escritorio()) if do_escritorio else ""
+    if desligado:
+        raise RuntimeError(desligado)
     servico = estado.google if do_escritorio else _google_da_conta(email)
     try:
         pasta = servico.pasta_no_drive(g.get("drive_pasta", "") if do_escritorio else "")
@@ -7892,7 +7954,9 @@ def google_drive_enviar(payload: CaminhosDeDocumentos) -> dict:
     para a fila de Aprovacoes e so acontece depois do sim.
     """
     if not estado.google_tem("drive"):
-        raise HTTPException(status_code=400, detail="conecte o Google Drive em Configurações › Conexões")
+        desligado = estado.google_desligado("drive")
+        raise HTTPException(status_code=409 if desligado else 400,
+                            detail=desligado or "conecte o Google Drive em Configurações › Conexões")
     lidos = {chave_do_caminho(d.path): d for d in estado.searcher.documents}
     docs = [lidos[chave_do_caminho(c)] for c in payload.caminhos if chave_do_caminho(c) in lidos]
     if not docs:
@@ -9527,13 +9591,27 @@ class PedidoEnvio(BaseModel):
     senha: str = ""
 
 
+def _gmail_desligado_ou_409(conta) -> None:
+    """
+    O Gmail da conta Google do escritorio desligado pela Minha conta ou pelo
+    painel (src/google_nuvem.py): a caixa nao abre e nada sai por ela - 409,
+    com a frase de quem desligou e de onde ligar de novo. O token continua
+    valendo para a Agenda e o Drive: o Google nao revoga um servico sozinho.
+    """
+    desligado = google_nuvem.frase(estado, "gmail", conta)
+    if desligado:
+        raise HTTPException(status_code=409, detail=desligado)
+
+
 def _credencial_ou_http(conta) -> str:
     """
     A senha, ou o access token renovado, da conta.
 
     401 quando falta algo que so a pessoa resolve (senha, ou entrar de novo
-    pelo login); 502 quando o problema e de rede, que passa sozinho.
+    pelo login); 502 quando o problema e de rede, que passa sozinho; 409
+    quando o Gmail dela foi desligado de longe.
     """
+    _gmail_desligado_ou_409(conta)
     try:
         senha = estado.contas.credencial(conta)
     except correio_oauth.ErroOAuth as exc:
@@ -9607,6 +9685,12 @@ def _contas_para_tela() -> dict:
     dados["oauth"] = oauth
     if oauth["microsoft"]["configurado"]:
         dados["aviso_microsoft"] = correio_contas.AVISO_MICROSOFT_OAUTH
+    # A conta Google do escritorio com o Gmail desligado (ou desvinculada) pela
+    # Minha conta ou pelo painel: a linha da lista diz isso (src/google_nuvem.py).
+    for c in dados["contas"]:
+        linha = google_nuvem.linha_da_conta(estado, estado.contas.obter(c["id"]))
+        if linha:
+            c["desligada"] = linha
     return dados
 
 
@@ -10248,6 +10332,8 @@ def email_enviar(payload: PedidoEnvio, request: Request = None) -> dict:
     if de_fora and payload.senha:
         raise HTTPException(status_code=403, detail=politicas_do_acesso.MENSAGEM_BLOQUEADA)
     conta, msg, para = _montar_do_pedido(payload)
+    # Nem vai para a fila: o sim nao mandaria.
+    _gmail_desligado_ou_409(conta)
 
     if payload.senha and not conta.por_login:
         estado.contas.lembrar(conta.id, payload.senha)
@@ -10285,6 +10371,10 @@ def _enviar_de_fato(dados: dict) -> dict:
     """O envio em si, chamado direto ou depois do sim na fila."""
     payload = PedidoEnvio(**{k: v for k, v in dados.items() if k in PedidoEnvio.model_fields})
     conta, msg, _ = _montar_do_pedido(payload)
+    # Desligado pela Minha conta depois de o pedido entrar na fila: o sim nao manda.
+    desligado = google_nuvem.frase(estado, "gmail", conta)
+    if desligado:
+        raise RuntimeError(desligado)
 
     try:
         senha = estado.contas.credencial(conta)

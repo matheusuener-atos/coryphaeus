@@ -27,6 +27,9 @@
 //   POST /api/ia/sair              apaga o segredo desta instalacao
 //   GET  /api/ia/nfse              as NFS-e emitidas para a conta (pela casa)
 //   GET  /api/ia/nfse/:id/pdf|xml  o arquivo de uma delas
+//   POST /api/ia/google            o que o PAULUS do escritorio usa do Google (so
+//                                  os nomes curtos dos escopos) e a ordem que ele
+//                                  cumpriu; volta a ordem que falta cumprir
 //
 // Todas, menos ativar, com o segredo da instalacao (Authorization: Bearer
 // pia_<conta>_<64 hex>). A conta vem escrita no segredo; quem confere e o
@@ -45,6 +48,10 @@ import { chamar as chamarEmissor, emitirAutomatico, faltaDoEmissor } from "./nfs
 
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
 const MAX_SEGREDOS = 3;
+// Os servicos do Google que a Minha conta e o painel ligam e desligam, pelo
+// nome curto do escopo (worker/conta.js SERVICOS_G; o PAULUS usa os mesmos):
+// e so isso que o PAULUS conta da conta Google dele - nada de e-mail ou token.
+export const ESCOPOS_GOOGLE = ["mail.google.com", "calendar.events", "drive.file", "drive.readonly"];
 // Reserva sem liquidar (o Worker caiu no meio): depois disto, conta inteira.
 const RESERVA_VENCE_MS = 15 * 60 * 1000;
 // Depois do fim do ciclo, com a assinatura ativa, a cobranca do mes pode
@@ -231,6 +238,7 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   }
   if (p === "/api/ia/v1/chat/completions" && m === "POST") return completar(request, env, ctx, conta);
   if (p === "/api/ia/sair" && m === "POST") return json(await conta.pedir("sair", { hash: quem.hash }));
+  if (p === "/api/ia/google" && m === "POST") return relatarGoogle(request, conta);
   const mp = deps.chamarMP;
   if (p === "/api/ia/assinar" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
@@ -254,6 +262,26 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   const nf = p.match(/^\/api\/ia\/nfse\/([A-Za-z0-9_.-]{1,64})\/(pdf|xml)$/);
   if (nf && m === "GET") return arquivoDoCliente(env, quem.id, nf[1], nf[2]);
   return json({ erro: "rota não existe" }, 404);
+}
+
+// --------------------------------------------- o Google do escritorio
+// A Minha conta (google_ordem) e o painel (admin_google) guardam a ordem em
+// conta.google_pendente: que servicos do Google o PAULUS do escritorio
+// continua usando. O PAULUS instalado conta aqui o que usa de fato e, quando
+// cumpre a ordem, manda o id dela em `aplicado` - so entao ela sai da conta.
+// O que ele faz com cada ordem e dele (paulus/legal/src/google_nuvem.py): o
+// Google nao revoga um servico sozinho, entao desligar um e o PAULUS parar de
+// usa-lo; so a lista vazia (desvincular) revoga a concessao no Google.
+
+/* POST /api/ia/google {escopos: [nome curto], aplicado?: id} -> {ok, pendente: {id, ligados, quando, por} | null}. */
+async function relatarGoogle(request, conta) {
+  const d = (await lerJSON(request)) || {};
+  const escopos = [...new Set((Array.isArray(d.escopos) ? d.escopos : []).map(String).filter((x) => ESCOPOS_GOOGLE.includes(x)))];
+  const aplicado = /^[A-Za-z0-9_-]{1,40}$/.test(String(d.aplicado || "")) ? String(d.aplicado) : "";
+  const r = await conta.pedir("google_relatar", { escopos, aplicado });
+  if (r.ok === false) return json({ erro: r.erro || "não foi possível guardar agora" }, r.status || 400);
+  const g = r.google_pendente;
+  return json({ ok: true, pendente: g && g.id ? { id: g.id, ligados: g.ligados || [], quando: g.quando || "", por: g.por || "" } : null });
 }
 
 // --------------------------------------------- as NFS-e da conta
@@ -2012,7 +2040,9 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     // O que o PAULUS instalado conta da conta Google dele (so o nome dos
-    // servicos ligados) e a confirmacao de que cumpriu a ordem do painel.
+    // servicos que usa: POST /api/ia/google) e a confirmacao de que cumpriu a
+    // ordem da Minha conta ou do painel. So sai a ordem com o mesmo id: uma
+    // nova, dada enquanto ele cumpria a anterior, continua esperando.
     if (acao === "google_relatar") {
       const escopos = (Array.isArray(d.escopos) ? d.escopos : []).map(String).filter((x) => /^[a-z.:\/_-]{2,60}$/i.test(x)).slice(0, 10);
       conta.google = escopos.length ? { escopos, conferido: new Date(agora).toISOString() } : null;
@@ -2523,8 +2553,10 @@ export class ContaIA {
       },
       recargas: (conta.recargas || []).slice(-10).reverse(),
       instalacoes: (conta.segredos || []).length,
-      // A ordem do painel para o PAULUS instalado: que servicos do Google
-      // continuam ligados (o resto ele desliga; nenhum: revoga o acesso todo).
+      // A ordem da Minha conta ou do painel para o PAULUS instalado: que
+      // servicos do Google ele continua usando. O resto ele para de usar (o
+      // Google nao revoga um servico sozinho: a permissao continua concedida
+      // la); nenhum: ele revoga a concessao inteira no Google.
       google_pendente: conta.google_pendente || null,
       // A oferta do painel para quem nao renovou: o preco especial entra na
       // proxima cobranca (ofertaDoPagamento); os creditos, com o pagamento.
@@ -2559,7 +2591,8 @@ export class ContaIA {
       return [{ ...this.resumo(conta, n, agora), apagados: antes - conta.segredos.length }, conta];
     }
     if (acao === "admin_google") {
-      conta.google_pendente = { id: "g" + agora, ligados: (d.ligados || []).map(String).slice(0, 10), quando: new Date(agora).toISOString() };
+      // "painel": o PAULUS diz ao escritorio que quem desligou foi a equipe do PAULUS.
+      conta.google_pendente = { id: "g" + agora, ligados: (d.ligados || []).map(String).slice(0, 10), quando: new Date(agora).toISOString(), por: "painel" };
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "admin_desvincular") {

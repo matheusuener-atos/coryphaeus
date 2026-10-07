@@ -180,6 +180,12 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `equipe.papel` | `{email, papel}` | dono |
 | `equipe.membro` | `{acao: "criar", nome, email, papel}`, `{acao: "editar", de, nome, email, papel}`, `{acao: "excluir", email}` ou `{acao: "cancelar_convite", email}` | dono |
 
+`google.servicos` vira a ordem para o PAULUS do escritorio (`google_pendente`, a mesma da Minha conta):
+o servico fora de `ligados` ele para de usar - o Google nao revoga um escopo sozinho, a permissao
+continua concedida la -, e `ligados` vazio ele revoga a concessao inteira no Google. A ordem sai da
+conta quando ele conta que cumpriu (`POST /api/ia/google` com `aplicado`); `google` e o que ele
+conta que usa, so os nomes curtos dos escopos (paulus/legal/src/google_nuvem.py, worker/teste-google.mjs).
+
 Ver contas, tokens e receita, mandar e-mails e lembretes: todos os papeis.
 
 O que cada tipo novo faz na publicacao:
