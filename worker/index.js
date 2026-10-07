@@ -63,7 +63,7 @@ export default {
       try {
         return await atenderTunel(request, env, url, { dentroDoLimite });
       } catch (erro) {
-        return json({ erro: "falha no servidor do acesso de fora" }, 500);
+        return json({ erro: "falha no servidor do acesso externo" }, 500);
       }
     }
     if (ehRotaDoAdmin(url)) {

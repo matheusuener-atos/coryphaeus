@@ -415,7 +415,7 @@ d = await r.json();
 checar(r.status === 200, "trocar o plano entra na fila", d);
 d = await publicarFila();
 const putEva = mp.slice(antesMP2).find((x) => x.caminho === "/preapproval/preEva" && x.metodo === "PUT");
-checar(d.ok && putEva && putEva.corpo.auto_recurring.transaction_amount === 1290 && putEva.corpo.reason === "PAULUS - plano Escritório",
+checar(d.ok && putEva && putEva.corpo.auto_recurring.transaction_amount === 1290 && putEva.corpo.reason === "Paulus - plano Escritório",
   "publicado: o Mercado Pago passa a cobrar o valor do Escritório", { d, putEva });
 det = await (await admin("GET", "/api/admin/contas/" + idEva, como())).json();
 checar(det.plano.id === "advogado" && det.plano_proximo && det.plano_proximo.id === "escritorio", "o ciclo de agora fica no Advogado; o Escritório vale na renovação",

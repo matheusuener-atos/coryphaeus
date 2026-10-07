@@ -2160,7 +2160,7 @@ async function aplicarContaPlano(c, d) {
   const a = (await medidor(env, d.id).pedir("resumo")).assinatura;
   // O mesmo "reason" das assinaturas que o worker/ia.js cria.
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", {
-    reason: "PAULUS - plano " + novo.nome, auto_recurring: { transaction_amount: novo.valor, currency_id: "BRL" } });
+    reason: "Paulus - plano " + novo.nome, auto_recurring: { transaction_amount: novo.valor, currency_id: "BRL" } });
   if (!r.ok) throw new Error("o Mercado Pago recusou mudar o valor da assinatura (HTTP " + r.status + ")");
   return medidor(env, d.id).pedir("plano_proximo", { plano: novo.id, valor: novo.valor });
 }

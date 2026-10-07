@@ -119,7 +119,7 @@ async function retornoDoGoogle(env, url) {
   const state = url.searchParams.get("state") || "";
   const slug = state.split("~")[0];
   if (!slug || motivoDoFormato(slug) || !(await env.ESCRITORIOS.get("escritorio:" + slug))) {
-    return texto("este login não é de um escritório conectado ao PAULUS", 400);
+    return texto("este login não é de um escritório conectado ao Paulus", 400);
   }
   const destino = new URL("https://" + slug + "." + DOMINIO + "/api/acesso/google/retorno");
   for (const chave of ["code", "state", "error"]) {
@@ -269,11 +269,11 @@ async function iniciar(request, env, agora) {
   const disp = await disponibilidade(env, slug, instalacao, dono);
   if (!disp.disponivel) return json({ erro: disp.motivo, sugestao: disp.sugestao }, 409);
   if (await env.ESCRITORIOS.get("instalacao:" + instalacao)) {
-    return json({ erro: "esta instalação do PAULUS já tem acesso de fora: remova antes de conectar de novo" }, 409);
+    return json({ erro: "esta instalação do Paulus já tem acesso externo: remova antes de conectar de novo" }, 409);
   }
   const limite = Number(env.MAX_ESCRITORIOS || 0);
   if (limite && !disp.retomar && (await contarEscritorios(env)) >= limite) {
-    return json({ erro: "o acesso de fora chegou ao limite de escritórios desta fase. Escreva para contato@paulus.ia.br para entrar na lista." }, 503);
+    return json({ erro: "o acesso externo chegou ao limite de escritórios desta fase. Escreva para contato@paulus.ia.br para entrar na lista." }, 503);
   }
 
   const dispositivo = aleatorio(32);
@@ -696,7 +696,7 @@ export async function provisionar(env, slug, pedido, agora = () => Date.now()) {
     });
     await chamarCF(env, "PUT", a + "/cfd_tunnel/" + tunel.id + "/configurations", ingress(host, pedido.porta));
     const dns = await chamarCF(env, "POST", "/zones/" + env.CF_ZONE_ID + "/dns_records",
-      { type: "CNAME", name: host, content: tunel.id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "PAULUS: acesso de fora de " + slug });
+      { type: "CNAME", name: host, content: tunel.id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "Paulus: acesso externo de " + slug });
     feito.push(() => chamarCF(env, "DELETE", "/zones/" + env.CF_ZONE_ID + "/dns_records/" + dns.id));
     const token = await chamarCF(env, "GET", a + "/cfd_tunnel/" + tunel.id + "/token");
     const segredo = aleatorio(32);
@@ -1029,7 +1029,7 @@ export async function alterarEndereco(env, slug, novo, agora = Date.now(), quem 
   const host = novo + "." + DOMINIO;
   if (r.ativo !== false && r.dns_id) {
     await chamarCF(env, "PUT", "/zones/" + env.CF_ZONE_ID + "/dns_records/" + r.dns_id,
-      { type: "CNAME", name: host, content: r.tunnel_id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "PAULUS: acesso de fora de " + novo });
+      { type: "CNAME", name: host, content: r.tunnel_id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "Paulus: acesso externo de " + novo });
   }
   await chamarCF(env, "PUT", "/accounts/" + env.CF_ACCOUNT_ID + "/cfd_tunnel/" + r.tunnel_id + "/configurations", ingress(host, r.porta));
   const registro = { ...r, slug: novo, historico: comEvento(r, "Endereço alterado de " + slug + " para " + novo + " · CNAME recriado", agora) };
@@ -1058,7 +1058,7 @@ export async function ativarEndereco(env, slug, ativo, agora = Date.now(), quem 
     dnsId = null;
   } else {
     const dns = await chamarCF(env, "POST", "/zones/" + env.CF_ZONE_ID + "/dns_records",
-      { type: "CNAME", name: host, content: r.tunnel_id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "PAULUS: acesso de fora de " + slug });
+      { type: "CNAME", name: host, content: r.tunnel_id + ".cfargotunnel.com", proxied: true, ttl: 1, comment: "Paulus: acesso externo de " + slug });
     dnsId = dns.id;
   }
   const registro = { ...r, ativo: Boolean(ativo), dns_id: dnsId,

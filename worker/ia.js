@@ -826,7 +826,7 @@ async function pagarFora(env, conta, id, dono, mp, d) {
   const volta = "https://paulus.ia.br/cadastro/?voltou=1";
   if (oferta.periodo === "mensal") {
     const r = await mp(env, "/preapproval", "POST", {
-      reason: "PAULUS - plano " + plano.nome,
+      reason: "Paulus - plano " + plano.nome,
       external_reference: "ia-assinatura-" + id,
       payer_email: dono.email,
       auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: valor, currency_id: "BRL" },
@@ -840,7 +840,7 @@ async function pagarFora(env, conta, id, dono, mp, d) {
   }
   const ref = "ia-anual-" + id + "-" + plano.id + "-" + aleatorio(4);
   const r = await mp(env, "/checkout/preferences", "POST", {
-    items: [{ id: "paulus-" + plano.id + "-anual", title: "PAULUS - plano " + plano.nome + " (anual)", quantity: 1, unit_price: valor, currency_id: "BRL" }],
+    items: [{ id: "paulus-" + plano.id + "-anual", title: "Paulus - plano " + plano.nome + " (anual)", quantity: 1, unit_price: valor, currency_id: "BRL" }],
     payer: { email: dono.email },
     external_reference: ref,
     payment_methods: { installments: 12 },
@@ -866,7 +866,7 @@ async function pagar(env, conta, id, dono, mp, d) {
     // A bandeira e o final do cartao, para a Minha conta (lidos do token antes de usa-lo).
     const infoDoCartao = await lerCartao(env, mp, cartao.token, cartao.metodo);
     const r = await mp(env, "/preapproval", "POST", {
-      reason: "PAULUS - plano " + plano.nome,
+      reason: "Paulus - plano " + plano.nome,
       external_reference: "ia-assinatura-" + id,
       payer_email: dono.email,
       card_token_id: cartao.token,
@@ -889,7 +889,7 @@ async function pagar(env, conta, id, dono, mp, d) {
   const corpo = {
     transaction_amount: valor,
     token: cartao.token,
-    description: "PAULUS - plano " + plano.nome + " (anual)",
+    description: "Paulus - plano " + plano.nome + " (anual)",
     installments: cartao.parcelas,
     payment_method_id: cartao.metodo,
     payer: { email: dono.email, identification: cartao.identificacao },
@@ -930,7 +930,7 @@ async function pagarPix(env, conta, id, dono, mp, d) {
   const vence = new Date(Date.now() + PIX_VENCE_MS - 3 * 3600 * 1000).toISOString().replace("Z", "-03:00");
   const r = await mp(env, "/v1/payments", "POST", {
     transaction_amount: valor,
-    description: "PAULUS - plano " + plano.nome + (anual ? " (anual)" : " (um mês)"),
+    description: "Paulus - plano " + plano.nome + (anual ? " (anual)" : " (um mês)"),
     payment_method_id: "pix",
     payer: { email: dono.email, identification: { type: doc.length === 11 ? "CPF" : "CNPJ", number: doc } },
     external_reference: ref,
@@ -1018,7 +1018,7 @@ async function trocarPlano(env, conta, mp, plano) {
   }
   const novo = planoDe(n, plano);
   const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", {
-    reason: "PAULUS - plano " + novo.nome,
+    reason: "Paulus - plano " + novo.nome,
     auto_recurring: { transaction_amount: novo.valor, currency_id: "BRL" },
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor da assinatura", status: r.status }, 502);
@@ -1036,7 +1036,7 @@ const falha = (status, erro, extra = {}) => ({ ok: false, status, erro, ...extra
 async function valorDaAssinatura(env, mp, preapproval, valor, nome) {
   if (!preapproval || !(valor > 0)) return false;
   const r = await mp(env, "/preapproval/" + encodeURIComponent(preapproval), "PUT", {
-    ...(nome ? { reason: "PAULUS - plano " + nome } : {}), auto_recurring: { transaction_amount: Math.round(valor * 100) / 100, currency_id: "BRL" } });
+    ...(nome ? { reason: "Paulus - plano " + nome } : {}), auto_recurring: { transaction_amount: Math.round(valor * 100) / 100, currency_id: "BRL" } });
   return Boolean(r && r.ok);
 }
 
@@ -1275,7 +1275,7 @@ export async function pixDoMes(env, mp, id, { enviar, agora = Date.now() }) {
   // O Pix vale ate 3 dias depois de o mes pago acabar (o Mercado Pago aceita ate 30 dias).
   const vence = new Date(Math.max(ate, agora) + 3 * 24 * 3600 * 1000 - 3 * 3600 * 1000).toISOString().replace("Z", "-03:00");
   const r = await mp(env, "/v1/payments", "POST", {
-    transaction_amount: plano.valor, description: "PAULUS - plano " + plano.nome + " (um mês)", payment_method_id: "pix",
+    transaction_amount: plano.valor, description: "Paulus - plano " + plano.nome + " (um mês)", payment_method_id: "pix",
     payer: { email, identification: { type: doc.length === 11 ? "CPF" : "CNPJ", number: doc } }, external_reference: ref, date_of_expiration: vence,
   }, { "X-Idempotency-Key": "pix-mes-" + id + "-" + atual.pago_ate });
   const pg = (r && r.ok && r.dados) || null;
@@ -1645,7 +1645,7 @@ async function documentoJaDesistiu(env, x) {
   return "";
 }
 
-const JA_DESISTIU = "a desistência pelo PAULUS já foi usada por este CPF ou CNPJ; para outro reembolso, escreva para contato@paulus.ia.br";
+const JA_DESISTIU = "a desistência pelo Paulus já foi usada por este CPF ou CNPJ; para outro reembolso, escreva para contato@paulus.ia.br";
 
 /* O resumo com a desistencia conferida tambem pelo documento (o medidor so sabe da conta). */
 async function comDesistencia(env, conta, r) {
@@ -1839,7 +1839,7 @@ export class ContaIA {
   fazer(acao, c, d, n) {
     const agora = this.agora();
     if ((acao === "ativar" || acao === "abrir") && c && c.desvinculado) {
-      return [{ ok: false, erro: "esta conta Google foi desvinculada da nuvem do PAULUS; fale com contato@paulus.ia.br", status: 403 }, null];
+      return [{ ok: false, erro: "esta conta Google foi desvinculada da nuvem do Paulus; fale com contato@paulus.ia.br", status: 403 }, null];
     }
     if (acao === "ativar") {
       const conta = c || { id: d.id, criada: new Date(agora).toISOString(), segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [] };
@@ -2234,7 +2234,7 @@ export class ContaIA {
     const a = conta.assinatura || {};
     if (conta.cortesia) return { pode: false, motivo: "o plano de cortesia não tem o que devolver" };
     if ((conta.desistencias || 0) >= 1) {
-      return { pode: false, motivo: "a desistência pelo PAULUS já foi usada nesta conta; para outro reembolso, escreva para contato@paulus.ia.br" };
+      return { pode: false, motivo: "a desistência pelo Paulus já foi usada nesta conta; para outro reembolso, escreva para contato@paulus.ia.br" };
     }
     const novo = agora - Date.parse(a.desde || "") <= ARREPENDIMENTO_MS;
     const pgs = (conta.pagamentos || []).filter((p) => !p.reembolso && (prepago(p.tipo) || (p.tipo === "assinatura" && novo))
