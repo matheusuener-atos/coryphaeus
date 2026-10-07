@@ -3,6 +3,8 @@
      tela cheia, sem trilho. Texto a esquerda, cartao a direita; as etapas no
      topo mostram o nome so da atual. As cores sao os tokens do app (verde e
      ambar so em selos); a letra dos rotulos e a IBM Plex Mono. */
+  /* Antes de o assistente decidir (index.html, bv-cedo): so o fundo, por cima de tudo. */
+  .bv-cedo body::after { content: ""; position: fixed; inset: 0; z-index: 60; background: var(--bg); }
   .boas-vindas {
     --plex: var(--mono);
     position: fixed; inset: 0; z-index: 50; background: var(--bg); color: var(--ink); overflow: hidden;

@@ -22,6 +22,13 @@
     } catch (e) { /* sem memoria do navegador, fica no escuro mesmo */ }
     document.documentElement.dataset.tema = tema;
 
+    /* A primeira abertura: o assistente de configuracao so se desenha depois
+       de ler as preferencias e a assinatura. Ate la, o fundo dele cobre a
+       janela, para a tela de baixo nao piscar antes (23-boas-vindas.js tira). */
+    try {
+      if (localStorage.getItem("paulus.boasvindas") !== "1") document.documentElement.classList.add("bv-cedo");
+    } catch (e) { /* sem memoria do navegador: o assistente decide sozinho */ }
+
     /* Animacoes reduzidas, pela mesma razao: a primeira pintura ja tem de
        vir parada para quem pediu tela parada. As preferencias confirmam
        depois, quando o servidor responde. */

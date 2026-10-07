@@ -133,19 +133,28 @@ function primeiraAberturaPendente() {
   return true;
 }
 
+/* O fundo que cobre a janela desde a primeira pintura (index.html) sai quando o assistente decide. */
+function tirarCapaBv() {
+  document.documentElement.classList.remove("bv-cedo");
+}
+
 async function verificarPrimeiraAbertura() {
   const forcar = location.hash === "#boasvindas";
-  if (!forcar && !primeiraAberturaPendente()) return;
+  if (!forcar && !primeiraAberturaPendente()) { tirarCapaBv(); return; }
   try {
     const d = await (await fetch("/api/preferencias")).json();
     const nome = (((d.preferencias || {}).pessoa) || {}).nome || "";
     // Quem ja tem nome cadastrado nao precisa do passeio: marca como visto.
-    if (!forcar && nome) { concluirBoasVindas(false); return; }
+    if (!forcar && nome) { concluirBoasVindas(false); tirarCapaBv(); return; }
     bv.prefs = d;
   } catch (err) {
-    if (!forcar) return;
+    if (!forcar) { tirarCapaBv(); return; }
   }
-  mostrarBoasVindas();
+  try {
+    await mostrarBoasVindas();
+  } finally {
+    tirarCapaBv();
+  }
 }
 
 async function mostrarBoasVindas() {
