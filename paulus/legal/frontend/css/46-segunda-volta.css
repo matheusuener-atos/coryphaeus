@@ -86,8 +86,13 @@
   .jur-trecho mark { background: rgba(255, 210, 80, 0.35); color: inherit; border-radius: 2px; }
   .jur-pe { display: flex; gap: 6px; flex-wrap: wrap; }
   .jur-pe button { display: inline-flex; align-items: center; gap: 4px; }
-  /* N13: com a quinta aba da Biblioteca, o lugar das abas encolhe e a barra rola nela mesma. */
-  @media (max-width: 600px) { .nav-tela:has(.bib-abas) { flex: 1 1 auto; min-width: 0; max-width: 100%; } }
+  /* N13: com a quinta aba da Biblioteca, o lugar das abas encolhe e a barra rola nela mesma.
+     Com quatro abas (a Comunidade saiu em 07/10) sobra espaco na linha: o titulo vai para a linha de baixo,
+     como antes, em vez de ficar espremido ao lado das abas e passar da borda. */
+  @media (max-width: 600px) {
+    .nav-tela:has(.bib-abas) { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+    .conversa-topo:has(.bib-abas) > .conversa-nome { flex-basis: 100%; }
+  }
   .jur-secao { padding-bottom: 12px; }
   .jur-secao > :not(.sv-secao-cabeca) { margin-left: 14px; margin-right: 14px; }
 

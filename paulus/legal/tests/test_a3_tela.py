@@ -257,7 +257,7 @@ def test_tela(base: str, api, conversa: str) -> None:
         pag.click('.trilho [data-destino="agentes"]')
         pag.wait_for_selector("[data-agt-linha]", timeout=10000)
         linhas = pag.evaluate("() => [...document.querySelectorAll('[data-agt-linha]')].map(l => l.textContent)")
-        checar(any("Revisor de contratos" in x and "desativado" in x and "exemplo do PAULUS" in x for x in linhas)
+        checar(any("Revisor de contratos" in x and "desativado" in x and "exemplo do Paulus" in x for x in linhas)
                and any("Triagem de consumidor" in x for x in linhas), "a lista mostra os exemplos: desativados, versão, origem", linhas)
         checar(all("usado 0×" in x for x in linhas), "e a medida de cada um no cartão (A4): usado N×")
         # A22: a equipe em cartões, o nível, os pontos de teste e os passos

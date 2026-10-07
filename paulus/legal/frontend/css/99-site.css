@@ -23,12 +23,18 @@
    fino vem por box-shadow (32 px no total, o padrao de 07/10), e a margem de 2 px reserva o lugar dele. Com isso
    nenhum markup muda: todo `button.primario` do programa vira o botao do
    site. */
-button.primario, button.primario:hover:not(:disabled), button.primario:disabled {
-  height: 28px; padding: 0 18px; border-radius: 7px; border: 1px solid transparent;
-  background: var(--site-pill); color: var(--ink);
+/* As medidas so no estado normal: no :hover e no :disabled a especificidade
+   maior passava por cima do "margin-left: auto" das linhas de acoes, e o botao
+   pulava para a esquerda ao passar o mouse (o clique caia fora dele). */
+button.primario {
+  height: 28px; padding: 0 18px; border-radius: 7px;
   font: 500 13px var(--sans); letter-spacing: .01em;
-  box-shadow: 0 0 0 1px var(--site-panel), 0 0 0 2px var(--site-line);
   margin: 2px;
+}
+button.primario, button.primario:hover:not(:disabled), button.primario:disabled {
+  border: 1px solid transparent;
+  background: var(--site-pill); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--site-panel), 0 0 0 2px var(--site-line);
 }
 button.primario:hover:not(:disabled) { background: var(--site-pill-h); }
 button.primario { white-space: nowrap; width: auto; min-width: 0; }

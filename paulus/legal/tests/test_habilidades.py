@@ -358,7 +358,8 @@ def test_parar_resposta() -> None:
         habilidade.executar, habilidade.estado = guardado
         if criado:
             # Apagar manda para a lixeira; o teste nao deixa rastro la.
-            lixo = requests.delete(f"{base}/api/trabalhos/{criado['id']}").json().get("lixeira")
+            # Com a chave da janela (a sessao): sem ela o servidor responde 403 e a conversa ficava nos dados.
+            lixo = sessao.delete(f"{base}/api/trabalhos/{criado['id']}").json().get("lixeira")
             if lixo:
                 api.estado.lixeira.tirar(lixo)
         servidor.should_exit = True

@@ -249,9 +249,9 @@
     }).join("");
     var pe;
     if (cortesia) pe = '<div class="mc-cancelar"><span>O plano de cortesia não tem cobrança. Para mudar de plano, escreva para contato@paulus.ia.br.</span></div>';
-    else if (assinar) pe = '<div class="mc-cancelar"><span>O plano venceu. Para voltar, escolha um plano: o Paulus volta a responder com a IA assim que o pagamento entrar, sem reinstalar.</span></div>';
+    else if (assinar) pe = '<div class="mc-cancelar"><span>O plano venceu. Para voltar, escolha um plano: tudo volta assim que o pagamento entrar, sem reinstalar.</span></div>';
     else if (cancelada) pe = '<div class="mc-cancelar"><span>A assinatura foi cancelada' + (a.cancelamento ? " em " + dt(a.cancelamento.quando) : "") + ". O plano vale até " + dt(fim) + '. Para continuar depois disso, assine de novo.</span><a class="mini" href="/assinatura/">Ver os planos</a></div>';
-    else pe = '<div class="mc-cancelar"><span>Cancelar a assinatura mantém o plano até ' + dt(fim) + ". Depois, o Paulus continua com a Agenda, o Acervo, o Financeiro e os cadastros, mas sem a IA.</span>" +
+    else pe = '<div class="mc-cancelar"><span>Cancelar a assinatura mantém o plano até ' + dt(fim) + ". Depois, o Paulus abre só com os arquivos.</span>" +
       '<button type="button" class="mc-texto perigo" data-a="cancelar">Cancelar assinatura</button></div>';
     return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" +
       '<div class="mc-planos">' + cards + "</div>" + pe;
@@ -511,7 +511,7 @@
           '<button type="button" class="mc-texto perigo" data-a="cancelarPasso" data-v="3">Cancelar mesmo assim</button><button type="button" class="btn-duplo pequeno" data-a="aceitarOferta" data-v="' + (credito ? "creditos" : "desconto") + '"><span>Aceitar a oferta</span></button>');
       }
       return dialogo("Cancelar a assinatura?", "Cancelar assinatura",
-        "<p>O " + esc(a.nome) + " fica ativo até <b>" + dt(pagoAte(a)) + "</b>. Depois disso, o Paulus continua com a Agenda, o Acervo, o Financeiro e os cadastros, mas sem a IA: nem a da nuvem nem a do computador. Ao assinar de novo, a IA volta, sem reinstalar.</p>",
+        "<p>O " + esc(a.nome) + " fica ativo até <b>" + dt(pagoAte(a)) + "</b>. Depois disso, o Paulus abre só com os arquivos: sem respostas da IA, sem NFS-e e sem os demais serviços. Ao assinar de novo, volta tudo, sem reinstalar.</p>",
         '<button type="button" class="mc-texto" data-a="cancelarPasso" data-v="' + (o.pode ? 2 : 1) + '">Voltar</button><button type="button" class="mc-perigo" data-a="confirmarCancelar">Cancelar assinatura</button>');
     }
     if (M.tipo === "endereco") {

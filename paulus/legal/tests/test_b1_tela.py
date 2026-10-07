@@ -93,9 +93,9 @@ def test_tela(base: str, api) -> None:
         pag.wait_for_timeout(600)
         titulo = pag.evaluate("() => document.getElementById('conversa-titulo').textContent")
         abas = pag.evaluate("() => [...document.querySelectorAll('[data-bib-aba]')].map(b => b.textContent)")
-        # L9: a quarta aba, "Comunidade" (materiais entre advogados); N13: a quinta, "Jurisprudência".
-        checar(titulo == "Biblioteca" and abas == ["Estante", "Leis e súmulas", "Tribunais e fontes", "Comunidade", "Jurisprudência"],
-               "a tela Biblioteca abre na Estante, com as cinco abas", (titulo, abas))
+        # N13: a quarta aba, "Jurisprudência". A "Comunidade" (L9) saiu na entrega de 07/10/2026.
+        checar(titulo == "Biblioteca" and abas == ["Estante", "Leis e súmulas", "Tribunais e fontes", "Jurisprudência"],
+               "a tela Biblioteca abre na Estante, com as quatro abas", (titulo, abas))
         checar(pag.inner_text(".est-titulo h1") == "Sua estante está crescendo", "o título do mock")
         nivel = pag.inner_text(".est-nivel")
         checar("Estante de bolso" in nivel and "faltam 2 para o próximo" in nivel and pag.inner_text(".est-anel") == "1",
