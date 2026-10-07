@@ -9,7 +9,7 @@
   .fun-cab small { color: var(--ink3); font-size: 12px; }
   .fun-texto { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .fun-casa { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); padding-left: 10px; }
-  .fun-nota { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink3); }
+  .fun-nota { margin: 0; font-size: 12px; line-height: 1.45; color: var(--ink3); }
   .fun-botoes { display: flex; gap: 6px; flex-wrap: wrap; }
-  .fun-botoes button { height: 30px; padding: 0 10px; font-size: 12.5px; }
+  .fun-botoes button { height: 28px; padding: 0 10px; font-size: 12px; }
   #fun-pos { width: 100%; max-width: 100%; min-height: 110px; }

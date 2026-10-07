@@ -2,7 +2,7 @@
    src/entrevista.py, src/elaboracao.py - 03/10/2026).
 
    - A caixa da pergunta: a pílula do nível (Estagiário → Bacharel → Advogado
-     → Juiz → Ministro). A pessoa escolhe o quanto quer que o PAULUS
+     → Juiz → Ministro). A pessoa escolhe o quanto quer que o Paulus
      trabalhe; o modelo e as etapas são do programa e aparecem discretos no
      menu. Fica neste navegador (localStorage), e vale para as próximas
      perguntas. "Perguntar antes de trabalhar" também.
@@ -58,7 +58,7 @@ function desenharPilulaProfundidade() {
   const aqui = typeof nuvemTela !== "undefined" && nuvemTela.aqui;
   b.disabled = Boolean(aqui);
   b.title = aqui ? "A próxima pergunta fica neste computador: a profundidade vale só na nuvem."
-    : "Profundidade: " + (n ? n.nome + " — " + n.resumo : "") + ". Clique para escolher o quanto o PAULUS trabalha.";
+    : "Profundidade: " + (n ? n.nome + " — " + n.resumo : "") + ". Clique para escolher o quanto o Paulus trabalha.";
   b.innerHTML = ic("gavel", 18) + '<span class="rotulo-botao">' + esc(n ? n.nome : "Profundidade") + "</span>";
 }
 
@@ -71,7 +71,7 @@ function abrirMenuProfundidade() {
   menu.id = "menu-profundidade";
   menu.className = "menu-profundidade";
   menu.setAttribute("role", "menu");
-  menu.innerHTML = '<div class="mp-cabeca"><b>Quanto o PAULUS trabalha este pedido</b>' +
+  menu.innerHTML = '<div class="mp-cabeca"><b>Quanto o Paulus trabalha este pedido</b>' +
     "<small>Você escolhe o esforço; o modelo e as etapas são por conta do programa.</small></div>" +
     prof.niveis.map((n, i) =>
       '<button type="button" role="menuitemradio" class="mp-nivel' + (atual && atual.id === n.id ? " on" : "") + (n.bloqueado ? " travado" : "") +
@@ -84,7 +84,7 @@ function abrirMenuProfundidade() {
       '<small class="mp-tecnico">' + esc((n.detalhes || []).join(" · ")) + " · consome ~" +
       esc(String(n.consumo).replace(".", ",")) + "× da franquia</small></span></button>").join("") +
     '<label class="mp-perguntar"><input type="checkbox" data-prof-perguntar="1"' + (prof.perguntar ? " checked" : "") + ">" +
-    "<span><b>Entender antes de trabalhar</b><small>Em pedidos de trabalho (contrato, petição, parecer…), o PAULUS " +
+    "<span><b>Entender antes de trabalhar</b><small>Em pedidos de trabalho (contrato, petição, parecer…), o Paulus " +
     "pergunta o que muda o resultado antes de redigir. Pergunta simples não ganha perguntas.</small></span></label>";
   document.body.appendChild(menu);
   const r = b.getBoundingClientRect();

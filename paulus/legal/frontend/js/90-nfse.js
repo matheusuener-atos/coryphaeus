@@ -80,7 +80,7 @@ function secaoNfse() {
     '<li class="' + (ok ? "ok" : "") + '"><a href="#nfse-passo-' + (i + 1) + '">' + (ok ? "✓ " : (i + 1) + ". ") + esc(t) + "</a></li>").join("") + "</ol>" +
     '<p class="cfg-explica">' + (emProducao
       ? "<b>Emitindo em produção:</b> as notas valem de verdade. Cada uma passa por Aprovações antes de sair."
-      : "Configure em quatro passos e faça um teste. Dando certo, o PAULUS avisa e você muda para produção. Até lá, nada vale de verdade.") + "</p>";
+      : "Configure em quatro passos e faça um teste. Dando certo, o Paulus avisa e você muda para produção. Até lá, nada vale de verdade.") + "</p>";
 
   /* 1. Certificado */
   const certCorpo = (cert.instalado
@@ -100,12 +100,12 @@ function secaoNfse() {
     (cert.instalado ? "</details>" : "");
   const passo1 = passoNfse(1, "O certificado digital do escritório", certOk,
     "O mesmo A1 (arquivo .pfx ou .p12) que o escritório usa na prefeitura: e-CNPJ da sociedade, ou e-CPF do advogado autônomo. " +
-    "Dele o PAULUS já tira o CNPJ e o nome. Certificado em token (A3) não serve.", certCorpo);
+    "Dele o Paulus já tira o CNPJ e o nome. Certificado em token (A3) não serve.", certCorpo);
 
   /* 2. Escritório */
   const end = d.endereco || {};
   const munFrase = mun.situacao === "conveniado" ? "✓ " + (mun.frase || "o município emite pelo nacional")
-    : (mun.frase || "Depois de gravar, o PAULUS pergunta ao Sistema Nacional se o seu município emite por ele.");
+    : (mun.frase || "Depois de gravar, o Paulus pergunta ao Sistema Nacional se o seu município emite por ele.");
   const passo2 = passoNfse(2, "Os dados do escritório", configOk || (!!d.documento && munOk), "Como aparecem na nota.",
     // O CNPJ digitado preenche nome, cidade, endereco e contato com os dados da Receita (js/39-campos.js).
     '<div class="cfg-campos" data-cnpj-grupo="1">' +
@@ -190,7 +190,7 @@ function secaoNfse() {
       (t.ok && !testeOk ? '<p class="cfg-explica">A configuração mudou depois deste teste: faça de novo.</p>' : "") + "</div>"
     : "";
   const passo4 = passoNfse(4, "O teste", testeOk,
-    "O PAULUS emite uma nota de R$ 1,00 no ambiente de testes do governo (produção restrita, sem valor fiscal) e a cancela em seguida. " +
+    "O Paulus emite uma nota de R$ 1,00 no ambiente de testes do governo (produção restrita, sem valor fiscal) e a cancela em seguida. " +
     "Nada é mandado ao cliente.",
     (prontoParaTestar
       ? '<div class="cfg-campos"><div class="ag-campo"><label>Em nome de qual cliente?</label><select id="nfse-teste-cliente">' +
@@ -226,7 +226,7 @@ function secaoNfse() {
     (x.ativo ? '<div class="word-acoes"><button data-nfse-rec-desligar="' + x.id + '">Desligar</button></div>' : "")).join("");
   const recorrencias = cartaoCfg("Honorários recorrentes", metaCfg("rascunho no dia; nunca emite sozinho"),
     (recsLinhas || '<p class="cfg-explica">Nenhum. Ligue no Serviço, em Horas › Nota todo mês.</p>') +
-    '<p class="cfg-explica">No dia, o PAULUS cria o rascunho da nota do mês e o põe em Aprovações.</p>');
+    '<p class="cfg-explica">No dia, o Paulus cria o rascunho da nota do mês e o põe em Aprovações.</p>');
   const tabs = (p.tabelas || []).map((x) => linhaNfse(x.titulo, "v" + x.versao + (x.data ? " · " + x.data : "") + " · " + x.itens + " itens")).join("");
   const tabelas = cartaoCfg("Tabelas oficiais", metaCfg("Portal da NFS-e"),
     tabs + '<p class="cfg-explica">Quando o portal publicar uma versão nova das planilhas, importe aqui.</p>' +
@@ -235,7 +235,7 @@ function secaoNfse() {
   const historico = hist ? cartaoCfg("Histórico da configuração", "", hist) : "";
   const ligar = cartaoCfg("Emissão", "",
     '<div class="ag-toggle' + (n.ligado ? " on" : "") + '" data-nfse-acao="ligar" role="switch" tabindex="0" aria-checked="' + n.ligado + '">' +
-    '<span class="duas-linhas"><b>Emitir NFS-e pelo PAULUS</b><small>desligada, o botão “Emitir nota” some do Financeiro e dos Serviços. O teste liga sozinho.</small></span><i></i></div>');
+    '<span class="duas-linhas"><b>Emitir NFS-e pelo Paulus</b><small>desligada, o botão “Emitir nota” some do Financeiro e dos Serviços. O teste liga sozinho.</small></span><i></i></div>');
   const depois = '<details class="nfse-mais nfse-depois"' + (emProducao ? " open" : "") + "><summary>Depois de configurar: contador, recorrentes, tabelas e histórico</summary>" +
     ligar + contador + recorrencias + tabelas + historico + "</details>";
 

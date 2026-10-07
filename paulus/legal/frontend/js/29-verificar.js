@@ -145,7 +145,7 @@ async function abrirNoWindows(caminho) {
   if (!r.ok) avisoCert(await erroDe(r));
 }
 
-/* Baixar e escolher a pasta no seletor do PAULUS - nao o "Salvar como" do
+/* Baixar e escolher a pasta no seletor do Paulus - nao o "Salvar como" do
    Windows - e o servidor grava a copia la. Vale igual na janela do programa
    e no navegador. */
 async function baixarArquivo(caminho) {
@@ -299,8 +299,8 @@ async function navegarDriveOnline(pilha) {
     lista.innerHTML = '<div class="anx-sem-drive">' + marca("google-drive", 28) +
       "<p><b>Ler o seu Google Drive pela internet</b></p>" +
       (d.conta
-        ? "<p>O PAULUS pede ao Google permissão só de leitura na conta <b>" + esc(d.conta) + "</b>. As pastas que você escolher descem como cópia para o Acervo, neste computador, e a cópia acompanha o Drive a cada 15 minutos.</p>" +
-          "<p>Nada vai do PAULUS para o seu Drive. Para tirar a permissão depois: myaccount.google.com/permissions.</p>"
+        ? "<p>O Paulus pede ao Google permissão só de leitura na conta <b>" + esc(d.conta) + "</b>. As pastas que você escolher descem como cópia para o Acervo, neste computador, e a cópia acompanha o Drive a cada 15 minutos.</p>" +
+          "<p>Nada vai do Paulus para o seu Drive. Para tirar a permissão depois: myaccount.google.com/permissions.</p>"
         : "<p>Entre primeiro com a conta Google em E-mail › Contas: é ela que autoriza a leitura do Drive.</p>") +
       '<div class="cfg-botoes">' + (d.conta ? '<button type="button" class="primario" data-ep-autorizar="1">Autorizar no Google</button>' : "") +
       '<button type="button" data-ep-ir="">Voltar</button></div></div>';
@@ -333,7 +333,7 @@ async function navegarDriveOnline(pilha) {
   pronto(ep.drive ? "Copiar para o Acervo: " + ep.drive.nome + " (com as subpastas)" : "Escolha uma pasta do Drive");
 }
 
-/* Compartilhar e o e-mail do proprio PAULUS, com o arquivo ja anexado. Sem
+/* Compartilhar e o e-mail do proprio Paulus, com o arquivo ja anexado. Sem
    conta de e-mail, leva para a Caixa, onde a conta se liga. */
 async function compartilharPorEmail(caminho, nome) {
   if (!mail.contas) { try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; } }

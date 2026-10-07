@@ -8,18 +8,18 @@
   .emc-cartao { display: grid; gap: 14px; min-width: 0; }
   .emc-carregando { padding: 6px 0; }
   .emc-resp-cartao { gap: 10px; }
-  .emc-botao { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 7px;
-    border: 1px solid var(--ink-a12); background: none; font: 600 12.5px var(--sans); color: var(--ink); white-space: nowrap; }
+  .emc-botao { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
   .emc-botao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
   button.primario.emc-botao { border-color: var(--primario); }
-  .emc-kicker { font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
+  .emc-kicker { font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
 
   .emc-achado { display: grid; gap: 6px; padding: 14px 16px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); }
   .emc-achado-linha { display: flex; align-items: center; gap: 16px; }
   .emc-achado-valor { display: grid; gap: 2px; flex: 1; min-width: 0; }
-  .emc-achado-valor small { font: 500 12.5px var(--sans); color: var(--ink2); }
-  .emc-codigo { font: 600 22px/1.2 var(--mono); letter-spacing: .14em; color: var(--ink); }
-  .emc-achado p { margin: 0; font-size: 12.5px; color: var(--ink2); }
+  .emc-achado-valor small { font: 500 12px var(--sans); color: var(--ink2); }
+  .emc-codigo { font: 600 20px/1.2 var(--mono); letter-spacing: .14em; color: var(--ink); }
+  .emc-achado p { margin: 0; font-size: 12px; color: var(--ink2); }
 
   .emc-msg { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); overflow: hidden; box-shadow: var(--elev-card); }
   .emc-msg-cabeca { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--ink-a1); }
@@ -27,14 +27,14 @@
     background: var(--fill2); font: 700 12px var(--sans); color: var(--ink); }
   .emc-msg-quem { display: grid; gap: 2px; flex: 1; min-width: 0; }
   .emc-msg-titulo { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .emc-msg-titulo h3 { margin: 0; font: 400 22px/1.2 var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .emc-pasta { flex: none; font: 500 11.5px var(--sans); padding: 2px 8px; border-radius: 4px; background: var(--fill); color: var(--ink2); }
+  .emc-msg-titulo h3 { margin: 0; font: 600 20px/1.2 var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .emc-pasta { flex: none; font: 500 12px var(--sans); padding: 2px 8px; border-radius: 4px; background: var(--fill); color: var(--ink2); }
   .emc-msg-de { display: flex; gap: 6px; min-width: 0; font-size: 13px; }
   .emc-msg-de b { font-weight: 600; }
   .emc-msg-de span { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .emc-msg-quem small { font-size: 12px; color: var(--ink3); }
   .emc-msg-lado { display: grid; justify-items: end; gap: 10px; flex: none; }
-  .emc-quando { font: 500 11.5px var(--mono); color: var(--ink3); }
+  .emc-quando { font: 500 12px var(--mono); color: var(--ink3); }
   .emc-msg-acoes { display: flex; align-items: center; gap: 6px; }
   .emc-msg-acoes .botao-icone { width: 30px; height: 30px; color: var(--ink2); }
   .emc-msg-corpo { padding: 28px 24px; background: var(--sub); }
@@ -42,26 +42,26 @@
   .emc-folha .ex-html-quadro { display: block; width: 100%; border: 0; min-height: 120px; }
   .emc-folha-texto { padding: 20px 24px; background: var(--surf); border: 1px solid var(--ink-a1); }
   .emc-msg-pe { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--ink-a1);
-    font-size: 12.5px; color: var(--ink2); }
+    font-size: 12px; color: var(--ink2); }
   .emc-pe-item { display: inline-flex; align-items: center; gap: 6px; }
   .emc-pe-divisa { width: 1px; height: 14px; background: var(--ink-a12); }
   .emc-msg-pe .sv-ligacao { display: inline-flex; align-items: center; gap: 2px; }
-  .emc-nota { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--ink3); }
-  .emc-falta, .emc-fechado { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surf);
+  .emc-nota { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--ink3); }
+  .emc-falta, .emc-fechado { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surf);
     border: 1px solid var(--ink-a1); font-size: 13px; color: var(--ink2); }
   .emc-fechado > span:not(.ic) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .emc-aviso { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; font-size: 12.5px; color: var(--warnt); }
+  .emc-aviso { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; font-size: 12px; color: var(--warnt); }
 
   /* A barra sobre a caixa de pedido: as duas abas e os atalhos. */
   .emc-modos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .emc-modos[hidden] { display: none; }
   .emc-abas { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--fill); }
-  .emc-abas button { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: none; border-radius: 6px;
-    background: none; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .emc-abas button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: none; border-radius: 8px;
+    background: none; font: 500 12px var(--sans); color: var(--ink3); }
   .emc-abas button.ativa, .emc-abas button.ativa:hover:not(:disabled) { background: var(--fill2); color: var(--ink); font-weight: 600; border: none; }
   .emc-modos-divisa { width: 1px; height: 18px; margin: 0 4px; background: var(--ink-a12); }
-  .emc-atalho { height: 28px; padding: 0 11px; border-radius: 14px; border: 1px solid var(--ink-a12); background: none;
-    font: 500 12.5px var(--sans); color: var(--ink2); white-space: nowrap; }
+  .emc-atalho { height: 28px; padding: 0 11px; border-radius: 12px; border: 1px solid var(--ink-a12); background: none;
+    font: 500 12px var(--sans); color: var(--ink2); white-space: nowrap; }
   .emc-atalho:hover:not(:disabled) { background: var(--fill); color: var(--ink); border-color: var(--ink-a12); }
   .emc-atalho[hidden] { display: none; }
   .conversa-col.vazia .emc-modos, .conversa-col.vazia .emc-editor { display: none; }
@@ -70,16 +70,16 @@
   .emc-env { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); box-shadow: var(--elev-card); }
   .emc-env-cabeca { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px; border-bottom: 1px solid var(--ink-a1); min-width: 0; }
   .emc-env-cabeca .ic { color: var(--ink2); }
-  .emc-env-cabeca b { font: 600 13.5px var(--sans); }
+  .emc-env-cabeca b { font: 600 13px var(--sans); }
   .emc-env-cabeca > span:not(.ic):not(.vazio-flex):not(.emc-salvo) { font-size: 12.5px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .emc-salvo { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink3); }
   .emc-salvo.ok::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--okt); }
   .emc-campo { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 6px 16px; border-top: 1px solid var(--ink-a08); }
   .emc-env-cabeca + .emc-campo { border-top: none; }
-  .emc-campo > label { width: 66px; flex: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .emc-campo > label { width: 66px; flex: none; font: 500 12px var(--sans); color: var(--ink2); }
   .emc-campo-miolo { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
-  .emc-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 6px; border-radius: 6px; background: var(--fill);
-    max-width: 100%; min-width: 0; font-size: 12.5px; }
+  .emc-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 6px; border-radius: 8px; background: var(--fill);
+    max-width: 100%; min-width: 0; font-size: 12px; }
   .emc-chip b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .emc-chip small { font-size: 12px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .emc-chip button { width: 20px; height: 20px; padding: 0; border: none; border-radius: 4px; background: none; color: var(--ink3);
@@ -90,17 +90,17 @@
     justify-content: center; font: 700 8.5px var(--sans); color: var(--ink); }
   input[type=text].emc-add { flex: 1; min-width: 120px; max-width: 100%; height: 28px; border: none; background: none; padding: 0 4px; font: 400 13px var(--sans); color: var(--ink); }
   input[type=text].emc-add:focus { outline: none; border: none; }
-  .emc-copia { flex: none; font-size: 12.5px; }
-  input[type=text].emc-assunto { flex: 1; min-width: 0; max-width: 100%; height: 32px; border: none; background: none; padding: 0; font: 600 13.5px var(--sans); color: var(--ink); }
+  .emc-copia { flex: none; font-size: 12px; }
+  input[type=text].emc-assunto { flex: 1; min-width: 0; max-width: 100%; height: 36px; border: none; background: none; padding: 0; font: 600 13px var(--sans); color: var(--ink); }
   input[type=text].emc-assunto:focus { outline: none; border: none; }
   .emc-de { height: 30px; max-width: 100%; }
-  .emc-de-uma { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 6px; background: var(--fill); font-size: 12.5px; }
-  .emc-anexar { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
-  .emc-confere { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 2px 4px; font-size: 12.5px; color: var(--ink2); }
+  .emc-de-uma { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 8px; background: var(--fill); font-size: 12px; }
+  .emc-anexar { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+  .emc-confere { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 2px 4px; font-size: 12px; color: var(--ink2); }
   .emc-confere-item { display: inline-flex; align-items: center; gap: 6px; }
   .emc-confere-item.ok .ic { color: var(--okt); }
   .emc-confere-item.olhar .ic { color: var(--warnt); }
-  .emc-confere.emc-pisca { animation: emc-pisca 1.2s ease; border-radius: 6px; }
+  .emc-confere.emc-pisca { animation: emc-pisca 1.2s ease; border-radius: 8px; }
   @keyframes emc-pisca { 0%, 60% { background: var(--fill2); } 100% { background: transparent; } }
 
   /* ---------------------------------- o texto no lugar da caixa de pedido */
@@ -118,11 +118,11 @@
   .emc-er .er-texto { min-height: 150px; max-height: 42vh; overflow-y: auto; padding: 16px 20px; font-size: 14px; line-height: 1.6; }
   .emc-er.emc-escrevendo .er-texto { opacity: .55; }
   .emc-mudou { text-decoration: underline; text-decoration-color: var(--ink-a35); text-underline-offset: 3px; background: var(--fill); border-radius: 2px; }
-  .emc-pedir { display: flex; align-items: center; gap: 10px; height: 42px; margin: 0 14px; padding: 0 6px 0 12px; border-radius: 9px;
+  .emc-pedir { display: flex; align-items: center; gap: 10px; height: 42px; margin: 0 14px; padding: 0 6px 0 12px; border-radius: 8px;
     border: 1px solid var(--ink-a1); background: var(--sub); color: var(--ink3); }
-  .emc-pedir input[type=text] { flex: 1; min-width: 0; max-width: 100%; height: 40px; border: none; background: none; padding: 0; font: 400 13px var(--sans); color: var(--ink); }
+  .emc-pedir input[type=text] { flex: 1; min-width: 0; max-width: 100%; height: 36px; border: none; background: none; padding: 0; font: 400 13px var(--sans); color: var(--ink); }
   .emc-pedir input:focus { outline: none; }
-  .emc-tecla { font: 500 11px var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--ink-a12); color: var(--ink3); }
+  .emc-tecla { font: 500 12px var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--ink-a12); color: var(--ink3); }
   .emc-mandar { width: 28px; height: 28px; flex: none; padding: 0; border-radius: 50%; border: none; background: var(--fill2); color: var(--ink);
     display: inline-flex; align-items: center; justify-content: center; }
   .emc-mandar:hover:not(:disabled) { background: var(--ink-a2); border: none; }
@@ -130,15 +130,15 @@
   .emc-rodape .botao-icone { width: 32px; height: 32px; color: var(--ink2); }
   .emc-sem-borda { height: 32px; padding: 0 10px; border: none; background: none; font: 500 13px var(--sans); color: var(--ink2); }
   .emc-sem-borda:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .emc-enviar { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 5px 0 14px; border-radius: 17px; font-weight: 600; }
+  .emc-enviar { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 5px 0 14px; border-radius: 16px; font-weight: 600; }
   .emc-enviar-ic { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
     background: var(--primario-ink); color: var(--primario); }
-  .emc-trecho { position: absolute; z-index: 5; display: grid; gap: 8px; padding: 8px; border-radius: 10px; background: var(--surf);
+  .emc-trecho { position: absolute; z-index: 5; display: grid; gap: 8px; padding: 8px; border-radius: 12px; background: var(--surf);
     border: 1px solid var(--ink-a12); box-shadow: var(--elev-float); }
   .emc-trecho[hidden] { display: none; }
-  .emc-trecho-linha { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 10px; border-radius: 7px;
+  .emc-trecho-linha { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 10px; border-radius: 8px;
     border: 1px solid var(--ink-a1); background: var(--sub); color: var(--ink3); font-size: 13px; }
-  .emc-trecho-linha input[type=text] { flex: 1; min-width: 0; max-width: 100%; height: 34px; border: none; background: none; padding: 0; font: 400 13px var(--sans); color: var(--ink); }
+  .emc-trecho-linha input[type=text] { flex: 1; min-width: 0; max-width: 100%; height: 36px; border: none; background: none; padding: 0; font: 400 13px var(--sans); color: var(--ink); }
   .emc-trecho-linha input:focus { outline: none; }
   .emc-trecho-atalhos { display: flex; flex-wrap: wrap; gap: 6px; }
 

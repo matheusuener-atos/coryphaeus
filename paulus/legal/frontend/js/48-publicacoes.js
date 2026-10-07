@@ -1,7 +1,7 @@
 /* ------------------------------------------------ publicacoes e prazos */
 /*
    Tarefas › Publicacoes (src/publicacoes.py) e a calculadora de prazo
-   (src/prazos.py) - docs/PLANO-PRODUTO.md, P3. Uma vez por dia o PAULUS
+   (src/prazos.py) - docs/PLANO-PRODUTO.md, P3. Uma vez por dia o Paulus
    pergunta ao Diario de Justica Eletronico Nacional o que saiu para as OABs
    acompanhadas; cada comunicacao nova aparece aqui, e "Criar prazo" conta os
    dias uteis a partir da disponibilizacao e cria a tarefa na lista Prazos,
@@ -37,7 +37,7 @@ function vistaPublicacoes() {
       const classe = pub.filtro === aba ? "ativa" : "";
       return '<button class="' + classe + '" data-pub-filtro="' + aba + '">' + esc(r) + "</button>";
     }).join("") + "</div>" +
-    ligaCfg("", "Consultar todo dia", "uma vez por dia, com o PAULUS aberto", Boolean(d.ligado)).replace('class="ag-toggle', 'data-pub-ligado="1" class="ag-toggle') + "</div>";
+    ligaCfg("", "Consultar todo dia", "uma vez por dia, com o Paulus aberto", Boolean(d.ligado)).replace('class="ag-toggle', 'data-pub-ligado="1" class="ag-toggle') + "</div>";
   const linhas = lista.length ? lista.map((p) => {
     const aberta = pub.aberta === p.id;
     return '<div class="pub-item' + (p.lida ? " lida" : "") + '">' +
@@ -53,7 +53,7 @@ function vistaPublicacoes() {
         '<button data-pub-lida="' + p.id + '" data-pub-valor="' + (p.lida ? "0" : "1") + '">' + (p.lida ? "Marcar como nova" : "Marcar como lida") + "</button></div></div>" : "") +
       "</div>";
   }).join("") : '<div class="ag-vazio"><h4>' + (pub.filtro === "novas" ? "Nenhuma publicação nova" : "Nada aqui") + "</h4><p>" +
-    (oabs ? "O PAULUS consulta o Diário de Justiça Eletrônico Nacional pelas OABs acompanhadas. Só o número e a UF da OAB saem deste computador."
+    (oabs ? "O Paulus consulta o Diário de Justiça Eletrônico Nacional pelas OABs acompanhadas. Só o número e a UF da OAB saem deste computador."
       : "Diga a sua OAB em Configurações › Meus dados, ou acrescente as da equipe em OABs.") + "</p></div>";
   return '<div class="ag-cartao">' + topo + aviso + '<div class="tabela-corpo">' + linhas + "</div></div>";
 }
@@ -102,7 +102,7 @@ function ligarPublicacoes(raiz) {
       : (semPrazo ? '<p class="pub-sugestao">' + esc(semPrazo) + "</p>" : "");
     const r = await dialogo({
       titulo: "Criar o prazo", contexto: (p.processo || "") + " · " + (p.tribunal || ""),
-      texto: "Disponibilizado no DJEN em " + dataBr(p.data) + ". O PAULUS conta a partir da publicação (o primeiro dia útil seguinte) e cria a tarefa na lista Prazos, com a conta na anotação para você conferir.",
+      texto: "Disponibilizado no DJEN em " + dataBr(p.data) + ". O Paulus conta a partir da publicação (o primeiro dia útil seguinte) e cria a tarefa na lista Prazos, com a conta na anotação para você conferir.",
       html: sugestao,
       campos: [
         { chave: "dias", rotulo: "Prazo (dias)", valor: String(s ? s.dias : 15), obrigatorio: true },
@@ -151,7 +151,7 @@ function ligarPublicacoes(raiz) {
 
 /* Feriados do escritorio: municipal, estadual, ponto facultativo e suspensao
    do tribunal - os nacionais, o Carnaval, a Semana Santa, Corpus Christi e o
-   recesso de 20/12 a 20/01 o PAULUS ja conta. */
+   recesso de 20/12 a 20/01 o Paulus ja conta. */
 async function editarFeriados() {
   let atuais = [];
   try { atuais = (await (await fetch("/api/prazos/feriados")).json()).feriados || []; } catch (err) { /* vazio */ }

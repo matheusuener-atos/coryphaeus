@@ -2,7 +2,7 @@
 /*
    Os botoes "Entrar com Google" e "Entrar com Microsoft" (src/correio_oauth.py).
    O login acontece no navegador padrao, na pagina do proprio provedor; o
-   PAULUS so recebe a autorizacao de volta, num endereco 127.0.0.1 desta
+   Paulus so recebe a autorizacao de volta, num endereco 127.0.0.1 desta
    maquina. Os IDs do aplicativo vem no codigo (src/oauth_app.py), iguais em
    toda instalacao: provedor sem ID simplesmente nao aparece - quem usa o
    programa nao tem nada para configurar.
@@ -27,7 +27,7 @@ function eoInfo() {
   return (typeof mail !== "undefined" && mail.contas && mail.contas.oauth) || null;
 }
 
-/* Os provedores com login neste PAULUS, na ordem em que aparecem. */
+/* Os provedores com login neste Paulus, na ordem em que aparecem. */
 function provedoresOAuth(info) {
   const o = info || eoInfo();
   if (!o) return [];
@@ -47,6 +47,11 @@ const EO_SIMBOLO = {
   microsoft: '<svg class="eo-simbolo" viewBox="0 0 21 21" aria-hidden="true">' +
     '<rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>' +
     '<rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>',
+  // Os servicos do Google, para a tela Conexoes: os mesmos da pagina de retorno (src/pagina_retorno.py).
+  gmail: '<svg class="eo-simbolo" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M2 6.5V18a1.5 1.5 0 0 0 1.5 1.5H6.5V11l-4.5-4.5Z"></path><path fill="#34A853" d="M17.5 19.5h3A1.5 1.5 0 0 0 22 18V6.5L17.5 11Z"></path><path fill="#FBBC04" d="M17.5 5.5V11L22 6.5V5.3c0-1.3-1.5-2-2.5-1.3Z"></path><path fill="#EA4335" d="M6.5 11V5.5L12 9.6l5.5-4.1V11L12 15.1Z"></path><path fill="#C5221F" d="M2 5.3v1.2L6.5 11V5.5L4.5 4C3.5 3.3 2 4 2 5.3Z"></path></svg>',
+  agenda: '<svg class="eo-simbolo" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5" fill="#fff" stroke="#4285F4" stroke-width="2"></rect><path fill="#4285F4" d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5V8H3Z"></path><text x="12" y="18" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="#1967D2">31</text></svg>',
+  meet: '<svg class="eo-simbolo" viewBox="0 0 24 24" aria-hidden="true"><path fill="#00832D" d="M14 12l2.6 2.3 3.4 2.2V7.5l-3.4 2.2Z"></path><path fill="#0066DA" d="M3 15.5v3A1.5 1.5 0 0 0 4.5 20h3v-4.5Z"></path><path fill="#E94235" d="M7.5 4 3 8.5h4.5Z"></path><path fill="#2684FC" d="M3 8.5h4.5v7H3Z"></path><path fill="#00AC47" d="M15.5 16.3 14 12v5.5a1.5 1.5 0 0 1-1.5 1.5H7.5v-4.5h6.5Z"></path><path fill="#FFBA00" d="M12.5 4h-5v4.5H14V5.5A1.5 1.5 0 0 0 12.5 4Z"></path><path fill="#00832D" d="M7.5 8.5H14V12l-6.5 3.5Z"></path></svg>',
+  drive: '<svg class="eo-simbolo" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0066DA" d="m3.5 17.3.9 1.6c.2.3.5.6.8.7L8.3 14H2.1c0 .4.1.7.3 1Z"></path><path fill="#00AC47" d="M12 8.2 8.9 2.8c-.3.2-.6.4-.8.7L2.4 13c-.2.3-.3.7-.3 1h6.2Z"></path><path fill="#EA4335" d="M18.8 19.6c.3-.2.6-.4.8-.7l.4-.6 1.7-3c.2-.3.3-.7.3-1h-6.2l1.3 2.6Z"></path><path fill="#00832D" d="M12 8.2 15.1 2.8c-.3-.2-.7-.3-1-.3H9.9c-.4 0-.7.1-1 .3Z"></path><path fill="#2684FC" d="M15.7 14H8.3l-3.1 5.6c.3.2.7.3 1 .3h11.6c.4 0 .7-.1 1-.3Z"></path><path fill="#FFBA00" d="m18.8 8.6-2.9-5c-.2-.3-.5-.6-.8-.8L12 8.2l3.7 5.8h6.2c0-.4-.1-.7-.3-1Z"></path></svg>',
 };
 
 function eoMarca(p) {
@@ -87,7 +92,7 @@ function entrarDeNovoOAuth(conta, aoLigar) {
     "<h2>Entrar de novo</h2>" +
     (conta.precisa_entrar ? '<p class="eo-texto">A autorização do ' + EO_ROTULO[p] + " venceu.</p>" : "") +
     '<div class="eo-login"><div class="eo-botoes">' + eoBotao(p, !pronto, true) + "</div>" +
-    (pronto ? "" : '<p class="eo-explica">' + ic("info", 15) + "<span>Esta versão do PAULUS não traz o login do " + EO_ROTULO[p] + ".</span></p>") +
+    (pronto ? "" : '<p class="eo-explica">' + ic("info", 15) + "<span>Esta versão do Paulus não traz o login do " + EO_ROTULO[p] + ".</span></p>") +
     "</div></div>";
   raiz.querySelector("[data-eo-voltar]").onclick = () => {
     eoParar();

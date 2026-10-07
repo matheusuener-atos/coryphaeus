@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------- o vinculo */
 /*
-   O PAULUS do servidor vinculado a conta Google de quem o administra
+   O Paulus do servidor vinculado a conta Google de quem o administra
    (src/vinculo.py, E5). Vinculado, ele abre TRAVADO: esta tela cobre tudo e
    pede "Entrar com Google" (e o codigo do celular, se a conta de titular dessa
    pessoa tem o autenticador). "Manter aberto neste computador" desliga a
@@ -90,7 +90,7 @@ function desenharTrava() {
   if (codigo) {
     tela = recuperacao ? "chave" : semNet ? "trava_sem_internet" : "trava_codigo";
     frase = recuperacao ? "Use uma das chaves de recuperação que você guardou. Cada uma vale uma vez." : semNet
-      ? "Sem internet, o código do celular abre o PAULUS neste computador." : "Falta confirmar que é você: digite o código do Google Authenticator.";
+      ? "Sem internet, o código do celular abre o Paulus neste computador." : "Falta confirmar que é você: digite o código do Google Authenticator.";
     const n = recuperacao ? 0 : 6;
     corpo = '<form class="trava-form" id="trava-codigo">' +
       conta("CONTA", recuperacao ? "" : (semNet ? "Entrar com o Google" : "Trocar")) +
@@ -117,9 +117,11 @@ function desenharTrava() {
       (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") +
       '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
       '<div class="trava-grupo trava-enquanto"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
-      '<div class="trava-fora"><span class="trava-estado' + (foraNoAr ? " ok" : "") + '"><i></i>' +
-      (foraNoAr ? "Acesso de fora funcionando" : "Acesso de fora desligado") + "</span>" +
-      (foraNoAr ? '<span class="trava-mono">' + esc(fora.hostname) + "</span>" : "") + "</div></div>" +
+      // A Cloudflare a esquerda; o estado em duas linhas (frase e, embaixo, o endereco); a bolinha a direita.
+      '<div class="trava-fora"><span class="trava-fora-marca">' + window.marca("cloudflare", 20) + "</span>" +
+      '<span class="trava-estado-txt"><b>' + (foraNoAr ? "Acesso externo funcionando corretamente" : "Acesso externo desligado") + "</b>" +
+      (foraNoAr ? '<a class="trava-mono" href="' + esc("https://" + fora.hostname) + '" target="_blank" rel="noopener">' + esc(fora.hostname) + "</a>" : "") + "</span>" +
+      '<span class="trava-estado' + (foraNoAr ? " ok" : "") + '" aria-label="' + (foraNoAr ? "no ar" : "desligado") + '"><i></i></span></div></div>' +
       (pronto ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>' : "") +
       "</div>";
   }
@@ -129,7 +131,7 @@ function desenharTrava() {
   // muda o passo (js/entrada-saudacao.js).
   const antes = telaDaTrava().querySelector(".trava-marca");
   telaDaTrava().innerHTML =
-    '<header class="trava-topo pywebview-drag-region"><span class="trava-selo">' + ic("desktop_windows", 16) + "servidor</span>" +
+    '<header class="trava-topo pywebview-drag-region"><span class="trava-marca-nome">PAVLVS</span>' +
     '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 16) + "</button></header>" +
     '<main class="trava-corpo">' + (codigo ? '<button type="button" class="trava-voltar" id="trava-voltar">' + ic("arrow_back", 18) + "Voltar</button>" : "") +
     '<div class="trava-coluna"><div class="trava-marca abrindo"><h1 data-es-titulo>Paulus está te esperando.</h1><p data-es-frase>' + esc(frase) +
@@ -250,7 +252,7 @@ acessoDeFora.pronto.then(async () => {
 
 /* ------------------------------------------------ sair (no servidor) */
 /*
-   "Sair", na barra da janela do servidor: trava o PAULUS na hora - mesmo com
+   "Sair", na barra da janela do servidor: trava o Paulus na hora - mesmo com
    "manter aberto" - para ninguem mexer no computador do escritorio. Quem
    entra de fora nao passa pela trava: com o programa aberto, a equipe
    continua entrando pelo endereco. De fora, o "Sair" e o da propria conta
@@ -270,7 +272,7 @@ async function sairDoServidor() {
   const e = (await lerVinculoGoogle()) || {};
   if (!e.vinculado) {
     const ir = await confirmar({ titulo: "Sair da conta", contexto: "servidor do escritório",
-      texto: "Para sair, este PAULUS precisa estar vinculado a uma conta Google: é com ela que se entra de novo. Vincule em Configurações › Escritório e equipe.",
+      texto: "Para sair, este Paulus precisa estar vinculado a uma conta Google: é com ela que se entra de novo. Vincule em Configurações › Escritório e equipe.",
       confirmar: "Vincular agora" });
     if (ir) mostrarConfig("vinculos");
     return;
@@ -288,21 +290,21 @@ function cartaoDoVinculo() {
   if (!e) return "";
   const esperando = e.fase === "aguardando" || e.fase === "trocando" || e.fase === "testando";
   if (!e.vinculado) {
-    return cartaoCfg("Conta Google deste PAULUS", metaCfg("não vinculado"),
-      '<p class="cfg-texto">Vincule este PAULUS à sua conta Google: ele passa a abrir travado e pede o Google a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso de fora e convidar a equipe.</p>' +
+    return cartaoCfg("Conta Google deste Paulus", metaCfg("não vinculado"),
+      '<p class="cfg-texto">Vincule este Paulus à sua conta Google: ele passa a abrir travado e pede o Google a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
       (e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
       '<div class="acesso-pe"><button class="primario com-icone" data-vinc-vincular="1"' + (esperando || !e.google ? " disabled" : "") + ">" +
       (esperando ? "Esperando o Google no navegador…" : "Vincular com Google") + "</button>" +
       (esperando ? '<button data-vinc-cancelar="1">Cancelar</button>' : "") +
-      (!e.google ? '<p class="cfg-explica">Esta versão do PAULUS não traz o login do Google.</p>' : "") + "</div>");
+      (!e.google ? '<p class="cfg-explica">Esta versão do Paulus não traz o login do Google.</p>' : "") + "</div>");
   }
   const quando = e.vinculado_em ? new Date(e.vinculado_em).toLocaleDateString("pt-BR") : "";
-  return cartaoCfg("Conta Google deste PAULUS", pontoCfg("vinculado", "ok"),
+  return cartaoCfg("Conta Google deste Paulus", pontoCfg("vinculado", "ok"),
     '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + (e.nome ? chaveCfg("Nome", e.nome) : "") + (quando ? chaveCfg("Desde", quando) : "") + "</div>" +
     '<div class="acesso-energia">' +
     ligaCfg("", "Manter aberto neste computador", e.manter_aberto
-      ? "o PAULUS abre sem pedir o Google neste computador"
-      : "o PAULUS abre travado e pede o Google a cada abertura", e.manter_aberto, false)
+      ? "o Paulus abre sem pedir o Google neste computador"
+      : "o Paulus abre travado e pede o Google a cada abertura", e.manter_aberto, false)
       .replace('class="ag-toggle', 'data-vinc-manter="1" class="ag-toggle') + "</div>" +
     (e.codigo_confiado_ate
       ? '<div class="cfg-linhas">' + chaveCfg("Código do celular", "dispensado neste computador até " +
@@ -312,7 +314,7 @@ function cartaoDoVinculo() {
     blocoSemInternet(e) +
     '<div class="acesso-pe"><button class="com-icone" data-vinc-travar="1">' + ic("logout", 16) + "Sair</button>" +
     '<button class="perigo" data-vinc-desvincular="1">Desvincular</button>' +
-    '<p class="cfg-explica">Sair trava este computador até alguém entrar com o Google (o acesso de fora continua). Desvincular não apaga nada: o PAULUS só deixa de pedir o Google ao abrir.</p></div>');
+    '<p class="cfg-explica">Sair trava este computador até alguém entrar com o Google (o acesso externo continua). Desvincular não apaga nada: o Paulus só deixa de pedir o Google ao abrir.</p></div>');
 }
 
 /* Entrar sem internet (src/vinculo.py): o login do servidor nao depende do
@@ -393,7 +395,7 @@ function ligarVinculoCfg() {
   });
   clique("[data-vinc-desvincular]", async () => {
     if (!(await confirmar({ titulo: "Desvincular a conta Google?", contexto: "Configurações › Escritório e equipe",
-      texto: "O PAULUS deixa de pedir o Google ao abrir. Para ligar o acesso de fora e convidar a equipe, vai ser preciso vincular de novo.",
+      texto: "O Paulus deixa de pedir o Google ao abrir. Para ligar o acesso externo e convidar a equipe, vai ser preciso vincular de novo.",
       confirmar: "Desvincular", perigo: true }))) return;
     try { await postVinculo("/api/vinculo/desvincular"); avisoCert("desvinculado", { tom: "ok" }); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     redesenhar();

@@ -2,7 +2,7 @@
 /*
    Configurações › Aprendizado › Material de consulta (src/material.py).
    O escritório entrega um PDF - manual interno, tabela de honorários,
-   doutrina - e o PAULUS passa a consultá-lo em cada pergunta da conversa,
+   doutrina - e o Paulus passa a consultá-lo em cada pergunta da conversa,
    citando o material e a página.
 
    A tela diz o que acontece de verdade: o arquivo fica guardado nesta
@@ -39,7 +39,7 @@ function cartaoMaterial() {
   const solta = '<div class="cfg-solta" id="cfg-solta-material"><span class="duas-linhas"><b>' +
     (enviando ? "lendo " + (enviando === 1 ? "“" + esc(mat.enviando[0]) + "”" : plural(enviando, "arquivo")) + "…" : "Arraste PDFs, DOCX, TXT ou MD para cá") + "</b>" +
     "<small>o arquivo fica guardado nesta máquina e é consultado em cada pergunta</small></span>" +
-    '<span class="cfg-botoes"><button data-mat-pacote="1" title="Um material que outro PAULUS exportou">' + ic("download", 16) + "Importar pacote</button>" +
+    '<span class="cfg-botoes"><button data-mat-pacote="1" title="Um material que outro Paulus exportou">' + ic("download", 16) + "Importar pacote</button>" +
     '<button class="primario com-icone" data-mat-escolher="1"' + (enviando ? " disabled" : "") + ">" +
     ic("upload", 16) + "Escolher arquivos</button></span></div>";
   return cartaoCfg("Material de consulta", metaCfg(itens.length ? plural(itens.length, "arquivo") + " · " + plural(d.trechos || 0, "trecho") : "o que eu consulto para responder"),
@@ -89,7 +89,7 @@ async function enviarMaterial(arquivos) {
   if (conferir) dialogoDaFicha(conferir);
 }
 
-/* ------------------------------------------- o que o PAULUS sabe (M7) */
+/* ------------------------------------------- o que o Paulus sabe (M7) */
 /* A biblioteca por área: as obras (com a ficha), as leis instaladas e, por
    código, quantos artigos as obras do escritório comentam. É daqui que sai o
    aviso "Não tenho material de <área> na biblioteca" da conversa. */
@@ -117,7 +117,7 @@ function cartaoMapa() {
 }
 
 /* ------------------------------------ o pacote .paulus-material (local) */
-/* Levar um material a outro PAULUS: ficha, texto com as páginas e as
+/* Levar um material a outro Paulus: ficha, texto com as páginas e as
    anotações, num arquivo. Nada vai pela rede - é um arquivo que você leva.
    Só o autor exporta, e só depois de declarar e escolher a licença. */
 const LICENCAS_PACOTE = ["CC BY 4.0", "CC BY-SA 4.0", "CC BY-NC 4.0", "Uso livre pelo escritório que importar, sem republicar"];
@@ -281,7 +281,7 @@ function menuDoMaterial(onde, id) {
     /* Só o que é do próprio escritório se exporta (artigo, modelo de peça,
        manual); doutrina de editora nunca. */
     ...(m.ficha && ["artigo", "modelo_de_peca", "manual"].includes(m.ficha.tipo) && m.ficha.origem !== "comunidade"
-      ? [{ rotulo: "Exportar para outro PAULUS", icone: "share", acao: () => exportarPacote(m) }] : []),
+      ? [{ rotulo: "Exportar para outro Paulus", icone: "share", acao: () => exportarPacote(m) }] : []),
     { rotulo: "Abrir o arquivo", icone: "open_in_new", acao: async () => {
       const r = await fetch("/api/material/" + encodeURIComponent(id) + "/abrir", { method: "POST" });
       if (!r.ok) avisoCert(await erroDe(r), { tom: "erro" });

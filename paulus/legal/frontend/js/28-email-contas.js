@@ -3,7 +3,7 @@
    Contas de e-mail (B1) em passos, uma pergunta por vez:
      lista       as contas desta maquina
      entrar      "Entrar com Google/Microsoft" - o caminho principal; so
-                 existe quando o PAULUS traz algum login (mail.contas.oauth)
+                 existe quando o Paulus traz algum login (mail.contas.oauth)
      email       outro provedor: endereco, servidor (detectado pelo dominio,
                  ou a mao) e senha, num passo so
      senha       entrar de novo numa conta que ja existe (so a senha)

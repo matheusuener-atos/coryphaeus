@@ -6,7 +6,7 @@
    (src/word_suplemento.py, src/word_instalar.py).
 
    No Word 2021 a aba PAVLVS só aparece no documento que traz o PAVLVS
-   (medido em 01/10/2026): por isso o PAULUS abre o Word com um documento
+   (medido em 01/10/2026): por isso o Paulus abre o Word com um documento
    seu, e todo .docx que ele gera leva o PAVLVS.
 
    Na janela do escritório, um Word pedindo para conectar abre um diálogo com
@@ -40,14 +40,14 @@ function secaoWord() {
   const ligar = cartaoCfg("Ligar", "",
     '<div class="ag-toggle' + (w.ligado ? " on" : "") + '" data-word-acao="ligar" role="switch" tabindex="0" aria-checked="' + w.ligado + '">' +
     '<span class="duas-linhas"><b>O PAVLVS dentro do Word</b><small>o painel no Word confere citações, insere lei e qualificação e responde sobre o documento; ' +
-    "o texto do documento vai só para este PAULUS</small></span><i></i></div>");
+    "o texto do documento vai só para este Paulus</small></span><i></i></div>");
 
   let corpo;
   if (!w.ligado) {
     corpo = '<p class="cfg-explica">Ligue acima para instalar.</p>';
   } else {
     const carregou = i.carregou;
-    corpo = (i.word_no_computador ? "" : '<p class="cfg-explica"><b>Não achei o Word neste computador.</b> Instale o Microsoft Office para usar o PAVLVS aqui; em outro computador, o Word usa pelo acesso de fora.</p>') +
+    corpo = (i.word_no_computador ? "" : '<p class="cfg-explica"><b>Não achei o Word neste computador.</b> Instale o Microsoft Office para usar o PAVLVS aqui; em outro computador, o Word usa pelo acesso externo.</p>') +
       linhaWord("Certificado deste computador", cert.existe ? (cert.confiado ? "confiado pelo Windows · vale até " + cert.vence : "gerado, ainda não confiado") : "ainda não gerado",
         cert.confiado ? "ok" : "") +
       linhaWord("Endereço do painel", i.endereco || "escolhido na instalação") +
@@ -60,8 +60,8 @@ function secaoWord() {
           linhaWord("Botão direito dos .docx", i.atalhos.botao_direito ? "Abrir no Word com o PAVLVS" : "desligado", i.atalhos.botao_direito ? "ok" : "")
         : "") +
       '<p class="cfg-explica">' + (instalado
-        ? "O Word abre com o PAVLVS (a aba e o painel) pelo atalho <b>Word com PAVLVS</b>, pelo botão direito de qualquer arquivo .docx (<b>Abrir no Word com o PAVLVS</b>; no Windows 11, em Mostrar mais opções), pelo <b>Abrir no Word</b> do Editor e em todo documento Word que o PAULUS gera. Depois que o arquivo abriu com o PAVLVS, ele continua lá, e o duplo clique já abre com ele. Fixar o atalho na barra de tarefas o Windows só deixa você mesmo: botão direito no atalho › Mostrar mais opções › Fixar na barra de tarefas."
-        : "O Windows vai perguntar se confia no certificado do PAULUS: clique em Sim. Ele só vale para este computador (localhost) e não pede administrador. Depois, o Word abre sozinho com o PAVLVS.") + "</p>" +
+        ? "O Word abre com o PAVLVS (a aba e o painel) pelo atalho <b>Word com PAVLVS</b>, pelo botão direito de qualquer arquivo .docx (<b>Abrir no Word com o PAVLVS</b>; no Windows 11, em Mostrar mais opções), pelo <b>Abrir no Word</b> do Editor e em todo documento Word que o Paulus gera. Depois que o arquivo abriu com o PAVLVS, ele continua lá, e o duplo clique já abre com ele. Fixar o atalho na barra de tarefas o Windows só deixa você mesmo: botão direito no atalho › Mostrar mais opções › Fixar na barra de tarefas."
+        : "O Windows vai perguntar se confia no certificado do Paulus: clique em Sim. Ele só vale para este computador (localhost) e não pede administrador. Depois, o Word abre sozinho com o PAVLVS.") + "</p>" +
       '<div class="word-acoes">' +
       (instalado ? '<button class="primario" data-word-acao="abrir">' + ic("description", 16) + "Abrir o Word com o PAVLVS</button>" : "") +
       (instalado && (i.atalhos || {}).disponivel && !(i.atalhos.area_de_trabalho && i.atalhos.menu_iniciar && i.atalhos.botao_direito)
@@ -72,13 +72,13 @@ function secaoWord() {
   }
   const instalar = cartaoCfg("Instalar no Word deste computador", metaCfg("sem administrador"), corpo);
 
-  const fora = !w.ligado ? "" : cartaoCfg("Word em outro computador ou no navegador", metaCfg("pelo acesso de fora"),
+  const fora = !w.ligado ? "" : cartaoCfg("Word em outro computador ou no navegador", metaCfg("pelo acesso externo"),
     i.endereco_de_fora
       ? '<p class="cfg-explica">O painel abre pelo endereço do escritório (' + esc(i.endereco_de_fora) + "). Cada pessoa conecta o Word dela com a própria conta e o código do autenticador.</p>" +
         '<ol class="word-passos"><li>Clique em <b>Manifesto e pasta</b> e mande o arquivo <b>PAVLVS-word-de-fora.xml</b> para a pessoa.</li>' +
         "<li>Word na web: Inserir › Suplementos › Meus Suplementos › Carregar Meu Suplemento › escolher o arquivo.</li>" +
-        "<li>No painel, Conectar ao PAULUS mostra um código; a pessoa entra no PAULUS de fora e confirma em Minha conta › Conectar o Word.</li></ol>"
-      : '<p class="cfg-explica">Precisa do acesso de fora ligado e conectado (Configurações › Acesso de fora). Sem ele, o PAVLVS funciona só no Word deste computador.</p>');
+        "<li>No painel, Conectar ao Paulus mostra um código; a pessoa entra no Paulus de fora e confirma em Minha conta › Conectar o Word.</li></ol>"
+      : '<p class="cfg-explica">Precisa do acesso externo ligado e conectado (Configurações › Acesso externo). Sem ele, o PAVLVS funciona só no Word deste computador.</p>');
 
   const conexoes = (w.conexoes || []);
   const lista = conexoes.length
@@ -101,7 +101,7 @@ async function acaoWord(acao, alvo) {
   let d = null;
   if (acao === "ligar") d = await posta("/api/word/ligar", { ligado: !(cfg.word && cfg.word.ligado) });
   else if (acao === "instalar") {
-    avisoCert("instalando… se o Windows perguntar sobre o certificado do PAULUS, clique em Sim", { tom: "info" });
+    avisoCert("instalando… se o Windows perguntar sobre o certificado do Paulus, clique em Sim", { tom: "info" });
     d = await posta("/api/word/instalar");
     if (d) { cfg.word = d; desenharConfig(); await perguntarAtalhosDoWord(d); await abrirWordComPavlvs("/api/word/abrir"); await carregarWord(); d = cfg.word; }
   } else if (acao === "abrir") { await abrirWordComPavlvs("/api/word/abrir"); return; }
@@ -149,7 +149,7 @@ async function vigiarPedidosDoWord() {
   const r = await dialogo({
     titulo: "Um Word quer se conectar", contexto: "PAVLVS no Word",
     html: '<p>Confira se o painel do Word mostra este mesmo código:</p><div class="word-codigo">' + esc(novo.codigo) + "</div>" +
-      "<p>Word " + esc(novo.word || "sem versão") + ", neste computador. Permitir dá a ele acesso ao PAULUS como titular, até alguém revogar em Configurações › Word.</p>",
+      "<p>Word " + esc(novo.word || "sem versão") + ", neste computador. Permitir dá a ele acesso ao Paulus como titular, até alguém revogar em Configurações › Word.</p>",
     confirmar: "Permitir", cancelar: "Recusar",
   });
   wordDialogoAberto = false;
@@ -187,9 +187,9 @@ async function novidadeDoWord() {
   if (w.novidade_tipo === "abrir") {
     const a = await dialogo({
       titulo: "O PAVLVS já está no seu Word", contexto: "PAVLVS no Word",
-      html: "<p>O PAVLVS está instalado neste computador. Agora o PAULUS abre o Word com ele: a aba <b>PAVLVS</b> lá em cima e o painel ao lado do documento.</p>" +
-        "<p>Para isso, crio o atalho <b>Word com PAVLVS</b> na área de trabalho (um documento novo com o PAVLVS) e o <b>Abrir no Word com o PAVLVS</b> no botão direito de todo arquivo .docx. Depois que um arquivo abriu com o PAVLVS, o duplo clique já abre com ele. O <b>Abrir no Word</b> do Editor e todo documento Word que o PAULUS gera também abrem com o PAVLVS.</p>" +
-        "<p>Nesta versão, o painel se conecta ao PAULUS; conferir citações, inserir lei e qualificação e o resto chegam nas próximas versões, marcados “em breve”.</p>",
+      html: "<p>O PAVLVS está instalado neste computador. Agora o Paulus abre o Word com ele: a aba <b>PAVLVS</b> lá em cima e o painel ao lado do documento.</p>" +
+        "<p>Para isso, crio o atalho <b>Word com PAVLVS</b> na área de trabalho (um documento novo com o PAVLVS) e o <b>Abrir no Word com o PAVLVS</b> no botão direito de todo arquivo .docx. Depois que um arquivo abriu com o PAVLVS, o duplo clique já abre com ele. O <b>Abrir no Word</b> do Editor e todo documento Word que o Paulus gera também abrem com o PAVLVS.</p>" +
+        "<p>Nesta versão, o painel se conecta ao Paulus; conferir citações, inserir lei e qualificação e o resto chegam nas próximas versões, marcados “em breve”.</p>",
       confirmar: "Abrir o Word com o PAVLVS", cancelar: "Agora não",
     });
     novidadeDoWordAberta = false;
@@ -203,10 +203,10 @@ async function novidadeDoWord() {
     return;
   }
   const r = await dialogo({
-    titulo: "Novidade: o PAULUS dentro do Word", contexto: "PAVLVS no Word",
-    html: '<p>Agora o PAULUS pode ficar no Word que você já usa: uma aba <b>PAVLVS</b> e um painel ao lado do documento, ligados a este computador. O texto do documento vai só para este PAULUS.</p>' +
-      "<p>Nesta versão, o painel se instala e se conecta ao PAULUS. Conferir citações, inserir lei e qualificação, perguntar sobre o documento, revisar com agente e guardar no Acervo chegam nas próximas versões; os botões já aparecem no Word, marcados “em breve”.</p>" +
-      "<p>Para instalar, o Windows vai perguntar se confia no certificado do PAULUS, que só vale para este computador: clique em <b>Sim</b>. Depois o Word abre sozinho, já com o PAVLVS. Daí em diante, o <b>Abrir no Word</b> do Editor e todo documento Word que o PAULUS gera abrem com ele.</p>" +
+    titulo: "Novidade: o Paulus dentro do Word", contexto: "PAVLVS no Word",
+    html: '<p>Agora o Paulus pode ficar no Word que você já usa: uma aba <b>PAVLVS</b> e um painel ao lado do documento, ligados a este computador. O texto do documento vai só para este Paulus.</p>' +
+      "<p>Nesta versão, o painel se instala e se conecta ao Paulus. Conferir citações, inserir lei e qualificação, perguntar sobre o documento, revisar com agente e guardar no Acervo chegam nas próximas versões; os botões já aparecem no Word, marcados “em breve”.</p>" +
+      "<p>Para instalar, o Windows vai perguntar se confia no certificado do Paulus, que só vale para este computador: clique em <b>Sim</b>. Depois o Word abre sozinho, já com o PAVLVS. Daí em diante, o <b>Abrir no Word</b> do Editor e todo documento Word que o Paulus gera abrem com ele.</p>" +
       '<p class="cfg-explica">Também fica em Configurações › Word, para ativar depois ou tirar.</p>',
     confirmar: "Ativar no Word", cancelar: "Agora não",
   });
@@ -216,7 +216,7 @@ async function novidadeDoWord() {
   const posta = (url, corpo) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: corpo ? JSON.stringify(corpo) : undefined });
   let resp = await posta("/api/word/ligar", { ligado: true });
   if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); return; }
-  avisoCert("instalando… se o Windows perguntar sobre o certificado do PAULUS, clique em Sim", { tom: "info" });
+  avisoCert("instalando… se o Windows perguntar sobre o certificado do Paulus, clique em Sim", { tom: "info" });
   resp = await posta("/api/word/instalar");
   if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); return; }
   wordEstado = await resp.json();
@@ -249,7 +249,7 @@ async function perguntarAtalhosDoWord(situacao) {
 
 /* Abrir o Word com o PAVLVS ("comece aqui" ou um documento do Editor). Um
    Word aberto desde antes da instalação não conhece o PAVLVS (ele lê o
-   registro só ao abrir): o PAULUS pede para fechar e abre sozinho quando ele
+   registro só ao abrir): o Paulus pede para fechar e abre sozinho quando ele
    fechar. */
 let wordEsperandoFechar = false;
 async function abrirWordComPavlvs(url) {
@@ -265,7 +265,7 @@ async function abrirWordComPavlvs(url) {
     const ok = await dialogo({
       titulo: "Feche o Word para continuar", contexto: "PAVLVS no Word",
       texto: "O Word está aberto desde antes de o PAVLVS ser instalado, e só o conhece quando abre de novo.\n" +
-        "Salve o que estiver fazendo e feche o Word. Assim que ele fechar, o PAULUS abre o Word com o PAVLVS.",
+        "Salve o que estiver fazendo e feche o Word. Assim que ele fechar, o Paulus abre o Word com o PAVLVS.",
       confirmar: "Esperar o Word fechar", cancelar: "Agora não",
     });
     if (!ok || !ok.ok) return;
@@ -307,7 +307,7 @@ function wordInstaladoAqui() {
 async function conectarWordDeFora() {
   const r = await dialogo({
     titulo: "Conectar o Word", contexto: "Minha conta",
-    texto: "No Word, o painel do PAVLVS mostra um código depois de Conectar ao PAULUS. Digite o código e o do autenticador.",
+    texto: "No Word, o painel do PAVLVS mostra um código depois de Conectar ao Paulus. Digite o código e o do autenticador.",
     campos: [{ chave: "codigo", rotulo: "Código do painel", placeholder: "XXXX-XXXX", max: 9, obrigatorio: true },
       { chave: "autenticador", rotulo: "Código do autenticador", placeholder: "000000", max: 8, obrigatorio: true,
         dica: "os 6 números do Google Authenticator, ou um código de recuperação" }],
@@ -317,5 +317,5 @@ async function conectarWordDeFora() {
   const resp = await window.fetch("/api/word/permitir-de-fora", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ codigo: r.valores.codigo, codigo_autenticador: r.valores.autenticador }) });
   if (!resp.ok) { avisoCert(await erroDe(resp), { tom: "erro" }); return; }
-  avisoCert("Word conectado · o painel já pode usar o PAULUS", { tom: "ok" });
+  avisoCert("Word conectado · o painel já pode usar o Paulus", { tom: "ok" });
 }

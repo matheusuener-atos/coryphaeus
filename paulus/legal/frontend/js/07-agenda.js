@@ -989,8 +989,8 @@ function opcaoDoMeet(v) {
   const semConta = !d.conta;
   return '<div class="dialogo-campo ag-meet"><div class="ag-meet-linha">' + marca("google-meet", 18) +
     '<span class="duas-linhas"><b>Sala no Google Meet</b><small>' +
-    esc(semConta ? "Para o PAULUS criar a sala, entre com a conta Google no e-mail e conecte a Agenda do Google em Configurações › Conexões."
-      : "Para o PAULUS criar a sala ao salvar, conecte a Agenda do Google. Conectada, a sincronização liga: os compromissos vão à sua Agenda do Google (título, data, hora, duração e lugar; a anotação e o cliente ficam aqui).") + "</small></span>" +
+    esc(semConta ? "Para o Paulus criar a sala, entre com a conta Google no e-mail e conecte a Agenda do Google em Configurações › Conexões."
+      : "Para o Paulus criar a sala ao salvar, conecte a Agenda do Google. Conectada, a sincronização liga: os compromissos vão à sua Agenda do Google (título, data, hora, duração e lugar; a anotação e o cliente ficam aqui).") + "</small></span>" +
     '<button type="button" class="com-icone" data-ag-conectar-agenda="1">' + marca("google-agenda", 16) +
     (semConta ? "Abrir Conexões" : "Conectar a Agenda do Google") + "</button></div>" +
     '<span class="dialogo-dica">Sala de outra plataforma: depois de marcar, use “Convite com link” no compromisso.</span></div>';

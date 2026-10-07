@@ -1,0 +1,78 @@
+/* O programa no padrao do site (site/assets/site.css), 04/10/2026. Entra por
+   ultimo e so mexe nas pecas que o site define: o botao de moldura dupla
+   (.btn-duplo), a marca, os rotulos em mono e as cores de painel e pastilha.
+   As cores do escuro ja eram as do site (00-tokens.css); aqui ficam com o
+   mesmo nome, para o claro tambem. */
+:root {
+  --site-panel: #efeee9;
+  --site-pill: #e2e1db;
+  --site-pill-h: #dad9d2;
+  --site-line: rgba(28, 28, 26, .12);
+  --site-line3: rgba(28, 28, 26, .25);
+}
+[data-tema="escuro"] {
+  --site-panel: #1a1a18;
+  --site-pill: #2a2a27;
+  --site-pill-h: #303030;
+  --site-line: rgba(242, 241, 236, .1);
+  --site-line3: rgba(242, 241, 236, .2);
+}
+
+/* ---------- o botao de moldura dupla (.btn-duplo do site) ----------
+   O proprio botao e a pastilha (28 px, raio 7); o trilho de 1 px com o fio
+   fino vem por box-shadow (32 px no total, o padrao de 07/10), e a margem de 2 px reserva o lugar dele. Com isso
+   nenhum markup muda: todo `button.primario` do programa vira o botao do
+   site. */
+button.primario, button.primario:hover:not(:disabled), button.primario:disabled {
+  height: 28px; padding: 0 18px; border-radius: 7px; border: 1px solid transparent;
+  background: var(--site-pill); color: var(--ink);
+  font: 500 13px var(--sans); letter-spacing: .01em;
+  box-shadow: 0 0 0 1px var(--site-panel), 0 0 0 2px var(--site-line);
+  margin: 2px;
+}
+button.primario:hover:not(:disabled) { background: var(--site-pill-h); }
+button.primario { white-space: nowrap; width: auto; min-width: 0; }
+button.primario.com-icone { gap: 8px; }
+/* Botoes pequenos (dentro de linhas e cartoes apertados) mantem a altura
+   da linha: a pastilha encolhe, o trilho fica. */
+.tabela-cartao button.primario, .linha-form button.primario, .sv-ficha button.primario, .painel button.primario,
+.emc-msg-acoes button.primario, .cfc-acoes button.primario, .as-pronto-acoes button.primario {
+  height: 30px; padding: 0 14px; font-size: 13px;
+}
+/* O enviar da caixa de pedido e redondo: nao e um .btn-duplo, e fica como esta. */
+button.enviar, button.enviar.primario { height: 34px; padding: 0; margin: 0; box-shadow: none; border-radius: 50%; }
+
+/* ---------- os demais botoes: o fio e a altura do site ---------- */
+button { font-size: 13px; border-color: var(--site-line); }
+button:hover:not(:disabled) { border-color: var(--site-line3); }
+
+/* ---------- a marca ----------
+   No trilho, a miniatura (o P no quadrado, o mesmo icone do site e da janela);
+   onde ha espaco, PAVLVS em Garamond 400 com o espacamento do topo do site. */
+.trilho-logo { font-size: 0; color: transparent; }
+.trilho-logo img { display: block; width: 30px; height: 30px; border-radius: 8px; }
+.menu-cabeca { padding-left: 15px; }
+.menu-cabeca span { font: 400 20px/1 var(--serif); letter-spacing: .12em; }
+.bv-marca { font: 400 20px/1 var(--serif); letter-spacing: .12em; }
+
+/* ---------- rotulos (kickers): Fira Code 11, .18em, maiusculas ---------- */
+.sv-kicker, .pc-rotulo, .gcv-kicker, .emc-kicker, .bv-rotulo, .trava-etiqueta, .anx-caminho-rotulo, .avp-gaveta,
+.conversa-col.vazia .compositor .sv-kicker, .pc-dia-cabeca, .bv-selo {
+  font: 400 12px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3);
+}
+
+/* ---------- titulos: Garamond 400, sem peso ---------- */
+h1, h2, h3 { font-weight: 400; }
+#conversa-titulo { font-weight: 400; }
+
+/* ---------- cartoes e campos: raio 10 e o fio do site ---------- */
+.cartao, .cfg-cartao, .sv-secao, .fin-cartao, .ag-cartao, .as-cartao, .bv-cartao, .lc-cartao, .tabela-cartao, .dialogo {
+  border-radius: 12px; border-color: var(--site-line);
+}
+
+/* Padrao de 07/10: o botao secundario do programa (o button base de 05-paineis-e-botoes.css) com 28 px numa linha.
+   :where() mantem a especificidade do "button" base: as regras de componente (com classe) continuam valendo.
+   Fora: o principal (moldura dupla), o enviar redondo e os de icone. Texto em duas linhas cresce (min-height). */
+button:where(:not(.primario):not(.enviar):not(.botao-icone):not(.dialogo-fechar):not([class*="icone"])) {
+  padding-top: 4px; padding-bottom: 4px; line-height: 18px; min-height: 28px;
+}

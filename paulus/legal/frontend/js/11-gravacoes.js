@@ -1072,7 +1072,7 @@ async function baixarModeloDeVoz(nome) {
   r = await fetch("/api/voz/baixar", { method: "POST", headers: GV_JSON, body: JSON.stringify({ modelo: nome }) });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   gv.voz = await r.json();
-  avisoCert("baixando o modelo de voz — pode continuar usando o PAULUS; a tela avisa quando terminar");
+  avisoCert("baixando o modelo de voz — pode continuar usando o Paulus; a tela avisa quando terminar");
   redesenharConteudoGv();
   vigiarVoz();
 }
@@ -1285,7 +1285,7 @@ async function comecarGravacao() {
   const v = gv.vivo;
   if (v.estado !== "pronto") return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
-    v.erro = "Este navegador não dá acesso ao microfone aqui. Abra o PAULUS na janela do programa ou no Edge.";
+    v.erro = "Este navegador não dá acesso ao microfone aqui. Abra o Paulus na janela do programa ou no Edge.";
     redesenharGravador();
     return;
   }
@@ -1294,7 +1294,7 @@ async function comecarGravacao() {
   if (typeof acessoDeFora !== "undefined" && !acessoDeFora.local) {
     const g = (acessoDeFora.permissoes || []).find((m) => m.id === "gravacoes");
     if (g && g.nivel !== "faz") {
-      v.erro = "Para gravar de fora, o titular precisa liberar Gravações para você (Configurações › Acesso de fora › Permissões).";
+      v.erro = "Para gravar de fora, o titular precisa liberar Gravações para você (Configurações › Acesso externo › Permissões).";
       redesenharGravador();
       return;
     }
@@ -1306,7 +1306,7 @@ async function comecarGravacao() {
     v.erro = err && err.name === "NotAllowedError"
       ? (typeof acessoDeFora !== "undefined" && !acessoDeFora.local
         ? "O navegador não liberou o microfone. Clique no cadeado ao lado do endereço, permita o microfone para este site e tente de novo."
-        : "O microfone foi negado. Libere o microfone para o PAULUS nas permissões da janela e tente de novo.")
+        : "O microfone foi negado. Libere o microfone para o Paulus nas permissões da janela e tente de novo.")
       : (err && err.name === "NotFoundError" ? "Nenhum microfone encontrado nesta máquina." : "Não consegui abrir o microfone: " + (err && err.message ? err.message : err));
     redesenharGravador();
     return;

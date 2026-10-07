@@ -16,12 +16,12 @@
   .sv-pasta-cabeca > .ic { color: var(--ink3); flex: none; }
   .sv-pasta-cabeca .duas-linhas b { font-weight: 600; font-size: 14px; }
   .sv-pasta p {
-    margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2);
+    margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2);
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   }
   .sv-pasta-pe {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 9px;
-    border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3);
+    border-top: 1px solid var(--ink-a1); font: 500 12px var(--sans); color: var(--ink3);
   }
   .sv-pct { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
   .sv-pasta.feita .sv-pct { color: var(--ink3); }
@@ -35,12 +35,12 @@
     border: 1px dashed var(--ink-a15); border-radius: 12px; background: transparent; color: var(--ink2); cursor: pointer;
   }
   .sv-novo:hover:not(:disabled) { border-color: var(--ink-a35); color: var(--ink); background: var(--fill); }
-  .sv-novo b { font: 600 13.5px var(--sans); }
+  .sv-novo b { font: 600 13px var(--sans); }
   .sv-novo small { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-vazio { grid-column: span 2; padding: 28px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); display: grid; gap: 6px; align-content: start; }
   /* O titulo dos cartoes de vazio e o dos cartoes comuns: letra sem serifa. */
-  .sv-vazio h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
-  .sv-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .sv-vazio h3 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .sv-vazio p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
 
   .sv-faisca { color: var(--destaque); display: inline-flex; }
   /* Concluir a etapa: o botao de icone do sistema (05-paineis-e-botoes.css);
@@ -48,8 +48,8 @@
   .sv-marca { color: var(--ink3); }
   .sv-data { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; text-align: right; }
   /* Usados tambem pela Gravacao arquivada (marcadores e o que falta). */
-  .sv-falta { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .sv-evento { display: grid; gap: 2px; font-size: 13.5px; min-width: 0; }
+  .sv-falta { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: var(--ink2); }
+  .sv-evento { display: grid; gap: 2px; font-size: 13px; min-width: 0; }
   .sv-evento b { font-weight: 500; }
   .sv-evento small { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-evento.grande { padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); }
@@ -72,8 +72,8 @@
      nos mesmos 1080. */
   :is(#agenda, #sv-tela, #gv-tela, #be-tela) > .acervo-principal > * { width: 100%; max-width: var(--fio); margin-left: auto; margin-right: auto; }
   #docs > *, #assinatura { width: 100%; max-width: var(--fio); margin-left: auto; margin-right: auto; }
-  .sv-kicker { font: 600 11px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
-  .sv-dica { margin: 10px 0 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .sv-kicker { font: 600 12px var(--sans); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink3); }
+  .sv-dica { margin: 10px 0 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   /* A ligacao e a do sistema (05-paineis-e-botoes.css); aqui so o layout. */
   .sv-ligacao { flex: none; }
 
@@ -82,10 +82,10 @@
   /* O resumo da IA no topo: titulo na serifa, o texto na letra do sistema. */
   .sv-resumo-topo { display: grid; gap: 10px; padding: 4px 2px 0; }
   .sv-resumo-cabeca { display: flex; align-items: center; gap: 14px; min-width: 0; }
-  .sv-resumo-cabeca h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
-  .sv-resumo-quando { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-resumo-cabeca h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }
+  .sv-resumo-quando { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-resumo-cabeca .sv-ligacao { margin-left: auto; }
-  .sv-resumo-corpo { margin: 0; max-width: 860px; font: 400 15px/1.7 var(--sans); color: var(--ink2); white-space: pre-line; }
+  .sv-resumo-corpo { margin: 0; max-width: 860px; font: 400 16px/1.7 var(--sans); color: var(--ink2); white-space: pre-line; }
   .sv-resumo-corpo.vazio { color: var(--ink3); }
   /* A ficha e um cartao em faixa: as quatro colunas numa linha so. */
   .sv-ficha {
@@ -116,7 +116,7 @@
   .sv-secao-cabeca { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
   .sv-secao-titulo { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font: 600 14px var(--sans); color: var(--ink); }
   .sv-secao-titulo .ic { color: var(--ink3); }
-  .sv-secao-meta { font: 500 12.5px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .sv-secao-meta { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
 
   /* Equipe. */
   .sv-redatores { display: flex; flex-wrap: wrap; gap: 12px 36px; padding: 14px 16px 8px; }
@@ -128,7 +128,7 @@
   .sv-redator:hover:not(:disabled) { background: none; border: none; }
   .sv-redator .duas-linhas b { font: 600 14px var(--sans); }
   .sv-redator:hover .duas-linhas b { text-decoration: underline; text-underline-offset: 3px; }
-  .sv-redator .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-redator .duas-linhas small { font: 500 12px var(--sans); color: var(--ink3); }
 
   /* Status para conclusao. */
   .sv-linha-etapa { display: flex; align-items: center; gap: 12px; margin: 0; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); }
@@ -158,7 +158,7 @@
   .sv-nova-marca { flex: none; display: inline-flex; color: var(--ink3); }
   .sv-nova-etapa input[type="text"] {
     flex: 1; min-width: 0; max-width: none; height: auto; padding: 4px 0; border: none; border-radius: 0;
-    background: none; box-shadow: none; outline: none; font: 400 13.5px var(--sans); color: var(--ink);
+    background: none; box-shadow: none; outline: none; font: 400 13px var(--sans); color: var(--ink);
   }
   .sv-nova-etapa input[type="text"]:focus { outline: none; box-shadow: inset 0 -1px 0 var(--ink); }
   /* Os botoes da nova etapa: o botao do sistema (dentro do cartao ele ja
@@ -192,14 +192,14 @@
   .sv-ev-resumo .sv-ev-ic .ic, .sv-ev-conversa .sv-ev-ic .ic { color: var(--ink); }
   .sv-ev-corpo { display: grid; gap: 6px; min-width: 0; padding-top: 4px; }
   .sv-ev-topo { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-  .sv-ev-topo b { font: 500 13.5px var(--sans); color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
-  .sv-ev-topo small { margin-left: auto; flex: none; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .sv-ev-topo b { font: 500 13px var(--sans); color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+  .sv-ev-topo small { margin-left: auto; flex: none; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .sv-ev-texto { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .sv-ev-texto.riscado { text-decoration: line-through; color: var(--ink3); }
   .sv-ev-docs { display: grid; gap: 2px; }
   .sv-ev-doc {
-    display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border: none; border-radius: 6px;
-    background: none; color: var(--ink2); font: 500 13.5px var(--sans); text-align: left; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border: none; border-radius: 8px;
+    background: none; color: var(--ink2); font: 500 13px var(--sans); text-align: left; cursor: pointer;
   }
   .sv-ev-doc:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .sv-ev-doc:disabled { color: var(--ink3); cursor: default; }
@@ -211,15 +211,15 @@
   .sv-ev-tarefa .duas-linhas b { color: var(--ink); font-weight: 500; }
   .sv-ev-tarefa.feita .duas-linhas b { color: var(--ink3); text-decoration: line-through; }
   .sv-ev-citacao { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--fill); font-size: 13px; line-height: 1.55; color: var(--ink2); white-space: pre-line; }
-  .sv-ev-pergunta { margin: 0; justify-self: start; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+  .sv-ev-pergunta { margin: 0; justify-self: start; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13px; line-height: 1.5; color: var(--ink); }
   .sv-ev-resposta { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink); white-space: pre-line; }
-  .sv-ev-pensando { margin: 0; display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-ev-pensando { margin: 0; display: flex; align-items: center; gap: 8px; font: 500 12px var(--sans); color: var(--ink3); }
   .sv-conversa { padding: 10px 16px 14px; display: grid; gap: 10px; }
   /* Os comandos sao o chip de atalho do sistema (05-paineis-e-botoes.css). */
   .sv-comandos { display: flex; flex-wrap: wrap; gap: 6px; }
   .sv-caixa {
     display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 4px 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf);
     transition: border-color .15s ease;
   }
   .sv-caixa:focus-within { border-color: var(--ink); }
@@ -243,10 +243,10 @@
   .sv-anotacao { display: flex; gap: 12px; margin: 0; padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); }
   .sv-anotacao-texto { flex: 1; min-width: 0; display: grid; gap: 4px; }
   .sv-anotacao p { margin: 0; font: 500 14px/1.5 var(--sans); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
-  .sv-anotacao small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .sv-anotacao small { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-nova-nota {
     width: calc(100% - 32px); min-height: 36px; margin: 4px 16px 0; padding: 8px 0; resize: none; border: none; border-radius: 0;
-    background: none; box-shadow: none; font: 400 13.5px/1.5 var(--sans); color: var(--ink);
+    background: none; box-shadow: none; font: 400 13px/1.5 var(--sans); color: var(--ink);
   }
   .sv-nova-nota:focus { outline: none; box-shadow: inset 0 -1px 0 var(--ink); }
   .sv-anotacoes .sv-secao-meta:empty { display: none; }
@@ -258,8 +258,8 @@
   /* A equipe no pop-up. A caixa de marcar e a .marcar do sistema (04-acervo.css). */
   .sv-d-pessoas { display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
   .sv-d-pessoa {
-    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 6px;
-    background: transparent; font: 500 13.5px var(--sans); color: var(--ink2); text-align: left; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 8px;
+    background: transparent; font: 500 13px var(--sans); color: var(--ink2); text-align: left; cursor: pointer;
   }
   .sv-d-pessoa:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .sv-d-pessoa.on { background: var(--fill); color: var(--ink); font-weight: 600; }
@@ -274,7 +274,7 @@
   .sv-editavel:has(.sv-editando) { background: none; }
   .sv-editando {
     display: block; width: 100%; max-width: none; height: auto; min-height: 0; margin: -3px -6px; padding: 2px 6px;
-    border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf); box-shadow: none;
+    border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf); box-shadow: none;
     font: inherit; line-height: inherit; color: var(--ink); resize: none; overflow: hidden;
   }
   .sv-editando:focus { outline: none; border-color: var(--ink); box-shadow: none; }

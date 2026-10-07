@@ -26,9 +26,8 @@
   <a class="marca" href="../" aria-label="PAVLVS — página inicial">PAVLVS</a>
   <nav class="nav" id="nav-principal" aria-label="Principal">
     <a href="../">Plataforma</a>
-    <a href="../desenvolvimento/">Desenvolvimento</a>
-    <a href="../materiais/">Materiais</a>
     <a href="../assinatura/" aria-current="page">Assinar</a>
+    <a href="../minha-conta/">Minha conta</a>
     <a href="../en/" lang="en" hreflang="en">English</a>
     <a class="btn-duplo pequeno" href="../escritorio/"><span>Acessar escritório</span></a>
   </nav>
@@ -41,14 +40,17 @@
 <main id="conteudo" class="entrada">
   <div class="entrada-col cd-col">
     <div class="entrada-marca">
-      <h1 class="logo">Paulus está te esperando.</h1>
+      <h1 class="logo">Queremos te conhecer melhor.</h1>
       <p>Entre com o Google e preencha os dados do escritório.</p>
     </div>
 
     <!-- O plano escolhido em /assinatura (?plano=&periodo=), com o link para trocar. -->
-    <div class="cd-resumo" id="cd-resumo">
-      <span class="cd-resumo-texto"><span class="rotulo">Plano</span><b id="cd-resumo-plano">Carregando…</b><small id="cd-resumo-preco"></small></span>
-      <a class="cd-resumo-trocar" id="cd-resumo-trocar" href="../assinatura/">Trocar</a>
+    <div class="campo cd-resumo-bloco" id="cd-resumo">
+      <span class="rotulo">Plano</span>
+      <div class="cd-resumo">
+        <span class="cd-resumo-texto"><b id="cd-resumo-plano">Carregando…</b><small id="cd-resumo-preco"></small></span>
+        <a class="cd-resumo-trocar" id="cd-resumo-trocar" href="../assinatura/">Trocar</a>
+      </div>
     </div>
     <span class="nota-campo" id="cd-recarga" hidden></span>
 
@@ -61,7 +63,9 @@
       </div>
 
       <!-- 2. o escritorio e o pagamento -->
-      <form class="campos" id="cd-form" novalidate hidden>
+      <!-- Duas colunas: os dados do escritório à esquerda; o plano, o aceite e o pagamento à direita. -->
+      <form id="cd-form" novalidate hidden>
+        <div class="campos cd-form-dados">
         <label class="campo"><span class="rotulo">Escritório</span>
           <span class="caixa-campo"><input id="cd-nome" name="nome_escritorio" autocomplete="organization" maxlength="80" placeholder="Silva &amp; Souza Advogados" required></span></label>
         <div class="cd-dupla">
@@ -98,11 +102,14 @@
           </div>
         <input type="hidden" id="cd-cmun" name="cmun">
         <span class="nota-campo">O CPF ou CNPJ e o endereço vão na nota fiscal da assinatura; o telefone, para suporte e avisos de cobrança; a OAB, o RG ou a CNH identificam quem assina. O que fazemos com esses dados está na <a href="../politica-de-privacidade/#cadastro">Política de privacidade</a>.</span>
+        </div>
+        <div class="campos cd-form-fim" id="cd-form-fim">
         <label class="aceite"><input type="checkbox" id="cd-aceite"> <span>Li e aceito os <a href="../termos-de-uso/" target="_blank" rel="noopener">Termos de uso</a> e a <a href="../politica-de-privacidade/" target="_blank" rel="noopener">Política de privacidade</a>.</span></label>
         <button type="submit" class="btn-duplo largo" id="cd-pagar"><span><span class="icon" aria-hidden="true">lock</span><span id="cd-pagar-texto">Ir para o pagamento</span></span></button>
-        <div class="selo"><span class="selo-esq"><span class="selo-icone neutro"><span class="icon" aria-hidden="true">credit_card</span></span>Campos seguros do Mercado Pago</span><span class="selo-dir"><b>MERCADO PAGO</b><span id="cd-selo-periodo">Pix ou cartão</span></span></div>
-        <span class="nota-campo" id="cd-pagar-nota">Na próxima página, escolha: Pix, que paga um mês e não renova, ou cartão, que renova todo mês e se cancela no PAVLVS, em Configurações › Modelos.</span>
+        <div class="selo"><span class="selo-esq"><span class="selo-mp"><img class="mp-pluma" src="../assets/mercadopago-pluma.png" alt="" width="57" height="23"><img class="mp-cor" src="../assets/mercadopago-cor.png" alt="" width="57" height="23"></span><span id="cd-selo-periodo">Pagamento seguro pelo Mercado Pago, no PIX ou cartão</span></span></div>
+        <span class="nota-campo" id="cd-pagar-nota">Na próxima página, você escolhe como pagar. No Pix, paga um mês por vez, sem renovação automática. No cartão, a assinatura renova todo mês, e você cancela quando quiser no Paulus, em Configurações › Modelos.</span>
         <p class="erro-campo" id="cd-form-erro" hidden></p>
+        </div>
       </form>
 
       <!-- 3. pronto -->

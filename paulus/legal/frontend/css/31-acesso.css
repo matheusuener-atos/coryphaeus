@@ -1,30 +1,30 @@
-  /* ---------------------------------------------------- acesso de fora */
+  /* ---------------------------------------------------- acesso externo */
   /*
-    Configuracoes › Acesso de fora (js/42-acesso.js) e o que muda na pagina
+    Configuracoes › Acesso externo (js/42-acesso.js) e o que muda na pagina
     quando ela e aberta de fora, pelo tunel (html.remoto, js/00-acesso.js).
     So tokens: nenhuma cor literal.
   */
 
   .acesso-itens { display: grid; gap: 12px; }
   .acesso-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
-  .acesso-item p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .acesso-item p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .acesso-pe { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 14px; }
   .acesso-pe .cfg-explica { margin: 0; flex: 1 1 260px; }
 
   /* O cadastro no autenticador: o QR sempre em fundo branco (celular nenhum
      le QR claro sobre escuro), a chave em Fira Code, de quatro em quatro. */
   .acesso-qr-bloco { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 18px; align-items: center; margin: 4px 0 14px; }
-  .acesso-qr { width: 216px; height: 216px; padding: 10px; background: var(--qr-fundo); border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .acesso-qr { width: 216px; height: 216px; padding: 10px; background: var(--qr-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; }
   .acesso-qr svg { width: 100%; height: 100%; display: block; }
   .acesso-qr-texto p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
   .acesso-segredo { display: block; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--sub);
     font: 500 13px/1.6 var(--mono); letter-spacing: .04em; color: var(--ink); word-break: break-all; user-select: all; }
   /* O Google Authenticator recomendado: a marca, o nome e as duas lojas. */
   .acesso-lojas { display: grid; gap: 10px; margin: 0 0 12px; padding: 12px; border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--sub); font-size: 12.5px; color: var(--ink2); }
+    background: var(--sub); font-size: 12px; color: var(--ink2); }
   .acesso-app { display: flex; align-items: center; gap: 12px; }
-  .acesso-app b { color: var(--ink); font-size: 13.5px; }
-  .acesso-app-icone { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 10px; background: var(--qr-fundo);
+  .acesso-app b { color: var(--ink); font-size: 13px; }
+  .acesso-app-icone { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--qr-fundo);
     border: 1px solid var(--ink-a1); }
   .acesso-lojas-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
   /* O e-mail fixo (a conta Google vinculada, E5): nao se digita. */
@@ -44,11 +44,11 @@
   .acesso-endereco { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
   .acesso-endereco code { font: 500 14px/1.4 var(--mono); color: var(--ink); padding: 8px 12px; border: 1px solid var(--ink-a1);
     border-radius: 8px; background: var(--sub); user-select: all; }
-  .acesso-codigo-usuario { font: 600 26px/1.2 var(--mono); letter-spacing: .18em; color: var(--ink); margin: 14px 0 6px; }
+  .acesso-codigo-usuario { font: 600 32px/1.2 var(--mono); letter-spacing: .18em; color: var(--ink); margin: 14px 0 6px; }
 
   /* O assistente de conexao (js/43-acesso-tunel.js). */
-  .acesso-passos { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
-  .acesso-faltas { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.5; color: var(--acc); }
+  .acesso-passos { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .acesso-faltas { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--acc); }
   .acesso-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px 16px; }
   .acesso-form .ag-campo { margin: 0; }
   .acesso-quem { margin-top: 12px; }
@@ -65,17 +65,45 @@
   .acesso-slug input { flex: 1 1 auto; min-width: 0; max-width: 100%; border: 0; border-radius: 0; padding: 9px 12px; font: 500 14px/1.4 var(--mono); background: transparent; color: var(--ink); }
   .acesso-slug input:focus { outline: none; }
   .acesso-slug:focus-within { border-color: var(--ink); }
+  /* A disponibilidade do endereco e a cor do fio do campo: verde livre, laranja ocupado. */
+  .acesso-slug[data-tom="ok"], .acesso-slug[data-tom="ok"]:focus-within { border-color: var(--okt); }
+  .acesso-slug[data-tom="nao"], .acesso-slug[data-tom="nao"]:focus-within { border-color: var(--acc); }
+  .acesso-disp:empty { display: none; }
   .acesso-dominio { display: flex; align-items: center; padding: 0 12px; font: 500 14px/1.4 var(--mono); color: var(--ink3); background: var(--sub); border-left: 1px solid var(--ink-a1); }
   .acesso-disp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 1.4em; margin: 0; font-size: 13px; color: var(--ink3); }
   .acesso-disp[data-tom="ok"] { color: var(--okt); }
   .acesso-disp[data-tom="nao"] { color: var(--acc); }
   .acesso-final { display: grid; gap: 4px; }
-  .acesso-final code { font: 600 17px/1.35 var(--mono); color: var(--ink); word-break: break-all; }
-  .acesso-final small { font-size: 12.5px; color: var(--ink3); }
-  /* No assistente (js/23-boas-vindas.js), o interruptor e o bloco. */
-  .bv-acesso { display: grid; gap: 12px; }
-  .bv-acesso .acesso-etapa { background: var(--bg); }
+  .acesso-final code { font: 600 16px/1.35 var(--mono); color: var(--ink); word-break: break-all; }
+  .acesso-final small { font-size: 12px; color: var(--ink3); }
+  /* No assistente (js/23-boas-vindas.js): as tres etapas numa lista so, separadas por fio,
+     com o cabecalho em mono como os rotulos das outras colunas, e os botoes no trilho com pastilha.
+     A grade da coluna (.bv-acesso) mora em 08-boas-vindas.css. */
+  .bv-acesso .acesso-etapas { gap: 0; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; }
+  .bv-acesso .acesso-etapa { border: 0; border-top: 1px solid var(--ink-a1); border-radius: 0; background: transparent; padding: 16px 18px 18px; gap: 12px; }
+  .bv-acesso .acesso-etapa:first-child { border-top: 0; }
   .bv-acesso .acesso-etapa.feita { background: var(--sub); }
+  .bv-acesso .acesso-etapa-cabeca { font: 400 12px var(--plex); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); gap: 10px; }
+  .bv-acesso .acesso-etapa-cabeca b { font-weight: 400; }
+  .acesso-cf-ic { display: flex; flex: none; align-self: center; margin-left: 12px; }
+  .bv-acesso .acesso-slug input { padding-left: 10px; }
+  .bv-acesso .acesso-feita { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--okt); letter-spacing: .06em; }
+  .bv-acesso .acesso-slug { max-width: none; border-color: var(--ink-a1); border-radius: 12px; }
+  .bv-acesso .acesso-slug input { padding: 10px 12px; }
+  .bv-acesso .acesso-form { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+  .bv-acesso .cfg-texto { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
+  .bv-acesso .cfg-explica { font-size: 12px; }
+  .bv-acesso .acesso-pe { margin-top: 4px; gap: 10px 14px; }
+  /* No assistente, os botoes sao o mesmo trilho com pastilha do "Continuar" (.bv-continuar), e o Cancelar e um link discreto. */
+  .bv-acesso .acesso-pe button { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 3px 25px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf); box-shadow: none; color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; white-space: nowrap; cursor: pointer; }
+  .bv-acesso .acesso-pe button::before { content: ""; position: absolute; inset: 3px; border-radius: 8px; background: var(--fill2); z-index: -1; transition: background .12s; }
+  .bv-acesso .acesso-pe button:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); box-shadow: none; }
+  .bv-acesso .acesso-pe button:hover:not(:disabled)::before { background: var(--pastilha-sobre); }
+  .bv-acesso .acesso-pe button:disabled { opacity: .5; cursor: default; background: var(--surf); box-shadow: none; border-color: var(--ink-a1); color: var(--ink); }
+  .bv-acesso .acesso-pe button img.marca-ic { width: 18px; height: 18px; }
+  .bv-acesso .acesso-pe button[data-tunel-cancelar] { border: 0; background: transparent; color: var(--ink2); padding: 3px 10px; }
+  .bv-acesso .acesso-pe button[data-tunel-cancelar]::before { display: none; }
+  .bv-acesso .acesso-pe button[data-tunel-cancelar]:hover { color: var(--ink); border: 0; }
 
   .acesso-energia { margin-top: 14px; display: grid; gap: 8px; }
 
@@ -96,13 +124,14 @@
      logo depois dela. Sem a hora (numa conversa aberta), a barra se empurra. */
   html.remoto .acesso-remoto-barra { display: inline-flex; align-items: center; gap: 12px; margin-left: 18px; }
   html.remoto .conversa-col:not(.vazia) .acesso-remoto-barra { margin-left: auto; }
-  .acesso-de-fora-selo { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 24px; border-radius: 999px;
-    font: 500 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--okt); background: var(--sub); }
+  /* Acesso externo: só a bolinha verde, com o título no hover. */
+  .acesso-de-fora-selo { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--verde); flex: none; }
   .acesso-conta-botao { display: inline-flex; align-items: center; gap: 9px; height: 30px; min-height: 30px; padding: 0 10px 0 3px;
     border: 1px solid var(--ink-a1); border-radius: 999px; background: var(--surf); color: var(--ink); font: 500 12px var(--sans); cursor: pointer; }
   .acesso-conta-botao:hover { background: var(--fill); }
   .acesso-conta-botao .ic { color: var(--ink3); }
-  .acesso-conta-botao .cad-avatar { width: 24px; height: 24px; font-size: 9.5px; }
+  .acesso-conta-botao .cad-avatar { width: 24px; height: 24px; font-size: 12px; }
+  .trilho-conta .cad-avatar, .menu-conta .cad-avatar { width: 28px; height: 28px; font-size: 12px; }
   .conta-cabeca .cad-avatar { width: 40px; height: 40px; font-size: 14px; }
   .acesso-conta-nome { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .acesso-conta-papel { color: var(--ink3); font-weight: 400; }
@@ -110,11 +139,11 @@
   /* Permissoes de uma pessoa (E2): um nivel por modulo, em botoes lado a lado. */
   .perm-grade { display: grid; gap: 4px; margin-top: 6px; }
   .perm-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 0;
-    border-bottom: 1px solid var(--ink-a1); font-size: 13.5px; }
+    border-bottom: 1px solid var(--ink-a1); font-size: 13px; }
   .perm-linha:last-child { border-bottom: 0; }
-  .perm-niveis { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--sub); gap: 2px; }
-  .perm-niveis button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--ink2);
-    font: 500 12.5px var(--sans); cursor: pointer; white-space: nowrap; }
+  .perm-niveis { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--sub); gap: 2px; }
+  .perm-niveis button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--ink2);
+    font: 500 12px var(--sans); cursor: pointer; white-space: nowrap; }
   .perm-niveis button:hover { color: var(--ink); }
   .perm-niveis button.escolhido { background: var(--surf); color: var(--ink); box-shadow: 0 0 0 1px var(--ink-a1); }
   @media (max-width: 560px) { .perm-linha { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
@@ -122,22 +151,22 @@
   /* Quem convidar (js/46-equipe.js): a equipe sem acesso, e alguem novo. */
   .eqp-escolha { display: grid; gap: 4px; margin-top: 4px; }
   .eqp-pessoa { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%;
-    padding: 9px 10px; border: 0; border-radius: 10px; background: none; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+    padding: 9px 10px; border: 0; border-radius: 12px; background: none; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
   .eqp-pessoa:hover { background: var(--fill); }
   .eqp-pessoa > .ic { color: var(--ink3); }
 
   /* Minha conta (de fora): quem e, e o que a pessoa pode fazer com a conta. */
   .conta-dialogo .conta-cabeca { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
-  .conta-dialogo .conta-cabeca b { font-size: 15px; }
+  .conta-dialogo .conta-cabeca b { font-size: 16px; }
   .conta-acoes { display: grid; gap: 4px; margin: 10px 0 4px; }
   .conta-acao { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%;
-    padding: 9px 10px; border: 0; border-radius: 10px; background: none; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+    padding: 9px 10px; border: 0; border-radius: 12px; background: none; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
   .conta-acao:hover { background: var(--fill); }
   .conta-acao > .ic { color: var(--ink3); }
   .conta-acao.perigo b, .conta-acao.perigo .caixa-tipo { color: var(--acc); }
-  .conta-nota { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink3); }
+  .conta-nota { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink3); }
   @media (max-width: 600px) {
-    .acesso-conta-papel, .acesso-de-fora-selo { display: none; }
+    .acesso-conta-papel { display: none; }
     .acesso-conta-nome { max-width: 110px; }
   }
 
@@ -147,7 +176,23 @@
   /* No icone e no rotulo, e nao no botao: o botao do trilho tem animacao de
      entrada, e a animacao vence a opacidade declarada. */
   html.remoto .so-no-escritorio-item .ic, html.remoto .so-no-escritorio-item .rotulo-botao { opacity: .42; }
-  .so-no-escritorio { font-size: 12.5px; color: var(--ink3); }
+  .so-no-escritorio { font-size: 12px; color: var(--ink3); }
+  /* A tela "so no escritorio": o desenho do assistente de configuracao (08-boas-vindas.css). */
+  .sne { min-height: calc(100vh - 32px); min-height: calc(100dvh - 32px); display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: 0 clamp(24px, 5vw, 64px) clamp(20px, 3.2vh, 28px); box-sizing: border-box; }
+  .sne-corpo { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
+  .sne-texto { display: grid; gap: 18px; max-width: 580px; }
+  .sne-texto h1 { font: 400 clamp(32px, 3.6vw, 46px)/1.05 var(--serif); margin: 0; text-wrap: balance; }
+  .sne-texto p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
+  .sne .bv-rotulo { font: 400 12px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
+  .sne-lado { width: 100%; max-width: 440px; justify-self: center; display: grid; gap: 10px; }
+  .sne-lista { display: grid; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; margin-bottom: 8px; }
+  .sne-item { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 14px; border-top: 1px solid var(--ink-a1); font-size: 13px; color: var(--ink); }
+  .sne-item:first-child { border-top: 0; }
+  .sne-item > .ic:first-child { color: var(--ink3); }
+  .sne-item .sne-txt { flex: 1; min-width: 0; text-align: left; }
+  .sne-item.fora { color: var(--ink3); }
+  .sne-pe { display: flex; align-items: center; justify-content: flex-end; gap: 14px; border-top: 1px solid var(--ink-a1); padding-top: 18px; }
+  @media (max-width: 1000px) { .sne { height: auto; } .sne-corpo { grid-template-columns: minmax(0, 1fr); padding: 32px 0; } .sne-lado { justify-self: start; } }
 
   /* Configurações › Backup (js/47-backup.js): uma linha por backup, com o Restaurar ao lado. */
   .bkp-linha { align-items: center; gap: 12px; }
@@ -156,7 +201,7 @@
   .saude-lista { display: grid; gap: 2px; }
   .saude-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 10px 0; border-bottom: 1px solid var(--ink-a1); }
   .saude-valor { font-weight: 500; text-align: right; }
-  .saude-dica { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); line-height: 1.5; }
+  .saude-dica { grid-column: 1 / -1; font-size: 12px; color: var(--ink2); line-height: 1.5; }
 
   /* Tarefas › Publicacoes (js/48-publicacoes.js): o DJEN, uma comunicacao por linha. */
   .pub-aviso { margin: 10px 16px 0; }
@@ -173,7 +218,7 @@
   .pub-cabeca:hover { background: var(--fill); }
   .pub-cabeca .duas-linhas { flex: 1; min-width: 0; }
   .pub-corpo { padding: 0 16px 14px; }
-  .pub-texto { margin: 0 0 12px; max-height: 320px; overflow: auto; font-size: 13.5px; line-height: 1.6; color: var(--ink2); white-space: normal; }
+  .pub-texto { margin: 0 0 12px; max-height: 320px; overflow: auto; font-size: 13px; line-height: 1.6; color: var(--ink2); white-space: normal; }
   .pub-feriados { width: 100%; box-sizing: border-box; font: 13px var(--mono); padding: 10px; border: 1px solid var(--ink-a25); border-radius: 8px;
     background: var(--bg); color: var(--ink); resize: vertical; }
   .pub-seta-aberta { transform: rotate(180deg); }
@@ -194,13 +239,13 @@
   .bsc-veu.aberta .bsc-caixa { transform: none; }
   html.sem-animacao .bsc-veu, html.sem-animacao .bsc-veu .bsc-caixa { transition: none; }
   .bsc-caixa { width: 100%; max-width: 680px; max-height: 70vh; display: flex; flex-direction: column; background: var(--bg);
-    color: var(--ink); border: 1px solid var(--ink-a25); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); overflow: hidden; }
+    color: var(--ink); border: 1px solid var(--ink-a25); border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); overflow: hidden; }
   .bsc-topo { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--ink-a1); color: var(--ink3); }
   .bsc-topo input { flex: 1; min-width: 0; max-width: 100%; border: 0; outline: none; background: transparent; color: var(--ink); font: 400 16px var(--sans); }
   .bsc-caixa kbd { display: inline-block; min-width: 18px; padding: 1px 6px; border: 1px solid var(--ink-a25); border-radius: 5px;
     font: 500 11px var(--sans); color: var(--ink2); text-align: center; }
   .bsc-lista { flex: 1; overflow-y: auto; padding: 6px; }
-  .bsc-grupo { padding: 10px 10px 4px; font: 600 11.5px var(--sans); color: var(--ink3); }
+  .bsc-grupo { padding: 10px 10px 4px; font: 600 12px var(--sans); color: var(--ink3); }
   .bsc-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-radius: 8px; background: none;
     color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
   .bsc-item > .ic:first-child { color: var(--ink3); flex: none; }
@@ -208,13 +253,13 @@
   .bsc-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
   .bsc-texto b { font-weight: 600; }
   .bsc-desc { color: var(--ink3); }
-  .bsc-vazio { margin: 0; padding: 18px 12px; color: var(--ink3); font-size: 13.5px; }
+  .bsc-vazio { margin: 0; padding: 18px 12px; color: var(--ink3); font-size: 13px; }
   .bsc-pe { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--ink-a1); font-size: 12px; color: var(--ink3); }
   .bsc-pe kbd { margin-right: 3px; }
   .bsc-esc { flex: none; }
 
   /* O bloco "Google Drive" da barra de pastas do Acervo (js/36 blocoDoDrive). */
-  .ac-drive-cabeca { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; padding: 0 10px; font: 600 11px/1.4 var(--sans);
+  .ac-drive-cabeca { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; padding: 0 10px; font: 600 12px/1.4 var(--sans);
     letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
   .ac-drive-cabeca > span { flex: 1; min-width: 0; }
   .ac-drive-cabeca .sv-ligacao { text-transform: none; letter-spacing: 0; }

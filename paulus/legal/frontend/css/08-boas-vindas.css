@@ -4,36 +4,40 @@
      topo mostram o nome so da atual. As cores sao os tokens do app (verde e
      ambar so em selos); a letra dos rotulos e a IBM Plex Mono. */
   .boas-vindas {
-    --plex: 'IBM Plex Mono', var(--mono);
+    --plex: var(--mono);
     position: fixed; inset: 0; z-index: 50; background: var(--bg); color: var(--ink); overflow: hidden;
   }
   .bv-tela {
     height: 100%; min-height: 0; box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: clamp(20px, 3.5vh, 32px); padding: clamp(24px, 4.2vh, 36px) clamp(24px, 5vw, 64px) clamp(20px, 3.2vh, 28px);
+    gap: clamp(20px, 3.5vh, 32px); padding: 0 clamp(24px, 5vw, 64px) clamp(20px, 3.2vh, 28px);
   }
-  .bv-cabeca { display: flex; align-items: center; gap: 24px; }
-  .bv-marca { font: 500 22px/1 var(--serif); letter-spacing: .12em; flex: none; }
-  .bv-etapas { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; overflow: hidden; }
-  .bv-etapa { display: inline-flex; align-items: center; gap: 8px; font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; }
-  .bv-etapa.atual { font-weight: 600; color: var(--ink); }
+  /* O cabecalho e a .topo do site: 56 px, largura inteira, fio fino embaixo, marca de 20 px. */
+  .bv-cabeca {
+    display: flex; align-items: center; gap: 24px; min-height: 56px; padding: 0 28px;
+    margin: 0 calc(-1 * clamp(24px, 5vw, 64px)); border-bottom: 1px solid var(--ink-a1);
+  }
+  .bv-marca { display: flex; align-items: center; height: 56px; font: 400 20px/1 var(--serif); letter-spacing: .12em; flex: none; }
+  .bv-etapas { margin-left: auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 24px; overflow: hidden; }
+  .bv-etapa { font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .bv-etapa.atual { color: var(--ink); }
   /* O numero de passo tem uma medida so (20). O .bv-num-passo dos codigos
      (20-vinculo) e o mesmo circulo, sempre cheio. */
   .bv-num, .bv-num-passo {
     width: 20px; height: 20px; border-radius: 50%; box-sizing: border-box; flex: none;
     display: flex; align-items: center; justify-content: center;
-    font: 700 11px var(--sans); border: 1px solid var(--ink-a1); color: var(--ink3);
+    font: 700 12px var(--sans); border: 1px solid var(--ink-a1); color: var(--ink3);
   }
   .bv-etapa.atual .bv-num, .bv-num-passo { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .bv-etapa.feita .bv-num { background: var(--okbg); border-color: transparent; color: var(--okt); }
   .bv-traco { display: block; width: 16px; height: 1px; background: var(--ink-a1); flex: none; }
-  .bv-selo { display: flex; align-items: center; gap: 8px; font: 400 10.5px var(--plex); letter-spacing: .14em; color: var(--ink2); white-space: nowrap; flex: none; }
+  .bv-selo { display: flex; align-items: center; gap: 8px; font: 400 12px var(--plex); letter-spacing: .14em; color: var(--ink2); white-space: nowrap; flex: none; }
 
   .bv-corpo { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); }
   .bv-texto { display: grid; gap: 18px; align-content: center; max-width: 580px; min-height: 0; }
-  .bv-rotulo { font: 400 11px var(--plex); letter-spacing: .16em; color: var(--ink3); }
-  .bv-texto h1 { font: 400 clamp(32px, 3.6vw, 46px)/1.06 var(--serif); letter-spacing: -.015em; margin: 0; text-wrap: balance; }
-  .bv-texto p { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink2); text-wrap: pretty; }
-  .bv-infos { display: grid; gap: 8px; font-size: 13.5px; color: var(--ink2); }
+  .bv-rotulo { font: 400 12px var(--plex); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
+  .bv-texto h1 { font: 400 clamp(32px, 3.6vw, 46px)/1.05 var(--serif); margin: 0; text-wrap: balance; }
+  .bv-texto p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
+  .bv-infos { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
   .bv-infos div { display: flex; gap: 10px; align-items: flex-start; line-height: 1.55; }
   .bv-infos .ic { color: var(--ink3); margin-top: 2px; flex: none; }
   .bv-infos .ok .ic { color: var(--okt); }
@@ -45,45 +49,102 @@
      modelo empurrava a coluna para fora da tela. */
   .bv-lado > *, .bv-texto > *, .bv-modelos > *, .bv-grupos > * { min-width: 0; }
 
-  .bv-cartao { border: 1px solid var(--ink-a1); border-radius: 14px; background: var(--surf); padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
+  .bv-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
   .bv-cartao-pe { font: 400 13px/1.55 var(--sans); color: var(--ink); border-top: 1px solid var(--ink-a1); padding-top: 12px; margin: 0; }
+  /* A coluna de /entrar (entrar.html), para os passos que sao um login: sem cartao, 440 px, rotulo mono,
+     a linha com fio (40 px, raio 10) e o botao Google como trilho + pastilha de largura inteira. */
+  .bv-entrada { width: 100%; max-width: 440px; justify-self: center; display: grid; gap: 14px; }
+  .bv-entrada:has(.bv-dados) { max-width: none; }
+  .bv-entrada .bv-rotulo { color: var(--ink3); }
+  .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); }
+  .bv-linha:hover { background: var(--surf); border-color: var(--ink-a2); }
+  .bv-g-trilho { display: flex; width: 100%; padding: 3px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink); cursor: pointer; }
+  .bv-g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--fill2); font: 500 13px var(--sans); letter-spacing: .01em; }
+  .bv-g-pastilha svg { width: 16px; height: 16px; flex: none; }
+  .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--pastilha-sobre); }
+  .bv-g-trilho:active:not(:disabled) .bv-g-pastilha { background: var(--pastilha-ativa); }
+  .bv-g-trilho:disabled { opacity: .5; pointer-events: none; }
+  .bv-conta-ok { display: flex; align-items: center; gap: 14px; }
+  /* O vinculo: a logo do Paulus, um tracinho e o G do Google. */
+  .bv-vinculo { display: flex; align-items: center; gap: 4px; flex: none; }
+  .bv-g { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--google-fundo); border: 1px solid var(--ink-a1); }
+  .bv-g svg { width: 16px; height: 16px; }
+  .bv-conta-ok .duas-linhas small { color: var(--ink2); }
+  .bv-continuar.bv-largo { width: 100%; }
+  .bv-continuar.bv-largo > span { flex: 1; }
+  .bv-entrada > .bv-ligacao { justify-self: center; }
+  /* A espera pela confirmacao do site: um giro discreto na linha. */
+  .bv-espera { display: flex; align-items: center; gap: 12px; }
+  .bv-espera .duas-linhas { flex: 1; min-width: 0; }
+  .bv-espera > .bv-ligacao { flex: none; }
+  .bv-giro { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid var(--ink-a15); border-top-color: var(--ink); animation: bv-giro .9s linear infinite; }
+  @keyframes bv-giro { to { transform: rotate(360deg); } }
+  html.sem-animacao .bv-giro { animation: none; }
+  /* Os dados lidos da assinatura, com cara de formulario (rotulo em cima, valor na caixa), so leitura. */
+  .bv-dados { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 12px; padding: 18px 20px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .bv-campo-ro { display: grid; gap: 5px; min-width: 0; grid-column: span 2; }
+  .bv-campo-ro.meio { grid-column: span 3; }
+  .bv-campo-ro.largo { grid-column: 1 / -1; }
+  .bv-campo-ro > span { font: 400 12px var(--plex); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+  /* Esmaecidos, como um campo desabilitado: fundo igual ao do cartao, fio tracejado, tinta apagada. */
+  .bv-campo-ro > b { display: block; min-height: 36px; padding: 8px 10px; border: 1px dashed var(--ink-a15); border-radius: 8px; background: transparent; font-weight: 500; font-size: 13px; line-height: 1.35; color: var(--ink2); overflow-wrap: anywhere; cursor: default; user-select: text; }
+  .bv-campo-ro > b.mono { font: 400 13px/1.35 var(--mono); }
+  .bv-campo-ro i { font-style: normal; color: var(--ink3); }
+  .bv-ajuda-dados { text-align: left; margin-top: -4px; }
+  .bv-ajuda-dados .bv-ligacao { display: inline-flex; vertical-align: baseline; padding: 0; font-size: inherit; }
+  @media (max-width: 560px) { .bv-dados > .bv-campo-ro { grid-column: 1 / -1; } }
+  .bv-dado-plano { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -4px; }
+  .bv-plano-nome { display: inline-flex; align-items: center; gap: 8px; }
+  .bv-dado-plano .bv-ligacao { flex: none; }
+  /* O seletor de conta do Google, como no site: fundo branco, compacto, G num quadro proprio a direita. */
+  .bv-conta-g { display: flex; align-items: stretch; width: 100%; height: 40px; padding: 0; border: 1px solid var(--google-fio); border-radius: 4px; background: var(--google-fundo); color: var(--google-tinta); text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
+  .bv-conta-g:hover { background: var(--google-sobre); }
+  .bv-conta-g .bv-avatar { width: 20px; height: 20px; flex: none; align-self: center; margin: 0 8px 0 12px; border-radius: 50%; background: var(--google-avatar); color: var(--google-tinta2); display: grid; place-items: center; font: 500 12px var(--sans); letter-spacing: .02em; }
+  .bv-conta-txt { display: flex; flex: 1; flex-direction: column; justify-content: center; min-width: 0; padding-right: 14px; line-height: 1.2; }
+  .bv-conta-txt b { font: 500 13px/1.25 var(--sans); color: var(--google-tinta); white-space: nowrap; }
+  .bv-conta-txt small { display: inline-flex; align-items: center; gap: 2px; font: 400 12px/1.25 var(--sans); color: var(--google-tinta2); white-space: nowrap; }
+  .bv-conta-txt small .ic { font-size: 14px; color: var(--google-tinta2); }
+  .bv-g-solto { display: grid; place-items: center; width: 40px; flex: none; background: var(--google-fundo); border-left: 1px solid var(--google-fio); }
+  .bv-g-solto svg { width: 18px; height: 18px; }
+  .bv-ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-align: center; text-wrap: pretty; }
   .bv-checks { display: grid; gap: 9px; }
   /* A receita e a da lista de etapas (02-conversa.css); o estado muda so a cor. */
-  .bv-check { align-items: flex-start; font-size: 13.5px; }
+  .bv-check { align-items: flex-start; font-size: 13px; }
   .bv-check.parcial .ic { color: var(--ink2); }
   .bv-check.falta .ic { color: var(--ink3); }
 
   /* A logo oficial: sempre escura, nos dois temas; no escuro, um fio claro. */
   .bv-logo {
-    width: 40px; height: 40px; border-radius: 9px; flex: none;
+    width: 40px; height: 40px; border-radius: 8px; flex: none;
     background: var(--logo-fundo); color: var(--logo-tinta); box-shadow: inset 0 0 0 1px var(--ink-a1);
-    display: flex; align-items: center; justify-content: center; font: 500 28px/1 var(--serif);
+    display: flex; align-items: center; justify-content: center; font: 500 32px/1 var(--serif);
   }
   [data-tema="escuro"] .bv-logo { box-shadow: inset 0 0 0 1px var(--ink-a15); }
+  .bv-vinculo .bv-logo { width: 28px; height: 28px; font-size: 20px; border-radius: 8px; }
   .bv-instalacao { display: flex; align-items: center; gap: 14px; }
   .bv-instalacao .duas-linhas { flex: 1; min-width: 0; }
-  .bv-instalacao .duas-linhas b { font-weight: 600; font-size: 14px; }
+  .bv-instalacao .duas-linhas b { font-weight: 500; font-size: 14px; }
   .bv-instalacao small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* Fio, raio, fundo, hover e estado escolhido da opcao em cartao vem da regra
      unificada em 17-configuracoes.css; aqui fica so o layout. */
   .bv-opcoes { display: grid; gap: 12px; }
-  .bv-opcao { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 14px; background: var(--surf); }
+  .bv-opcao { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: var(--surf); }
   .bv-radio { margin-top: 2px; }
-  .bv-opcao-titulo { display: flex; align-items: center; gap: 8px; font: 600 15px var(--sans); color: var(--ink); white-space: normal; }
+  .bv-opcao-titulo { display: flex; align-items: center; gap: 8px; font: 500 16px var(--sans); color: var(--ink); white-space: normal; }
   .bv-opcao-titulo .etiqueta { margin-left: auto; white-space: nowrap; }
   .bv-opcao .duas-linhas { flex: 1; min-width: 0; }
-  .bv-opcao .duas-linhas small { white-space: normal; font: 400 13.5px/1.55 var(--sans); color: var(--ink2); }
+  .bv-opcao .duas-linhas small { white-space: normal; font: 400 13px/1.55 var(--sans); color: var(--ink2); }
 
   .bv-foto { display: flex; align-items: center; gap: 14px; }
-  .bv-iniciais { width: 52px; height: 52px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center; font: 600 16px var(--sans); color: var(--ink2); flex: none; }
+  .bv-iniciais { width: 52px; height: 52px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center; font: 500 16px var(--sans); color: var(--ink2); flex: none; }
   .bv-foto .duas-linhas small { white-space: normal; }
   .bv-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
   .bv-grade input, .bv-grade select { background: var(--bg); }
 
   /* Esta maquina e a lista de modelos, no estilo da biblioteca do Ollama. */
   .bv-maquina { gap: 10px; padding: 16px 20px; }
-  .bv-maquina .bv-tabela > div { grid-template-columns: 110px minmax(0, 1fr); font-size: 13.5px; }
+  .bv-maquina .bv-tabela > div { grid-template-columns: 110px minmax(0, 1fr); font-size: 13px; }
   .bv-diag { display: grid; gap: 6px; border-top: 1px solid var(--ink-a1); padding-top: 10px; }
   .bv-diag > span { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); }
   .bv-diag .barra-fina { height: 3px; }
@@ -92,7 +153,7 @@
   .bv-modelos, .bv-grupos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .bv-lista-titulo { padding: 12px 12px 6px; }
   .bv-modelo {
-    display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 0; border-radius: 10px;
+    display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 0; border-radius: 12px;
     background: transparent; color: var(--ink); text-align: left; font: inherit; cursor: pointer; width: 100%;
   }
   .bv-modelo:hover:not(:disabled) { background: var(--fill); border: 0; }
@@ -100,70 +161,103 @@
   .bv-modelo.escolhido .bv-radio { border: 5px solid var(--ink); }
   .bv-modelo.bloqueado { opacity: .55; cursor: default; }
   .bv-modelo .duas-linhas { flex: 1; min-width: 0; gap: 1px; }
-  .bv-modelo .duas-linhas small { white-space: normal; font-size: 12.5px; color: var(--ink2); }
-  .bv-modelo-nome { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; font: 600 14px var(--sans); }
+  .bv-modelo .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
+  .bv-modelo-nome { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; font: 500 14px var(--sans); }
   .bv-modelo-nome > span:first-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bv-modelo-nome .etiqueta { font-size: 11px; padding: 1px 7px; }
+  .bv-modelo-nome .etiqueta { font-size: 12px; padding: 1px 7px; }
   .bv-fabricante {
-    width: 36px; height: 36px; border-radius: 9px; background: var(--bg); border: 1px solid var(--ink-a1); box-sizing: border-box;
+    width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--ink-a1); box-sizing: border-box;
     display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2);
   }
   .bv-fabricante img, .bv-fabricante svg { width: 20px; height: 20px; }
   .bv-modelo-medida { display: grid; gap: 2px; justify-items: end; flex: none; }
-  .bv-tamanho { font: 400 12px var(--plex); padding: 4px 9px; border-radius: 7px; background: var(--fill2); white-space: nowrap; }
-  .bv-modelo-medida small { font: 400 11px var(--plex); color: var(--ink2); white-space: nowrap; }
+  .bv-tamanho { font: 400 12px var(--plex); padding: 4px 9px; border-radius: 8px; background: var(--fill2); white-space: nowrap; }
+  .bv-modelo-medida small { font: 400 12px var(--plex); color: var(--ink2); white-space: nowrap; }
   .bv-calibracao {
     display: flex; align-items: center; gap: 14px; padding: 14px 12px; margin: 8px 0 4px;
     border-top: 1px solid var(--ink-a1); border-bottom: 1px solid var(--ink-a1);
   }
   .bv-calibracao .duas-linhas { flex: 1; min-width: 0; }
-  .bv-calibracao .duas-linhas b { font-size: 13.5px; }
-  .bv-calibracao .duas-linhas small { white-space: normal; font-size: 12.5px; color: var(--ink2); }
+  .bv-calibracao .duas-linhas b { font-size: 13px; }
+  .bv-calibracao .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
 
   /* Modulos: a linha inteira e a chave. */
-  .bv-contagem { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--ink2); border-top: 1px solid var(--ink-a1); padding-top: 14px; max-width: 420px; }
+  .bv-contagem { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink2); border-top: 1px solid var(--ink-a1); padding-top: 14px; max-width: 420px; }
   .bv-contagem span:last-child { font-family: var(--plex); color: var(--ink); }
   .bv-grupos .bv-lista-titulo { padding: 8px 12px 6px; }
-  .bv-modulo { display: flex; align-items: center; gap: 14px; padding: 9px 12px; border-radius: 10px; cursor: pointer; }
+  /* Modulos: um cartao largo em duas colunas (o nucleo e o Dia a dia a esquerda; Documentos e Escritorio a direita). */
+  .bv-lado:has(.bv-modulos) { align-content: start; }
+  .bv-modulos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; padding: 14px 16px; }
+  .bv-mod-grupo { display: grid; gap: 2px; align-content: start; min-width: 0; }
+  .bv-mod-grupo .bv-lista-titulo { padding: 8px 12px 6px; }
+  .bv-modulos .bv-modulo { padding: 7px 12px; gap: 12px; }
+  .bv-modulos .bv-modulo .duas-linhas small { font-size: 12px; }
+  .bv-modulo.fora { cursor: default; opacity: .55; }
+  .bv-modulo.fora:hover { background: transparent; }
+  .bv-modulo.fora .interruptor-min { pointer-events: none; }
+  .bv-modulo .duas-linhas b { display: inline-flex; align-items: center; gap: 8px; }
+  .bv-modulo .etiqueta { font-size: 12px; padding: 1px 7px; opacity: 1; }
+  @media (max-width: 720px) { .bv-modulos { grid-template-columns: minmax(0, 1fr); } }
+  .bv-modulo { display: flex; align-items: center; gap: 14px; padding: 9px 12px; border-radius: 12px; cursor: pointer; }
   .bv-modulo:hover { background: var(--fill); }
   .bv-modulo.fixo { cursor: default; }
-  .bv-modulo-ic { width: 34px; height: 34px; border-radius: 9px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; }
+  .bv-modulo-ic { width: 34px; height: 34px; border-radius: 8px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; }
   .bv-modulo .duas-linhas { flex: 1; min-width: 0; }
   .bv-modulo .duas-linhas b { font-size: 14px; }
-  .bv-modulo .duas-linhas small { white-space: normal; font-size: 12.5px; color: var(--ink2); }
-  .bv-fixo { width: 34px; font-size: 11px; color: var(--ink3); text-align: center; flex: none; }
+  .bv-modulo .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
+  .bv-fixo { width: 34px; font-size: 12px; color: var(--ink3); text-align: center; flex: none; }
 
-  /* Conexoes: a conta Google, e a janela Entrar por cima de tudo. */
-  .bv-conta { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 14px; background: var(--surf); cursor: pointer; }
+  /* Conexoes, como a pagina de retorno do Google: lista com fio, 44 px por linha, marca + nome + o que faz, e o interruptor. */
+  .bv-servicos { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); overflow: hidden; }
+  .bv-servico { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--ink-a1); cursor: pointer; }
+  .bv-servico:last-child { border-bottom: 0; }
+  .bv-servico:hover { background: var(--fill); }
+  .bv-servico.junto .interruptor-min { opacity: .7; }
+  .bv-servico-marca { display: flex; flex: none; }
+  .bv-servico-marca svg { width: 16px; height: 16px; }
+  .bv-servico-nome { width: 56px; flex: none; font: 500 13px var(--sans); color: var(--ink); }
+  .bv-servico-d { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bv-servico .interruptor-min { flex: none; margin-left: 4px; }
+  .bv-conta-ok .etiqueta { margin-left: auto; }
+  .bv-acesso { display: grid; gap: 12px; }
+  .bv-acesso > .bv-cartao { width: 100%; }
+  .bv-recusa { min-height: 56px; padding: 10px 14px; gap: 14px; }
+  .bv-recusa .duas-linhas { flex: 1; min-width: 0; }
+  .bv-recusa .duas-linhas small { white-space: normal; }
+  .bv-conta { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); cursor: pointer; }
   .bv-conta .duas-linhas { flex: 1; min-width: 0; }
-  .bv-conta .duas-linhas b { font-weight: 600; }
-  .bv-conta .duas-linhas small { white-space: normal; font-size: 12.5px; color: var(--ink2); }
+  .bv-conta .duas-linhas b { font-weight: 500; }
+  .bv-conta .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
   .bv-veu { position: fixed; inset: 0; z-index: 52; background: rgba(0, 0, 0, .5); display: flex; align-items: center; justify-content: center; }
   .bv-entrar-coluna { display: grid; gap: 14px; justify-items: center; }
   .bv-entrar {
-    width: 460px; max-width: calc(100vw - 32px); box-sizing: border-box; border: 1px solid var(--ink-a1); border-radius: 14px;
+    width: 460px; max-width: calc(100vw - 32px); box-sizing: border-box; border: 1px solid var(--ink-a1); border-radius: 12px;
     background: var(--surf); padding: 36px 40px; display: grid; gap: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
   }
-  .bv-entrar h2 { margin: 0; font: 400 32px/1 var(--serif); }
+  .bv-entrar h2 { margin: 0; font: 600 32px/1 var(--sans); }
   .bv-entrar .eo-login, .bv-entrar .eo-botoes { display: grid; }
   .bv-entrar .eo-botao { width: 100%; justify-content: center; }
   .bv-entrar > .bv-ligacao { justify-self: center; }
-  .bv-entrar-notas { display: flex; gap: 20px; font-size: 12.5px; color: var(--veu-tinta); }
+  .bv-entrar-notas { display: flex; gap: 20px; font-size: 12px; color: var(--veu-tinta); }
 
 
   .bv-rodape { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--ink-a1); padding-top: 18px; }
   .bv-versao { font-size: 13px; }
-  .bv-rodape .bv-ligacao { font-size: 14px; font-weight: 500; }
+  .bv-rodape .bv-ligacao { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; }
   .bv-ligacao.apagada { color: var(--ink2); }
+  /* O .btn-duplo do site: trilho com fio fino e, dentro, a pastilha. */
   .bv-continuar {
-    display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; border: 0;
-    font: 600 14px var(--sans); white-space: nowrap; background: var(--casca); color: var(--casca-ink);
+    display: inline-flex; padding: 3px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf);
+    font: 500 13px var(--sans); letter-spacing: .01em; color: var(--ink); white-space: nowrap; cursor: pointer;
   }
-  .bv-continuar:hover:not(:disabled) { background: var(--casca-hover); color: var(--casca-ink); border: 0; }
+  .bv-continuar > span { display: flex; align-items: center; justify-content: center; gap: 8px; height: 34px; padding: 0 22px; border-radius: 8px; background: var(--fill2); color: var(--ink); transition: background .12s; }
+  .bv-continuar:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); color: var(--ink); }
+  .bv-continuar:hover:not(:disabled) > span { background: var(--pastilha-sobre); }
+  .bv-continuar:disabled { opacity: .5; }
   /* O tema: no fim da linha de cima, so o icone - sem fundo, sem fio. */
   .bv-tema {
-    flex: none; width: 28px; height: 28px; padding: 0; margin-right: -4px;
-    border: 0; border-radius: 6px; background: none; color: var(--ink2);
+    flex: none; width: 32px; height: 32px; padding: 0; margin-right: -8px;
+    border: 0; border-radius: 8px; background: none; color: var(--ink3);
     display: flex; align-items: center; justify-content: center;
   }
   .bv-tema:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
@@ -172,8 +266,8 @@
     .bv-tela { height: auto; min-height: 100%; }
     .bv-corpo { grid-template-columns: minmax(0, 1fr); }
     .bv-lado { height: auto; overflow: visible; }
-    .bv-etapas { justify-content: flex-start; }
+    .bv-etapas { gap: 14px; }
   }
 
   /* Dentro do programa, os tres botoes da janela ficam no canto: o cabecalho do assistente abre espaco para eles. */
-  html.com-janela .bv-cabeca { padding-right: 130px; }
+  html.com-janela .bv-cabeca { padding-right: 158px; }

@@ -73,7 +73,7 @@ function cartaoChavesAparelho() {
       "todas as telas esperam a vez na mesma fila; a pergunta mandada com outra andando fica na conversa e vai sozinha; Ctrl+Enter pede prioridade") +
     "</div>" +
     '<p class="cfg-explica">Quem espera vê a posição, a previsão e quem está na frente, pelo primeiro nome e a tela — nunca o texto. ' +
-    "Passar na frente de outras pessoas é um nível que você dá a cada conta em Acesso de fora › Contas, até 3 vezes por hora; " +
+    "Passar na frente de outras pessoas é um nível que você dá a cada conta em Acesso externo › Contas, até 3 vezes por hora; " +
     "toda prioridade fica no registro de acessos.</p>" +
     (cfg.chaves.aparelho.fila ? '<div class="cfg-botoes"><button data-ver-fila="1">' + ic("list", 16) + "Ver a fila agora</button></div>" : ""));
 }
@@ -96,13 +96,13 @@ function cartaoUmbrel() {
     '</small></span><button data-mcp-revogar="' + esc(c.id) + '">Revogar</button></div>').join("");
   return cartaoCfg("Fotografar e assistentes de fora", metaCfg("desligados de fábrica"),
     '<div class="cfg-sub">' +
-    interruptor("umbrel", "captura", "Fotografar documento", "no celular, pelo acesso de fora, a câmera vira um PDF no Acervo; de fora, passa antes por Aprovações") +
-    interruptor("umbrel", "mcp", "Assistentes de fora (MCP)", "o Claude ou outro assistente deste computador pede ao PAULUS o texto oficial de um artigo, súmulas e temas do STJ - e, se você liberar numa conexão, documentos do escritório") + "</div>" +
+    interruptor("umbrel", "captura", "Fotografar documento", "no celular, pelo acesso externo, a câmera vira um PDF no Acervo; de fora, passa antes por Aprovações") +
+    interruptor("umbrel", "mcp", "Assistentes de fora (MCP)", "o Claude ou outro assistente deste computador pede ao Paulus o texto oficial de um artigo, súmulas e temas do STJ - e, se você liberar numa conexão, documentos do escritório") + "</div>" +
     (ligado
       ? '<p class="cfg-explica"><b>O que sai:</b> o que cada conexão tem liberado, para o assistente conectado - e dali para a empresa dele. ' +
         "As ferramentas públicas (leis do Planalto, súmulas e temas do STJ) não levam nada do escritório. As do escritório (documentos, busca nos trechos, " +
         "cartão, posição da casa) só leem, só no escopo que você escolher, e nunca os casos marcados “só no escritório”. " +
-        "<b>Nunca sai:</b> cadastros, financeiro, e-mail, agenda. Só atende este computador (nunca pelo acesso de fora), e cada chamada fica no registro de acessos.</p>" +
+        "<b>Nunca sai:</b> cadastros, financeiro, e-mail, agenda. Só atende este computador (nunca pelo acesso externo), e cada chamada fica no registro de acessos.</p>" +
         '<p class="cfg-explica">Endereço: <code>' + esc(m.endereco || "") + "</code></p>" +
         (conexoes ? '<div class="cfg-linhas">' + conexoes + "</div>" : '<p class="nota">Nenhuma conexão ainda.</p>') +
         '<div class="cfg-botoes"><button data-mcp-criar="1">' + ic("add", 16) + "Nova conexão</button></div>"

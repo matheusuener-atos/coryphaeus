@@ -108,7 +108,7 @@ function ligarHoras(raiz) {
     // N7: no dia, o rascunho da nota vai para Aprovações. Nunca emite sozinho.
     const r = await dialogo({
       titulo: "Nota fiscal todo mês", contexto: "Serviço › Honorários",
-      texto: "No dia escolhido, o PAULUS prepara o rascunho da NFS-e dos honorários do mês e o põe em Aprovações. Nada é emitido sem o seu sim.",
+      texto: "No dia escolhido, o Paulus prepara o rascunho da NFS-e dos honorários do mês e o põe em Aprovações. Nada é emitido sem o seu sim.",
       campos: [{ chave: "dia", rotulo: "Dia do mês (1 a 31)", placeholder: "5", obrigatorio: true },
                { chave: "valor", rotulo: "Valor mensal (R$)", placeholder: "5.000,00", obrigatorio: true },
                { chave: "descricao", rotulo: "Descrição (opcional)", placeholder: "Honorários advocatícios", obrigatorio: false }],

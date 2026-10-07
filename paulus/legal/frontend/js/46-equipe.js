@@ -1,14 +1,14 @@
 /* ------------------------------------------------------------- a equipe */
 /*
    Um cadastro so para a equipe (pedido do dono, 29/09/2026): a pessoa mora em
-   Cadastros › Equipe, e o acesso ao PAULUS - a conta, o convite, as
+   Cadastros › Equipe, e o acesso ao Paulus - a conta, o convite, as
    permissoes - se liga a ela pelo e-mail. As tres telas que falam da equipe
    usam o que esta aqui:
 
-     - Cadastros › Equipe: a coluna "Acesso ao PAULUS" e, na ficha, Convidar
+     - Cadastros › Equipe: a coluna "Acesso ao Paulus" e, na ficha, Convidar
        e Permissoes;
      - Configuracoes › Escritorio e equipe: a lista com os mesmos botoes;
-     - Configuracoes › Acesso de fora › Convidar pela internet: escolhe alguem
+     - Configuracoes › Acesso externo › Convidar pela internet: escolhe alguem
        da equipe - ou uma pessoa nova, que entra em Cadastros tambem.
 
    So na janela do servidor: de fora, contas e convites nao se mexem.
@@ -59,8 +59,8 @@ function etiquetaDeAcesso(email) {
 /* ------------------------------------------------------- o convite */
 
 /* O convite de uma pessoa (da equipe ou nova): a mesma caixa nas quatro
-   telas (Cadastros, Escritorio e equipe, Acesso de fora, a Equipe de um
-   servico). A equipe do escritorio e quem entra no PAULUS: pessoa nova so
+   telas (Cadastros, Escritorio e equipe, Acesso externo, a Equipe de um
+   servico). A equipe do escritorio e quem entra no Paulus: pessoa nova so
    entra em Cadastros › Equipe pelo convite, com o vinculo e a funcao.
    `ficha` e a pessoa que ja esta em Cadastros. Devolve a ficha (com o id)
    quando o convite saiu; senao, false. */
@@ -68,7 +68,7 @@ async function convidarPessoa(ficha, depois, inicial) {
   // `inicial`: o nome e o e-mail que a conversa ja trouxe (js/89-config-na-conversa.js).
   const ja = inicial || {};
   const pedido = dialogo({
-    titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao PAULUS",
+    titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao Paulus",
     texto: (eqp.soGoogle
       ? "A pessoa recebe um link, entra com a conta Google dela e, se a segurança pedir, liga o Google Authenticator no próprio celular."
       : "A pessoa recebe um link, escolhe a senha e, se a segurança pedir, liga o Google Authenticator no próprio celular.") +
@@ -113,7 +113,7 @@ async function convidarPessoa(ficha, depois, inicial) {
 }
 
 async function mostrarConviteCriado(nome, email, link, simples) {
-  const mensagem = "Olá, " + String(nome || "").split(" ")[0] + "! Este é o seu convite para o PAULUS do escritório. " +
+  const mensagem = "Olá, " + String(nome || "").split(" ")[0] + "! Este é o seu convite para o Paulus do escritório. " +
     (simples ? "Abra e entre com a sua conta Google (" + email + "): " : eqp.soGoogle ? "Abra no celular, entre com a sua conta Google (" + email + ") e ligue o Google Authenticator: "
       : "Abra no celular, escolha a sua senha e ligue o Google Authenticator: ") + link + " (vale 7 dias, uma vez)";
   const escolha = await dialogo({
@@ -126,7 +126,7 @@ async function mostrarConviteCriado(nome, email, link, simples) {
   else if (escolha && escolha.ok) window.open("https://wa.me/?text=" + encodeURIComponent(mensagem), "_blank");
 }
 
-/* Convidar pela internet (Acesso de fora e Escritorio e equipe): primeiro a
+/* Convidar pela internet (Acesso externo e Escritorio e equipe): primeiro a
    equipe que ainda nao tem acesso; depois, alguem novo. */
 async function convidarDaEquipe(depois) {
   await carregarAcessoDaEquipe();
@@ -138,8 +138,8 @@ async function convidarDaEquipe(depois) {
     '<button type="button" class="eqp-pessoa" data-eqp-convidar="novo"><span class="cad-avatar">' + ic("person_add", 16) + "</span>" +
     '<span class="duas-linhas"><b>Alguém novo</b><small>entra em Cadastros › Equipe também</small></span>' + ic("chevron_right", 18) + "</button></div>";
   let escolhido = "";
-  const aberto = dialogo({ titulo: "Quem você quer convidar?", contexto: "Equipe › acesso ao PAULUS", html: html,
-    texto: "A equipe que ainda não tem acesso ao PAULUS, de Cadastros › Equipe.", confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
+  const aberto = dialogo({ titulo: "Quem você quer convidar?", contexto: "Equipe › acesso ao Paulus", html: html,
+    texto: "A equipe que ainda não tem acesso ao Paulus, de Cadastros › Equipe.", confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
   document.querySelectorAll("[data-eqp-convidar]").forEach((b) => b.addEventListener("click", () => {
     escolhido = b.dataset.eqpConvidar;
     if (dialogoAberto) dialogoAberto.fechar(null);
@@ -158,12 +158,12 @@ function blocoAcessoDaPessoa(f) {
   const botao = (dado, icone, rotulo) => '<button type="button" class="com-icone" ' + dado + ">" + ic(icone, 16) + esc(rotulo) + "</button>";
   let texto, acoes = "";
   if (a.estado === "titular") texto = "Titular: cuida das contas e pode tudo, também de fora.";
-  else if (a.estado === "ativo") { texto = "Entra no PAULUS pela internet com " + a.conta.email + "."; acoes = botao('data-eqp-permissoes="1"', "shield_person", "Permissões"); }
-  else if (a.estado === "pendente") texto = "A conta existe, mas falta confirmar o autenticador (em Configurações › Acesso de fora).";
+  else if (a.estado === "ativo") { texto = "Entra no Paulus pela internet com " + a.conta.email + "."; acoes = botao('data-eqp-permissoes="1"', "shield_person", "Permissões"); }
+  else if (a.estado === "pendente") texto = "A conta existe, mas falta confirmar o autenticador (em Configurações › Acesso externo).";
   else if (a.estado === "convidado") { texto = "Convite enviado — espera a pessoa abrir o link."; acoes = botao('data-eqp-convite="1"', "send", "Convidar de novo"); }
-  else if (a.estado === "sem-email") { texto = "Sem acesso ao PAULUS. Para convidar, é preciso o e-mail Google da pessoa."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o PAULUS"); }
-  else { texto = "Sem acesso ao PAULUS."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o PAULUS"); }
-  return '<div class="cad-bloco"><span class="cad-bloco-titulo">Acesso ao PAULUS <small>' + esc(a.rotulo) + "</small></span>" +
+  else if (a.estado === "sem-email") { texto = "Sem acesso ao Paulus. Para convidar, é preciso o e-mail Google da pessoa."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o Paulus"); }
+  else { texto = "Sem acesso ao Paulus."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o Paulus"); }
+  return '<div class="cad-bloco"><span class="cad-bloco-titulo">Acesso ao Paulus <small>' + esc(a.rotulo) + "</small></span>" +
     '<p class="cad-nota">' + esc(texto) + "</p>" + (acoes ? '<div class="dialogo-acoes">' + acoes + "</div>" : "") + "</div>";
 }
 
@@ -197,7 +197,7 @@ function cartaoDaEquipeCfg() {
     (linhas || novo ? '<div class="cfg-linhas">' + linhas + novo + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>') +
     '<div class="acesso-pe"><button class="primario com-icone" data-eqp-cfg-novo="1">' + ic("send", 16) + "Convidar pela internet</button>" +
     '<button class="com-icone" data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button>" +
-    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao PAULUS se liga a cada pessoa pelo e-mail Google.</p></div>');
+    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao Paulus se liga a cada pessoa pelo e-mail Google.</p></div>');
 }
 
 function ligarEquipeCfg() {

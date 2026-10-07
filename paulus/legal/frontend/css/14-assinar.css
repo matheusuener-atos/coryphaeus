@@ -19,7 +19,7 @@
   .as-visor .pdf-folha { width: 100%; max-width: 680px; align-self: flex-start; position: relative; line-height: 0; }
   .as-mini-selo { position: absolute; right: 5px; bottom: 12px; width: 14px; height: 8px; background: var(--destaque); border-radius: 1px; }
   .as-cartao .docs-mini { position: relative; }
-  .as-mais { font: 500 11px var(--sans); color: var(--ink3); }
+  .as-mais { font: 500 12px var(--sans); color: var(--ink3); }
 
   /* o selo arrastavel: a previa de verdade, na escala da pagina */
   .as-cartao .pdf-selo {
@@ -31,7 +31,7 @@
   .as-visor .pdf-folha .as-selo-dentro .selo-previa img { max-width: 62px; max-height: 46px; width: auto; height: auto; }
   .as-selo-legenda {
     position: absolute; left: 0; top: 100%; margin-top: 6px; display: flex; align-items: center; gap: 6px;
-    font: 500 11px var(--sans); color: var(--destaque); white-space: nowrap; pointer-events: none;
+    font: 500 12px var(--sans); color: var(--destaque); white-space: nowrap; pointer-events: none;
   }
   .as-cartao .pdf-selo.redimensionando { border-style: solid; }
   /* as alcas redimensionam de verdade: a area de pegar e maior que o ponto */
@@ -43,7 +43,7 @@
   /* a barrinha do selo: replicar nas outras paginas e tirar */
   .as-selo-barra {
     position: absolute; right: -1px; bottom: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; box-shadow: var(--elev-float);
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
     line-height: normal; cursor: default; z-index: 3;
     animation: menu-entra .16s cubic-bezier(.16,1,.3,1);
   }
@@ -52,14 +52,14 @@
   .as-selo-barra > button[aria-expanded="true"] { background: var(--fill); color: var(--ink); }
   .as-selo-menu {
     position: absolute; right: 0; bottom: 100%; margin-bottom: 4px; min-width: 196px; width: max-content; max-width: 340px; padding: 6px; display: flex; flex-direction: column;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; box-shadow: var(--elev-float); z-index: 4;
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float); z-index: 4;
     animation: menu-entra .16s cubic-bezier(.16,1,.3,1);
   }
   /* o menu abre para longe da pagina: para cima, ou para baixo se a barra desceu */
   .pdf-selo.menu-embaixo .as-selo-menu { bottom: auto; top: 100%; margin: 4px 0 0; }
-  .as-selo-menu small { padding: 4px 8px 6px; font: 500 12.5px var(--sans); color: var(--ink3); white-space: normal; }
+  .as-selo-menu small { padding: 4px 8px 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: normal; }
   .as-selo-menu button {
-    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px; background: transparent;
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px; background: transparent;
     font: 500 13px var(--sans); color: var(--ink2); text-align: left; cursor: pointer; min-height: 0;
   }
   .as-selo-menu button:hover:not(:disabled), .as-selo-menu button:focus-visible { outline: none; background: var(--fill); color: var(--ink); }
@@ -73,13 +73,13 @@
   .as-adicionar, .as-nesta { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
   .as-adicionar[hidden], .as-nesta[hidden] { display: none; }
   .as-adicionar small { font: 500 12px var(--sans); color: var(--ink3); }
-  .as-nesta { font: 500 12.5px var(--sans); color: var(--ink2); }
+  .as-nesta { font: 500 12px var(--sans); color: var(--ink2); }
   .colunas-pdfs { grid-template-columns: minmax(0, 1fr) 120px 118px; }
   .colunas-pdfs .acoes-linha { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 
   /* o painel de antes de assinar */
   .as-opcoes { padding: 0 18px 12px; display: grid; gap: 8px; }
-  .as-radio { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; min-height: 24px; }
+  .as-radio { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; min-height: 24px; }
   /* A opcao (radio) do sistema: 16 px, fio 1.5 px --ink-a3; marcada, a borda
      engrossa ate 5 px na tinta. As boas-vindas (.bv-radio), o modelo em
      Configuracoes (.cfg-modelo > i) e os certificados do Windows (.cw-radio)
@@ -91,10 +91,10 @@
   .as-radio input[type=text] { width: 120px; }
   .as-cert { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
   .as-cert-ic { color: var(--ink2); display: flex; flex: none; }
-  .as-cert .duas-linhas b { font-size: 13.5px; font-weight: 600; }
+  .as-cert .duas-linhas b { font-size: 13px; font-weight: 600; }
   .as-cert .duas-linhas small { white-space: normal; }
   .as-lista { display: grid; gap: 10px; }
-  .as-marca { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); }
+  .as-marca { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); }
   .as-marca.liga { cursor: pointer; }
   .as-marca.on { color: var(--ink); }
   .as-lista .em-senha { margin-top: -2px; }
@@ -111,10 +111,10 @@
   .as-selo-linha { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
   .as-selo-linha > .ic { color: var(--verde); flex: none; }
   .as-selo-linha .duas-linhas { flex: 1; min-width: 0; }
-  .as-selo-linha .duas-linhas b { font-size: 13.5px; font-weight: 600; }
+  .as-selo-linha .duas-linhas b { font-size: 13px; font-weight: 600; }
   .as-selo-linha .duas-linhas small { white-space: normal; }
   .as-pronto-cabeca .contagem { margin-left: auto; }
-  .as-pronto p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .as-pronto p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .as-pronto-acoes { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .as-pronto-acoes .primario { margin-left: auto; }
   .as-pronto small { font: 500 12px var(--sans); color: var(--ink3); }
@@ -128,15 +128,15 @@
   .as-bloco { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--ink-a1); }
   .as-bloco:last-child { border-bottom: none; padding-bottom: 0; }
   .as-titulo { font: 600 14px var(--sans); color: var(--ink); }
-  .as-explica { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
-  .as-nota { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-explica { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .as-nota { font: 500 12px var(--sans); color: var(--ink3); }
   .as-solta {
     border: 1px dashed var(--ink-a15); border-radius: 12px; padding: 18px; display: grid; justify-items: center; gap: 6px; text-align: center;
     transition: border-color .15s, background .15s;
   }
   .as-solta.sobre { border-color: var(--ink); background: var(--fill); }
   .as-solta > span { font-size: 14px; }
-  .as-solta small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-solta small { font: 500 12px var(--sans); color: var(--ink3); }
   .as-solta-acoes { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
   .as-solta-acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .as-teste { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 6px; }
@@ -144,20 +144,20 @@
   .as-teste p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .as-teste button { justify-self: start; }
   .as-titular { display: flex; align-items: flex-start; gap: 14px; }
-  .as-titular-ic { width: 44px; height: 44px; border-radius: 10px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); }
+  .as-titular-ic { width: 44px; height: 44px; border-radius: 12px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); }
   .as-titular .duas-linhas { flex: 1; gap: 3px; }
-  .duas-linhas b.as-nome { font: 400 20px/1.25 var(--serif); color: var(--ink); white-space: normal; overflow: visible; }
+  .duas-linhas b.as-nome { font: 600 20px/1.25 var(--sans); color: var(--ink); white-space: normal; overflow: visible; }
   .as-titular-acoes { display: flex; gap: 6px; flex: none; }
   .as-titular-acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .as-grade4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .as-dado { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 4px; min-width: 0; }
   .as-dado small { font: 500 12px var(--sans); color: var(--ink3); }
-  .as-dado b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .as-dado b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* A senha: chave e olho dentro do campo, Abrir ao lado. */
   .as-bloco .cert-senha { display: flex; align-items: stretch; gap: 8px; }
   .cert-senha-caixa {
     flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 4px 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); cursor: text;
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); cursor: text;
     transition: border-color .15s ease;
   }
   .cert-senha-caixa:focus-within { border-color: var(--ink); }
@@ -167,7 +167,7 @@
     font: 400 14px var(--sans); color: var(--ink); letter-spacing: .02em;
   }
   .cert-olho.on { background: var(--fill); color: var(--ink); }
-  .as-rodape-cartao { flex: none; padding: 9px 18px; border-top: 1px solid var(--ink-a1); display: grid; gap: 10px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-rodape-cartao { flex: none; padding: 9px 18px; border-top: 1px solid var(--ink-a1); display: grid; gap: 10px; font: 500 12px var(--sans); color: var(--ink3); }
   .as-duas-colunas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; }
   .as-duas-colunas .ag-chave { border-bottom: none; padding: 0; min-height: 0; }
 
@@ -190,14 +190,14 @@
   .selo-solta:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--fill); color: var(--ink); }
   .selo-solta.sobre { border-color: var(--ink); background: var(--fill); color: var(--ink); }
   .selo-solta .ic { color: var(--ink3); }
-  .selo-solta b { font: 600 13.5px var(--sans); color: var(--ink); }
+  .selo-solta b { font: 600 13px var(--sans); color: var(--ink); }
   .selo-solta small { font: 500 12px/1.45 var(--sans); color: var(--ink3); }
   .selo-img-atual { display: grid; gap: 10px; }
   .selo-img-atual img { max-width: 100%; max-height: 90px; justify-self: center; object-fit: contain; padding: 10px; border-radius: 8px; background: var(--papel); border: 1px solid var(--papel-linha); }
   .as-painel-miolo .selo-tela { max-width: none; width: 100%; border-radius: 8px; }
   .as-linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
   .as-linha-botoes button { display: inline-flex; align-items: center; gap: 6px; }
-  .as-painel-rodape { margin-top: auto; padding: 9px 18px; display: flex; align-items: center; justify-content: flex-end; gap: 6px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+  .as-painel-rodape { margin-top: auto; padding: 9px 18px; display: flex; align-items: center; justify-content: flex-end; gap: 6px; border-top: 1px solid var(--ink-a1); font: 500 12px var(--sans); color: var(--ink3); }
   .as-painel-rodape .cresce { flex: 1; }
   .as-painel-rodape button { display: inline-flex; align-items: center; gap: 6px; }
   .painel-bloco .as-duas-colunas { gap: 8px 16px; }
@@ -205,7 +205,7 @@
   /* assinar em lote: a faixa sobre o visor, a lista na coluna, o pe */
   .as-lote-faixa {
     flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 14px; min-height: 44px; box-sizing: border-box;
-    border-bottom: 1px solid var(--ink-a1); background: var(--destaque-fundo); font: 500 12.5px var(--sans); color: var(--ink2);
+    border-bottom: 1px solid var(--ink-a1); background: var(--destaque-fundo); font: 500 12px var(--sans); color: var(--ink2);
   }
   .as-lote-faixa .com-icone { display: inline-flex; align-items: center; gap: 4px; }
   .as-lote-conta { white-space: nowrap; font: 600 13px var(--sans); color: var(--ink); }
@@ -219,8 +219,8 @@
   .as-lote-aviso.falhou .ic { color: var(--acc); }
   .as-lote-lista { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; max-height: 240px; overflow: auto; margin: 0 -6px; }
   .as-lote-item {
-    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
-    background: transparent; font: 500 13.5px var(--sans); color: var(--ink2); text-align: left; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px;
+    background: transparent; font: 500 13px var(--sans); color: var(--ink2); text-align: left; cursor: pointer;
   }
   .as-lote-item:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .as-lote-item.atual, .as-lote-item.atual:hover:not(:disabled) { background: var(--fill); color: var(--ink); }
@@ -230,9 +230,9 @@
   .as-lote-item.aguardando .as-lote-ic { color: var(--warnt); }
   .as-lote-item.falhou .as-lote-ic, .as-lote-item.fora .as-lote-ic { color: var(--acc); }
   .as-lote-texto { flex: 1; min-width: 0; }
-  .as-lote-texto b { font: 500 13.5px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .as-lote-texto b { font: 500 13px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .as-lote-item.atual .as-lote-texto b { font-weight: 600; }
-  .as-lote-texto small { font: 500 11.5px var(--sans); color: var(--ink3); }
+  .as-lote-texto small { font: 500 12px var(--sans); color: var(--ink3); }
   .as-lote-item.assinado small { color: var(--okt); }
   .as-lote-item.falhou small, .as-lote-item.fora small { color: var(--acc); }
   .as-lote-salvar-nota { margin: 2px 0 0; }
@@ -250,5 +250,5 @@
   }
   .as-salvar-opcao:hover:not(:disabled), .as-salvar-opcao.on { color: var(--ink); }
   .as-salvar-opcao .duas-linhas { min-width: 0; }
-  .as-salvar-opcao .duas-linhas b { font: 600 13.5px var(--sans); }
+  .as-salvar-opcao .duas-linhas b { font: 600 13px var(--sans); }
   .as-salvar-opcao .duas-linhas small { white-space: normal; }

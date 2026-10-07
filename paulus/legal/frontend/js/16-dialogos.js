@@ -3,7 +3,7 @@
    Dialogos do sistema (docs/ui/05-interacoes-e-estados.md, mockup P -
    Popups). Um padrao para confirmar, perguntar um nome e avisar, no lugar
    do confirm() e do prompt() do navegador - que na janela do programa
-   apareciam como "localhost diz" e nao tinham a cara do PAULUS.
+   apareciam como "localhost diz" e nao tinham a cara do Paulus.
 
    dialogo(o)  -> Promise com { ok, valor, marcada } ou null se cancelou
    confirmar(o) -> Promise<boolean>

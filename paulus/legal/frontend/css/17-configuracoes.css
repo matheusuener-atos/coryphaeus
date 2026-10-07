@@ -18,13 +18,13 @@
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
   }
   .cfg-item {
-    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
-    background: transparent; text-align: left; font: 500 13.5px var(--sans); color: var(--ink2); cursor: pointer;
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px;
+    background: transparent; text-align: left; font: 500 13px var(--sans); color: var(--ink2); cursor: pointer;
   }
   .cfg-item .ic { color: var(--ink3); }
   .cfg-item:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .cfg-item.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
-  .cfg-item.cfg-item-manual { font-size: 12.5px; color: var(--ink3); }
+  .cfg-item.cfg-item-manual { font-size: 12px; color: var(--ink3); }
   .cfg-item.cfg-item-manual:hover:not(:disabled) { color: var(--ink); }
 
   /* a secao: abertura, faixa e cartoes numa coluna so */
@@ -42,16 +42,16 @@
   .cfg-cartao { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; box-shadow: var(--elev-card); }
   .cfg-cartao-cabeca { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); font: 600 14px var(--sans); }
   .cfg-cartao-cabeca > span:first-child { flex: 1; min-width: 0; }
-  .cfg-cartao-cabeca small { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .cfg-cartao-cabeca small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .cfg-cartao-cabeca .fin-meta-ponto { margin-left: 0; }
   .cfg-cartao-corpo { padding: 14px 16px 16px; display: grid; gap: 14px; align-content: start; }
   .cfg-sub { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--ink-a1); }
   .cfg-sub > b { font: 600 14px var(--sans); }
   /* os tipos de aviso, recuados sob o interruptor geral */
   .cfg-avisos-tipos { display: grid; gap: 10px; padding-left: 18px; }
-  .cfg-explica { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .cfg-explica { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .cfg-explica code, .cfg-texto code { font: 400 12px var(--mono); color: var(--ink2); }
-  .cfg-texto { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .cfg-texto { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink2); }
   .cfg-chaves { display: grid; }
   .cfg-chaves .chave-valor b.mute { color: var(--ink3); }
   .cfg-chaves.cfg-chaves-duas { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
@@ -80,10 +80,10 @@
   /* assistente e modelo (o quadro da opcao e o radio vem das regras unificadas:
      a opcao em cartao mais abaixo neste arquivo, o radio em 14-assinar.css) */
   .cfg-modelos { display: grid; gap: 6px; }
-  .cfg-modelo { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 13.5px; }
+  .cfg-modelo { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: 13px; }
   .cfg-modelo .duas-linhas { gap: 1px; }
   .cfg-modelo .duas-linhas b { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .cfg-modelo small { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .cfg-modelo small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .cfg-modelo button { flex: none; }
   .cfg-leis-corpo { display: grid; gap: 12px; }
   .cfg-lei { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
@@ -97,42 +97,42 @@
   .cfg-cartao-desempenho .cfg-cartao-corpo { padding: 0; }
   .cfg-desempenho { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: 320px; }
   .cfg-medidas { border-right: 1px solid var(--ink-a1); padding: 8px; display: grid; gap: 2px; align-content: start; }
-  .cfg-medida { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 6px; background: transparent; text-align: left; width: 100%; cursor: pointer; font: 500 13.5px var(--sans); color: var(--ink2); }
+  .cfg-medida { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 8px; background: transparent; text-align: left; width: 100%; cursor: pointer; font: 500 13px var(--sans); color: var(--ink2); }
   .cfg-medida:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .cfg-medida.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
   .cfg-medida.presa { cursor: default; }
   .cfg-medida svg { width: 56px; height: 30px; flex: none; background: var(--bg); border-radius: 4px; }
-  .cfg-medida .duas-linhas b { font-weight: 600; font-size: 13.5px; }
+  .cfg-medida .duas-linhas b { font-weight: 600; font-size: 13px; }
   .cfg-medida .duas-linhas small { font-variant-numeric: tabular-nums; }
   .cfg-grafico { min-width: 0; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
   .cfg-grafico-topo { display: flex; align-items: baseline; gap: 10px; }
-  .cfg-grafico-topo b { font: 600 26px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
-  .cfg-grafico-topo small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .cfg-grafico-topo b { font: 600 32px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
+  .cfg-grafico-topo small { font: 500 12px var(--sans); color: var(--ink3); }
   .cfg-area { flex: 1; min-height: 200px; position: relative; padding-left: 40px; border-bottom: 1px solid var(--ink-a1); }
-  .cfg-eixo { position: absolute; left: 0; top: 0; bottom: 0; width: 36px; display: flex; flex-direction: column; justify-content: space-between; font: 500 11px var(--sans); color: var(--ink3); text-align: right; padding-right: 6px; box-sizing: border-box; font-variant-numeric: tabular-nums; }
-  .cfg-legenda { position: absolute; left: 44px; top: 6px; display: flex; gap: 14px; font: 500 11px var(--sans); color: var(--ink3); }
+  .cfg-eixo { position: absolute; left: 0; top: 0; bottom: 0; width: 36px; display: flex; flex-direction: column; justify-content: space-between; font: 500 12px var(--sans); color: var(--ink3); text-align: right; padding-right: 6px; box-sizing: border-box; font-variant-numeric: tabular-nums; }
+  .cfg-legenda { position: absolute; left: 44px; top: 6px; display: flex; gap: 14px; font: 500 12px var(--sans); color: var(--ink3); }
   .cfg-legenda span { display: inline-flex; align-items: center; gap: 6px; }
   .cfg-legenda i { display: block; width: 12px; height: 2px; background: var(--ink); }
   .cfg-area svg { position: absolute; left: 40px; top: 0; width: calc(100% - 40px); height: 100%; background-image: linear-gradient(var(--ink-a06) 1px, transparent 1px); background-size: 100% 25%; }
   .cfg-agora { position: absolute; right: 0; display: flex; align-items: center; gap: 6px; pointer-events: none; transform: translateY(-50%); }
-  .cfg-agora span { padding: 2px 8px; border-radius: 5px; background: var(--ink); color: var(--bg); font: 600 11.5px var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cfg-agora span { padding: 2px 8px; border-radius: 5px; background: var(--ink); color: var(--bg); font: 600 12px var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .cfg-agora i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--surf); box-sizing: content-box; }
-  .cfg-tempos { display: flex; justify-content: space-between; padding-left: 40px; font: 500 11px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .cfg-tempos { display: flex; justify-content: space-between; padding-left: 40px; font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
 
   /* conexoes (a caixa do icone e a .caixa-tipo de 05-paineis-e-botoes.css) */
   .cfg-servico { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
   .cfg-servico:last-of-type { border-bottom: none; }
   .cfg-servico .duas-linhas b { font-weight: 600; }
-  .cfg-servico .fin-meta-ponto { margin-left: 0; white-space: nowrap; font: 500 12.5px var(--sans); }
+  .cfg-servico .fin-meta-ponto { margin-left: 0; white-space: nowrap; font: 500 12px var(--sans); }
   /* Botoes demais quebram em outra linha, a direita - o nome da linha nunca some. */
   .cfg-servico .cfg-botoes { flex: 0 1 auto; gap: 6px; justify-content: flex-end; }
   .cfg-servico > .duas-linhas { flex: 1 1 180px; min-width: 160px; }
   .cfg-servico button { flex: none; }
   .cfg-saida { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 14px; }
   .cfg-saida:last-child { border-bottom: none; }
-  .cfg-saida .fin-data { font: 500 12.5px var(--sans); min-width: 84px; }
+  .cfg-saida .fin-data { font: 500 12px var(--sans); min-width: 84px; }
   .cfg-saida .duas-linhas b { font-weight: 400; white-space: normal; }
-  .cfg-maquina { display: flex; align-items: center; gap: 12px; font-size: 13.5px; }
+  .cfg-maquina { display: flex; align-items: center; gap: 12px; font-size: 13px; }
   .cfg-maquina .ic { color: var(--ink3); }
   .cfg-maquina .duas-linhas b { font-weight: 600; }
   /* o pedido desta maquina (js/23-boas-vindas.js) */
@@ -144,9 +144,9 @@
   /* As casas do codigo: uma moldura so (o fio e o raio do campo) em duas
      medidas - a grande no passeio (.bv-casas, 20-vinculo.css) e a pequena
      aqui e no cartao de espera. */
-  .bv-casas span, .cfg-casas span, .agora-codigo span { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); color: var(--ink); font-family: var(--mono); font-weight: 400; }
+  .bv-casas span, .cfg-casas span, .agora-codigo span { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); color: var(--ink); font-family: var(--mono); font-weight: 400; }
   .cfg-casas span, .agora-codigo span { width: 30px; height: 36px; font-size: 15px; }
-  .cfg-endereco { font: 400 11.5px var(--mono); color: var(--ink3); border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); padding: 10px 12px; overflow-wrap: anywhere; margin-top: 10px; }
+  .cfg-endereco { font: 400 12px var(--mono); color: var(--ink3); border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); padding: 10px 12px; overflow-wrap: anywhere; margin-top: 10px; }
   .cfg-pronto { padding: 14px 16px; border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); display: grid; gap: 8px; }
 
   /* aprendizado */
@@ -179,7 +179,7 @@
      o mouse escurece o fio; escolhida, o fio e um anel de 1 px por dentro
      ficam na tinta - o fundo nao muda, para nao depender do fundo do pai.
      Cada cartao guarda so o seu layout e a sua letra. */
-  .bv-opcao, .as-salvar-opcao, .cfg-modelo, .cfg-tema, .cfg-tipo { border: 1px solid var(--ink-a1); border-radius: 10px; background: transparent; cursor: pointer; }
+  .bv-opcao, .as-salvar-opcao, .cfg-modelo, .cfg-tema, .cfg-tipo { border: 1px solid var(--ink-a1); border-radius: 12px; background: transparent; cursor: pointer; }
   .bv-opcao:hover:not(:disabled), .as-salvar-opcao:hover:not(:disabled), .cfg-modelo:hover:not(:disabled), .cfg-tema:hover:not(:disabled), .cfg-tipo:hover:not(:disabled) { border-color: var(--ink); background: transparent; }
   .bv-opcao.escolhida, .as-salvar-opcao.on, .cfg-modelo.on, .cfg-tema.on, .cfg-tipo.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: transparent; }
   .cfg-tema { display: grid; gap: 8px; padding: 10px; }
@@ -192,11 +192,11 @@
   .cfg-tema > span:last-child { font: 500 13px var(--sans); text-align: center; color: var(--ink); }
   .cfg-tema.on > span:last-child { font-weight: 600; }
   .cfg-teclas { display: flex; gap: 4px; }
-  .cfg-teclas span { padding: 2px 7px; border: 1px solid var(--ink-a2); border-radius: 5px; font: 600 11.5px var(--sans); background: var(--bg); font-variant-numeric: tabular-nums; }
+  .cfg-teclas span { padding: 2px 7px; border: 1px solid var(--ink-a2); border-radius: 5px; font: 600 12px var(--sans); background: var(--bg); font-variant-numeric: tabular-nums; }
 
   /* feedback (o quadro da opcao vem da regra unificada de aparencia) */
   .cfg-tipos { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-  .cfg-tipo { display: grid; gap: 4px; justify-items: center; padding: 10px 6px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .cfg-tipo { display: grid; gap: 4px; justify-items: center; padding: 10px 6px; font: 500 12px var(--sans); color: var(--ink2); }
   .cfg-tipo:hover:not(:disabled) { color: var(--ink); }
   .cfg-tipo.on { color: var(--ink); font-weight: 600; }
   .cfg-tipo .ic { color: var(--ink3); }
@@ -208,7 +208,7 @@
   .cfg-lixo-linha .duas-linhas small { white-space: normal; }
   .cfg-lixo-quando { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .cfg-lixo-linha button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .cfg-lixo-pe { padding-top: 9px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+  .cfg-lixo-pe { padding-top: 9px; border-top: 1px solid var(--ink-a1); font: 500 12px var(--sans); color: var(--ink3); }
 
   /* A lista de novidades, dentro do dialogo do sistema. */
   .cfg-novidade { display: grid; gap: 4px; padding: 11px 0; border-bottom: 1px solid var(--ink-a08); }
@@ -236,16 +236,16 @@
 .mod-erro { color: var(--acc); }
 
   /* A versao nova (js/40-atualizacao.js): o numero, as novidades e o botao. */
-  .atu-nova { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--sub); }
+  .atu-nova { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--sub); }
   .atu-nova b { font: 600 14px var(--sans); }
-  .atu-nova small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .atu-nova small { font: 500 12px var(--sans); color: var(--ink3); }
   .atu-novidades { margin: 0; padding-left: 18px; display: grid; gap: 4px; font: 400 13px/1.5 var(--sans); color: var(--ink2); }
   .cfg-explica.acc { color: var(--acc); }
 /* A Biblioteca (js/35-material.js): as areas da ficha, cada uma um chip que
    se marca - o proprio chip e o rotulo da caixa de marcar. */
 .ficha-areas { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-marcar { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
-  border: 1px solid var(--ink-a12); background: var(--surf); font-size: 12.5px; cursor: pointer; }
+  border: 1px solid var(--ink-a12); background: var(--surf); font-size: 12px; cursor: pointer; }
 .chip-marcar input { margin: 0; accent-color: var(--acc); }
 .chip-marcar:has(input:checked) { background: var(--fill); border-color: var(--ink-a3); }
 /* O que o PAULUS sabe (Biblioteca, M7): uma linha por area, com as leis e as

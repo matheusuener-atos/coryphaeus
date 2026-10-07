@@ -20,7 +20,7 @@
   .etiqueta, .pilula-estado, .fin-status {
     justify-self: start; display: inline-flex; align-items: center; gap: 6px;
     padding: 2px 8px; border-radius: 5px; background: var(--fill); color: var(--ink2);
-    font: 600 11.5px var(--sans); white-space: nowrap;
+    font: 600 12px var(--sans); white-space: nowrap;
   }
   .etiqueta i, .pilula-estado i, .fin-status i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); flex: none; }
   .etiqueta.ok, .pilula-estado.ok, .fin-status.pago, .fin-status.sv-status-concluido { background: var(--okbg); color: var(--okt); }
@@ -43,7 +43,7 @@
     grade da tela distribui o espaco.
   */
   button.com-icone { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .acervo-trecho { grid-column: 2 / -1; font-size: 12.5px; line-height: 1.5; color: var(--ink2); padding-left: 9px; }
+  .acervo-trecho { grid-column: 2 / -1; font-size: 12px; line-height: 1.5; color: var(--ink2); padding-left: 9px; }
   .marcar.desligado { opacity: 0.35; pointer-events: none; }
   .conversa-col.tela-cheia .fluxo { padding: 0; gap: 0; }
   .conversa-col.tela-cheia .centro { flex: 1; min-height: 0; }
@@ -55,7 +55,7 @@
      anexar, .anx-busca) mudam so a largura. */
   .busca-tela, .lc-busca {
     display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); color: var(--ink3); transition: border-color .15s ease;
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); color: var(--ink3); transition: border-color .15s ease;
   }
   .busca-tela { width: 260px; }
   .lc-busca { width: 190px; flex: none; }
@@ -68,7 +68,7 @@
   /* position relative: a pilula que desliza entre as visoes (30-movimento.css) anda por baixo dos botoes. */
   .visoes { position: relative; display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 8px; }
   .visoes button {
-    position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: none; border-radius: 6px; background: transparent; box-shadow: none;
+    position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: none; border-radius: 8px; background: transparent; box-shadow: none;
     font: 500 13px var(--sans); color: var(--ink2);
   }
   .visoes button:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }
@@ -108,25 +108,25 @@
   .painel-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 12px; }
   .titulo-painel { display: grid; gap: 3px; min-width: 0; flex: 1; }
   .titulo-painel h3 { font: 600 16px/1.3 var(--sans); letter-spacing: 0; margin: 0; overflow-wrap: anywhere; }
-  .titulo-painel .meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .titulo-painel .meta { font: 500 12px var(--sans); color: var(--ink3); }
   .painel-acoes { padding: 0 18px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
   .painel-acoes button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .painel-bloco, .lateral-bloco { padding: 12px 18px; border-top: 1px solid var(--ink-a1); display: grid; gap: 10px; }
   .acervo-painel .rolagem > .painel-bloco:first-child { border-top: none; padding-top: 16px; }
   .painel-bloco-cabeca, .lateral-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 600 14px var(--sans); }
-  .painel-bloco-cabeca .ok { font: 500 12.5px var(--sans); color: var(--okt); }
-  .painel-bloco p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .painel-bloco-cabeca .ok { font: 500 12px var(--sans); color: var(--okt); }
+  .painel-bloco p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .painel-chaves { padding: 6px 18px; border-top: 1px solid var(--ink-a1); }
   /* O par chave-valor do sistema: a .ag-chave da Agenda e o mesmo par com o valor editavel;
      a .cfg-atalho de Configuracoes, o mesmo par com as teclas (.cfg-teclas) no lugar do valor. */
-  .chave-valor, .ag-chave, .cfg-atalho { display: flex; align-items: center; gap: 12px; min-height: 34px; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--ink-a08); }
+  .chave-valor, .ag-chave, .cfg-atalho { display: flex; align-items: center; gap: 12px; min-height: 34px; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--ink-a08); }
   .chave-valor:last-child, .ag-chave:last-child, .cfg-atalho:last-child { border-bottom: none; }
   .chave-valor span, .ag-chave > span, .cfg-atalho > span:first-child { flex: 1; color: var(--ink2); }
-  .chave-valor b { font: 600 12.5px var(--sans); color: var(--ink); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; font-variant-numeric: tabular-nums; }
+  .chave-valor b { font: 600 12px var(--sans); color: var(--ink); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; font-variant-numeric: tabular-nums; }
   .chave-valor b.ok { color: var(--okt); }
   .painel-vazio { padding: 28px 18px; display: grid; gap: 6px; }
-  .painel-vazio h3 { font: 600 15px/1.3 var(--sans); margin: 0; }
-  .painel-vazio p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .painel-vazio h3 { font: 600 16px/1.3 var(--sans); margin: 0; }
+  .painel-vazio p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .ligacao-painel { text-align: left; justify-self: start; }
   .historico-painel { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
 
@@ -143,8 +143,8 @@
   .acervo.painel-largo .ac-secao, .acervo.painel-largo .ac-incluir { display: none; }
   .ac-item {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
-    border: none; border-radius: 6px; background: transparent; text-align: left; cursor: pointer;
-    font: 500 13.5px var(--sans); color: var(--ink2);
+    border: none; border-radius: 8px; background: transparent; text-align: left; cursor: pointer;
+    font: 500 13px var(--sans); color: var(--ink2);
   }
   .ac-item:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .ac-item.ativa { background: var(--fill); color: var(--ink); font-weight: 600; }
@@ -153,7 +153,7 @@
   .rotulo-arvore { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .conta-arvore { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
   .conta-arvore.acc { color: var(--acc); }
-  .ac-secao { padding: 6px 10px 4px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); white-space: nowrap; }
+  .ac-secao { padding: 6px 10px 4px; font: 600 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); white-space: nowrap; }
 
   /* a tabela, num cartao: barra, cabecalho, linhas, rodape */
   .tabela-cartao {
@@ -169,7 +169,7 @@
   }
   .tabela-barra .primario { display: inline-flex; align-items: center; gap: 6px; }
   .tabela-barra .direita { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-  .tabela-barra .nota-barra { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .tabela-barra .nota-barra { font: 500 12px var(--sans); color: var(--ink3); }
   .tabela-barra .direita button { display: inline-flex; align-items: center; gap: 6px; }
   .tabela-cabecalho {
     flex: none; display: grid; gap: 14px; padding: 8px 16px;
@@ -190,7 +190,7 @@
   .tabela-corpo > :last-child { border-bottom: none; }
   .tabela-rodape {
     flex: none; display: flex; align-items: center; gap: 14px; padding: 9px 16px;
-    border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3);
+    border-top: 1px solid var(--ink-a1); font: 500 12px var(--sans); color: var(--ink3);
   }
   .colunas-documentos { grid-template-columns: 20px minmax(0, 1fr) 110px 170px 28px; }
   .colunas-conferir { grid-template-columns: 20px minmax(0, 1fr) 150px 84px; }
@@ -217,35 +217,35 @@
   .glifo, .doc-marca {
     flex: none; width: 20px; height: 20px; border-radius: 4px; color: var(--surf);
     display: inline-flex; align-items: center; justify-content: center;
-    font: 800 11px var(--sans); letter-spacing: -.02em;
+    font: 800 12px var(--sans); letter-spacing: -.02em;
   }
   /* A miniatura do tipo (js/12-telas-e-acervo.js, tipoDoArquivo): a folha
      colorida de frontend/img/tipo-*.png, inteira na caixa, sem fundo. Vale
      para o glifo (20 px) e para a marca do visor (.fl-marca, 32 px). */
   :is(.glifo, .fl-marca)[class*=" t-"] { border-radius: 0; background: center / contain no-repeat; }
-  :is(.glifo, .fl-marca).t-pdf { background-image: url("/img/tipo-pdf.png"); }
-  :is(.glifo, .fl-marca).t-word { background-image: url("/img/tipo-word.png"); }
-  :is(.glifo, .fl-marca).t-xls { background-image: url("/img/tipo-xls.png"); }
-  :is(.glifo, .fl-marca).t-ppt { background-image: url("/img/tipo-ppt.png"); }
-  :is(.glifo, .fl-marca).t-text { background-image: url("/img/tipo-text.png"); }
-  :is(.glifo, .fl-marca).t-image { background-image: url("/img/tipo-image.png"); }
-  :is(.glifo, .fl-marca).t-record { background-image: url("/img/tipo-record.png"); }
-  :is(.glifo, .fl-marca).t-zip { background-image: url("/img/tipo-zip.png"); }
-  :is(.glifo, .fl-marca).t-doubt { background-image: url("/img/tipo-doubt.png"); }
+  :is(.glifo, .fl-marca).t-pdf { background-image: url("../img/tipo-pdf.png"); }
+  :is(.glifo, .fl-marca).t-word { background-image: url("../img/tipo-word.png"); }
+  :is(.glifo, .fl-marca).t-xls { background-image: url("../img/tipo-xls.png"); }
+  :is(.glifo, .fl-marca).t-ppt { background-image: url("../img/tipo-ppt.png"); }
+  :is(.glifo, .fl-marca).t-text { background-image: url("../img/tipo-text.png"); }
+  :is(.glifo, .fl-marca).t-image { background-image: url("../img/tipo-image.png"); }
+  :is(.glifo, .fl-marca).t-record { background-image: url("../img/tipo-record.png"); }
+  :is(.glifo, .fl-marca).t-zip { background-image: url("../img/tipo-zip.png"); }
+  :is(.glifo, .fl-marca).t-doubt { background-image: url("../img/tipo-doubt.png"); }
   .nome-doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .duas-linhas { display: grid; line-height: 1.3; min-width: 0; flex: 1; }
   .duas-linhas b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabela-linha.escolhida .duas-linhas b, .tabela-linha.aberta .duas-linhas b { font-weight: 600; }
-  .duas-linhas small { font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .quando-doc { font-size: 12.5px; color: var(--ink2); white-space: nowrap; }
-  .analise-doc { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink3); min-width: 0; }
+  .duas-linhas small { font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .quando-doc { font-size: 12px; color: var(--ink2); white-space: nowrap; }
+  .analise-doc { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink3); min-width: 0; }
   .analise-doc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .analise-doc.analisado { color: var(--okt); }
   .analise-doc.mudou { color: var(--warnt); }
   .analise-doc.lendo { color: var(--ink); }
   input[type=text].campo-cliente {
     height: auto; border: none; border-radius: 0; background: none; box-shadow: none; padding: 4px 0; width: auto; min-width: 0; max-width: 70%;
-    font: 400 13.5px var(--sans); color: var(--ink);
+    font: 400 13px var(--sans); color: var(--ink);
   }
   input[type=text].campo-cliente:focus { box-shadow: inset 0 -1px 0 var(--ink); }
   select.campo-tipo, .escolha-botao.campo-tipo {
@@ -259,7 +259,7 @@
 
   /* o organizador: a fita das fases, as pastas escolhidas, o cartao de cada fase */
   .fita { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
-  .fase { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 10px 14px; border-radius: 8px; font: 500 13.5px var(--sans); color: var(--ink3); }
+  .fase { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 10px 14px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink3); }
   .fase .ic { color: var(--ink3); }
   .fase.feita { color: var(--ink); }
   .fase.feita .ic { color: var(--okt); }
@@ -268,18 +268,18 @@
   .rotulo-fase { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meta-fase { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .fita .seta { color: var(--ink3); }
-  .chip-pasta { display: inline-flex; align-items: center; gap: 6px; max-width: 360px; height: 28px; padding: 0 6px 0 8px; border: none; border-radius: 6px; background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink); }
+  .chip-pasta { display: inline-flex; align-items: center; gap: 6px; max-width: 360px; height: 28px; padding: 0 6px 0 8px; border: none; border-radius: 8px; background: var(--fill); font: 500 12px var(--sans); color: var(--ink); }
   .chip-pasta .ic { color: var(--ink3); }
   .chip-pasta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* O x do chip mora com o da .escopo-pilula, em 05-paineis-e-botoes.css. */
-  .nota-direita { margin-left: auto; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .nota-direita { margin-left: auto; font: 500 12px var(--sans); color: var(--ink3); }
   .cartao-cabeca { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
   .texto-cabeca { display: grid; gap: 3px; flex: 1; min-width: 0; }
   .texto-cabeca b { font: 600 14px var(--sans); }
-  .texto-cabeca small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .texto-cabeca small { font: 500 12px var(--sans); color: var(--ink3); }
   .cartao-cabeca .direita { display: flex; align-items: center; gap: 8px; }
   .cartao-miolo { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
-  .cartao-miolo p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .cartao-miolo p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .cartao-miolo h4 { margin: 0; font: 600 14px var(--sans); }
   .cartao-miolo .linha-form { margin: 0; flex: none; }
   /* O navegador de pastas ocupa o cartao inteiro: e a unica coisa nele. */
@@ -289,8 +289,8 @@
   .nav-item:last-child { border-bottom: none; }
   .nav-item:hover { background: var(--sub); color: var(--ink); }
   .nav-item .ic { color: var(--ink3); }
-  .nav-item .cam { margin-left: auto; font: 500 11.5px var(--sans); color: var(--ink3); }
-  .nav-grupo { padding: 8px 12px 4px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); background: var(--sub); }
+  .nav-item .cam { margin-left: auto; font: 500 12px var(--sans); color: var(--ink3); }
+  .nav-grupo { padding: 8px 12px 4px; font: 600 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); background: var(--sub); }
   .nav-vazio { padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
   .campo-painel { display: grid; gap: 6px; }
   .campo-painel select, .campo-painel input[type=text], .campo-painel .escolha-botao {
@@ -303,7 +303,7 @@
 
   /* Organizar, fase Ler: o que a varredura achou, para marcar o que ler. */
   .colunas-ler { grid-template-columns: 20px minmax(0, 1fr) 90px 72px; }
-  .org-lido { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .org-lido { font: 500 12px var(--sans); color: var(--ink3); }
   .org-lido.ok { color: var(--okt); }
   .tabela-barra.org-estimativa { white-space: normal; }
   .org-estimativa .direita { flex: none; white-space: nowrap; }
@@ -321,7 +321,7 @@
   .arv-no .marcar.herdada { opacity: .45; }
   .nav-item > .arv-seta {
     flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
-    padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer;
+    padding: 0; border: none; border-radius: 8px; background: none; color: var(--ink3); cursor: pointer;
   }
   .nav-item > .arv-seta:hover:not(:disabled) { border: none; background: var(--fill); color: var(--ink); }
   .arv-vazio { padding-left: calc(72px + var(--nivel, 0) * 22px); }
@@ -347,14 +347,14 @@
   }
   .org-confirma-acoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
   .org-confirma-acoes button { display: inline-flex; align-items: center; gap: 6px; }
-  .org-confirma > small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .org-confirma > small { font: 500 12px var(--sans); color: var(--ink3); }
 
   /* O rodape da arvore: as pastas marcadas e o procurar, lado a lado. */
   .org-onde { flex-wrap: wrap; }
   .org-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .org-plano { display: grid; gap: 10px; }
   .org-plano-grupo { display: grid; gap: 2px; }
-  .org-plano-topo, .org-plano-folha { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; }
+  .org-plano-topo, .org-plano-folha { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
   .org-plano-topo { font-weight: 600; color: var(--ink); }
   .org-plano-topo .ic { flex: none; color: var(--ink3); }
   .org-plano-folha { padding: 3px 0 3px 24px; color: var(--ink2); }
@@ -364,13 +364,13 @@
   .org-links { display: flex; align-items: center; gap: 12px; }
 
   /* prazos: a clausula de origem e o cartao de cada prazo */
-  .folha-clausula { background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); padding: 14px 16px; display: grid; gap: 8px; font-family: var(--serif); }
+  .folha-clausula { background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); padding: 14px 16px; display: grid; gap: 8px; font-family: var(--sans); }
   .folha-clausula small { font: 500 12px var(--sans); color: var(--papel-ink3); }
-  .folha-clausula p { margin: 0; padding: 8px 10px; background: var(--papel-accbg); font-size: 14.5px; line-height: 1.55; color: var(--tinta); }
+  .folha-clausula p { margin: 0; padding: 8px 10px; background: var(--papel-accbg); font-size: 14px; line-height: 1.55; color: var(--tinta); }
   .prazo-cartao { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); cursor: pointer; }
   .prazo-cartao:hover { border-color: var(--ink); }
   .prazo-cartao.acc { border-color: var(--accln); background: var(--accbg2); }
-  .prazo-cartao .data { font: 700 12.5px var(--sans); min-width: 44px; }
+  .prazo-cartao .data { font: 700 12px var(--sans); min-width: 44px; }
   .prazo-cartao.acc .data { color: var(--acc); }
   .arquivo-painel { display: flex; align-items: center; gap: 10px; font-size: 13px; min-width: 0; }
   .arquivo-painel span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -381,7 +381,7 @@
 
   .painel { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); padding: 14px 16px; }
   .painel h3 { font: 600 14px var(--sans); margin-bottom: 4px; }
-  .painel .explica { font-size: 12.5px; color: var(--ink3); margin: 0 0 12px; }
+  .painel .explica { font-size: 12px; color: var(--ink3); margin: 0 0 12px; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
   /* O CHIP DE FILTRO (docs/ui/02-componentes.md): 30 px, redondo, fio a15,
@@ -389,7 +389,7 @@
      .ae-chips, .ag-chips, .dialogo-chips e o .docs-chip da barra juridica
      sao o mesmo chip e entram aqui pela lista. */
   .chip, .ae-chips button, .ag-chips button, .dialogo-chips button, .docs-barra button.docs-chip {
-    display: inline-flex; align-items: center; gap: 7px; width: auto; height: 30px; padding: 0 12px;
+    display: inline-flex; align-items: center; gap: 7px; width: auto; height: 28px; padding: 0 12px;
     border: 1px solid var(--ink-a15); border-radius: 999px; background: none;
     font: 500 13px var(--sans); color: var(--ink); cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums;
   }
@@ -398,7 +398,7 @@
   .chip.on, .ae-chips button.on, .ag-chips button.on, .dialogo-chips button.on, .docs-barra button.docs-chip.on { border-color: var(--ink); background: var(--ink); color: var(--bg); font-weight: 600; }
   .chip.on:hover:not(:disabled), .ae-chips button.on:hover:not(:disabled), .ag-chips button.on:hover:not(:disabled),
   .dialogo-chips button.on:hover:not(:disabled), .docs-barra button.docs-chip.on:hover:not(:disabled) { background: var(--ink); border: 1px solid var(--ink); color: var(--bg); }
-  .chip .caminho { font: 500 11px var(--sans); opacity: 0.75; }
+  .chip .caminho { font: 500 12px var(--sans); opacity: 0.75; }
 
   .linha-form { display: flex; gap: 8px; align-items: center; margin-bottom: 9px; flex-wrap: wrap; }
   .linha-form label { min-width: 108px; }
@@ -406,8 +406,8 @@
      raio 10, fundo --surf, 14 px; com foco, o fio vira tinta - sem halo, sem
      sombra. Senha, e-mail e numero sao o mesmo campo. */
   input[type=text], input[type=password], input[type=email], input[type=number], select, .escolha-botao {
-    font: 400 14px var(--sans); color: var(--ink); height: 40px; padding: 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
+    font: 400 14px var(--sans); color: var(--ink); height: 36px; padding: 0 12px;
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf);
     flex: 1; min-width: 200px; max-width: var(--campo); transition: border-color .15s ease;
   }
   input[type=text]:focus, input[type=password]:focus, input[type=email]:focus, input[type=number]:focus, select:focus, .escolha-botao:focus, textarea:focus { border-color: var(--ink); outline: none; box-shadow: none; }
@@ -418,7 +418,7 @@
   textarea {
     display: block; width: 100%; min-height: 96px; height: auto; padding: 9px 12px; resize: vertical;
     font: 400 14px/1.5 var(--sans); color: var(--ink);
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf);
     transition: border-color .15s ease;
   }
   /* O ROTULO DE CAMPO, em cima ou ao lado: 12/500 na tinta apagada, a 6 px do
@@ -438,8 +438,8 @@
   .gv-ferramentas .gv-marcar input[type=text],
   .as-radio input[type=text],
   .imp-intervalo input[type=text] {
-    height: 28px; padding: 0 10px; border: 1px solid var(--ink-a15); border-radius: 6px; background: var(--surf);
-    font: 400 12.5px var(--sans); color: var(--ink); min-width: 0; max-width: none; box-shadow: none;
+    height: 28px; padding: 0 10px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--surf);
+    font: 400 12px var(--sans); color: var(--ink); min-width: 0; max-width: none; box-shadow: none;
   }
   .docs-barra .escolha-botao.docs-sel, .escolha-botao.docs-sel, .ae-ordem .escolha-botao, label.fin-mes-sel > .escolha-botao, .escolha-botao.campo-tipo { padding: 0 6px 0 10px; gap: 4px; white-space: nowrap; }
   .docs-sel:focus, .docs-barra .escolha-botao.docs-sel:focus, .ae-ordem select:focus, .ae-ordem .escolha-botao:focus,
@@ -452,7 +452,7 @@
   .be-campo select, .be-campo .escolha-botao,
   .em-conta-chip select, .em-conta-chip .escolha-botao {
     height: auto; width: auto; min-width: 0; max-width: none; padding: 2px 0; border: none; border-radius: 0;
-    background: transparent; box-shadow: none; font: 600 12.5px var(--sans); color: var(--ink); cursor: pointer;
+    background: transparent; box-shadow: none; font: 600 12px var(--sans); color: var(--ink); cursor: pointer;
   }
   .escolha-botao.ordem-sel:hover:not(:disabled), .ag-chave .escolha-botao:hover:not(:disabled),
   .be-campo .escolha-botao:hover:not(:disabled), .em-conta-chip .escolha-botao:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }
@@ -490,7 +490,7 @@
   /* O que fazer com os arquivos: tres escolhas, nenhuma marcada (js/14-organizador.js). */
   .org-escolha { display: grid; gap: 6px; }
   .org-opcao { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 12px; text-align: left;
-    border: 1px solid var(--ink-a12); border-radius: 10px; background: none; color: inherit; cursor: pointer; }
+    border: 1px solid var(--ink-a12); border-radius: 12px; background: none; color: inherit; cursor: pointer; }
   .org-opcao:hover:not(:disabled) { background: var(--ink-a06); }
   .org-opcao.on { border-color: var(--ink2); background: var(--ink-a06); }
   .org-opcao .duas-linhas small { white-space: normal; line-height: 1.4; }
@@ -500,10 +500,10 @@
    paginas antes de guardar, com girar e tirar. */
 .cap-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
 .cap-foto { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.cap-foto img { width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: var(--fill); border-radius: 6px;
+.cap-foto img { width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: var(--fill); border-radius: 8px;
   border: 1px solid var(--ink-a1); transition: transform .15s; }
-.cap-foto figcaption { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--ink2); }
+.cap-foto figcaption { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--ink2); }
 .cap-foto figcaption span { display: flex; gap: 2px; }
-.cap-mais { aspect-ratio: 3 / 4; border: 1px dashed var(--ink-a2); border-radius: 6px; background: var(--surf);
+.cap-mais { aspect-ratio: 3 / 4; border: 1px dashed var(--ink-a2); border-radius: 8px; background: var(--surf);
   color: var(--ink2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .cap-previa { max-height: 60vh; overflow: auto; }

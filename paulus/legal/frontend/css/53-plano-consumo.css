@@ -6,27 +6,27 @@
    no limite. Prefixo pc-. */
   .pc-tela .sv-medida { gap: 20px; padding-top: 8px; }
   .pc-vazio { margin: 24px 0; color: var(--ink2); }
-  .pc-texto { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2); max-width: 75ch; }
+  .pc-texto { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink2); max-width: 75ch; }
   .pc-texto b { font-weight: 600; color: var(--ink); }
-  .pc-rotulo { font: 600 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink2); }
+  .pc-rotulo { font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink2); }
   .pc-valor-alto { color: var(--warnt) !important; }
   .pc-valor-ok { color: var(--okt) !important; }
   .pc-apagado { color: var(--ink3) !important; }
   .pc-ponto { flex: none; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--warnt); }
   /* A acao secundaria dentro da ficha e no rodape: texto sublinhado. */
-  .pc-sublinhado { justify-self: start; padding: 0; border: none; background: none !important; font: 500 12.5px var(--sans); color: var(--ink2);
+  .pc-sublinhado { justify-self: start; padding: 0; border: none; background: none !important; font: 500 12px var(--sans); color: var(--ink2);
     text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .pc-sublinhado:hover:not(:disabled) { color: var(--ink); border: none; }
 
   /* 1. o consumo do ciclo: o numero na serifa, a barra e a ficha */
   .pc-geral { display: grid; gap: 14px; padding: 4px 2px 0; }
   .pc-geral-topo { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
-  .pc-chip { font-size: 12.5px; color: var(--ink2); padding: 4px 12px; border: 1px solid var(--ink-a15, var(--ink-a1)); border-radius: 999px; }
+  .pc-chip { font-size: 12px; color: var(--ink2); padding: 4px 12px; border: 1px solid var(--ink-a15, var(--ink-a1)); border-radius: 999px; }
   .pc-numeros { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
   .pc-grande { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-  .pc-grande b { font: 400 48px/1 var(--serif); letter-spacing: -.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .pc-grande b { font: 600 40px/1 var(--sans); letter-spacing: -.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
   .pc-grande span { font-size: 14px; color: var(--ink2); }
-  .pc-pct { font: 400 24px/1 var(--serif); color: var(--ink2); font-variant-numeric: tabular-nums; }
+  .pc-pct { font: 600 20px/1 var(--sans); color: var(--ink2); font-variant-numeric: tabular-nums; }
   /* A barra: o trilho com o usado e, por cima, a marca de onde o ciclo esta hoje. */
   .pc-barra { position: relative; height: 6px; }
   .pc-barra-trilho { position: absolute; inset: 0; border-radius: 3px; background: var(--fill2, var(--fill)); overflow: hidden; }
@@ -38,7 +38,7 @@
   .pc-geral.esgotado .pc-pct { color: var(--acc); }
   .pc-ficha { margin-top: 6px; }
   .pc-ficha .sv-ficha-item b { font-variant-numeric: tabular-nums; }
-  .pc-alerta-linha { display: flex; gap: 8px; align-items: center; margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--warnbg); color: var(--warnt); font-size: 13.5px; }
+  .pc-alerta-linha { display: flex; gap: 8px; align-items: center; margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--warnbg); color: var(--warnt); font-size: 13px; }
 
   /* Os cartoes: o cabecalho da pasta de Servico, com a conta e a acao a direita. */
   .pc-secao .sv-secao-cabeca .sv-ligacao { margin-left: 4px; }
@@ -63,7 +63,7 @@
   .pc-limite-txt.alto { color: var(--warnt); }
   .pc-limite-txt.no-limite { color: var(--acc); }
   .pc-limite-txt.no-limite .pc-ponto { background: var(--acc); }
-  .pc-qtd { text-align: right; font-size: 12.5px; color: var(--ink3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pc-qtd { text-align: right; font-size: 12px; color: var(--ink3); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .pc-qtd b { font-size: 14px; color: var(--ink); font-weight: 500; }
   .pc-pessoa-linha > .ic:last-child { color: var(--ink3); transition: transform .2s ease; }
   .pc-pessoa.aberta .pc-pessoa-linha > .ic:last-child { transform: rotate(180deg); }
@@ -71,10 +71,10 @@
   .pc-historico { display: grid; gap: 12px; padding: 0 16px 16px 62px; animation: pc-entra .25s ease both; }
   @keyframes pc-entra { from { opacity: 0; } to { opacity: 1; } }
   .pc-dia { display: grid; }
-  .pc-dia-cabeca { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font: 500 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+  .pc-dia-cabeca { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font: 500 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
   .pc-dia-cabeca b { font-weight: 500; color: var(--ink3); }
   .pc-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) 80px; gap: 16px; align-items: center; width: calc(100% + 20px); margin: 0 -10px; padding: 7px 10px;
-    border: 0; border-radius: 6px; background: transparent !important; color: var(--ink); text-align: left; font-size: 13px; box-sizing: border-box; }
+    border: 0; border-radius: 8px; background: transparent !important; color: var(--ink); text-align: left; font-size: 13px; box-sizing: border-box; }
   button.pc-item { cursor: pointer; }
   button.pc-item:hover:not(:disabled) { background: var(--surf) !important; border: 0; }
   .pc-hora, .pc-tok { font-family: var(--mono); font-size: 12px; color: var(--ink3); font-variant-numeric: tabular-nums; }
@@ -88,8 +88,8 @@
   .pc-limites-lista { display: grid; }
   .pc-limite-item { display: grid; grid-template-columns: minmax(0, 1fr) 90px minmax(150px, auto); gap: 16px; align-items: center; padding: 11px 16px;
     border-bottom: 1px solid var(--ink-a08); font: 500 14px var(--sans); color: var(--ink); }
-  .pc-limite-qual { font-size: 12.5px; color: var(--ink3); }
-  .pc-limite-uso { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 12.5px; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pc-limite-qual { font-size: 12px; color: var(--ink3); }
+  .pc-limite-uso { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 12px; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .pc-limite-item.alto .pc-limite-uso { color: var(--warnt); }
   .pc-limite-item.no-limite .pc-limite-uso { color: var(--acc); }
   .pc-limite-item.no-limite .pc-ponto { background: var(--acc); }
@@ -100,7 +100,7 @@
   .pc-ficha-plano .sv-ficha-item { gap: 4px; }
   .pc-troca { display: flex; align-items: center; gap: 6px; margin: 0; }
   .pc-recarga { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 16px;
-    border: 1px solid var(--ink-a1); border-radius: 10px; }
+    border: 1px solid var(--ink-a1); border-radius: 12px; }
   .pc-recarga .pc-texto { flex: 1 1 320px; }
   .pc-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
   .pc-recarga .pc-acoes button { display: inline-flex; gap: 6px; align-items: baseline; white-space: nowrap; }
@@ -123,12 +123,12 @@
   .pc-plano-col:first-child { border-left: 0; }
   .pc-plano-col.atual { background: var(--fill); }
   .pc-plano-nome { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .pc-plano-nome span { font: 400 24px/1 var(--serif); color: var(--ink); }
+  .pc-plano-nome span { font: 600 20px/1 var(--sans); color: var(--ink); }
   .pc-plano-nome em { font-style: normal; }
   .pc-plano-tok { display: grid; gap: 2px; }
-  .pc-plano-tok b { font: 500 18px var(--sans); font-variant-numeric: tabular-nums; }
+  .pc-plano-tok b { font: 500 20px var(--sans); font-variant-numeric: tabular-nums; }
   .pc-plano-tok small { font-size: 12px; color: var(--ink3); }
-  .pc-plano-itens { display: grid; align-content: start; margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--ink2); }
+  .pc-plano-itens { display: grid; align-content: start; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--ink2); }
   .pc-plano-itens li { padding: 7px 0; border-top: 1px solid var(--ink-a08); }
   /* Mensal e anual, um botao embaixo do outro. */
   .pc-plano-botoes { display: grid; gap: 8px; }
@@ -143,7 +143,7 @@
 
   .pc-extrato { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
   .pc-extrato .sv-kicker { display: block; padding-bottom: 8px; }
-  .pc-extrato-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; padding: 8px 0; border-top: 1px solid var(--ink-a08); font-size: 13.5px; }
+  .pc-extrato-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; padding: 8px 0; border-top: 1px solid var(--ink-a08); font-size: 13px; }
   .pc-extrato-linha b { min-width: 56px; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
   .pc-extrato-pct { min-width: 40px; text-align: right; color: var(--ink3); font-variant-numeric: tabular-nums; }
   .pc-extrato-total { padding-top: 12px; border-top: 1px solid var(--ink-a1); max-width: none; }
@@ -162,6 +162,6 @@
     .pc-extrato { grid-template-columns: 1fr; gap: 16px; }
     .pc-plano-col { border-left: 0; border-top: 1px solid var(--ink-a1); }
     .pc-plano-col:first-child { border-top: 0; }
-    .pc-grande b { font-size: 38px; }
+    .pc-grande b { font-size: 40px; }
     .pc-pessoa-acoes .pc-remover { margin-left: 0; }
   }

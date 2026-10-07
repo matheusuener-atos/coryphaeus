@@ -1,6 +1,6 @@
 /* ------------------------------------------------------ biblioteca (B1) */
 /*
-   A Biblioteca: o que o PAULUS consulta para responder, numa tela só do menu.
+   A Biblioteca: o que o Paulus consulta para responder, numa tela só do menu.
    Três abas:
 
    - Estante (js/59-estante.js, A21): as estantes por área, o nível, os
@@ -9,7 +9,7 @@
      (lá ficam as chaves, os lembretes e as habilidades). Só na janela do
      escritório: de fora, o mapa e o material não abrem;
    - Leis e súmulas: a Constituição, os códigos e as súmulas do STJ que vêm
-     com o PAULUS (src/biblioteca/nativo.py), e a consulta por artigo, por
+     com o Paulus (src/biblioteca/nativo.py), e a consulta por artigo, por
      palavra e por súmula;
    - Tribunais e fontes: o processo pelo número no DataJud (só o número vai
      ao CNJ) e as buscas do Jusbrasil, do STF, do STJ, do TST e do LexML,
@@ -23,14 +23,12 @@ const bibc = {
 
 /* No celular, só a primeira palavra de cada aba cabe (36-biblioteca.css). */
 const ABAS_BIB = [["obras", "Estante", ""], ["leis", "Leis", " e súmulas"], ["tribunais", "Tribunais", " e fontes"],
-  // L9: materiais entre advogados (js/70-comunidade.js), só na janela do escritório.
-  ["comunidade", "Comunidade", ""],
   // N13: os acórdãos do STJ no computador (js/73-jurisprudencia.js).
   ["jurisprudencia", "Jurisprudência", ""]];
 
 function abasDaBib() {
   const local = typeof acessoDeFora === "undefined" || acessoDeFora.local;
-  return ABAS_BIB.filter(([v]) => (local || (v !== "obras" && v !== "comunidade")) && (v !== "comunidade" || typeof abaComunidadeBib === "function") &&
+  return ABAS_BIB.filter(([v]) => (local || v !== "obras") &&
     (v !== "jurisprudencia" || typeof abaJurisprudenciaBib === "function"));
 }
 
@@ -102,11 +100,6 @@ function desenharBib() {
     ligarLeisBib();
     return;
   }
-  if (bibc.aba === "comunidade") {
-    cascaBib(abaComunidadeBib());
-    ligarComunidadeBib();
-    return;
-  }
   if (bibc.aba === "jurisprudencia") {
     cascaBib(abaJurisprudenciaBib());
     ligarJurisprudenciaBib();
@@ -140,7 +133,7 @@ function abaLeisBib() {
 
   const falta = n.falta && local
     ? '<div class="bib-falta"><span class="duas-linhas"><b>' + plural(n.falta, "item do acervo está fora", "itens do acervo estão fora") + "</b>" +
-      "<small>foram apagados nesta máquina; o PAULUS não os põe de volta sozinho</small></span>" +
+      "<small>foram apagados nesta máquina; o Paulus não os põe de volta sozinho</small></span>" +
       '<button class="primario com-icone" data-bib-por="1">' + ic("add", 16) + "Pôr de volta</button></div>"
     : "";
 
@@ -163,7 +156,7 @@ function abaLeisBib() {
     "</div>").join("");
   const codigos = cartaoCfg("A Constituição e os códigos", metaCfg(plural(instalados.length, "código") + " · " + plural(artigos, "artigo")),
     '<div class="cfg-linhas">' + linhasCodigos + "</div>" +
-    '<p class="cfg-explica">Vêm com o PAULUS no texto compilado do Planalto, artigo por artigo, com o que foi revogado marcado. ' +
+    '<p class="cfg-explica">Vêm com o Paulus no texto compilado do Planalto, artigo por artigo, com o que foi revogado marcado. ' +
     "A conversa cita o artigo pelo texto guardado, e o editor insere a citação. O Planalto muda o texto quando sai lei nova: " +
     "“Atualizar do Planalto” baixa a página oficial de novo (só a página da lei é pedida; nada desta máquina vai junto).</p>");
 
@@ -176,11 +169,11 @@ function abaLeisBib() {
     "As do STF e do TST não vieram: os sites deles recusam a leitura por programa. Salve a lista em PDF ou TXT e entregue na Estante — eu guardo um trecho por enunciado também.</p>");
 
   const doutrina = cartaoCfg("Doutrina", metaCfg("o livro é do escritório"),
-    '<p class="cfg-explica">Lei e decisão judicial não têm direito autoral (Lei 9.610/98, art. 8º, IV), por isso vêm com o PAULUS. Livro de doutrina tem autor e editora: não dá para vir no instalador. ' +
+    '<p class="cfg-explica">Lei e decisão judicial não têm direito autoral (Lei 9.610/98, art. 8º, IV), por isso vêm com o Paulus. Livro de doutrina tem autor e editora: não dá para vir no instalador. ' +
     "Entregue os livros e artigos que o escritório tem na Estante: a ficha diz autor, edição e ano, e a resposta cita a página.</p>" +
     '<div class="cfg-botoes"><button class="com-icone" data-bib-ir-obras="1">' + ic("menu_book", 16) + "Ir para a Estante</button></div>");
 
-  return aberturaBib("Leis e súmulas", "A Constituição, os códigos e as súmulas do STJ vêm com o PAULUS, no texto oficial. " +
+  return aberturaBib("Leis e súmulas", "A Constituição, os códigos e as súmulas do STJ vêm com o Paulus, no texto oficial. " +
       "Tudo fica nesta máquina e é consultado sem internet.") +
     fichaCfg([["Códigos", String(instalados.length)], ["Artigos", artigos.toLocaleString("pt-BR")], ["Súmulas", enunciados.toLocaleString("pt-BR")],
       ["Acervo de", n.montado_em ? dataCurtaMat(n.montado_em) : "—"]]) +
@@ -326,7 +319,7 @@ function abaTribunaisBib() {
     '<button class="primario com-icone" data-bib-datajud="1"' + (bibc.consultando ? " disabled" : "") + ">" + ic("search", 16) + "Consultar no DataJud</button></div>" +
     '<div id="bib-processo-resultado">' + resultado + "</div>" +
     '<p class="cfg-explica">O DataJud é a base pública do CNJ: classe, órgão julgador, assuntos e movimentos de todos os tribunais, menos o STF. ' +
-    "O PAULUS confere o dígito verificador, acha o tribunal pelo número e manda só o número para a API pública do CNJ. Nada é guardado.</p>");
+    "O Paulus confere o dígito verificador, acha o tribunal pelo número e manda só o número para a API pública do CNJ. Nada é guardado.</p>");
 
   const links = (bibc.fontes || []).map((l) =>
     '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(l.nome) + "</b><small>" + esc(l.o_que) + "</small></span>" +
@@ -353,7 +346,7 @@ async function consultarDatajudBib() {
     r = await fetch("/api/biblioteca/datajud", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero: bibc.numeroProcesso }) });
   } catch (err) { r = null; }
   bibc.consultando = false;
-  bibc.processo = !r ? { erro: "não consegui falar com o PAULUS" } : (r.ok ? await r.json() : { erro: await erroDe(r) });
+  bibc.processo = !r ? { erro: "não consegui falar com o Paulus" } : (r.ok ? await r.json() : { erro: await erroDe(r) });
   if (bibc.aba === "tribunais" && bibAberta()) desenharBib();
 }
 

@@ -113,7 +113,7 @@ async function avisoDaPrimeiraVez() {
       "<p>O que fica guardado neste aparelho: só o modelo" + (tamanho ? ", " + esc(tamanho) + " baixados uma vez" +
         " (alguns minutos numa rede boa)" : "") + ". A pergunta, os trechos e a resposta não ficam.</p>" +
       "<p><b>O que não dá para garantir:</b> um aparelho com vírus ou uma extensão maliciosa no navegador pode ler o que a página mostra. " +
-      "Isso já vale hoje, só por ver os documentos pelo acesso de fora. Escrever aqui não aumenta esse risco, mas também não o elimina.</p></div>",
+      "Isso já vale hoje, só por ver os documentos pelo acesso externo. Escrever aqui não aumenta esse risco, mas também não o elimina.</p></div>",
     confirmar: "Entendi",
   });
   if (!r || !r.ok) return false;

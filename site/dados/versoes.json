@@ -136,7 +136,7 @@
         "O painel da conversa descreve a resposta escolhida, e rascunho, escopo e rolagem ficam com cada conversa",
         "A tela inicial cumprimenta de acordo com a hora, o dia, o calendário e o que está pendente, sem repetir a…",
         "Tela inicial: os avisos do dia num carrossel, com a Central de avisos e o histórico do que foi visto",
-        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso de fora, e responde…",
+        "A conversa explica Publicações, a busca, a Biblioteca, os códigos de lei e o acesso externo, e responde…",
         "Os agentes do escritório entram na conversa: por @nome ou pelo pedido, com as instruções abaixo das regras…",
         "Tela de agentes: criar pelo formulário ou a partir de uma conversa, testar, ver versões e medir cada agente",
         "A sugestão do assistente só entra no documento que a pediu, e o parecer e o resumo de gravação esperam a…",
@@ -220,7 +220,7 @@
       "version": "0.9.12",
       "date": "2026-09-29",
       "changes": [
-        "Sair da conta na janela do servidor, com o acesso de fora funcionando",
+        "Sair da conta na janela do servidor, com o acesso externo funcionando",
         "O \"P\" do PAULUS na aba das páginas de fora"
       ]
     },
@@ -228,7 +228,7 @@
       "version": "0.9.11",
       "date": "2026-09-29",
       "changes": [
-        "Equipe num cadastro só, endereço do acesso de fora preso à conta Google, e as páginas no desenho novo"
+        "Equipe num cadastro só, endereço do acesso externo preso à conta Google, e as páginas no desenho novo"
       ]
     },
     {
@@ -259,14 +259,14 @@
       "version": "0.9.7",
       "date": "2026-09-28",
       "changes": [
-        "Tela de entrar no desenho novo (export 'Entrar - acesso de fora') e 'confiar neste navegador por 30 dias'"
+        "Tela de entrar no desenho novo (export 'Entrar - acesso externo') e 'confiar neste navegador por 30 dias'"
       ]
     },
     {
       "version": "0.9.6",
       "date": "2026-09-28",
       "changes": [
-        "Acesso de fora só pelo Google (+ código do celular)"
+        "Acesso externo só pelo Google (+ código do celular)"
       ]
     },
     {
@@ -278,14 +278,14 @@
         "Equipe E4: só no servidor",
         "Equipe E2: permissão por pessoa e por módulo (não vê, só vê, propõe, faz), com a grade em Configurações",
         "Equipe E1: cada conversa, documento e gravação diz quem criou",
-        "Acesso de fora: tela de entrar no desenho do sistema, barra de quem está de fora, Minha conta e o Google…"
+        "Acesso externo: tela de entrar no desenho do sistema, barra de quem está de fora, Minha conta e o Google…"
       ]
     },
     {
       "version": "0.9.4",
       "date": "2026-09-28",
       "changes": [
-        "Acesso de fora sem Cloudflare Access (contrato revisado)",
+        "Acesso externo sem Cloudflare Access (contrato revisado)",
         "I9: o campo de corrigir fato do cartão tem teto de largura (test_frontend)",
         "I8: marcas [Tn] postas em código (\"codigo\"), e os trechos numerados agrupados por documento",
         "I9: a IA ajuda sem ser perguntada - cartão do documento, sugestões, prazos e o \"como\"",

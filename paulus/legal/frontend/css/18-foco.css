@@ -14,7 +14,7 @@
 
   /* HOJE: o relogio no centro, solto, como a abertura de uma pagina. */
   .be-relogio { flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 4px 0 2px; }
-  .be-relogio .be-meta { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-relogio .be-meta { font: 500 12px var(--sans); color: var(--ink3); }
   /* A barra do ciclo: os botoes a esquerda, as escolhas a direita. */
   .be-controles {
     flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
@@ -36,7 +36,7 @@
   .be-tempo svg { height: 100%; width: auto; overflow: visible; }
   .be-tempo polygon, .be-tempo circle { fill: currentColor; transition: opacity .15s ease; }
   .be-tempo polygon.apagado { opacity: .07; }
-  .be-fase { font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  .be-fase { font: 600 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
   .be-progresso { align-self: stretch; height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
   .be-progresso i { display: block; width: var(--be-p, 0%); height: 100%; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
   .be-anel.pausa .be-progresso i { background: var(--verde); }
@@ -64,7 +64,7 @@
   .be-lembrete .duas-linhas b { font-weight: 500; }
   .be-lembrete .duas-linhas small.acc { color: var(--acc); }
   .be-lembrete button { flex: none; }
-  .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+  .be-rodape { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--ink-a1); font: 500 12px var(--sans); color: var(--ink3); }
   .be-rodape button { display: inline-flex; align-items: center; gap: 6px; }
   .be-form { padding: 14px 16px; }
 
@@ -74,12 +74,12 @@
   .be-horas span { display: block; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--ink); }
   .be-horas span.agora { background: var(--destaque); }
   .be-horas span.vazia { background: var(--fill2); }
-  .be-horas-rotulos { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); text-align: center; font: 500 11px var(--sans); color: var(--ink3); }
-  .be-ritmo p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
+  .be-horas-rotulos { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); text-align: center; font: 500 12px var(--sans); color: var(--ink3); }
+  .be-ritmo p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .be-chaves { padding: 4px 16px 8px; }
   .be-sugestao { flex: 1; display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; }
   .be-sugestao > .ic { color: var(--ink2); flex: none; }
-  .be-sugestao > span { display: grid; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+  .be-sugestao > span { display: grid; gap: 10px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .be-sugestao .fin-pede-acoes { padding-top: 0; }
 
   /* A SEMANA. O ciclo em cima, como em Hoje; o grafico e os habitos lado a
@@ -99,7 +99,7 @@
   .be-semana-somas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .be-semana-somas div { padding: 10px 12px; background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 2px; }
   .be-semana-somas small { font: 500 12px var(--sans); color: var(--ink3); }
-  .be-semana-somas b { font: 600 22px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
+  .be-semana-somas b { font: 600 20px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
   .be-parecer .fin-parecer { padding: 14px 16px 6px; }
   .be-sugestoes { padding: 0 16px 12px; }
   .be-habitos { padding: 4px 16px 10px; display: grid; }
@@ -109,7 +109,7 @@
   .be-habito i.cheio { background: var(--ink); }
   .be-habito i.meio { background: var(--ink3); }
   .be-habito i.futuro { background: var(--fill2); }
-  .be-habito small { font: 500 12.5px var(--sans); color: var(--ink3); text-align: right; }
+  .be-habito small { font: 500 12px var(--sans); color: var(--ink3); text-align: right; }
   .be-habito.adiante > span:first-child { color: var(--ink3); }
 
   @media (max-width: 1180px) {
@@ -123,13 +123,13 @@
   .fcl-cabeca { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .fcl-ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); flex: none; animation: pv-pulse 3.2s ease-in-out infinite; }
   .fcl-cabeca b { font: 600 13px var(--sans); }
-  .fcl-tarefa { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcl-tarefa { flex: 1; min-width: 0; font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fcl-tempo { font: 500 16px var(--mono); letter-spacing: .02em; }
   .fcl-barra { height: 3px; border-radius: 2px; background: var(--ink-a08); overflow: hidden; }
   .fcl-barra i { display: block; height: 100%; border-radius: inherit; background: var(--ink); transition: width 1s linear; }
   .fcl-cartao.pausa .fcl-barra i { background: var(--ink3); }
-  .fcl-lembrete { display: flex; align-items: center; gap: 10px; padding-top: 2px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .fcl-lembrete { display: flex; align-items: center; gap: 10px; padding-top: 2px; font: 500 12px var(--sans); color: var(--ink2); }
   .fcl-lembrete .ic { flex: none; color: var(--warnt); }
   .fcl-lembrete-texto { flex: 1; min-width: 0; }
-  .fcl-feito { flex: none; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); }
+  .fcl-feito { flex: none; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); }
   .fcl-feito:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }

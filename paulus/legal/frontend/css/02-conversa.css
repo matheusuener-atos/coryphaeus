@@ -8,7 +8,7 @@
   .barra-titulo {
     flex: none; display: flex; align-items: center; gap: 16px;
     height: 32px; padding: 0 44px 0 20px;
-    font: 500 11px var(--sans); color: var(--ink3);
+    font: 500 12px var(--sans); color: var(--ink3);
   }
   html.com-janela .barra-titulo { padding-right: 152px; }
   #relogio { flex: none; margin-left: auto; }
@@ -27,7 +27,7 @@
     flex: none; position: relative; z-index: 90; height: 0; overflow: hidden;
     display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 24px;
     background: var(--destaque); color: var(--bg);
-    font: 500 12.5px var(--sans); white-space: nowrap;
+    font: 500 12px var(--sans); white-space: nowrap;
     transition: height .3s cubic-bezier(.55,0,.45,1);
   }
   .faixa-janela.visivel { height: 36px; transition: height .46s cubic-bezier(.16,1,.3,1); }
@@ -43,7 +43,7 @@
   .faixa-janela > .faixa-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .faixa-janela > button {
     flex: none; height: auto; padding: 0; border: none; border-radius: 0; background: none;
-    font: 600 12.5px var(--sans); color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+    font: 600 12px var(--sans); color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
   }
   .faixa-janela > button:hover:not(:disabled) { color: inherit; background: none; border: none; opacity: .75; }
 
@@ -54,7 +54,7 @@
     padding: var(--margem-topo) var(--margem-pagina) 14px;
   }
   .conversa-nome { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.15; }
-  .conversa-topo h2 { font: 400 23px var(--serif); letter-spacing: -.005em; }
+  .conversa-topo h2 { font: 600 20px var(--sans); letter-spacing: -.005em; }
   /* O nome da conversa se renomeia no lugar. Parado, ele e titulo; ao passar
      o mouse, ganha o fundo de campo; escrevendo, o fio. O recuo negativo
      devolve os 6 px do respiro, e o texto nao anda quando vira campo. */
@@ -67,7 +67,7 @@
   .conversa-topo h2.editando, .conversa-topo h2.editando:hover {
     background: var(--fill); box-shadow: inset 0 0 0 1px var(--ink); outline: none; text-overflow: clip;
   }
-  .conversa-topo .meta { font: 400 11.5px var(--sans); color: var(--ink3); }
+  .conversa-topo .meta { font: 400 12px var(--sans); color: var(--ink3); }
 
   /* A CONVERSA (pacote de telas, `Conversa`). O cabecalho encosta no alto,
      a 28 px, com a seta de voltar num quadrado de 30 px, o titulo em serifa
@@ -76,12 +76,12 @@
      do que sobra da coluna da direita. */
   .conversa-col.em-conversa > .conversa-topo { align-items: flex-start; gap: 14px; min-height: 0; padding: 28px 28px 0 32px; }
   .conversa-col.em-conversa .conversa-nome { gap: 3px; line-height: 1.15; }
-  .conversa-col.em-conversa .conversa-topo h2 { font: 400 21px/1.15 var(--serif); }
-  .conversa-col.em-conversa .conversa-topo .meta { font: 500 11.5px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conversa-col.em-conversa .conversa-topo h2 { font: 600 20px/1.15 var(--sans); }
+  .conversa-col.em-conversa .conversa-topo .meta { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .conversa-col.em-conversa #voltar { width: 30px; height: 30px; border-radius: 8px; color: var(--ink2); margin-top: 2px; }
   .conversa-col.em-conversa #voltar:hover:not(:disabled) { color: var(--ink); }
   .conversa-col.em-conversa .conversa-acoes { gap: 6px; }
-  .conversa-col.em-conversa #exportar-conversa { height: 30px; padding: 0 12px; gap: 6px; font: 500 12.5px var(--sans); }
+  .conversa-col.em-conversa #exportar-conversa { height: 30px; padding: 0 12px; gap: 6px; font: 500 12px var(--sans); }
   /* Com documento aberto ao lado, a conversa tem 560 px: o cabecalho fica so
      com a seta e o titulo, como no desenho. */
   .conversa-col[data-papel="ferramenta"].com-lado > .conversa-topo { padding: 28px 24px 0 28px; }
@@ -89,7 +89,7 @@
   /* O botao da coluna: um retangulo com a faixa da direita cheia, desenhado
      (o glifo da fonte de icones nao tem o desenho do pacote). Aberta a
      coluna, ele ganha o fundo de botao apertado. */
-  .botao-lado { width: 30px; height: 30px; border-radius: 8px; }
+  .botao-lado { width: 30px; height: 28px; border-radius: 8px; }
   .botao-lado.aberto, .botao-lado.aberto:hover:not(:disabled) { background: var(--fill); }
   .glifo-lado { display: block; width: 15px; height: 12px; border: 1.5px solid var(--ink); border-right-width: 5px; border-radius: 2px; }
   .botao-lado:not(.aberto) .glifo-lado { border-color: var(--ink2); }
@@ -198,15 +198,15 @@
     align-self: flex-end;
     max-width: min(560px, 78%);
     background: var(--fill); color: var(--ink);
-    border-radius: 14px; padding: 11px 16px;
+    border-radius: 12px; padding: 11px 16px;
     font-size: 14px; line-height: 1.55;
     white-space: pre-wrap; word-wrap: break-word;
   }
   /* Quem perguntou, quando mais de uma pessoa perguntou na mesma conversa
      (o PAULUS de equipe: a conversa e do escritorio). */
-  .bolha-quem { align-self: flex-end; margin-bottom: -6px; font-size: 11.5px; color: var(--ink3); }
+  .bolha-quem { align-self: flex-end; margin-bottom: -6px; font-size: 12px; color: var(--ink3); }
   .resposta {
-    font-size: 15px; line-height: 1.7; word-wrap: break-word;
+    font-size: 16px; line-height: 1.7; word-wrap: break-word;
     display: grid; gap: 12px;
   }
   /* O que o programa fez a pedido (mostrei, abri, guardei) nao e resposta: e
@@ -222,17 +222,17 @@
   /* O documento citado: etiqueta de 26 px, com fio, o tipo, o nome e
      quantos trechos dele. Clicar mostra os trechos na coluna da direita. */
   .assinatura .ass-doc {
-    gap: 6px; height: 26px; padding: 0 9px; max-width: 320px; border: 1px solid var(--ink-a1); border-radius: 6px;
+    gap: 6px; height: 26px; padding: 0 9px; max-width: 320px; border: 1px solid var(--ink-a1); border-radius: 8px;
     background: var(--surf); font: 500 12px var(--sans); color: var(--ink2);
   }
   .assinatura .ass-doc:hover:not(:disabled) { border: 1px solid var(--ink-a25); background: var(--surf); color: var(--ink); }
-  .ass-doc .glifo { width: 15px; height: 15px; font-size: 9px; }
-  .ass-doc small { font: 400 10.5px var(--mono); color: var(--ink3); }
+  .ass-doc .glifo { width: 15px; height: 15px; font-size: 12px; }
+  .ass-doc small { font: 400 12px var(--mono); color: var(--ink3); }
   .ass-meta { padding: 0 4px; white-space: nowrap; }
   .ass-aviso { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font: 400 12px var(--sans); color: var(--ink3); }
   .ass-aviso .icon { flex: none; }
   .assinatura :is(.ass-acao, .apr-nota) {
-    width: 28px; height: 28px; justify-content: center; border-radius: 6px; color: var(--ink3);
+    width: 28px; height: 28px; justify-content: center; border-radius: 8px; color: var(--ink3);
   }
   .assinatura :is(.ass-acao, .apr-nota):hover:not(:disabled) { background: var(--fill); color: var(--ink); }
   .assinatura .apr-nota.on { color: var(--acc); background: var(--accbg); }
@@ -242,8 +242,8 @@
   .cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); overflow: hidden; }
   .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
   .cartao-topo .quem { font: 600 14px var(--sans); flex: 1; }
-  .cartao-topo .tempo { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .cartao-corpo { padding: 14px 16px; display: grid; gap: 10px; font-size: 13.5px; }
+  .cartao-topo .tempo { font: 500 12px var(--sans); color: var(--ink3); }
+  .cartao-corpo { padding: 14px 16px; display: grid; gap: 10px; font-size: 13px; }
   /* A LISTA DE ETAPAS COM ICONE, uma receita so: o cartao do plano (.etapa),
      o progresso do painel (.lat-etapa), o "quase pronto" da assinatura
      (.as-passos li), o do organizador (.org-confirma-passos li) e o checklist
@@ -262,7 +262,7 @@
   .etapa .texto, .lat-etapa > span:last-child { flex: 1; min-width: 0; }
   .etapa.executando .texto, .lat-etapa.andando, .as-passos li.espera, .org-confirma-passos li.espera { color: var(--ink); }
   .etapa.na_fila .texto, .etapa.pausado .texto, .lat-etapa.fila { color: var(--ink3); }
-  .etapa .estado { font: 500 11px var(--sans); color: var(--ink3); }
+  .etapa .estado { font: 500 12px var(--sans); color: var(--ink3); }
   .progresso { height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; margin: -4px 0 0 30px; }
   .progresso i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--ink); transition: width .3s ease; }
 
@@ -307,9 +307,9 @@
     border: none; border-radius: 0; background: none; color: var(--ink); text-align: left; cursor: pointer;
   }
   .lateral-cabeca:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
-  .lateral-cabeca > b { flex: 1; min-width: 0; font: 600 13.5px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lateral-cabeca .contagem { font: 400 11px var(--mono); color: var(--ink3); }
-  .lado-seta { font-size: 17px; width: 17px; height: 17px; color: var(--ink3); transition: transform .2s ease; }
+  .lateral-cabeca > b { flex: 1; min-width: 0; font: 600 13px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lateral-cabeca .contagem { font: 400 12px var(--mono); color: var(--ink3); }
+  .lado-seta { font-size: 16px; width: 17px; height: 17px; color: var(--ink3); transition: transform .2s ease; }
   .lateral-cabeca[aria-expanded="false"] .lado-seta { transform: rotate(-90deg); }
   .lateral-cabeca:hover .lado-seta { color: var(--ink2); }
   .lateral-bloco:has(> .lateral-cabeca[aria-expanded="false"]) { gap: 0; }
@@ -331,19 +331,19 @@
      linhas do texto. Clicar abre o documento na pagina do trecho. */
   .lateral .lat-lista { gap: 8px; }
   .lat-trecho {
-    display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px;
+    display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 12px;
     background: var(--surf); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .16s ease;
   }
   .lat-trecho:hover:not(:disabled) { border-color: var(--ink-a25); background: var(--surf); color: var(--ink); }
   .lat-trecho-cabeca { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .lat-trecho-cabeca .glifo { width: 16px; height: 16px; font-size: 9px; }
-  .lat-trecho-cabeca b { flex: 1; min-width: 0; font: 600 12.5px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lat-trecho-cabeca small { flex: none; font: 400 10.5px var(--mono); color: var(--ink3); }
+  .lat-trecho-cabeca .glifo { width: 16px; height: 16px; font-size: 12px; }
+  .lat-trecho-cabeca b { flex: 1; min-width: 0; font: 600 12px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lat-trecho-cabeca small { flex: none; font: 400 12px var(--mono); color: var(--ink3); }
   .lat-trecho p {
-    margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink3);
+    margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink3);
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
   }
-  .lat-mais { justify-self: start; height: 26px; padding: 0 8px; border: none; border-radius: 6px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .lat-mais { justify-self: start; height: 26px; padding: 0 8px; border: none; border-radius: 8px; background: none; font: 500 12px var(--sans); color: var(--ink2); }
   .lat-mais:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   /* Como respondi: a ficha curta, chave em 88 px e valor ao lado; tempo em
      monoespaco e o modelo numa etiqueta. */
@@ -357,10 +357,10 @@
   .lat-onde { display: grid; gap: 12px; }
   .lat-onde-linha { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .lat-onde-linha:empty { display: none; }
-  .lat-onde-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 6px; background: var(--fill); font: 600 12px var(--sans); color: var(--ink); max-width: 100%; }
+  .lat-onde-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 8px; background: var(--fill); font: 600 12px var(--sans); color: var(--ink); max-width: 100%; }
   .lat-onde-chip .ic { font-size: 14px; width: 14px; height: 14px; color: var(--ink2); }
-  .lat-onde-linha small { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .contagem { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .lat-onde-linha small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .contagem { font: 500 12px var(--sans); color: var(--ink3); }
   /* O progresso do painel e o checklist da tela de boas-vindas: o que ficou
      pronto ganha o circulo verde e CONTINUA legivel. Riscado e apagado, ele
      parecia cancelado, e nao concluido. As cores de cada .lat-etapa moram na
@@ -391,15 +391,15 @@
   .lat-lista .arv-no:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .arv-no > .ic { color: var(--ink3); }
   .arv-doc b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--sans); color: var(--ink); }
-  .arv-no small { flex: none; font: 400 11px var(--sans); color: var(--ink3); }
+  .arv-no small { flex: none; font: 400 12px var(--sans); color: var(--ink3); }
   .arv-trecho .onde { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .arv-filhos { display: grid; gap: 2px; margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--ink-a1); }
   .arv-folha { gap: 6px; padding: 4px 4px 8px 12px; }
-  .trecho-texto { font-size: 11.5px; line-height: 1.55; color: var(--ink2); max-height: 160px; overflow: hidden; }
+  .trecho-texto { font-size: 12px; line-height: 1.55; color: var(--ink2); max-height: 160px; overflow: hidden; }
   /* A ancora numerada da citacao. */
   .cit {
     display: inline-flex; align-items: center; justify-content: center; flex: none;
-    min-width: 12px; font: 500 10.5px var(--mono); letter-spacing: .04em; color: var(--ink3);
+    min-width: 12px; font: 500 12px var(--mono); letter-spacing: .04em; color: var(--ink3);
   }
   /* A ficha do painel: a grade de ficha da lista (chave 112 px, valor ao lado,
      fio --ink-a08 entre as linhas). */
@@ -407,7 +407,7 @@
   .propriedades > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
   .propriedades > div:first-child { padding-top: 0; }
   .propriedades > div:last-child { border-bottom: none; }
-  .propriedades > div > span:first-child { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .propriedades > div > span:first-child { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .valor-prop { font: 400 14px/1.5 var(--sans); color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 
   /* cartao de aprovacao */
@@ -421,7 +421,7 @@
   .comparar-linha {
     display: grid; grid-template-columns: 70px minmax(0, 1fr);
     gap: 10px; align-items: baseline; padding: 4px 0;
-    font-size: 12.5px; border-bottom: 1px solid var(--ink-a08);
+    font-size: 12px; border-bottom: 1px solid var(--ink-a08);
   }
   .comparar-linha:last-child { border-bottom: none; }
   .comparar-linha.entrou { color: var(--okt); }
@@ -435,7 +435,7 @@
   .al-linha {
     display: grid; grid-template-columns: 70px minmax(0, 1fr) auto;
     gap: 10px; align-items: baseline; padding: 5px 0;
-    font-size: 12.5px; border-bottom: 1px solid var(--ink-a08);
+    font-size: 12px; border-bottom: 1px solid var(--ink-a08);
   }
   .al-linha:last-child { border-bottom: none; }
   .al-linha.entrou > span:nth-child(2) { color: var(--okt); }
@@ -546,7 +546,7 @@
   .edl-destino { margin-right: 4px; }
   .edl-trecho {
     margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--destaque-fundo);
-    font-size: 12.5px; line-height: 1.6; color: var(--ink2);
+    font-size: 12px; line-height: 1.6; color: var(--ink2);
   }
 
   /* O que acabou de mudar, marcado dentro do proprio texto. Ver a alteracao no
@@ -555,9 +555,9 @@
   .dupla-cartao {
  background: var(--papel-accbg2);
     padding: 10px 14px; margin: 12px 0; display: grid; gap: 6px;
-    font: 400 12.5px/1.55 var(--sans); color: var(--tinta);
+    font: 400 12px/1.55 var(--sans); color: var(--tinta);
   }
-  .rotulo-cartao { font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--papel-ink2); }
+  .rotulo-cartao { font: 600 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--papel-ink2); }
   .dupla-cartao p { margin: 0; }
   .dupla-cartao .explica { color: var(--papel-ink3); }
   .dupla-cartao .linha-form { margin: 2px 0 0; gap: 8px; }
@@ -579,10 +579,10 @@
   .bastidor.fechado .bastidor-linhas { display: none; }
   .bastidor-linha {
     display: flex; gap: 10px; align-items: baseline;
-    font: 400 11.5px var(--mono); color: var(--ink3);
+    font: 400 12px var(--mono); color: var(--ink3);
     padding: 2px 0; line-height: 1.5;
   }
-  .bastidor-quando { flex: 0 0 46px; text-align: right; font-size: 10.5px; }
+  .bastidor-quando { flex: 0 0 46px; text-align: right; font-size: 12px; }
   .bastidor-linha.viva { color: var(--ink); }
   .bastidor-linha.atencao { color: var(--acc); }
   .bastidor-linha.feito { color: var(--okt); }
@@ -591,14 +591,14 @@
   .pensando .bastidor-linha.atencao { color: var(--ink2); }
   .bastidor-linha.erro { color: var(--acc); }
   /* A linha de estado, no lugar em que a resposta vai aparecer. */
-  .linha-estado { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13.5px; color: var(--ink2); }
+  .linha-estado { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; color: var(--ink2); }
   .linha-estado .ponto { flex: 0 0 auto; }
   /* A lista dos documentos sem trecho, recolhida dentro do aviso. */
   .cobertura-lista { display: inline; }
   .cobertura-lista summary { display: inline; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .cobertura-lista[open] { display: block; margin-top: 6px; }
   /* O "ver detalhes" de uma resposta guardada: as linhas do registro. */
-  .detalhes-resposta { margin-top: 8px; font-size: 12.5px; color: var(--ink3); }
+  .detalhes-resposta { margin-top: 8px; font-size: 12px; color: var(--ink3); }
   .detalhes-resposta summary { cursor: pointer; width: max-content; }
   .detalhes-resposta summary:hover { color: var(--ink2); }
   .detalhes-resposta .bastidor-linhas { border-top: 0; padding: 4px 0 0; }
@@ -613,11 +613,11 @@
   .proposta-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
   .proposta-topo b { font: 600 14px var(--sans); }
   .proposta .linha-form { margin-top: 10px; margin-bottom: 0; gap: 8px; }
-  .proposta .linha-form button { height: 30px; padding: 0 12px; border-radius: 7px; font: 600 12.5px var(--sans); }
+  .proposta .linha-form button { height: 28px; padding: 0 12px; border-radius: 8px; font: 600 12px var(--sans); }
   .proposta .linha-form button.primario { background: var(--casca); border-color: transparent; color: var(--casca-ink); }
   .proposta .linha-form button.primario:hover:not(:disabled) { background: var(--casca-hover); border-color: transparent; color: var(--casca-ink); }
   .proposta .linha-form button.fantasma { padding: 0 10px; font-weight: 500; color: var(--ink3); }
-  .proposta .explica { font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .proposta .explica { font-size: 13px; line-height: 1.6; color: var(--ink2); }
   .proposta label.explica { align-self: center; white-space: nowrap; }
   .proposta.oferta { display: grid; gap: 12px; }
   .proposta.oferta > .linha-form, .proposta.oferta > .explica { margin: 0; }
@@ -634,23 +634,23 @@
   .aprovacao { border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); padding: 14px 16px; display: grid; gap: 12px; }
   .aprovacao .cabeca { display: flex; align-items: center; gap: 11px; }
   .aprovacao .nome { font: 600 14px var(--sans); }
-  .aprovacao p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .aprovacao .detalhe { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .aprovacao p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
+  .aprovacao .detalhe { font: 500 12px var(--sans); color: var(--ink3); }
   .aprovacao .acoes { display: flex; align-items: center; gap: 10px; }
   .aprovacao .acoes .primario { margin-left: auto; }
 
   /* Os trechos moram no painel da direita; na resposta fica so a conta - uma
      linha, nunca um cartao. */
-  .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12.5px var(--sans); color: var(--ink3); }
-  .trecho { border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; background: var(--surf); display: grid; gap: 6px; }
-  .trecho .origem { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12px var(--sans); color: var(--ink3); }
+  .trecho { border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; font-size: 12px; background: var(--surf); display: grid; gap: 6px; }
+  .trecho .origem { font: 500 12px var(--sans); color: var(--ink3); }
   .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink2); max-height: 170px; overflow-y: auto; line-height: 1.5; }
   .trecho-ver { justify-self: start; }
 
   /* Aviso em tinta cheia (--destaque com letra --bg), a mesma da faixa de avisos (.faixa-janela): aviso e aviso, em qualquer lugar. */
   .aviso-cobertura {
     background: var(--destaque); border: 1px solid var(--destaque); border-radius: 8px;
-    padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--bg); white-space: normal;
+    padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--bg); white-space: normal;
   }
 
 
@@ -662,13 +662,13 @@
   /* As marcas de trecho da resposta (I8): o número do trecho, pequeno, na
      linha do texto; clicar abre o trecho na página do documento. */
   .resposta .texto .cit-tn { display: inline-flex; align-items: center; justify-content: center; min-width: 18px;
-    height: 18px; padding: 0 5px; margin: 0 1px; border: 1px solid var(--ink-a1); border-radius: 9px;
-    background: var(--sub); color: var(--ink2); font: 600 11px/1 var(--mono); vertical-align: 2px; cursor: pointer; }
+    height: 18px; padding: 0 5px; margin: 0 1px; border: 1px solid var(--ink-a1); border-radius: 8px;
+    background: var(--sub); color: var(--ink2); font: 600 12px/1 var(--mono); vertical-align: 2px; cursor: pointer; }
   .resposta .texto .cit-tn:hover { color: var(--ink); border-color: var(--ink-a2, var(--ink-a1)); }
   /* A origem da marca, na resposta em camadas da Biblioteca (M4): o rotulo
      curto antes do numero, e uma cor por origem. A lei tem a cor de destaque
      do sistema; a doutrina, o ambar de "atencao: e opiniao". */
-  .resposta .texto .cit-tn .cit-origem { font: 600 9.5px/1 var(--sans); margin-right: 4px; letter-spacing: .02em; }
+  .resposta .texto .cit-tn .cit-origem { font: 600 12px/1 var(--sans); margin-right: 4px; letter-spacing: .02em; }
   .resposta .texto .cit-lei { background: var(--accbg); border-color: var(--accln); color: var(--acc); }
   .resposta .texto .cit-sumula { background: var(--accbg2); border-color: var(--accln2); color: var(--acc); }
   .resposta .texto .cit-doutrina { background: var(--warnbg); border-color: var(--ink-a12); color: var(--warnt); }
@@ -677,11 +677,11 @@
   .resposta .texto .cit-material,
   .resposta .texto .cit-documento { background: var(--sub); }
   /* M7: o botao ao lado de "Nao tenho material de <area> na biblioteca". */
-  .resposta .texto .bib-acrescentar { margin-left: 6px; padding: 2px 9px; border-radius: 9px; font-size: 12px;
+  .resposta .texto .bib-acrescentar { margin-left: 6px; padding: 2px 9px; border-radius: 8px; font-size: 12px;
     border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink2); cursor: pointer; }
   .resposta .texto .bib-acrescentar:hover { color: var(--ink); border-color: var(--ink-a3); }
-  .resposta .texto .sem-fonte { display: inline-block; padding: 1px 7px; border-radius: 9px; background: var(--warnbg);
-    color: var(--warnt); font-size: 11.5px; line-height: 1.5; vertical-align: 1px; white-space: nowrap; }
+  .resposta .texto .sem-fonte { display: inline-block; padding: 1px 7px; border-radius: 8px; background: var(--warnbg);
+    color: var(--warnt); font-size: 12px; line-height: 1.5; vertical-align: 1px; white-space: nowrap; }
 
 
   /* ------------------------------------------- sobre esta resposta (C3) */
@@ -690,7 +690,7 @@
   /* No pacote de telas a resposta descrita na coluna nao ganha marca: a
      coluna diz de qual se trata. A classe fica (o JS a procura). */
   .painel-novo .resposta.selecionada { box-shadow: none; }
-  .lat-lida { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12.5px; color: var(--ink2); }
+  .lat-lida { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12px; color: var(--ink2); }
   .lat-lida .cit { flex: 0 0 auto; }
   .lat-onde-texto { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   /* A barra acima do campo: onde a proxima pergunta procura; com uma
@@ -698,7 +698,7 @@
   /* Uma linha solta, sem caixa: o ponto verde e a frase em 12,5 px, logo
      acima da caixa de pedido (pacote de telas, `Conversa`). */
   .registro.barra-escopo { padding-bottom: 8px; }
-  .registro.barra-escopo .registro-cabeca { cursor: default; user-select: text; gap: 8px; padding: 0 4px; border: none; border-radius: 0; background: none; font: 500 12.5px var(--sans); }
+  .registro.barra-escopo .registro-cabeca { cursor: default; user-select: text; gap: 8px; padding: 0 4px; border: none; border-radius: 0; background: none; font: 500 12px var(--sans); }
   .registro.barra-escopo .registro-cabeca:hover:not(:disabled) { background: none; border: none; }
   .registro.barra-escopo .registro-agora { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .registro.barra-escopo.andando .registro-agora { color: var(--ink); }
@@ -707,8 +707,8 @@
   .barra-parar:hover { color: var(--ink); background: var(--fill); }
 
   /* A2: o agente da proxima pergunta, na barra acima do campo. */
-  .barra-agente select { margin-left: 4px; padding: 1px 6px; border: 1px solid var(--ink-a1); border-radius: 6px;
-                         background: var(--surf); color: var(--ink); font: 500 12.5px var(--sans); }
+  .barra-agente select { margin-left: 4px; padding: 1px 6px; border: 1px solid var(--ink-a1); border-radius: 8px;
+                         background: var(--surf); color: var(--ink); font: 500 12px var(--sans); }
 
   /* C5: "IA trabalhando" nas outras telas: a linha de estado com o Parar. */
   .ia-trabalhando { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; color: var(--ink2); }
@@ -726,7 +726,7 @@
   .trab-log:empty { display: none; }
   .bastidor.solto { border: none; border-radius: 8px; background: var(--lado-fundo); box-shadow: none; }
   .bastidor.solto .bastidor-linhas { border-top: none; padding: 12px 14px; max-height: 168px; }
-  .bastidor.solto .bastidor-linha { gap: 12px; font-size: 11.5px; line-height: 1.9; }
-  .bastidor.solto .bastidor-quando { flex: none; min-width: 34px; text-align: left; font-size: 11.5px; color: var(--mute); }
+  .bastidor.solto .bastidor-linha { gap: 12px; font-size: 12px; line-height: 1.9; }
+  .bastidor.solto .bastidor-quando { flex: none; min-width: 34px; text-align: left; font-size: 12px; color: var(--mute); }
   .bastidor.solto .bastidor-linha > span:last-child { color: var(--ink2); }
   .bastidor.solto .bastidor-linha.viva > span { color: var(--ink); font-weight: 500; }

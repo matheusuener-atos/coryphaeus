@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>PAULUS — Entrar</title>
+<title>Paulus — Entrar</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/img/paulus-logo.png">
 <link rel="stylesheet" href="/fontes.css">
 <script>
   // O tema antes da primeira pintura: o que a pessoa escolheu neste aparelho
-  // (o mesmo do PAULUS) ou, sem escolha, o escuro do desenho.
+  // (o mesmo do Paulus) ou, sem escolha, o escuro do desenho.
   (function () {
     var tema = "escuro";
     try {
@@ -23,7 +23,7 @@
 <!--
   A tela de entrar de quem esta de fora (acesso-remoto/v0, R2), no desenho
   "Mobile - Escritorio online" (02/10/2026) e nos passos `Codigo` e `Chave de
-  recuperacao` do pacote "PAULUS - Telas Mobile".
+  recuperacao` do pacote "Paulus - Telas Mobile".
 
   1. Sem campo de escritorio (03/10): quem chega aqui ja esta no endereco
      dele (uener.paulus.ia.br); escolher o escritorio e em paulus.ia.br/escritorio.
@@ -44,9 +44,9 @@
   [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill:#222220; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio-forte:rgba(242,241,236,.4); --borda-btn:rgba(242,241,236,.14);
     --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
-  [data-tema="claro"] { --bg:#faf9f6; --surf:#ffffff; --fill:#f2f1ee; --fill2:#e9e8e3; --ink:#1c1c1a; --ink2:#6b6b65; --ink3:#8a8a86;
+  [data-tema="claro"] { --bg:#f6f5f1; --surf:#efeee9; --fill:#e8e7e1; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
     --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio-forte:rgba(28,28,26,.4); --borda-btn:rgba(28,28,26,.14);
-    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#e2e1db; --pastilha-ativa:#dcdbd5; color-scheme:light; }
+    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#dad9d2; --pastilha-ativa:#d3d2ca; color-scheme:light; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
@@ -131,8 +131,11 @@
 
   /* --- 2. o codigo (e a chave de recuperacao), no desenho "Codigo" */
   .passo { position: relative; max-width: none; overflow: visible; }
-  .voltar { position: absolute; top: 20px; left: 16px; z-index: 1; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0;
+  .ligacoes { display: flex; align-items: center; justify-content: center; gap: 24px; }
+  .ligacoes .link-senha { padding: 10px 0; }
+  .voltar { display: flex; align-items: center; gap: 6px; height: 44px; padding: 0;
     border: 0; background: none; color: var(--ink3); font: 500 13px 'Manrope', sans-serif; cursor: pointer; }
+  .voltar:hover, .link-senha:hover { color: var(--ink); }
   .voltar svg { width: 18px; height: 18px; }
   .voltar:hover { color: var(--ink); }
   .conta { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio); }
@@ -175,23 +178,35 @@
   @media (min-width: 601px) {
     .tela { max-width: none; }
     .passo { justify-content: flex-start; align-items: center; gap: 40px; padding: 0 24px 48px; }
-    .passo .marca { flex: none; min-height: 0; gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
+    .passo .marca { flex: none; min-height: 0; gap: 14px; padding: calc(22vh - 56px) 0 0; padding-top: calc(22dvh - 56px); }
     .passo .baixo { margin-top: 0; }
     .passo .marca h1 { font-size: 44px; }
     .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
-    .voltar { top: 28px; left: 28px; }
     .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
     .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   }
+
+  /* A topbar do site (56 px, marca de 20 px, fio embaixo), em toda tela de entrar. */
+  .topo { position: fixed; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 28px;
+    background: var(--bg); border-bottom: 1px solid var(--fio2); }
+  .topo-marca { font: 400 20px/1 'EB Garamond', Georgia, serif; letter-spacing: .12em; color: var(--ink); text-decoration: none; }
+  .topo-tema { width: 32px; height: 32px; margin-right: -8px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .topo-tema:hover { color: var(--ink); }
+  .topo-tema svg { width: 18px; height: 18px; }
+  body { padding-top: 56px; }
+  .marca { padding-top: calc(22vh - 56px); padding-top: calc(22dvh - 56px); }
+  @media (max-width: 600px) { .topo { padding: 0 16px; } }
 </style>
 </head>
 <body>
+<header class="topo"><a class="topo-marca" href="https://paulus.ia.br">PAVLVS</a><button type="button" class="topo-tema" id="topo-tema" aria-label="Alternar tema"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1.5 3h-3L12 2Zm0 20-1.5-3h3L12 22Zm10-10-3 1.5v-3L22 12ZM2 12l3-1.5v3L2 12Zm17.07-7.07-1.06 3.18-2.12-2.12 3.18-1.06ZM4.93 19.07l1.06-3.18 2.12 2.12-3.18 1.06Zm14.14 0-3.18-1.06 2.12-2.12 1.06 3.18ZM4.93 4.93l3.18 1.06-2.12 2.12-1.06-3.18Z"/></svg></button></header>
+<script>(function(){var b=document.getElementById("topo-tema");if(!b)return;b.onclick=function(){var h=document.documentElement;h.dataset.tema=h.dataset.tema==="claro"?"escuro":"claro";try{localStorage.setItem("paulus.tema.entrar",h.dataset.tema);}catch(e){}};try{var t=localStorage.getItem("paulus.tema.entrar");if(t)document.documentElement.dataset.tema=t;}catch(e){}})();</script>
 <div class="tela">
 
   <!-- 1. O escritorio e o jeito de entrar (Google | Codigo) -->
   <section id="entrar-senha" class="tela passo">
     <div class="marca abrindo" id="marca-entrar">
-      <h1 data-es-titulo>Paulus está te esperando.</h1>
+      <h1 data-es-titulo>O que faremos juntos hoje?</h1>
       <p data-es-frase>O mesmo escritório, de onde você estiver.</p>
     </div>
     <form id="form-senha" class="baixo" autocomplete="on">
@@ -214,7 +229,6 @@
 
   <!-- 2. O codigo do app autenticador, ou a chave de recuperacao -->
   <section id="entrar-codigo" class="tela passo" hidden>
-    <button type="button" class="voltar" id="voltar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7.83 13 5.6 5.6L12 20l-8-8 8-8 1.43 1.4-5.6 5.6H20v2Z"/></svg>Voltar</button>
     <div class="marca abrindo" id="marca-codigo">
       <h1 data-es-titulo>Paulus está te esperando.</h1>
       <p data-es-frase id="quem-titulo">Falta confirmar que é você: digite o código do Google Authenticator.</p>
@@ -234,7 +248,7 @@
       <label class="confiar" id="caixa-confiar"><input type="checkbox" id="confiar"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg></i><span>Confiar neste navegador por 30 dias</span></label>
       <p class="erro" id="erro-codigo" role="alert"></p>
       <button type="submit" class="g-trilho" id="entrar"><span class="g-pastilha" id="entrar-texto">Entrar</span></button>
-      <button type="button" class="link-senha" id="recuperacao">Não tenho o celular</button>
+      <div class="ligacoes"><button type="button" class="voltar" id="voltar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7.83 13 5.6 5.6L12 20l-8-8 8-8 1.43 1.4-5.6 5.6H20v2Z"/></svg>Voltar</button><button type="button" class="link-senha" id="recuperacao">Não tenho um código</button></div>
     </form>
   </section>
 </div>
@@ -300,7 +314,7 @@
 
   function mostrarRobo(chave) {
     chaveRobo = chave;
-    if (!chave) { selo("erro", "Indisponível"); $("erro-senha").textContent = "o acesso de fora deste escritório não terminou de ser configurado"; return; }
+    if (!chave) { selo("erro", "Indisponível"); $("erro-senha").textContent = "o acesso externo deste escritório não terminou de ser configurado"; return; }
     const tentar = () => {
       if (!window.turnstile) { setTimeout(tentar, 200); return; }
       // "interaction-only": o widget so aparece se a Cloudflare pedir um
@@ -449,7 +463,7 @@
     $("caixa-confiar").hidden = porRecuperacao;
     if (porRecuperacao) $("confiar").checked = false;
     c.autocomplete = porRecuperacao ? "off" : "one-time-code";
-    $("recuperacao").textContent = porRecuperacao ? "Usar o Google Authenticator" : "Não tenho o celular";
+    $("recuperacao").textContent = porRecuperacao ? "Usar o Google Authenticator" : "Não tenho um código";
     $("entrar-texto").textContent = "Entrar";
     $("erro-codigo").textContent = "";
     desenharCasas();

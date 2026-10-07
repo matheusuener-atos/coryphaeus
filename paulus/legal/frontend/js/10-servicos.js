@@ -799,7 +799,7 @@ setInterval(() => {
 async function dialogoDaEquipe() {
   const s = sv.aberto;
   if (!s) return;
-  // So quem entra no PAULUS (conta ou convite em aberto) pode estar na
+  // So quem entra no Paulus (conta ou convite em aberto) pode estar na
   // equipe de um servico: e quem vai ver o servico de fora.
   const daEquipe = sv.clientes.filter((c) => c.tipo === "colaborador" || c.tipo === "socio");
   const acesso = sv.acessoEquipe || {};
@@ -817,10 +817,10 @@ async function dialogoDaEquipe() {
   };
   const lista = pessoas.length
     ? '<div class="sv-d-pessoas">' + pessoas.map(linha).join("") + "</div>"
-    : '<p class="dialogo-dica">Ninguém da equipe entra no PAULUS ainda.' + (podeConvidar ? " Convide abaixo." : "") + "</p>";
+    : '<p class="dialogo-dica">Ninguém da equipe entra no Paulus ainda.' + (podeConvidar ? " Convide abaixo." : "") + "</p>";
   const html = '<div class="dialogo-campo"><label>Quem cuida deste serviço</label>' + lista +
     '<input type="hidden" id="sv-d-ids" data-dialogo-chave="equipe" value="' + equipe.join(",") + '"></div>' +
-    '<p class="dialogo-dica">A equipe de um serviço é de quem entra no PAULUS: cada pessoa aqui vê este serviço de fora, com a própria conta.' +
+    '<p class="dialogo-dica">A equipe de um serviço é de quem entra no Paulus: cada pessoa aqui vê este serviço de fora, com a própria conta.' +
     (semAcesso.length ? " " + plural(semAcesso.length, "pessoa", "pessoas") + " de Cadastros › Equipe " + (semAcesso.length === 1 ? "ainda não tem" : "ainda não têm") +
       " acesso: " + esc(semAcesso.map((p) => p.nome).join(", ")) + "." : "") + "</p>" +
     (podeConvidar ? '<div class="cfg-botoes"><button type="button" class="com-icone" id="sv-d-convidar">' + ic("person_add", 16) + "Convidar alguém novo</button></div>" : "");

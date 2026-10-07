@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  // O cliente OAuth web do PAULUS (o mesmo da equipe). Identificador de
+  // O cliente OAuth web do Paulus (o mesmo da equipe). Identificador de
   // cliente nao e segredo; https://paulus.ia.br precisa estar entre as
   // origens JavaScript autorizadas dele no Google Cloud.
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
@@ -55,10 +55,10 @@
   }
 
   function desenharPeriodo() {
-    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "Pix ou até 12×" : "Pix ou cartão";
+    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "Pagamento seguro pelo Mercado Pago, no PIX ou em até 12× no cartão" : "Pagamento seguro pelo Mercado Pago, no PIX ou cartão";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
-      ? "O ano é pago de uma vez, na próxima página: à vista no Pix ou em até 12 vezes no cartão (os juros do parcelamento são de quem parcela). A cota de IA continua mensal. O anual não renova sozinho."
-      : "Na próxima página, escolha: Pix, que paga um mês e não renova, ou cartão, que renova todo mês e se cancela no PAVLVS, em Configurações › Modelos. O número do cartão é digitado nos campos seguros do Mercado Pago e não passa pelo PAVLVS.";
+      ? "Na próxima página, você paga o ano de uma vez: à vista no Pix ou em até 12 vezes no cartão (os juros do parcelamento ficam por conta de quem parcela). A cota de IA continua sendo liberada mês a mês, e o plano anual não renova sozinho."
+      : "Na próxima página, você escolhe como pagar. No Pix, paga um mês por vez, sem renovação automática. No cartão, a assinatura renova todo mês, e você cancela quando quiser no Paulus, em Configurações › Modelos.";
   }
 
   /* A troca de plano, com a assinatura paga ativa: o plano escolhido em
@@ -383,7 +383,24 @@
     }
   }
 
+  /* Com o formulário à vista, o resumo do plano vai para o alto da coluna da direita (junto do pagamento);
+     sem ele (antes de entrar, ou com a assinatura ativa), volta para o alto da página. */
+  function posicionarResumo() {
+    var resumo = $("cd-resumo"), cota = $("cd-recarga"), fim = $("cd-form-fim"), passos = $("cd-passos");
+    if (!$("cd-form").hidden) { if (resumo.parentElement !== fim) { fim.insertBefore(cota, fim.firstChild); fim.insertBefore(resumo, cota); } }
+    else if (resumo.parentElement !== passos.parentElement) { passos.parentElement.insertBefore(resumo, passos); passos.parentElement.insertBefore(cota, passos); }
+  }
+
+  function vigiarResumo() {
+    if (!$("cd-form") || vigiarResumo.feito) return;
+    vigiarResumo.feito = true;
+    new MutationObserver(posicionarResumo).observe($("cd-form"), { attributes: true, attributeFilter: ["hidden"] });
+    posicionarResumo();
+  }
+  if (document.readyState !== "loading") setTimeout(vigiarResumo, 0);
+
   document.addEventListener("DOMContentLoaded", function () {
+    vigiarResumo();
     iniciarGoogle();
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
@@ -396,7 +413,7 @@
     $("cd-uf").addEventListener("input", function () { this.value = this.value.replace(/[^A-Za-z]/g, "").toUpperCase(); $("cd-cmun").value = ""; });
     var guardado = "";
     try { guardado = sessionStorage.getItem(CHAVE) || ""; } catch (e) { guardado = ""; }
-    // Vindo de /assinatura ou do PAULUS instalado (?plano=&periodo=): o plano
+    // Vindo de /assinatura ou do Paulus instalado (?plano=&periodo=): o plano
     // e o periodo ja escolhidos. Sem eles, vale o da conta (ou o recomendado).
     var pedido = new URLSearchParams(location.search);
     if (pedido.get("periodo") === "anual") estado.periodo = "anual";

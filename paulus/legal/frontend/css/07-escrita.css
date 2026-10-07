@@ -16,7 +16,7 @@
        folha impressa. Antes eram 48px fixos: a margem da tela nao tinha
        relacao nenhuma com a margem do PDF. */
     padding: 11.9%; min-height: 520px;
-    font: 400 15px/1.7 Georgia, 'Times New Roman', serif;
+    font: 400 16px/1.7 Georgia, 'Times New Roman', serif;
     overflow-wrap: anywhere;
   }
   .ed-folha:focus { outline: none; }
@@ -38,7 +38,7 @@
   .ed-nota {
     position: absolute; left: 4px; width: 20px; height: 20px; min-width: 0;
     padding: 0; border-radius: 50%; pointer-events: auto; cursor: pointer;
-    font: 600 11px var(--mono); line-height: 1;
+    font: 600 12px var(--mono); line-height: 1;
   }
   .ed-nota.impede { border-color: var(--acc); color: var(--acc); }
   .ed-nota.comentario { border-color: var(--ink); color: var(--ink); }
@@ -90,11 +90,11 @@
   /* Pre-visualizacao: o PDF de verdade, desenhado. */
   .pv-aviso {
     display: flex; align-items: flex-start; gap: 10px;
-    padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 12.5px; line-height: 1.5;
+    padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 12px; line-height: 1.5;
   }
   .pv-aviso:last-child { border-bottom: none; }
 
-  .pv-mudanca { padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 12.5px; }
+  .pv-mudanca { padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 12px; }
   .pv-mudanca:last-child { border-bottom: none; }
   .pv-mudanca .saiu { color: var(--ink3); text-decoration: line-through; }
   .pv-mudanca .entrou { color: var(--okt); }
@@ -162,7 +162,7 @@
     text-align: center;
   }
 
-  .pl-check { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .pl-check { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; }
   /* Os campos de numero (colunas/linhas do quadro) ficam estreitos: a base do
      campo da flex 1 e min-width 200 a todo input[type=number]. A caixa de
      marcar fica nos 16 px da regra global de input[type=checkbox]. */
@@ -171,10 +171,10 @@
   .pl-status { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
   .pl-funcao {
     display: flex; flex-direction: column; gap: 2px;
-    padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 12.5px;
+    padding: 11px 0; border-bottom: 1px solid var(--ink-a08); font-size: 12px;
   }
   .pl-funcao:last-child { border-bottom: none; }
-  .pl-funcao code { font: 400 11.5px var(--mono); color: var(--ink2); }
+  .pl-funcao code { font: 400 12px var(--mono); color: var(--ink2); }
 
   /* ------------------------------------------------------ artigo de lei */
 
@@ -187,9 +187,9 @@
   }
   .artigo.revogado { border-color: var(--accln); background: var(--accbg2); }
   .artigo-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-  .artigo-topo b { font: 500 13.5px var(--sans); color: var(--ink); }
+  .artigo-topo b { font: 500 13px var(--sans); color: var(--ink); }
   .artigo-texto {
-    font-size: 12.5px; line-height: 1.6; color: var(--ink2);
+    font-size: 12px; line-height: 1.6; color: var(--ink2);
     margin: 8px 0 10px; overflow-wrap: anywhere;
   }
   /* "Na biblioteca do escritorio" (Biblioteca, M3, js/22-leis.js): o que as
@@ -198,8 +198,8 @@
   .lei-bib-item { padding: 6px 0; }
   .lei-bib-item + .lei-bib-item { border-top: 1px dashed var(--ink-a08); }
   .lei-bib-onde { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-  .lei-bib-onde b { font: 500 12.5px var(--sans); color: var(--ink); }
-  .lei-bib-onde small { font-size: 11.5px; color: var(--ink3); }
+  .lei-bib-onde b { font: 500 12px var(--sans); color: var(--ink); }
+  .lei-bib-onde small { font-size: 12px; color: var(--ink3); }
   .lei-bib-tese { font-size: 12px; line-height: 1.5; margin: 4px 0 0; padding: 4px 8px;
     background: var(--accbg2); color: var(--ink); }
   .lei-bib-trecho { font-size: 12px; line-height: 1.55; color: var(--ink2); margin: 4px 0 6px; overflow-wrap: anywhere; }

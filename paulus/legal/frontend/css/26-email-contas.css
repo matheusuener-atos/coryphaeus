@@ -8,18 +8,18 @@
     width: 460px; max-width: 100%; box-sizing: border-box; display: grid; gap: 16px; padding: 34px 40px 30px;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
   }
-  .ec-cartao h2 { margin: 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
-  .ec-lide { margin: -6px 0 4px; font: 400 16px/1.5 var(--serif); color: var(--ink2); text-wrap: pretty; }
+  .ec-cartao h2 { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+  .ec-lide { margin: -6px 0 4px; font: 600 16px/1.5 var(--sans); color: var(--ink2); text-wrap: pretty; }
   .ec-campo { display: grid; gap: 6px; min-width: 0; }
   /* Os campos do passo sao o campo padrao (04-acervo.css); so a largura muda, porque o cartao ja mede. */
   .ec-tela .ec-campo input, .ec-tela .ec-campo textarea { width: 100%; max-width: none; }
   /* A senha tem o "mostrar" dentro: a moldura do campo vai no envoltorio e o input fica nu, como .em-senha. */
-  .ec-senha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 4px 0 12px; border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); transition: border-color .15s ease; }
+  .ec-senha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 4px 0 12px; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); transition: border-color .15s ease; }
   .ec-senha:focus-within { border-color: var(--ink); }
   .ec-tela .ec-senha input { flex: 1; min-width: 0; max-width: 100%; height: 100%; padding: 0; border: none; border-radius: 0; background: none; box-shadow: none; }
-  .ec-erro { display: flex; align-items: flex-start; gap: 6px; margin: -6px 0 0; font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
+  .ec-erro { display: flex; align-items: flex-start; gap: 6px; margin: -6px 0 0; font: 500 12px/1.45 var(--sans); color: var(--acc); }
   .ec-erro .ic { flex: none; margin-top: 1px; }
-  .ec-nota { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .ec-nota { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .ec-botoes { display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px; }
   .ec-botoes button { min-width: 104px; justify-content: center; }
   .ec-botoes .sv-ligacao { min-width: 0; margin-right: auto; }
@@ -41,7 +41,7 @@
   .ec-outra:hover:not(:disabled) { background: var(--sub); }
   .ec-conta-texto { display: grid; gap: 2px; min-width: 0; }
   .ec-conta-texto b { font: 500 14px/1.3 var(--sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ec-conta-texto small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ec-conta-texto small { font: 500 12px var(--sans); color: var(--ink3); }
   .ec-conta.padrao .ec-conta-texto b { font-weight: 600; }
   .ec-conta.problema .ec-conta-texto small { color: var(--acc); }
   .ec-lista .em-avatar.grande { border-radius: 50%; }
@@ -56,13 +56,13 @@
   /* O expansor (sem marcador, seta expand_more que gira) vem da regra unificada em 05-paineis-e-botoes.css; aqui so a letra. */
   .ec-ajuda summary { font: 500 13px var(--sans); color: var(--ink2); }
   .ec-ajuda summary:hover { color: var(--ink); }
-  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; font: 400 15px/1.5 var(--serif); color: var(--ink2); }
-  .ec-servidor { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; font: 600 16px/1.5 var(--sans); color: var(--ink2); }
+  .ec-servidor { display: flex; align-items: center; gap: 8px; font: 500 12px var(--sans); color: var(--ink3); }
   .ec-servidor span:not(.ic) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Servidor e porta lado a lado; a porta tem largura fixa e o campo nao pode ter piso maior que ela. */
   .ec-manual { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 10px 14px; }
   .ec-tela .ec-manual input { min-width: 0; width: 100%; }
-  .ec-prova { font-size: 13.5px; }
+  .ec-prova { font-size: 13px; }
   .ec-cartao .ag-toggle { padding-top: 2px; }
   /* Passo "entrar": o login do provedor (js/30-email-oauth.js) e, embaixo, o link discreto para IMAP e SMTP. */
   .ec-pe-entrar { justify-content: space-between; padding-top: 2px; }

@@ -9,8 +9,8 @@
 /* O alto das telas de entrar, como no programa: "Paulus está te esperando." na
    serifa, claro, e a frase embaixo, aparecendo devagar. PAVLVS e a marca;
    Paulus, o agente. */
-.entrada-marca .logo { margin: 0 -60px; font: 400 44px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
-.entrada-marca p { font-size: 15px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
+.entrada-marca .logo { margin: 0 -60px; font: 400 40px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+.entrada-marca p { font-size: 16px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
 .entrada-marca > * { animation: entrada-aparece .7s ease both; }
 @keyframes entrada-aparece { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .entrada-marca > * { animation: none; } }
@@ -18,7 +18,7 @@
 .campo { display: grid; gap: 6px; }
 .campo > .rotulo { display: block; }
 .caixa-campo {
-  display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
+  display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 12px;
   background: var(--panel); border: 1px solid var(--line); transition: border-color .12s;
 }
 .caixa-campo:focus-within { border-color: var(--line3); }
@@ -33,75 +33,120 @@
 .rotulo .opcional { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink3); }
 .nota-campo a { color: var(--ink2); border-bottom: 1px solid var(--line); }
 .nota-centro { justify-self: center; text-align: center; }
-.erro-campo { font-size: 12.5px; line-height: 1.5; color: var(--erro); }
+.erro-campo { font-size: 12px; line-height: 1.5; color: var(--erro); }
 .voltar-site { position: absolute; top: 18px; left: 28px; display: flex; align-items: center; gap: 6px; font: 500 13px var(--sans); color: var(--mute); }
 .voltar-site:hover { color: var(--ink); }
 
 /* a faixa de um terceiro (Mercado Pago, Cloudflare): estado a esquerda, marca a direita */
 .selo {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 14px;
-  border-radius: 10px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
 }
-.selo-esq { display: flex; align-items: center; gap: 10px; font: 500 13.5px var(--sans); color: var(--ink); }
+.selo-esq { display: flex; align-items: center; gap: 10px; font: 500 13px var(--sans); color: var(--ink); }
 .selo-icone { width: 22px; height: 22px; border-radius: 50%; background: var(--okfill); display: flex; align-items: center; justify-content: center; flex: none; }
 .selo-icone .icon { font-size: 15px; color: #fff; font-weight: 400; }
 .selo-icone.neutro { background: var(--pill); }
 .selo-icone.neutro .icon { color: var(--ink2); }
+.selo-marca { width: 22px; height: 22px; flex: none; }
+/* O logo do Mercado Pago (o arquivo oficial, só reduzido): branco no tema escuro, colorido no claro. */
+.selo-mp { display: flex; flex: none; }
+.selo:has(.selo-mp) { padding: 0 12px; }
+.selo:has(.selo-mp) .selo-esq { min-width: 0; gap: 8px; white-space: nowrap; font-size: 12px; }
+.selo:has(.selo-mp) .selo-esq #cd-selo-periodo { overflow: hidden; text-overflow: ellipsis; }
+.selo:has(.selo-mp) .selo-dir { white-space: nowrap; flex: none; }
+.selo-mp img { height: 24px; width: auto; display: block; margin: -2px 0 -1px; }
+/* O selo do Mercado Pago fica no amarelo da marca (#FFE600), com o logo colorido e o texto escuro, nos dois temas. */
+.selo-mp .mp-pluma { display: none; }
+.selo:has(.selo-mp) { background: #FFE600; border-color: #FFE600; }
+.selo:has(.selo-mp) .selo-esq { color: #1a1a1a; }
+.selo:has(.selo-mp) .selo-dir, .selo:has(.selo-mp) .selo-dir span { color: #3d3d3d; }
+.selo:has(.selo-mp) .selo-esq { flex: 1; }
+.selo:has(.selo-mp) .selo-dir span { font-size: 12px; }
 .selo-dir { display: grid; justify-items: end; gap: 2px; text-align: right; }
-.selo-dir b { font: 700 9.5px var(--sans); letter-spacing: .12em; color: var(--ink); }
-.selo-dir span { font: 400 9.5px var(--sans); color: var(--mute); }
+.selo-dir b { font: 700 12px var(--sans); letter-spacing: .12em; color: var(--ink); }
+.selo-dir span { font: 400 12px var(--sans); color: var(--mute); }
 
 /* ---------- Assinar ---------- */
 /* Os planos: cards lado a lado (no celular, um embaixo do outro). */
 .cd-entrada { gap: 40px; }
 .cd-planos-secao { width: 100%; max-width: 1180px; display: grid; gap: 20px; }
 .cd-planos-topo { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.ciclo { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.ciclo { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
 .ciclo-op { height: 30px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 8px; background: transparent;
   color: var(--mute); font: 500 13px var(--sans); white-space: nowrap; cursor: pointer; }
 .ciclo-op.on { background: var(--pill); color: var(--ink); }
-.ciclo-selo { font: 500 10px var(--mono); color: var(--ok); }
+/* Com o marcador, a pastilha e ele (desliza); o botao so muda a cor do texto. */
+.ciclo.com-marcador { position: relative; }
+.ciclo.com-marcador .ciclo-op { position: relative; z-index: 1; transition: color .2s; }
+.ciclo.com-marcador .ciclo-op.on { background: transparent; }
+.ciclo-marcador { position: absolute; top: 3px; left: 3px; height: 30px; border-radius: 8px; background: var(--pill); will-change: transform;
+  transition: transform .34s cubic-bezier(.22,.8,.24,1), width .34s cubic-bezier(.22,.8,.24,1); }
+.cd-valor { display: inline-flex; align-items: baseline; will-change: transform, opacity; }
+
+.ciclo-selo { font: 500 12px var(--mono); color: var(--ok); }
 .ciclo-selo:empty { display: none; }
+/* As quatro partes de cada cartao (cabeca, numeros, itens, pe) dividem as linhas com os vizinhos:
+   lado a lado, a lista e o botao ficam na mesma altura nos tres planos. */
+/* Lado a lado, a lista comeca na mesma altura nos tres planos e termina na mesma (o script iguala a altura minima da lista).
+   Abrir um item so faz crescer o proprio cartao. */
 .cd-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; align-items: start; }
 .cd-cartao { position: relative; display: grid; align-content: start; overflow: hidden; border-radius: 12px; background: var(--panel);
   border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
 .cd-cartao:hover { border-color: var(--line3); }
 .cd-cartao.on { background: var(--panel2); border-color: var(--line3); box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .55); }
 .cd-cartao.travado { cursor: default; }
-.cd-faixa { position: absolute; top: 0; right: 20px; height: 20px; padding: 0 8px; display: flex; align-items: center; border-radius: 0 0 6px 6px;
-  background: var(--okfill); color: #fff; font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.cd-faixa { position: absolute; top: 0; right: 20px; height: 20px; padding: 0 8px; display: flex; align-items: center; border-radius: 0 0 8px 8px;
+  background: var(--okfill); color: #fff; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .cd-cabeca { display: grid; gap: 14px; padding: 24px 22px 20px; }
+/* O detalhe do preco num balao, ao passar o mouse sobre o valor. */
+.cd-preco { position: relative; justify-self: start; outline: none; }
+.cd-dica { position: absolute; left: 0; top: calc(100% + 8px); z-index: 3; width: max-content; max-width: 280px; display: grid; gap: 2px; padding: 10px 12px;
+  border-radius: 8px; background: var(--bg); border: 1px solid var(--line3); box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .15s, transform .15s; }
+.cd-dica small { font-size: 12px; line-height: 1.5; color: var(--ink2); }
+.cd-preco:hover .cd-dica, .cd-preco:focus-visible .cd-dica { opacity: 1; transform: none; }
+@media (hover: none) { .cd-dica { position: static; opacity: 1; transform: none; padding: 6px 0 0; border: 0; background: none; box-shadow: none; } }
 .cd-nome { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.cd-nome b { font: 600 17px var(--sans); color: var(--ink); }
-.cd-nome em { margin-left: 8px; font: 400 10.5px var(--mono); font-style: normal; color: var(--ok); }
+.cd-nome b { font: 600 16px var(--sans); color: var(--ink); }
+.cd-nome em { margin-left: 8px; font: 400 12px var(--mono); font-style: normal; color: var(--ok); }
 .cd-radio { width: 16px; height: 16px; flex: none; box-sizing: border-box; border-radius: 50%; background: var(--pill); border: 1px solid var(--line3); }
 .cd-cartao.on .cd-radio { border: 5px solid var(--ink); }
 .cd-preco { display: grid; gap: 6px; }
 .cd-valor { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.cd-valor strong { font: 400 44px/1 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+.cd-valor strong { font: 600 40px/1 var(--sans); letter-spacing: -.01em; color: var(--ink); }
 .cd-valor span { font-size: 13px; color: var(--ink2); }
-.cd-preco small { font-size: 12.5px; line-height: 1.5; color: var(--mute); }
+.cd-preco small { font-size: 12px; line-height: 1.5; color: var(--mute); }
 .cd-para { font-size: 14px; color: var(--ink2); }
 .cd-numeros { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line2); border-bottom: 1px solid var(--line2); }
 .cd-numeros > span { display: grid; gap: 1px; padding: 12px 22px; }
 .cd-numeros > span + span { border-left: 1px solid var(--line2); }
-.cd-numeros b { font: 400 20px/1.2 var(--serif); color: var(--ink); }
-.cd-numeros small { font-size: 11.5px; color: var(--mute); }
-.cd-itens { display: grid; padding: 6px 0 4px; }
-.cd-heranca { display: flex; align-items: center; gap: 10px; padding: 12px 22px 6px; font: 400 11px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3); }
-.cd-heranca .icon { font-size: 14px; letter-spacing: 0; text-transform: none; }
+.cd-numeros b { font: 500 16px/1.3 var(--sans); color: var(--ink); }
+.cd-numeros small { font-size: 12px; color: var(--mute); }
+.cd-itens { display: grid; align-content: start; padding: 6px 0 4px; box-sizing: border-box; }
+.cd-itens:has(> .cd-heranca) { padding-top: 0; }
+/* "Tudo do plano anterior, e mais": o mesmo selo verde do RECOMENDADO. */
+.cd-heranca { display: flex; align-items: center; justify-content: center; min-height: 38px; padding: 12px 22px; }
+.cd-heranca-selo { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 8px; background: var(--okfill); color: #fff; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .cd-item + .cd-item, .cd-heranca + .cd-item { border-top: 1px solid var(--line2); }
+/* A lista fecha no ultimo item; o espaco que sobra nos planos com menos itens fica sem linha, ate o botao. */
+.cd-item:last-child { border-bottom: 1px solid var(--line2); }
+.cd-itens { padding-bottom: 0; }
 .cd-item-botao { width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr) 16px; gap: 10px; align-items: center; padding: 9px 18px 9px 22px;
   border: 0; background: transparent; color: var(--ink); font: 400 13px/1.45 var(--sans); text-align: left; cursor: pointer; }
 .cd-item-botao:hover { background: var(--line2); }
 .cd-item-botao .icon { font-size: 14px; color: var(--ok); }
 .cd-item-botao .cd-seta { font-size: 16px; color: var(--ink3); transition: transform .15s, color .15s; }
 .cd-item-botao[aria-expanded="true"] .cd-seta { transform: rotate(180deg); color: var(--ink); }
-.cd-breve { margin-left: 6px; font: 400 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
-.cd-item p { margin: 0; padding: 0 22px 12px 46px; font-size: 12.5px; line-height: 1.55; color: var(--ink2); }
-.cd-pe { display: grid; gap: 10px; padding: 16px 22px 22px; border-top: 1px solid var(--line2); }
-.cd-pe small { font: 400 11px var(--mono); color: var(--ink3); }
-.cd-acao { height: 42px; padding: 0 22px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--line3);
+.cd-breve { margin-left: 6px; font: 400 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+.cd-item p { margin: 0; padding: 0 22px 12px 46px; font-size: 12px; line-height: 1.55; color: var(--ink2); }
+/* A resposta do item: fechada tem altura 0; a abertura e animada pelo script (altura medida). */
+.cd-resposta { height: 0; overflow: hidden; }
+.cd-resposta.aberta { height: auto; }
+.cd-item-botao .cd-seta { transition: transform .3s cubic-bezier(.22,.8,.24,1), color .15s; }
+@media (prefers-reduced-motion: reduce) { .ciclo-marcador { transition-duration: .12s; } .cd-item-botao .cd-seta { transition-duration: .12s; } }
+.cd-pe { display: grid; gap: 10px; align-content: end; padding: 16px 22px 22px; }
+.cd-pe small { font: 400 12px var(--mono); color: var(--ink3); }
+.cd-acao { height: 42px; padding: 0 22px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--line3);
   background: transparent; color: var(--ink); font: 600 14px var(--sans); cursor: pointer; transition: background .15s; }
 .cd-cartao.on .cd-acao { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .cd-acao:disabled { opacity: .5; cursor: default; }
@@ -111,23 +156,32 @@
 .cd-dupla { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .cd-dupla.cd-larga { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .cd-dupla > .campo { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+/* Com o formulário à vista, a coluna alarga e ele se divide: dados à esquerda, plano e pagamento à direita. */
+.cd-col:has(#cd-form:not([hidden])) { max-width: 960px; }
+#cd-form { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: stretch; }
+/* A coluna da direita ocupa a altura do formulário: o plano no alto, e o aceite, o botão, o selo e a nota no pé, alinhados ao fim dos campos. */
+.cd-form-fim { display: flex; flex-direction: column; gap: 14px; }
+.cd-form-fim > .aceite { margin-top: auto; }
+.cd-form-fim #cd-resumo { margin-bottom: -4px; }
+.cd-form-fim #cd-recarga { margin-bottom: 6px; }
+@media (max-width: 860px) { #cd-form { grid-template-columns: minmax(0, 1fr); gap: 14px; } .cd-form-fim > .aceite { margin-top: 0; } }
 /* O plano escolhido, no alto do cadastro. */
-.cd-resumo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 10px;
+.cd-resumo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 12px;
   background: var(--panel); border: 1px solid var(--line); }
 .cd-resumo-texto { display: grid; gap: 2px; min-width: 0; }
-.cd-resumo-texto b { font: 600 15px var(--sans); color: var(--ink); }
-.cd-resumo-texto small { font-size: 12.5px; color: var(--ink2); }
+.cd-resumo-texto b { font: 600 16px var(--sans); color: var(--ink); }
+.cd-resumo-texto small { font-size: 12px; color: var(--ink2); }
 .cd-resumo-trocar { flex: none; font: 500 13px var(--sans); color: var(--ink); border-bottom: 1px solid var(--line3); }
 /* ---------- Pagamento (o formulario do cartao, com os campos seguros do Mercado Pago) ---------- */
 .pg-col { max-width: 440px; gap: 24px; }
-.pg-total { display: grid; gap: 4px; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.pg-total strong { font: 500 24px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+.pg-total { display: grid; gap: 4px; padding: 14px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.pg-total strong { font: 500 20px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
 .pg-total small { font-size: 12px; line-height: 1.45; color: var(--ink3); }
 .pg-estado { text-align: center; }
 /* O formulario do cartao: os tres campos do cartao sao quadros do Mercado
    Pago (CardForm); a caixa, o icone e o rotulo sao do site. */
-.pg-form { padding: 18px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.pg-titulo-cartao { font: 500 15px var(--sans); color: var(--ink); }
+.pg-form { padding: 18px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.pg-titulo-cartao { font: 500 16px var(--sans); color: var(--ink); }
 .pg-form .caixa-campo { background: var(--bg); }
 .pg-form .caixa-campo > .icon { font-size: 18px; color: var(--ink3); flex: none; }
 .pg-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -146,7 +200,7 @@
 .pg-combo { flex: 1; min-width: 0; display: flex; }
 .pg-doc .pg-combo { flex: none; }
 .pg-combo-botao {
-  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 38px;
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 36px;
   padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 14px var(--sans); text-align: left; cursor: pointer;
 }
 .pg-combo-botao span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -154,7 +208,7 @@
 .pg-doc .pg-combo-botao { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
 .pg-combo-menu {
   position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 300px; overflow-y: auto;
-  margin: 0; padding: 6px; list-style: none; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line);
+  margin: 0; padding: 6px; list-style: none; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line);
   box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
 }
 /* A barra de rolagem do menu e a do sistema (frontend/css/00-tokens.css):
@@ -164,7 +218,7 @@
 .pg-combo-menu::-webkit-scrollbar-track { background: transparent; }
 .pg-combo-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 .pg-combo-menu::-webkit-scrollbar-thumb:hover { background: var(--line3); }
-.pg-combo-menu li { padding: 8px 10px; border-radius: 7px; font: 400 13.5px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
+.pg-combo-menu li { padding: 8px 10px; border-radius: 8px; font: 400 13px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
 .pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--pill); color: var(--ink); outline: none; }
 .pg-combo-menu li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
 /* O preenchimento automatico do navegador nos campos do site: o fundo e a
@@ -186,24 +240,24 @@
 .pg-meio-nota { margin-top: -12px; }
 .pg-pix-qr { display: grid; justify-items: center; gap: 14px; }
 .pg-pix-qr > .campo { width: 100%; }
-.pg-pix-qr img { width: 208px; height: 208px; padding: 10px; box-sizing: border-box; border-radius: 10px; background: #fff; }
-.pg-copiar { flex: none; height: 28px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 7px;
-  background: transparent; color: var(--ink); font: 500 12.5px var(--sans); cursor: pointer; }
+.pg-pix-qr img { width: 208px; height: 208px; padding: 10px; box-sizing: border-box; border-radius: 12px; background: #fff; }
+.pg-copiar { flex: none; height: 28px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--ink); font: 500 12px var(--sans); cursor: pointer; }
 .pg-copiar:hover { border-color: var(--line3); }
 .pg-copiar .icon { font-size: 15px; }
 .pg-pix .caixa-campo input { text-overflow: ellipsis; }
 .pg-pix-espera { text-align: center; }
-.pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.pg-voltar .icon { font-size: 16px; }
+.pg-voltar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 500 13px var(--sans); color: var(--mute); }
+.pg-voltar:hover { color: var(--ink); }
 .google-btn { display: flex; justify-content: center; min-height: 44px; }
 .conta-linha { font-size: 13px; line-height: 1.55; color: var(--ink2); text-align: center; }
 .conta-linha b { color: var(--ink); font-weight: 500; }
 .trocar { padding: 0; border: 0; background: none; font: inherit; color: var(--ink); border-bottom: 1px solid var(--line3); cursor: pointer; }
-.aceite { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; color: var(--ink2); }
+.aceite { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--ink2); }
 .aceite input { margin-top: 2px; width: 15px; height: 15px; accent-color: var(--ink); flex: none; }
 .aceite a { color: var(--ink); border-bottom: 1px solid var(--line3); }
-.pronto { display: grid; gap: 14px; padding: 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.pronto h2 { display: flex; align-items: center; gap: 10px; font: 500 15px var(--sans); }
+.pronto { display: grid; gap: 14px; padding: 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.pronto h2 { display: flex; align-items: center; gap: 10px; font: 500 16px var(--sans); }
 .pronto p { font-size: 13px; line-height: 1.55; color: var(--ink2); }
 .pronto .troca { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line2); }
 .btn-texto { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); border-bottom: 1px solid var(--line3); cursor: pointer; justify-self: start; }
@@ -215,18 +269,18 @@
 .versao .quando, .versao .num { font: 400 12px var(--mono); color: var(--ink3); padding-top: 3px; }
 .versao .num { color: var(--ink); }
 .versao ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.versao li { font-size: 13.5px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
-.versao li:first-child { font: 500 15px/1.5 var(--sans); color: var(--ink); }
-.versao .mais { justify-self: start; padding: 0; border: 0; background: none; font: 500 12.5px var(--sans); color: var(--mute); cursor: pointer; }
+.versao li { font-size: 13px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
+.versao li:first-child { font: 500 16px/1.5 var(--sans); color: var(--ink); }
+.versao .mais { justify-self: start; padding: 0; border: 0; background: none; font: 500 12px var(--sans); color: var(--mute); cursor: pointer; }
 .versao .mais:hover { color: var(--ink); }
 .ver-anteriores { justify-self: center; margin-top: 28px; padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--mute); cursor: pointer; }
 .ver-anteriores:hover { color: var(--ink); }
 .vazio { padding: 24px 0; font-size: 14px; color: var(--ink2); text-align: center; }
-.atualizado { justify-self: center; margin-top: 18px; font: 400 11px var(--mono); color: var(--ink3); }
+.atualizado { justify-self: center; margin-top: 18px; font: 400 12px var(--mono); color: var(--ink3); }
 
 /* ---------- Materiais: filtro e linhas ---------- */
 .segmentos { display: flex; justify-content: center; }
-.segmentos > div { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.segmentos > div { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
 .segmentos button { height: 30px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent; color: var(--mute); font: 500 13px var(--sans); cursor: pointer; }
 .segmentos button:hover { color: var(--ink); }
 .segmentos button[aria-pressed="true"] { background: var(--pill); color: var(--ink); }
@@ -243,7 +297,7 @@
 
 @media (max-width: 640px) {
   .entrada { padding: 48px 20px 88px; justify-content: flex-start; }
-  .entrada-marca .logo { margin: 0; font-size: 38px; }
+  .entrada-marca .logo { margin: 0; font-size: 40px; }
   .voltar-site { left: 16px; top: 16px; }
   .versao { grid-template-columns: 64px minmax(0, 1fr); gap: 6px 16px; }
   .versao .quando { grid-column: 1 / -1; padding: 0; }

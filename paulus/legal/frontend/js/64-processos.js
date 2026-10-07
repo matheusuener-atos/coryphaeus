@@ -3,7 +3,7 @@
    A tela Processos (a partir de Serviços), a aba Processos de cada Serviço
    e o detalhe de um processo com as movimentações (src/processos.py).
 
-   Acompanhar pelo DataJud vem desligado: ligado, uma vez por dia o PAULUS
+   Acompanhar pelo DataJud vem desligado: ligado, uma vez por dia o Paulus
    manda só o número de cada processo acompanhado à API pública do CNJ.
    Movimentação nova vira aviso; intimação, citação ou publicação vira um
    pedido em Aprovações com a conta do prazo pelo tipo de ato (N1) - sugestão,

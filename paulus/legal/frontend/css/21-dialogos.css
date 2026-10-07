@@ -26,8 +26,8 @@
   .dialogo.larga { width: 520px; }
   .dialogo-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 22px 24px 0; }
   .dialogo-titulos { display: grid; gap: 4px; min-width: 0; flex: 1; }
-  .dialogo-titulos h2 { margin: 0; font: 600 17px/1.3 var(--sans); letter-spacing: -.005em; color: var(--ink); overflow-wrap: anywhere; }
-  .dialogo-contexto { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dialogo-titulos h2 { margin: 0; font: 600 16px/1.3 var(--sans); letter-spacing: -.005em; color: var(--ink); overflow-wrap: anywhere; }
+  .dialogo-contexto { font: 500 12px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dialogo-fechar { margin: -4px -8px 0 0; }
   .dialogo-corpo { padding: 18px 24px 20px; display: grid; gap: 14px; }
   .dialogo-corpo p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
@@ -38,7 +38,7 @@
      dentro dela, e o input fica nu. */
   .dialogo-caixa {
     display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf);
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf);
     transition: border-color .15s ease;
   }
   .dialogo-caixa:focus-within { border-color: var(--ink); }
@@ -59,10 +59,10 @@
   .dialogo-servico .dialogo-corpo { gap: 16px; }
   .dialogo-corpo p.dialogo-dica { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .dialogo-caixa input::selection { background: var(--ink-a25); color: var(--ink); }
-  .dialogo-sufixo { font: 500 12.5px var(--sans); color: var(--ink3); flex: none; }
+  .dialogo-sufixo { font: 500 12px var(--sans); color: var(--ink3); flex: none; }
   .dialogo-dica { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .dialogo-sugestoes { display: flex; gap: 6px; flex-wrap: wrap; }
-  .dialogo-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .dialogo-marcar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; }
   .dialogo-pe { display: flex; align-items: center; gap: 8px; padding: 0 24px 22px; }
   /* Os botoes do rodape sao os do sistema (05): Cancelar e o fantasma,
      confirmar e o primario, destrutivo e o .perigo (vinho de fio: o vinho
@@ -91,14 +91,14 @@
   :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
   :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div:first-child { padding-top: 0; }
   :is(.dialogo-ficha, .ex-meta, .bv-tabela) > div:last-child { border-bottom: none; }
-  :is(.dialogo-ficha, .ex-meta) dt, .bv-tabela > div > span:first-child { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  :is(.dialogo-ficha, .ex-meta) dt, .bv-tabela > div > span:first-child { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   :is(.dialogo-ficha, .ex-meta) dd { margin: 0; font: 400 14px/1.5 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
   .dialogo-ficha dd { white-space: pre-wrap; }
   .dialogo-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
   .dialogo-acoes button .ic { color: var(--ink3); }
   .dialogo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .dialogo-campo label small { font-size: inherit; color: var(--mute); }
-  .dialogo-aviso { font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
+  .dialogo-aviso { font: 500 12px/1.45 var(--sans); color: var(--acc); }
   /* O pop-up de anexar: largo e alto o bastante para ser uma lista, com a
      alternancia Acervo / Meu computador e a busca no alto. */
   .dialogo.dialogo-imprimir { width: 760px; }
@@ -118,7 +118,7 @@
   .anx-linha:hover { background: var(--sub); }
   .anx-linha.ja { cursor: default; opacity: .6; }
   .anx-linha b { font-weight: 500; }
-  .anx-linha small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .anx-linha small { font: 500 12px var(--sans); color: var(--ink3); }
   .anx-pasta > .ic { color: var(--ink3); }
   /* A marca (Google Drive) ocupa a mesma caixa do icone das outras pastas. */
   .anx-linha > .marca-ic { margin: 0 2px 0 3px; }
@@ -127,27 +127,27 @@
   /* A visao Google Drive sem o Drive para computador: o que fazer para ter. */
   /* Sem o Drive para computador (pacote de telas, `Anexar - Google Drive`):
      a marca no quadrado, o titulo em serifa centrado e os dois caminhos. */
-  .anx-sem-drive { display: grid; gap: 12px; justify-items: center; padding: 38px 36px 32px; text-align: center; font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+  .anx-sem-drive { display: grid; gap: 12px; justify-items: center; padding: 38px 36px 32px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--ink2); }
   .anx-sem-drive p { margin: 0; max-width: 520px; }
   .anx-sem-drive b { color: var(--ink); font-weight: 600; }
-  .anx-sem-drive h3 { margin: 6px 0 2px; font: 400 26px/1.15 var(--serif); color: var(--ink); }
+  .anx-sem-drive h3 { margin: 6px 0 2px; font: 600 32px/1.15 var(--sans); color: var(--ink); }
   .anx-drive-marca { display: inline-flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 12px; background: var(--fill); border: 1px solid var(--ink-a08); }
   .anx-caminhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; margin-top: 18px; text-align: left; }
-  .anx-caminho { display: grid; gap: 10px; align-content: start; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .anx-caminho { display: grid; gap: 10px; align-content: start; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; }
   .anx-caminho p { font-size: 13px; }
-  .anx-caminho-rotulo { display: flex; align-items: center; gap: 8px; font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+  .anx-caminho-rotulo { display: flex; align-items: center; gap: 8px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
   .anx-caminho-rotulo .etiqueta { letter-spacing: 0; text-transform: none; font-family: var(--sans); }
-  .anx-caminho-botao { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 7px; border: none; background: var(--fill2); font: 600 12.5px var(--sans); color: var(--ink); }
+  .anx-caminho-botao { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 8px; border: none; background: var(--fill2); font: 600 12px var(--sans); color: var(--ink); }
   .anx-caminho-botao:hover:not(:disabled) { background: var(--act); border: none; }
   .anx-trilha { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: none; color: var(--ink3); }
   .anx-trilha:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
-  .anx-trilha b { padding: 3px 8px; border-radius: 6px; background: var(--fill); font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
+  .anx-trilha b { padding: 3px 8px; border-radius: 8px; background: var(--fill); font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
   .anx-lista:has(> .anx-sem-drive) { flex: none; overflow: visible; }
-  .anx-rodape { display: inline-flex; align-items: center; gap: 16px; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .anx-rodape { display: inline-flex; align-items: center; gap: 16px; min-width: 0; font: 500 12px var(--sans); color: var(--ink2); }
 
   /* Abrir do Acervo (19-documentos.js): o pop-up do anexar, com a dica do
      que acontece com cada tipo no lugar das visoes. */
-  .aa-dica { flex: 1; min-width: 0; font: 500 12.5px/1.45 var(--sans); color: var(--ink3); }
+  .aa-dica { flex: 1; min-width: 0; font: 500 12px/1.45 var(--sans); color: var(--ink3); }
 
   /* Os certificados do Windows (15-certificado.js): o mesmo pop-up do
      anexar, com escolha de um so e o campo da senha da copia embaixo. */
@@ -167,21 +167,21 @@
   /* ------------------------------------------------ calendario popover */
   .calendario {
     position: fixed; z-index: 120; width: 272px; padding: 12px;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; box-shadow: var(--elev-float);
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
     font: 500 13px var(--sans); color: var(--ink);
   }
   .cal-topo { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
   .cal-titulo {
-    flex: 1; height: 28px; border: none; border-radius: 6px; background: none; color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: 600 13.5px var(--sans);
+    flex: 1; height: 28px; border: none; border-radius: 8px; background: none; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: 600 13px var(--sans);
   }
   .cal-titulo:hover:not(:disabled) { background: var(--fill); border: none; }
   .cal-grade { display: grid; gap: 2px; }
   .cal-grade.dias { grid-template-columns: repeat(7, 1fr); }
   .cal-grade.meses, .cal-grade.anos { grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .cal-semana { height: 26px; display: flex; align-items: center; justify-content: center; font: 600 11px var(--sans); color: var(--ink3); }
+  .cal-semana { height: 26px; display: flex; align-items: center; justify-content: center; font: 600 12px var(--sans); color: var(--ink3); }
   .cal-dia, .cal-celula {
-    position: relative; height: 32px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--ink);
+    position: relative; height: 32px; padding: 0; border: none; border-radius: 8px; background: none; color: var(--ink);
     font: 500 13px var(--sans); cursor: pointer; font-variant-numeric: tabular-nums;
   }
   .cal-celula { height: 44px; }
@@ -203,7 +203,7 @@
   .cal-atalhos { display: grid; gap: 4px; margin: -4px -4px 8px; padding-bottom: 8px; border-bottom: 1px solid var(--ink-a1); }
   .cal-atalho {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-    padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer;
+    padding: 8px 10px; border: none; border-radius: 8px; background: none; cursor: pointer;
     font: 500 13px var(--sans); color: var(--ink2);
   }
   .cal-atalho:hover:not(:disabled), .cal-atalho:focus-visible { outline: none; background: var(--fill); border: none; color: var(--ink); }
@@ -232,10 +232,10 @@
      claro e o relogio do Windows por cima do tema escuro. */
   .relogio-pop {
     position: fixed; z-index: 130; width: 268px; padding: 16px; display: grid; gap: 12px;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 10px; box-shadow: var(--elev-float);
+    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
   }
   .relogio-mostrador { display: flex; align-items: baseline; justify-content: center; gap: 6px; color: var(--ink); }
-  .relogio-mostrador b { font: 600 26px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
+  .relogio-mostrador b { font: 600 32px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
   .relogio-mostrador i { font-style: normal; font-size: 20px; color: var(--ink3); }
   .relogio-regua { display: grid; gap: 6px; }
   .relogio-regua > span { font: 500 12px var(--sans); color: var(--ink3); }
@@ -261,7 +261,7 @@
   .imp-previa { display: grid; gap: 8px; justify-items: center; padding: 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--ink-a1); }
   .imp-folha { width: 100%; aspect-ratio: 210 / 297; background: var(--papel); border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); overflow: hidden; }
   .imp-folha img { width: 100%; height: 100%; object-fit: contain; display: block; }
-  .imp-andar { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .imp-andar { display: flex; align-items: center; gap: 8px; font: 500 12px var(--sans); color: var(--ink2); }
   .imp-campos { display: grid; gap: 6px; align-content: start; }
   .imp-rotulo { margin-top: 8px; }
   .imp-rotulo:first-child { margin-top: 0; }
@@ -271,11 +271,11 @@
   .imp-copias { display: flex; align-items: center; gap: 6px; }
   .imp-copias input { width: 56px; min-width: 0; flex: none; text-align: center; }
   .imp-paginas { display: grid; gap: 6px; }
-  .imp-paginas label { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .imp-paginas label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; }
   .imp-paginas small { color: var(--ink3); font-weight: 500; }
   .imp-intervalo input[type=text] { flex: 1; max-width: 180px; margin-left: 4px; }
-  .imp-chave { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
-  .imp-erro { margin: 6px 0 0; font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
+  .imp-chave { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; }
+  .imp-erro { margin: 6px 0 0; font: 500 12px/1.45 var(--sans); color: var(--acc); }
   @media (max-width: 720px) { .imp { grid-template-columns: 1fr; } .imp-previa { max-width: 260px; justify-self: center; } }
 
   /* Verificar assinatura: o veredito, cada assinatura recolhida (clicar
@@ -307,11 +307,11 @@
   .vr-tecnico { display: grid; padding: 10px 12px 16px 40px; border-top: 1px solid var(--ink-a1); background: var(--bg); }
   .vr-linha { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); }
   .vr-linha:last-child { border-bottom: none; }
-  .vr-linha span { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .vr-linha span { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .vr-linha b { font: 400 14px/1.5 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
-  .vr-hash { font-family: var(--mono) !important; font-size: 11px; }
+  .vr-hash { font-family: var(--mono) !important; font-size: 12px; }
   .vr-arquivo { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); padding: 10px 12px; }
-  .vr-arquivo summary { font: 600 12.5px var(--sans); color: var(--ink2); }
+  .vr-arquivo summary { font: 600 12px var(--sans); color: var(--ink2); }
   .vr-arquivo[open] summary { margin-bottom: 4px; }
   .vr-nota { margin: 2px 0 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .vr-limite { font: 500 12px var(--sans); color: var(--ink3); }

@@ -45,18 +45,18 @@
   .docs-aba:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
   .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); font-weight: 600; }
   .docs-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .docs-aba small { font: 500 11.5px var(--sans); color: var(--ink3); }
+  .docs-aba small { font: 500 12px var(--sans); color: var(--ink3); }
   /* O x e um icone dentro do botao da aba, e `button .ic` (05-paineis) deixa
      icone de botao sem clique - o clique atravessava para a aba e nada
      fechava. Aqui o x volta a receber o clique. */
-  .docs-aba .docs-fechar { width: 22px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; margin-left: 2px; border-radius: 6px; color: var(--ink3); pointer-events: auto; cursor: pointer; }
+  .docs-aba .docs-fechar { width: 22px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; margin-left: 2px; border-radius: 8px; color: var(--ink3); pointer-events: auto; cursor: pointer; }
   .docs-fechar:hover { color: var(--ink); background: var(--fill2); }
 
   /* as barras de ferramentas: a de formatar e a juridica. O botao de icone
      e a variante com texto (.com-texto) moram em 05-paineis-e-botoes.css. */
   .docs-barra {
     flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 20px;
-    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12.5px;
+    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12px;
   }
   /* Na coluna de 1080 (a das outras telas) a barra juridica nao cabe numa linha: quebra, como a da planilha, em vez de cortar o fim. */
   .docs-barra.juridica { flex-wrap: wrap; row-gap: 6px; }
@@ -69,16 +69,16 @@
   .docs-sel, .docs-barra .escolha-botao.docs-sel { width: auto; flex: none; }
   .docs-barra .escolha-botao.docs-sel:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); color: var(--ink); }
   .docs-barra.fx { flex-wrap: nowrap; gap: 10px; }
-  .docs-ref { padding: 4px 10px; border: 1px solid var(--ink-a15); border-radius: 6px; font: 600 12.5px var(--sans); white-space: nowrap; }
-  .docs-fx { font: 500 12.5px var(--sans); color: var(--ink3); font-style: italic; }
+  .docs-ref { padding: 4px 10px; border: 1px solid var(--ink-a15); border-radius: 8px; font: 600 12px var(--sans); white-space: nowrap; }
+  .docs-fx { font: 500 12px var(--sans); color: var(--ink3); font-style: italic; }
   input[type=text].docs-fx-entrada {
     flex: 1; min-width: 0; max-width: 100%; height: auto; padding: 4px 0; border: none; border-radius: 0;
     background: none; box-shadow: none; outline: none; font: 400 13px var(--mono); color: var(--ink);
   }
   input[type=text].docs-fx-entrada:focus { box-shadow: inset 0 -1px 0 var(--ink); }
   .docs-fx-nota { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
-  .docs-pagina-num { font: 600 12.5px var(--sans); padding: 0 4px; white-space: nowrap; }
-  .docs-nota-direita { margin-left: auto; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .docs-pagina-num { font: 600 12px var(--sans); padding: 0 4px; white-space: nowrap; }
+  .docs-nota-direita { margin-left: auto; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
 
   /* o cartao com a folha, a grade ou a pagina */
   .docs-cartao {
@@ -87,7 +87,7 @@
   }
   .docs-status {
     flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--ink-a1);
-    background: var(--surf); font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap;
+    background: var(--surf); font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap;
   }
   .docs-status .cresce { flex: 1; }
   .docs-papel-area { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; }
@@ -149,10 +149,10 @@
   .fl-linha-form { display: flex; align-items: center; gap: 10px; }
   .fl-linha-form > span { min-width: 72px; }
   .fl-linha-form .escolha-botao { min-width: 0; flex: 1; }
-  .fl-marcar { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink2); cursor: pointer; }
+  .fl-marcar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; }
   .fl-marcar span { flex: 1; }
   .fl-marcar small { color: var(--ink3); font-weight: 500; }
-  .fl-previa-linhas { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); font: 400 12px/1.45 var(--serif); color: var(--ink2); }
+  .fl-previa-linhas { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); font: 600 12px/1.45 var(--sans); color: var(--ink2); }
   .fl-previa-linhas b { font-weight: 600; color: var(--ink); }
   .folha-painel > .fl-bloco:first-of-type { border-top: none; padding-top: 0; }
 
@@ -169,7 +169,7 @@
     display: flex; flex-direction: column; align-items: center; gap: 2px; padding-bottom: 3px; cursor: pointer;
   }
   .docs-mini img { width: 100%; height: auto; display: block; opacity: .85; }
-  .docs-mini span { font: 500 11px var(--sans); color: var(--ink3); }
+  .docs-mini span { font: 500 12px var(--sans); color: var(--ink3); }
   .docs-mini:hover:not(:disabled) { border-color: var(--ink); background: var(--surf); }
   .docs-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   .docs-mini.atual span { color: var(--ink); font-weight: 600; }
@@ -184,13 +184,13 @@
   .docs .pl-cel.na-faixa { background: var(--fill) !important; }
   .docs-filtro-aviso {
     flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px;
-    background: var(--warnbg); color: var(--warnt); font-size: 12.5px;
+    background: var(--warnbg); color: var(--warnt); font-size: 12px;
   }
   /* As abas da planilha sao um seletor de visoes (.visoes, 04-acervo.css) e o
      botao de nova aba e o botao de icone de 05. */
   .docs-abas-pl {
     flex: none; display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-top: 1px solid var(--ink-a1);
-    background: var(--surf); font-size: 12.5px; overflow: hidden;
+    background: var(--surf); font-size: 12px; overflow: hidden;
   }
   .docs-abas-pl .docs-ligacao { margin-left: 6px; }
   .docs-selecao { margin-left: 12px; display: flex; gap: 12px; flex-wrap: wrap; font: 500 12px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; white-space: nowrap; }
@@ -202,29 +202,29 @@
     margin: 0 !important; padding: 12px 18px; border: none; border-bottom: 1px solid var(--ink-a1);
     border-radius: 0; background: transparent; box-shadow: none;
   }
-  .docs-ferramenta .painel .explica { font-size: 12.5px; }
+  .docs-ferramenta .painel .explica { font-size: 12px; }
   .docs-ferramenta .proposta { margin: 12px 18px; }
   .docs-painel-cabeca {
     flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px;
-    font: 500 12.5px var(--sans); color: var(--ink3);
+    font: 500 12px var(--sans); color: var(--ink3);
   }
   .docs-painel-cabeca .cresce { flex: 1; font: 600 14px var(--sans); color: var(--ink); }
   .docs-conversa { flex: 1; min-height: 120px; padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 12px; }
   .docs-explica { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); }
-  .docs-bolha { align-self: flex-end; max-width: 90%; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.5; }
+  .docs-bolha { align-self: flex-end; max-width: 90%; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13px; line-height: 1.5; }
   .docs-resposta { display: grid; gap: 10px; max-width: 95%; font-size: 14px; line-height: 1.6; }
   .docs-resposta p { margin: 0; }
-  .docs-resposta code { font: 600 12.5px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 5px; }
+  .docs-resposta code { font: 600 12px var(--sans); background: var(--fill); padding: 1px 6px; border-radius: 5px; }
   .docs-trecho {
     margin: 0; padding: 8px 12px; background: var(--destaque-fundo);
-    font: 400 14px/1.6 var(--serif); color: var(--ink2);
+    font: 600 14px/1.6 var(--sans); color: var(--ink2);
   }
   .docs-resposta-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
   .docs-resposta-acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .docs-acoes-lista { display: grid; gap: 1px; }
   .docs-acoes-lista button {
-    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 6px;
-    background: none; text-align: left; font: 500 13.5px var(--sans); color: var(--ink2);
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px;
+    background: none; text-align: left; font: 500 13px var(--sans); color: var(--ink2);
   }
   .docs-acoes-lista button span { flex: 1; }
   .docs-acoes-lista button .ic { color: var(--ink3); }
@@ -253,12 +253,12 @@
   .docs-aviso.confira i { background: var(--ambar); }
   .docs-aviso.ok i { background: var(--verde); }
   .docs-aviso span { display: grid; gap: 2px; min-width: 0; }
-  .docs-aviso b { font-weight: 400; font-size: 13.5px; line-height: 1.5; }
-  .docs-aviso small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .docs-aviso b { font-weight: 400; font-size: 13px; line-height: 1.5; }
+  .docs-aviso small { font: 500 12px var(--sans); color: var(--ink3); }
   .docs-aviso-acoes { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
   .docs-aviso-acoes .primario { margin-left: auto; }
   .docs-versoes { display: grid; gap: 1px; }
-  .docs-versao { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font: 500 13.5px var(--sans); color: var(--ink2); cursor: pointer; }
+  .docs-versao { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font: 500 13px var(--sans); color: var(--ink2); cursor: pointer; }
   .docs-versao:hover { background: var(--fill); color: var(--ink); }
   .docs-versao.atual { background: var(--fill); color: var(--ink); font-weight: 600; }
   .docs-versao b { font-weight: 600; min-width: 26px; }

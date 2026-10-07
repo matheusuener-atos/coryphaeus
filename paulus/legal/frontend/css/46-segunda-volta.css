@@ -4,11 +4,11 @@
   .ap-opcoes { margin: 14px 0 0; padding: 0; border: none; display: grid; gap: 6px; }
   .ap-opcoes legend { padding: 0; margin: 0 0 6px; font: 600 13px var(--sans); color: var(--ink); }
   .ap-opcao { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--ink-a1);
-    border-radius: 8px; cursor: pointer; font-size: 13.5px; color: var(--ink2); }
+    border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--ink2); }
   .ap-opcao input { margin-top: 3px; flex: none; }
   .ap-opcao small { color: var(--ink3); font-size: 12px; line-height: 1.4; }
   .ap-opcao:has(input:checked) { border-color: var(--acc); background: var(--fill); }
-  .pub-sugestao { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--fill); font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+  .pub-sugestao { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--fill); font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .pub-sugestao b { color: var(--ink); }
 
   /* N2: as publicações do DJEN no detalhe do processo. */
@@ -16,15 +16,15 @@
   .pr-pubs .pr-pub-texto { display: block; white-space: normal; overflow: visible; text-overflow: clip; margin-top: 2px; color: var(--ink3); font-size: 12px; line-height: 1.4; }
 
   /* N3: a parte sugerida pelos documentos, na seção Partes do Serviço. */
-  .cli-sugeridas { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--ink-a15); border-radius: 10px; }
-  .cli-sug-titulo { margin: 0 0 6px; display: flex; align-items: center; gap: 6px; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .cli-sugeridas { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--ink-a15); border-radius: 12px; }
+  .cli-sug-titulo { margin: 0 0 6px; display: flex; align-items: center; gap: 6px; font: 600 12px var(--sans); color: var(--ink2); }
   .cli-sugerida small { white-space: normal; }
   .cli-sug-botoes { display: flex; gap: 6px; flex: none; }
   @media (max-width: 600px) { .cli-sugerida { flex-wrap: wrap; } .cli-sug-botoes button { min-height: 40px; } }
 
   /* N4: o conflito como pendência (js/72-conflitos.js, js/65-clientes.js). */
   .cfl-lista { display: grid; border-top: 1px solid var(--ink-a08); }
-  .cfl-linha { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); font-size: 13.5px; }
+  .cfl-linha { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--ink-a08); font-size: 13px; }
   .cfl-linha > .ic { flex: none; color: var(--ink2); }
   .cfl-linha .duas-linhas { flex: 1; min-width: 0; }
   .cfl-linha .duas-linhas b, .cfl-linha small { white-space: normal; }
@@ -43,24 +43,24 @@
   .pas-na-conversa { border: none; padding: 0; background: transparent; }
 
   /* N7: os temas e as súmulas ligados aos artigos citados, embaixo da resposta. */
-  .rel-bloco { margin: 10px 0 4px; border: 1px solid var(--ink-a1); border-radius: 10px; padding: 0 12px; background: var(--surf); }
+  .rel-bloco { margin: 10px 0 4px; border: 1px solid var(--ink-a1); border-radius: 12px; padding: 0 12px; background: var(--surf); }
   .rel-bloco summary { cursor: pointer; padding: 9px 0; display: flex; align-items: center; gap: 6px; font: 500 13px var(--sans); color: var(--ink2); list-style: none; }
   .rel-bloco summary::-webkit-details-marker { display: none; }
   .rel-bloco[open] summary { color: var(--ink); }
   .rel-lista { margin: 0; padding: 0 0 4px; list-style: none; display: grid; gap: 10px; }
-  .rel-item { font-size: 13.5px; line-height: 1.45; color: var(--ink2); }
+  .rel-item { font-size: 13px; line-height: 1.45; color: var(--ink2); }
   .rel-item b { color: var(--ink); font-weight: 600; }
   .rel-texto { margin: 2px 0; }
   .rel-porque, .rel-item small { color: var(--ink3); font-size: 12px; }
   .rel-aviso { margin: 0 0 10px; color: var(--ink3); font-size: 12px; line-height: 1.4; }
 
   /* N10: a folha achada na foto, na prévia da captura (js/51-captura.js). */
-  .cap-quadro { position: relative; width: 100%; max-height: 220px; overflow: hidden; border-radius: 6px; background: var(--fill); }
+  .cap-quadro { position: relative; width: 100%; max-height: 220px; overflow: hidden; border-radius: 8px; background: var(--fill); }
   .cap-quadro img { width: 100%; height: 100%; object-fit: fill; display: block; aspect-ratio: auto; border-radius: 0; }
   .cap-quadro svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .cap-quadro polygon { fill: var(--accbg); fill-opacity: .55; stroke: var(--acc); stroke-width: 2px; vector-effect: non-scaling-stroke; }
-  .cap-cortar { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 2px 6px; min-height: 26px; }
-  .cap-nota { margin: 2px 0 0; font-size: 11px; line-height: 1.3; color: var(--ink3); }
+  .cap-cortar { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 6px; min-height: 26px; }
+  .cap-nota { margin: 2px 0 0; font-size: 12px; line-height: 1.3; color: var(--ink3); }
 
   /* N12: a redação que valia na data, e a vacatio no histórico (js/71-vigencia.js). */
   .vig-anterior { display: block; margin: 4px 0 0; padding: 6px 10px; background: var(--fill);
@@ -70,7 +70,7 @@
 
   /* N13: a jurisprudência do STJ na Biblioteca (js/73-jurisprudencia.js). */
   .jur-orgaos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 14px; margin: 8px 0; }
-  .jur-orgao { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; cursor: pointer; font-size: 13.5px; }
+  .jur-orgao { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; cursor: pointer; font-size: 13px; }
   .jur-orgao input { margin-top: 3px; flex: none; }
   .jur-orgao small { white-space: normal; }
   .jur-andamento { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink2); }
@@ -79,10 +79,10 @@
   .jur-busca input { flex: 1 1 220px; min-width: 0; max-width: var(--campo); }
   .jur-busca select { flex: 0 1 200px; min-width: 0; }
   .jur-lista { display: grid; gap: 10px; margin-top: 10px; }
-  .jur-acordao { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); display: grid; gap: 6px; }
+  .jur-acordao { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 6px; }
   .jur-cab { display: grid; gap: 2px; }
   .jur-cab small { color: var(--ink3); font-size: 12px; }
-  .jur-trecho, .jur-ementa, .jur-tese { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+  .jur-trecho, .jur-ementa, .jur-tese { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .jur-trecho mark { background: rgba(255, 210, 80, 0.35); color: inherit; border-radius: 2px; }
   .jur-pe { display: flex; gap: 6px; flex-wrap: wrap; }
   .jur-pe button { display: inline-flex; align-items: center; gap: 4px; }
@@ -104,23 +104,23 @@
 .nuvem-cartao label.cfg-servico { cursor: pointer; }
 /* V7 - o plano da nuvem do PAULUS (js/75-nuvem.js): tokens restantes, sem gráfico */
 .nuvem-plano { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; padding: 12px 14px; border: 1px solid var(--ink-a1);
-  border-radius: 10px; background: var(--fill); margin: 4px 0; }
+  border-radius: 12px; background: var(--fill); margin: 4px 0; }
 .nuvem-restantes { display: grid; gap: 2px; min-width: 150px; }
-.nuvem-numero { font-family: var(--serif); font-size: 28px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
-.nuvem-restantes small { color: var(--ink2); font-size: 12.5px; }
+.nuvem-numero { font-family: var(--sans); font-size: 32px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nuvem-restantes small { color: var(--ink2); font-size: 12px; }
 .nuvem-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 20px; margin: 0; flex: 1; min-width: 240px; }
 .nuvem-numeros dt { font-size: 12px; color: var(--ink2); }
 .nuvem-numeros dd { margin: 0; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .nuvem-sem-sim { }
 /* Os tres planos, para escolher antes de assinar (o mesmo de paulus.ia.br/assinatura) */
 .nuvem-planos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 4px 0; }
-.nuvem-plano-op { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px;
+.nuvem-plano-op { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 12px;
   background: transparent; color: var(--ink); cursor: pointer; }
 .nuvem-plano-op:hover { border-color: var(--ink); }
 .nuvem-plano-op.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.nuvem-plano-op span { font-family: var(--serif); font-size: 20px; font-variant-numeric: tabular-nums; }
+.nuvem-plano-op span { font-family: var(--sans); font-size: 20px; font-variant-numeric: tabular-nums; }
 .nuvem-plano-op small { font-size: 12px; color: var(--ink2); }
 .nuvem-termo p { margin: 0 0 10px; line-height: 1.5; }
 .nuvem-pix { display: grid; gap: 8px; justify-items: center; text-align: center; }
-.nuvem-pix img { width: 200px; height: 200px; image-rendering: pixelated; border-radius: 6px; background: var(--papel); }
-.nuvem-copia { width: 100%; min-height: 64px; font-family: var(--mono); font-size: 11px; resize: none; }
+.nuvem-pix img { width: 200px; height: 200px; image-rendering: pixelated; border-radius: 8px; background: var(--papel); }
+.nuvem-copia { width: 100%; min-height: 64px; font-family: var(--mono); font-size: 12px; resize: none; }

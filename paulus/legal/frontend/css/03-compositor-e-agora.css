@@ -28,7 +28,7 @@
   .saudacao-bloco { display: none; gap: 14px; max-width: 720px; padding: 76px 0 8px; }
   .conversa-col.vazia .saudacao-bloco { display: grid; }
   .chamada {
-    font: 400 clamp(34px, 3.4vw, 46px)/1.02 var(--serif);
+    font: 600 clamp(32px, 3.4vw, 40px)/1.02 var(--sans);
     letter-spacing: -.015em; margin: 0; text-wrap: balance;
   }
   /* Duas linhas e o teto, e o teto e garantido: se um texto futuro passar
@@ -44,7 +44,7 @@
   .agora-cabeca { display: flex; align-items: center; gap: 14px; }
   /* Os rotulos da tela inicial (Acontecendo agora, Avisos, Conversas
      recentes): Manrope 10,5 em maiusculas, tinta do meio. */
-  .conversa-col.vazia .compositor .sv-kicker { font: 500 10.5px var(--sans); letter-spacing: .1em; color: var(--ink2); }
+  .conversa-col.vazia .compositor .sv-kicker { font: 500 12px var(--sans); letter-spacing: .1em; color: var(--ink2); }
 
   /* A RESPOSTA ANDANDO (pacote de telas, `Assistente - Acontecendo agora`):
      titulo, tempo em monoespaco e Parar; embaixo, uma faixa por etapa. */
@@ -53,7 +53,7 @@
   .agr-cartao .nome { font: 600 14px var(--sans); }
   .agr-tempo { font: 400 12px var(--mono); color: var(--ink2); white-space: nowrap; }
   .agr-parar {
-    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px;
     border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink);
   }
   .agr-parar:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); color: var(--ink); }
@@ -75,7 +75,7 @@
   }
   .agr-faixa.sem-medida > i { background: var(--ink-a15); }
   .agr-respira { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); animation: pv-respira 1.6s ease-in-out infinite; }
-  .agr-fila { font: 500 12.5px var(--sans); color: var(--ink2); }
+  .agr-fila { font: 500 12px var(--sans); color: var(--ink2); }
 
   .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
@@ -88,15 +88,15 @@
   .cartao-agora.chama, .cartao-agora.espera { border-color: var(--destaque-linha); background: var(--destaque-fundo); }
   .cartao-agora .cabeca { display: flex; align-items: center; gap: 11px; }
   .cartao-agora .nome { font: 600 14px var(--sans); flex: 1; min-width: 0; }
-  .cartao-agora .corpo { font-size: 13.5px; line-height: 1.55; color: var(--ink2); }
-  .cartao-agora .rodape { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .cartao-agora .corpo { font-size: 13px; line-height: 1.55; color: var(--ink2); }
+  .cartao-agora .rodape { font: 500 12px var(--sans); color: var(--ink3); }
   .cartao-agora .acoes { display: flex; align-items: center; gap: 10px; }
   .cartao-agora .acoes .primario { margin-left: auto; }
   /* O cartao do ditado: o equalizador na cor de destaque, o tempo em
      monoespaco a direita, a previa do texto em duas linhas. */
   .ditado-cartao .cabeca > .ic { color: var(--destaque); }
   .ditado-cartao.pendente .cabeca > .ic { color: var(--ink3); }
-  .ditado-tempo { margin-left: auto; font: 500 12.5px var(--mono); color: var(--ink2); letter-spacing: .04em; }
+  .ditado-tempo { margin-left: auto; font: 500 12px var(--mono); color: var(--ink2); letter-spacing: .04em; }
   .ditado-onda { display: block; width: 100%; height: 48px; color: var(--destaque); transition: opacity .2s ease; }
   .ditado-cartao.pausado .ditado-onda { opacity: .35; }
   .ditado-cartao .acoes .fantasma { display: inline-flex; align-items: center; gap: 6px; }
@@ -137,7 +137,7 @@
   /* Sem overflow: hidden no cartao: ele cortava o menu do "...", que abre
      por baixo da linha e passa da borda. Quem arredonda o fundo da ultima
      linha (no hover e na selecao) e ela mesma. */
-  .lc-cartao > .lc-linha:last-child { border-radius: 0 0 11px 11px; border-bottom: none; }
+  .lc-cartao > .lc-linha:last-child { border-radius: 0 0 12px 12px; border-bottom: none; }
   .lc-barra { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--ink-a1); }
   /* A caixa de busca (.lc-busca) mora com a .busca-tela, em 04-acervo.css. */
   .lc-linha {
@@ -149,7 +149,7 @@
   .lc-linha > .ic { color: var(--ink2); font-size: 17px; width: 16px; height: 16px; }
   .lc-nome { display: grid; gap: 1px; flex: 1 1 240px; min-width: 150px; }
   .lc-nome b { font: 600 14px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lc-nome small { font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lc-nome small { font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* A segunda linha da conversa: quando e em que grupo, cada um com o seu
      icone, na mesma tinta apagada da hora. A etiqueta com fundo que o grupo
      teve chamava mais atencao que o proprio nome da conversa. */
@@ -178,9 +178,9 @@
   .lc-entrar { width: 28px; display: flex; justify-content: center; color: var(--ink3); flex: none; transition: transform .2s ease, color .2s ease; }
   .lc-pasta:hover .lc-entrar { color: var(--ink); transform: translateX(2px); }
   /* O caminho dentro da pasta: "‹ Conversas › Clientes  2 conversas". */
-  .lc-caminho { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 12.5px; white-space: nowrap; }
+  .lc-caminho { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 12px; white-space: nowrap; }
   .lc-caminho b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-  .lc-caminho small { font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .lc-caminho small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .lc-sep { color: var(--ink3); }
   /* A alternancia Conversas / Grupos: o seletor de visoes das telas, com a
      contagem de cada lado (.visoes button small, 04-acervo.css). */
@@ -188,8 +188,8 @@
   /* A MIGALHA, uma receita: aqui (‹ Grupos), no anexar e no escolher pasta
      (.anx-migalhas, 21-dialogos.css). 26 px, raio 8, o ultimo em 600. */
   .anx-migalhas button, .lc-migalha {
-    display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 8px; border: none; border-radius: 8px;
-    background: none; color: var(--ink2); font: 500 12.5px var(--sans); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 8px; border: none; border-radius: 8px;
+    background: none; color: var(--ink2); font: 500 12px var(--sans); cursor: pointer;
   }
   .anx-migalhas button:hover:not(:disabled), .lc-migalha:hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
   .lc-vazio { padding: 18px 14px; font-size: 13px; line-height: 1.5; color: var(--ink3); }
@@ -212,19 +212,19 @@
   .agr-grava { display: flex; align-items: center; gap: 8px; font: 600 14px var(--sans); white-space: nowrap; }
   .agr-rec { width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
   .agr-rec.vivo { animation: pv-pulse 1.6s ease-in-out infinite; }
-  .agr-grava-meta { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agr-grava-meta { flex: 1; min-width: 0; font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agr-grava-tempo { font: 500 13px var(--mono); letter-spacing: .04em; }
   .agr-onda { display: block; width: 100%; height: 22px; color: var(--ink); }
   .agr-fala { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: baseline; padding: 10px 12px; border-radius: 8px; background: var(--lado-fundo); }
-  .agr-fala-t { font: 400 11px var(--mono); color: var(--mute); }
-  .agr-fala-texto { font-size: 13.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agr-fala-t { font: 400 12px var(--mono); color: var(--mute); }
+  .agr-fala-texto { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agr-fala-texto.apagada { color: var(--ink3); }
   .agr-grava-acoes { display: flex; align-items: center; gap: 6px; }
-  .agr-acao { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 7px; background: none; font: 600 12.5px var(--sans); color: var(--ink2); }
+  .agr-acao { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 8px; background: none; font: 600 12px var(--sans); color: var(--ink2); }
   .agr-acao:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .agr-grava-conta { margin-left: 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .agr-borda { height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--ink-a12); background: none; font: 600 12.5px var(--sans); color: var(--ink); }
-  .agr-cheio { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: var(--ink); color: var(--bg); font: 600 12.5px var(--sans); }
+  .agr-borda { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); }
+  .agr-cheio { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 12px var(--sans); }
   .agr-cheio:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }
   .agr-cheio i { width: 8px; height: 8px; border-radius: 2px; background: var(--bg); }
 
@@ -234,17 +234,17 @@
      Concluir e editar e Concluir e enviar a direita. */
   .conversa-col.ditando:not(.vazia) .compositor .cartao-campo { display: none; }
   .conversa-col.ditando:not(.vazia) .ditado-rodape { padding: 0; }
-  .ditado-cartao { padding: 14px 14px 12px 18px; gap: 12px; border-color: var(--ink-a15); border-radius: 14px; }
-  .dit-estado { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--sans); white-space: nowrap; }
-  .dit-nota { flex: 1; min-width: 0; font: 500 12.5px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ditado-cartao { padding: 14px 14px 12px 18px; gap: 12px; border-color: var(--ink-a15); border-radius: 12px; }
+  .dit-estado { display: flex; align-items: center; gap: 8px; font: 600 13px var(--sans); white-space: nowrap; }
+  .dit-nota { flex: 1; min-width: 0; font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .conversa-col:not(.vazia) .ditado-onda { height: 40px; }
-  .dit-texto { font-size: 14.5px; line-height: 1.55; color: var(--ink); max-height: 96px; overflow-y: auto; overflow-wrap: anywhere; }
+  .dit-texto { font-size: 14px; line-height: 1.55; color: var(--ink); max-height: 96px; overflow-y: auto; overflow-wrap: anywhere; }
   .dit-espera { color: var(--ink3); }
   .dit-cursor { display: inline-block; width: 1.5px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: var(--ink); animation: pv-pisca 1s steps(1) infinite; }
   .ditado-cartao .acoes { gap: 6px; }
-  .dit-fantasma { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 7px; background: none; font: 500 12.5px var(--sans); color: var(--ink2); }
+  .dit-fantasma { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 8px; background: none; font: 500 12px var(--sans); color: var(--ink2); }
   .dit-fantasma:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .dit-borda { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ink-a12); background: none; font: 600 12.5px var(--sans); color: var(--ink); }
+  .dit-borda { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); }
   .dit-borda:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
-  .dit-cheio { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 12.5px var(--sans); }
+  .dit-cheio { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 12px var(--sans); }
   .dit-cheio:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }

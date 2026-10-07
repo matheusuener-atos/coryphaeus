@@ -5,7 +5,7 @@
    senha que so o escritorio sabe, numa pasta que ele escolhe (HD externo,
    pasta de rede, pasta sincronizada pelo Google Drive para computador),
    automatico uma vez por dia. Restaurar prepara os dados e a troca entra
-   quando o PAULUS abre de novo - os de antes ficam guardados ao lado.
+   quando o Paulus abre de novo - os de antes ficam guardados ao lado.
 */
 
 const bkp = { relogio: null, outros: null, outraPasta: "" };
@@ -38,7 +38,7 @@ function secaoBackup() {
     (typeof blocoDoBackupNoLado === "function" ? blocoDoBackupNoLado() : "") +
     (and.fazendo ? '<p class="cfg-explica">Fazendo o backup… ' + (and.total ? and.feitos + " de " + and.total + " arquivos" : "") + "</p>" : "") +
     '<div class="acesso-energia">' +
-    ligaCfg("", "Backup automático", "uma vez por dia, com o PAULUS aberto; ficam os " + (b.manter || 10) + " mais novos", Boolean(b.automatico))
+    ligaCfg("", "Backup automático", "uma vez por dia, com o Paulus aberto; ficam os " + (b.manter || 10) + " mais novos", Boolean(b.automatico))
       .replace('class="ag-toggle', 'data-bkp-auto="1" class="ag-toggle') + "</div>" +
     '<div class="cfg-botoes"><button class="com-icone" data-bkp-pasta="1">' + ic("folder_open", 16) + (b.pasta ? "Trocar a pasta" : "Escolher a pasta") + "</button>" +
     '<button class="com-icone" data-bkp-senha="1">' + ic("key", 16) + (b.tem_senha ? "Trocar a senha" : "Definir a senha") + "</button>" +
@@ -52,8 +52,8 @@ function secaoBackup() {
         '<button data-bkp-restaurar="' + esc(x.caminho) + '">Restaurar</button></div>').join("") + "</div>"
     : '<p class="cfg-texto">Nenhum backup na pasta ainda.</p>';
   const pendente = b.restauracao_pronta
-    ? '<p class="cfg-texto"><b>Restauração pronta.</b> Ela entra quando o PAULUS abrir de novo; os dados de agora ficam guardados ao lado.</p>' +
-      '<div class="cfg-botoes"><button class="primario com-icone" data-bkp-reabrir="1">' + ic("refresh", 16) + "Reabrir o PAULUS agora</button>" +
+    ? '<p class="cfg-texto"><b>Restauração pronta.</b> Ela entra quando o Paulus abrir de novo; os dados de agora ficam guardados ao lado.</p>' +
+      '<div class="cfg-botoes"><button class="primario com-icone" data-bkp-reabrir="1">' + ic("refresh", 16) + "Reabrir o Paulus agora</button>" +
       '<button data-bkp-desistir="1">Desistir</button></div>'
     : "";
   const outros = bkp.outros
@@ -61,13 +61,13 @@ function secaoBackup() {
         ? '<div class="cfg-linhas">' + bkp.outros.map((x) =>
             '<div class="chave-valor bkp-linha"><span>' + esc(quandoBackup(x.quando)) + " · " + esc(tamanhoBackup(x.bytes)) + "</span>" +
             '<button data-bkp-restaurar="' + esc(x.caminho) + '">Restaurar</button></div>').join("") + "</div>"
-        : '<p class="cfg-texto">Nenhum backup do PAULUS nessa pasta.</p>')
+        : '<p class="cfg-texto">Nenhum backup do Paulus nessa pasta.</p>')
     : "";
   return aberturaCfg() + cartaoCfg("Backup", meta, estado) +
     cartaoCfg("Restaurar", metaCfg("de um backup"), pendente + lista +
       '<div class="cfg-botoes"><button class="com-icone" data-bkp-outra="1">' + ic("folder_open", 16) + "Procurar backups em outra pasta</button></div>" + outros +
-      '<p class="cfg-explica">Num computador novo: instale o PAULUS, abra esta tela e procure a pasta do backup. ' +
-      "O que é protegido pelo Windows (as contas de e-mail e Google, o acesso de fora) pede entrar de novo.</p>");
+      '<p class="cfg-explica">Num computador novo: instale o Paulus, abra esta tela e procure a pasta do backup. ' +
+      "O que é protegido pelo Windows (as contas de e-mail e Google, o acesso externo) pede entrar de novo.</p>");
 }
 
 async function atualizarBackupCfg() {
@@ -126,7 +126,7 @@ function ligarBackupCfg() {
   clique("[data-bkp-restaurar]", async (b) => {
     const r = await dialogo({
       titulo: "Restaurar este backup?", contexto: "Configurações › Backup",
-      texto: "Os dados de agora ficam guardados ao lado (nada se perde), e os do backup entram quando o PAULUS abrir de novo.",
+      texto: "Os dados de agora ficam guardados ao lado (nada se perde), e os do backup entram quando o Paulus abrir de novo.",
       campos: [{ chave: "senha", rotulo: "Senha do backup", tipo: "password", obrigatorio: true }],
       confirmar: "Preparar a restauração",
     });
@@ -140,7 +140,7 @@ function ligarBackupCfg() {
     desenharConfig();
   });
   clique("[data-bkp-reabrir]", async () => {
-    try { await post("/api/backup/reabrir"); avisoCert("reabrindo o PAULUS…"); }
+    try { await post("/api/backup/reabrir"); avisoCert("reabrindo o Paulus…"); }
     catch (err) { avisoCert(err.message, { tom: "erro" }); }
   });
 }

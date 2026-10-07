@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>PAULUS — Convite</title>
+<title>Paulus — Convite</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/img/paulus-logo.png">
 <link rel="stylesheet" href="/fontes.css">
@@ -26,7 +26,7 @@
   a senha), adiciona a conta ao Google Authenticator e confirma com o primeiro
   codigo. A conta nasce aqui - ninguem precisa ir ate o computador do escritorio.
 
-  Sem maquete propria: segue as telas de entrada do pacote "PAULUS - Site e
+  Sem maquete propria: segue as telas de entrada do pacote "Paulus - Site e
   Entrada" (03/10/2026), as mesmas de frontend/entrar.html - a marca no alto
   (22% da janela), os campos embaixo, rotulos em Fira Code, o botao de moldura
   dupla e o Turnstile escondido atras do selo proprio.
@@ -39,9 +39,9 @@
   [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio3:rgba(242,241,236,.08); --fio-forte:rgba(242,241,236,.4);
     --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
-  [data-tema="claro"] { --bg:#faf9f6; --surf:#ffffff; --fill2:#e9e8e3; --ink:#1c1c1a; --ink2:#6b6b65; --ink3:#8a8a86;
+  [data-tema="claro"] { --bg:#f6f5f1; --surf:#efeee9; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
     --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio3:rgba(28,28,26,.08); --fio-forte:rgba(28,28,26,.4);
-    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#e2e1db; --pastilha-ativa:#dcdbd5; color-scheme:light; }
+    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#dad9d2; --pastilha-ativa:#d3d2ca; color-scheme:light; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
@@ -158,15 +158,32 @@
   /* No computador: a coluna de 360 px no meio da tela, a marca em 56 px. */
   @media (min-width: 601px) {
     .tela { max-width: none; align-items: center; gap: 40px; padding: 0 24px 48px; }
-    .marca { gap: 14px; padding: 22vh 0 0; padding-top: 22dvh; }
+    .marca { gap: 14px; padding: calc(22vh - 56px) 0 0; padding-top: calc(22dvh - 56px); }
     .marca h1 { font-size: 44px; }
     .baixo { width: 100%; max-width: 360px; padding: 0; margin-top: 0; }
     .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
     .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   }
+
+  /* A topbar do site (56 px, marca de 20 px, fio embaixo), em toda tela de entrar. */
+  .topo { position: fixed; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 28px;
+    background: var(--bg); border-bottom: 1px solid var(--fio2); }
+  .topo-marca { font: 400 20px/1 'EB Garamond', Georgia, serif; letter-spacing: .12em; color: var(--ink); text-decoration: none; }
+  .topo-tema { width: 32px; height: 32px; margin-right: -8px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .topo-tema:hover { color: var(--ink); }
+  .topo-tema svg { width: 18px; height: 18px; }
+  body { padding-top: 56px; }
+  .marca { padding-top: calc(22vh - 56px); padding-top: calc(22dvh - 56px); }
+  @media (max-width: 600px) { .topo { padding: 0 16px; } }
+  .link-senha { justify-self: center; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; padding: 10px 0; color: var(--ink3); font: 500 13px 'Manrope', sans-serif; cursor: pointer; }
+  .link-senha:hover { color: var(--ink); }
+  .codigos-acoes { display: flex; justify-content: center; margin: 4px 0 2px; }
+  .codigos-acoes .link-senha { padding: 6px 0; }
 </style>
 </head>
 <body>
+<header class="topo"><a class="topo-marca" href="https://paulus.ia.br">PAVLVS</a><button type="button" class="topo-tema" id="topo-tema" aria-label="Alternar tema"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1.5 3h-3L12 2Zm0 20-1.5-3h3L12 22Zm10-10-3 1.5v-3L22 12ZM2 12l3-1.5v3L2 12Zm17.07-7.07-1.06 3.18-2.12-2.12 3.18-1.06ZM4.93 19.07l1.06-3.18 2.12 2.12-3.18 1.06Zm14.14 0-3.18-1.06 2.12-2.12 1.06 3.18ZM4.93 4.93l3.18 1.06-2.12 2.12-1.06-3.18Z"/></svg></button></header>
+<script>(function(){var b=document.getElementById("topo-tema");if(!b)return;b.onclick=function(){var h=document.documentElement;h.dataset.tema=h.dataset.tema==="claro"?"escuro":"claro";try{localStorage.setItem("paulus.tema.entrar",h.dataset.tema);}catch(e){}};try{var t=localStorage.getItem("paulus.tema.entrar");if(t)document.documentElement.dataset.tema=t;}catch(e){}})();</script>
 <div class="tela">
   <div class="marca abrindo" id="marca">
     <h1 data-es-titulo>Paulus está te esperando.</h1>
@@ -246,6 +263,7 @@
       <div class="grupo">
         <div class="rotulo-linha"><span class="rotulo">CÓDIGOS DE RECUPERAÇÃO</span><span class="lado">passo 3 de 3</span></div>
         <div class="codigos" id="codigos"></div>
+        <div class="codigos-acoes"><button type="button" class="link-senha" id="baixar-codigos"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><path d="M12 16 7 11l1.4-1.4 2.6 2.6V4h2v8.2l2.6-2.6L17 11l-5 5Zm-7 4v-5h2v3h10v-3h2v5H5Z"/></svg>Baixar códigos .txt</button></div>
         <p class="ajuda">Guarde estes códigos fora do celular (anote ou tire um print e guarde longe dele). Cada um entra uma vez no lugar do código do app, para o dia em que o celular sumir. Eles não aparecem de novo.</p>
       </div>
       <a class="g-trilho" href="/"><span class="g-pastilha">Entrar no PAVLVS</span></a>
@@ -464,6 +482,13 @@
       const lista = $("codigos");
       lista.textContent = "";
       (d.codigos_recuperacao || []).forEach((c) => { const x = document.createElement("code"); x.textContent = c; lista.appendChild(x); });
+      $("baixar-codigos").onclick = () => {
+        const texto = "PAVLVS — códigos de recuperação\n" + location.host + " · " + (d.email || "") + "\nGerados em " + new Date().toLocaleString("pt-BR") +
+          "\n\nCada código entra uma vez, no lugar do código do autenticador. Guarde fora do celular.\n\n" + (d.codigos_recuperacao || []).join("\n") + "\n";
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([texto], { type: "text/plain;charset=utf-8" })); a.download = "pavlvs-codigos-de-recuperacao.txt";
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
       frase("convite_pronto");
       mostrar("passo-fim");
     } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; $("codigo").select(); }

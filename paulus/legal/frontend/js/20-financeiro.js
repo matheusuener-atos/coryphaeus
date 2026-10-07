@@ -693,7 +693,7 @@ async function enviarRelatorioPorEmail() {
     "A receber em aberto: " + p.a_receber_texto + " (" + plural(p.a_receber_quantos, "cobrança") + ")\nA pagar em aberto: " + p.a_pagar_texto +
     "\nEm atraso: " + p.atrasado_texto + "\n" +
     (fin.parecer ? "\nParecer:\n" + fin.parecer.parecer + "\n" : "") +
-    "\nRelatório montado no PAULUS, nesta máquina.";
+    "\nRelatório montado no Paulus, nesta máquina.";
   if (!mail.contas) {
     try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; }
   }
@@ -1112,7 +1112,7 @@ async function gerarRecibos() {
 /* -------------------------------------------- notas e boletos, no pop-up */
 
 /* Nota fiscal e boleto: o registro do que foi emitido FORA daqui. A NFS-e
-   emitida pelo PAULUS (src/nfse, N4) entra no registro sozinha; com a
+   emitida pelo Paulus (src/nfse, N4) entra no registro sozinha; com a
    emissao desligada (ou o municipio sem convenio), a nota sai na prefeitura e
    aqui so se guarda o registro - dizer que emite seria mentir. */
 function finFormPapel(tipo, de) {
@@ -1129,7 +1129,7 @@ function finFormPapel(tipo, de) {
     (de ? '<p class="dialogo-dica">Fica ligada ao recebimento “' + esc(de.descricao) + "”.</p>" : "") +
     '<p class="dialogo-dica">' + (eNota
       ? (fin.nfse && fin.nfse.pode_emitir
-        ? "Para a nota emitida fora do PAULUS (no sistema da prefeitura ou no Emissor Nacional): aqui fica o registro — número, valor e data."
+        ? "Para a nota emitida fora do Paulus (no sistema da prefeitura ou no Emissor Nacional): aqui fica o registro — número, valor e data."
         : "A nota é emitida no sistema da prefeitura. Aqui fica só o registro: número, valor e data.")
       : "O boleto é gerado pelo seu banco. Aqui fica o registro, e o vencido aparece em Precisa de você.") + "</p>";
   dialogo({
@@ -1178,9 +1178,9 @@ async function finVerPapeis(tipo) {
     linhas = (d.notas_a_emitir || []).map((x) => linha(x.cliente || x.descricao, "recebido · " + (emite ? "sem nota" : "falta registrar a nota"), false, emReais(x.centavos),
       (emite ? '<button data-fin-emitir-de="' + x.id + '">Emitir nota</button>' : "") +
       '<button data-fin-nota-de="' + x.id + '">' + (emite ? "Registrar emitida fora" : "Registrar") + "</button>")).join("") +
-      // A nota emitida pelo PAULUS não se tira do registro: cancela-se (N5).
+      // A nota emitida pelo Paulus não se tira do registro: cancela-se (N5).
       (d.notas || []).map((n) => linha((n.numero ? "NF " + n.numero + " · " : "") + (n.cliente || "sem cliente"),
-        "emitida em " + n.data_br + (n.nfse_nota_id ? (n.ambiente === "producao" ? " · pelo PAULUS" : " · produção restrita, sem valor fiscal") : "") +
+        "emitida em " + n.data_br + (n.nfse_nota_id ? (n.ambiente === "producao" ? " · pelo Paulus" : " · produção restrita, sem valor fiscal") : "") +
         (n.situacao && n.situacao !== "emitida" ? " · " + n.situacao : ""), false, n.valor,
         n.nfse_nota_id ? '<button data-fin-abrir-nota="' + n.nfse_nota_id + '">Abrir a nota</button>'
           : tirar("data-fin-tirar-papel", n.id, "Tirar o registro"))).join("");

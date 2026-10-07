@@ -1,6 +1,6 @@
-/* ------------------------------------------------------ acesso de fora */
+/* ------------------------------------------------------ acesso externo */
 /*
-   Configuracoes › Acesso de fora (acesso-remoto/v0). So existe na janela do
+   Configuracoes › Acesso externo (acesso-remoto/v0). So existe na janela do
    programa: de fora, Configuracoes nao abre, e as rotas daqui recusam mesmo
    com sessao valida - uma sessao roubada nao cria conta nem religa nada.
 
@@ -41,14 +41,20 @@ function soNoEscritorio(id) {
 
 function telaSoNoEscritorio(d) {
   abrirTela(d.nome);
+  // O desenho do assistente de configuracao: texto a esquerda, a coluna a direita, o rodape com fio e o botao no canto.
+  const item = (icone, texto, ok) => '<div class="sne-item' + (ok ? "" : " fora") + '">' + ic(icone, 18) + '<span class="sne-txt">' + texto + "</span></div>";
   $("centro").innerHTML =
-    '<div class="catalogo"><div class="adiante-tela">' +
-    '<span class="rotulo">' + esc(FRASE_SO_NO_ESCRITORIO) + "</span>" +
-    "<h2>" + esc(d.nome) + "</h2>" +
-    "<p>Pelo acesso de fora dá para conversar, ler os documentos, redigir e propor na agenda. " +
-    esc(d.nome) + " mexe no que só o computador do escritório deve mexer — certificado, arquivos, dinheiro, configurações — e fica lá.</p>" +
-    '<div class="linha-form"><button class="primario" data-volta="1">Voltar para a conversa</button></div>' +
-    "</div></div>";
+    '<div class="sne"><div class="sne-corpo">' +
+    '<div class="sne-texto"><span class="bv-rotulo">' + esc(FRASE_SO_NO_ESCRITORIO) + "</span>" +
+    "<h1>" + esc(d.nome) + "</h1>" +
+    "<p>" + esc(d.nome) + " mexe no que só o computador do escritório deve mexer — certificado, arquivos, dinheiro, configurações — e fica lá. Para usar, abra o Paulus no computador do escritório.</p></div>" +
+    '<div class="sne-lado">' +
+    '<span class="bv-rotulo">PELO ACESSO EXTERNO</span><div class="sne-lista">' +
+    item("forum", "Conversar com o assistente", true) + item("description", "Ler os documentos", true) + item("edit_note", "Redigir", true) + item("calendar_month", "Propor na agenda", true) + "</div>" +
+    '<span class="bv-rotulo">SÓ NO COMPUTADOR DO ESCRITÓRIO</span><div class="sne-lista">' +
+    item("draw", "Certificado e assinatura") + item("folder", "Arquivos e pastas") + item("payments", "Financeiro e notas fiscais") + item("settings", "Configurações") + "</div>" +
+    "</div></div>" +
+    '<div class="sne-pe"><button type="button" class="bv-continuar" data-volta="1"><span>Voltar para a conversa</span></button></div></div>';
   $("centro").querySelector("[data-volta]").onclick = () => { $("nova").click(); marcarDestino("conversa"); };
   atualizarPostura();
 }
@@ -93,7 +99,7 @@ async function carregarAcesso() {
 
 /* ------------------------------------------------------ quem acessou */
 /*
-   R8: o registro de tudo o que aconteceu pelo acesso de fora, com o filtro e
+   R8: o registro de tudo o que aconteceu pelo acesso externo, com o filtro e
    o PDF. A corrente de hashes diz se alguem editou o arquivo a mao - e a tela
    diz em que linha.
 */
@@ -158,7 +164,7 @@ function secaoAcesso() {
   const prontas = contas.filter((c) => c.pronta).length;
   const ligado = Boolean(((cfg.prefs || {}).preferencias || {}).acesso_remoto && cfg.prefs.preferencias.acesso_remoto.ligado);
   const ficha = fichaCfg([
-    ["Acesso de fora", ligado ? "ligado" : "desligado", ligado ? "ok" : ""],
+    ["Acesso externo", ligado ? "ligado" : "desligado", ligado ? "ok" : ""],
     ["Contas prontas", prontas + " de " + contas.length],
     ["Sessões abertas", String(acessoCfg.sessoes.length)],
   ]);
@@ -176,7 +182,7 @@ const NIVEIS_SEGURANCA = [
   { id: "padrao", rotulo: "Padrão (recomendada)", curto: "Google + código",
     explica: "Conta Google e o código do autenticador; a pessoa pode marcar o navegador dela como confiável por 30 dias." },
   { id: "simples", rotulo: "Simples", curto: "só o Google",
-    explica: "Só a conta Google, sem autenticador. Mais cômodo e mais fraco: quem abrir o Google da pessoa entra no PAULUS." },
+    explica: "Só a conta Google, sem autenticador. Mais cômodo e mais fraco: quem abrir o Google da pessoa entra no Paulus." },
 ];
 
 function nivelSeguranca(id) {
@@ -212,8 +218,8 @@ function cartaoSegurancaPadrao() {
 
 async function acessoSeguranca(c) {
   const pedido = dialogo({
-    titulo: "Segurança de " + c.nome, contexto: "Configurações › Acesso de fora",
-    texto: "Quanto o PAULUS pede quando " + c.nome + " entra de fora. Na janela deste computador nada muda.",
+    titulo: "Segurança de " + c.nome, contexto: "Configurações › Acesso externo",
+    texto: "Quanto o Paulus pede quando " + c.nome + " entra de fora. Na janela deste computador nada muda.",
     depois: campoSeguranca("acc-seg", c.seguranca || "padrao"),
     confirmar: "Salvar",
   });
@@ -236,11 +242,11 @@ async function acessoSeguranca(c) {
    lista do assistente de conexao e da politica de privacidade. */
 function cartaoComoFunciona() {
   const itens = [
-    ["desktop_windows", "O computador do escritório precisa estar ligado e com o PAULUS aberto. Desligado, o endereço para de responder."],
+    ["desktop_windows", "O computador do escritório precisa estar ligado e com o Paulus aberto. Desligado, o endereço para de responder."],
     ["key", "Os documentos, o índice e o modelo de IA não saem deste computador. O que passa pela internet é a tela e o que se digita nela."],
     ["lan", "O caminho é o túnel da Cloudflare, num endereço paulus.ia.br da conta do Atos. A conexão é criptografada, mas a Cloudflare a abre no meio do caminho para entregá-la; o Atos não roteia, não inspeciona e não registra esse conteúdo."],
     ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta Google e, conforme o nível de segurança da conta, o código do autenticador do celular. O nível se escolhe aqui, conta por conta."],
-    ["history", "Todo acesso de fora fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
+    ["history", "Todo acesso externo fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
   ];
   return cartaoCfg("Como funciona", "",
     '<div class="acesso-itens">' + itens.map(([icone, texto]) =>
@@ -251,7 +257,7 @@ function cartaoContas() {
   if (acessoCfg.contas === null) return cartaoCfg("Contas", "", '<p class="cfg-texto">não consegui ler as contas.</p>');
   if (!acessoCfg.disponivel) {
     return cartaoCfg("Contas", metaCfg("indisponível"),
-      '<p class="cfg-texto">Este computador não tem como guardar o segredo do autenticador com proteção (a proteção de dados do Windows). Sem isso, o acesso de fora fica desligado.</p>');
+      '<p class="cfg-texto">Este computador não tem como guardar o segredo do autenticador com proteção (a proteção de dados do Windows). Sem isso, o acesso externo fica desligado.</p>');
   }
   const contas = acessoCfg.contas;
   const linhas = contas.map((c) => {
@@ -305,7 +311,7 @@ async function acessoConvidar() {
 
 function cartaoSessoes() {
   const s = acessoCfg.sessoes || [];
-  if (!s.length) return cartaoCfg("Sessões abertas de fora", metaCfg("nenhuma"), '<p class="cfg-texto">Ninguém está usando o PAULUS de fora agora.</p>');
+  if (!s.length) return cartaoCfg("Sessões abertas de fora", metaCfg("nenhuma"), '<p class="cfg-texto">Ninguém está usando o Paulus de fora agora.</p>');
   const quando = (t) => new Date(t * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const linhas = s.map((x) => '<div class="cfg-saida"><span class="fin-data">' + esc(quando(x.ultimo_uso)) + '</span><span class="duas-linhas"><b>' + esc(x.nome) +
     "</b><small>" + esc([x.email, x.ip].filter(Boolean).join(" · ") + " · entrou " + quando(x.criada)) + "</small></span></div>").join("");
@@ -336,7 +342,7 @@ const LOGO_AUTENTICADOR = '<svg viewBox="0 0 48 48" width="28" height="28" aria-
 
 function lojasAutenticador() {
   return '<div class="acesso-lojas"><div class="acesso-app"><span class="acesso-app-icone">' + LOGO_AUTENTICADOR + "</span>" +
-    '<span class="duas-linhas"><b>Google Authenticator</b><small>grátis · gera o código de 6 números do PAULUS</small></span></div>' +
+    '<span class="duas-linhas"><b>Google Authenticator</b><small>grátis · gera o código de 6 números do Paulus</small></span></div>' +
     '<div class="acesso-lojas-botoes">' +
     LOJAS_AUTENTICADOR.map(([rotulo, url]) => '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + ic("download", 16) + esc(rotulo) + "</a>").join("") +
     "</div></div>";
@@ -353,7 +359,7 @@ function acessoAutenticador(conta, dados) {
       '<p class="cfg-explica">Sem câmera? Digite a chave:</p><code class="acesso-segredo">' + esc((dados.segredo || "").replace(/(.{4})/g, "$1 ").trim()) + "</code></div></div>";
     const pedido = dialogo({
       titulo: "Cadastrar no autenticador",
-      contexto: "Acesso de fora › " + conta.nome,
+      contexto: "Acesso externo › " + conta.nome,
       html: html,
       campo: { rotulo: "Código de 6 números que aparece no aplicativo", placeholder: "000000", max: 6 },
       confirmar: "Confirmar",
@@ -379,7 +385,7 @@ function acessoAutenticador(conta, dados) {
 function acessoMostrarCodigos(conta, codigos) {
   return dialogo({
     titulo: "Códigos de recuperação",
-    contexto: "Acesso de fora › " + conta.nome,
+    contexto: "Acesso externo › " + conta.nome,
     texto: "Guarde estes códigos fora do celular. Cada um entra uma vez no lugar do código do autenticador — para o dia em que o celular sumir.\nEles não aparecem de novo.",
     html: '<div class="acesso-codigos">' + codigos.map((c) => "<code>" + esc(c) + "</code>").join("") + "</div>",
     confirmar: "Guardei",
@@ -391,7 +397,7 @@ async function acessoNovaConta() {
   const primeira = !(acessoCfg.contas || []).length;
   const pedido = dialogo({
     titulo: primeira ? "Conta do titular" : "Nova conta",
-    contexto: "Configurações › Acesso de fora",
+    contexto: "Configurações › Acesso externo",
     texto: (primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora.\n" : "") +
       "Com a segurança reforçada ou padrão, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele. Na simples, basta a conta Google.",
     html: lojasAutenticador(),
@@ -449,8 +455,8 @@ async function acessoPermissoes(c) {
       "</span></div>";
   }).join("");
   const pedido = dialogo({
-    titulo: "Permissões de " + c.nome, contexto: "Configurações › Acesso de fora", classe: "perm-dialogo", larga: true,
-    texto: "O que " + c.nome + " vê e faz pelo acesso de fora. Os dados são do escritório; aqui se escolhe o que cada pessoa alcança.\n" +
+    titulo: "Permissões de " + c.nome, contexto: "Configurações › Acesso externo", classe: "perm-dialogo", larga: true,
+    texto: "O que " + c.nome + " vê e faz pelo acesso externo. Os dados são do escritório; aqui se escolhe o que cada pessoa alcança.\n" +
       "“Propõe” manda o pedido para Aprovações; “faz” grava direto. Configurações, contas, certificado e apagar arquivos ficam sempre só no computador do escritório.",
     html: '<div class="perm-grade">' + linhas + "</div>",
     confirmar: "Salvar permissões",
@@ -494,7 +500,7 @@ function ligarAcesso() {
     const c = conta(b.dataset.acessoConfirmar);
     if (!c) return;
     // Confirmar depois pede segredo novo: o anterior nao aparece mais.
-    if (!(await confirmar({ titulo: "Cadastrar o autenticador de novo?", contexto: "Acesso de fora › " + c.nome, texto: "O segredo mostrado no cadastro não aparece de novo. Sai um novo, para ler com o celular agora.", confirmar: "Mostrar o novo" }))) return;
+    if (!(await confirmar({ titulo: "Cadastrar o autenticador de novo?", contexto: "Acesso externo › " + c.nome, texto: "O segredo mostrado no cadastro não aparece de novo. Sai um novo, para ler com o celular agora.", confirmar: "Mostrar o novo" }))) return;
     try {
       const d = await acessoPost("/api/acesso/contas/" + c.id + "/autenticador/refazer");
       await acessoAutenticador(c, d);
@@ -504,7 +510,7 @@ function ligarAcesso() {
   clique("[data-acesso-autenticador]", async (b) => {
     const c = conta(b.dataset.acessoAutenticador);
     if (!c) return;
-    if (!(await confirmar({ titulo: "Trocar o autenticador?", contexto: "Acesso de fora › " + c.nome, texto: "Para celular novo ou perdido. O código antigo deixa de valer, e quem estiver de fora com esta conta sai.", confirmar: "Trocar", perigo: true }))) return;
+    if (!(await confirmar({ titulo: "Trocar o autenticador?", contexto: "Acesso externo › " + c.nome, texto: "Para celular novo ou perdido. O código antigo deixa de valer, e quem estiver de fora com esta conta sai.", confirmar: "Trocar", perigo: true }))) return;
     try {
       const d = await acessoPost("/api/acesso/contas/" + c.id + "/autenticador/refazer");
       await acessoAutenticador(c, d);
@@ -514,7 +520,7 @@ function ligarAcesso() {
   clique("[data-acesso-codigos]", async (b) => {
     const c = conta(b.dataset.acessoCodigos);
     if (!c) return;
-    if (!(await confirmar({ titulo: "Gerar códigos novos?", contexto: "Acesso de fora › " + c.nome, texto: "Os " + plural(c.codigos_restantes, "código", "códigos") + " que restam deixam de valer.", confirmar: "Gerar" }))) return;
+    if (!(await confirmar({ titulo: "Gerar códigos novos?", contexto: "Acesso externo › " + c.nome, texto: "Os " + plural(c.codigos_restantes, "código", "códigos") + " que restam deixam de valer.", confirmar: "Gerar" }))) return;
     try {
       const d = await acessoPost("/api/acesso/contas/" + c.id + "/recuperacao");
       await acessoMostrarCodigos(c, d.codigos_recuperacao || []);
@@ -523,7 +529,7 @@ function ligarAcesso() {
   });
   clique("[data-convite-novo]", () => acessoConvidar());
   clique("[data-convite-revogar]", async (b) => {
-    if (!(await confirmar({ titulo: "Cancelar o convite?", contexto: "Configurações › Acesso de fora",
+    if (!(await confirmar({ titulo: "Cancelar o convite?", contexto: "Configurações › Acesso externo",
       texto: "O link deixa de valer na hora. Dá para convidar de novo depois.", confirmar: "Cancelar o convite", perigo: true }))) return;
     try { await acessoPost("/api/acesso/convites/" + b.dataset.conviteRevogar, undefined, "DELETE"); avisoCert("convite cancelado", { tom: "ok" }); }
     catch (err) { avisoCert(err.message, { tom: "erro" }); }
@@ -533,7 +539,7 @@ function ligarAcesso() {
     const c = conta(b.dataset.acessoEmails);
     if (!c) return;
     const r = await dialogo({
-      titulo: "E-mails de " + c.nome, contexto: "Configurações › Acesso de fora",
+      titulo: "E-mails de " + c.nome, contexto: "Configurações › Acesso externo",
       texto: "O e-mail Google é o que entra (Gmail ou do Google Workspace). O secundário é só de contato. Trocar o e-mail Google encerra as sessões da pessoa.",
       campos: [
         { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: c.email, obrigatorio: true },
@@ -556,7 +562,7 @@ function ligarAcesso() {
     const c = conta(b.dataset.acessoSenha);
     if (!c) return;
     const r = await dialogo({
-      titulo: "Trocar a senha", contexto: "Acesso de fora › " + c.nome,
+      titulo: "Trocar a senha", contexto: "Acesso externo › " + c.nome,
       texto: "Quem estiver de fora com esta conta sai e entra de novo com a senha nova.",
       campos: [{ chave: "senha", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres" },
         { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true }],
@@ -573,7 +579,7 @@ function ligarAcesso() {
   clique("[data-acesso-remover]", async (b) => {
     const c = conta(b.dataset.acessoRemover);
     if (!c) return;
-    if (!(await confirmar({ titulo: "Remover a conta?", contexto: "Acesso de fora › " + c.nome, texto: c.nome + " deixa de entrar de fora na hora. O registro do que a conta fez continua.", confirmar: "Remover", perigo: true }))) return;
+    if (!(await confirmar({ titulo: "Remover a conta?", contexto: "Acesso externo › " + c.nome, texto: c.nome + " deixa de entrar de fora na hora. O registro do que a conta fez continua.", confirmar: "Remover", perigo: true }))) return;
     try {
       await acessoPost("/api/acesso/contas/" + c.id, undefined, "DELETE");
       avisoCert("conta removida", { tom: "ok" });
@@ -581,7 +587,7 @@ function ligarAcesso() {
     acessoRedesenhar();
   });
   clique("[data-acesso-encerrar]", async () => {
-    if (!(await confirmar({ titulo: "Encerrar todas as sessões?", contexto: "Configurações › Acesso de fora", texto: "Todo mundo que está de fora sai agora.", confirmar: "Encerrar", perigo: true }))) return;
+    if (!(await confirmar({ titulo: "Encerrar todas as sessões?", contexto: "Configurações › Acesso externo", texto: "Todo mundo que está de fora sai agora.", confirmar: "Encerrar", perigo: true }))) return;
     try {
       const d = await acessoPost("/api/acesso/sessoes/encerrar");
       avisoCert(plural(d.encerradas, "sessão encerrada", "sessões encerradas"), { tom: "ok" });

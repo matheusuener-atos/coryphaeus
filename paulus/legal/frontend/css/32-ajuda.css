@@ -6,13 +6,13 @@
   */
 
   .aj-itens { display: grid; }
-  .aj-item { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 0; font-size: 13.5px;
+  .aj-item { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 0; font-size: 13px;
     border-bottom: 1px solid var(--ink-a08); }
   .aj-item:last-child { border-bottom: none; }
   .aj-rotulo { flex: 0 0 auto; min-width: 88px; color: var(--ink2); }
   .aj-valor { flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .aj-pagina, .aj-manual { flex: none; font-size: 12px; color: var(--ink3); }
-  .aj-manual { padding: 1px 7px; border-radius: 9px; background: var(--sub); }
+  .aj-manual { padding: 1px 7px; border-radius: 8px; background: var(--sub); }
   .aj-editar { flex: none; width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center;
     justify-content: center; border: none; background: none; color: var(--ink3); opacity: 0; }
   .aj-item:hover .aj-editar, .aj-editar:focus-visible { opacity: 1; }

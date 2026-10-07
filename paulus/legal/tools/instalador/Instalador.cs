@@ -1,7 +1,8 @@
 // O instalador do PAULUS (e o desinstalador: o mesmo programa).
 //
-// Uma janela so, desenhada aqui, no padrao de docs/ui/instalacao: preto,
-// branco e cinza, sem cor de destaque; a lateral com PAVLVS e as etapas. A
+// Uma janela so, desenhada aqui, no padrao do site (site/assets/site.css):
+// as mesmas cores, o botao de moldura dupla e a marca PAVLVS em Garamond
+// com o espacamento do topo do site; a lateral com PAVLVS e as etapas. A
 // serifa (Garamond) so em PAVLVS e no titulo de cada tela; o resto em Manrope. Quatro telas: Boas-vindas,
 // Local, Instalacao, Concluido. Tudo que e escolha (modelo de IA,
 // escritorio, dados) fica para o assistente de configuracao, dentro do app.
@@ -1356,7 +1357,8 @@ static class Fontes
 
 class Tema
 {
-    public Color Bg, Lateral, Tinta, Tinta2, Tinta3, Fio, Preenche, Campo, Botao, BotaoTexto, Botao2, Barra;
+    // As cores sao as do site (site/assets/site.css): --bg, --panel, --pill, --ink, --ink2, --ink3, --line.
+    public Color Bg, Lateral, Tinta, Tinta2, Tinta3, Fio, Preenche, Campo, Botao, BotaoTexto, Botao2, Barra, Trilho, Pastilha, PastilhaEm;
 
     static Color H(string hex) { return ColorTranslator.FromHtml(hex); }
 
@@ -1372,15 +1374,17 @@ class Tema
         var t = new Tema();
         if (claro)
         {
-            t.Bg = H("#ffffff"); t.Lateral = H("#ffffff"); t.Tinta = H("#161616"); t.Tinta2 = H("#5c5c5c"); t.Tinta3 = H("#8c8c8c");
-            t.Fio = Color.FromArgb(26, 0, 0, 0); t.Preenche = H("#ededed"); t.Campo = H("#ffffff");
-            t.Botao = H("#161616"); t.BotaoTexto = H("#ffffff"); t.Botao2 = H("#ffffff"); t.Barra = H("#161616");
+            t.Bg = H("#f6f5f1"); t.Lateral = H("#f6f5f1"); t.Tinta = H("#1c1c1a"); t.Tinta2 = H("#55544f"); t.Tinta3 = H("#77766f");
+            t.Fio = Color.FromArgb(31, 28, 28, 26); t.Preenche = H("#e8e7e1"); t.Campo = H("#efeee9");
+            t.Botao = H("#1c1c1a"); t.BotaoTexto = H("#f6f5f1"); t.Botao2 = H("#efeee9"); t.Barra = H("#1c1c1a");
+            t.Trilho = H("#efeee9"); t.Pastilha = H("#e2e1db"); t.PastilhaEm = H("#dad9d2");
         }
         else
         {
-            t.Bg = H("#141414"); t.Lateral = H("#141414"); t.Tinta = H("#f2f2f2"); t.Tinta2 = H("#a3a3a3"); t.Tinta3 = H("#737373");
-            t.Fio = Color.FromArgb(26, 255, 255, 255); t.Preenche = H("#262626"); t.Campo = H("#1c1c1c");
-            t.Botao = H("#f2f2f2"); t.BotaoTexto = H("#141414"); t.Botao2 = H("#262626"); t.Barra = H("#f2f2f2");
+            t.Bg = H("#131312"); t.Lateral = H("#131312"); t.Tinta = H("#f2f1ec"); t.Tinta2 = H("#a8a69e"); t.Tinta3 = H("#6f6e68");
+            t.Fio = Color.FromArgb(26, 242, 241, 236); t.Preenche = H("#20201e"); t.Campo = H("#1a1a18");
+            t.Botao = H("#f2f1ec"); t.BotaoTexto = H("#131312"); t.Botao2 = H("#1a1a18"); t.Barra = H("#f2f1ec");
+            t.Trilho = H("#1a1a18"); t.Pastilha = H("#2a2a27"); t.PastilhaEm = H("#303030");
         }
         return t;
     }
@@ -1595,24 +1599,34 @@ class Janela : Form
         return a;
     }
 
-    /* Botao cheio (o primario) ou contornado; devolve a esquerda dele. */
+    /* O botao do site (.btn-duplo): um trilho com fio fino e, dentro, a
+       pastilha. O primario (cheio) e o secundario (contorno) tem o mesmo
+       desenho; o secundario so nao tem o trilho. Devolve a esquerda dele. */
     float Botao(Graphics g, string rotulo, float direita, float y, string id, Action fazer, bool cheio, bool contorno)
     {
-        using (Font f = Fontes.Texto(F(12.5f), 600))
+        using (Font f = Fontes.Texto(F(13.5f), 500))
         {
-            float w = Largura(g, rotulo, f) + F(cheio || contorno ? 32 : 28), h = F(32);
-            var r = new RectangleF(direita - w, y, w, h);
             bool em = sobre == id;
-            Color fundo = cheio ? (em ? Misturar(t.Botao, t.Bg, .12f) : t.Botao) : (contorno ? t.Botao2 : t.Bg);
-            Color tinta = cheio ? t.BotaoTexto : (contorno ? t.Tinta : (em ? t.Tinta : t.Tinta2));
-            if (cheio || contorno)
-                using (GraphicsPath p = Arredondado(r, F(6)))
+            float moldura = cheio ? F(3) : 0;
+            float wp = Largura(g, rotulo, f) + F(cheio || contorno ? 44 : 28), hp = F(34);
+            float w = wp + moldura * 2, h = hp + moldura * 2;
+            var r = new RectangleF(direita - w, y - moldura, w, h);
+            var pastilha = new RectangleF(r.X + moldura, r.Y + moldura, wp, hp);
+            if (cheio)
+                using (GraphicsPath p = Arredondado(r, F(10)))
                 {
-                    using (var b = new SolidBrush(fundo)) g.FillPath(b, p);
-                    if (contorno) using (var pen = new Pen(em ? t.Tinta : t.Fio, 1)) g.DrawPath(pen, p);
+                    using (var b = new SolidBrush(t.Trilho)) g.FillPath(b, p);
+                    using (var pen = new Pen(t.Fio, 1)) g.DrawPath(pen, p);
                 }
+            if (cheio || contorno)
+                using (GraphicsPath p = Arredondado(pastilha, F(8)))
+                {
+                    using (var b = new SolidBrush(em ? t.PastilhaEm : t.Pastilha)) g.FillPath(b, p);
+                    if (contorno) using (var pen = new Pen(t.Fio, 1)) g.DrawPath(pen, p);
+                }
+            Color tinta = cheio || contorno ? t.Tinta : (em ? t.Tinta : t.Tinta2);
             using (var b = new SolidBrush(tinta))
-                g.DrawString(rotulo, f, b, r.X + (w - Largura(g, rotulo, f)) / 2, y + (h - f.GetHeight(g)) / 2, Tipo);
+                g.DrawString(rotulo, f, b, pastilha.X + (wp - Largura(g, rotulo, f)) / 2, pastilha.Y + (hp - f.GetHeight(g)) / 2, Tipo);
             NovoAlvo(r, id, fazer);
             return r.X;
         }
@@ -1656,7 +1670,7 @@ class Janela : Form
         float lat = F(188);
         using (var b = new SolidBrush(t.Lateral)) g.FillRectangle(b, 0, 0, lat, H);
         using (var p = new Pen(t.Fio, 1)) g.DrawLine(p, lat - .5f, 0, lat - .5f, H);
-        using (Font marca = Fontes.Serifa(F(26), true)) Espacado(g, "PAVLVS", marca, t.Tinta, F(20), F(38), F(26 * .14f));
+        using (Font marca = Fontes.Serifa(F(20), false)) Espacado(g, "PAVLVS", marca, t.Tinta, F(20), F(40), F(20 * .12f));
         bool remocao = modoDesinstalar || tela == Tela.Desinstalar || tela == Tela.Desinstalando || tela == Tela.Desinstalado;
         string[] etapas = remocao ? new[] { "Desinstalar", "Remoção", "Concluído" } : new[] { "Boas-vindas", "Local", "Instalação", "Concluído" };
         int atual = IndiceDaEtapa();
@@ -1850,18 +1864,18 @@ class Janela : Form
         long emDisco = Pacote.TamanhoInstalado() + (o.Tunel && !temCloudflared ? Math.Max(tamanhoCloudflared, 60L << 20) : 0);
         using (Font f = Fontes.Texto(F(12), 400))
             y = Paragrafo(g, "Pelo menos " + MB(emDisco) + " livres em disco.", f, t.Tinta3, x, y, largura, F(18)) + F(14);
-        y = Caixa(g, "Criar um atalho na área de trabalho", o.AtalhoMesa, x, y, largura, "mesa", delegate { o.AtalhoMesa = !o.AtalhoMesa; Invalidate(); }) + F(10);
-        y = Caixa(g, "Adicionar ao menu Iniciar", o.MenuIniciar, x, y, largura, "iniciar", delegate { o.MenuIniciar = !o.MenuIniciar; Invalidate(); }) + F(10);
-        y = Caixa(g, "“Perguntar ao PAULUS” no botão direito do Explorer", o.Explorer, x, y, largura, "explorer", delegate { o.Explorer = !o.Explorer; Invalidate(); }) + F(10);
+        y = Caixa(g, "Criar um atalho na área de trabalho", o.AtalhoMesa, x, y, largura, "mesa", delegate { o.AtalhoMesa = !o.AtalhoMesa; Invalidate(); }) + F(8);
+        y = Caixa(g, "Adicionar ao menu Iniciar", o.MenuIniciar, x, y, largura, "iniciar", delegate { o.MenuIniciar = !o.MenuIniciar; Invalidate(); }) + F(8);
+        y = Caixa(g, "“Perguntar ao PAULUS” no botão direito do Explorer", o.Explorer, x, y, largura, "explorer", delegate { o.Explorer = !o.Explorer; Invalidate(); }) + F(8);
         if (!temOllama)
             y = Caixa(g, "Instalar o motor de IA local (Ollama · baixa " + (tamanhoOllama > 0 ? MB(tamanhoOllama) : "mais de 1 GB") + " de ollama.com)",
-                      o.Ollama, x, y, largura, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); }) + F(10);
+                      o.Ollama, x, y, largura, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); }) + F(8);
         // O cloudflared nao e escolha: vem junto, e a tela diz quanto e de onde.
         if (!temCloudflared)
-            using (Font f = Fontes.Texto(F(12), 400))
+            using (Font f = Fontes.Texto(F(11.5f), 400))
                 Paragrafo(g, "Vem junto: o cloudflared, programa da Cloudflare para o acesso à distância (baixa " +
                           (tamanhoCloudflared > 0 ? MB(tamanhoCloudflared) : "uns 55 MB") + " de github.com). Fica desligado até você ligar no PAULUS.",
-                          f, t.Tinta3, x, y, largura, F(18));
+                          f, t.Tinta3, x, y, largura, F(16));
         Rodape(g, x, rodape, true, delegate { tela = instalado != null ? Tela.JaInstalado : Tela.BoasVindas; Invalidate(); },
                true, atualizacao ? "Atualizar" : "Instalar", PedirParaInstalar);
     }
@@ -1978,8 +1992,11 @@ class Janela : Form
             float h = F(30) + F(18) + linhas.Count * F(19.5f) + (caminho != null ? linhasC.Count * F(17) + F(8) : 0) + F(18) + F(32) + F(16);
             float y = (H - h) / 2;
             var caixa = new RectangleF(x, y, w, h);
-            using (var b = new SolidBrush(t.Bg)) g.FillRectangle(b, caixa);
-            using (var p = new Pen(t.Fio, 1)) { g.DrawRectangle(p, caixa.X, caixa.Y, caixa.Width, caixa.Height); g.DrawLine(p, x, y + F(30), x + w, y + F(30)); }
+            using (GraphicsPath pc = Arredondado(caixa, F(10)))
+            {
+                using (var b = new SolidBrush(t.Campo)) g.FillPath(b, pc);
+                using (var p = new Pen(t.Fio, 1)) { g.DrawPath(p, pc); g.DrawLine(p, x, y + F(30), x + w, y + F(30)); }
+            }
             using (Font ft = Fontes.Texto(F(12), 400))
             using (var b = new SolidBrush(t.Tinta2)) g.DrawString(titulo, ft, b, x + F(12), y + (F(30) - ft.GetHeight(g)) / 2, Tipo);
             float yy = y + F(30) + F(18);

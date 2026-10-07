@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------ imprimir */
 /*
-   O dialogo de imprimir do PAULUS, no lugar do do navegador: a folha de
+   O dialogo de imprimir do Paulus, no lugar do do navegador: a folha de
    verdade (o PDF desenhado) a esquerda, e a direita impressora, copias,
    paginas, cor e frente e verso. O PDF vai direto para o spooler do Windows
    (src/impressao.py). Quem preferir a janela do Windows tem o link no canto.

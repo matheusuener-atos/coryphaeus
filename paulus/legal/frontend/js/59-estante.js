@@ -6,7 +6,7 @@
    e as chaves da Biblioteca -, nada é inventado.
 
    - Nível: pelo número de áreas com obra do escritório. Lei em casa e as
-     súmulas que vêm com o PAULUS não contam: não são livro de ninguém.
+     súmulas que vêm com o Paulus não contam: não são livro de ninguém.
    - Cada item abre a faixa da ficha no pé das estantes; na obra, o "···"
      é o menu de sempre (js/35-material.js: conferir a ficha, glossário,
      exportar, abrir, remover).
@@ -142,7 +142,7 @@ function faixaDaEstante(areas) {
       const area = areas.find((a) => a.obras.some((o) => o.id === id));
       if (oficial(item)) {
         f = { icone: "gavel", cor: "var(--fill2)", tinta: "var(--ink2)", titulo: ficha.titulo || item.nome,
-          sub: "Súmulas · " + (ficha.autor || "tribunal") + " · vêm com o PAULUS",
+          sub: "Súmulas · " + (ficha.autor || "tribunal") + " · vêm com o Paulus",
           nota: "Do PDF oficial do tribunal, sem as canceladas. Eu cito a súmula pelo número.", mais: id };
       } else {
         const sub = [ROTULO_TIPO_MAT[ficha.tipo] || "Material", ficha.autor || "", [ficha.edicao ? ficha.edicao + " ed." : "", ficha.ano || ""].filter(Boolean).join(", ")]
@@ -266,7 +266,7 @@ function desenharEstante() {
     '<span class="est-anel" style="--graus:' + nivel.graus + 'deg"><b>' + nivel.feitas + "</b></span>" +
     "<span><b>" + esc(nivel.nome) + "</b><small>" + esc(nivel.curto) + "</small></span></div>" +
     (((est.chaves || {}).biblioteca || {}).pacote
-      ? '<button type="button" class="com-icone est-pacote" data-est-pacote="1" title="Um material que outro PAULUS exportou">' +
+      ? '<button type="button" class="com-icone est-pacote" data-est-pacote="1" title="Um material que outro Paulus exportou">' +
         ic("download", 16) + "Importar pacote</button>" : "") +
     '<button type="button" class="primario com-icone" data-est-entregar="1"' + (mat.enviando.length ? " disabled" : "") + ">" +
     ic("add", 18) + "Entregar um livro</button></div></header>" +

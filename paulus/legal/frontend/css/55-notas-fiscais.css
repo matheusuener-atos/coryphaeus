@@ -5,12 +5,12 @@
   .nf-filtros { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 18px; padding: 12px 16px 4px; }
   .nf-filtros label { display: grid; gap: 4px; font: 500 12px var(--sans); color: var(--ink3); }
   .nf-filtros input, .nf-filtros select { min-width: 160px; }
-  .nf-filtros input { box-sizing: border-box; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15, var(--ink-a1)); border-radius: 10px;
+  .nf-filtros input { box-sizing: border-box; height: 36px; padding: 0 12px; border: 1px solid var(--ink-a15, var(--ink-a1)); border-radius: 12px;
     background: var(--surf); color: var(--ink); font: 400 14px var(--sans); color-scheme: inherit; }
   .nf-secao > .sv-dica { margin: 10px 16px 8px; }
   .nf-rolagem { overflow-x: auto; padding: 6px 0 0; }
-  .nf-tabela { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  .nf-tabela th { text-align: left; padding: 8px 16px; font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3);
+  .nf-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .nf-tabela th { text-align: left; padding: 8px 16px; font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink3);
     border-bottom: 1px solid var(--ink-a08); white-space: nowrap; }
   .nf-tabela td { padding: 10px 16px; border-bottom: 1px solid var(--ink-a08); color: var(--ink); vertical-align: middle; white-space: nowrap; }
   .nf-tabela tbody tr:last-child td { border-bottom: 0; }
@@ -18,12 +18,12 @@
   .nf-num, .nf-valor { font-variant-numeric: tabular-nums; }
   .nf-valor { text-align: right; }
   .nf-cliente { white-space: normal !important; min-width: 160px; }
-  .nf-abrir { padding: 0; border: 0; background: none !important; font: 600 13.5px var(--sans); color: var(--ink); text-align: left; cursor: pointer;
+  .nf-abrir { padding: 0; border: 0; background: none !important; font: 600 13px var(--sans); color: var(--ink); text-align: left; cursor: pointer;
     text-decoration: underline; text-decoration-color: var(--ink-a15, var(--ink-a1)); text-underline-offset: 3px; }
   .nf-abrir:hover:not(:disabled) { border: 0; text-decoration-color: currentColor; }
   .nf-acoes { text-align: right; }
-  .nf-acoes button { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; height: 30px; margin: 0 0 0 6px; padding: 0 10px;
-    font-size: 12.5px; line-height: 1; vertical-align: middle; }
+  .nf-acoes button { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; height: 28px; margin: 0 0 0 6px; padding: 0 10px;
+    font-size: 12px; line-height: 1; vertical-align: middle; }
   .nf-estado { display: inline-block; padding: 2px 10px; border-radius: 999px; font: 500 12px var(--sans); background: var(--fill); color: var(--ink2); }
   .nf-estado.ok { background: var(--okbg); color: var(--okt); }
   .nf-estado.ruim { background: var(--accbg); color: var(--acc); }
@@ -32,15 +32,15 @@
   .nf-estado.neutro { color: var(--ink3); }
   /* As abas Emitidas e Recebidas, no lugar das visões do topo: não encolhem. */
   .nf-abas { flex: none; }
-  .nf-amb { font-size: 12.5px; color: var(--ink2); }
+  .nf-amb { font-size: 12px; color: var(--ink2); }
   .nf-amb-teste { color: var(--warnt); }
-  .nf-aviso { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; border-radius: 10px;
-    background: var(--warnbg); color: var(--warnt); font-size: 13.5px; }
+  .nf-aviso { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; border-radius: 12px;
+    background: var(--warnbg); color: var(--warnt); font-size: 13px; }
   .nf-aviso span:not(.ic) { flex: 1; min-width: 200px; }
   .nf-vazio { display: grid; justify-items: start; gap: 10px; max-width: 64ch; margin: 24px 0; padding: 28px; border: 1px solid var(--ink-a1);
     border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
   .nf-vazio > .ic { color: var(--ink3); }
-  .nf-vazio h2 { margin: 0; font: 400 26px/1.2 var(--serif); color: var(--ink); }
+  .nf-vazio h2 { margin: 0; font: 600 32px/1.2 var(--sans); color: var(--ink); }
   .nf-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
   .nf-vazio .linha-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   @media (max-width: 700px) {

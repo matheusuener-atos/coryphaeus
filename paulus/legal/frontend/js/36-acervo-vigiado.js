@@ -2,9 +2,9 @@
 /*
    O Acervo mostra as pastas do computador que ele VIGIA, onde elas estão
    (src/api.py, /api/acervo/*). Nada é movido nem copiado para dentro do
-   PAULUS: incluir uma pasta é passar a lê-la; tirar é deixar de ler.
+   Paulus: incluir uma pasta é passar a lê-la; tirar é deixar de ler.
 
-   - Incluir pasta: o seletor de pastas do PAULUS e "Vigiar esta pasta".
+   - Incluir pasta: o seletor de pastas do Paulus e "Vigiar esta pasta".
    - Tirar do Acervo (pasta ou documento): o arquivo fica no computador, só
      sai da leitura. O documento tirado volta pela lista "fora do Acervo" ou
      pelo Desfazer do aviso.
@@ -202,8 +202,8 @@ async function tirarDoAcervo(caminhos) {
   const pedido = dialogo({
     titulo: "Tirar " + quais + " do Acervo?", contexto: "Acervo",
     texto: (n === 1
-      ? "O arquivo não é excluído: continua no computador, onde está, e só deixa de ser lido pelo PAULUS."
-      : "Os arquivos não são excluídos: continuam no computador, onde estão, e só deixam de ser lidos pelo PAULUS.") +
+      ? "O arquivo não é excluído: continua no computador, onde está, e só deixa de ser lido pelo Paulus."
+      : "Os arquivos não são excluídos: continuam no computador, onde estão, e só deixam de ser lidos pelo Paulus.") +
       " Dá para devolver depois.",
     marcar: { rotulo: "Também excluir do computador (vai para a Lixeira do Windows)", marcada: false },
     confirmar: "Tirar do Acervo",
@@ -260,7 +260,7 @@ async function mostrarForaDoAcervo() {
     (x.existe ? '<button data-devolver="' + i + '">Devolver</button>' : "") + "</div>").join("");
   const aberto = dialogo({
     titulo: "Fora do Acervo", contexto: "Acervo", classe: "dialogo-anexar",
-    html: '<p class="dialogo-dica">Estes documentos continuam no computador; só não são lidos pelo PAULUS.</p><div class="anx-lista">' + linhas + "</div>",
+    html: '<p class="dialogo-dica">Estes documentos continuam no computador; só não são lidos pelo Paulus.</p><div class="anx-lista">' + linhas + "</div>",
     confirmar: "Devolver todos",
     aoConfirmar: () => dialogoAberto.fechar({ todos: true }),
   });

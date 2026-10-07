@@ -183,7 +183,7 @@ function fcnAcessoDe(f) {
   const email = String(f.email || "").toLowerCase();
   if (!email) return ["sem e-mail", ""];
   const conta = (l.contas || []).find((c) => String(c.email || "").toLowerCase() === email);
-  if (conta) return conta.papel === "titular" ? ["acesso total", "ok"] : ["entra no PAULUS", "ok"];
+  if (conta) return conta.papel === "titular" ? ["acesso total", "ok"] : ["entra no Paulus", "ok"];
   const convite = (l.convites || []).find((c) => String(c.email || "").toLowerCase() === email && !c.usado);
   if (convite) return ["convite enviado", "ambar"];
   return ["sem acesso", ""];
@@ -207,7 +207,7 @@ function cartaoDaEquipe(semNova) {
   const mesDoInicio = v.inicio ? MESES_PT_LONGOS[Number(v.inicio.slice(5, 7)) - 1] : "";
   return '<div class="fcn-tabela"><div class="fcn-tabela-cabeca"><b>Equipe</b><span class="vazio-flex"></span><small>' +
     plural(socios, "sócio") + " · " + plural(colab, "colaborador", "colaboradores") + (semNova ? "" : " · a nova pessoa aparece marcada") + "</small></div>" +
-    '<div class="fcn-linha fcn-eq fcn-titulos"><span>Nome e função</span><span>Papel</span><span>Acesso ao PAULUS</span><span class="fcn-num">Na folha</span></div>' +
+    '<div class="fcn-linha fcn-eq fcn-titulos"><span>Nome e função</span><span>Papel</span><span>Acesso ao Paulus</span><span class="fcn-num">Na folha</span></div>' +
     fichas.map((f) => linha(f.nome, f.observacao, f.tipo === "socio" ? "Sócio" : "Colaborador", fcnAcessoDe(f), fcnFolhaDe(f), false)).join("") +
     (semNova ? "" : linha(v.nome, (v.funcao || "") + inicio, v.tipo === "socio" ? "Sócio" : "Colaborador", acessoNovo, novoCentavos, true)) +
     '<div class="fcn-tabela-pe"><small>' + plural(fichas.length + (semNova ? 0 : 1), "pessoa") + "</small><span class=\"vazio-flex\"></span>" +
@@ -365,10 +365,10 @@ function htmlDaFicha() {
           fcnCampo("vinculo", "Vínculo", { opcoes: FCN_VINCULOS })
         : "") + "</div>" +
       (local
-        ? '<div class="fcn-caixa">' + fcnInterruptor("convidar", "Convidar para o PAULUS", "o link de entrada nasce quando você salvar") +
+        ? '<div class="fcn-caixa">' + fcnInterruptor("convidar", "Convidar para o Paulus", "o link de entrada nasce quando você salvar") +
           (v.convidar ? '<span class="fcn-rotulo">O que este papel pode</span><ul class="fcn-pode">' + pode.map(([ok, texto]) =>
             '<li class="' + (ok ? "ok" : "nao") + '">' + ic(ok ? "check_circle" : "close", 15) + esc(texto) + "</li>").join("") + "</ul>" +
-            '<small class="fcn-dica">Muda depois em Configurações › Acesso de fora › Pessoas.</small>' : "") + "</div>"
+            '<small class="fcn-dica">Muda depois em Configurações › Acesso externo › Pessoas.</small>' : "") + "</div>"
         : "");
     pe = '<button type="button" class="fantasma" data-fcn-nao="1">Cancelar</button>' +
       '<button type="button" class="primario" data-fcn-salvar="1">' + ic("check", 16) + (v.convidar && local ? "Salvar e convidar" : "Salvar") + "</button>";

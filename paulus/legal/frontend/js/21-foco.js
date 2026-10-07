@@ -518,7 +518,7 @@ function parecerDaSemana() {
   const sugestoes = [];
   const agua = (be.dados.lembretes || []).find((l) => /água|agua/i.test(l.titulo));
   if (aguaAbaixo && agua && agua.cada_min > 45) sugestoes.push({ texto: "Lembrete de água a cada 45 min em vez de " + horasEmTexto(agua.cada_min) + ".", tarefa: "Ajustar o lembrete de água para 45 min" });
-  else if (aguaAbaixo) sugestoes.push({ texto: "Marcar “Bebi” quando beber: a meta de 8 copos só sobe com o registro.", tarefa: "Registrar a água no PAULUS" });
+  else if (aguaAbaixo) sugestoes.push({ texto: "Marcar “Bebi” quando beber: a meta de 8 copos só sobe com o registro.", tarefa: "Registrar a água no Paulus" });
   if (pausasMedia < 3) sugestoes.push({ texto: "Fechar cada ciclo com a pausa — hoje a média é " + String(Math.round(pausasMedia * 10) / 10).replace(".", ",") + " por dia.", tarefa: "Fazer as pausas entre os ciclos de foco" });
   if (s.maior_seguida > 120) sugestoes.push({ texto: "Houve mais de 2 h sem parar: o alerta de pausa entra aos 90 min, aceite quando ele aparecer.", tarefa: "Aceitar o alerta de pausa aos 90 min" });
   if (comDado.length < 5) sugestoes.push({ texto: "Ligar o acompanhamento todos os dias úteis, para o parecer da semana valer.", tarefa: "Ligar o acompanhamento de foco ao começar o dia" });

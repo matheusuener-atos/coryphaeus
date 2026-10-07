@@ -220,9 +220,9 @@ function desenharArvore() {
   const rolagem = lista.scrollTop;
   const t = arv.topo;
   lista.innerHTML =
-    // No topo, as pastas que o proprio PAULUS le: e por elas que se
+    // No topo, as pastas que o proprio Paulus le: e por elas que se
     // reorganiza o acervo que ja esta no sistema.
-    ((t.acervo || []).length ? '<div class="nav-grupo">Acervo PAULUS</div>' +
+    ((t.acervo || []).length ? '<div class="nav-grupo">Acervo Paulus</div>' +
       t.acervo.map((a) => noDaArvore(Object.assign({ cam: a.caminho }, a), 0)).join("") : "") +
     (t.atalhos.length ? '<div class="nav-grupo">Começar por</div>' +
       t.atalhos.map((a) => noDaArvore(Object.assign({ cam: a.caminho }, a), 0)).join("") : "") +

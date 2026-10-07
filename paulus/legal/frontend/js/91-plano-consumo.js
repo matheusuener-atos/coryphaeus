@@ -14,7 +14,7 @@
    Os numeros do ciclo sao os do Worker (a conta que vale para a cobranca);
    quem gastou e em que sai do registro de envios deste computador
    (src/consumo.py). A equipe (titular, colaborador, convite) e a de
-   Configuracoes › Acesso de fora (js/46-equipe.js). So na janela do
+   Configuracoes › Acesso externo (js/46-equipe.js). So na janela do
    escritorio: o historico mostra o comeco das perguntas de cada pessoa.
 */
 
@@ -109,7 +109,7 @@ function blocoGeral(d, c) {
   if (!c) {
     const motivo = d.erro
       ? "Sem conseguir falar com paulus.ia.br agora (" + esc(d.erro) + "): os números do plano voltam quando a internet voltar."
-      : "A conta da IA ainda não está ligada neste PAULUS. Ligue com a conta Google em Configurações › Modelos, ou assine em paulus.ia.br/assinatura.";
+      : "A conta da IA ainda não está ligada neste Paulus. Ligue com a conta Google em Configurações › Modelos, ou assine em paulus.ia.br/assinatura.";
     return '<header class="pc-geral"><span class="pc-rotulo">Consumo do ciclo</span><p class="pc-texto">' + motivo + "</p>" +
       '<div class="linha-form"><button class="primario" data-pc-ir="modelos">Abrir Configurações › Modelos</button></div></header>';
   }
@@ -130,7 +130,7 @@ function blocoGeral(d, c) {
   const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
   const sem = c.plano_vigente ? c.semana : null;
   const alertas = (d.painel.alertas || []).map((a) => '<p class="pc-alerta-linha">' + ic("error", 16) + esc(a) + "</p>").join("") +
-    (c.plano_vigente ? "" : '<p class="pc-alerta-linha">' + ic("error", 16) + "Sem o plano em dia, o PAULUS funciona sem IA.</p>");
+    (c.plano_vigente ? "" : '<p class="pc-alerta-linha">' + ic("error", 16) + "Sem o plano em dia, o Paulus funciona sem IA.</p>");
   return '<header class="pc-geral' + classe + '" aria-labelledby="pc-t-geral">' +
     '<div class="pc-geral-topo"><span class="pc-rotulo" id="pc-t-geral">Consumo do ciclo</span>' +
     '<span class="pc-chip">' + esc(plano) + " · " + esc(renova) + "</span></div>" +
@@ -174,7 +174,7 @@ async function adiantarSemana() {
 
 /* --------------------------------------------- 2. quem esta consumindo */
 
-/* A conta de acesso (Configuracoes › Acesso de fora) de quem aparece no
+/* A conta de acesso (Configuracoes › Acesso externo) de quem aparece no
    consumo: o id e o mesmo. 0 e a janela do escritorio, sem conta. */
 function contaDaPessoa(id) {
   return typeof eqp !== "undefined" ? (eqp.contas || []).find((c) => Number(c.id) === Number(id)) : null;
@@ -296,7 +296,7 @@ async function tirarAcesso(id) {
   if (!conta) return;
   const ok = await confirmar({
     titulo: "Tirar o acesso de " + conta.nome + "?", contexto: "Plano e consumo",
-    texto: "A conta deixa de entrar no PAULUS, e quem estiver dentro sai agora. O que a pessoa fez fica, e o consumo dela no histórico também.\nPara voltar, é só convidar de novo.",
+    texto: "A conta deixa de entrar no Paulus, e quem estiver dentro sai agora. O que a pessoa fez fica, e o consumo dela no histórico também.\nPara voltar, é só convidar de novo.",
     confirmar: "Tirar o acesso", perigo: true });
   if (!ok) return;
   try {
@@ -575,15 +575,15 @@ async function pedirNotaFiscal() {
   const c = pc.dados.conta || {};
   if (typeof telaEscrever !== "function") { window.open("mailto:" + PC_CONTATO); return; }
   marcarDestino("caixa");
-  await telaEscrever({ para: PC_CONTATO, assunto: "Nota fiscal da assinatura do PAULUS",
-    corpo: "Olá! Peço a nota fiscal da assinatura do PAULUS (plano " + ((c.plano || {}).nome || "") + ", conta " + (c.email || "") + ").\n\n" +
+  await telaEscrever({ para: PC_CONTATO, assunto: "Nota fiscal da assinatura do Paulus",
+    corpo: "Olá! Peço a nota fiscal da assinatura do Paulus (plano " + ((c.plano || {}).nome || "") + ", conta " + (c.email || "") + ").\n\n" +
       "Os dados para a nota (CPF ou CNPJ) são os do cadastro em paulus.ia.br/cadastro.\n\nObrigado." });
 }
 
 async function cancelarAssinatura() {
   const k = cicloDe(pc.dados.conta);
   const ok = await confirmar({ titulo: "Cancelar a assinatura?", contexto: "Plano e consumo",
-    texto: "Nada mais é cobrado. Os tokens do ciclo pago continuam valendo até " + (pcData(k.fim) || "o fim dele") + "; depois, o PAULUS segue sem IA. Os seus documentos e conversas ficam neste computador.",
+    texto: "Nada mais é cobrado. Os tokens do ciclo pago continuam valendo até " + (pcData(k.fim) || "o fim dele") + "; depois, o Paulus segue sem IA. Os seus documentos e conversas ficam neste computador.",
     confirmar: "Cancelar a assinatura", cancelar: "Manter", perigo: true });
   if (!ok) return;
   const r = await nuvemPost("/api/nuvem/paulus/cancelar", {});
@@ -597,7 +597,7 @@ async function cancelarAssinatura() {
 async function desistirDoPlano() {
   const des = (pc.dados.conta || {}).desistencia || {};
   const ok = await confirmar({ titulo: "Desistir do plano?", contexto: "Plano e consumo",
-    texto: "Você recebe " + reais(des.valor) + " de volta, no cartão ou no Pix em que pagou (o banco leva alguns dias para mostrar). O plano acaba agora e o PAULUS segue sem a IA da nuvem; " +
+    texto: "Você recebe " + reais(des.valor) + " de volta, no cartão ou no Pix em que pagou (o banco leva alguns dias para mostrar). O plano acaba agora e o Paulus segue sem a IA da nuvem; " +
       "os seus documentos e conversas ficam neste computador. A desistência por aqui é uma vez por CPF ou CNPJ.",
     confirmar: "Desistir e receber de volta", cancelar: "Manter o plano", perigo: true });
   if (!ok) return;

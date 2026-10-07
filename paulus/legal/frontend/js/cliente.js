@@ -2,12 +2,12 @@
 /*
    A Area do cliente (docs/PLANO-AREA-CLIENTE.md, src/area_cliente.py): a
    pagina que o cliente abre pelo link do escritorio (frontend/cliente.html) e
-   a previa "Ver como o cliente", dentro do PAULUS (js/94-area-cliente.js).
+   a previa "Ver como o cliente", dentro do Paulus (js/94-area-cliente.js).
    As duas desenham pela mesma funcao e a mesma resposta da API - o advogado
    ve o que o cliente ve, e nao uma imitacao.
 
    Tudo mora dentro de window.AreaCliente: este arquivo entra tambem no
-   index.html do PAULUS, e nenhum nome daqui pode esbarrar num de la.
+   index.html do Paulus, e nenhum nome daqui pode esbarrar num de la.
 
    Na pagina do cliente: entrar (e-mail -> codigo), a lista das pastas (com
    mais de uma) e a pasta - "Para voce", o resumo, as proximas datas, o
@@ -34,6 +34,36 @@ window.AreaCliente = (function () {
     });
   }
 
+  // O calendario do Admin (mes, setas, dias da semana, hoje marcado, dias passados apagados), para escolher um dia so.
+  var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  function isoDe(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function montarCalRemarcar(form) {
+    var caixa = form.querySelector("[data-pcl-cal]"); if (!caixa) return;
+    var base = new Date(); base.setDate(1);
+    var mes = form._mes || base;
+    var hoje = isoDe(new Date());
+    var ini = new Date(mes.getFullYear(), mes.getMonth(), 1), comeco = new Date(ini); comeco.setDate(1 - ini.getDay());
+    var h = '<div class="pcl-cal-topo"><button type="button" class="pcl-btn-icone" data-pcl-cal-mes="-1" aria-label="Mês anterior"' + (mes <= base ? " disabled" : "") + ">" + ic("chevron_left") + "</button><b>" + MESES[mes.getMonth()] + " " + mes.getFullYear() + '</b><button type="button" class="pcl-btn-icone" data-pcl-cal-mes="1" aria-label="Próximo mês">' + ic("chevron_right") + "</button></div>" +
+      '<div class="pcl-cal-grade">' + ["D", "S", "T", "Q", "Q", "S", "S"].map(function (s) { return '<span class="pcl-cal-sem">' + s + "</span>"; }).join("");
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(comeco); d.setDate(comeco.getDate() + i); var iso = isoDe(d);
+      var fora = d.getMonth() !== mes.getMonth(), antes = iso < hoje, fim = d.getDay() === 0 || d.getDay() === 6;
+      h += '<button type="button" class="pcl-cal-dia' + (fora ? " fora" : "") + (iso === hoje ? " hoje" : "") + (iso === form.dataset.dia ? " on" : "") + '" data-pcl-dia="' + iso + '"' + (antes || fim ? " disabled" : "") + ">" + d.getDate() + "</button>";
+    }
+    caixa.innerHTML = h + "</div>";
+    caixa.querySelectorAll("[data-pcl-cal-mes]").forEach(function (b) { b.onclick = function () { form._mes = new Date(mes.getFullYear(), mes.getMonth() + Number(b.dataset.pclCalMes), 1); montarCalRemarcar(form); }; });
+    caixa.querySelectorAll("[data-pcl-dia]").forEach(function (b) { b.onclick = function () { form.dataset.dia = b.dataset.pclDia; montarCalRemarcar(form); escolhaRemarcar(form); }; });
+    form.querySelectorAll("[data-pcl-periodo]").forEach(function (b) {
+      b.onclick = function () { form.dataset.periodo = b.dataset.pclPeriodo; form.querySelectorAll("[data-pcl-periodo]").forEach(function (x) { var on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-checked", on); }); escolhaRemarcar(form); };
+    });
+  }
+  function escolhaRemarcar(form) {
+    var p = form.querySelector("[data-pcl-escolha]"); if (!p || !form.dataset.dia) return;
+    var d = new Date(form.dataset.dia + "T12:00");
+    p.classList.remove("falta");
+    p.textContent = "Vamos pedir: " + d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }) + ", " + (form.dataset.periodo || "Qualquer horário").toLowerCase() + ".";
+  }
+  function iniciaisDe(n) { var p = String(n || "").trim().split(/\s+/).filter(Boolean); return p.length ? (p.length > 1 ? p[0][0] + p[p.length - 1][0] : p[0].slice(0, 2)).toUpperCase() : "?"; }
   function ic(nome) {
     return '<span class="ic" aria-hidden="true">' + nome + "</span>";
   }
@@ -102,8 +132,13 @@ window.AreaCliente = (function () {
         estado +
         '<div class="pcl-acoes"><button type="button" class="pcl-botao primario" data-pcl-confirmar="' + p.id + '"' + desabilitado(ctx) + ">" + ic("check_circle") + "Confirmo</button>" +
         (c.resposta === "remarcar" ? "" : '<button type="button" class="pcl-botao" data-pcl-remarcar="' + p.id + '"' + desabilitado(ctx) + ">Preciso remarcar</button>") + "</div>" +
-        '<form class="pcl-remarcar" data-pcl-remarcar-form="' + p.id + '" hidden><div class="pcl-campo"><label for="pcl-sug-' + p.id + '">Que dia e horário ficam melhor?</label>' +
-        '<input id="pcl-sug-' + p.id + '" type="text" maxlength="300" placeholder="Ex.: quinta à tarde, depois das 15h" autocomplete="off"></div>' +
+        '<form class="pcl-remarcar" data-pcl-remarcar-form="' + p.id + '" hidden><span class="pcl-remarcar-tit">Pedir para remarcar</span>' +
+        '<div class="pcl-remarcar-grade"><div class="pcl-campo"><label>Que dia fica melhor?</label><div class="pcl-cal" data-pcl-cal="1"></div></div>' +
+        '<div class="pcl-remarcar-lado"><div class="pcl-campo"><label>Em que período?</label><div class="pcl-periodos" role="radiogroup">' +
+        ["Manhã", "Tarde", "Qualquer horário"].map(function (t, i) { return '<button type="button" class="pcl-periodo' + (i === 2 ? " on" : "") + '" role="radio" aria-checked="' + (i === 2) + '" data-pcl-periodo="' + t + '">' + t + "</button>"; }).join("") + "</div></div>" +
+        '<div class="pcl-campo"><label for="pcl-sug-' + p.id + '">Algo mais? (opcional)</label>' +
+        '<input id="pcl-sug-' + p.id + '" type="text" maxlength="300" placeholder="Ex.: depois das 15h" autocomplete="off"></div>' +
+        '<p class="pcl-remarcar-escolha" data-pcl-escolha="1">Escolha um dia no calendário.</p></div></div>' +
         '<div class="pcl-acoes"><button type="submit" class="pcl-botao primario">Mandar</button><button type="button" class="pcl-botao" data-pcl-remarcar-fechar="' + p.id + '">Voltar</button></div></form>' +
         "</div>";
     }
@@ -172,96 +207,104 @@ window.AreaCliente = (function () {
       (ctx.previa ? "" : '<button type="button" class="pcl-botao-leve" data-pcl-sair="1">' + ic("logout") + "Sair</button>") + "</div>";
     var cabeca = '<header class="pcl-cabeca"><span class="pcl-kicker">' + esc(v.escritorio || "Seu escritório") + "</span>" +
       "<h1>" + esc(p.nome) + "</h1>" +
-      (v.responsavel ? '<p class="pcl-sub">Quem cuida: ' + esc(v.responsavel) + "</p>" : "") +
+      (v.responsavel ? '<p class="pcl-sub">Quem cuida: <span class="pcl-pessoa" tabindex="0">' + esc(v.responsavel) +
+        '<span class="pcl-balao" role="tooltip"><span class="pcl-avatar">' + esc(iniciaisDe(v.responsavel)) + '</span><span class="pcl-balao-txt"><b>' + esc(v.responsavel) + "</b><small>" + esc(v.escritorio || "Seu escritório") + " · cuida desta pasta</small></span></span></span></p>" : "") +
       '<div class="pcl-situacao"><span class="' + classeDoStatus(p.status) + '">' + esc(p.status_rotulo) + "</span>" +
       (v.andamento.length ? '<span class="pcl-barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p.progresso + '"><i style="width:' + p.progresso + '%"></i></span>' +
         '<span class="pcl-pct">' + p.progresso + "%</span>" : "") + "</div></header>";
 
-    var partes = [topo, cabeca];
-    if (v.pendencias.length) {
-      partes.push('<div class="pcl-pendencias">' + secao("Para você", plural(v.pendencias.length, "pendência", "pendências"),
-        '<div class="pcl-cartao">' + v.pendencias.map(function (x) { return pendencia(x, ctx); }).join("") + "</div>") + "</div>");
-    }
-    if (v.resumo && v.resumo.texto) {
-      partes.push(secao("Resumo", v.resumo.em ? "escrito em " + dataCurta(v.resumo.em) : "", '<div class="pcl-cartao"><p class="pcl-texto">' + esc(v.resumo.texto) + "</p></div>"));
-    }
-    partes.push(secao("Próximas datas", "", '<div class="pcl-cartao">' +
-      (v.datas.length ? v.datas.map(function (d) { return linhaDeData(d, ctx); }).join("") : '<p class="pcl-vazio">Nenhuma data marcada por enquanto.</p>') + "</div>"));
-    partes.push(secao("Andamento", v.andamento.length ? v.andamento.filter(function (e) { return e.feita; }).length + " de " + v.andamento.length : "",
-      '<div class="pcl-cartao">' + (v.andamento.length ? v.andamento.map(linhaDeEtapa).join("") : '<p class="pcl-vazio">O escritório ainda não registrou as etapas.</p>') + "</div>"));
-    partes.push(secao("Documentos", "", '<div class="pcl-cartao">' +
-      (v.documentos.length ? v.documentos.map(linhaDeDocumento).join("") : '<p class="pcl-vazio">Nenhum documento compartilhado ainda.</p>') + "</div>"));
+    // Largura e paineis da Visao geral do Admin: o que pede acao e a conversa na coluna larga; datas, andamento e documentos ao lado.
+    var painel = function (rot, dir, miolo) { return '<section class="pcl-painel"><div class="pcl-painel-cab"><span class="pcl-rotulo">' + esc(rot) + "</span>" + (dir ? '<span class="pcl-cab-dir">' + esc(dir) + "</span>" : "") + "</div>" + miolo + "</section>"; };
+    var esq = [], dir = [];
+    if (v.pendencias.length) esq.push(painel("Para você", plural(v.pendencias.length, "pendência", "pendências"), '<div class="pcl-cartao">' + v.pendencias.map(function (x) { return pendencia(x, ctx); }).join("") + "</div>"));
+    if (v.resumo && v.resumo.texto) esq.push(painel("Resumo", v.resumo.em ? "escrito em " + dataCurta(v.resumo.em) : "", '<div class="pcl-cartao"><p class="pcl-texto">' + esc(v.resumo.texto) + "</p></div>"));
     var conversa = '<div class="pcl-cartao"><div class="pcl-conversa" id="pcl-conversa">' +
       (v.mensagens.length ? v.mensagens.map(mensagem).join("") : '<p class="pcl-vazio">Escreva ao escritório por aqui. Quando responderem, você recebe um e-mail.</p>') + "</div>" +
       '<form class="pcl-escrever" data-pcl-escrever="1">' +
       '<button type="button" class="pcl-icone-botao" data-pcl-anexar="1" title="Mandar um arquivo" aria-label="Mandar um arquivo"' + desabilitado(ctx) + ">" + ic("attach_file") + "</button>" +
       '<textarea rows="1" maxlength="4000" placeholder="Escreva ao escritório…" aria-label="Mensagem ao escritório"' + (ctx.previa ? " disabled" : "") + "></textarea>" +
       '<button type="submit" class="pcl-icone-botao primario" title="Mandar" aria-label="Mandar"' + desabilitado(ctx) + ">" + ic("send") + "</button></form></div>";
-    partes.push(secao("Conversa com o escritório", "", conversa));
-    partes.push('<p class="pcl-aviso-registro">' + ic("visibility") + "<span>O escritório vê quando você entra, abre, baixa ou imprime um documento. Cada página aberta leva o seu nome e a hora.</span></p>");
+    esq.push(painel("Conversa com o escritório", "", conversa));
+    dir.push(painel("Próximas datas", v.datas.length ? String(v.datas.length) : "", '<div class="pcl-cartao">' +
+      (v.datas.length ? v.datas.map(function (d) { return linhaDeData(d, ctx); }).join("") : '<p class="pcl-vazio">Nenhuma data marcada por enquanto.</p>') + "</div>"));
+    dir.push(painel("Andamento", v.andamento.length ? v.andamento.filter(function (e) { return e.feita; }).length + " de " + v.andamento.length : "",
+      '<div class="pcl-cartao">' + (v.andamento.length ? v.andamento.map(linhaDeEtapa).join("") : '<p class="pcl-vazio">O escritório ainda não registrou as etapas.</p>') + "</div>"));
+    dir.push(painel("Documentos", v.documentos.length ? String(v.documentos.length) : "", '<div class="pcl-cartao">' +
+      (v.documentos.length ? v.documentos.map(linhaDeDocumento).join("") : '<p class="pcl-vazio">Nenhum documento compartilhado ainda.</p>') + "</div>"));
+    var aviso = '<p class="pcl-aviso-registro">' + ic("visibility") + "<span>O escritório vê quando você entra, abre, baixa ou imprime um documento. Cada página aberta leva o seu nome e a hora.</span></p>";
     var faixa = ctx.previa ? '<p class="pcl-previa-faixa">Prévia: é assim que ' + esc(ctx.nomeDoCliente || "o cliente") + " vê esta pasta. Os botões funcionam só para ele.</p>" : "";
-    return faixa + '<div class="pcl-coluna">' + partes.join("") + "</div>" +
+    return faixa + '<div class="pcl-coluna pcl-larga pcl-pasta-tela">' + topo + cabeca +
+      '<div class="pcl-pasta-grade"><div class="pcl-pilha">' + esq.join("") + '</div><div class="pcl-pilha">' + dir.join("") + "</div></div>" + aviso + "</div>" +
       '<input type="file" id="pcl-arquivo" hidden accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.txt">';
   }
 
   /* -------------------------------------------- o documento aberto */
 
   function abrirDocumento(raiz, doc, urlPagina, urlBaixar, servicoId) {
+    // As paginas uma depois da outra, numa coluna que rola; o contador acompanha a pagina que esta a vista.
     var visor = document.createElement("div");
     visor.className = "pcl-visor";
     visor.setAttribute("role", "dialog");
     visor.setAttribute("aria-label", doc.nome);
     var pdf = /\.pdf$/i.test(doc.nome);
     visor.innerHTML = '<div class="pcl-visor-topo"><button type="button" class="pcl-botao-leve" data-pcl-fechar="1" aria-label="Fechar">' + ic("close") + "</button>" +
-      "<b>" + esc(doc.nome) + "</b>" +
+      "<b>" + esc(doc.nome) + '</b><span class="pcl-visor-num" data-pcl-num="1">…</span>' +
       (urlBaixar ? '<a class="pcl-botao-leve" href="' + esc(urlBaixar) + '" data-pcl-baixar="1">' + ic("download") + "Baixar</a>" : "") + "</div>" +
-      '<div class="pcl-visor-pagina"><img alt="Página do documento"></div>' +
-      '<div class="pcl-visor-pe"><button type="button" class="pcl-botao-leve" data-pcl-ant="1" aria-label="Página anterior">' + ic("chevron_left") + "</button>" +
-      '<span data-pcl-num="1">…</span><button type="button" class="pcl-botao-leve" data-pcl-prox="1" aria-label="Próxima página">' + ic("chevron_right") + "</button></div>" +
+      '<div class="pcl-visor-paginas" data-pcl-paginas="1"></div>' +
       '<div class="pcl-visor-pe"><small>' + (pdf || !urlBaixar ? "Cada página leva o nome de quem abriu e a hora." :
         "Cada página aqui leva o nome de quem abriu e a hora. O arquivo baixado vai no formato original, sem a marca.") + "</small></div>";
     raiz.appendChild(visor);
-    var img = visor.querySelector("img");
+    var lista = visor.querySelector("[data-pcl-paginas]");
     var num = visor.querySelector("[data-pcl-num]");
-    var atual = 1;
-    var total = 1;
-    var urlVelha = "";
-    function mostrar(n) {
-      num.textContent = "carregando…";
-      fetch(urlPagina(doc.sha1, n), { credentials: "same-origin" }).then(function (r) {
+    var urls = [], total = 1, fechado = false, olho = null;
+    function pagina(n) {
+      var fig = document.createElement("div");
+      fig.className = "pcl-visor-pagina"; fig.dataset.n = n;
+      fig.innerHTML = '<img alt="Página ' + n + ' do documento"><span class="pcl-visor-carregando">carregando…</span>';
+      lista.appendChild(fig);
+      return fetch(urlPagina(doc.sha1, n), { credentials: "same-origin" }).then(function (r) {
         if (!r.ok) throw new Error(r.status === 401 ? "sessao" : "erro");
-        total = Number(r.headers.get("x-paginas") || 1) || 1;
+        if (n === 1) total = Number(r.headers.get("x-paginas") || 1) || 1;
         return r.blob();
       }).then(function (b) {
-        if (urlVelha) URL.revokeObjectURL(urlVelha);
-        urlVelha = URL.createObjectURL(b);
-        img.src = urlVelha;
-        atual = n;
-        num.textContent = n + " de " + total;
+        if (fechado) return;
+        var u = URL.createObjectURL(b); urls.push(u);
+        fig.querySelector("img").src = u;
+        var c = fig.querySelector(".pcl-visor-carregando"); if (c) c.remove();
+        if (olho) olho.observe(fig);
       }).catch(function (e) {
-        num.textContent = e.message === "sessao" ? "a sessão acabou — entre de novo" : "não consegui abrir esta página";
+        var c = fig.querySelector(".pcl-visor-carregando");
+        if (c) c.textContent = e.message === "sessao" ? "a sessão acabou — entre de novo" : "não consegui abrir esta página";
+        throw e;
       });
     }
+    function contar(n) { num.textContent = n + " de " + total; }
+    if (window.IntersectionObserver) {
+      olho = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) contar(Number(e.target.dataset.n)); });
+      }, { root: lista, threshold: 0.5 });
+    }
     function fechar() {
-      if (urlVelha) URL.revokeObjectURL(urlVelha);
+      fechado = true;
+      urls.forEach(function (u) { URL.revokeObjectURL(u); });
+      if (olho) olho.disconnect();
       document.removeEventListener("keydown", teclas);
       visor.remove();
       st.docAberto = null;
     }
-    function teclas(e) {
-      if (e.key === "Escape") fechar();
-      else if (e.key === "ArrowRight" && atual < total) mostrar(atual + 1);
-      else if (e.key === "ArrowLeft" && atual > 1) mostrar(atual - 1);
-    }
+    function teclas(e) { if (e.key === "Escape") fechar(); }
     visor.querySelector("[data-pcl-fechar]").onclick = fechar;
-    visor.querySelector("[data-pcl-ant]").onclick = function () { if (atual > 1) mostrar(atual - 1); };
-    visor.querySelector("[data-pcl-prox]").onclick = function () { if (atual < total) mostrar(atual + 1); };
     document.addEventListener("keydown", teclas);
     st.docAberto = { nome: doc.nome, servico: servicoId };
-    mostrar(1);
+    pagina(1).then(function () {
+      contar(1);
+      var seq = Promise.resolve();
+      for (var n = 2; n <= total; n++) (function (k) { seq = seq.then(function () { if (!fechado) return pagina(k); }); })(n);
+      return seq;
+    }).catch(function () { if (num.textContent === "…") num.textContent = ""; });
   }
 
-  /* ------------------------------------------------- a previa (PAULUS) */
+  /* ------------------------------------------------- a previa (Paulus) */
 
   /* "Ver como o cliente": a mesma pasta, desenhada a partir da MESMA visao
      (GET /api/servicos/{id}/como-cliente). Os botoes ficam travados. */
@@ -415,22 +458,34 @@ window.AreaCliente = (function () {
     });
   }
 
+  // O inicio do cliente no desenho da Visao geral do Admin: saudacao pela hora, e paineis com cabecalho (rotulo + numero a direita).
+  function saudacaoDaHora() { var h = new Date().getHours(); return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; }
   function telaDasPastas() {
     pararRelogio();
     st.pastaId = null;
     var eu = st.eu;
     var r = raiz();
-    var lista = eu.pastas.length
-      ? '<div class="pcl-pastas">' + eu.pastas.map(function (p) {
-        return '<button type="button" class="pcl-pasta-item" data-pcl-pasta="' + p.id + '">' + ic("folder") +
-          "<span><b>" + esc(p.nome) + "</b><small>" + esc(p.status_rotulo) + "</small></span>" +
-          (p.novas ? '<i class="pcl-bolinha" title="Mensagens novas">' + p.novas + "</i>" : "") + ic("chevron_right") + "</button>";
-      }).join("") + "</div>"
-      : '<p class="pcl-vazio">Nenhuma pasta compartilhada com você agora. Se acha que é engano, fale com o escritório.</p>';
-    r.innerHTML = '<div class="pcl-coluna"><div class="pcl-topo"><span class="pcl-marca">PAVLVS</span><span class="pcl-espaco"></span>' +
+    var ps = eu.pastas || [];
+    var cab = function (rot, dir) { return '<div class="pcl-painel-cab"><span class="pcl-rotulo">' + rot + "</span>" + (dir != null ? '<span class="pcl-cab-dir">' + dir + "</span>" : "") + "</div>"; };
+    var linhas = ps.length ? ps.map(function (p) {
+      return '<button type="button" class="pcl-linha" data-pcl-pasta="' + p.id + '"><span class="pcl-linha-ic">' + ic("folder") + '</span><span class="pcl-linha-txt"><b>' + esc(p.nome) + "</b></span>" +
+        '<span class="' + classeDoStatus(p.status) + '">' + esc(p.status_rotulo) + "</span>" +
+        (p.novas ? '<i class="pcl-bolinha" title="Mensagens novas">' + p.novas + "</i>" : "") + ic("chevron_right") + "</button>";
+    }).join("") : '<p class="pcl-vazio-linha">Nenhuma pasta compartilhada com você agora. Se acha que é engano, fale com o escritório.</p>';
+    var pend = [];
+    ps.forEach(function (p) {
+      if (p.status === "aguardando") pend.push({ id: p.id, ic: "task_alt", t: "O escritório espera algo de você", d: p.nome });
+      if (p.novas) pend.push({ id: p.id, ic: "chat", t: p.novas + (p.novas === 1 ? " mensagem nova" : " mensagens novas"), d: p.nome });
+    });
+    var pendHtml = pend.length ? pend.map(function (x) {
+      return '<button type="button" class="pcl-linha" data-pcl-pasta="' + x.id + '"><span class="pcl-linha-ic">' + ic(x.ic) + '</span><span class="pcl-linha-txt"><b>' + esc(x.t) + "</b><small>" + esc(x.d) + "</small></span>" + ic("chevron_right") + "</button>";
+    }).join("") : '<p class="pcl-vazio-linha">Nada pendente agora.</p>';
+    r.innerHTML = '<div class="pcl-coluna pcl-larga"><div class="pcl-topo"><span class="pcl-espaco"></span>' +
       '<button type="button" class="pcl-botao-leve" data-pcl-sair="1">' + ic("logout") + "Sair</button></div>" +
-      '<header class="pcl-cabeca"><span class="pcl-kicker">' + esc(eu.escritorio || "Seu escritório") + "</span><h1>Olá, " + esc(eu.pessoa.nome.split(" ")[0]) + "</h1>" +
-      '<p class="pcl-sub">' + (eu.pastas.length ? "Estas são as pastas que o escritório compartilhou com você." : "") + "</p></header>" + lista + "</div>";
+      '<header class="pcl-cab-tela"><h1>' + esc(saudacaoDaHora() + ", " + eu.pessoa.nome.split(" ")[0] + ".") + "</h1>" +
+      '<p class="pcl-lead">' + (ps.length ? "Estas são as pastas que " + esc(eu.escritorio || "o escritório") + " compartilhou com você." : esc(eu.escritorio || "")) + "</p></header>" +
+      '<div class="pcl-duas"><section class="pcl-painel">' + cab("Suas pastas", String(ps.length)) + linhas + "</section>" +
+      '<section class="pcl-painel">' + cab("Precisa de você", pend.length ? String(pend.length) : null) + pendHtml + "</section></div></div>";
     r.querySelectorAll("[data-pcl-pasta]").forEach(function (b) { b.onclick = function () { abrirPasta(Number(b.dataset.pclPasta)); }; });
     ligarSair(r);
   }
@@ -515,7 +570,7 @@ window.AreaCliente = (function () {
       b.onclick = function () {
         var form = r.querySelector('[data-pcl-remarcar-form="' + b.dataset.pclRemarcar + '"]');
         form.hidden = false;
-        form.querySelector("input").focus();
+        montarCalRemarcar(form);
       };
     });
     r.querySelectorAll("[data-pcl-remarcar-fechar]").forEach(function (b) {
@@ -524,7 +579,10 @@ window.AreaCliente = (function () {
     r.querySelectorAll("[data-pcl-remarcar-form]").forEach(function (form) {
       form.onsubmit = function (e) {
         e.preventDefault();
-        responder(sid, form.dataset.pclRemarcarForm, "remarcar", form.querySelector("input").value, form.querySelector("button"));
+        if (!form.dataset.dia) { var aviso = form.querySelector("[data-pcl-escolha]"); if (aviso) { aviso.textContent = "Escolha um dia no calendário para mandar."; aviso.classList.add("falta"); } return; }
+        var d = form.dataset.dia.split("-"), obs = form.querySelector("input").value.trim(), per = form.dataset.periodo || "Qualquer horário";
+        var texto = d[2] + "/" + d[1] + "/" + d[0] + " · " + per.toLowerCase() + (obs ? " · " + obs : "");
+        responder(sid, form.dataset.pclRemarcarForm, "remarcar", texto, form.querySelector('button[type="submit"]'));
       };
     });
     var escrever = r.querySelector("[data-pcl-escrever]");
@@ -615,12 +673,46 @@ window.AreaCliente = (function () {
     st.relogio = null;
   }
 
+  // A barra do site (a .topo de site/assets): PAVLVS, o Sair quando ha sessao e o tema. Fica fora do #pcl-raiz,
+  // que e redesenhado a cada tela; o Sair de cada tela muda para ca.
+  function montarBarra() {
+    if (document.getElementById("pcl-barra-site")) return;
+    var r = raiz(); if (!r || !r.parentNode) return;
+    var b = document.createElement("header");
+    b.id = "pcl-barra-site"; b.className = "pcl-pagina pcl-barra-site";
+    b.innerHTML = '<div class="pcl-barra-dentro"><span class="pcl-marca">PAVLVS</span><span class="pcl-espaco"></span>' +
+      '<span class="pcl-barra-acoes" id="pcl-barra-acoes"></span>' +
+      '<button type="button" class="pcl-btn-icone" id="pcl-tema-btn" aria-label="Alternar tema" title="Alternar tema"></button></div>';
+    r.parentNode.insertBefore(b, r);
+    var bt = document.getElementById("pcl-tema-btn");
+    var icone = function () { bt.innerHTML = ic(document.documentElement.dataset.tema === "claro" ? "dark_mode" : "light_mode"); };
+    bt.onclick = function () {
+      var novo = document.documentElement.dataset.tema === "claro" ? "escuro" : "claro";
+      document.documentElement.dataset.tema = novo;
+      try { localStorage.setItem("pcl-tema", novo); } catch (e) { /* sem guardar */ }
+      icone();
+    };
+    icone();
+    new MutationObserver(icone).observe(document.documentElement, { attributes: true, attributeFilter: ["data-tema"] });
+    var mover = function () {
+      var slot = document.getElementById("pcl-barra-acoes"), s = r.querySelector(".pcl-topo [data-pcl-sair]");
+      if (!slot) return;
+      slot.innerHTML = ""; if (s) slot.appendChild(s);
+      r.querySelectorAll(".pcl-topo").forEach(function (t) { if (!t.querySelector("button, a")) t.remove(); });
+    };
+    new MutationObserver(mover).observe(r, { childList: true });
+    mover();
+  }
+
   function iniciar() {
     // O claro ou o escuro do aparelho do cliente (css/cliente.css le o data-tema).
-    var escuro = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-    var tema = function () { document.documentElement.dataset.tema = escuro && escuro.matches ? "escuro" : "claro"; };
+    // O escuro (o do site) e o padrao; o claro so quando o aparelho pede.
+    var claro = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
+    var salvo = null; try { salvo = localStorage.getItem("pcl-tema"); } catch (e) { /* nada */ }
+    var tema = function () { document.documentElement.dataset.tema = salvo || (claro && claro.matches ? "claro" : "escuro"); };
     tema();
-    if (escuro && escuro.addEventListener) escuro.addEventListener("change", tema);
+    montarBarra();
+    if (claro && claro.addEventListener) claro.addEventListener("change", tema);
     var m = /^\/cliente\/([^/]+)$/.exec(location.pathname);
     st.token = m ? decodeURIComponent(m[1]) : "";
     // "Imprimir" pelo navegador fica registrado - o print de tela, nao (o

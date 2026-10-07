@@ -9,9 +9,9 @@
   /* Desenho "Servidor - Entrar" (02/10/2026): a barra fina com "servidor" e
      o tema; no meio, a coluna de 360 px - a marca em marca d'agua e o
      formulario, como a tela de entrar de fora. So tokens do programa. */
-  .trava-topo { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; }
-  .trava-selo { display: flex; align-items: center; gap: 6px; font: 400 12px var(--mono); color: var(--mute2); }
-  .trava-tema { width: 36px; height: 36px; border: 0; background: transparent; color: var(--mute2); display: flex; align-items: center;
+  .trava-topo { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--ink-a1); }
+  .trava-marca-nome { font: 400 20px/1 var(--serif); letter-spacing: .12em; color: var(--ink); }
+  .trava-tema { width: 32px; height: 32px; margin-right: -8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink3); display: flex; align-items: center;
     justify-content: center; cursor: pointer; padding: 0; }
   .trava-tema:hover { color: var(--ink); }
   /* A marca no mesmo ponto das outras telas de entrada: 22% da janela,
@@ -26,8 +26,8 @@
   /* "Paulus está te esperando." na serifa, claro, e a frase do banco das telas de entrar
      (js/entrada-saudacao.js): o jeito da saudacao do assistente - o bloco nasce apagado e
      aparece devagar; ao trocar de passo, a frase sai e a nova entra. */
-  .trava-marca h1 { margin: 0; font: 400 44px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
-  .trava-marca p { margin: 0; font: 400 15px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
+  .trava-marca h1 { margin: 0; font: 400 40px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .trava-marca p { margin: 0; font: 400 16px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
   .trava-marca > * { transition: opacity .7s ease, transform .7s ease; }
   .trava-marca.abrindo > * { opacity: 0; }
   .trava-marca.saindo > p { opacity: 0; transform: translateY(4px); }
@@ -37,24 +37,24 @@
   .trava-form { display: grid; gap: 14px; margin: 0; }
   .trava-grupo { display: grid; gap: 6px; }
   .trava-enquanto { margin-top: 6px; }
-  .trava-etiqueta { font: 400 11px var(--mono); letter-spacing: .18em; color: var(--mute2); }
-  .trava-caixa { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--ink-a12); }
+  .trava-etiqueta { font: 400 12px var(--mono); letter-spacing: .18em; color: var(--mute2); }
+  .trava-caixa { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a12); }
   .trava-caixa svg, .trava-caixa .ic { width: 16px; height: 16px; flex: none; color: var(--ink3); }
-  .trava-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px var(--sans); color: var(--ink); }
+  .trava-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px var(--sans); color: var(--ink); }
   .trava-trocar { flex: none; border: 0; background: none; padding: 10px 0; font: 500 12px var(--sans); color: var(--mute2); cursor: pointer; }
   .trava-trocar:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
-  .trava-manter { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf);
-    border: 1px solid var(--ink-a1); cursor: pointer; font: 400 13.5px var(--sans); color: var(--ink); position: relative; }
+  .trava-manter { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surf);
+    border: 1px solid var(--ink-a1); cursor: pointer; font: 400 13px var(--sans); color: var(--ink); position: relative; }
   .trava-manter input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   .trava-manter i { width: 16px; height: 16px; flex: none; border-radius: 4px; background: var(--fill2); border: 1px solid var(--ink-a25);
     display: flex; align-items: center; justify-content: center; }
   .trava-manter i .ic { font-size: 13px; width: 13px; height: 13px; color: var(--ink); opacity: 0; }
   .trava-manter input:checked + i .ic { opacity: 1; }
   .trava-manter input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
-  .trava-trilho { display: flex; width: 100%; height: auto; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--ink-a1); cursor: pointer; }
+  .trava-trilho { display: flex; width: 100%; height: auto; padding: 3px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); cursor: pointer; }
   .trava-trilho:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); }
   .trava-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
-    background: var(--fill2); color: var(--ink); font: 500 13.5px var(--sans); letter-spacing: .01em; }
+    background: var(--fill2); color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; }
   .trava-pastilha svg { width: 16px; height: 16px; flex: none; }
   /* Sobre e apertado: as cores do desenho (#303030 e #333330 no escuro);
      no claro, um passo mais fundo que a pastilha. */
@@ -62,28 +62,33 @@
   .trava-trilho:active:not(:disabled) .trava-pastilha { background: var(--pastilha-ativa); }
   .trava-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .trava-trilho:disabled { opacity: .55; cursor: default; }
-  .trava-fora { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 14px; border-radius: 10px;
+  .trava-fora { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--ink-a1); }
-  .trava-estado { display: flex; align-items: center; gap: 10px; font: 500 13.5px var(--sans); color: var(--ink); }
+  .trava-fora-marca { display: flex; flex: none; }
+  .trava-estado-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .trava-estado-txt b { font: 500 13px/1.3 var(--sans); color: var(--ink); }
+  .trava-estado-txt .trava-mono { display: block; color: var(--ink3); text-decoration: none; }
+  .trava-estado-txt .trava-mono:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+  .trava-estado { display: flex; align-items: center; flex: none; }
   .trava-estado i { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink3); flex: none; }
   .trava-estado.ok i { background: var(--verde); }
-  .trava-mono { font: 400 11px var(--mono); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trava-mono { font: 400 12px var(--mono); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .trava-ajuda { font: 400 12px/1.5 var(--sans); color: var(--mute2); text-wrap: pretty; }
   .trava-ajuda.centro { text-align: center; }
   .trava-link { justify-self: center; border: 0; background: none; padding: 10px 0; font: 500 13px var(--sans); color: var(--mute2); cursor: pointer; }
   .trava-link:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
-  .trava-erro { margin: 0; font-size: 13.5px; color: var(--acc); text-align: center; }
+  .trava-erro { margin: 0; font-size: 13px; color: var(--acc); text-align: center; }
   .trava-erro:empty { display: none; }
   .trava-rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; }
-  .trava-renova { font: 400 11px var(--mono); color: var(--mute2); }
+  .trava-renova { font: 400 12px var(--mono); color: var(--mute2); }
   .trava-renova b { font-weight: 400; color: var(--ink3); }
   .trava-casas { position: relative; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 8px; }
-  .trava-casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--surf);
+  .trava-casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--surf);
     border: 1px solid var(--ink-a12); font: 400 20px var(--mono); color: var(--ink); }
   .trava-casas span.vez { border-color: var(--ink3); }
   .trava-casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; background: none; }
   .trava-casas.campo { display: block; }
-  .trava-casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px; background: var(--surf);
+  .trava-casas.campo input { position: static; display: block; width: 100%; height: 36px; padding: 0 12px; opacity: 1; border-radius: 12px; background: var(--surf);
     border: 1px solid var(--ink-a25); outline: none; color: var(--ink); font: 400 15px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
 
   /* O botao Google em pilula do assistente de configuracao (js/23-boas-vindas.js). */

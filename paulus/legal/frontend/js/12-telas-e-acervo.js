@@ -1083,7 +1083,7 @@ function cartaoEscopo(d) {
     '<button data-escopo-anexar="1">Anexar outro</button></div></div>';
 }
 
-/* O PROGRAMA RESPONDEU. A pergunta era sobre o próprio PAULUS — o que está
+/* O PROGRAMA RESPONDEU. A pergunta era sobre o próprio Paulus — o que está
    na agenda, como se faz algo, abrir uma tela — e a resposta saiu do banco ou
    do mapa das telas, não dos documentos. O cartão diz de onde veio e deixa a
    saída à vista: se era sobre os documentos, um clique refaz a pergunta lá. */

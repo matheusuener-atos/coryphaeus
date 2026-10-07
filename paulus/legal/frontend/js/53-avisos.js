@@ -284,7 +284,7 @@ async function fazerAcaoDoAviso(a, i) {
   const ok = await confirmar({
     titulo: x.propoe ? "Propor: " + x.pergunta : x.pergunta,
     contexto: "Avisos › " + a.tipo_rotulo,
-    texto: x.explica + (x.propoe ? "\nPelo acesso de fora, isto vira um pedido em Aprovações e só acontece depois do sim de quem pode." : ""),
+    texto: x.explica + (x.propoe ? "\nPelo acesso externo, isto vira um pedido em Aprovações e só acontece depois do sim de quem pode." : ""),
     confirmar: x.propoe ? "Propor" : x.rotulo,
   });
   if (ok) {
@@ -416,7 +416,7 @@ function listaDoPainel() {
 }
 
 function linhaDoHistoricoDeAvisos(l) {
-  const onde = l.de_onde === "remoto" ? "pelo acesso de fora" : "no computador do escritório";
+  const onde = l.de_onde === "remoto" ? "pelo acesso externo" : "no computador do escritório";
   return '<div class="avp-linha av-visto" data-av-hist="' + esc(l.aviso_id) + '">' +
     '<span class="avp-ic">' + ic(AV_ICONE[l.tipo] || "history", 15) + "</span>" +
     '<span class="avp-texto"><b>' + esc(l.titulo) + "</b><small>" + esc(l.tipo_rotulo) + " · dizia “" + esc(l.quando) + "” · " + esc(l.origem) +

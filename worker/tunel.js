@@ -481,29 +481,29 @@ async function pagina(titulo, { rotulo, tom = "neutro", h1, texto = "", nota = "
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Manrope:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap">
 <script>${SCRIPT_PAGINA}</script>
 ${comTurnstile ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=paulusRobo" async defer></script>' : ""}<style>
-[data-tema="claro"]{--bg:#fff;--ink:#171716;--ink2:#5c5c59;--ink3:#8a8a86;--line:rgba(23,23,22,.1);--line2:rgba(23,23,22,.22);
---fill:#f1f1ee;--btn:#171716;--btnt:#f6f6f4;--ok:#2f6b42;--warn:#8a5a12;--erro:#a3322b;color-scheme:light}
-[data-tema="escuro"]{--bg:#111110;--ink:#f6f6f4;--ink2:#b5b5b0;--ink3:#8a8a86;--line:rgba(255,255,255,.12);--line2:rgba(255,255,255,.26);--fill:#242422;
---btn:#f6f6f4;--btnt:#171716;--ok:#8fd0a3;--warn:#e8c283;--erro:#f0a19c;color-scheme:dark}
+[data-tema="claro"]{--bg:#f6f5f1;--panel:#efeee9;--pill:#e2e1db;--pill-h:#dad9d2;--ink:#1c1c1a;--ink2:#55544f;--ink3:#77766f;--line:rgba(28,28,26,.12);--line2:rgba(28,28,26,.25);
+--fill:#efeee9;--ok:#2f6b42;--warn:#8a5a12;--erro:#a3322b;color-scheme:light}
+[data-tema="escuro"]{--bg:#131312;--panel:#1a1a18;--pill:#2a2a27;--pill-h:#303030;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#6f6e68;--line:rgba(242,241,236,.1);--line2:rgba(242,241,236,.2);--fill:#20201e;
+--ok:#7fbf8e;--warn:#e8c283;--erro:#e0877d;color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%}
 body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;
 font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit}.mono{font-family:"Fira Code",ui-monospace,monospace}.serif{font-family:"EB Garamond",Georgia,serif}
-header{padding:10px clamp(20px,5vw,88px);min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px 24px;border-bottom:1px solid var(--line)}
-.marca{font-size:24px;letter-spacing:.14em;font-weight:500;line-height:1;text-decoration:none}
+header{padding:0 24px;min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px 24px;border-bottom:1px solid var(--line)}
+.marca{font-size:20px;letter-spacing:.12em;font-weight:400;line-height:1;text-decoration:none}
 .topo{display:flex;align-items:center;gap:18px}.dominio{font-size:12px;color:var(--ink3)}
 .tema{width:36px;height:36px;border:0;background:transparent;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .tema:hover{color:var(--ink)}
 main{flex:1;width:100%;max-width:1280px;margin:0 auto;padding:clamp(56px,9vw,120px) clamp(20px,5vw,48px);display:flex;flex-wrap:wrap;
 gap:48px clamp(48px,8vw,112px);align-items:start}
 .texto{flex:1 1 380px;min-width:0;display:grid;gap:20px}
-.rotulo{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.16em;color:var(--tom)}
+.rotulo{display:flex;align-items:center;gap:8px;font:400 11px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--tom)}
 .rotulo i{display:block;width:6px;height:6px;border-radius:50%;background:var(--tom)}
-h1{margin:0;font-weight:400;font-size:clamp(44px,6vw,68px);line-height:1;letter-spacing:-.02em;text-wrap:balance}
-.texto p{margin:0;font-size:clamp(17px,1.8vw,19px);line-height:1.6;color:var(--ink2);text-wrap:pretty;max-width:480px}
+h1{margin:0;font-weight:400;font-size:clamp(36px,5vw,52px);line-height:1.1;text-wrap:balance}
+.texto p{margin:0;font-size:15px;line-height:1.6;color:var(--ink2);text-wrap:pretty;max-width:560px}
 .texto p b{color:var(--ink);font-weight:600}
-.nota{font-style:italic;font-size:19px;color:var(--ink3)}
-.painel{flex:1 1 360px;min-width:0;max-width:520px;border-left:1px solid var(--line);padding-left:clamp(24px,3vw,40px);display:grid;gap:24px}
+.nota{font-size:13px;line-height:1.55;color:var(--ink3)}
+.painel{flex:1 1 360px;min-width:0;max-width:520px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:24px;display:grid;gap:24px}
 .painel:empty{display:none}
 form{display:grid;gap:22px;margin:0}
 .linhas{display:grid;gap:2px}
@@ -511,15 +511,16 @@ form{display:grid;gap:22px;margin:0}
 .linha .r{color:var(--ink2)}.linha b{font-weight:600}
 .linha .end{font-family:"Fira Code",ui-monospace,monospace;font-size:13px;word-break:break-all}
 .bloco{display:grid;gap:8px}
-.etiqueta{font-size:11px;letter-spacing:.14em;color:var(--ink3)}
-.codigo{font:500 clamp(30px,3.4vw,38px)/1.1 "Fira Code",ui-monospace,monospace;letter-spacing:.18em}
+.etiqueta{font:400 11px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
+.codigo{font:400 clamp(28px,3vw,34px)/1.1 "Fira Code",ui-monospace,monospace;letter-spacing:.18em}
 .ajuda{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink2);text-wrap:pretty}
 .robo{min-height:65px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:13.5px;color:var(--ink2)}
 .acoes{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .dica{font-size:12.5px;color:var(--ink3)}
-.principal{height:36px;padding:0 18px;border:0;border-radius:999px;background:var(--btn);color:var(--btnt);font:inherit;font-size:13.5px;font-weight:600;
-cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
-.principal:hover{opacity:.88}.principal:disabled{opacity:.5;cursor:default}
+/* O botao de moldura dupla do site (.btn-duplo): trilho de 3 px com fio e, dentro, a pastilha. */
+.principal{height:34px;padding:0 22px;border:0;border-radius:8px;background:var(--pill);color:var(--ink);font:500 13.5px Manrope,system-ui,sans-serif;letter-spacing:.01em;
+box-shadow:0 0 0 3px var(--panel),0 0 0 4px var(--line);margin:4px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:background .12s}
+.principal:hover{background:var(--pill-h)}.principal:disabled{opacity:.5;cursor:default}
 .detalhe{font-family:"Fira Code",ui-monospace,monospace;font-size:13.5px;color:var(--ink2);word-break:break-all;padding-bottom:14px;border-bottom:1px solid var(--line)}
 footer{border-top:1px solid var(--line);padding:24px clamp(20px,5vw,88px)}
 footer p{margin:0;max-width:720px;font-size:13px;line-height:1.65;color:var(--ink3);text-wrap:pretty}

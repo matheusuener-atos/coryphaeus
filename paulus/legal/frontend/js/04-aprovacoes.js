@@ -119,7 +119,7 @@ async function mostrarRegrasDeAlcada() {
 }
 
 function quemPediu(nome) {
-  const assistente = !nome || nome === "Assistente" || nome === "PAULUS";
+  const assistente = !nome || nome === "Assistente" || nome === "Paulus";
   const iniciais = (nome || "").trim().split(/\s+/).map((x) => x[0] || "").slice(0, 2).join("").toUpperCase();
   return '<span class="quem">' +
     (assistente ? '<span class="cad-avatar avatar-p">P</span>' : '<span class="cad-avatar">' + esc(iniciais || "?") + "</span>") +

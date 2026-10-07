@@ -3,7 +3,7 @@
    A visao "ajustes" do E-mail: como a mensagem aberta aparece e a
    assinatura de cada conta. Comeca simples, de proposito:
 
-     cor         acompanhar o PAULUS, sempre claro ou sempre escuro - os
+     cor         acompanhar o Paulus, sempre claro ou sempre escuro - os
                  mesmos cartoes do Tema em Configuracoes › Aparencia
      imagens     mostrar as imagens de fora sem pedir, ou bloquear ate o
                  "mostrar" de cada mensagem (o padrao)
@@ -52,12 +52,12 @@ function ejCartaoCor(p) {
     return '<button class="' + classe + '" data-ej-tema="' + id + '"><span><img src="/img/paulus-logo.svg" alt=""></span><span>' + rotulo + "</span></button>";
   };
   const explica = {
-    auto: "Ao alternar o PAULUS entre claro e escuro, o e-mail aberto troca junto. Se o remetente fez uma versão escura, ela é usada; se não fez, o PAULUS escurece as cores do texto e do fundo e deixa as imagens como vieram.",
-    claro: "O e-mail abre sempre claro, como o remetente desenhou, mesmo com o PAULUS no escuro.",
-    escuro: "O e-mail abre sempre escuro, mesmo com o PAULUS no claro. Se o remetente fez uma versão escura, ela é usada; se não fez, o PAULUS escurece as cores e deixa as imagens como vieram.",
+    auto: "Ao alternar o Paulus entre claro e escuro, o e-mail aberto troca junto. Se o remetente fez uma versão escura, ela é usada; se não fez, o Paulus escurece as cores do texto e do fundo e deixa as imagens como vieram.",
+    claro: "O e-mail abre sempre claro, como o remetente desenhou, mesmo com o Paulus no escuro.",
+    escuro: "O e-mail abre sempre escuro, mesmo com o Paulus no claro. Se o remetente fez uma versão escura, ela é usada; se não fez, o Paulus escurece as cores e deixa as imagens como vieram.",
   };
   const corpo = '<div class="ag-campo"><label>Cor das mensagens</label><div class="cfg-temas">' +
-    tema("auto", "Acompanhar o PAULUS") + tema("claro", "Sempre claro") + tema("escuro", "Sempre escuro") + "</div>" +
+    tema("auto", "Acompanhar o Paulus") + tema("claro", "Sempre claro") + tema("escuro", "Sempre escuro") + "</div>" +
     '<span class="cfg-explica">' + explica[p.tema] + "</span></div>" +
     '<div class="cfg-sub">' +
     ligaCfg("soTexto", "Abrir só o texto", "sem a formatação do remetente; dá para ver formatado em cada mensagem", p.soTexto) + "</div>";

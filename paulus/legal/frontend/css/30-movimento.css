@@ -51,7 +51,7 @@
      (02-casca.js, deslizarVisoes). Enquanto desliza, a pilula de verdade
      fica sem fundo, e a que anda fica por baixo do texto. */
   .visoes .pilula-andando {
-    position: absolute; z-index: 0; border-radius: 6px; background: var(--surf);
+    position: absolute; z-index: 0; border-radius: 8px; background: var(--surf);
     box-shadow: 0 1px 2px var(--sh-a12); pointer-events: none;
   }
   .visoes.deslizando > button.ativa { background: transparent; box-shadow: none; }

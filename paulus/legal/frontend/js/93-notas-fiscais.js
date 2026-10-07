@@ -124,7 +124,7 @@ function blocoEmitidas() {
   if (!disp.pode_emitir && !todas.length && !nf.mes) return estadoVazioEmitidas(disp);
   const aviso = disp.pode_emitir ? "" : '<div class="nf-aviso">' + ic("info", 16) + "<span>" +
     (disp.ligado ? "A emissão está ligada, mas ainda não dá para emitir: " + esc((disp.motivos || []).join("; ") || "falta configurar") + "."
-      : "A emissão pelo PAULUS está desligada. As notas abaixo continuam aqui para consultar.") +
+      : "A emissão pelo Paulus está desligada. As notas abaixo continuam aqui para consultar.") +
     '</span><button type="button" class="sv-ligacao" data-nf-configurar="1">Configurar a nota fiscal</button></div>';
   const lista = todas.filter(nfPassaFiltro);
   const opcoesSit = NF_SITUACOES.map(([v, r]) => '<option value="' + v + '"' + (v === nf.situacao ? " selected" : "") + ">" + r + "</option>").join("");
@@ -164,7 +164,7 @@ function blocoEmitidas() {
 function estadoVazioEmitidas(disp) {
   const frase = disp.ligado
     ? "A emissão está ligada, mas ainda falta: " + esc((disp.motivos || []).join("; ") || "configurar") + "."
-    : "A emissão de NFS-e pelo PAULUS está desligada.";
+    : "A emissão de NFS-e pelo Paulus está desligada.";
   return '<div class="nf-vazio">' + ic("receipt_long", 36) +
     "<h2>Nenhuma nota fiscal emitida por aqui</h2>" +
     "<p>" + frase + " O assistente de Configurações › Nota fiscal liga a emissão pelo Padrão Nacional com o certificado A1 do escritório, em cinco passos.</p>" +

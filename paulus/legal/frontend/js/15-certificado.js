@@ -100,7 +100,7 @@ function cabecalhoAssinatura() {
    do Windows, os de pessoa (ICP-Brasil) em cima e os tecnicos do sistema
    embaixo. Escolher um so PRE-SELECIONA: nada e exportado, a chave continua
    no Windows (mesmo a marcada como nao exportavel). A senha criada ali e do
-   PAULUS, pedida na hora de assinar; o Windows ainda pede a dele se o
+   Paulus, pedida na hora de assinar; o Windows ainda pede a dele se o
    certificado tiver protecao forte. No canto, a janela do proprio Windows. */
 const cw = { lista: null, escolhido: "" };
 
@@ -111,7 +111,7 @@ async function abrirCertificadosDoWindows() {
     titulo: "Certificados instalados no Windows", contexto: "Assinatura › Certificado", classe: "dialogo-anexar", confirmar: "Usar este certificado",
     html: '<div class="anx cw">' +
       '<div class="anx-lista" id="cw-lista"><p class="anx-vazio">lendo os certificados do Windows…</p></div>' +
-      '<div class="cw-senha" id="cw-senha" hidden><label for="cw-senha-campo">Crie uma senha do PAULUS para usar este certificado</label>' +
+      '<div class="cw-senha" id="cw-senha" hidden><label for="cw-senha-campo">Crie uma senha do Paulus para usar este certificado</label>' +
       '<input type="password" id="cw-senha-campo" autocomplete="new-password" placeholder="pelo menos 4 caracteres">' +
       "<small>Nada é copiado: a chave continua no Windows. Peço esta senha na hora de assinar — e, se o certificado foi instalado com proteção forte, o Windows pede também a senha dele.</small></div>" +
       '<p class="cw-erro" id="cw-erro" hidden></p>' +
@@ -248,12 +248,12 @@ function cartaoDoCertificado() {
     const memoria = d.senha_na_memoria
       ? "A senha está na memória por mais " + d.minutos_restantes + " min."
       : (d.tem_senha_guardada ? "A senha está guardada nesta máquina." : "Se não guardar, eu pergunto a senha em cada assinatura.");
-    html += '<div class="as-bloco"><b class="as-titulo">' + (doWindows ? "Senha do PAULUS para este certificado" : "Senha do certificado") + "</b>" +
+    html += '<div class="as-bloco"><b class="as-titulo">' + (doWindows ? "Senha do Paulus para este certificado" : "Senha do certificado") + "</b>" +
       (doWindows ? '<p class="as-explica">A chave fica no Windows. Esta senha libera o uso aqui; se o certificado tiver proteção forte, o Windows pede a dele na hora de assinar.</p>' : "") +
       /* O olho fica dentro do campo, como em todo campo de senha: "mostrar"
          solto ao lado parecia um link de outra coisa. */
       '<div class="cert-senha"><label class="cert-senha-caixa">' + ic("key", 18) +
-      '<input type="password" id="cert-senha" placeholder="' + (doWindows ? "senha do PAULUS" : "senha do certificado") + '" autocomplete="off">' +
+      '<input type="password" id="cert-senha" placeholder="' + (doWindows ? "senha do Paulus" : "senha do certificado") + '" autocomplete="off">' +
       '<button type="button" class="cert-olho" id="cert-mostrar" title="Mostrar a senha" aria-label="Mostrar a senha">' + ic("visibility", 18) + "</button></label>" +
       '<button class="primario" id="cert-abrir">Abrir</button></div>' +
       (d.pode_guardar_senha
@@ -343,7 +343,7 @@ function previaSelo(d) {
   const linhas = corpo.split("\n").filter((l) => l.trim());
   if (s.mostrar_cpf !== false && doc && corpo.indexOf(doc) < 0) linhas.push(doc);
   if (s.mostrar_data !== false) linhas.push(data + " " + hora + (c.emissor ? " · " + c.emissor : ""));
-  if (s.mostrar_codigo !== false) linhas.push("confira no PAULUS · código 4A91C7");
+  if (s.mostrar_codigo !== false) linhas.push("confira no Paulus · código 4A91C7");
 
   const img = s.desenho || s.imagem;
   return '<div class="selo-previa">' +

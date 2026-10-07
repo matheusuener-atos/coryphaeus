@@ -23,7 +23,7 @@ async function avisarConflitos(lista, contexto) {
   lista = (lista || []).filter((c) => c.estado !== "resolvido");
   if (!lista.length) return;
   await dialogo({ titulo: "Possível conflito de interesse", contexto: contexto,
-    html: '<p class="cfg-explica">A mesma pessoa ou empresa aparece do outro lado. O PAULUS reconhece o nome sem acento, sem a forma jurídica ' +
+    html: '<p class="cfg-explica">A mesma pessoa ou empresa aparece do outro lado. O Paulus reconhece o nome sem acento, sem a forma jurídica ' +
       "(Ltda., S/A, ME…) e, com os dois documentos, pelo CPF ou pela raiz do CNPJ. Confira antes de seguir. " +
       "O conflito fica aberto nos avisos até alguém dizer como resolveu.</p>" + listaDeConflitos(lista),
     confirmar: "Entendi", semCancelar: true });

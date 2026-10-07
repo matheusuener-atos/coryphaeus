@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=account_balance_wallet,add,arrow_back,arrow_forward,block,campaign,check,close,code,contacts,dark_mode,dashboard,delete,dns,download,edit,expand_less,expand_more,group,keyboard_return,lan,light_mode,link_off,local_offer,lock,logout,mail,menu,menu_book,notifications,payments,print,publish,receipt_long,refresh,search,send,shield,swap_horiz,token,tune,upload,warning&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=account_balance_wallet,add,add_link,arrow_back,arrow_downward,arrow_forward,arrow_outward,arrow_upward,autorenew,block,calendar_month,campaign,check,chevron_left,chevron_right,close,code,contacts,content_copy,dark_mode,dashboard,delete,devices,dns,download,edit,expand_less,expand_more,group,history,keyboard_return,lan,light_mode,link_off,list,local_offer,lock,logout,mail,menu,menu_book,more_horiz,north_west,notifications,pause_circle,payments,person_add,picture_as_pdf,play_circle,print,publish,receipt_long,refresh,remove,search,send,shield,swap_horiz,sync,token,touch_app,tune,undo,upload,warning&display=block">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="stylesheet" href="../assets/paginas.css">
 <link rel="stylesheet" href="../assets/admin.css">
@@ -23,41 +23,34 @@
 <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 
 <!-- Antes da sessao: as duas portas (Cloudflare Access e GitHub) -->
-<main id="entrada" class="entrada entrada-adm" hidden>
-  <a class="voltar-site" href="../"><span class="icon s18" aria-hidden="true">arrow_back</span>Voltar ao site</a>
-  <button type="button" class="btn-icone adm-tema-entrada" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
-  <div class="entrada-col" id="entrada-col"><p class="carregando" style="text-align:center">Conferindo a sessão…</p></div>
-</main>
-
-<!-- Depois da sessao: a casca do painel -->
-<div id="casca" hidden style="flex:1;display:flex;flex-direction:column">
-  <header class="topo adm-topo">
-    <a class="marca adm-marca" href="#visao" aria-label="PAVLVS · Administração, visão geral">PAVLVS<span class="rotulo">Administração</span></a>
-    <button type="button" class="busca-btn" id="abrir-busca" aria-label="Buscar em tudo" aria-haspopup="dialog">
-      <span class="icon" aria-hidden="true">search</span>
-      <span class="dica">Buscar em tudo: telas, ações, contas, escritórios…</span>
-      <span class="teclas" aria-hidden="true"><kbd class="tecla" id="tecla-mod">⌘</kbd><kbd class="tecla">K</kbd></span>
-    </button>
-    <div class="adm-direita">
-      <div class="selo-sessao" id="selo-sessao" title="Cloudflare Access">
-        <span class="bola"><span class="icon" aria-hidden="true">shield</span></span>
-        <span class="nome">Cloudflare Access</span>
-        <span class="email" id="selo-email"></span>
-        <span class="papel" id="selo-papel"></span>
-      </div>
+<div id="entrada" class="entrada-adm" hidden style="flex:1;display:flex;flex-direction:column">
+  <header class="topo">
+    <a class="marca" href="../" aria-label="PAVLVS — página inicial">PAVLVS</a>
+    <div class="acoes">
       <button type="button" class="btn-icone" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span></button>
     </div>
   </header>
-  <nav class="adm-pilulas" id="nav-celular" aria-label="Telas do painel"></nav>
+  <main class="entrada" style="flex:1">
+    <div class="entrada-col" id="entrada-col"><p class="carregando" style="text-align:center">Conferindo a sessão…</p></div>
+  </main>
+</div>
+
+<!-- Depois da sessao: a casca do painel -->
+<div id="casca" hidden style="flex:1;display:flex;align-items:stretch">
+  <nav class="adm-trilho" aria-label="Painel">
+    <div class="adm-faixa">
+      <a class="adm-t-marca" href="#visao" aria-label="PAVLVS · Administração, visão geral"><span class="p">P</span><span class="adm-t-rot">AVLVS<span class="rotulo">Admin</span></span></a>
+      <button type="button" class="adm-t-item" id="abrir-busca" aria-label="Buscar em tudo" aria-haspopup="dialog"><span class="icon" aria-hidden="true">search</span><span class="adm-t-rot">Buscar em tudo</span></button>
+      <div class="adm-t-lista" id="nav-lateral"></div>
+      <span class="adm-t-vazio"></span>
+      <span class="adm-t-risco"></span>
+      <button type="button" class="adm-t-item adm-t-conta" id="adm-conta" data-a="contaMenu" aria-label="Minha conta" aria-haspopup="dialog"><span class="cad-avatar" id="adm-avatar"></span><span class="adm-t-rot" id="adm-avatar-nome">Minha conta</span></button>
+      <button type="button" class="adm-t-item" data-alternar-tema aria-label="Alternar tema"><span class="icon" aria-hidden="true">light_mode</span><span class="adm-t-rot">Tema</span></button>
+      <button type="button" class="adm-t-item" data-a="sair"><span class="icon" aria-hidden="true">logout</span><span class="adm-t-rot">Sair</span></button>
+    </div>
+  </nav>
   <div class="adm-corpo">
-    <aside class="adm-lateral">
-      <nav id="nav-lateral" aria-label="Telas do painel"></nav>
-      <div class="adm-rodape">
-        <span>paulus.ia.br/admin</span>
-        <span id="versao-worker">worker</span>
-        <button type="button" data-a="sair"><span class="icon" aria-hidden="true">logout</span>Sair</button>
-      </div>
-    </aside>
+    <nav class="adm-pilulas" id="nav-celular" aria-label="Telas do painel"></nav>
     <main id="conteudo" class="adm-main" tabindex="-1">
       <div class="adm-col" id="tela"></div>
     </main>

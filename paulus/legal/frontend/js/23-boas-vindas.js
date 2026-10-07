@@ -12,13 +12,13 @@
 
    Acesso a distancia (R7): logo depois do nome do escritorio, um
    interruptor, desligado de fabrica. Ligado, o mesmo bloco de
-   Configuracoes › Acesso de fora (js/43-acesso-tunel.js): o endereco, a
+   Configuracoes › Acesso externo (js/43-acesso-tunel.js): o endereco, a
    conta do titular com o autenticador e a confirmacao no navegador.
    Desligado ou pulado, nada e criado e nada vai ao Worker.
 
    Entrar por codigo: a pessoa digita o codigo do responsavel e recebe o
    dela. A rede local que valida o vinculo ainda nao existe; o que existe e
-   o modo limitado (docs/ui/01-shell.md): o PAULUS abre, o que e desta
+   o modo limitado (docs/ui/01-shell.md): o Paulus abre, o que e desta
    maquina funciona, e o que depende do escritorio fica apagado ate o
    responsavel validar - ou ate a pessoa cancelar o pedido e criar o proprio
    escritorio. O pedido fica nesta maquina, em localStorage.
@@ -33,16 +33,22 @@ const bv = {
   maquina: null, conferindo: false, diag: 0, relogioDiag: null, catalogo: [],
   modelo: "", escolheuModelo: false, modulos: {}, google: null, oauth: null, imap: false, calib: null,
   escritorio: "", acesso: false,
+  // A assinatura do e-mail que entrou (GET /api/assinatura): { ativa, situacao: "ativa"|"vencida"|"nenhuma", pessoa, escritorio, plano, renova_em }.
+  // Sem assinatura ativa, o passo "assinatura" entra na ordem e segura o resto; o site faz o cadastro e o pagamento.
+  assinatura: null, assinaturaEsperando: false, relogioAssinatura: null,
+  // Depois de "edite no site": o formulario da lugar a uma linha de espera; ao voltar com dados novos, redesenha.
+  dadosEsperando: false, relogioDados: null,
+  // Conexoes: o que foi marcado (servicos), o que o Google ja autorizou (autorizados) e a espera pelo consentimento.
+  servicos: {}, autorizados: {}, consentEsperando: false, relogioConsent: null,
   // O Whisper das Gravacoes, escolhido no mesmo passo do modelo de IA e
   // baixado quando o assistente termina (/api/voz/baixar).
   voz: null, vozEscolhida: "",
-  // Vincular e ja conectar o Gmail, a Agenda e o Drive, num login so.
-  vincComServicos: true,
 };
-const ORDEM_CRIAR = ["boasvindas", "google", "dados", "escritorio", "acesso", "ia", "modulos", "conexoes", "atualizacoes"];
+// "modulos" saiu do assistente: o plano libera, e esconder/mostrar fica em Configuracoes › Modulos.
+const ORDEM_CRIAR = ["boasvindas", "google", "assinatura", "dados", "conexoes", "acesso", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
 const NOMES_BV = {
-  boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA",
+  boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA", assinatura: "Assinatura",
   modulos: "Módulos", conexoes: "Conexões", atualizacoes: "Atualizações", codigos: "Códigos",
   acesso: "Acesso à distância", google: "Conta Google",
 };
@@ -53,17 +59,21 @@ const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendam
    destino de cada um na casca. O Assistente e Configuracoes ficam
    sempre. */
 const MODULOS_BV = [
-  ["servicos", "work", "Serviços", "Processos, prazos e a trilha de cada caso", ["servicos"]],
-  ["gravacoes", "mic", "Gravações", "Audiências e reuniões com transcrição", ["gravacoes"]],
-  ["agenda", "calendar_month", "Agenda", "Compromissos, prazos e lembretes", ["calendario"]],
-  ["acervo", "inventory_2", "Acervo", "Os arquivos do escritório, lidos pela IA", ["biblioteca"]],
-  ["documentos", "description", "Documentos", "Peças, contratos e modelos no editor", ["editor"]],
-  ["assinatura", "draw", "Assinatura", "Assinatura digital com certificado ICP-Brasil", ["assinar"]],
-  ["email", "mail", "E-mail", "A caixa de entrada ligada aos serviços", ["caixa"]],
-  ["financeiro", "payments", "Financeiro", "Honorários, custas e recebimentos", ["financeiro"]],
-  ["cadastros", "contacts", "Cadastros", "Clientes, partes e contatos", ["cadastros"]],
-  ["aprovacoes", "verified", "Aprovações", "O que sai do escritório passa aqui antes", ["aprovacoes"]],
-  ["foco", "self_improvement", "Foco e bem-estar", "Pausas e blocos de concentração", ["foco"]],
+  // [id, icone, nome, descricao, destinos no trilho, grupo] - a mesma ordem e os mesmos grupos do trilho (Aplicacao / index.html).
+  ["servicos", "work", "Serviços", "Processos, prazos e a trilha de cada caso", ["servicos"], "Dia a dia"],
+  ["gravacoes", "mic", "Gravações", "Audiências e reuniões com transcrição", ["gravacoes"], "Dia a dia"],
+  ["agenda", "calendar_month", "Agenda", "Compromissos, prazos e lembretes", ["calendario"], "Dia a dia"],
+  ["foco", "self_improvement", "Foco e bem-estar", "Pausas e blocos de concentração", ["foco"], "Dia a dia"],
+  ["acervo", "inventory_2", "Acervo", "Os arquivos do escritório, lidos pelo assistente", ["biblioteca"], "Documentos"],
+  ["biblioteca", "menu_book", "Biblioteca", "Leis, súmulas e modelos de referência", ["contexto"], "Documentos"],
+  ["documentos", "description", "Editor de documentos", "Peças, contratos e modelos no editor", ["editor"], "Documentos"],
+  ["assinatura", "draw", "Assinatura", "Assinatura digital com certificado ICP-Brasil", ["assinar"], "Documentos"],
+  ["email", "mail", "E-mail", "A caixa de entrada ligada aos serviços", ["caixa"], "Escritório"],
+  ["financeiro", "payments", "Financeiro", "Honorários, custas e recebimentos", ["financeiro"], "Escritório"],
+  ["cadastros", "contacts", "Cadastros", "Clientes, partes e contatos", ["cadastros"], "Escritório"],
+  ["aprovacoes", "verified", "Aprovações", "O que sai do escritório passa aqui antes", ["aprovacoes"], "Escritório"],
+  ["agentes", "school", "Agentes", "Rotinas que o assistente executa sozinho", ["agentes"], "Escritório"],
+  ["notas", "receipt_long", "Notas fiscais", "Emissão de NFS-e dos honorários", ["notas"], "Escritório"],
 ];
 
 /* O fabricante de cada modelo, pelo nome, com o logo que vai no programa
@@ -82,9 +92,36 @@ function fabricanteDoModelo(nome) {
 
 function ordemBv() {
   const ordem = bv.caminho === "entrar" ? ORDEM_ENTRAR : ORDEM_CRIAR;
-  // A conta Google ja conectada no vinculo (com o Gmail, a Agenda e o Drive):
-  // o passo Conexoes nao tem mais o que pedir.
-  return bv.googleNoVinculo ? ordem.filter((p) => p !== "conexoes") : ordem;
+  // O login do Google e so identidade; o Gmail, a Agenda e o Drive sao autorizados em Conexoes.
+  let o = ordem;
+  // Assinatura ativa: o passo nao aparece. Sem ela (ou vencida), ele segura os seguintes.
+  if (bv.assinatura && bv.assinatura.ativa) o = o.filter((p) => p !== "assinatura");
+  return o;
+}
+
+async function lerAssinatura(soLer) {
+  let a;
+  try {
+    const r = await fetch("/api/assinatura");
+    a = r.ok ? await r.json() : { ativa: false, situacao: "nenhuma" };
+  } catch (err) { a = { ativa: false, situacao: "nenhuma" }; }
+  if (soLer) return a;
+  bv.assinatura = a;
+  if (a && a.ativa) {
+    if (a.pessoa) for (const k of Object.keys(a.pessoa)) if (!bv.pessoa[k]) bv.pessoa[k] = a.pessoa[k];
+    if (a.escritorio && !bv.escritorio) bv.escritorio = a.escritorio;
+    if (bv.assinaturaEsperando) { bv.assinaturaEsperando = false; pararEsperaAssinatura(); avisoCert("assinatura confirmada"); }
+  }
+  return a;
+}
+
+function pararEsperaDados() {
+  bv.dadosEsperando = false;
+  if (bv.relogioDados) { clearInterval(bv.relogioDados); bv.relogioDados = null; }
+}
+
+function pararEsperaAssinatura() {
+  if (bv.relogioAssinatura) { clearInterval(bv.relogioAssinatura); bv.relogioAssinatura = null; }
 }
 
 function passoBv() {
@@ -122,7 +159,10 @@ async function mostrarBoasVindas() {
     email_secundario: p.email_secundario || "", endereco: p.endereco || "" };
   bv.modulos = Object.assign({}, prefs.modulos || {});
   bv.escritorio = (prefs.escritorio || {}).nome || "";
-  bv.acesso = Boolean((prefs.acesso_remoto || {}).hostname);
+  // A assinatura preenche o que as preferencias ainda nao tem (nome, OAB, CPF, endereco, escritorio).
+  await lerAssinatura();
+  // Vem ligado: o acesso externo e o caminho normal (celular, casa, forum, equipe). Quem nao quer diz na propria tela.
+  bv.acesso = (prefs.acesso_remoto || {}).recusado ? false : true;
   const a = prefs.atualizacoes || {};
   bv.atualizacoes = { verificar: a.verificar !== false, avisar_antes: a.avisar_antes !== false };
   MODULOS_BV.forEach(([id]) => { if (bv.modulos[id] === undefined) bv.modulos[id] = true; });
@@ -141,6 +181,11 @@ function iniciaisDe(nome) {
 }
 
 /* A logo oficial e sempre escura, nos dois temas (docs/ui/instalacao). */
+function iniciaisBv(nome) {
+  const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
+  return ((partes[0] || "")[0] || "" ) + ((partes.length > 1 ? partes[partes.length - 1][0] : "") || "");
+}
+
 function logoBv() {
   return '<span class="bv-logo" aria-hidden="true">P</span>';
 }
@@ -149,21 +194,18 @@ function desenharBoasVindas() {
   const caixa = $("boas-vindas");
   const ordem = ordemBv();
   const passo = passoBv();
+  // As etapas sao a .nav do site: nomes em texto, a atual acesa, as feitas em meio-tom.
   const etapas = ordem.map((p, i) => {
     const classe = "bv-etapa" + (i < bv.passo ? " feita" : "") + (i === bv.passo ? " atual" : "");
-    const marca = i < bv.passo ? ic("check", 13) : String(i + 1);
-    return (i ? '<i class="bv-traco"></i>' : "") + '<span class="' + classe + '" title="' + NOMES_BV[p] + '"><span class="bv-num">' + marca + "</span>" +
-      (i === bv.passo ? NOMES_BV[p] : "") + "</span>";
+    return '<span class="' + classe + '"' + (i === bv.passo ? ' aria-current="step"' : "") + ">" + NOMES_BV[p] + "</span>";
   }).join("");
-  const selo = bv.caminho === "entrar" && bv.passo > 1 ? "REDE LOCAL · NADA NA INTERNET" : "NADA SAIU DESTA MÁQUINA";
   const cabeca = '<div class="bv-cabeca pywebview-drag-region"><span class="bv-marca">PAVLVS</span><div class="bv-etapas">' + etapas + "</div>" +
-    '<span class="bv-selo"><i class="ponto-verde"></i>' + selo + "</span>" +
     // O tema fica no canto de cima, so o icone.
     '<button class="bv-tema" id="bv-tema" title="Alternar tema" aria-label="Alternar tema">' +
     ic(document.documentElement.dataset.tema === "escuro" ? "light_mode" : "dark_mode", 18) + "</button></div>";
 
   const telas = {
-    boasvindas: passoBoasVindas, escritorio: passoEscritorio, dados: bv.caminho === "entrar" ? passoDadosVinculo : passoDados,
+    boasvindas: passoBoasVindas, escritorio: passoEscritorio, dados: bv.caminho === "entrar" ? passoDadosVinculo : passoDados, assinatura: passoAssinatura,
     ia: passoIA, modulos: passoModulos, conexoes: passoConexoes, atualizacoes: passoAtualizacoes, codigos: passoCodigos,
     acesso: passoAcesso, google: passoGoogle,
   };
@@ -175,18 +217,20 @@ function desenharBoasVindas() {
   const ultimo = bv.passo === ordem.length - 1;
   let botao;
   if (bv.passo === 0) botao = "Começar";
-  else if (ultimo) botao = bv.caminho === "entrar" ? "Abrir o PAULUS e aguardar" : "Abrir o PAULUS";
+  else if (ultimo) botao = bv.caminho === "entrar" ? "Abrir o Paulus e aguardar" : "Abrir o Paulus";
   else if (passo === "ia") botao = bv.modelo && bv.modelo !== "nenhum" ? "Usar " + esc(bv.modelo) : "Continuar sem modelo";
+  else if (passo === "assinatura") botao = "Continuar sem assinatura";
+  else if (passo === "conexoes" && SERVICOS_BV.some((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id])) botao = "Autorizar no Google";
   else botao = "Continuar";
-  const esperando = passo === "ia" && !bv.maquina;
+  const esperando = (passo === "ia" && !bv.maquina) || (passo === "assinatura" && !(bv.assinatura && (bv.assinatura.ativa || bv.assinatura.situacao === "vencida"))) || (passo === "dados" && bv.dadosEsperando) || (passo === "conexoes" && bv.consentEsperando);
   const versao = (bv.status && bv.status.versao) || "";
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0
-      ? '<span class="bv-versao">PAULUS' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
-      : '<button class="bv-ligacao" data-bv="voltar">Voltar</button>') +
+      ? '<span class="bv-versao">Paulus' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
+      : '<button class="bv-ligacao" data-bv="voltar">' + ic("arrow_back", 16) + "Voltar</button>") +
     '<span class="cresce"></span>' +
-    (["dados", "modulos", "conexoes", "acesso", "google"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
-    (esperando ? "" : '<button class="bv-continuar" data-bv="continuar">' + botao + "</button>") + "</div>";
+    (["modulos", "conexoes", "acesso", "google"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    (esperando ? "" : '<button class="bv-continuar" data-bv="continuar"><span>' + botao + "</span></button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
     (bv.entrarAberto ? janelaEntrarBv() : "");
@@ -209,7 +253,7 @@ function passoBoasVindas() {
   };
   let ollama;
   if (motor.rodando) ollama = item("ok", "Ollama instalado e rodando em 127.0.0.1");
-  else if (motor.instalado) ollama = item("parcial", "Ollama instalado, desligado · o PAULUS liga quando precisar");
+  else if (motor.instalado) ollama = item("parcial", "Ollama instalado, desligado · o Paulus liga quando precisar");
   else ollama = item("falta", "Ollama não encontrado · instale pelo site ollama.com; a tela inicial mostra como");
   let modelo;
   if (bv.modelo && bv.modelo !== "nenhum") {
@@ -221,28 +265,27 @@ function passoBoasVindas() {
     ? item("ok", "Pasta de documentos: " + plural(s.contratos, "documento") + " no Acervo")
     : item("falta", "Pasta de documentos: ainda não apontada");
   const pasta = s.programa || s.pasta || "";
-  const texto = "<h1>Olá. Vamos deixar o PAULUS do seu jeito.</h1>" +
-    "<p>Poucos passos: o escritório, o acesso à distância, seus dados, o modelo de IA desta máquina e o que conectar. Tudo pode ser mudado depois em Configurações.</p>" +
-    '<div class="doc-etiquetas"><span class="etiqueta ok">Software livre</span><span class="etiqueta">IA por assinatura</span><span class="etiqueta">Cerca de 3 minutos</span></div>';
+  const texto = "<h1>Olá. Vamos deixar o Paulus do seu jeito.</h1>" +
+    "<p>Poucos passos: o escritório, o acesso à distância, seus dados e o que conectar. Tudo pode ser mudado depois em Configurações.</p>";
   const lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() +
-    '<span class="duas-linhas"><b>Instalação concluída</b><small title="' + esc(pasta) + '">PAULUS' + (s.versao ? " " + esc(s.versao) : "") + " · " + esc(pasta) + "</small></span>" +
+    '<span class="duas-linhas"><b>Instalação concluída</b><small title="' + esc(pasta) + '">Paulus' + (s.versao ? " " + esc(s.versao) : "") + " · " + esc(pasta) + "</small></span>" +
     '<span class="etiqueta ok">pronto</span></div>' +
-    '<div class="bv-checks">' + ollama + modelo + docs + item("falta", "Certificado digital: opcional, para assinar") + "</div>" +
+    '<div class="bv-checks">' + docs + item("falta", "Certificado digital: opcional, para assinar") + "</div>" +
     '<span class="bv-cartao-pe">Sem cadastro em servidor, sem conta obrigatória. O que você preencher fica nesta máquina.</span></div>';
   return [texto, lado];
 }
 
 function passoEscritorio() {
-  // O PAULUS de equipe (docs/PLANO-EQUIPE.md, E4): este computador e o
+  // O Paulus de equipe (docs/PLANO-EQUIPE.md, E4): este computador e o
   // servidor do escritorio, e a equipe entra pela internet, por convite. O
   // "entrar num escritorio existente" (o vinculo por codigo, que nunca teve
   // servidor) saiu.
   bv.caminho = "criar";
   const texto = "<h1>Qual é o nome do escritório?</h1>" +
-    "<p>Este computador passa a ser o PAULUS do escritório: os documentos, o modelo de IA e as contas ficam aqui. Você é o responsável.</p>" +
+    "<p>Este computador passa a ser o servidor do escritório: os documentos e as contas ficam aqui. Você é o responsável.</p>" +
     infosBv([
       "A equipe não instala nada: cada pessoa entra pela internet, com a própria conta.",
-      "Você convida pelo link — pelo WhatsApp, por exemplo — em Configurações › Acesso de fora.",
+      "Você convida pelo link — pelo WhatsApp, por exemplo — em Configurações › Acesso externo.",
       "Para isso, ligue o acesso à distância no próximo passo (dá para ligar depois também).",
     ]);
   const lado = '<div class="bv-cartao">' + campoBv("escritorio", "Nome do escritório", bv.escritorio, "data-bv-escritorio", "", "Moura & Associados Advocacia") +
@@ -252,41 +295,37 @@ function passoEscritorio() {
 
 /* ----------------------------------------------------- conta Google */
 
-/* O PAULUS do servidor vinculado a conta Google de quem o administra
+/* O Paulus do servidor vinculado a conta Google de quem o administra
    (src/vinculo.py, E5). Da para pular e vincular depois, em Configuracoes;
    vinculado, ele abre travado e pede o Google a cada abertura - salvo
    "manter aberto neste computador". */
 function passoGoogle() {
   const e = (typeof vinc !== "undefined" && vinc.estado) || null;
   if (!e && typeof lerVinculoGoogle === "function") lerVinculoGoogle().then(() => { if (passoBv() === "google") desenharBoasVindas(); });
-  const texto = "<h1>Vincule este PAULUS à sua conta Google.</h1>" +
-    "<p>Este computador passa a ser o PAULUS do escritório, e a conta Google é a sua chave: ele abre travado e pede o Google a cada abertura. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
+  const texto = "<h1>Entre com sua conta Google.</h1>" +
+    "<p>Este computador passa a ser o servidor do escritório, e a conta Google é a sua chave de acesso. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
     infosBv([
-      bv.vincComServicos
-        ? "Com o Gmail, a Agenda e o Drive: o PAULUS lê e escreve neles quando você pede, e o que sai passa por Aprovações. Os documentos do Acervo não vão para o Google."
-        : "O Google só confirma quem é você: nenhum documento vai para ele.",
-      "Dá para manter aberto neste computador — e travar de novo quando quiser, em Configurações.",
-      "O vínculo é exigido para ligar o acesso de fora e convidar a equipe. Dá para pular e vincular depois.",
+      "O Google só confirma quem é você. Nenhum documento vai para ele.",
+      "É com ela que o Paulus confere a assinatura e, depois, convida a equipe.",
     ]);
   const esperando = e && ["aguardando", "trocando", "testando"].includes(e.fase);
   let lado;
   if (e && e.vinculado) {
-    lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() + '<span class="duas-linhas"><b>Vinculado</b><small>' + esc(e.email) +
-      '</small></span><span class="etiqueta ok">pronto</span></div>' +
-      '<div class="bv-modulo" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
-      '<span class="duas-linhas"><b>Manter aberto neste computador</b><small>' +
-      (e.manter_aberto ? "abre sem pedir o Google neste computador" : "abre travado e pede o Google a cada abertura") + "</small></span>" +
-      '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div></div>';
+    // A mesma coluna do passo anterior: a conta vinculada no lugar do botao, e o interruptor como linha.
+    lado = '<div class="bv-entrada"><span class="bv-rotulo">CONTA GOOGLE</span>' +
+      '<div class="bv-linha bv-conta-ok"><span class="bv-vinculo">' + logoBv() + '<span class="bv-g">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + '</span></span><span class="duas-linhas"><b>Vinculado</b><small>' + esc(e.email) + "</small></span></div>" +
+      '<div class="bv-modulo bv-linha" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
+      '<span class="duas-linhas"><b>Manter aberto neste computador</b></span>' +
+      '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
+      '<p class="bv-ajuda">' + (e.manter_aberto ? "O Paulus abre direto neste computador, sem pedir o Google de novo." : "O Paulus abre travado e pede o Google a cada abertura.") + "</p></div>";
   } else {
-    lado = '<div class="bv-cartao"><span class="bv-rotulo">CONTA GOOGLE</span>' +
-      '<div class="bv-modulo" data-bv-servicos="1" role="switch" tabindex="0" aria-checked="' + Boolean(bv.vincComServicos) + '">' +
-      '<span class="duas-linhas"><b>Conectar também o Gmail, a Agenda e o Drive</b><small>desta mesma conta, no mesmo login · dá para desligar depois em E-mail › Contas</small></span>' +
-      '<span class="interruptor-min' + (bv.vincComServicos ? " on" : "") + '"></span></div>' +
-      '<button type="button" class="trava-google" data-bv-google="1"' + (esperando || (e && !e.google) ? " disabled" : "") + ">" +
-      (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</button>" +
+    // A coluna de /entrar (entrar.html): sem cartao, rotulo mono, linha com fio e o trilho com a pastilha.
+    lado = '<div class="bv-entrada"><span class="bv-rotulo">CONTA GOOGLE</span>' +
+      '<button type="button" class="bv-g-trilho" data-bv-google="1"' + (esperando || (e && !e.google) ? " disabled" : "") + '><span class="bv-g-pastilha">' +
+      (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</span></button>" +
       (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
-      (e && !e.google ? '<p class="cfg-explica">Esta versão do PAULUS não traz o login do Google.</p>' : "") +
-      '<span class="bv-cartao-pe">O navegador abre na página do Google. Depois de entrar, volte para cá.</span></div>';
+      (e && !e.google ? '<p class="bv-ajuda">Esta versão do Paulus não traz o login do Google.</p>' : "") +
+      '<p class="bv-ajuda">Ao clicar, o seu navegador abre a página de login do Google. Entre com a conta que vai administrar o escritório e, quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho.</p></div>';
   }
   return [texto, lado];
 }
@@ -294,35 +333,33 @@ function passoGoogle() {
 /* ------------------------------------------------- acesso a distancia */
 
 function passoAcesso() {
-  const texto = "<h1>Quer acessar o PAULUS à distância — de casa, do celular, do fórum?</h1>" +
-    "<p>Desligado, o PAULUS só abre neste computador. Dá para ligar depois em Configurações › Acesso de fora.</p>" +
-    (bv.acesso
-      ? infosBv([
-        "Este computador precisa ficar ligado, com o PAULUS aberto: é ele que atende.",
-        "Documentos e modelo de IA não saem daqui. Só a tela trafega, pela Cloudflare, que a vê descriptografada no caminho.",
-        "A conta da Cloudflare é do Atos, que não inspeciona nem registra esse conteúdo.",
-        "Cada pessoa entra com a própria conta Google e o código do celular, depois da verificação contra robôs.",
-      ])
-      : "");
-  const chave = '<div class="bv-modulo" data-bv-acesso="1" role="switch" tabindex="0" aria-checked="' + bv.acesso + '">' +
-    '<span class="bv-modulo-ic">' + ic("lan", 19) + "</span>" +
-    '<span class="duas-linhas"><b>Acesso à distância</b><small>' +
-    (bv.acesso ? "ligado · o endereço abaixo leva a este computador" : "desligado · só neste computador") + "</small></span>" +
-    '<span class="interruptor-min' + (bv.acesso ? " on" : "") + '"></span></div>';
-  if (!bv.acesso) return [texto, '<div class="bv-cartao">' + chave + "</div>"];
+  const texto = "<h1>O Paulus vai com você: de casa, do celular, do fórum.</h1>" +
+    "<p>Este computador atende pelo endereço ao lado. É por ele também que a equipe entra, cada um com a própria conta Google.</p>" +
+    infosBv([
+      "O endereço é só seu. Nada seu vai para a internet: é você que acessa o seu computador, diretamente, por ele.",
+      "O serviço é o Zero Trust, protegido pela Cloudflare, e fica disponível enquanto o seu computador estiver ligado.",
+      "Havendo equipe, cada pessoa acessa com a própria conta Google, depois da verificação de segurança.",
+    ]);
+  // A tela afirma; quem nao quer, liga o interruptor do cartao de baixo - e o cartao das etapas some.
+  const chave = "";
+  const recusa = '<div class="bv-linha bv-modulo bv-recusa' + (bv.acesso ? "" : " on") + '" data-bv-acesso="1" role="switch" tabindex="0" aria-checked="' + !bv.acesso + '">' +
+    '<span class="bv-modulo-ic">' + ic("wifi_off", 19) + "</span>" +
+    '<span class="duas-linhas"><b>Não quero acessar à distância</b><small>' + (bv.acesso ? "o Paulus abre só neste computador" : "só neste computador · dá para ligar depois em Configurações › Acesso externo") + "</small></span>" +
+    '<span class="interruptor-min' + (bv.acesso ? "" : " on") + '"></span></div>';
+  if (!bv.acesso) return [texto, '<div class="bv-acesso">' + recusa + "</div>"];
   if (!tunelCfg.dados) {
     carregarTunel().then(() => { if (passoBv() === "acesso") desenharBoasVindas(); });
-    return [texto, '<div class="bv-cartao">' + chave + '<p class="cfg-explica">Conferindo este computador…</p></div>'];
+    return [texto, '<div class="bv-cartao"><p class="cfg-explica">Conferindo este computador…</p></div>'];
   }
   const s = tunelCfg.dados.situacao || {};
   const pedido = (tunelCfg.dados.conexao || {}).pedido;
   if (s.conectado_ao_worker && !(pedido && pedido.estado === "concluido")) {
     // Ja conectado (o passeio revisto por #boasvindas): so o endereco.
     const e = "https://" + (s.hostname || "");
-    return [texto, '<div class="bv-acesso"><div class="bv-cartao">' + chave + "</div>" +
+    return [texto, '<div class="bv-acesso">' +
       '<div class="bv-cartao"><div class="acesso-endereco"><code>' + esc(e) + "</code>" +
       '<button class="com-icone" data-tunel-copiar="' + esc(e) + '">' + ic("content_copy", 16) + "Copiar</button></div>" +
-      '<span class="bv-cartao-pe">Desligar, remover e as contas da equipe ficam em Configurações › Acesso de fora.</span></div></div>'];
+      '<span class="bv-cartao-pe">Desligar, remover e as contas da equipe ficam em Configurações › Acesso externo.</span></div></div>'];
   }
   conexaoUI.onde = "bv";
   conexaoUI.redesenhar = desenharBoasVindas;
@@ -333,7 +370,7 @@ function passoAcesso() {
   if (!v.nome && bv.pessoa.nome) v.nome = bv.pessoa.nome;
   if (!v.email && bv.pessoa.email) v.email = bv.pessoa.email;
   if (!v.secundario && bv.pessoa.email_secundario) v.secundario = bv.pessoa.email_secundario;
-  return [texto, '<div class="bv-acesso"><div class="bv-cartao">' + chave + "</div>" + '<div class="bv-cartao">' + blocoConexao() + "</div></div>"];
+  return [texto, '<div class="bv-acesso">' + blocoConexao() + recusa + "</div>"];
 }
 
 /* `modo` e o teclado (inputmode) ou, para CPF e telefone, o tipo do campo
@@ -351,27 +388,65 @@ function fotoBv(titulo) {
     '<span class="duas-linhas"><b>' + titulo + "</b><small>saem do nome; a foto fica para Configurações › Meus dados</small></span></div>";
 }
 
+/* ----------------------------------------------------------- assinatura */
+
+/* O portao: a assinatura e feita no site (cadastro + pagamento no Mercado Pago),
+   com o e-mail que entrou. Aqui so se le o estado e se espera - a janela fica
+   aberta; quando o site confirmar, o passo some e o assistente segue. */
+function passoAssinatura() {
+  const a = bv.assinatura || { situacao: "nenhuma" };
+  const e = (typeof vinc !== "undefined" && vinc.estado) || null;
+  const email = (e && e.email) || bv.google || (a.email || "");
+  const nome = (e && e.nome) || bv.pessoa.nome || email.split("@")[0];
+  const vencida = a.situacao === "vencida";
+  const esperando = bv.assinaturaEsperando;
+  const texto = (vencida
+    ? "<h1>A assinatura desta conta venceu.</h1><p>Regularize no site para voltar a usar tudo. Enquanto isso, você pode continuar com os seus arquivos.</p>"
+    : "<h1>Ainda não há assinatura para esta conta.</h1><p>A assinatura é feita no site, com os dados do escritório e o pagamento. Quando o site confirmar, esta janela segue sozinha.</p>") +
+    infosBv(vencida
+      ? ["Os dados e os documentos continuam seus, no seu computador, com ou sem assinatura.", "Ao regularizar, tudo volta na hora, sem reinstalar."]
+      : ["O cadastro no site já pede nome, OAB, CPF ou CNPJ e endereço: aqui você só confere.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
+  const lado = '<div class="bv-entrada"><span class="bv-rotulo">ASSINATURA</span>' +
+    // O seletor de conta do Google ("Continuar como…"): avatar, nome, e-mail com a setinha e o G.
+    '<button type="button" class="bv-conta-g" data-bv="outra-conta" title="Trocar de conta"><span class="bv-avatar">' + esc(iniciaisBv(nome)) + "</span>" +
+      '<span class="bv-conta-txt"><b>Continuar como ' + esc(nome) + "</b><small>" + esc(email) + ic("expand_more", 14) + "</small></span>" +
+      '<span class="bv-g-solto">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + "</span></button>" +
+    (esperando
+      ? '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a confirmação do site…</b><small>a janela segue sozinha quando o pagamento confirmar</small></span></div>' +
+        '<button type="button" class="bv-continuar bv-largo" data-bv="assinatura-conferir"><span>Já assinei, conferir agora</span></button>'
+      : '<button type="button" class="bv-continuar bv-largo" data-bv="assinar"><span>' + ic("open_in_new", 16) + (vencida ? "Regularizar no site" : "Assinar no site") + "</span></button>") +
+    '<p class="bv-ajuda">' + (vencida
+      ? "Sem assinatura válida, o Paulus abre só com os seus arquivos: documentos, pastas e anotações seguem acessíveis. Ficam suspensos as respostas de IA, a emissão de NFS-e e os demais serviços. Ao regularizar no site, tudo volta na hora."
+      : "O site abre no seu navegador com esta conta já preenchida. O pagamento é feito lá, com o Mercado Pago; nada de cartão passa por aqui.") + "</p></div>";
+  return [texto, lado];
+}
+
 function passoDados() {
   const p = bv.pessoa;
-  // Vinculado a conta Google (E5): o nome vem dela (da para mudar) e o e-mail
-  // e o do Google, fixo - so o secundario se digita. E daqui que a conta de
-  // titular do acesso a distancia tira o nome e os e-mails, sem pedir de novo.
+  const a = bv.assinatura || {};
   const g = (typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado) ? vinc.estado : null;
-  if (g) {
-    p.email = g.email;
-    if (!p.nome && g.nome) p.nome = g.nome;
+  if (g) { p.email = g.email; if (!p.nome && g.nome) p.nome = g.nome; }
+  const texto = "<h1>Confira os seus dados.</h1>" +
+    "<p>Vieram da assinatura. Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p>" +
+    infosBv(["O que mudar no site, em Minha assinatura, muda aqui também."]);
+  // Com cara de formulario, mas so leitura: rotulo em cima, valor na caixa; dois por linha quando couber.
+  // tam: "" = um terco, "meio" = metade, "largo" = linha inteira.
+  const campo = (rotulo, valor, mono, tam) => '<div class="bv-campo-ro' + (tam ? " " + tam : "") + '"><span>' + rotulo + "</span><b" + (mono ? ' class="mono"' : "") + ">" + (valor ? esc(valor) : "<i>não informado</i>") + "</b></div>";
+  if (bv.dadosEsperando) {
+    const lado = '<div class="bv-entrada"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
+      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando a edição no site…</b><small>quando salvar, os dados aparecem aqui</small></span>' +
+      '<button type="button" class="bv-ligacao apagada" data-bv="dados-cancelar">Cancelar</button></div>' +
+      '<button type="button" class="bv-continuar bv-largo" data-bv="dados-conferir"><span>Já editei, conferir agora</span></button></div>';
+    return [texto, lado];
   }
-  const texto = "<h1>Quem vai usar o PAULUS?</h1>" +
-    "<p>Nome, OAB e endereço entram na qualificação das partes, no papel timbrado e no selo de assinatura. Nada disso é enviado para fora.</p>" +
-    (g ? infosBv(["O nome e o e-mail vieram da sua conta Google; o e-mail é o com que você entra. Outro e-mail de contato vai em “secundário”."], "check_circle", "ok") : "");
-  const email = g
-    ? '<div class="campo-painel"><label>E-mail Google</label><span class="bv-campo-fixo" title="' + esc(g.email) + '">' + ic("check_circle", 16) + "<span>" + esc(g.email) + "</span></span></div>" +
-      campoBv("email_secundario", "E-mail secundário (opcional)", p.email_secundario, "data-bv-pessoa", "email")
-    : campoBv("email", "E-mail", p.email, "data-bv-pessoa", "email");
-  const lado = '<div class="bv-cartao">' + fotoBv("Iniciais") +
-    '<div class="bv-grade">' + campoBv("nome", "Nome completo", p.nome, "data-bv-pessoa") + campoBv("oab", "OAB", p.oab, "data-bv-pessoa", "", "GO 00000") +
-    campoBv("cpf", "CPF", p.cpf, "data-bv-pessoa", "cpf", "000.000.000-00") + campoBv("telefone", "Telefone", p.telefone, "data-bv-pessoa", "telefone", "(62) 99999-8888") +
-    email + campoBv("endereco", "Endereço", p.endereco, "data-bv-pessoa") + "</div></div>";
+  const lado = '<div class="bv-entrada"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
+    '<div class="bv-dados">' +
+    campo("Nome", p.nome, false, "meio") + campo("Escritório", bv.escritorio || a.escritorio, false, "meio") +
+    campo("OAB", p.oab, true) + campo("CPF ou CNPJ", p.cpf, true) + campo("Telefone", p.telefone, true) +
+    campo("E-mail", p.email, true, "meio") + campo("Endereço", p.endereco, false, "meio") + "</div>" +
+    '<p class="bv-ajuda bv-ajuda-dados">Estas são as informações do seu cadastro. Se algo estiver errado ou precisar mudar, <button type="button" class="bv-ligacao" data-bv="editar-site">' + ic("open_in_new", 14) + "edite no site</button>.</p>" +
+    (a.plano ? '<span class="bv-rotulo">PLANO</span><div class="bv-linha bv-dado-plano"><span class="duas-linhas"><b class="bv-plano-nome">' + esc(a.plano) + ' <span class="etiqueta ok">ativa</span></b><small>' + (a.renova_em ? "renova em " + esc(dataBR(a.renova_em)) : "") + '</small></span><button type="button" class="bv-ligacao" data-bv="upgrade">' + ic("open_in_new", 14) + 'Fazer upgrade</button></div>' : "") +
+    "</div>";
   return [texto, lado];
 }
 
@@ -483,7 +558,7 @@ function passoIA() {
     ["Memória", pronto ? gb(m.ram_total_gb) + " · " + gb(m.ram_livre_gb) + " livres agora" : "…"],
     ["Placa de vídeo", pronto ? placas || "sem placa NVIDIA: o modelo roda no processador" : "…"],
   ];
-  if (pronto && m.na_bateria) linhas.push(["Energia", "na bateria: na tomada o PAULUS responde mais rápido"]);
+  if (pronto && m.na_bateria) linhas.push(["Energia", "na bateria: na tomada o Paulus responde mais rápido"]);
   let maquina = '<div class="bv-cartao bv-maquina"><span class="bv-rotulo">ESTA MÁQUINA</span><div class="bv-tabela">' +
     linhas.map(([k, v]) => "<div><span>" + k + "</span><span>" + esc(v) + "</span></div>").join("") + "</div>";
   if (!d) {
@@ -504,7 +579,7 @@ function passoIA() {
     '<span class="duas-linhas"><span class="bv-modelo-nome"><span>Não baixar agora</span></span><small>escolho depois, em Configurações › Modelos</small></span></button>';
   const cal = bv.calib || {};
   const calibracao = '<div class="bv-calibracao"><span class="duas-linhas"><b>Participar da calibração</b>' +
-    "<small>mede o modelo desta máquina uma vez (cerca de um minuto), manda as medidas ao site do PAULUS e recebe as de outras; nada do escritório · " +
+    "<small>mede o modelo desta máquina uma vez (cerca de um minuto), manda as medidas ao site do Paulus e recebe as de outras; nada do escritório · " +
     '<button type="button" class="em-ligacao" data-cal-ver="1">ver o que é enviado</button></small></span>' +
     '<span class="interruptor-min' + (cal.participar ? " on" : "") + '" data-cal-participar="1" role="switch" tabindex="0" aria-checked="' + Boolean(cal.participar) + '" aria-label="Participar da calibração"></span></div>';
   const lista = (rec.length ? '<span class="bv-rotulo bv-lista-titulo">RECOMENDADO PARA ESTA MÁQUINA</span>' + rec.map((x) => linhaModeloBv(x, limite)).join("") : "") +
@@ -569,21 +644,30 @@ async function usarVozEscolhida() {
 /* ------------------------------------------------------------ modulos */
 
 function passoModulos() {
-  const ligados = 1 + MODULOS_BV.filter(([id]) => bv.modulos[id]).length;
-  const texto = "<h1>O que o escritório vai usar?</h1>" +
-    "<p>O Assistente é fixo. Os demais módulos podem ser ligados ou desligados depois em Configurações › Módulos, sem reinstalar. O que você desligar some do menu desta máquina.</p>" +
-    '<div class="bv-contagem"><span>Módulos ligados</span><span>' + ligados + " de " + (MODULOS_BV.length + 1) + "</span></div>";
+  const ligados = 3 + MODULOS_BV.filter(([id]) => bv.modulos[id] && (!(bv.assinatura || {}).recursos || bv.assinatura.recursos.includes(id))).length;
+  const a = bv.assinatura || {};
+  const liberado = (id) => !a.recursos || a.recursos.includes(id);
+  const texto = "<h1>O que aparece no seu menu?</h1>" +
+    "<p>Só personalização: o que você desligar some do menu desta máquina, e volta quando quiser, em Configurações › Módulos. O que cada módulo pode fazer vem do plano" + (a.plano ? " <b>" + esc(a.plano) + "</b>" : "") + ".</p>" +
+    '<div class="bv-contagem"><span>No menu</span><span>' + ligados + " de " + (MODULOS_BV.length + 3) + "</span></div>";
+  // Fora do plano: a linha fica apagada, com o selo do plano que libera, e o interruptor nao mexe.
   const linha = (id, icone, nome, desc, fixo) => {
-    const ligado = fixo || bv.modulos[id];
-    return '<div class="bv-modulo' + (fixo ? " fixo" : "") + '"' + (fixo ? "" : ' data-bv-modulo="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + ">" +
+    const fora = !fixo && !liberado(id);
+    const ligado = fixo || (!fora && bv.modulos[id]);
+    const precisa = fora && a.libera_em && a.libera_em[id] ? a.libera_em[id] : "";
+    return '<div class="bv-modulo' + (fixo ? " fixo" : "") + (fora ? " fora" : "") + '"' + (fixo || fora ? "" : ' data-bv-modulo="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + (fora ? ' title="Não está no plano atual"' : "") + ">" +
       '<span class="bv-modulo-ic">' + ic(icone, 19) + "</span>" +
-      '<span class="duas-linhas"><b>' + nome + "</b><small>" + desc + "</small></span>" +
+      '<span class="duas-linhas"><b>' + nome + (precisa ? ' <span class="etiqueta">' + esc(precisa) + "</span>" : "") + "</b><small>" + desc + "</small></span>" +
       (fixo ? '<span class="bv-fixo">fixo</span>' : '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span>') + "</div>";
   };
-  const lado = '<div class="bv-grupos"><span class="bv-rotulo bv-lista-titulo">NÚCLEO</span>' +
+  // Um cartao largo, em duas colunas; os grupos do trilho, com o nucleo (Assistente, Plano e consumo, Configuracoes) fixo.
+  const grupos = ["Dia a dia", "Documentos", "Escritório"];
+  const colunas = grupos.map((g) => '<div class="bv-mod-grupo"><span class="bv-rotulo bv-lista-titulo">' + g.toUpperCase() + "</span>" +
+    MODULOS_BV.filter((m) => m[5] === g).map(([id, icone, nome, desc]) => linha(id, icone, nome, desc, false)).join("") + "</div>").join("");
+  const lado = '<div class="bv-cartao bv-modulos"><div class="bv-mod-grupo"><span class="bv-rotulo bv-lista-titulo">SEMPRE</span>' +
     linha("assistente", "forum", "Assistente", "Conversa, pesquisa no acervo e rascunhos", true) +
-    '<span class="bv-rotulo bv-lista-titulo">ESCRITÓRIO</span>' +
-    MODULOS_BV.map(([id, icone, nome, desc]) => linha(id, icone, nome, desc, false)).join("") + "</div>";
+    linha("consumo", "speed", "Plano e consumo", "A cota do mês e o que foi usado", true) +
+    linha("config", "settings", "Configurações", "Dados, módulos e conexões", true) + "</div>" + colunas + "</div>";
   return [texto, lado];
 }
 
@@ -601,57 +685,107 @@ async function conferirContasBv() {
     const g = (d.contas || []).find((c) => c.autenticacao === "google");
     bv.google = g ? g.email : null;
   } catch (err) { /* sem contas, fica como estava */ }
-  // O assistente reaberto num PAULUS ja vinculado e conectado: sem Conexoes.
-  const e = (typeof vinc !== "undefined" && vinc.estado) || null;
-  if (bv.passo === 0 && e && e.vinculado && bv.google && bv.google.toLowerCase() === String(e.email).toLowerCase()) bv.googleNoVinculo = true;
 }
 
+/* Um servico por linha, cada um com o proprio interruptor: o Google pede a
+   permissao de cada um separadamente (src/correio_oauth.py, agenda, drive). */
+const SERVICOS_BV = [
+  { id: "gmail", nome: "Gmail", desc: "ler e enviar, com Aprovações" },
+  { id: "agenda", nome: "Agenda", desc: "ler e criar eventos" },
+  { id: "meet", nome: "Meet", desc: "criar reuniões nos eventos", com: "agenda" },
+  { id: "drive", nome: "Drive", desc: "só os arquivos que o Paulus envia" },
+  // A leitura do Drive (drive.readonly): a mesma de Configurações › Conexões e do Acervo (conectarGoogle("drive_leitura")).
+  { id: "drive_leitura", marca: "drive", nome: "Drive", desc: "ler as pastas que você escolher no Acervo" },
+]
+
 function passoConexoes() {
-  const texto = "<h1>O que você quer conectar? Tudo opcional.</h1>" +
-    "<p>O e-mail do escritório pode ser lido e respondido daqui, com envio passando por Aprovações. A IA continua local: o PAULUS lê aqui e não devolve nada sem o seu sim.</p>" +
+  const e = (typeof vinc !== "undefined" && vinc.estado) || null;
+  const conta = bv.google || (e && e.vinculado ? e.email : "");
+  const texto = "<h1>Conectar o Gmail, a Agenda e o Drive?</h1>" +
+    "<p>É a mesma conta Google de agora. Cada serviço pede a própria permissão ao Google, uma vez. Tudo opcional.</p>" +
     infosBv([
-      "A autorização do e-mail fica nesta máquina, cifrada pela sua conta do Windows.",
-      "Dá para desconectar a qualquer hora em E-mail › Contas.",
+      "Dá para conectar ou desconectar depois em Configurações › Conexões.",
+      "A autorização fica nesta máquina, cifrada pela sua conta do Windows.",
     ]);
-  const ligado = Boolean(bv.google);
-  const desc = ligado
-    ? "Conectada · " + esc(bv.google) + " · a Agenda e o Drive se conectam em Configurações › Conexões"
-    : (bv.imap ? "Outro provedor: o PAULUS abre em E-mail › Contas ao terminar"
-      // Vinculado so com a identidade: o Google pede as permissoes do Gmail,
-      // da Agenda e do Drive uma vez - por isso este login e outro.
-      : ((typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado)
-        ? "Vinculado a " + esc(vinc.estado.email) + " · falta autorizar o Gmail, a Agenda e o Drive dela (o Google pede essas permissões uma vez)"
-        : "Gmail · Agenda e Meet · Drive"));
-  const lado = '<div class="bv-conta' + (ligado ? " on" : "") + '" data-bv="google" role="switch" tabindex="0" aria-checked="' + ligado + '">' +
-    '<span class="bv-fabricante">' + eoMarca("google") + "</span>" +
-    '<span class="duas-linhas"><b>Conta Google</b><small>' + desc + "</small></span>" +
-    '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
+  if (bv.google) bv.autorizados.gmail = true;
+  const pedidos = SERVICOS_BV.filter((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]);
+  if (bv.consentEsperando) {
+    const lado = '<div class="bv-entrada"><span class="bv-rotulo">CONEXÕES</span>' +
+      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o consentimento no Google…</b><small>' + esc(pedidos.map((p) => p.nome).join(", ")) + " · quando autorizar, a janela segue sozinha</small></span>" +
+      '<button type="button" class="bv-ligacao apagada" data-bv="consent-cancelar">Cancelar</button></div>' +
+      '<button type="button" class="bv-continuar bv-largo" data-bv="consent-conferir"><span>Já autorizei, conferir agora</span></button>' +
+      '<p class="bv-ajuda">O Google abriu no seu navegador com esta conta. Se a aba não apareceu, confira as janelas abertas.</p></div>';
+    return [texto, lado];
+  }
+  // O Meet vem com a Agenda (mesma permissao, calendar.events): a linha mostra o estado, sem interruptor proprio.
+  const linhas = SERVICOS_BV.map((sv) => {
+    const on = Boolean(bv.autorizados[sv.com || sv.id] || bv.servicos[sv.com || sv.id]);
+    const junto = Boolean(sv.com);
+    return '<div class="bv-servico' + (on ? " on" : "") + (junto ? " junto" : "") + '" data-bv-servico="' + (sv.com || sv.id) + '" role="switch" tabindex="0" aria-checked="' + on + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : "") + ">" +
+      '<span class="bv-servico-marca">' + eoMarca(sv.marca || sv.id) + "</span>" +
+      '<span class="bv-servico-nome">' + sv.nome + "</span>" +
+      '<span class="bv-servico-d">' + (bv.autorizados[sv.com || sv.id] ? "autorizado" : sv.desc) + "</span>" +
+      '<span class="interruptor-min' + (on ? " on" : "") + '"></span></div>';
+  }).join("");
+  const lado = '<div class="bv-entrada">' +
+    (conta ? '<span class="bv-rotulo">CONTA</span><div class="bv-linha bv-conta-ok"><span class="bv-servico-marca">' + eoMarca("google") + '</span><span class="duas-linhas"><b>' + esc(conta) + '</b></span><span class="etiqueta ok">conectado</span></div>' : "") +
+    '<span class="bv-rotulo">O QUE AUTORIZAR</span><div class="bv-servicos">' + linhas + "</div></div>";
   return [texto, lado];
 }
 
+/* Um unico consentimento: o Google pede de uma vez as permissoes dos servicos
+   marcados (POST /api/conexoes/autorizar {servicos}); a volta e a pagina de
+   retorno (src/pagina_retorno.py), e aqui so se espera e se confere. */
+async function pedirConsentimentoBv(servicos) {
+  try {
+    const r = await (await fetch("/api/conexoes/autorizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servicos }) })).json();
+    if (r && r.url) window.open(r.url, "_blank", "noopener");
+    bv.consentEsperando = true; pararEsperaConsent(); bv.consentEsperando = true;
+    bv.relogioConsent = setInterval(conferirConsentBv, 4000);
+    setTimeout(pararEsperaConsent, 5 * 60 * 1000);
+    desenharBoasVindas();
+  } catch (err) { avisoCert("não deu para abrir a autorização do Google"); }
+}
+
+async function conferirConsentBv() {
+  let st = null;
+  try { st = await (await fetch("/api/conexoes")).json(); } catch (err) { return false; }
+  const antes = JSON.stringify(bv.autorizados);
+  for (const sv of SERVICOS_BV) if (st && st[sv.id]) bv.autorizados[sv.id] = true;
+  const faltam = SERVICOS_BV.some((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]);
+  if (!faltam) { pararEsperaConsent(); desenharBoasVindas(); return true; }
+  if (JSON.stringify(bv.autorizados) !== antes) desenharBoasVindas();
+  return false;
+}
+
+function pararEsperaConsent() {
+  bv.consentEsperando = false;
+  if (bv.relogioConsent) { clearInterval(bv.relogioConsent); bv.relogioConsent = null; }
+}
+
 function janelaEntrarBv() {
-  const botoes = botoesDeLoginOAuth(bv.oauth);
+  // So o Google: a conta do Paulus e a conta Google (nada de Microsoft nem IMAP aqui).
+  const botoes = botoesDeLoginOAuth(bv.oauth && { google: bv.oauth.google });
   return '<div class="bv-veu" data-bv="fechar-entrar"><div class="bv-entrar-coluna" data-bv-parar="1">' +
-    '<div class="bv-entrar" id="bv-entrar"><h2>Entrar</h2>' +
-    (botoes || '<p class="bv-cartao-pe">Esta versão do PAULUS não traz o login do Google. Use outro provedor.</p>') +
-    '<button type="button" class="bv-ligacao" data-bv="imap">Outro provedor (IMAP e SMTP)</button></div>' +
+    '<div class="bv-entrar" id="bv-entrar"><h2>Autorizar o Gmail</h2>' +
+    (botoes || '<p class="bv-cartao-pe">Esta versão do Paulus não traz o login do Google.</p>') + "</div>" +
     '<div class="bv-entrar-notas"><span>Leio só o que você abre</span><span>Prazos viram sugestão na Agenda</span></div>' +
     '<span class="bv-entrar-notas">Nada sai sem passar por Aprovações</span></div></div>';
 }
 
 function passoAtualizacoes() {
   const a = bv.atualizacoes || { verificar: true, avisar_antes: true };
-  const texto = "<h1>Como o PAULUS deve se atualizar?</h1>" +
-    "<p>Uma vez por dia, o PAULUS lê em paulus.ia.br se há versão nova — só essa leitura; nada seu vai junto. A versão nova vem do instalador oficial, conferido antes de abrir, e os dados do escritório ficam como estão.</p>";
+  const texto = "<h1>Como o Paulus deve se atualizar?</h1>" +
+    "<p>Uma vez por dia, o Paulus lê em paulus.ia.br se há versão nova — só essa leitura; nada seu vai junto. A versão nova vem do instalador oficial, conferido antes de abrir, e os dados do escritório ficam como estão.</p>";
   const linha = (id, titulo, desc, ligado, bloqueado) =>
     '<div class="bv-modulo' + (bloqueado ? " fixo" : "") + '"' + (bloqueado ? "" : ' data-bv-atu="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + ">" +
     '<span class="duas-linhas"><b>' + titulo + "</b><small>" + desc + "</small></span>" +
     '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
   const lado = '<div class="bv-cartao"><div class="bv-grupos">' +
-    linha("verificar", "Verificar atualizações uma vez por dia", "desligado, o PAULUS não procura versão nova; dá para verificar em Configurações › Versão", a.verificar) +
+    linha("verificar", "Verificar atualizações uma vez por dia", "desligado, o Paulus não procura versão nova; dá para verificar em Configurações › Versão", a.verificar) +
     linha("avisar_antes", "Avisar antes de instalar", a.avisar_antes
       ? "a faixa do topo avisa; você instala quando quiser"
-      : "a versão nova baixa sozinha e se instala quando você fechar o PAULUS", a.avisar_antes, !a.verificar) + "</div></div>";
+      : "a versão nova baixa sozinha e se instala quando você fechar o Paulus", a.avisar_antes, !a.verificar) + "</div></div>";
   return [texto, lado];
 }
 
@@ -669,10 +803,10 @@ function passoCodigos() {
   };
   const nome = bv.pessoa.nome || "você";
   const texto = "<h1>Dois códigos: um que você recebe, um que você passa.</h1>" +
-    "<p>O primeiro é o código do responsável: ele gera no PAULUS dele e vincula esta máquina ao escritório. O segundo é gerado aqui e identifica você; o responsável digita em Configurações › Escritório e vínculos.</p>" +
+    "<p>O primeiro é o código do responsável: ele gera no Paulus dele e vincula esta máquina ao escritório. O segundo é gerado aqui e identifica você; o responsável digita em Configurações › Escritório e vínculos.</p>" +
     infosBv([
       "O código do responsável vale por 15 minutos.",
-      "Enquanto ele não adiciona você, o PAULUS abre com o que é só desta máquina; o que depende do escritório fica bloqueado.",
+      "Enquanto ele não adiciona você, o Paulus abre com o que é só desta máquina; o que depende do escritório fica bloqueado.",
       "A conferência pela rede local ainda não existe nesta versão: o pedido fica guardado nesta máquina até ela chegar. Dá para cancelar e criar o seu escritório a qualquer momento.",
     ]);
   const lado = '<div class="bv-cartao bv-codigo-cartao"><div class="bv-codigo-cabeca"><span class="bv-num-passo">1</span><span>Código do responsável</span><small>' +
@@ -750,19 +884,22 @@ function ligarBoasVindas() {
           if (e.vinculado) {
             bv.pessoa.email = e.email;
             if (!bv.pessoa.nome && e.nome) bv.pessoa.nome = e.nome;
-            // Com os servicos, a conta de e-mail ja existe: Conexoes aparece conectado.
-            if (bv.vincComServicos) {
-              await conferirContasBv();
-              bv.googleNoVinculo = Boolean(bv.google);
-            }
+            // Se o Gmail ja estiver autorizado nesta maquina, Conexoes mostra conectado.
+            await conferirContasBv();
+            if (bv.google) bv.autorizados.gmail = true;
           }
           if (passoBv() === "google") desenharBoasVindas();
-        }, bv.vincComServicos);
+        }, false);
       } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     };
   });
-  caixa.querySelectorAll("[data-bv-servicos]").forEach((m) => {
-    teclaAtiva(m, () => { bv.vincComServicos = !bv.vincComServicos; desenharBoasVindas(); });
+  caixa.querySelectorAll("[data-bv-servico]").forEach((m) => {
+    teclaAtiva(m, () => {
+      const id = m.getAttribute("data-bv-servico");
+      if (bv.autorizados[id]) { avisoCert("para desconectar, use Configurações › Conexões depois de abrir o Paulus"); return; }
+      bv.servicos[id] = !bv.servicos[id];
+      desenharBoasVindas();
+    });
   });
   caixa.querySelectorAll("[data-bv-manter]").forEach((m) => {
     teclaAtiva(m, async () => {
@@ -777,10 +914,11 @@ function ligarBoasVindas() {
   caixa.querySelectorAll("[data-bv-acesso]").forEach((m) => {
     teclaAtiva(m, async () => {
       if (bv.acesso && tunelCfg.dados && (tunelCfg.dados.situacao || {}).conectado_ao_worker) {
-        avisoCert("já conectado: para desligar ou remover, use Configurações › Acesso de fora");
+        avisoCert("já conectado: para desligar ou remover, use Configurações › Acesso externo");
         return;
       }
       bv.acesso = !bv.acesso;
+      gravarBoasVindas({ acesso_remoto: { recusado: !bv.acesso } }).catch(() => {});
       if (!bv.acesso) {
         const pedido = ((tunelCfg.dados || {}).conexao || {}).pedido;
         if (pedido && pedido.estado === "esperando") await acessoPost("/api/acesso/tunel/cancelar").catch(() => {});
@@ -836,9 +974,62 @@ function ligarBoasVindas() {
 
 async function acaoBoasVindas(qual) {
   if (qual === "voltar") { bv.passo = Math.max(0, bv.passo - 1); desenharBoasVindas(); return; }
+  if (qual === "dados-cancelar") { pararEsperaDados(); desenharBoasVindas(); return; }
+  if (qual === "consent-cancelar") { pararEsperaConsent(); fetch("/api/conexoes/cancelar", { method: "POST" }).catch(() => {}); desenharBoasVindas(); return; }
+  if (qual === "consent-conferir") {
+    const ok = await conferirConsentBv();
+    if (!ok) avisoCert("o Google ainda não confirmou — se já autorizou, aguarde um instante");
+    return;
+  }
+  if (qual === "dados-conferir") {
+    const antes = JSON.stringify([bv.pessoa, bv.escritorio]);
+    const r = await lerAssinatura(true);
+    if (r && r.ativa) { if (r.pessoa) Object.assign(bv.pessoa, r.pessoa); if (r.escritorio) bv.escritorio = r.escritorio; }
+    if (JSON.stringify([bv.pessoa, bv.escritorio]) === antes) avisoCert("nenhuma alteração encontrada — se já salvou no site, aguarde um instante");
+    pararEsperaDados(); desenharBoasVindas(); return;
+  }
+  if (qual === "upgrade") { window.open("https://paulus.ia.br/assinatura?trocar=1", "_blank", "noopener"); return; }
+  if (qual === "assinar" || qual === "editar-site") {
+    const e = (typeof vinc !== "undefined" && vinc.estado) || null;
+    const email = (e && e.email) || bv.google || "";
+    const pagina = qual === "assinar" ? (bv.assinatura && bv.assinatura.situacao === "vencida" ? "/assinatura" : "/cadastro") : "/assinatura";
+    window.open("https://paulus.ia.br" + pagina + (email ? "?email=" + encodeURIComponent(email) : ""), "_blank", "noopener");
+    if (qual === "editar-site") {
+      // Espera a volta: consulta a assinatura e, quando algum dado mudar, mostra o formulario de novo.
+      const antes = JSON.stringify([bv.pessoa, bv.escritorio]);
+      bv.dadosEsperando = true; pararEsperaDados();
+      bv.relogioDados = setInterval(async () => {
+        const r = await lerAssinatura(true);
+        if (r && r.ativa && JSON.stringify([r.pessoa || {}, r.escritorio || ""]) !== antes) {
+          if (r.pessoa) Object.assign(bv.pessoa, r.pessoa);
+          if (r.escritorio) bv.escritorio = r.escritorio;
+          pararEsperaDados(); desenharBoasVindas();
+        }
+      }, 5000);
+      desenharBoasVindas(); return;
+    }
+    if (qual === "assinar") {
+      bv.assinaturaEsperando = true;
+      pararEsperaAssinatura();
+      bv.relogioAssinatura = setInterval(async () => { await lerAssinatura(); if (bv.assinatura && bv.assinatura.ativa) desenharBoasVindas(); }, 5000);
+      desenharBoasVindas();
+    }
+    return;
+  }
+  if (qual === "assinatura-conferir") {
+    await lerAssinatura();
+    if (!(bv.assinatura && bv.assinatura.ativa)) avisoCert("o site ainda não confirmou — se já pagou, aguarde um instante");
+    desenharBoasVindas();
+    return;
+  }
+  if (qual === "outra-conta") {
+    pararEsperaAssinatura(); bv.assinaturaEsperando = false;
+    fetch("/api/vinculo/desfazer", { method: "POST" }).catch(() => {});
+    bv.passo = Math.max(0, ordemBv().indexOf("google")); desenharBoasVindas(); return;
+  }
   if (qual === "pular") { bv.passo += 1; desenharBoasVindas(); return; }
   if (qual === "google") {
-    if (bv.google) { avisoCert("para desconectar, use E-mail › Contas depois de abrir o PAULUS"); return; }
+    if (bv.google) { avisoCert("para desconectar, use E-mail › Contas depois de abrir o Paulus"); return; }
     bv.entrarAberto = true;
     desenharBoasVindas();
     return;
@@ -860,7 +1051,7 @@ async function acaoBoasVindas(qual) {
   }
   if (qual === "copiar") { copiarTexto(bv.vinculo.meuCodigo, "código copiado — passe ao responsável"); return; }
   if (qual === "whatsapp") {
-    copiarTexto("Meu código para entrar no PAULUS do escritório: " + bv.vinculo.meuCodigo + " (" + (bv.pessoa.nome || "") + ")",
+    copiarTexto("Meu código para entrar no Paulus do escritório: " + bv.vinculo.meuCodigo + " (" + (bv.pessoa.nome || "") + ")",
       "mensagem copiada — cole na conversa com o responsável no WhatsApp");
     return;
   }
@@ -883,11 +1074,15 @@ async function acaoBoasVindas(qual) {
       await carregarTunel();
     }
   }
+  if (passo === "conexoes") {
+    const pedidos = SERVICOS_BV.filter((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]).map((sv) => sv.id);
+    if (pedidos.length) { await pedirConsentimentoBv(pedidos); return; }
+  }
   if (passo === "acesso" && bv.acesso) {
     const d = tunelCfg.dados || {};
     const pedido = (d.conexao || {}).pedido;
-    if (pedido && pedido.estado === "esperando") avisoCert("a confirmação continua no navegador; o endereço aparece em Configurações › Acesso de fora quando terminar", { dura: 7000 });
-    else if (!(d.situacao || {}).conectado_ao_worker) avisoCert("o acesso à distância ficou desligado; dá para ligar em Configurações › Acesso de fora");
+    if (pedido && pedido.estado === "esperando") avisoCert("a confirmação continua no navegador; o endereço aparece em Configurações › Acesso externo quando terminar", { dura: 7000 });
+    else if (!(d.situacao || {}).conectado_ao_worker) avisoCert("o acesso à distância ficou desligado; dá para ligar em Configurações › Acesso externo");
   }
   if (ultimo) {
     if (bv.caminho === "entrar") {
@@ -904,7 +1099,7 @@ async function acaoBoasVindas(qual) {
     await usarModeloEscolhido();
     await usarVozEscolhida();
     await concluirBoasVindas(true);
-    if (bv.caminho === "entrar") avisoCert("pedido guardado nesta máquina — o PAULUS abre em modo limitado até o responsável validar");
+    if (bv.caminho === "entrar") avisoCert("pedido guardado nesta máquina — o Paulus abre em modo limitado até o responsável validar");
     if (bv.imap && bv.caminho === "criar") { marcarDestino("caixa"); mostrarEmail(); }
     return;
   }
@@ -1042,7 +1237,7 @@ function cartaoDoPedidoDestaMaquina() {
   const v = lerVinculo();
   if (!v) return "";
   const corpo = '<p class="cfg-texto">Este computador pediu para entrar em um escritório existente' + (v.nome ? " como " + esc(v.nome) : "") +
-    (v.cargo ? " · " + esc(v.cargo) : "") + ". O responsável digita o seu código no PAULUS dele; até ele validar, o que depende do escritório fica apagado no menu.</p>" +
+    (v.cargo ? " · " + esc(v.cargo) : "") + ". O responsável digita o seu código no Paulus dele; até ele validar, o que depende do escritório fica apagado no menu.</p>" +
     '<div class="cfg-codigo"><span class="duas-linhas"><b>Seu código, para o responsável</b><small>pedido em ' + esc(dataBR(v.pedido_em)) + " · válido até ele validar</small></span>" +
     '<span class="cfg-casas">' + String(v.meuCodigo || "").split("").map((c) => "<span>" + esc(c) + "</span>").join("") + "</span></div>" +
     '<div class="cfg-codigo"><span class="duas-linhas"><b>Código do responsável que você digitou</b><small>a conferência pela rede local ainda não existe</small></span>' +

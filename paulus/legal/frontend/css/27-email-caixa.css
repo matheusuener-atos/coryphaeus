@@ -25,8 +25,8 @@
   .ex-conta .em-avatar { width: 20px; height: 20px; border-radius: 50%; font-size: 10px; }
   /* a caixa de entrada abre com o resumo da IA de Servicos (12-servicos.css) */
   .ex-abre.sv-abertura { gap: 22px; padding-top: 6px; }
-  .ex-titulo { margin: 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
-  .ex-lide { margin: 0; max-width: 880px; font: 400 15px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
+  .ex-titulo { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }
+  .ex-lide { margin: 0; max-width: 880px; font: 400 16px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
 
 
   /* a lista: o cartao de tabela do sistema, a barra presa no alto */
@@ -49,20 +49,20 @@
   .ex-ponto { width: 6px; height: 6px; flex: none; border-radius: 50%; }
   .ex-linha.nova .ex-ponto { background: var(--destaque); }
   .ex-linha.nova .ex-de { font-weight: 700; color: var(--ink); }
-  .ex-sobre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px var(--sans); color: var(--ink3); }
+  .ex-sobre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px var(--sans); color: var(--ink3); }
   .ex-sobre b { font: 500 14px var(--sans); color: var(--ink2); }
   .ex-linha.nova .ex-sobre b { font-weight: 600; color: var(--ink); }
   .ex-trecho::before { content: " — "; }
   .ex-marcas { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
   .ex-marca-ic { display: inline-flex; color: var(--ink3); }
-  .ex-quando { font: 500 12.5px var(--sans); color: var(--ink3); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ex-quando { font: 500 12px var(--sans); color: var(--ink3); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .ex-linha.nova .ex-quando { color: var(--ink); font-weight: 600; }
   .ex-linha .mais-linha { opacity: 0; }
   .ex-linha:hover .mais-linha, .ex-linha.aberta .mais-linha { opacity: 1; }
 
   .ex-vazio { display: grid; gap: 6px; padding: 28px 18px; }
-  .ex-vazio h4 { margin: 0; font: 600 15px/1.3 var(--sans); color: var(--ink); }
-  .ex-vazio p { margin: 0; font: 400 13.5px/1.55 var(--sans); color: var(--ink2); }
+  .ex-vazio h4 { margin: 0; font: 600 16px/1.3 var(--sans); color: var(--ink); }
+  .ex-vazio p { margin: 0; font: 400 13px/1.55 var(--sans); color: var(--ink2); }
   .ex-vazio-acoes { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
   .ex-regras { display: flex; justify-content: center; padding-top: 6px; }
 
@@ -72,8 +72,8 @@
   .ex-msg { padding: 10px 16px 16px; background: var(--bg); border-bottom: 1px solid var(--ink-a08); }
   .ex-msg-folha { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
   .ex-mod { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 28px; padding: 18px 24px; border-top: 1px solid var(--ink-a1); }
-  .ex-mod-rotulo { display: grid; gap: 4px; align-content: start; padding-top: 2px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
-  .ex-mod-rotulo small { font: 500 12.5px/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink3); }
+  .ex-mod-rotulo { display: grid; gap: 4px; align-content: start; padding-top: 2px; font: 600 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  .ex-mod-rotulo small { font: 500 12px/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink3); }
   .ex-mod-miolo { display: grid; gap: 12px; align-content: start; min-width: 0; }
   /* o texto da mensagem: sem rotulo na margem, centrado na folha */
   .ex-mod.sem-rotulo { grid-template-columns: minmax(0, 1fr); }
@@ -81,13 +81,13 @@
   .ex-mod-corpo .ex-html, .ex-mod-corpo .ex-html-aviso { width: 100%; box-sizing: border-box; }
   .ex-mod-corpo .ex-corpo, .ex-mod-corpo .ex-trad-nota { width: 100%; max-width: 72ch; }
   .ex-mod-corpo .ex-html-trocas, .ex-mod-corpo > .ex-mod-miolo > .ex-html-troca { justify-self: center; }
-  .ex-contexto-nota { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .ex-contexto-nota { margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .ex-trad-nota { margin: 0; font: 500 12px var(--sans); color: var(--ink3); text-align: center; }
-  .ex-mod-texto { margin: 0; max-width: 72ch; font: 400 14.5px/1.6 var(--sans); color: var(--ink); text-wrap: pretty; }
+  .ex-mod-texto { margin: 0; max-width: 72ch; font: 400 14px/1.6 var(--sans); color: var(--ink); text-wrap: pretty; }
 
   .ex-mod-cabeca { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px 24px 18px; border-top: none; }
   .ex-cabeca-linha { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
-  .ex-assunto { flex: 1; min-width: 0; margin: 0; font: 400 20px/1.25 var(--serif); color: var(--ink); text-wrap: balance; overflow-wrap: anywhere; }
+  .ex-assunto { flex: 1; min-width: 0; margin: 0; font: 600 20px/1.25 var(--sans); color: var(--ink); text-wrap: balance; overflow-wrap: anywhere; }
   .ex-msg-acoes { align-items: center; margin-top: 2px; }
   /* A grade, o fio e a letra da .ex-meta vem da regra da ficha em 21-dialogos.css. */
   .ex-meta dd { min-width: 0; }
@@ -106,9 +106,9 @@
   .ex-para-mim .ic { transition: transform .2s ease; }
   .ex-para-mim[aria-expanded="true"] .ic { transform: rotate(180deg); }
   .ex-rem-dir { flex: none; display: flex; align-items: center; gap: 2px; }
-  .ex-rem-quando { margin-right: 6px; font: 500 12.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .ex-rem-quando { margin-right: 6px; font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .ex-estrela.on { color: var(--ink); }
-  .ex-detalhes { margin-left: 52px; padding: 10px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--surf); box-shadow: var(--elev-float); font-size: 12.5px; animation: menu-entra .16s cubic-bezier(.16,1,.3,1); }
+  .ex-detalhes { margin-left: 52px; padding: 10px 14px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-float); font-size: 12px; animation: menu-entra .16s cubic-bezier(.16,1,.3,1); }
   .ex-marca-estrela { color: var(--ink2); }
 
   /* o codigo de verificacao achado no texto, com o copiar ao lado */
@@ -134,10 +134,10 @@
     border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf);
   }
   .ex-prazo-data { display: grid; justify-items: center; width: 42px; flex: none; line-height: 1; }
-  .ex-prazo-data b { font: 600 22px/1.1 var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
-  .ex-prazo-data small { margin-top: 3px; font: 600 11px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+  .ex-prazo-data b { font: 600 20px/1.1 var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .ex-prazo-data small { margin-top: 3px; font: 600 12px var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
   .ex-prazo .duas-linhas { flex: 1; min-width: 200px; gap: 2px; }
-  .ex-prazo .duas-linhas b { white-space: normal; font: 600 13.5px/1.4 var(--sans); }
+  .ex-prazo .duas-linhas b { white-space: normal; font: 600 13px/1.4 var(--sans); }
   .ex-prazo .duas-linhas small { white-space: normal; font: 400 13px/1.45 var(--sans); color: var(--ink2); }
   .ex-prazo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -145,33 +145,33 @@
   .ex-anexo { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 6px 8px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
   .ex-anexo .duas-linhas b { font: 600 13px var(--sans); }
 
-  .ex-corpo { max-width: 72ch; font: 400 15px/1.7 var(--sans); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ex-corpo { max-width: 72ch; font: 400 16px/1.7 var(--sans); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
   .ex-corpo .em-marca { padding: 0; background: linear-gradient(transparent 58%, var(--fill) 0); color: var(--ink); }
   .ex-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; }
 
   .ex-resp-botoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .ex-resp-botoes small { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .ex-msg-pe { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 9px 24px; border-top: 1px solid var(--ink-a1); font: 500 12.5px var(--sans); color: var(--ink3); }
+  .ex-resp-botoes small { font: 500 12px var(--sans); color: var(--ink3); }
+  .ex-msg-pe { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 9px 24px; border-top: 1px solid var(--ink-a1); font: 500 12px var(--sans); color: var(--ink3); }
   .ex-msg-pe .cresce { flex: 1; }
   .ex-teclas { white-space: nowrap; }
 
   /* responder ali mesmo, no modulo da resposta */
   .ex-resp { display: grid; gap: 12px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
   .ex-resp-topo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .ex-resp-para { font: 500 12.5px var(--sans); color: var(--ink3); min-width: 0; overflow-wrap: anywhere; }
+  .ex-resp-para { font: 500 12px var(--sans); color: var(--ink3); min-width: 0; overflow-wrap: anywhere; }
   .ex-resp-para b { font-weight: 600; color: var(--ink2); }
   .ex-tela .ex-resp-assunto {
     width: 100%; min-width: 0; max-width: none; height: auto; padding: 4px 0; border: none; border-radius: 0;
-    background: none; box-shadow: none; outline: none; font: 600 13.5px var(--sans); color: var(--ink);
+    background: none; box-shadow: none; outline: none; font: 600 13px var(--sans); color: var(--ink);
   }
   .ex-tela .ex-resp-assunto:focus { box-shadow: inset 0 -1px 0 var(--ink); }
   /* a resposta usa a faixa de edicao do Escrever (11-email.css) */
-  .ex-er .er-texto { min-height: 150px; font-size: 15px; }
+  .ex-er .er-texto { min-height: 150px; font-size: 16px; }
   .ex-resp-assinatura img { max-width: 100%; height: auto; }
-  .ex-resp-preparando { display: flex; align-items: center; gap: 8px; min-height: 110px; margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
-  .ex-resp-assinatura { padding-top: 10px; border-top: 1px solid var(--ink-a1); font: 400 13.5px/1.55 var(--sans); color: var(--ink2); white-space: pre-line; }
+  .ex-resp-preparando { display: flex; align-items: center; gap: 8px; min-height: 110px; margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .ex-resp-assinatura { padding-top: 10px; border-top: 1px solid var(--ink-a1); font: 400 13px/1.55 var(--sans); color: var(--ink2); white-space: pre-line; }
   .ex-resp-conferi { display: grid; gap: 6px; padding: 8px 12px; border-radius: 8px; background: var(--fill); }
-  .ex-resp-conferi .em-conferencia { font: 500 12.5px/1.45 var(--sans); color: var(--ink2); gap: 8px; }
+  .ex-resp-conferi .em-conferencia { font: 500 12px/1.45 var(--sans); color: var(--ink2); gap: 8px; }
   .ex-resp-acoes { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; padding-top: 2px; }
   .ex-resp-acoes .cresce { flex: 1; }
   .ex-resp-acoes button { display: inline-flex; align-items: center; gap: 6px; }
@@ -194,7 +194,7 @@
   .ex-html-quadro { display: block; width: 100%; height: 320px; border: 0; background: var(--papel); }
   .ex-html-aviso {
     display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px;
-    background: var(--fill); font: 500 12.5px var(--sans); color: var(--ink2);
+    background: var(--fill); font: 500 12px var(--sans); color: var(--ink2);
   }
   .ex-html-aviso .ic { color: var(--ink3); flex: none; }
   .ex-html-aviso span { flex: 1; min-width: 0; }

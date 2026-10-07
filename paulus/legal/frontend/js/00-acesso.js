@@ -1,9 +1,9 @@
-/* ------------------------------------------------------ acesso de fora */
+/* ------------------------------------------------------ acesso externo */
 /*
    O primeiro script da pagina (acesso-remoto/v0). Na janela do programa ele
    nao muda nada: a pagina pergunta "sou local?", ouve que sim, e segue.
 
-   De fora - pelo tunel da Cloudflare, com sessao do PAULUS -, tres coisas:
+   De fora - pelo tunel da Cloudflare, com sessao do Paulus -, tres coisas:
 
      - todo pedido que altera algo leva o token anti-CSRF da sessao
        (X-PAULUS-CSRF). E aqui, embrulhando o fetch, e nao em cada uma das
@@ -19,7 +19,7 @@
 
 const acessoDeFora = { local: true, pessoa: null, csrf: "", pronto: null, permissoes: [] };
 
-/* O PAULUS de equipe (docs/PLANO-EQUIPE.md): os dados sao do escritorio, e
+/* O Paulus de equipe (docs/PLANO-EQUIPE.md): os dados sao do escritorio, e
    cada coisa diz quem a criou. Na janela do servidor, o nome so aparece no que
    veio de uma conta de fora (o resto e de quem esta ali); de fora, aparece em
    tudo. Devolve "" quando nao ha o que dizer. */
@@ -65,7 +65,7 @@ function quemCriou(nome, conta) {
       }
     }
     const resposta = await original(entrada, o);
-    // O PAULUS do servidor travado (src/vinculo.py): o servidor recusa com
+    // O Paulus do servidor travado (src/vinculo.py): o servidor recusa com
     // 423, e a tela de destravar aparece, venha o pedido de onde vier.
     if (daqui && resposta.status === 423 && resposta.headers.get("X-PAULUS-Travado") && typeof mostrarTrava === "function") {
       mostrarTrava();
@@ -109,15 +109,31 @@ function quemCriou(nome, conta) {
     const el = document.createElement("span");
     el.className = "acesso-remoto-barra";
     el.id = "acesso-remoto-barra";
-    el.innerHTML =
-      '<span class="acesso-de-fora-selo" title="Você está usando o PAULUS do escritório pela internet">' + ic("lan", 14) + "externo</span>" +
-      '<button type="button" class="acesso-conta-botao" data-minha-conta="1" title="Minha conta">' +
-      '<span class="cad-avatar">' + esc(iniciais(p.nome)) + "</span>" +
-      '<span class="acesso-conta-nome">' + esc(p.nome) + "</span>" +
-      '<span class="acesso-conta-papel">' + (p.papel === "titular" ? "titular" : "colaborador") + "</span>" +
-      ic("expand_more", 16) + "</button>";
-    el.querySelector("[data-minha-conta]").addEventListener("click", minhaContaDeFora);
+    el.innerHTML = '<span class="acesso-de-fora-selo" title="Você está usando o Paulus do escritório pela internet" aria-label="acesso externo"></span>';
     barra.appendChild(el);
+    // A conta: so o avatar, no pe do trilho (depois de Configuracoes); o nome e o papel ficam no titulo.
+    const trilho = document.getElementById("trilho");
+    if (trilho && !document.getElementById("trilho-conta")) {
+      const bt = document.createElement("button");
+      bt.type = "button"; bt.className = "trilho-item trilho-conta"; bt.id = "trilho-conta";
+      bt.dataset.minhaConta = "1";
+      bt.title = p.nome + " · " + (p.papel === "titular" ? "titular" : "colaborador");
+      bt.setAttribute("aria-label", "Minha conta");
+      bt.innerHTML = '<span class="cad-avatar">' + esc(iniciais(p.nome)) + "</span>";
+      bt.addEventListener("click", minhaContaDeFora);
+      const cfg = trilho.querySelector('[data-destino="config"]');
+      if (cfg && cfg.nextSibling) trilho.insertBefore(bt, cfg.nextSibling); else trilho.appendChild(bt);
+    }
+    // O mesmo no menu aberto: o avatar no lugar do icone, e o nome como rotulo.
+    const menu = document.getElementById("menu-flutuante");
+    if (menu && !document.getElementById("menu-conta")) {
+      const mi = document.createElement("button");
+      mi.type = "button"; mi.className = "menu-item menu-conta"; mi.id = "menu-conta";
+      mi.innerHTML = '<span class="caixa-ic"><span class="cad-avatar">' + esc(iniciais(p.nome)) + '</span></span><span class="rotulo-botao">' + esc(p.nome) + "</span>";
+      mi.addEventListener("click", minhaContaDeFora);
+      const cfgM = menu.querySelector('[data-destino="config"]');
+      if (cfgM && cfgM.parentNode) cfgM.parentNode.insertBefore(mi, cfgM.nextSibling); else menu.appendChild(mi);
+    }
   }
 
   /* A conta de quem esta de fora. O titular troca a propria senha e derruba
@@ -135,14 +151,14 @@ function quemCriou(nome, conta) {
       '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + " · " + (titular ? "titular" : "colaborador") + "</small></span></div>" +
       '<div class="conta-acoes">' +
       (titular
-        ? (acessoDeFora.soGoogle ? "" : linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do celular")) +
-          linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
+        // Sem senha: a conta e a Google. So o encerrar sessoes.
+        ? linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
         : "") +
       // O Google de trabalho da pessoa (E3b): o e-mail, a Agenda e o Drive dela.
       (acessoDeFora.googleDisponivel
         ? linha("google", "mail", acessoDeFora.google ? "Meu Google: " + esc(acessoDeFora.google) : "Conectar o meu Google",
           acessoDeFora.google ? "o seu e-mail, a sua Agenda e o seu Drive estão aqui · conectar de novo"
-            : "para ver o seu e-mail, a sua Agenda e o seu Drive aqui no PAULUS")
+            : "para ver o seu e-mail, a sua Agenda e o seu Drive aqui no Paulus")
         : "") +
       // D4: escrever as respostas neste aparelho (js/61-aparelho-tela.js).
       (typeof aparelhoTela !== "undefined" && aparelhoTela.estado && (aparelhoTela.estado.pode || aparelhoTela.estado.ligado)
@@ -151,12 +167,9 @@ function quemCriou(nome, conta) {
       // W1: o Word desta pessoa, em outro computador ou no navegador (js/76-word.js).
       linha("word", "description", "Conectar o Word", "o código do painel do PAVLVS e o do autenticador") +
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
-      '<p class="conta-nota">' + (titular
-        ? "As contas da equipe se criam e se mudam só no computador do escritório."
-        : (acessoDeFora.soGoogle ? "Você entra com o Google e o código do celular; o autenticador se troca com o titular, no computador do escritório."
-          : "Senha e autenticador se trocam com o titular, no computador do escritório.")) + "</p>";
+      (titular ? "" : '<p class="conta-nota">Você entra com o Google e o código do celular; o autenticador se troca com o titular, no computador do escritório.</p>');
     let escolha = "";
-    const aberto = dialogo({ titulo: "Minha conta", contexto: "Acesso de fora", html: html, confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
+    const aberto = dialogo({ titulo: "Minha conta", contexto: "Acesso externo", html: html, confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
     document.querySelectorAll("[data-conta-acao]").forEach((b) => b.addEventListener("click", () => {
       escolha = b.dataset.contaAcao;
       if (dialogoAberto) dialogoAberto.fechar(null);
@@ -180,7 +193,7 @@ function quemCriou(nome, conta) {
     if (escolha === "sessoes") {
       const r = await dialogo({
         titulo: "Encerrar todas as sessões?", contexto: "Minha conta",
-        texto: "Todo mundo que está de fora sai agora — você também. Para entrar de novo: senha e código.",
+        texto: "Todo mundo que está de fora sai agora — você também. Para entrar de novo: a conta Google e o código do celular.",
         campos: [codigo], confirmar: "Encerrar", perigo: true,
       });
       if (!r || !r.ok) return;

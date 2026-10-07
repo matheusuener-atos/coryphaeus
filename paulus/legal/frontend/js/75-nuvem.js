@@ -1,7 +1,7 @@
 /* A nuvem (src/nuvem.py, src/rotas_nuvem.py): N15 com a chave do escritório e,
-   desde a V1-V7 (docs/PLANO-NUVEM.md), o PAULUS (nuvem) com o plano.
+   desde a V1-V7 (docs/PLANO-NUVEM.md), o Paulus (nuvem) com o plano.
 
-   - Configurações › Modelos: o cartão "Nuvem" - o provedor; para o PAULUS
+   - Configurações › Modelos: o cartão "Nuvem" - o provedor; para o Paulus
      (nuvem), ativar com o Google, o plano (tokens restantes, usados, a
      renovação, assinar, recarregar, cancelar); para os outros, a chave. O
      termo e o sim do titular, as funcionalidades, mascarar, pedir a cada
@@ -44,7 +44,7 @@ function dataNuvem(iso) {
 function painelDoPlano(d) {
   const prov = (d.provedores || []).find((p) => p.id === "paulus") || {};
   if (!prov.tem_chave) {
-    return '<div class="cfg-servico"><span class="duas-linhas cresce"><b>Conta da nuvem</b><small>A conta é a conta Google vinculada a este PAULUS. ' +
+    return '<div class="cfg-servico"><span class="duas-linhas cresce"><b>Conta da nuvem</b><small>A conta é a conta Google vinculada a este Paulus. ' +
       "Ativar abre o Google para confirmar; nada sai antes do sim do titular.</small></span>" +
       '<button class="primario com-icone" data-nuvem-ativar="1">' + ic("login", 16) + "Ativar com o Google</button></div>";
   }
@@ -72,7 +72,7 @@ function painelDoPlano(d) {
     "</dl></div>");
   const nomeDoPlano = (c.plano || {}).nome ? " · plano " + c.plano.nome : "";
   linhas.push('<p class="cfg-explica">' + esc(c.email) + esc(nomeDoPlano) + " · " + esc(situacao) +
-    (vigente ? "" : " · sem o plano em dia, o PAULUS funciona sem IA") +
+    (vigente ? "" : " · sem o plano em dia, o Paulus funciona sem IA") +
     ". A cota é por semana e não acumula; a recarga não vence na renovação e é gasta depois da cota. Os detalhes estão em Plano e consumo.</p>");
   const botoes = [];
   const ativa = a.situacao === "authorized";
@@ -147,7 +147,7 @@ function cartaoNuvem() {
     " · " + esc(e.como || "") + "</small></span>" +
     '<button data-nuvem-envio="' + esc(e.envio) + '">Ver o que saiu</button></div>').join("");
   const explica = ehPaulus
-    ? '<p class="cfg-texto">O <b>PAULUS (nuvem)</b> escreve as respostas no modelo do plano do escritório: Llama 3.3 70B no Advogado, Mistral Large 3 no Escritório e Claude Sonnet 5.5 (com o Claude Opus 5.5 no nível Ministro) no Escritório Plus. ' +
+    ? '<p class="cfg-texto">O <b>Paulus (nuvem)</b> escreve as respostas no modelo do plano do escritório: Llama 3.3 70B no Advogado, Mistral Large 3 no Escritório e Claude Sonnet 5.5 (com o Claude Opus 5.5 no nível Ministro) no Escritório Plus. ' +
       "A busca, as regras, a conferência e o resto do programa continuam neste computador; só o texto da pergunta vai e volta.</p>"
     : '<p class="cfg-texto">A resposta pode ser escrita por um modelo do provedor, com a <b>chave de API do próprio escritório</b> (paga pelo escritório, ' +
       "direto no provedor). A assinatura de consumidor (ChatGPT Plus, Claude Pro) não serve: os termos proíbem usar o login dela num programa.</p>";
@@ -169,7 +169,7 @@ function cartaoNuvem() {
     blocoDoSim(d) +
     '<p class="sv-kicker">O que vai à nuvem</p>' + tarefas +
     '<p class="cfg-explica">Fica sempre neste computador: o e-mail (também a reescrita), o juiz, a leitura do Acervo, o parecer do Financeiro, ' +
-    "o anexo guardado do e-mail (desta versão em diante), a cópia das pastas do Drive feita pelo PAULUS e o caso marcado só no escritório.</p>" +
+    "o anexo guardado do e-mail (desta versão em diante), a cópia das pastas do Drive feita pelo Paulus e o caso marcado só no escritório.</p>" +
     '<label class="cfg-servico"><span class="duas-linhas cresce"><b>Mascarar antes de sair</b><small>CPF, CNPJ, número de processo, e-mail e telefone viram ' +
     "“[CPF 1]”… e voltam na resposta. Reduz a exposição, não anonimiza: o nome, o endereço e o resto do texto vão como estão.</small></span>" +
     '<input type="checkbox" id="nuvem-mascarar"' + (d.mascarar ? " checked" : "") + "></label>" +
@@ -242,7 +242,7 @@ async function ativarNuvemPaulus(redesenhar) {
     return true;
   };
   if (await tentar()) return;
-  if (typeof entrarNoGoogleDoVinculo !== "function") { avisoCert("Vincule este PAULUS a uma conta Google antes (Configurações › Conta).", { tom: "erro" }); return; }
+  if (typeof entrarNoGoogleDoVinculo !== "function") { avisoCert("Vincule este Paulus a uma conta Google antes (Configurações › Conta).", { tom: "erro" }); return; }
   let feito = false;
   try {
     await entrarNoGoogleDoVinculo("confirmar", async () => {

@@ -88,6 +88,6 @@
   .menu-conversa.plx-menu button:disabled { color: var(--mute2); cursor: default; }
   .menu-conversa.plx-menu button.plx-aberto { background: var(--fill); color: var(--ink); }
   .plx-rotulo { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  .plx-atalho { margin-left: auto; font: 500 11px var(--sans); color: var(--ink3); }
+  .plx-atalho { margin-left: auto; font: 500 12px var(--sans); color: var(--ink3); }
   .menu-conversa.plx-menu button .seta { margin-left: 0; }
   .menu-conversa.plx-menu.plx-sub { z-index: 131; }

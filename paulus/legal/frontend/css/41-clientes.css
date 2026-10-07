@@ -4,12 +4,12 @@
 
   .cli-conflitos { display: grid; gap: 6px; }
   .cli-conflito { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 8px;
-    background: var(--destaque-fundo, var(--fill)); border: 1px solid var(--destaque-linha, var(--ink-a1)); font-size: 13.5px; color: var(--ink); }
+    background: var(--destaque-fundo, var(--fill)); border: 1px solid var(--destaque-linha, var(--ink-a1)); font-size: 13px; color: var(--ink); }
   .cli-conflito small { color: var(--ink3); }
   .cli-conflito .ic { flex: none; margin-top: 1px; }
   .cli-alerta { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; font: 600 13px var(--sans); color: var(--ink); }
   .cli-linha { cursor: default; }
-  .cli-linha[data-cli-servico], .cli-linha[data-cli-processo], .cli-linha[data-cli-doc] { cursor: pointer; border-radius: 6px; }
+  .cli-linha[data-cli-servico], .cli-linha[data-cli-processo], .cli-linha[data-cli-doc] { cursor: pointer; border-radius: 8px; }
   .cli-linha[data-cli-servico]:hover, .cli-linha[data-cli-processo]:hover, .cli-linha[data-cli-doc]:hover { background: var(--fill); }
   .cli-bloco { margin-bottom: 14px; }
   .cli-atencao .sv-secao-titulo { color: var(--ink); }

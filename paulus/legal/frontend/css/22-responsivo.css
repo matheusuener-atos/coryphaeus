@@ -16,7 +16,7 @@
   }
 
   /* ------------------------------------------------ celular (390 px) */
-  /* O acesso de fora (R9) traz o PAULUS para a tela do celular, e ela segue
+  /* O acesso externo (R9) traz o PAULUS para a tela do celular, e ela segue
      as regras de docs/ui/04-telas-mobile.md: o trilho vira a barra de baixo,
      o cabecalho quebra linha, tabela vira lista e o alvo de toque tem 44 px.
      So abaixo de 600 px - a janela do programa nunca chega a isso (o minimo

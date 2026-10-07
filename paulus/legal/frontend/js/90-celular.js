@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------ celular */
 /*
-   O PAULUS no celular (pacote "PAULUS - Telas Mobile", 02/10/2026; o CSS em
+   O Paulus no celular (pacote "Paulus - Telas Mobile", 02/10/2026; o CSS em
    css/52-celular.css). Ate 600 px a tela inicial e a do desenho `Assistente`:
    a marca d'agua no meio, os atalhos (Gravar reuniao, Digitalizar, Enviar
    arquivo, Conversas) e a caixa "Pergunte ao PAVLVS…" com "+ Fonte" e o
@@ -116,7 +116,7 @@ if (typeof desenharAvisos === "function") {
 /* ---------------------------------------------------------------- Mais */
 
 const CEL_GRUPOS = [
-  [["Meus dados", "config_perfil"], ["Escritório", "config_vinculos"], ["Acesso de fora", "acesso"]],
+  [["Meus dados", "config_perfil"], ["Escritório", "config_vinculos"], ["Acesso externo", "acesso"]],
   [["Assistente e modelo", "config_assistente"], ["Modelos", "config_modelos"], ["Módulos", "config_menu"],
     ["Conexões", "conexoes"], ["Desempenho", "desempenho"]],
   [["Biblioteca", "config_aprendizado"], ["Backup", "config_backup"], ["Lixeira", "config_lixeira"]],

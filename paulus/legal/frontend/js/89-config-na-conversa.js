@@ -2,7 +2,7 @@
 /*
    O pacote de telas de 01/10/2026, T5 (`Conversa - Meus dados`, `- Aparencia`,
    `- Modulos`, `- Assistente e modelo`, `- Modelos`, `- Desempenho`,
-   `- Teste`, `- Conexoes`, `- Word`, `- Acesso de fora`, `- Escritorio`,
+   `- Teste`, `- Conexoes`, `- Word`, `- Acesso externo`, `- Escritorio`,
    `- Backup`, `- Biblioteca`, `- Versao`, `- Lixeira`).
 
    "troquei de numero, agora e (94) 99123-4567" vira, por regra
@@ -43,7 +43,7 @@ const CFN_CURTO = {
   "pessoa.nome": "nome", "escritorio.nome": "nome do escritório", "escritorio.cnpj": "CNPJ", "escritorio.oab": "OAB da sociedade",
   "timbre_no_pdf": "papel timbrado", tema: "tema", animacoes_reduzidas: "animações", avisos_windows: "avisos do Windows",
   "avisos_tipos.bem_estar": "bem-estar", "avisos_tipos.resposta": "resposta pronta", "avisos_tipos.aprovacao": "aprovação",
-  "avisos_tipos.gravacao": "transcrição", "avisos_tipos.agenda": "compromisso", "avisos_tipos.acesso": "acesso de fora",
+  "avisos_tipos.gravacao": "transcrição", "avisos_tipos.agenda": "compromisso", "avisos_tipos.acesso": "acesso externo",
   "autonomia.organizar_mover": "mover arquivos", "autonomia.ler_pastas": "ler as pastas", "autonomia.agentes_sozinhos": "agentes",
   "autonomia.assinar": "assinar", "autonomia.enviar_mensagem": "enviar", "autonomia.modelo_nuvem": "nuvem",
   devagar: "ir devagar", modelo: "modelo", inteligencia: "o que já foi lido",

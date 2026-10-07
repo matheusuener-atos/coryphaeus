@@ -47,11 +47,11 @@ const NOVOS_DESTINOS = {
     precisa: [],
   },
   // B1: a Biblioteca (js/57-biblioteca.js) - obras e lembretes, as leis e
-  // as súmulas que vêm com o PAULUS, e os tribunais. O id "biblioteca" já é
+  // as súmulas que vêm com o Paulus, e os tribunais. O id "biblioteca" já é
   // do Acervo no registro de destinos.
   contexto: {
     id: "contexto", nome: "Biblioteca", pronta: true, abre: "contexto",
-    resolve: "O que o PAULUS consulta para responder: obras, lembretes, a Constituição, os códigos, as súmulas e os tribunais.",
+    resolve: "O que o Paulus consulta para responder: obras, lembretes, a Constituição, os códigos, as súmulas e os tribunais.",
     precisa: [],
   },
 };
@@ -152,13 +152,13 @@ function abrirDestino(id) {
 
 /* O que a conversa explica e nao e destino do menu (src/programa.py,
    TELAS_C4): o botao "Abrir" do cartao leva a onde cada um mora. De fora,
-   Publicacoes, Codigos de lei e Acesso de fora ficam no computador do
+   Publicacoes, Codigos de lei e Acesso externo ficam no computador do
    escritorio; a busca vale dos dois lados. */
 const TELAS_DA_CONVERSA = {
   publicacoes: { nome: "Publicações", local: true, abrir: () => abrirPublicacoesBsc() },
   busca: { nome: "Buscar em tudo", local: false, abrir: () => abrirBusca() },
   leis: { nome: "Códigos de lei", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("assistente"); } },
-  acesso: { nome: "Acesso de fora", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("acesso"); } },
+  acesso: { nome: "Acesso externo", local: true, abrir: () => { marcarDestino("config"); mostrarConfig("acesso"); } },
   // 02/10 (src/programa.py, TELAS_NAVEGAVEIS): toda tela tem quem a abra.
   // Os avisos moram na tela inicial, no lugar da lista de conversas.
   avisos: { nome: "Avisos", local: false, abrir: () => { $("nova").click(); setTimeout(() => abrirAvisosNaInicio(""), 60); } },

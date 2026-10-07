@@ -152,9 +152,17 @@
     --papel-citada: oklch(93.5% 0.025 80);
     --papel-mudou: oklch(94% 0.05 150);
     --papel-ok: oklch(45% 0.11 150);
-    /* O fundo do QR do autenticador (Acesso de fora): branco nos dois temas,
+    /* O fundo do QR do autenticador (Acesso externo): branco nos dois temas,
        porque celular nenhum le QR claro sobre escuro. */
     --qr-fundo: #ffffff;
+    /* O seletor de conta do Google (assistente de configuracao): as cores do
+       botao do Google, iguais nos dois temas, como pede a marca dele. */
+    --google-fundo: #ffffff;
+    --google-sobre: #f8f9fa;
+    --google-fio: #dadce0;
+    --google-tinta: #1f1f1f;
+    --google-tinta2: #3c4043;
+    --google-avatar: #e8eaed;
     --papel-ink2: #5c5c59;
     --papel-ink3: #8a8a86;
 
@@ -267,9 +275,10 @@
 
   body {
     margin: 0;
-    font: 400 13.5px/1.5 var(--sans);
+    font: 400 13px/1.5 var(--sans);
     color: var(--ink);
     background-color: var(--bg);
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
     /* A altura VISIVEL: no navegador do celular, 100vh conta a barra de
        endereco como se nao existisse, e a barra de baixo do PAULUS e a caixa
        de pedido ficavam cortadas (02/10). dvh acompanha a barra e o teclado;
@@ -291,7 +300,7 @@
   p { text-wrap: pretty; }
 
   .rotulo {
-    font: 500 10.5px var(--mono);
+    font: 500 12px var(--mono);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink3);
@@ -300,7 +309,7 @@
        a borda do painel e some fora da coluna. */
     overflow-wrap: anywhere;
   }
-  .num { font: 400 10.5px var(--mono); color: var(--ink3); }
+  .num { font: 400 12px var(--mono); color: var(--ink3); }
   .corta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* O nome da classe diz o que ela faz, e ela nao fazia: so existia regra
      dentro de .acervo-cortes. Nas outras telas o texto encolhia ate virar

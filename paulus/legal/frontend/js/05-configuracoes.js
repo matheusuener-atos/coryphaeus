@@ -28,16 +28,16 @@ const CFG_SECOES = [
   ["modelos", "Modelos", "Os modelos de linguagem desta máquina: baixe, troque o padrão, meça cada um e diga qual faz cada tarefa. O motor é o Ollama, aqui mesmo."],
   ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
   ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
-  ["nfse", "Nota fiscal", "Emitir NFS-e pelo Padrão Nacional com o certificado A1 do escritório. Desligado de fábrica; cada nota passa por Aprovações, e o PAULUS aplica a configuração do escritório sem fazer planejamento tributário."],
-  ["word", "Word", "O PAVLVS dentro do Word: o painel confere citações, insere lei e qualificação e responde sobre o documento. Desligado de fábrica; o texto do documento vai só para este PAULUS."],
-  ["acesso", "Acesso de fora", "Usar o PAULUS deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
-  ["vinculos", "Escritório e equipe", "Este computador é o PAULUS do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
+  ["nfse", "Nota fiscal", "Emitir NFS-e pelo Padrão Nacional com o certificado A1 do escritório. Desligado de fábrica; cada nota passa por Aprovações, e o Paulus aplica a configuração do escritório sem fazer planejamento tributário."],
+  ["word", "Word", "O PAVLVS dentro do Word: o painel confere citações, insere lei e qualificação e responde sobre o documento. Desligado de fábrica; o texto do documento vai só para este Paulus."],
+  ["acesso", "Acesso externo", "Usar o Paulus deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
+  ["vinculos", "Escritório e equipe", "Este computador é o Paulus do escritório. A equipe entra pela internet, cada pessoa com a própria conta, por convite."],
   ["backup", "Backup", "Tudo do escritório mora neste computador. O backup é um arquivo cifrado com uma senha sua, numa pasta que você escolhe, todo dia."],
-  ["aprendizado", "Biblioteca", "O que o PAULUS consulta para responder: livros, manuais e leis, com a fonte de cada um; o que o escritório ensinou com as próprias palavras; e o que ele já sabe fazer."],
-  ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o PAULUS no Explorer e atalhos do teclado."],
+  ["aprendizado", "Biblioteca", "O que o Paulus consulta para responder: livros, manuais e leis, com a fonte de cada um; o que o escritório ensinou com as próprias palavras; e o que ele já sabe fazer."],
+  ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o Paulus no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
-  ["plano", "Versão", "O PAULUS é software livre, com licença MIT."],
+  ["plano", "Versão", "O Paulus é software livre, com licença MIT."],
   ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
 ];
 
@@ -650,7 +650,7 @@ function secaoDesempenho() {
   return aberturaCfg() + cartaoSaude() + cartaoDesempenho();
 }
 
-/* A saude do PAULUS (src/saude.py): o que pode estar atrapalhando agora, com
+/* A saude do Paulus (src/saude.py): o que pode estar atrapalhando agora, com
    o que fazer, e o diagnostico para o suporte - sem dado de cliente. */
 function cartaoSaude() {
   const s = cfg.saude;
@@ -660,7 +660,7 @@ function cartaoSaude() {
     '<div class="saude-item"><span class="fin-meta-ponto ' + (tom[i.estado] || "") + '"><i></i>' + esc(i.rotulo) + "</span>" +
     '<b class="saude-valor">' + esc(i.valor) + "</b>" + (i.dica ? '<small class="saude-dica">' + esc(i.dica) + "</small>" : "") + "</div>").join("");
   const meta = s.geral === "ok" ? pontoCfg("tudo certo", "ok") : pontoCfg(s.geral === "erro" ? "precisa de atenção" : "com avisos", "acc");
-  return cartaoCfg("Saúde do PAULUS", meta, '<div class="saude-lista">' + linhas + "</div>" +
+  return cartaoCfg("Saúde do Paulus", meta, '<div class="saude-lista">' + linhas + "</div>" +
     '<div class="cfg-botoes"><button class="com-icone" data-cfg-diagnostico="1">' + ic("download", 16) + "Gerar diagnóstico</button></div>" +
     '<p class="cfg-explica">O diagnóstico é um arquivo de texto com a versão, o estado acima e os erros recentes — sem documentos, nomes de clientes nem conversas. Mande ao suporte se algo parar de funcionar.</p>');
 }
@@ -689,7 +689,7 @@ function cartaoDesempenho() {
   const pontos = serie(grande.chave);
   const ultimo = pontos.length ? pontos[pontos.length - 1] : null;
   const st = cfg.status || {};
-  const legenda = { mem: "Memória em uso", video: "Vídeo em uso", cpu: "PAULUS + Ollama + sistema" }[grande.chave];
+  const legenda = { mem: "Memória em uso", video: "Vídeo em uso", cpu: "Paulus + Ollama + sistema" }[grande.chave];
 
   const corpo = '<div class="cfg-desempenho"><div class="cfg-medidas">' +
     medida("cpu", "Processador", cpu !== null && cpu !== undefined ? pct(cpu) : "medindo…", "cpu") +
@@ -940,7 +940,7 @@ function secaoVinculos() {
   const e = (cfg.rascunho || {}).escritorio || {};
   const maquina = '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>' + esc(p.nome || "Você") + "</b>" +
     "<small>responsável · o servidor do escritório" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
-    '<p class="cfg-explica">A equipe não instala o PAULUS: cada pessoa recebe um convite, entra com a conta Google dela e liga o Google Authenticator no próprio celular. O que cada uma vê e faz se escolhe em Permissões.</p>';
+    '<p class="cfg-explica">A equipe não instala o Paulus: cada pessoa recebe um convite, entra com a conta Google dela e liga o Google Authenticator no próprio celular. O que cada uma vê e faz se escolhe em Permissões.</p>';
   return aberturaCfg() + (typeof cartaoDoVinculo === "function" ? cartaoDoVinculo() : "") +
     cartaoCfg("O escritório", metaCfg("servidor"), maquina) + (typeof cartaoDaEquipeCfg === "function" ? cartaoDaEquipeCfg() : "");
 }
@@ -1095,28 +1095,28 @@ function secaoAparencia() {
   const av = cfg.avisos || {};
   const r = cfg.rascunho || {};
   const avisos = av.disponivel
-    ? ligaCfg("avisos_windows", "Avisar no Windows", "a notificação no canto da tela e o PAULUS piscando na barra de tarefas", Boolean(r.avisos_windows)) +
+    ? ligaCfg("avisos_windows", "Avisar no Windows", "a notificação no canto da tela e o Paulus piscando na barra de tarefas", Boolean(r.avisos_windows)) +
       /* Um interruptor por tipo, recuado sob o geral: desligar o geral cala todos. */
       (r.avisos_windows
         ? '<div class="cfg-avisos-tipos">' + (av.tipos || []).map((t) =>
             ligaCfg("avisos_tipos." + t.chave, t.rotulo, t.explica, ((r.avisos_tipos || {})[t.chave]) !== false)).join("") + "</div>"
         : "") +
-      '<p class="cfg-explica">Resposta, aprovação e transcrição só avisam quando o PAULUS não está na frente. ' +
+      '<p class="cfg-explica">Resposta, aprovação e transcrição só avisam quando o Paulus não está na frente. ' +
       "Lembretes e o alerta de pausa, só no horário de trabalho" + (av.horario ? " (" + esc(av.horario) + ")" : "") + ".</p>" +
       '<div class="cfg-botoes"><button data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
     : '<p class="cfg-texto">Os avisos só existem no Windows.</p>';
 
-  // "Perguntar ao PAULUS" no botao direito do Explorer (src/menu_explorer.py):
+  // "Perguntar ao Paulus" no botao direito do Explorer (src/menu_explorer.py):
   // o mesmo que a caixa do instalador liga. Vale na hora, sem Salvar.
   const ex = cfg.explorer || {};
   const explorer = ex.disponivel
-    ? ligaCfg("", "“Perguntar ao PAULUS” no botão direito", ex.ligado
-        ? "clique com o botão direito num PDF, Word, Excel, texto ou Markdown e escolha Perguntar ao PAULUS"
+    ? ligaCfg("", "“Perguntar ao Paulus” no botão direito", ex.ligado
+        ? "clique com o botão direito num PDF, Word, Excel, texto ou Markdown e escolha Perguntar ao Paulus"
         : "o arquivo abre numa conversa nova, anexado; nada sai deste computador", Boolean(ex.ligado))
         .replace('class="ag-toggle', 'data-cfg-explorer="1" class="ag-toggle') +
-      (ex.de_outro ? '<p class="cfg-explica">O menu hoje aponta para outra instalação do PAULUS; ligar aqui passa a abrir esta.</p>' : "") +
+      (ex.de_outro ? '<p class="cfg-explica">O menu hoje aponta para outra instalação do Paulus; ligar aqui passa a abrir esta.</p>' : "") +
       '<p class="cfg-explica">No Windows 11, o item fica em “Mostrar mais opções” (ou Shift + botão direito).</p>'
-    : '<p class="cfg-texto">' + esc(ex.motivo || "Disponível no PAULUS instalado.") + "</p>";
+    : '<p class="cfg-texto">' + esc(ex.motivo || "Disponível no Paulus instalado.") + "</p>";
 
   return aberturaCfg() +
     cartaoCfg("Tema", "", aparencia) +
@@ -1168,7 +1168,7 @@ const FEEDBACK_PARA = "contato@paulus.ia.br";
 function assuntoDoFeedback() {
   const f = cfg.feedback;
   const tipo = (CFG_TIPOS_FEEDBACK.find((t) => t[0] === f.tipo) || [])[2] || "";
-  return "[PAULUS · " + tipo + "] " + (f.titulo || "(sem título)");
+  return "[Paulus · " + tipo + "] " + (f.titulo || "(sem título)");
 }
 
 function corpoDoFeedback() {
@@ -1186,7 +1186,7 @@ function textoDoFeedback() {
   return "Para: " + FEEDBACK_PARA + "\nAssunto: " + assuntoDoFeedback() + "\n\n" + corpoDoFeedback();
 }
 
-/* Com uma conta de e-mail no PAULUS, abre o Escrever já endereçado a
+/* Com uma conta de e-mail no Paulus, abre o Escrever já endereçado a
    FEEDBACK_PARA; o envio passa pela revisão e pela aprovação de sempre. Sem
    conta, o Escrever cairia em Contas e o texto se perderia: copia com o
    destinatário no topo e diz para onde mandar. */
@@ -1195,7 +1195,7 @@ async function enviarFeedback() {
   try { contas = ((await (await fetch("/api/email/contas")).json()).contas) || []; } catch (err) { contas = []; }
   try { localStorage.setItem("paulus.feedback", JSON.stringify(cfg.feedback)); } catch (err) { /* sem memoria */ }
   if (!contas.length) {
-    copiarTexto(textoDoFeedback(), "sem conta de e-mail no PAULUS: copiei o feedback — mande para " + FEEDBACK_PARA);
+    copiarTexto(textoDoFeedback(), "sem conta de e-mail no Paulus: copiei o feedback — mande para " + FEEDBACK_PARA);
     return;
   }
   telaEscrever({ para: FEEDBACK_PARA, assunto: assuntoDoFeedback(), corpo: corpoDoFeedback() });
@@ -1402,7 +1402,7 @@ function ligarConfig() {
       const r = await fetch("/api/explorer", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ ligado: ligar }) });
       if (!r.ok) throw new Error(await erroDe(r));
       cfg.explorer = await r.json();
-      avisoCert(ligar ? "“Perguntar ao PAULUS” está no botão direito do Explorer" : "tirei o PAULUS do botão direito do Explorer", { tom: "ok" });
+      avisoCert(ligar ? "“Perguntar ao Paulus” está no botão direito do Explorer" : "tirei o Paulus do botão direito do Explorer", { tom: "ok" });
     } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     desenharConfig();
   });

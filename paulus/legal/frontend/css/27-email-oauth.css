@@ -10,19 +10,19 @@
     transition: background-color .15s, border-color .15s;
   }
   .eo-simbolo { width: 18px; height: 18px; flex: none; display: block; }
-  .eo-explica { display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .eo-explica { display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .eo-explica .ic { flex: none; margin-top: 1px; }
   /* A espera ocupa o lugar do botao, do mesmo tamanho: nada pula quando volta. */
   .eo-espera { display: grid; gap: 8px; }
   .eo-aguardo {
     display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; box-sizing: border-box; padding: 0 12px;
-    border: 1px solid var(--ink-a1); border-radius: 8px; font: 500 12.5px var(--sans); color: var(--ink3);
+    border: 1px solid var(--ink-a1); border-radius: 8px; font: 500 12px var(--sans); color: var(--ink3);
   }
   .eo-aguardo > span:not(.indicador) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .eo-aguardo .eo-ligacao { flex: none; margin-left: 4px; }
-  .eo-travou { margin: 0; text-align: center; font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
-  .eo-erro { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 500 12.5px/1.45 var(--sans); color: var(--acc); }
+  .eo-travou { margin: 0; text-align: center; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
+  .eo-erro { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 500 12px/1.45 var(--sans); color: var(--acc); }
   .eo-erro .ic { flex: none; margin-top: 1px; }
-  .eo-texto { margin: -6px 0 2px; font: 400 16px/1.5 var(--serif); color: var(--ink2); }
+  .eo-texto { margin: -6px 0 2px; font: 600 16px/1.5 var(--sans); color: var(--ink2); }
   .eo-denovo { display: grid; gap: 16px; }
-  .eo-denovo h2 { margin: 0; font: 400 30px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+  .eo-denovo h2 { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }

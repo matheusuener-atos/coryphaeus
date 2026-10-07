@@ -753,7 +753,7 @@ function atualizarPronto() {
       '<p id="assina-frase">' + esc(fraseDeAssinar()) + "</p>" +
       '<div class="as-pronto-acoes"><button class="em-ligacao" id="assina-previa">Ver onde entra</button><button class="primario com-icone" id="assina-agora">' + ic("draw", 16) + "Assinar agora</button></div>" +
       "<small>" + (d.pede_confirmacao || d.precisa_senha
-        ? "Antes de gravar, peço sua confirmação" + (d.precisa_senha ? (d.origem === "windows" ? " e a senha do PAULUS" : " e a senha do certificado") : "") + "."
+        ? "Antes de gravar, peço sua confirmação" + (d.precisa_senha ? (d.origem === "windows" ? " e a senha do Paulus" : " e a senha do certificado") : "") + "."
         : "A assinatura sai direto, sem nova confirmação.") + "</small>";
   }
   const agora = $("assina-agora");
@@ -809,7 +809,7 @@ async function assinarAgora() {
   if (!alvos.length || !assina.selo) return;
 
   // A confirmacao e a senha num modal so: "Assinar como FULANO?". Com o
-  // certificado do Windows, a senha e a do PAULUS - e o Windows ainda pede a
+  // certificado do Windows, a senha e a do Paulus - e o Windows ainda pede a
   // dele depois, se o certificado tiver protecao forte.
   const c = assina.cofre;
   const doWindows = c.origem === "windows";
@@ -819,7 +819,7 @@ async function assinarAgora() {
     const r = await dialogo({
       titulo: titular ? "Assinar como " + titular + "?" : "Assinar agora?", contexto: "Assinatura",
       texto: fraseDeAssinar() + (doWindows ? "\nSe o certificado foi instalado com proteção forte, o Windows vai pedir a senha dele em seguida." : ""),
-      campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do PAULUS" : "Senha do certificado", tipo: "password", icone: "key", selecionar: false } : undefined,
+      campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do Paulus" : "Senha do certificado", tipo: "password", icone: "key", selecionar: false } : undefined,
       confirmar: "Assinar",
     });
     if (!r || !r.ok) return;
@@ -1318,7 +1318,7 @@ async function assinarLote() {
     titulo: (sozinho ? "Assinar " + plural(n, "documento") : "Pedir aprovação para " + plural(n, "documento")) + (titular ? " como " + titular : "") + "?",
     contexto: "Assinatura › Lote",
     html: vao + "<p>" + esc(nota) + "</p>",
-    campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do PAULUS" : "Senha do certificado", tipo: "password", icone: "key", selecionar: false } : undefined,
+    campo: c.precisa_senha ? { rotulo: doWindows ? "Senha do Paulus" : "Senha do certificado", tipo: "password", icone: "key", selecionar: false } : undefined,
     confirmar: sozinho ? "Assinar " + n : "Pedir aprovação",
   });
   if (!r || !r.ok) return;
@@ -1442,7 +1442,7 @@ async function perguntarComoSalvar() {
    .zip passa pelo "Salvar como" do Windows e o um a um pela escolha de
    pasta, e o servidor grava. No navegador, downloads comuns. */
 async function salvarAssinados(modo, arquivos) {
-  /* A pasta sai do seletor do PAULUS e quem grava e o servidor: vale igual
+  /* A pasta sai do seletor do Paulus e quem grava e o servidor: vale igual
      na janela do programa e no navegador. Nada e sobrescrito - nome repetido
      ganha "(2)". */
   const json = { "Content-Type": "application/json" };

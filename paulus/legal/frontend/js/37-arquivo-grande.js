@@ -5,7 +5,7 @@
    arquivo e quero incluí-lo" marcado. Confirmado, o pedido vai de novo com o
    arquivo em `autorizados` - vale para aquele arquivo, naquela vez.
 
-   A tela não promete o que não faz: o PAULUS confere que o conteúdo é mesmo
+   A tela não promete o que não faz: o Paulus confere que o conteúdo é mesmo
    do tipo do nome (PDF é PDF, DOCX é do Word), e não procura vírus.
 */
 
@@ -25,7 +25,7 @@ async function confirmarArquivosGrandes(lista) {
     titulo: titulo, contexto: "Arquivo grande",
     texto: "Até " + LIMITE_SEM_PERGUNTAR_MB + " MB o arquivo entra direto; acima disso, só com o seu sim. " +
       "Arquivo grande demora mais para ler, e um PDF escaneado de muitas páginas mais ainda.\n" +
-      "O PAULUS confere se o conteúdo é mesmo do tipo do nome (um PDF é PDF, um DOCX é do Word) — mas não procura vírus. Inclua só o que você sabe de onde veio.",
+      "O Paulus confere se o conteúdo é mesmo do tipo do nome (um PDF é PDF, um DOCX é do Word) — mas não procura vírus. Inclua só o que você sabe de onde veio.",
     html: itens,
     marcar: { rotulo: um ? "Conheço este arquivo e quero incluí-lo" : "Conheço estes arquivos e quero incluí-los", marcada: false },
     confirmar: "Incluir mesmo assim",

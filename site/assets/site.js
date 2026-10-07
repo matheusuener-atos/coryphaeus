@@ -1,4 +1,4 @@
-/* PAULUS - site publico. O tema (escuro por padrao; claro se a pessoa
+/* Paulus - site publico. O tema (escuro por padrao; claro se a pessoa
    escolher, guardado em pv-tema, a mesma chave do programa) e o menu no
    celular. */
 (function () {

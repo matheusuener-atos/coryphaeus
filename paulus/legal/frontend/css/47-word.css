@@ -10,5 +10,5 @@
 .word-passos code { font: 400 12px var(--mono); }
 .word-conexao { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--ink-a08); }
 .word-conexao:last-child { border-bottom: 0; }
-.word-codigo { font: 600 26px var(--mono); letter-spacing: .12em; text-align: center; padding: 12px 0; margin: 8px 0 12px;
+.word-codigo { font: 600 32px var(--mono); letter-spacing: .12em; text-align: center; padding: 12px 0; margin: 8px 0 12px;
   border: 1px dashed var(--ink-a3); border-radius: 12px; background: var(--surf); }

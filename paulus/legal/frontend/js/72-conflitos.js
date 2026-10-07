@@ -104,7 +104,7 @@ async function mostrarConflitos() {
   const fechou = d.conferido && d.conferido.fechados_sozinhos
     ? '<p class="cfg-explica">' + plural(d.conferido.fechados_sozinhos, "conflito deixou", "conflitos deixaram") + " de existir e " +
       (d.conferido.fechados_sozinhos === 1 ? "fechou" : "fecharam") + " sozinho" + (d.conferido.fechados_sozinhos === 1 ? "" : "s") + ".</p>" : "";
-  const html = '<p class="cfg-explica">O PAULUS confere agora todos os Serviços em andamento: o cliente que é parte contrária em outro, ' +
+  const html = '<p class="cfg-explica">O Paulus confere agora todos os Serviços em andamento: o cliente que é parte contrária em outro, ' +
     "a parte contrária que é cliente do escritório, e quem está na equipe dos dois lados. Avisa, não bloqueia: quem decide é o advogado.</p>" + fechou +
     '<h4 class="pr-sub">Abertos' + (abertos.length ? " · " + abertos.length : "") + "</h4>" +
     (abertos.length ? '<div class="cfl-lista">' + abertos.map(linhaDoConflito).join("") + "</div>" : '<p class="cfg-explica">Nenhum conflito aberto.</p>') +

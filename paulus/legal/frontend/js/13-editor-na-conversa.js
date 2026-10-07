@@ -941,7 +941,7 @@ function desenharVisor() {
   visor.caixa.innerHTML = '<div class="visor">' +
     '<div class="visor-topo"><div><b>' + esc(d.nome) + "</b>" +
     '<div class="rotulo">' + (d.convertido
-      ? "prévia do texto na folha do PAULUS · a diagramação do Word pode ser outra"
+      ? "prévia do texto na folha do Paulus · a diagramação do Word pode ser outra"
       : "aberto da sua máquina · " + tamanho(d.bytes)) + "</div></div>" +
     '<div class="visor-acoes">' +
     '<button data-vs="antes" ' + (visor.pagina <= 1 ? "disabled" : "") + ">‹</button>" +

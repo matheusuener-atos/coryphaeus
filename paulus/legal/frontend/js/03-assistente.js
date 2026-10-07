@@ -195,7 +195,7 @@ function desenharListaDoAnexar() {
 function semDriveHtml() {
   return '<div class="anx-sem-drive"><span class="anx-drive-marca">' + marca("google-drive", 24) + "</span>" +
     "<h3>O Google Drive para computador<br>não está nesta máquina.</h3>" +
-    "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher — sem dar ao PAULUS nenhuma permissão a mais na sua conta Google.</p>" +
+    "<p>Com ele instalado, o Drive vira uma pasta do Windows e aparece aqui, inteiro, para escolher — sem dar ao Paulus nenhuma permissão a mais na sua conta Google.</p>" +
     '<div class="anx-caminhos">' +
     '<div class="anx-caminho"><span class="anx-caminho-rotulo">Instalar <span class="etiqueta ok">recomendado</span></span>' +
     "<p>Baixe em <b>google.com/drive/download</b>, entre com a sua conta e abra esta janela de novo.</p>" +
@@ -262,7 +262,7 @@ async function anexarEscolhidos() {
   return doAcervo.concat(lidos);
 }
 
-/* "Perguntar ao PAULUS", do botao direito no Explorer (src/desktop.py): o
+/* "Perguntar ao Paulus", do botao direito no Explorer (src/desktop.py): o
    arquivo entra numa conversa nova, anexado, como pelo "Meu computador". */
 async function perguntarSobreArquivo(caminho) {
   if (!caminho) return;
@@ -2379,7 +2379,7 @@ function desenharAvisoDoMotor(s) {
   let titulo, causa, acao;
   if (puxando.andando) {
     titulo = "Baixando o modelo do assistente";
-    causa = "Uma vez só, com internet. Dá para continuar usando o PAULUS; o assistente responde quando terminar.";
+    causa = "Uma vez só, com internet. Dá para continuar usando o Paulus; o assistente responde quando terminar.";
     acao = '<div class="barra-fina"><i id="motor-barra" style="width:' + (puxando.progresso || 1) + '%"></i></div><small id="motor-linha">' + esc(puxando.linha || "começando…") + "</small>";
   } else if (puxando.erro) {
     titulo = "O download do modelo parou";
@@ -2387,7 +2387,7 @@ function desenharAvisoDoMotor(s) {
     acao = '<button class="primario" data-motor-puxar="1">' + ic("refresh", 16) + "Tentar de novo</button>";
   } else if (!m.instalado) {
     titulo = "O Ollama não está instalado";
-    causa = "O Ollama é o programa que roda o modelo nesta máquina, sem mandar nada para fora. Instale pelo site e abra o PAULUS de novo.";
+    causa = "O Ollama é o programa que roda o modelo nesta máquina, sem mandar nada para fora. Instale pelo site e abra o Paulus de novo.";
     acao = '<button class="primario" data-motor-site="1">' + ic("open_in_new", 16) + "Abrir a página do Ollama</button>";
   } else if (!m.rodando) {
     titulo = "O assistente está desligado";

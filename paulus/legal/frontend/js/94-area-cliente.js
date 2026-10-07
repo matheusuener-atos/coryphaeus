@@ -196,7 +196,7 @@ function htmlDaAbaDoCliente(d) {
     '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email + (p.ultimo_acesso ? " · entrou " + quandoCurtoSv(p.ultimo_acesso) : " · ainda não entrou")) + "</small></span>" +
     '<button type="button" class="mais-linha" data-acp-pessoa="' + p.id + '" title="Mais">' + ic("more_horiz", 18) + "</button></div>").join("");
   const semEndereco = !d.endereco
-    ? '<p class="sv-dica acp-alerta">' + ic("info", 15) + "O cliente entra pelo endereço do escritório na internet. Ligue o acesso de fora antes, em Configurações › Acesso de fora.</p>"
+    ? '<p class="sv-dica acp-alerta">' + ic("info", 15) + "O cliente entra pelo endereço do escritório na internet. Ligue o acesso externo antes, em Configurações › Acesso externo.</p>"
     : "";
   const quem = '<section class="sv-secao">' + titulo("group", "Quem vê esta pasta",
     '<button type="button" class="sv-ligacao" data-acp-compartilhar="1"' + (d.endereco ? "" : " disabled") + ">" + ic("person_add", 15) + "Compartilhar com o cliente</button>") +
@@ -234,7 +234,7 @@ function htmlDaAbaDoCliente(d) {
     '<span class="duas-linhas"><b>' + esc(a.pessoa + " " + a.acao_rotulo) + "</b>" + (a.alvo ? "<small>" + esc(a.alvo) + "</small>" : "") + "</span></div>").join("");
   const atividade = '<section class="sv-secao">' + titulo("history", "Atividade do cliente", '<span class="sv-secao-meta">' + plural((d.atividade || []).length, "registro") + "</span>") +
     (linhas ? '<div class="acp-atividade">' + linhas + "</div>" : '<p class="sv-dica">O cliente ainda não entrou.</p>') +
-    '<p class="sv-dica">Só quem está na equipe desta pasta vê esta lista. Fica também em Configurações › Acesso de fora › Quem acessou. Print de tela não aparece aqui: o navegador do cliente não avisa — cada página que ele abre leva o nome dele e a hora.</p></section>';
+    '<p class="sv-dica">Só quem está na equipe desta pasta vê esta lista. Fica também em Configurações › Acesso externo › Quem acessou. Print de tela não aparece aqui: o navegador do cliente não avisa — cada página que ele abre leva o nome dele e a hora.</p></section>';
 
   return quem + regrasDoCliente() + resumo + conversa + atividade;
 }

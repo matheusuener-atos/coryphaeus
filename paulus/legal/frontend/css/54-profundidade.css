@@ -12,26 +12,26 @@
   box-shadow: 0 18px 48px -18px var(--sh-a35); padding: 8px;
 }
 .mp-cabeca { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px 8px; }
-.mp-cabeca b { font: 600 13.5px var(--sans); }
+.mp-cabeca b { font: 600 13px var(--sans); }
 .mp-cabeca small { font: 500 12px var(--sans); color: var(--ink3); line-height: 1.4; }
 .mp-nivel {
   display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; padding: 7px 10px;
-  border: 1px solid transparent; border-radius: 9px; background: none; color: inherit; cursor: pointer;
+  border: 1px solid transparent; border-radius: 8px; background: none; color: inherit; cursor: pointer;
 }
 .mp-nivel:hover, .mp-nivel:focus-visible { background: var(--fill); outline: none; }
 .mp-nivel.on { background: var(--accbg); border-color: var(--accln); }
-.mp-degrau { flex-shrink: 0; width: 46px; padding-top: 2px; font-size: 9px; letter-spacing: 1px; color: var(--acc); }
+.mp-degrau { flex-shrink: 0; width: 46px; padding-top: 2px; font-size: 12px; letter-spacing: 1px; color: var(--acc); }
 .mp-degrau .mp-vazio { color: var(--ink-a15); }
 .mp-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.mp-texto b { font: 600 13.5px var(--sans); }
-.mp-texto b em { font: 500 11px var(--sans); font-style: normal; color: var(--ink3); margin-left: 4px; }
-.mp-texto > span { font: 500 12.5px var(--sans); color: var(--ink2); line-height: 1.35; }
-.mp-tecnico { font: 500 11px var(--sans); color: var(--ink3); line-height: 1.35; margin-top: 2px; }
+.mp-texto b { font: 600 13px var(--sans); }
+.mp-texto b em { font: 500 12px var(--sans); font-style: normal; color: var(--ink3); margin-left: 4px; }
+.mp-texto > span { font: 500 12px var(--sans); color: var(--ink2); line-height: 1.35; }
+.mp-tecnico { font: 500 12px var(--sans); color: var(--ink3); line-height: 1.35; margin-top: 2px; }
 /* O nivel que o plano nao tem: aparece, sem escolher, com o plano que o tem. */
 .mp-nivel.travado { cursor: default; }
 .mp-nivel.travado:hover { background: none; }
 .mp-nivel.travado .mp-degrau, .mp-nivel.travado .mp-texto b, .mp-nivel.travado .mp-texto > span { opacity: .55; }
-.mp-plano { display: flex; align-items: center; gap: 4px; font: 500 11.5px var(--sans); color: var(--ink2); margin-top: 3px; line-height: 1.35; }
+.mp-plano { display: flex; align-items: center; gap: 4px; font: 500 12px var(--sans); color: var(--ink2); margin-top: 3px; line-height: 1.35; }
 .mp-perguntar {
   display: flex; gap: 10px; align-items: flex-start; margin: 6px 2px 2px; padding: 10px 10px 8px;
   border-top: 1px solid var(--ink-a08); cursor: pointer;
@@ -43,24 +43,24 @@
 
 /* O módulo de perguntas */
 
-.ent-nivel { margin-left: auto; font: 500 11.5px var(--sans); color: var(--ink3); }
+.ent-nivel { margin-left: auto; font: 500 12px var(--sans); color: var(--ink3); }
 .ent-entendi { margin-top: -4px; }
 .ent-perguntas { display: flex; flex-direction: column; gap: 14px; margin: 12px 0 4px; }
 .ent-q { border: 0; margin: 0; padding: 0 0 12px; border-bottom: 1px solid var(--ink-a08); min-width: 0; }
 .ent-q:last-child { border-bottom: 0; padding-bottom: 0; }
-.ent-titulo { display: block; padding: 0; font: 600 13.5px var(--sans); color: var(--ink); margin-bottom: 2px; }
+.ent-titulo { display: block; padding: 0; font: 600 13px var(--sans); color: var(--ink); margin-bottom: 2px; }
 .ent-porque { display: block; font: 500 12px var(--sans); color: var(--ink3); line-height: 1.4; margin-bottom: 8px; }
 .ent-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
 .ent-op, .ent-modo {
   height: auto; min-height: 30px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--ink-a15);
-  background: var(--surf); color: var(--ink); font: 500 12.5px var(--sans); cursor: pointer; text-align: left;
+  background: var(--surf); color: var(--ink); font: 500 12px var(--sans); cursor: pointer; text-align: left;
 }
 .ent-op:hover, .ent-modo:hover { background: var(--fill); }
 .ent-op.on { background: var(--primario); border-color: var(--primario); color: var(--primario-ink); }
 .ent-op.on .ent-sug { color: inherit; opacity: .75; }
-.ent-sug { font: 500 10.5px var(--sans); color: var(--acc); margin-left: 4px; }
+.ent-sug { font: 500 12px var(--sans); color: var(--acc); margin-left: 4px; }
 .ent-modos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.ent-modo { min-height: 24px; padding: 2px 10px; font-size: 11.5px; color: var(--ink2); border-style: dashed; }
+.ent-modo { min-height: 24px; padding: 2px 10px; font-size: 12px; color: var(--ink2); border-style: dashed; }
 .ent-modo.on { background: var(--accbg); border-color: var(--accln); border-style: solid; color: var(--acc); }
 .ent-campo {
   width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid var(--ink-a15); border-radius: 8px;
@@ -71,7 +71,7 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
 .ent-valor { display: inline-flex; align-items: center; gap: 6px; font: 500 13px var(--sans); color: var(--ink2); }
 .ent-premissas { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--fill); }
 .ent-premissas small { font: 600 12px var(--sans); color: var(--ink2); }
-.ent-premissas ul { margin: 4px 0 0; padding-left: 18px; font: 500 12.5px var(--sans); color: var(--ink2); }
+.ent-premissas ul { margin: 4px 0 0; padding-left: 18px; font: 500 12px var(--sans); color: var(--ink2); }
 .ent-explicar { margin-top: 12px; }
 .ent-dica { margin: 10px 0 0; font: 500 12px var(--sans); color: var(--ink3); }
 .ent-acoes { flex-wrap: wrap; }
@@ -79,15 +79,15 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
 .proposta.entrevista.adiada .ent-perguntas { opacity: .75; }
 .ent-adiada { margin: 8px 0 0; }
 
-.ent-resumo { margin: 4px 0 0; padding-left: 18px; font: 500 12.5px var(--sans); color: var(--ink2); }
+.ent-resumo { margin: 4px 0 0; padding-left: 18px; font: 500 12px var(--sans); color: var(--ink2); }
 
 /* O trabalho pronto */
 .proposta.trabalho-pronto { }
-.ent-revisao { margin: 6px 0 0; font: 500 12.5px var(--sans); color: var(--ink2); }
+.ent-revisao { margin: 6px 0 0; font: 500 12px var(--sans); color: var(--ink2); }
 .ent-revisao summary { cursor: pointer; font-weight: 600; }
 .ent-revisao ul { margin: 6px 0 0; padding-left: 18px; }
 .ent-revisao li { margin-bottom: 4px; line-height: 1.4; }
-.ent-grav { display: inline-block; padding: 0 6px; border-radius: 4px; font: 600 10.5px var(--sans); text-transform: uppercase; }
+.ent-grav { display: inline-block; padding: 0 6px; border-radius: 4px; font: 600 12px var(--sans); text-transform: uppercase; }
 .ent-grav.alta { background: var(--accbg); color: var(--acc); }
 .ent-grav.media { background: var(--warnbg); color: var(--warnt); }
 .ent-grav.baixa { background: var(--fill); color: var(--ink3); }
@@ -105,19 +105,19 @@ textarea.ent-campo { resize: vertical; line-height: 1.45; }
 .proposta.entrevista.respondida { opacity: .85; }
 
 /* Cláusula por cláusula (js/92-entrevista.js) */
-.cl-plano { margin: 2px 0 10px; font: 500 12.5px var(--sans); color: var(--ink2); }
+.cl-plano { margin: 2px 0 10px; font: 500 12px var(--sans); color: var(--ink2); }
 .cl-plano summary { cursor: pointer; font-weight: 600; }
 .cl-plano ol { margin: 6px 0 0; padding-left: 22px; line-height: 1.6; }
 .cl-bloco { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--fill); }
 .cl-bloco > b { font: 600 13px var(--sans); }
 .cl-bloco small { font: 500 12px var(--sans); color: var(--ink3); line-height: 1.45; }
-.cl-leis { margin: 2px 0; padding-left: 18px; font: 500 12.5px var(--sans); color: var(--ink2); }
-.cl-estado { margin-left: 6px; padding: 0 6px; border-radius: 4px; font: 600 10.5px var(--sans); }
+.cl-leis { margin: 2px 0; padding-left: 18px; font: 500 12px var(--sans); color: var(--ink2); }
+.cl-estado { margin-left: 6px; padding: 0 6px; border-radius: 4px; font: 600 12px var(--sans); }
 .cl-estado.ok { background: var(--okbg); color: var(--okt); }
 .cl-estado.falta { background: var(--warnbg); color: var(--warnt); }
 .cl-modelos { margin-top: 6px; }
 .cl-honesta { margin: 8px 0 0; font: 500 12px var(--sans); color: var(--ink3); line-height: 1.45; }
-.cl-aviso { margin: 0 0 8px; font: 500 12.5px var(--sans); color: var(--warnt); }
+.cl-aviso { margin: 0 0 8px; font: 500 12px var(--sans); color: var(--warnt); }
 .cl-corrigir { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .proposta.clausula.respondida, .proposta.preparo.respondida { opacity: .85; }
 

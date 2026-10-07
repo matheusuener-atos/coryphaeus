@@ -131,7 +131,7 @@ function exLimpar() {
 /* -------------------------------------------------- o cabecalho editorial */
 
 function exLide() {
-  if (mail.pasta === "enviados") return "O que saiu pelo PAULUS fica anotado aqui; a cópia completa está no seu servidor.";
+  if (mail.pasta === "enviados") return "O que saiu pelo Paulus fica anotado aqui; a cópia completa está no seu servidor.";
   if (mail.pasta === "rascunhos") return "O rascunho fica guardado nesta máquina até sair.";
   if (mail.pasta === "aprovacao") return "Os envios que pedem o seu sim esperam aqui. E-mail enviado não volta.";
   if (mail.erroCaixa) return "Não consegui abrir a caixa agora.";
@@ -373,7 +373,7 @@ function exCorpoDaLista() {
       ? mail.envios.map((e, i) => exLinhaSimples('data-ex-envio="' + i + '"', mail.envioAberto === i, (e.para || []).join(", ") || "—", e.assunto,
           (e.anexos || []).length ? '<span class="ex-marca-ic" title="Com anexo">' + ic("attach_file", 16) + "</span>" : "", quandoCurto(e.quando)) +
           (mail.envioAberto === i ? exEnvioAberto(e) : "")).join("")
-      : exVazio("Nada enviado daqui", "O que sair pelo PAULUS fica anotado aqui.");
+      : exVazio("Nada enviado daqui", "O que sair pelo Paulus fica anotado aqui.");
   }
   if (mail.pasta === "rascunhos") {
     const r = lerRascunhoLocal();
@@ -568,7 +568,7 @@ async function exTraduzir(m) {
 
 /* Imprimir a mensagem: uma folha limpa (assunto, de, para, data e o texto,
    sem a tela em volta) num quadro escondido, e a janela de impressao do
-   navegador. O modal de impressao do PAULUS (28-imprimir.js) trabalha sobre
+   navegador. O modal de impressao do Paulus (28-imprimir.js) trabalha sobre
    o PDF de um documento - e-mail nao tem PDF. O quadro nao roda script (a
    CSP e a mesma do quadro de leitura); so a folha e impressa. */
 function exImprimir(m) {
@@ -776,7 +776,7 @@ function exLuz(rgb) { return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2
 function exCorDeRgb(rgb) { return "rgb(" + rgb.map((c) => Math.round(c)).join(", ") + ")"; }
 
 /* A mesma cor com a claridade virada, mantendo o tom: o branco do papel vai
-   a cerca de #1f1f1f (a folha do PAULUS escuro) e o preto do texto a
+   a cerca de #1f1f1f (a folha do Paulus escuro) e o preto do texto a
    #e0e0e0. Texto que virou claro nunca fica abaixo de 72% de claridade, para
    o link azul-escuro nao sumir no fundo. */
 function exEscurecerCor(rgb, texto) {
@@ -842,14 +842,14 @@ function exMontarHtml(raiz, m) {
   const csp = "default-src 'none'; img-src " + img + "; style-src 'unsafe-inline'" + (liberadas ? " https:" : "") +
     "; font-src data:" + (liberadas ? " https:" : "") + "; form-action 'none'; base-uri 'none'";
   /* Claro ou escuro: o e-mail que tem versao escura (media query
-     prefers-color-scheme) segue o tema do PAULUS; o que nao tem fica claro,
+     prefers-color-scheme) segue o tema do Paulus; o que nao tem fica claro,
      como no Gmail - senao o texto escuro dele cairia num fundo escuro. O
      iframe herda o esquema do color-scheme do proprio elemento. */
   quadro._ex = { raiz: raiz, m: m };
   // Vendo a traducao: o HTML traduzido no lugar do original.
   const trad = (cx.trad || {})[m.uid];
   if (trad && trad.estado === "pronta" && cx.tradVista === m.uid && trad.html) m = Object.assign({}, m, { html: trad.html });
-  // A escolha de E-mail › Configuracoes: acompanhar o PAULUS, sempre claro
+  // A escolha de E-mail › Configuracoes: acompanhar o Paulus, sempre claro
   // ou sempre escuro.
   const escolha = emailPrefs().tema;
   const temaEscuro = escolha === "escuro" || (escolha === "auto" && document.documentElement.dataset.tema === "escuro");
@@ -857,7 +857,7 @@ function exMontarHtml(raiz, m) {
   quadro.style.colorScheme = escuro ? "dark" : "light";
   const padrao = escuro ? "#1f1f1e" : "#ffffff";
   /* Dentro do iframe, prefers-color-scheme segue o Windows, e nao o tema do
-     PAULUS. Entao a condicao e reescrita no CSS do proprio e-mail: a do tema
+     Paulus. Entao a condicao e reescrita no CSS do proprio e-mail: a do tema
      escolhido vira sempre-verdadeira, a outra nunca. */
   const sempre = "(min-width: 0px)", nunca = "(max-width: 0px)";
   const corpoHtml = m.html

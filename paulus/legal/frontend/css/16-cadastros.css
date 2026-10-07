@@ -25,7 +25,7 @@
   .cad-contato { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cad-texto { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cad-ligado { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .cad-ligado small { font: 500 12.5px var(--sans); color: var(--ink3); }
+  .cad-ligado small { font: 500 12px var(--sans); color: var(--ink3); }
   .fin-valor-col.cad-zero { color: var(--ink3); font-weight: 400; }
   .cad-barra .direita { position: relative; }
   .cad-barra button.adiante { opacity: .6; }
@@ -40,12 +40,12 @@
   .cad-sug-topo { display: flex; align-items: center; gap: 16px; min-width: 0; min-height: 28px; }
   .cad-sug-topo .sv-kicker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cad-sug-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; flex: none; }
-  .cad-sug-conta { min-width: 56px; text-align: center; font: 500 12.5px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink3); }
+  .cad-sug-conta { min-width: 56px; text-align: center; font: 500 12px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink3); }
   .cad-sug-corpo { display: flex; align-items: center; gap: 24px; min-width: 0; }
   .cad-sug-quem { display: grid; gap: 4px; min-width: 0; flex: 1; }
-  .cad-sug-nome { margin: 0; font: 400 20px/1.25 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
+  .cad-sug-nome { margin: 0; font: 600 20px/1.25 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
   .cad-sug-meta { margin: 0; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
-  .cad-sug-prova { margin: 0; font: 400 12.5px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cad-sug-prova { margin: 0; font: 400 12px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cad-sug-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
   /* sem sugestao, ou lendo: uma linha discreta com a acao a direita */
   .cad-sug-vazio { display: flex; align-items: center; gap: 24px; min-width: 0; }
@@ -65,18 +65,18 @@
   .dialogo-corpo p.cad-veio { font-size: 13px; line-height: 1.55; }
   .cad-veio .ic { flex: none; margin-top: 1px; color: var(--ink3); }
   .cad-destaque { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .cad-valor-grande { font: 600 26px/1.1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
-  .cad-destaque-nota { font: 500 12.5px var(--sans); color: var(--ink3); }
-  .dialogo-corpo p.cad-nota { font: 400 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .cad-valor-grande { font: 600 32px/1.1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .cad-destaque-nota { font: 500 12px var(--sans); color: var(--ink3); }
+  .dialogo-corpo p.cad-nota { font: 400 12px/1.5 var(--sans); color: var(--ink3); }
   .cad-bloco { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--ink-a1); }
   .cad-bloco-titulo { font: 600 14px var(--sans); color: var(--ink); }
   .cad-bloco-titulo small { margin-left: 6px; font: 500 12px var(--sans); color: var(--ink3); }
-  .cad-ligacoes { display: grid; gap: 8px; font-size: 13.5px; }
+  .cad-ligacoes { display: grid; gap: 8px; font-size: 13px; }
   .cad-ligacao { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .cad-ligacao .ic { color: var(--ink3); flex: none; }
   .cad-ligacao > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
   .cad-ligacao small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
-  .cad-pode { display: grid; gap: 8px; font-size: 13.5px; color: var(--ink); }
+  .cad-pode { display: grid; gap: 8px; font-size: 13px; color: var(--ink); }
   .cad-pode div { display: flex; gap: 10px; align-items: flex-start; }
   .cad-pode .ic { color: var(--ink2); flex: none; }
   .cad-pode .ic.nao { color: var(--ink3); }

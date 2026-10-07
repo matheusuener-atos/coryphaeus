@@ -39,7 +39,7 @@ const agt = {
 const FRASE_AGENTES_SO_NO_ESCRITORIO = "Criar, editar e ligar agentes fica no computador do escritório.";
 const ONDE_PROCURA = { acervo: "Todo o Acervo", documento_em_foco: "Só o documento em foco da conversa", pastas: "Só estas pastas do Acervo" };
 const FORMATO_SAIDA = { texto: "Texto corrido", lista: "Lista", tabela: "Tabela", modelo_de_documento: "Modelo de documento" };
-const ORIGEM_AGENTE = { escritorio: "do escritório", importado: "importado", produto: "exemplo do PAULUS" };
+const ORIGEM_AGENTE = { escritorio: "do escritório", importado: "importado", produto: "exemplo do Paulus" };
 
 function agentesSoLeitura() {
   return !acessoDeFora.local;

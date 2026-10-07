@@ -28,7 +28,7 @@ const CAD_JSON = { "Content-Type": "application/json" };
 const CAD_VINCULOS = [["", "não entra na folha"], ["clt", "CLT"], ["estagio", "Estágio"], ["prolabore", "Pró-labore"], ["autonomo", "Autônomo"]];
 
 /* O que cada papel vai poder quando a equipe existir de verdade. Hoje uma
-   pessoa so usa o PAULUS nesta maquina, e ela pode tudo. */
+   pessoa so usa o Paulus nesta maquina, e ela pode tudo. */
 const CAD_PAPEIS = {
   socio: [
     [true, "Aprovar envios, pagamentos e assinaturas"], [true, "Ver e editar todas as pastas"],
@@ -64,7 +64,7 @@ async function mostrarCadastros(visao) {
     cad.levantamento = g.levantamento || { documentos: 0, faltam: 0 };
     cad.lancamentos = l.lancamentos || [];
     cad.tarefas = t.tarefas || [];
-    // O acesso ao PAULUS de cada pessoa da equipe (js/46-equipe.js).
+    // O acesso ao Paulus de cada pessoa da equipe (js/46-equipe.js).
     if (typeof carregarAcessoDaEquipe === "function") await carregarAcessoDaEquipe();
     if (cad.aberta) cad.aberta = cad.fichas.find((f) => f.id === cad.aberta.id) || null;
   } catch (err) {
@@ -110,7 +110,7 @@ function cabecalhoCadastros() {
     const comAcesso = typeof acessoDoEmail === "function"
       ? cad.fichas.filter((f) => ["colaborador", "socio"].includes(f.tipo) && ["titular", "ativo"].includes(acessoDoEmail(f.email).estado)).length : 0;
     meta.textContent = plural(c.socio || 0, "sócio") + " · " + plural(c.colaborador || 0, "colaborador", "colaboradores") +
-      " · " + comAcesso + " com acesso ao PAULUS";
+      " · " + comAcesso + " com acesso ao Paulus";
   } else if (cad.visao === "despesas") {
     const total = fichasDaVisao().reduce((s, f) => s + centavosDe(f.honorario), 0);
     titulo.textContent = "Despesas fixas";
@@ -418,10 +418,10 @@ function corpoDaEquipe() {
   return '<div class="tabela-cartao cad-lista">' +
     '<div class="tabela-barra cad-barra">' + barraCad(chip("todos", "Todos") + chip("socio", "Sócios") + chip("colaborador", "Colaboradores")) +
     '<div class="direita"><button data-cad-regras="1">' + ic("shield_person", 16) + "Papéis e alçadas</button></div></div>" +
-    '<div class="tabela-cabecalho colunas-equipe"><span>Nome e função</span><span>Papel</span><span>Acesso ao PAULUS</span><span class="fin-num">Na folha</span><span></span></div>' +
+    '<div class="tabela-cabecalho colunas-equipe"><span>Nome e função</span><span>Papel</span><span>Acesso ao Paulus</span><span class="fin-num">Na folha</span><span></span></div>' +
     '<div class="tabela-corpo">' + (lista.length ? lista.map(linhaDaEquipe).join("") : '<p class="rel-vazio">' + esc(vazioDosCadastros(todas.length)) + "</p>") + "</div>" +
     '<div class="tabela-rodape"><span>' + esc(plural(todas.length, "pessoa")) + " · folha " + esc(emReais(folha)) + "</span>" +
-    '<span class="cad-rodape-nota">O acesso ao PAULUS de cada pessoa: convite e permissões na ficha</span></div></div>';
+    '<span class="cad-rodape-nota">O acesso ao Paulus de cada pessoa: convite e permissões na ficha</span></div></div>';
 }
 
 function linhaDaEquipe(f) {
@@ -596,7 +596,7 @@ function blocoDoPapel(f) {
       const classe = "ic ic-18" + (pode ? "" : " nao");
       return '<div><span class="' + classe + '">' + (pode ? "check_circle" : "close") + "</span><span>" + esc(texto) + "</span></div>";
     }).join("") + "</div>" +
-    '<p class="cad-nota">O que cada pessoa vê e faz de verdade se escolhe em Permissões, no acesso ao PAULUS acima.</p></div>';
+    '<p class="cad-nota">O que cada pessoa vê e faz de verdade se escolhe em Permissões, no acesso ao Paulus acima.</p></div>';
 }
 
 function blocoDaDespesa(f) {
@@ -920,7 +920,7 @@ function editarFicha(f) {
 }
 
 function novaFicha() {
-  // A equipe do escritorio e quem entra no PAULUS: pessoa nova na equipe
+  // A equipe do escritorio e quem entra no Paulus: pessoa nova na equipe
   // entra pelo convite (js/46-equipe.js), que cria a ficha junto.
   if (cad.visao === "equipe" && typeof convidarPessoa === "function" &&
       (typeof acessoDeFora === "undefined" || acessoDeFora.local)) {

@@ -1,10 +1,10 @@
 /* ---------------------------------------------------------- atualizacao */
 /*
-   A versao nova do PAULUS (src/atualizacao.py): o programa ve uma vez por
+   A versao nova do Paulus (src/atualizacao.py): o programa ve uma vez por
    dia, em paulus.ia.br/atualizacao.json, se ha versao nova - se a pessoa
    deixou ligado. Com "Avisar antes de instalar", a faixa do topo avisa e
    Configuracoes › Versao baixa (conferindo o SHA-256) e instala: o
-   instalador abre no modo atualizar, fecha o PAULUS, troca o programa e
+   instalador abre no modo atualizar, fecha o Paulus, troca o programa e
    abre a versao nova. Sem o aviso, baixa sozinho e instala ao fechar.
 */
 
@@ -21,7 +21,7 @@ async function avisarAtualizacao() {
   const d = await carregarAtualizacao();
   if (!d || !d.anuncio || !d.anuncio.nova || !d.avisar_antes) return;
   if (typeof vinculoPendente === "function" && vinculoPendente()) return;
-  avisoFixoNaJanela("PAULUS " + d.anuncio.versao + " disponível · você está na " + d.atual + ".", {
+  avisoFixoNaJanela("Paulus " + d.anuncio.versao + " disponível · você está na " + d.atual + ".", {
     icone: "download",
     acao: { rotulo: "Ver a atualização", fazer: () => { avisoFixoNaJanela(null); abrirAtualizacaoEmConfiguracoes(); } },
   });
@@ -50,7 +50,7 @@ function blocoAtualizacao() {
     "</div>";
   const liga = '<div class="cfg-sub">' +
     ligaCfg("atualizacoes.verificar", "Verificar atualizações uma vez por dia", "lê paulus.ia.br/atualizacao.json; nada seu vai junto", a.verificar !== false) +
-    ligaCfg("atualizacoes.avisar_antes", "Avisar antes de instalar", "desligado, a versão nova baixa sozinha e se instala quando você fechar o PAULUS", a.avisar_antes !== false) +
+    ligaCfg("atualizacoes.avisar_antes", "Avisar antes de instalar", "desligado, a versão nova baixa sozinha e se instala quando você fechar o Paulus", a.avisar_antes !== false) +
     "</div>";
   const an = d.anuncio;
   const b = d.baixando || {};
@@ -65,16 +65,16 @@ function blocoAtualizacao() {
         ' · <button type="button" class="em-ligacao" data-cfg-atu="cancelar">cancelar</button></p>';
     } else if (d.pronto) {
       acao = d.instalado
-        ? '<p class="cfg-explica">Baixado e conferido (SHA-256). Instalar fecha o PAULUS, troca o programa e abre a versão nova — os dados ficam.</p>' +
+        ? '<p class="cfg-explica">Baixado e conferido (SHA-256). Instalar fecha o Paulus, troca o programa e abre a versão nova — os dados ficam.</p>' +
           '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-atu="instalar">' + ic("download", 16) + "Instalar agora</button></div>"
-        : '<p class="cfg-explica">Este PAULUS roda do código-fonte: para atualizar, use git pull.</p>';
+        : '<p class="cfg-explica">Este Paulus roda do código-fonte: para atualizar, use git pull.</p>';
     } else {
       acao = (b.erro ? '<p class="cfg-explica acc">O download parou: ' + esc(b.erro) + "</p>" : "") +
         '<div class="cfg-botoes"><button class="primario com-icone" data-cfg-atu="baixar">' + ic("download", 16) +
         (b.erro ? "Tentar de novo" : "Baixar a atualização") + (an.tamanho ? " · " + tamanhoAtu(an.tamanho) : "") + "</button>" +
         (an.notas ? '<button data-cfg-atu-notas="' + esc(an.notas) + '">' + ic("open_in_new", 16) + "Notas da versão</button>" : "") + "</div>";
     }
-    estado = '<div class="atu-nova"><b>PAULUS ' + esc(an.versao) + " disponível</b>" +
+    estado = '<div class="atu-nova"><b>Paulus ' + esc(an.versao) + " disponível</b>" +
       (an.publicada ? "<small> · publicada em " + esc(an.publicada.slice(8, 10) + "/" + an.publicada.slice(5, 7)) + "</small>" : "") +
       novidades + acao + "</div>";
   } else {
@@ -97,13 +97,13 @@ async function acaoAtualizacao(qual) {
   }
   if (!r.ok) { avisoCert(maiuscula(await erroDe(r)), { tom: "erro" }); return; }
   if (qual === "instalar") {
-    avisoCert("abrindo o instalador — o PAULUS fecha e volta na versão nova", { dura: 0 });
+    avisoCert("abrindo o instalador — o Paulus fecha e volta na versão nova", { dura: 0 });
     return;
   }
   atu.dados = await r.json();
   if (qual === "verificar") {
     const an = atu.dados.anuncio;
-    avisoCert(atu.dados.erro ? atu.dados.erro : (an && an.nova ? "PAULUS " + an.versao + " disponível" : "você está na versão mais nova"),
+    avisoCert(atu.dados.erro ? atu.dados.erro : (an && an.nova ? "Paulus " + an.versao + " disponível" : "você está na versão mais nova"),
       { tom: atu.dados.erro ? "erro" : "ok" });
   }
   if ($("cfg-tela")) desenharConfig();

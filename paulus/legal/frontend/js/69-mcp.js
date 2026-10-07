@@ -30,7 +30,7 @@ async function novaConexaoMcp() {
     '<h4 class="mcp-sub">Do escritório — só leitura</h4>' + ferramentas.filter((f) => !f.publica && !f.escreve).map(caixa).join("") +
     // N9: as que escrevem - criam (rascunho, anotação) ou pedem em Aprovações (tarefa, compromisso).
     '<h4 class="mcp-sub">Que escrevem — só criam ou pedem em Aprovações</h4>' + ferramentas.filter((f) => f.escreve).map(caixa).join("") +
-    '<label class="mcp-opcao mcp-entendi" id="mcp-escrever-caixa" hidden><input type="checkbox" id="mcp-escrever"><span><b>Entendi que esta conexão vai criar coisas no PAULUS:</b> ' +
+    '<label class="mcp-opcao mcp-entendi" id="mcp-escrever-caixa" hidden><input type="checkbox" id="mcp-escrever"><span><b>Entendi que esta conexão vai criar coisas no Paulus:</b> ' +
     "rascunhos no editor, anotações nos Serviços liberados e pedidos em Aprovações (tarefa e compromisso só existem depois do sim). Nada é apagado nem mudado.</span></label>" +
     '<div id="mcp-escopo" hidden><h4 class="mcp-sub">Escopo</h4>' +
     '<label class="mcp-opcao"><input type="checkbox" id="mcp-tudo"><span>O Acervo inteiro</span></label>' +

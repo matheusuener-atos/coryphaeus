@@ -15,7 +15,7 @@ $("nova").click();
 // (que o servidor faz 30 s depois de abrir) aparece em seguida.
 setTimeout(() => avisarAtualizacao(), 4000);
 setTimeout(() => avisarAtualizacao(), 50000);
-// Aberto pelo "Perguntar ao PAULUS" do Explorer: o arquivo vem no endereco
+// Aberto pelo "Perguntar ao Paulus" do Explorer: o arquivo vem no endereco
 // (ou ficou guardado enquanto a janela estava travada). Travada, ele espera:
 // destravar recarrega a pagina, e ele entra entao.
 (function () {

@@ -14,10 +14,10 @@
   .bv-casas span.vazia { color: var(--ink3); }
   .bv-casas span.cursor { border-color: var(--ink); }
   .bv-oculto { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-  .bv-codigo-nota { font: 500 12.5px/1.5 var(--sans); color: var(--ink3); }
+  .bv-codigo-nota { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .bv-codigo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
   .bv-codigo-acoes button { display: inline-flex; align-items: center; gap: 6px; }
-  .bv-campo-fixo { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 10px; background: var(--surf); font: 400 14px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; }
+  .bv-campo-fixo { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); font: 400 14px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; }
   .bv-grade .bv-cheia { grid-column: 1 / -1; }
 
   /* modo limitado: a casca inteira, com o que depende da rede apagado */

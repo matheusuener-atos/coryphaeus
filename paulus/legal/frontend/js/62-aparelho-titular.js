@@ -1,6 +1,6 @@
 /* ------------------------------ pensar no aparelho: o que o titular controla (D5) */
 /*
-   O cartão "Escrever no aparelho" em Configurações › Acesso de fora, só na
+   O cartão "Escrever no aparelho" em Configurações › Acesso externo, só na
    janela do escritório (as rotas também só respondem aqui):
 
    - ligar e desligar para o escritório (a chave aparelho.ligado). Desligar

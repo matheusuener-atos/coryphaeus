@@ -42,7 +42,7 @@ function cartaoGoogle() {
   const d = gg.dados;
   if (!d) return cartaoCfg("Conta Google", "", '<p class="cfg-texto">Lendo a conta Google…</p>');
   if (!d.configurado) {
-    return cartaoCfg("Conta Google", "", '<p class="cfg-texto">Esta versão do PAULUS não traz o login do Google.</p>');
+    return cartaoCfg("Conta Google", "", '<p class="cfg-texto">Esta versão do Paulus não traz o login do Google.</p>');
   }
   if (!d.conta) {
     return cartaoCfg("Conta Google", metaCfg("Gmail · Agenda e Meet · Drive"),
@@ -62,7 +62,7 @@ function cartaoGoogle() {
       agenda ? ponto("conectada", "ok") : ponto("não conectada", ""),
       agenda ? '<button class="com-icone" data-gg-sinc="1">' + marca("google-agenda", 16) + "Sincronizar agora</button>"
         : '<button class="primario com-icone" data-gg-conectar="agenda">' + marca("google-agenda", 16) + "Conectar</button>") +
-    linha("folder", "Enviar ao Google Drive", drive ? "os documentos que você envia vão para a pasta PAULUS do seu Drive" : "enviar documentos do Acervo para o seu Drive",
+    linha("folder", "Enviar ao Google Drive", drive ? "os documentos que você envia vão para a pasta Paulus do seu Drive" : "enviar documentos do Acervo para o seu Drive",
       drive ? ponto("conectado", "ok") : ponto("não conectado", ""),
       drive ? "" : '<button class="primario" data-gg-conectar="drive">Conectar</button>') +
     linhaDriveNoAcervo(linha, ponto);
@@ -77,9 +77,9 @@ function cartaoGoogle() {
     ? "Google Drive neste computador: " + locais.map((p) => esc(p.caminho) + (p.vigiada ? " (o Acervo já vigia)"
         : ' <button class="em-ligacao" data-gg-vigiar="' + esc(p.caminho) + '">vigiar no Acervo</button>')).join(" · ") +
       ". Assim o Acervo lê o seu Drive inteiro sem pedir permissão nenhuma ao Google."
-    : "Outro caminho, sem dar permissão ao PAULUS: o Google Drive para computador vira uma pasta do Windows, e aí é só vigiar a pasta no Acervo.") + "</p>";
+    : "Outro caminho, sem dar permissão ao Paulus: o Google Drive para computador vira uma pasta do Windows, e aí é só vigiar a pasta no Acervo.") + "</p>";
   if (d.erro) html += '<p class="cfg-explica mod-erro">' + esc(maiuscula(d.erro)) + ".</p>";
-  html += '<p class="cfg-explica">O PAULUS só usa o que você conecta aqui. Para tirar as permissões do Google de vez, use myaccount.google.com/permissions.</p>';
+  html += '<p class="cfg-explica">O Paulus só usa o que você conecta aqui. Para tirar as permissões do Google de vez, use myaccount.google.com/permissions.</p>';
   return cartaoCfg("Conta Google", metaCfg(d.conta), html);
 }
 
