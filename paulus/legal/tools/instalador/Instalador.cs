@@ -1015,7 +1015,8 @@ static class Motor
 
     [DllImport("shell32.dll")] static extern void SHChangeNotify(int evento, int flags, IntPtr a, IntPtr b);
 
-    /* "Perguntar ao PAULUS" no botao direito dos arquivos que o programa le.
+    /* "Perguntar ao Paulus" no botao direito dos arquivos que o programa le (o mesmo
+       rotulo de src/menu_explorer.py, que o programa grava quando liga o menu).
        No Windows 11 aparece em "Mostrar mais opções". */
     static void MenuDoExplorer(string exe)
     {
@@ -1023,7 +1024,7 @@ static class Motor
         {
             using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Software\Classes\SystemFileAssociations\" + tipo + @"\shell\PAULUS.Perguntar"))
             {
-                k.SetValue("", "Perguntar ao PAULUS");
+                k.SetValue("", "Perguntar ao Paulus");
                 k.SetValue("Icon", "\"" + exe + "\",0");
                 using (RegistryKey c = k.CreateSubKey("command")) c.SetValue("", "\"" + exe + "\" --perguntar \"%1\"");
             }

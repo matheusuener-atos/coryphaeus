@@ -54,7 +54,7 @@
     { tela: "qualificacao", ico: "qualificacao", nome: "Qualificação", linha: "A qualificação de uma parte, pelos Cadastros.", pronta: false },
     { tela: "perguntar", ico: "perguntar", nome: "Perguntar", linha: "Sobre este documento ou o trecho selecionado.", pronta: false },
     { tela: "revisar", ico: "revisar", nome: "Revisar com agente", linha: "Apontamentos em comentários; o texto não muda.", pronta: false },
-    { tela: "guardar", ico: "guardar", nome: "Guardar no PAULUS", linha: "Uma cópia no Acervo, no cliente ou Serviço.", pronta: false },
+    { tela: "guardar", ico: "guardar", nome: "Guardar no Paulus", linha: "Uma cópia no Acervo, no cliente ou Serviço.", pronta: false },
   ];
 
   // ------------------------------------------------------------ utilidades
@@ -119,7 +119,7 @@
       ? '<button class="p-volta" data-acao="inicio" aria-label="Voltar ao início">' + I.volta + "Início</button>" +
         '<span class="p-titulo cresce">' + esc(opc.titulo) + "</span>"
       : '<span class="cresce"></span>';
-    var dica = estado === "ok" ? (MONTAGEM === "A" ? "Conectado ao PAULUS deste computador" : "Conectado ao PAULUS do escritório") : txt;
+    var dica = estado === "ok" ? (MONTAGEM === "A" ? "Conectado ao Paulus deste computador" : "Conectado ao Paulus do escritório") : txt;
     var mais = estado === "ok"
       ? '<button class="ico-btn" data-acao="menu" aria-label="Mais opções" aria-haspopup="menu" aria-expanded="' + st.menu + '">' + I.mais + "</button>"
       : "";
@@ -149,15 +149,15 @@
     primeira: function () {
       return topo({ estado: "nao" }) + '<div class="p-corpo"><div class="estado-tela">' +
         (st.aviso ? '<div class="aviso atencao" role="alert"><span>' + esc(st.aviso) + "</span></div>" : "") +
-        '<h1 class="p-h maior">O PAULUS no seu Word</h1>' +
+        '<h1 class="p-h maior">O Paulus no seu Word</h1>' +
         '<ul class="passos-mini" style="padding-left:16px">' +
         "<li>Confere as leis, súmulas e processos citados no documento.</li>" +
         "<li>Insere artigo vigente, fundamentação e qualificação das partes, como alteração controlada.</li>" +
         "<li>Responde sobre o documento com as fontes do escritório.</li></ul>" +
-        '<button class="btn primario cheio" data-acao="conectar">Conectar ao PAULUS</button>' +
+        '<button class="btn primario cheio" data-acao="conectar">Conectar ao Paulus</button>' +
         '<div class="aviso neutro">' + I.cadeado + "<span>" +
-        (MONTAGEM === "A" ? "O texto do documento vai só para o PAULUS deste computador. Nada sai daqui."
-          : "O texto do documento vai só para o PAULUS do escritório, pelo endereço dele.") +
+        (MONTAGEM === "A" ? "O texto do documento vai só para o Paulus deste computador. Nada sai daqui."
+          : "O texto do documento vai só para o Paulus do escritório, pelo endereço dele.") +
         "</span></div></div></div>" + rodape("Não conectado");
     },
     conectando: function () {
@@ -165,14 +165,14 @@
       var codigo = p.codigo || "";
       var falado = codigo.replace("-", ", ").split("").join(" ");
       var passos = MONTAGEM === "A"
-        ? "<li>Abra a janela do PAULUS neste computador.</li><li>Confira se aparece o mesmo código.</li><li>Clique em <b>Permitir</b>.</li>"
-        : "<li>Abra o PAULUS do escritório pelo navegador e entre com a sua conta.</li><li>Em Minha conta › Conectar o Word, digite este código e o do autenticador.</li><li>Clique em <b>Permitir</b>.</li>";
+        ? "<li>Abra a janela do Paulus neste computador.</li><li>Confira se aparece o mesmo código.</li><li>Clique em <b>Permitir</b>.</li>"
+        : "<li>Abra o Paulus do escritório pelo navegador e entre com a sua conta.</li><li>Em Minha conta › Conectar o Word, digite este código e o do autenticador.</li><li>Clique em <b>Permitir</b>.</li>";
       return topo({ estado: "nao" }) + '<div class="p-corpo"><div class="estado-tela">' +
-        '<h1 class="p-h">' + (MONTAGEM === "A" ? "Confira o código na janela do PAULUS" : "Confirme o código no PAULUS do escritório") + "</h1>" +
+        '<h1 class="p-h">' + (MONTAGEM === "A" ? "Confira o código na janela do Paulus" : "Confirme o código no Paulus do escritório") + "</h1>" +
         '<div class="codigo" aria-label="Código ' + esc(falado) + '">' + esc(codigo) + "</div>" +
         '<ol class="passos-mini">' + passos + "</ol>" +
         '<div class="linha-btns"><button class="btn fantasma" data-acao="cancelar">Cancelar</button></div></div></div>' +
-        rodape(andando(MONTAGEM === "A" ? "Esperando a confirmação na janela do PAULUS…" : "Esperando a confirmação no PAULUS…"));
+        rodape(andando(MONTAGEM === "A" ? "Esperando a confirmação na janela do Paulus…" : "Esperando a confirmação no Paulus…"));
     },
     inicio: function () {
       var pedida = FUNCOES.filter(function (f) { return f.tela === TELA_PEDIDA; })[0];
@@ -193,8 +193,8 @@
         "</div>" + rodape("Pronto · " + esc((st.eu && st.eu.pessoa) || ""));
     },
     fechado: function () {
-      var titulo = MONTAGEM === "A" ? "O PAULUS está fechado neste computador" : "O PAULUS do escritório não respondeu";
-      var texto = MONTAGEM === "A" ? "Abra o PAULUS e tente de novo. O documento não foi lido."
+      var titulo = MONTAGEM === "A" ? "O Paulus está fechado neste computador" : "O Paulus do escritório não respondeu";
+      var texto = MONTAGEM === "A" ? "Abra o Paulus e tente de novo. O documento não foi lido."
         : "O computador do escritório pode estar desligado, ou o acesso de fora, fechado. Nada do documento foi enviado.";
       return topo({ estado: "mal" }) + '<div class="p-corpo">' +
         tela(I.tomada, titulo, '<p class="p-sub">' + texto + "</p>", '<button class="btn primario" data-acao="tentar">Tentar de novo</button>') +
@@ -202,18 +202,18 @@
     },
     semrede: function () {
       return topo({ estado: "mal" }) + '<div class="p-corpo">' + tela(I.semrede, "Sem conexão com o escritório",
-        '<p class="p-sub">Este Word fala com o PAULUS pela internet, e a internet caiu. Nada do documento foi enviado.</p>',
+        '<p class="p-sub">Este Word fala com o Paulus pela internet, e a internet caiu. Nada do documento foi enviado.</p>',
         '<button class="btn primario" data-acao="tentar">Tentar de novo</button>') + "</div>" + rodape("Sem conexão · tentando de novo em 20 s");
     },
     semapi: function () {
-      return topo({ estado: "nao" }) + '<div class="p-corpo">' + tela(I.word, "Este Word é antigo demais para o PAULUS",
-        '<p class="p-sub">O PAULUS precisa do Word 2021, 2024 ou Microsoft 365. Este é o Word ' + esc(st.word || "sem versão conhecida") + ".</p>" +
-        '<p class="p-sub">Atualize o Office ou escreva no editor do próprio PAULUS.</p>', "") + "</div>" +
+      return topo({ estado: "nao" }) + '<div class="p-corpo">' + tela(I.word, "Este Word é antigo demais para o Paulus",
+        '<p class="p-sub">O Paulus precisa do Word 2021, 2024 ou Microsoft 365. Este é o Word ' + esc(st.word || "sem versão conhecida") + ".</p>" +
+        '<p class="p-sub">Atualize o Office ou escreva no editor do próprio Paulus.</p>', "") + "</div>" +
         rodape("Nenhuma função disponível neste Word");
     },
     erro: function () {
       return topo({ estado: "mal" }) + '<div class="p-corpo">' + tela(I.erro, "Não deu para conectar agora",
-        '<p class="p-sub">' + esc(st.aviso || "O PAULUS respondeu com um erro. O documento não mudou.") + "</p>" +
+        '<p class="p-sub">' + esc(st.aviso || "O Paulus respondeu com um erro. O documento não mudou.") + "</p>" +
         "<details><summary>Detalhes para o suporte</summary>" + esc(st.erroDetalhe || "") + "</details>",
         '<button class="btn primario" data-acao="tentar">Tentar de novo</button>') + "</div>" + rodape("Erro");
     },
@@ -234,7 +234,7 @@
   function falhou(f) {
     if (f && f.tipo === "token") {
       gravarToken("");
-      st.aviso = "A conexão deste Word foi revogada no PAULUS. Conecte de novo.";
+      st.aviso = "A conexão deste Word foi revogada no Paulus. Conecte de novo.";
       return desenhar("primeira");
     }
     if (f && f.tipo === "rede") {
@@ -280,7 +280,7 @@
         if (r.estado === "esperando") return esperar();
         st.pedido = null;
         if (r.estado === "permitido") { gravarToken(r.token); return conferir(); }
-        st.aviso = r.estado === "recusado" ? "O pedido foi recusado no PAULUS." : "O código venceu. Peça outro.";
+        st.aviso = r.estado === "recusado" ? "O pedido foi recusado no Paulus." : "O código venceu. Peça outro.";
         desenhar("primeira");
       }).catch(function (f) { st.pedido = null; falhou(f); });
     }, 1500);

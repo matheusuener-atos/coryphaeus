@@ -14,10 +14,10 @@
            xsi:type="TaskPaneApp">
   <Id>$ID</Id>
   <Version>$VERSAO</Version>
-  <ProviderName>PAULUS</ProviderName>
+  <ProviderName>PAVLVS</ProviderName>
   <DefaultLocale>pt-BR</DefaultLocale>
   <DisplayName DefaultValue="$NOME"/>
-  <Description DefaultValue="O PAULUS do escritório dentro do Word: confere citações, insere lei e qualificação e responde sobre o documento."/>
+  <Description DefaultValue="O Paulus do escritório dentro do Word: confere citações, insere lei e qualificação e responde sobre o documento."/>
   <IconUrl DefaultValue="$BASE/word/icones/marca-32.png"/>
   <HighResolutionIconUrl DefaultValue="$BASE/word/icones/marca-64.png"/>
   <SupportUrl DefaultValue="https://paulus.ia.br"/>
@@ -386,9 +386,9 @@
         <bt:String id="Txt.Qualificacao" DefaultValue="Qualificação"/>
         <bt:String id="Txt.Perguntar" DefaultValue="Perguntar"/>
         <bt:String id="Txt.Revisar" DefaultValue="Revisar com agente"/>
-        <bt:String id="Txt.Guardar" DefaultValue="Guardar no PAULUS"/>
+        <bt:String id="Txt.Guardar" DefaultValue="Guardar no Paulus"/>
         <bt:String id="Txt.Painel" DefaultValue="Painel"/>
-        <bt:String id="Txt.CtxPerguntar" DefaultValue="Perguntar ao PAULUS sobre isto"/>
+        <bt:String id="Txt.CtxPerguntar" DefaultValue="Perguntar ao Paulus sobre isto"/>
         <bt:String id="Txt.CtxConferir" DefaultValue="Conferir esta citação"/>
         <bt:String id="Txt.CtxRevisar" DefaultValue="Revisar com agente"/>
       </bt:ShortStrings>

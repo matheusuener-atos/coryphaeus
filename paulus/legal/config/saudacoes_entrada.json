@@ -48,7 +48,7 @@
     {"id": "e-codigo-2", "texto": "Por segurança, confirme com o código de seis dígitos do seu celular.", "telas": ["codigo", "trava_codigo"]},
     {"id": "e-codigo-3", "texto": "Abra o Google Authenticator no celular e digite o código que está na tela.", "telas": ["codigo", "trava_codigo"]},
 
-    {"id": "e-sem-internet", "texto": "Sem internet, o código do celular abre o PAULUS neste computador.", "telas": ["trava_sem_internet"]},
+    {"id": "e-sem-internet", "texto": "Sem internet, o código do celular abre o PAVLVS neste computador.", "telas": ["trava_sem_internet"]},
     {"id": "e-sem-internet-2", "texto": "Sem conexão com o Google agora: entre com o código do Google Authenticator.", "telas": ["trava_sem_internet"]},
 
     {"id": "e-chave-1", "texto": "Use uma das chaves de recuperação que você guardou. Cada uma vale uma vez.", "telas": ["chave"]},
@@ -67,6 +67,6 @@
     {"id": "e-google-negado", "texto": "A conexão não foi autorizada. Nada foi alterado.", "telas": ["google_negado"]},
     {"id": "e-google-expirado", "texto": "Este login expirou. Volte ao PAVLVS e abra outro.", "telas": ["google_expirado"]},
 
-    {"id": "e-fora-janela", "texto": "Este endereço só abre na janela do PAULUS, neste computador. Abra o PAULUS pelo atalho do Windows.", "telas": ["fora_da_janela"]}
+    {"id": "e-fora-janela", "texto": "Este endereço só abre na janela do PAVLVS, neste computador. Abra o PAVLVS pelo atalho do Windows.", "telas": ["fora_da_janela"]}
   ]
 }

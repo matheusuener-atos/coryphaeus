@@ -38,7 +38,7 @@ BOTOES = [
      "Pergunta sobre o documento aberto ou o trecho selecionado, com as fontes do escritório.", "perguntar"),
     ("Revisar", "revisar", "Revisar com agente",
      "Um agente do escritório revisa o trecho; os apontamentos viram comentários e o texto não muda.", "revisar"),
-    ("Guardar", "guardar", "Guardar no PAULUS",
+    ("Guardar", "guardar", "Guardar no Paulus",
      "Guarda uma cópia do documento no Acervo, no cliente ou Serviço escolhido.", "guardar"),
     ("Painel", "painel", "Painel", "Abre o painel do PAVLVS.", "inicio"),
 ]
@@ -47,7 +47,7 @@ GRUPOS = [("Conferir", "Conferir", ["Conferir"]), ("Inserir", "Inserir", ["Lei",
           ("Pensar", "Pensar", ["Perguntar", "Revisar"]), ("Paulus", "$NOME", ["Guardar", "Painel"])]
 # O menu do botão direito sobre o texto (ContextMenuText): um submenu PAVLVS.
 CONTEXTO = [
-    ("CtxPerguntar", "perguntar", "Perguntar ao PAULUS sobre isto", "Pergunta sobre o trecho selecionado.",
+    ("CtxPerguntar", "perguntar", "Perguntar ao Paulus sobre isto", "Pergunta sobre o trecho selecionado.",
      "perguntar&amp;origem=selecao"),
     ("CtxConferir", "conferir", "Conferir esta citação", "Confere a lei, súmula ou processo do trecho selecionado.",
      "conferir&amp;origem=selecao"),
@@ -137,10 +137,10 @@ def manifesto() -> str:
            xsi:type="TaskPaneApp">
   <Id>$ID</Id>
   <Version>$VERSAO</Version>
-  <ProviderName>PAULUS</ProviderName>
+  <ProviderName>PAVLVS</ProviderName>
   <DefaultLocale>pt-BR</DefaultLocale>
   <DisplayName DefaultValue="$NOME"/>
-  <Description DefaultValue="O PAULUS do escritório dentro do Word: confere citações, insere lei e qualificação e responde sobre o documento."/>
+  <Description DefaultValue="O Paulus do escritório dentro do Word: confere citações, insere lei e qualificação e responde sobre o documento."/>
   <IconUrl DefaultValue="$BASE/word/icones/marca-32.png"/>
   <HighResolutionIconUrl DefaultValue="$BASE/word/icones/marca-64.png"/>
   <SupportUrl DefaultValue="https://paulus.ia.br"/>
