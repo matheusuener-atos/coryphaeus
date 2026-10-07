@@ -277,12 +277,16 @@ O que cada tipo novo faz na publicacao:
   dos e-mails nao aceitam pela pessoa). Link que nao existe, cancelado, trocado ou ja usado: 410; vencido: 410
   "venceu".
 - `POST /api/equipe/convite` (formulario `t`) -> aceita: a pessoa entra na equipe (`admin:equipe`) com o papel do
-  convite e, com a API do Access ligada, o e-mail entra na politica da aplicacao do painel
-  (`GET` e `PUT /accounts/{CF_ACCOUNT_ID}/access/apps/{ACCESS_APP_ID}/policies/{ACCESS_POLICY_ID}`, a politica inteira,
-  com `{email: {email}}` a mais no `include`; o resto - nome, decisao, exclude, require, duracao - fica como esta). O
+  convite e, com a API do Access ligada, o e-mail entra na politica de permitir da aplicacao do painel. A politica e
+  achada sozinha: `GET /accounts/{CF_ACCOUNT_ID}/access/apps?aud={ACCESS_AUD}`, e a unica de `decision: "allow"` da
+  aplicacao (com mais de uma, `ACCESS_POLICY_ID` diz qual; sem ele, nada muda e o aviso pede). A reutilizavel (a que o
+  painel da Cloudflare cria hoje) muda por `GET` e `PUT /accounts/{CF_ACCOUNT_ID}/access/policies/{id}`, porque a API
+  recusa muda-la pelo caminho da aplicacao; a antiga, presa a aplicacao (o caminho da conta da 404), por
+  `/accounts/{CF_ACCOUNT_ID}/access/apps/{app}/policies/{id}`, com a precedencia. O `PUT` leva a politica inteira, com
+  `{email: {email}}` a mais no `include`; o resto - nome, decisao, exclude, require, duracao, MFA - fica como esta. O
   convite sai. Se o Access recusar, 502 "Quase lá": ela ja esta na equipe e o link continua valendo para tentar de novo.
-  Sem a API (`CF_ACCESS_TOKEN`, permissao "Access: Apps and Policies" Edit; `ACCESS_APP_ID` e `ACCESS_POLICY_ID`), a
-  pagina, o e-mail e a tela Equipe (`liberacao`, `config.equipe`) dizem que o e-mail vai a politica a mao, pelo dono.
+  Sem a API (`CF_ACCESS_TOKEN`, permissao "Access: Apps and Policies" Edit), a pagina, o e-mail e a tela Equipe
+  (`liberacao`, `config.equipe`) dizem que o e-mail vai a politica a mao, pelo dono.
 - Limite por endereco de internet (`LIMITE`), como as outras rotas publicas.
 
 ## Retroagir

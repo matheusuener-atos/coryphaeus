@@ -88,16 +88,18 @@
   // envio de e-mail.
   //
   // O convite da equipe do painel: aceito o convite, o Worker poe o e-mail na
-  // politica da aplicacao do Access do painel pela API da Cloudflare (e tira,
-  // ao excluir a pessoa). Para ligar: o segredo CF_ACCESS_TOKEN (npx wrangler
-  // secret put CF_ACCESS_TOKEN; token da conta com "Access: Apps and Policies"
-  // Edit e, para "Encerrar todas as sessoes" derrubar tambem as do Access,
-  // "Access: Organizations, Identity Providers, and Groups" Edit) e, nas vars
-  // abaixo, "ACCESS_APP_ID" e "ACCESS_POLICY_ID" (Zero Trust > Access >
-  // Applications > a aplicacao do /admin > a politica de Allow; sao
-  // identificadores, nao segredos), com o CF_ACCOUNT_ID que ja esta la. Sem
-  // eles, o convite funciona e o e-mail entra na politica a mao (o painel e a
-  // pagina do convite dizem isso).
+  // politica de permitir da aplicacao do Access do painel pela API da
+  // Cloudflare (e tira, ao excluir a pessoa). Para ligar, so o segredo
+  // CF_ACCESS_TOKEN (npx wrangler secret put CF_ACCESS_TOKEN; token da conta
+  // com "Access: Apps and Policies" Edit e, para "Encerrar todas as sessoes"
+  // derrubar tambem as do Access, "Access: Organizations, Identity Providers,
+  // and Groups" Edit), com o CF_ACCOUNT_ID que ja esta la. A politica e achada
+  // sozinha: a de permitir da aplicacao do ACCESS_AUD (a reutilizavel, que o
+  // painel da Cloudflare cria hoje, muda pelo caminho da conta; a antiga, pelo
+  // da aplicacao). So se a aplicacao tiver mais de uma de permitir, diga qual
+  // em "ACCESS_POLICY_ID" nas vars abaixo (Zero Trust > Access > Policies; e
+  // identificador, nao segredo). Sem o token, o convite funciona e o e-mail
+  // entra na politica a mao (o painel e a pagina do convite dizem isso).
   //
   // As notas fiscais (NFS-e do PAVLVS) sao emitidas pelo painel (/admin ›
   // Notas fiscais; worker/nfse/api.js). CF_ACCOUNT_ID: a conta Cloudflare onde

@@ -31,8 +31,9 @@
 // convite da equipe (/api/equipe/convite: quem foi convidado ainda nao esta
 // na politica do Access) e os textos dos planos que a pagina de assinatura le
 // (/api/planos/textos). Aceito o convite, o Worker poe o e-mail na politica
-// pela API da Cloudflare (CF_ACCESS_TOKEN, CF_ACCOUNT_ID, ACCESS_APP_ID e
-// ACCESS_POLICY_ID); sem eles, a pagina e o painel dizem que isso e a mao.
+// de permitir da aplicacao do painel (a do ACCESS_AUD) pela API da Cloudflare
+// (CF_ACCESS_TOKEN e CF_ACCOUNT_ID); sem eles, a pagina e o painel dizem que
+// isso e a mao.
 //
 // Tudo no KV APOIOS com o prefixo "admin:". O envio de e-mail e pelo Resend
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
@@ -451,9 +452,12 @@ function configuracao(env) {
 
 // ------------------------------------------- o Cloudflare Access (a API)
 
-/* O que falta para o Worker mexer na politica do Access do painel ("" se nada). */
+/* O que falta para o Worker mexer na politica do Access do painel ("" se nada). A
+   politica e achada pela aplicacao do painel (ACCESS_AUD); ACCESS_POLICY_ID so
+   escolhe quando a aplicacao tem mais de uma politica de permitir. */
 function faltaDoAccess(env) {
-  const falta = ["CF_ACCESS_TOKEN", "CF_ACCOUNT_ID", "ACCESS_APP_ID", "ACCESS_POLICY_ID"].filter((k) => !env[k]);
+  const falta = ["CF_ACCESS_TOKEN", "CF_ACCOUNT_ID"].filter((k) => !env[k]);
+  if (!env.ACCESS_POLICY_ID && !env.ACCESS_AUD) falta.push("ACCESS_AUD");
   return falta.length ? "falta " + juntar(falta) : "";
 }
 
@@ -461,7 +465,7 @@ function accessConfigurado(env) {
   return !faltaDoAccess(env);
 }
 
-/* A API da Cloudflare com o token do Access (CF_ACCESS_TOKEN): o result, ou erro com a frase. */
+/* A API da Cloudflare com o token do Access (CF_ACCESS_TOKEN): o result, ou erro com a frase (e o status). */
 async function chamarCloudflare(env, metodo, caminho, corpo) {
   const r = await fetch("https://api.cloudflare.com/client/v4" + caminho, {
     method: metodo,
@@ -476,24 +480,62 @@ async function chamarCloudflare(env, metodo, caminho, corpo) {
   }
   if (!r.ok || d.success === false) {
     const msg = (d.errors && d.errors[0] && d.errors[0].message) || "HTTP " + r.status;
-    throw new Error("a Cloudflare recusou (" + msg + ")");
+    const erro = new Error("a Cloudflare recusou (" + msg + ")");
+    erro.status = r.status;
+    throw erro;
   }
   return d.result;
 }
 
-// A politica da aplicacao do painel no Access (Zero Trust > Access > Applications):
-// PUT /accounts/{conta}/access/apps/{app}/policies/{politica} com a politica inteira;
-// o e-mail entra (ou sai) do include como {email: {email}}. O resto da politica fica.
-const CAMPOS_DA_POLITICA = ["precedence", "session_duration", "approval_required", "approval_groups", "isolation_required",
-  "purpose_justification_required", "purpose_justification_prompt"];
+// A politica de permitir do painel no Access. A que o painel da Cloudflare cria hoje e
+// "reutilizavel": mora na conta (/access/policies/{id}), e a API recusa muda-la pelo
+// caminho da aplicacao ("can not update reusable policies through this endpoint"). A
+// antiga, presa a aplicacao, so muda por /access/apps/{app}/policies/{id}. Sem
+// ACCESS_POLICY_ID, vale a unica politica de permitir da aplicacao do ACCESS_AUD.
+async function politicaDoPainel(env) {
+  const conta = "/accounts/" + env.CF_ACCOUNT_ID + "/access";
+  const aplicacao = async () => {
+    const lista = await chamarCloudflare(env, "GET", conta + "/apps?aud=" + encodeURIComponent(env.ACCESS_AUD || ""));
+    const achada = (Array.isArray(lista) ? lista : []).find((a) => a && a.aud && a.aud === env.ACCESS_AUD);
+    if (!achada) throw new Error("a aplicação do painel (ACCESS_AUD) não está no Cloudflare Access desta conta");
+    return achada;
+  };
+  let app = env.ACCESS_APP_ID || "";
+  let id = env.ACCESS_POLICY_ID || "";
+  if (!id) {
+    const painel = await aplicacao();
+    app = app || painel.id;
+    const permitir = (Array.isArray(painel.policies) ? painel.policies : []).filter((p) => p && p.decision === "allow");
+    if (permitir.length !== 1) {
+      throw new Error(permitir.length ? "a aplicação do painel tem " + permitir.length + " políticas de permitir no Access: diga qual em ACCESS_POLICY_ID"
+        : "a aplicação do painel não tem política de permitir no Access");
+    }
+    id = permitir[0].id;
+  }
+  const reutilizavel = conta + "/policies/" + id;
+  try {
+    return { caminho: reutilizavel, antiga: false, atual: (await chamarCloudflare(env, "GET", reutilizavel)) || {} };
+  } catch (e) {
+    // A antiga nao existe no caminho da conta: tenta o da aplicacao.
+    if (e.status !== 404 && e.status !== 400) throw e;
+  }
+  if (!app) app = (await aplicacao()).id;
+  const caminho = conta + "/apps/" + app + "/policies/" + id;
+  return { caminho, antiga: true, atual: (await chamarCloudflare(env, "GET", caminho)) || {} };
+}
+
+// PUT com a politica inteira: o e-mail entra (ou sai) do include como {email: {email}},
+// e o resto fica como esta. A precedencia so existe na antiga (na reutilizavel, e de
+// cada aplicacao que a usa).
+const CAMPOS_DA_POLITICA = ["session_duration", "approval_required", "approval_groups", "isolation_required",
+  "purpose_justification_required", "purpose_justification_prompt", "mfa_config", "connection_rules"];
 
 /* Poe (por = true) ou tira o e-mail da politica: {feito, frase}. Nunca lanca. */
 async function politicaDoAccess(env, email, por) {
   if (!accessConfigurado(env)) return { feito: false, frase: "a liberação no Cloudflare Access é à mão (" + faltaDoAccess(env) + ")" };
-  const caminho = "/accounts/" + env.CF_ACCOUNT_ID + "/access/apps/" + env.ACCESS_APP_ID + "/policies/" + env.ACCESS_POLICY_ID;
   const alvo = String(email || "").toLowerCase();
   try {
-    const atual = (await chamarCloudflare(env, "GET", caminho)) || {};
+    const { caminho, antiga, atual } = await politicaDoPainel(env);
     const include = Array.isArray(atual.include) ? atual.include : [];
     const eDele = (regra) => Boolean(regra && regra.email && String(regra.email.email || "").toLowerCase() === alvo);
     if (include.some(eDele) === por) return { feito: true, frase: por ? "o e-mail já estava liberado no Access" : "o e-mail já não estava na política do Access" };
@@ -502,6 +544,7 @@ async function politicaDoAccess(env, email, por) {
     if (!novo.length) return { feito: false, frase: "tirar esse e-mail deixaria a política do Access vazia: tire à mão no painel da Cloudflare" };
     const corpo = { name: atual.name, decision: atual.decision || "allow", include: novo, exclude: atual.exclude || [], require: atual.require || [] };
     for (const k of CAMPOS_DA_POLITICA) if (atual[k] !== undefined && atual[k] !== null) corpo[k] = atual[k];
+    if (antiga && atual.precedence !== undefined && atual.precedence !== null) corpo.precedence = atual.precedence;
     await chamarCloudflare(env, "PUT", caminho, corpo);
     return { feito: true, frase: por ? "o e-mail foi liberado no Cloudflare Access" : "o e-mail saiu da política do Cloudflare Access" };
   } catch (e) {

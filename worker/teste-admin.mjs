@@ -44,14 +44,18 @@ const CONTAS_IA = {
 // ------------------------------------- Resend, Mercado Pago e a Cloudflare
 const emails = [];
 const mp = [];
-// A API da Cloudflare: os tuneis e o DNS (worker/tunel.js) e a politica da
-// aplicacao do Access do painel (o convite da equipe).
+// A API da Cloudflare: os tuneis e o DNS (worker/tunel.js) e a politica de
+// permitir da aplicacao do Access do painel (o convite da equipe). A politica
+// e reutilizavel (a de hoje: so muda pelo caminho da conta) ou, com
+// reutilizavel = false, a antiga, presa a aplicacao.
 const cf = {
-  tuneis: new Map(), dns: new Map(), chamadas: [], seq: 0, recusar: "",
+  tuneis: new Map(), dns: new Map(), chamadas: [], seq: 0, recusar: "", reutilizavel: true,
   politica: { id: "pol1", name: "Equipe do painel", decision: "allow", include: [{ email: { email: "dono@paulus.ia.br" } }, { email: { email: "suporte@paulus.ia.br" } }],
-    exclude: [], require: [], precedence: 1, session_duration: "24h" },
+    exclude: [], require: [], session_duration: "24h", mfa_config: { allowed_authenticators: ["totp"] } },
+  apps: [],
 };
-const respCF = (result, ok = true) => new Response(JSON.stringify({ success: ok, errors: ok ? [] : [{ message: "falha de mentira" }], result }), { status: ok ? 200 : 400 });
+const respCF = (result, ok = true, status = ok ? 200 : 400, msg = "falha de mentira") =>
+  new Response(JSON.stringify({ success: ok, errors: ok ? [] : [{ message: msg }], result }), { status });
 globalThis.fetch = async (url, init = {}) => {
   const u = String(url);
   if (u === "https://api.resend.com/emails") {
@@ -65,9 +69,19 @@ globalThis.fetch = async (url, init = {}) => {
     cf.chamadas.push({ metodo, caminho, corpo, auth: (init.headers || {}).Authorization });
     if (cf.recusar && caminho.includes(cf.recusar)) return respCF(null, false);
     let m;
-    if (/\/access\/apps\/[^/]+\/policies\/[^/]+$/.test(caminho)) {
+    if (metodo === "GET" && (m = caminho.match(/^\/accounts\/[^/]+\/access\/apps\?aud=(.*)$/))) {
+      return respCF(structuredClone(cf.apps.filter((a) => a.aud === decodeURIComponent(m[1]))));
+    }
+    if ((m = caminho.match(/^\/accounts\/[^/]+\/access\/policies\/([^/]+)$/))) {
+      if (!cf.reutilizavel || m[1] !== cf.politica.id) return respCF(null, false, 404, "access.api.error.not_found");
       if (metodo === "GET") return respCF(structuredClone(cf.politica));
-      if (metodo === "PUT") { cf.politica = { ...cf.politica, ...corpo }; return respCF(cf.politica); }
+      if (metodo === "PUT") { cf.politica = { ...corpo, id: cf.politica.id }; return respCF(cf.politica); }
+    }
+    if ((m = caminho.match(/^\/accounts\/[^/]+\/access\/apps\/([^/]+)\/policies\/([^/]+)$/))) {
+      if (cf.reutilizavel && metodo === "PUT") return respCF(null, false, 400, "can not update reusable policies through this endpoint");
+      if (m[2] !== cf.politica.id) return respCF(null, false, 404, "access.api.error.not_found");
+      if (metodo === "GET") return respCF(structuredClone(cf.politica));
+      if (metodo === "PUT") { cf.politica = { ...corpo, id: cf.politica.id }; return respCF(cf.politica); }
     }
     if (metodo === "POST" && /\/access\/organizations\/revoke_user$/.test(caminho)) return respCF(true);
     if (metodo === "POST" && /\/cfd_tunnel$/.test(caminho)) { const id = "tun-" + ++cf.seq; cf.tuneis.set(id, { status: "inactive" }); return respCF({ id }); }
@@ -714,12 +728,17 @@ d = await publicarFila();
 checar(d.ok && JSON.parse(guardados.get("admin:equipe")).find((x) => x.email === "suporte@paulus.ia.br").nome === "Ana Lima", "editar o nome, com o mesmo e-mail");
 await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia");
 d = await publicarFila();
-checar(d.ok && !JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "bia@paulus.ia.br") && String(d.resultados[0].aviso).includes("Access"),
-  "tirar da equipe: sai da lista; sem a API, o aviso diz que o Access é à mão", d.resultados);
+checar(d.ok && !JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "bia@paulus.ia.br") && String(d.resultados[0].aviso).includes("Access")
+  && String(d.resultados[0].aviso).includes("CF_ACCESS_TOKEN") && !/ACCESS_APP_ID|ACCESS_POLICY_ID/.test(String(d.resultados[0].aviso)),
+  "tirar da equipe: sai da lista; sem a API, o aviso diz que o Access é à mão e só pede o token (a política é achada sozinha)", d.resultados);
 checar((await admin("GET", "/api/admin/visao", { email: "bia@paulus.ia.br" })).status === 403, "e ela não passa mais do painel");
 
-const envAcc = { ...env, CF_ACCESS_TOKEN: "cfat_teste", CF_ACCOUNT_ID: "conta1", ACCESS_APP_ID: "app1", ACCESS_POLICY_ID: "pol1" };
-const POLITICA = "/accounts/conta1/access/apps/app1/policies/pol1";
+// So o token e a conta: a politica e a de permitir da aplicacao do ACCESS_AUD.
+const envAcc = { ...env, CF_ACCESS_TOKEN: "cfat_teste", CF_ACCOUNT_ID: "conta1" };
+cf.apps = [{ id: "app0", aud: "outra-aplicacao", policies: [{ id: "pol0", decision: "allow" }] },
+  { id: "app1", aud: AUD, policies: [{ id: "pol9", decision: "deny" }, { id: "pol1", decision: "allow" }] }];
+const POLITICA = "/accounts/conta1/access/policies/pol1";
+const POLITICA_ANTIGA = "/accounts/conta1/access/apps/app1/policies/pol1";
 const naPolitica = (email) => cf.politica.include.some((x) => x.email && x.email.email === email);
 emails.length = 0;
 cf.chamadas.length = 0;
@@ -736,9 +755,12 @@ cf.recusar = "";
 r = await convite("POST", tokenDuda, envAcc);
 pagina = await r.text();
 const putPol = cf.chamadas.filter((x) => x.metodo === "PUT" && x.caminho === POLITICA).pop();
-checar(r.status === 200 && pagina.includes("Abrir o painel") && naPolitica("duda@paulus.ia.br") && naPolitica("dono@paulus.ia.br") && putPol.corpo.name === "Equipe do painel"
-  && putPol.corpo.decision === "allow" && putPol.corpo.session_duration === "24h" && putPol.corpo.precedence === 1 && putPol.auth === "Bearer cfat_teste" && !guardados.has("admin:convites"),
-  "aceito: o e-mail entra na política do Access do painel, que guarda o resto (nome, decisão, duração)", putPol);
+checar(r.status === 200 && pagina.includes("Abrir o painel") && naPolitica("duda@paulus.ia.br") && naPolitica("dono@paulus.ia.br") && putPol && putPol.corpo.name === "Equipe do painel"
+  && putPol.corpo.decision === "allow" && putPol.corpo.session_duration === "24h" && putPol.corpo.mfa_config.allowed_authenticators[0] === "totp" && !("precedence" in putPol.corpo)
+  && putPol.auth === "Bearer cfat_teste" && !guardados.has("admin:convites"),
+  "aceito: o e-mail entra na política reutilizável do painel (achada pela aplicação do ACCESS_AUD), que guarda o resto (nome, decisão, duração, MFA)", putPol);
+checar(!cf.chamadas.some((x) => x.metodo === "PUT" && x.caminho.includes("/apps/")), "e nada vai pelo caminho da aplicação, que a Cloudflare recusa para a política reutilizável",
+  cf.chamadas.map((x) => x.metodo + " " + x.caminho));
 eq = await (await admin("GET", "/api/admin/equipe", como({ envUsado: envAcc }))).json();
 checar(eq.liberacao.ligado === true, "e a equipe diz que a liberação está ligada");
 emails.length = 0;
@@ -755,6 +777,38 @@ await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Ti
 d = await publicarFila({ envUsado: envAcc });
 checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && cf.chamadas.some((x) => x.caminho === "/accounts/conta1/access/organizations/revoke_user" && x.corpo.email === "bia@paulus.ia.br"),
   "tirar da equipe com a API: sai da política do Access e as sessões dela no Access caem", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
+
+// Volta a Bia (a equipe e a politica) para tirar de novo em outro cenario.
+const voltaBia = () => {
+  cf.politica.include.push({ email: { email: "bia@paulus.ia.br" } });
+  guardados.set("admin:equipe", JSON.stringify([...JSON.parse(guardados.get("admin:equipe")), { email: "bia@paulus.ia.br", nome: "Bia Souza", papel: "financeiro" }]));
+  cf.chamadas.length = 0;
+};
+// A politica antiga, presa a aplicacao: o caminho da conta nao a conhece, e o da aplicacao muda (com a precedencia).
+cf.reutilizavel = false;
+cf.politica.precedence = 3;
+voltaBia();
+await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: envAcc });
+d = await publicarFila({ envUsado: envAcc });
+const putAntiga = cf.chamadas.filter((x) => x.metodo === "PUT" && x.caminho === POLITICA_ANTIGA).pop();
+checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && putAntiga && putAntiga.corpo.precedence === 3 && putAntiga.corpo.name === "Equipe do painel",
+  "a política antiga, presa à aplicação: muda pelo caminho da aplicação, com a precedência dela", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
+cf.reutilizavel = true;
+delete cf.politica.precedence;
+// Duas politicas de permitir na aplicacao: o Worker nao escolhe sozinho; ACCESS_POLICY_ID escolhe.
+cf.apps[1].policies.push({ id: "pol2", decision: "allow" });
+voltaBia();
+await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: envAcc });
+d = await publicarFila({ envUsado: envAcc });
+checar(d.ok && String(d.resultados[0].aviso).includes("ACCESS_POLICY_ID") && naPolitica("bia@paulus.ia.br") && !cf.chamadas.some((x) => x.metodo === "PUT"),
+  "duas políticas de permitir: não mexe em nenhuma, e o aviso pede o ACCESS_POLICY_ID", d.resultados);
+cf.politica.include = cf.politica.include.filter((x) => !(x.email && x.email.email === "bia@paulus.ia.br"));
+voltaBia();
+await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: { ...envAcc, ACCESS_POLICY_ID: "pol1" } });
+d = await publicarFila({ envUsado: { ...envAcc, ACCESS_POLICY_ID: "pol1" } });
+checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && cf.chamadas.some((x) => x.metodo === "PUT" && x.caminho === POLITICA),
+  "com o ACCESS_POLICY_ID, muda a política escolhida", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
+cf.apps[1].policies.pop();
 
 // ---------------------------------------------- o extrato com as NFS-e
 console.log("extrato com as NFS-e");
