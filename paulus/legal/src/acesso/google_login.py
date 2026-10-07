@@ -102,9 +102,9 @@ class LoginGoogle:
         c = self.credenciais()
         host = self.servico.preferencias().get("hostname", "")
         if not (c.get("client_id") and c.get("client_secret")):
-            raise ErroGoogle("o login com o Google ainda não foi configurado neste PAULUS")
+            raise ErroGoogle("o login com o Google ainda não foi configurado neste Paulus")
         if not host.endswith(".paulus.ia.br"):
-            raise ErroGoogle("o acesso de fora deste escritório não está conectado")
+            raise ErroGoogle("o acesso externo deste escritório não está conectado")
         slug = host[: -len(".paulus.ia.br")]
         aleatorio = secrets.token_urlsafe(24)
         verificador = secrets.token_urlsafe(48)

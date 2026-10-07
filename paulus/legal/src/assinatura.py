@@ -225,7 +225,7 @@ def texto_do_selo(selo: dict, cert, codigo: str, quando: datetime) -> str:
         carimbo = quando.strftime("%d/%m/%Y %H:%M")
         linhas.append(f"{carimbo} · {emissor}" if emissor else carimbo)
     if selo.get("mostrar_codigo", True):
-        linhas.append(f"confira no PAULUS · código {codigo}")
+        linhas.append(f"confira no Paulus · código {codigo}")
 
     return "\n".join(linhas) or nome
 

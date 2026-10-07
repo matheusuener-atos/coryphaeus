@@ -249,7 +249,7 @@ def _leia_me(mes: str, rel: dict, prest: dict, n_arquivos: int) -> str:
     linhas = [
         f"NFS-e de {mes[5:7]}/{mes[:4]} — {prest.get('razao_social') or ''} ({prest.get('documento') or ''})",
         "",
-        "Gerado pelo PAULUS Legal em " + datetime.now().strftime("%d/%m/%Y %H:%M") + ".",
+        "Gerado pelo Paulus Legal em " + datetime.now().strftime("%d/%m/%Y %H:%M") + ".",
         "",
         "O que vem neste arquivo:",
         f"- xml/: {n_arquivos} XMLs — as DPS assinadas (…-dps.xml), as NFS-e devolvidas pela Sefin (…-nfse.xml),",

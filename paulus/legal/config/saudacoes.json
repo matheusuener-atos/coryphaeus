@@ -154,7 +154,7 @@
     {"id": "t-muito-2", "texto": "Bastante coisa pendente, {nome}. Começamos pela mais antiga?", "situacao": ["muita_pendencia"]},
     {"id": "t-muito-3", "texto": "Dia cheio: {pendencias} pendências. Uma de cada vez.", "situacao": ["muita_pendencia"]},
 
-    {"id": "t-vazio-1", "texto": "Boas-vindas ao PAULUS. Vamos começar pelos documentos?", "situacao": ["acervo_vazio"]},
+    {"id": "t-vazio-1", "texto": "Boas-vindas ao Paulus. Vamos começar pelos documentos?", "situacao": ["acervo_vazio"]},
     {"id": "t-vazio-2", "texto": "Tudo pronto para começar, {nome}. Falta só o Acervo.", "situacao": ["acervo_vazio"]},
     {"id": "t-vazio-3", "texto": "Primeiro passo: me mostre os documentos do escritório.", "situacao": ["acervo_vazio"]},
 

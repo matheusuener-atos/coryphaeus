@@ -95,7 +95,7 @@ def test_regras() -> None:
         checar(True, "senha curta e recusada")
     criada = c.criar("Ana Titular", "ana@escritorio.com", "colaborador", "senha-longa-123")
     checar(criada["conta"]["papel"] == "titular", "o primeiro cadastro e sempre titular")
-    checar(criada["otpauth"].startswith("otpauth://totp/PAULUS:ana%40escritorio.com?secret="), "otpauth://", criada["otpauth"])
+    checar(criada["otpauth"].startswith("otpauth://totp/Paulus:ana%40escritorio.com?secret="), "otpauth://", criada["otpauth"])
     checar(criada["qr_svg"].startswith("<svg"), "o QR sai em SVG, sem dependencia nova")
     checar(len(criada["codigos_recuperacao"]) == 10, "10 codigos de recuperacao")
     segredo, ana = criada["segredo"], criada["conta"]["id"]

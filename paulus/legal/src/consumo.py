@@ -336,7 +336,7 @@ def gravar_pdf_do_extrato(estado, escapar) -> Path:
     pasta.mkdir(parents=True, exist_ok=True)
     arq = pasta / f"extrato-consumo-{date.today().isoformat()}.pdf"
     arq.write_bytes(documento.para_pdf(documento.ler_html(html_do_extrato(e, escapar)), "Extrato de consumo da IA",
-                                       "PAULUS · extrato gerado nesta máquina"))
+                                       "Paulus · extrato gerado nesta máquina"))
     return arq
 
 

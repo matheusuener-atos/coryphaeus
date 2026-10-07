@@ -126,8 +126,10 @@ SOBRE_O_PROGRAMA = [
     ("o que são os códigos de lei?", "leis"),
     ("como uso o PAULUS de casa?", "acesso"),
     ("o que é o acesso de fora?", "acesso"),
+    ("o que é o acesso externo?", "acesso"),
     ("como vejo quem acessou de fora?", "acesso"),
     ("como desligo o acesso de fora?", "acesso"),
+    ("como desligo o acesso externo?", "acesso"),
     ("pra que serve a Agenda?", "calendario"),
     ("como calculo um prazo processual?", "calendario"),
     ("pra que servem as Aprovações?", "aprovacoes"),
@@ -153,7 +155,7 @@ def test_programa() -> None:
 
     telas = {d: programa.nome_da_tela(d, ampliado=True) for d in ("publicacoes", "busca", "leis", "acesso", "habilidades")}
     checar(telas == {"publicacoes": "Publicações", "busca": "Buscar em tudo", "leis": "Códigos de lei",
-                     "acesso": "Acesso de fora", "habilidades": "Biblioteca"},
+                     "acesso": "Acesso externo", "habilidades": "Biblioteca"},
            "os nomes que a pessoa lê na tela", telas)
 
     mapa = programa.mapa_para(True)

@@ -62,7 +62,7 @@ def main() -> int:
         checar((tela["certificado"] or {}).get("titular") == "FULANO DE TESTE", "titular lido sem senha", str(tela["certificado"]))
         checar("minha-senha" not in (pasta / "cofre.json").read_text(encoding="utf-8"), "a senha não vai para o disco, só a marca")
         checar(not cofre.abrir("minha-senha").erro, "a senha certa abre")
-        checar(cofre.abrir("outra").erro == "senha do PAULUS incorreta", "a senha errada é recusada")
+        checar(cofre.abrir("outra").erro == "senha do Paulus incorreta", "a senha errada é recusada")
 
         # Relido do disco, como depois de fechar e abrir o programa.
         de_novo = certificado.Cofre(pasta / "cofre.json", pasta / "cofre")

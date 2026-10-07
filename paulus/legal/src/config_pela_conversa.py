@@ -35,7 +35,7 @@ SECOES = {
     "desempenho": ("Desempenho", "o gráfico mostra o último minuto"),
     "conexoes": ("Conexões", "nada sai sem a sua aprovação"),
     "word": ("Word", "desligado de fábrica"),
-    "acesso": ("Acesso de fora", "desligado de fábrica"),
+    "acesso": ("Acesso externo", "desligado de fábrica"),
     "vinculos": ("Escritório e equipe", "a equipe entra por convite"),
     "backup": ("Backup", "arquivo cifrado, todo dia"),
     "aprendizado": ("Biblioteca", "nada sai desta máquina"),
@@ -66,7 +66,7 @@ AUTONOMIA_COM_ISSO = {
 }
 
 AVISOS_ROTULO = {"bem_estar": "Bem-estar e foco", "resposta": "Resposta pronta", "aprovacao": "Aprovação pendente",
-                 "gravacao": "Transcrição pronta", "agenda": "Compromisso chegando", "acesso": "Acesso de fora"}
+                 "gravacao": "Transcrição pronta", "agenda": "Compromisso chegando", "acesso": "Acesso externo"}
 
 MODULOS = [
     ("servicos", "Serviços", r"servicos?"), ("gravacoes", "Gravações", r"gravac(?:ao|oes)"),
@@ -176,7 +176,7 @@ def _ler_aparencia(texto: str, plano: str) -> dict | None:
         "aprovacao": r"aprovac(?:ao|oes)",
         "gravacao": r"transcric(?:ao|oes)|gravac(?:ao|oes)",
         "agenda": r"compromissos?|reunio(?:es)?|audiencias?",
-        "acesso": r"acesso de fora|bloque\w+",
+        "acesso": r"acesso (?:de fora|externo)|bloque\w+",
     }
     # "me avisa da audiência amanhã" é agenda: aqui só o substantivo ("os
     # avisos", "notificação") ou o "para de me avisar".
@@ -306,7 +306,7 @@ def _ler_word(texto: str, plano: str) -> dict | None:
 
 def _ler_acesso(texto: str, plano: str) -> dict | None:
     if re.search(r"\b(usar|uso|abrir|acessar|entrar no)\b[^.]{0,25}\b(paulus|sistema)\b[^.]{0,25}\b(do|no|pelo) (celular|telefone|tablet|ipad)\b"
-                 r"|\b(do|no|pelo) (celular|tablet)\b[^.]{0,30}\b(paulus)\b|\bacesso de fora\b[^.]{0,20}\b(liga\w*|quero|configur\w*)\b"
+                 r"|\b(do|no|pelo) (celular|tablet)\b[^.]{0,30}\b(paulus)\b|\bacesso (?:de fora|externo)\b[^.]{0,20}\b(liga\w*|quero|configur\w*)\b"
                  r"|\b(de casa|fora do escritorio|no forum)\b[^.]{0,30}\bpaulus\b|\bpaulus\b[^.]{0,30}\b(de casa|fora do escritorio|no forum)\b", plano):
         return {"secao": "acesso", "mudancas": []}
     return None
@@ -595,7 +595,7 @@ def proposta(pedido: dict, dados: dict) -> tuple[str, dict]:
         elif all(not m["valor"] for m in mudancas):
             frase = ("Desliguei " + ("os dois" if len(nomes) == 2 else "o " + nomes[0] if len(nomes) == 1 else "os " + str(len(nomes))) +
                      " ao lado. Desligar só tira do menu desta máquina: nada é apagado, e ligar de novo traz tudo de volta como estava.")
-            nota = "Ainda dá para pedir " + " ou ".join(n.lower() for n in nomes) + " aqui na conversa; o PAULUS só não mostra o atalho no menu."
+            nota = "Ainda dá para pedir " + " ou ".join(n.lower() for n in nomes) + " aqui na conversa; o Paulus só não mostra o atalho no menu."
         else:
             frase = "Liguei de novo ao lado: " + ", ".join(nomes) + " volta" + ("m" if len(nomes) > 1 else "") + " ao menu como estava" + ("m" if len(nomes) > 1 else "") + "."
 
@@ -647,7 +647,7 @@ def proposta(pedido: dict, dados: dict) -> tuple[str, dict]:
     elif secao == "desempenho" and pedido.get("teste"):
         frase, extra = _proposta_teste(dados)
         titulo = "Teste os modelos desta máquina"
-        nota = "Pode continuar usando o PAULUS; o teste pausa quando você manda uma pergunta."
+        nota = "Pode continuar usando o Paulus; o teste pausa quando você manda uma pergunta."
 
     elif secao == "desempenho":
         frase, linhas, acoes, depois = _proposta_desempenho(dados)
@@ -656,7 +656,7 @@ def proposta(pedido: dict, dados: dict) -> tuple[str, dict]:
 
     elif secao == "plano":
         frase, linhas, acoes = _proposta_versao(dados)
-        titulo = "O PAULUS está atualizado?"
+        titulo = "O Paulus está atualizado?"
 
     elif secao == "lixeira":
         frase, extra, nota = _proposta_lixeira(pedido, dados)
@@ -677,11 +677,11 @@ def proposta(pedido: dict, dados: dict) -> tuple[str, dict]:
 
     elif secao == "word":
         frase, linhas, extra = _proposta_word(dados)
-        titulo = "Use o PAULUS dentro do Word"
+        titulo = "Use o Paulus dentro do Word"
 
     elif secao == "acesso":
         frase, linhas, extra = _proposta_acesso(dados)
-        titulo = "Use o PAULUS do celular"
+        titulo = "Use o Paulus do celular"
 
     elif secao == "vinculos":
         frase, linhas, acoes, extra = _proposta_convite(pedido, dados)
@@ -782,7 +782,7 @@ def _proposta_teste(dados: dict):
     cabem, fora = [], []
     for m in instalados:
         (fora if livre and (m.get("gb") or 0) > livre * 0.9 else cabem).append(m)
-    frase = ("Estou medindo um por vez com a mesma resposta curta e fixa. Os acertos vêm do banco de provas do PAULUS, que já foi "
+    frase = ("Estou medindo um por vez com a mesma resposta curta e fixa. Os acertos vêm do banco de provas do Paulus, que já foi "
              "rodado: a qualidade não depende da máquina, a velocidade sim.")
     for m in fora:
         frase += " O " + m["nome"] + " fica de fora: com " + str(m.get("gb")).replace(".", ",") + " GB, não cabe na memória desta máquina."
@@ -808,7 +808,7 @@ def _proposta_desempenho(dados: dict):
     elif apertado:
         partes.append(f"Em parte. O processador está em {cpu}%, o que é tranquilo, mas a memória está quase cheia: sobram {gb(livre)} GB de {gb(total)} GB.")
     else:
-        partes.append(f"Agora não parece ser o PAULUS: o processador está em {cpu}% e sobram {gb(livre)} GB de memória de {gb(total)} GB.")
+        partes.append(f"Agora não parece ser o Paulus: o processador está em {cpu}% e sobram {gb(livre)} GB de memória de {gb(total)} GB.")
     if apertado or cpu >= 85:
         partes.append("O modelo de IA ocupa uns " + gb(dados.get("modelo_gb") or 2) + " GB e a transcrição pede outros 2 GB, então quando os dois "
                       "rodam juntos com o navegador aberto, o Windows começa a usar o disco e tudo fica lento.")
@@ -851,14 +851,14 @@ def _proposta_versao(dados: dict):
     quando = _quando(a.get("ultima_consulta") or "")
     if anuncio.get("nova"):
         frase = (f"Ainda não. Você usa a versão {atual}, e a {anuncio.get('versao')} já saiu. "
-                 + ("Ela já está baixada: instala quando você fechar o PAULUS, ou agora ao lado." if a.get("pronto") else "Dá para baixar ao lado; nada seu vai junto."))
+                 + ("Ela já está baixada: instala quando você fechar o Paulus, ou agora ao lado." if a.get("pronto") else "Dá para baixar ao lado; nada seu vai junto."))
         linhas = [{"chave": "", "campo": "Versão nova disponível", "antes": atual, "depois": anuncio.get("versao") or "", "tom": "aviso", "mono": True}]
     elif not a.get("ultima_consulta"):
         frase = f"Você usa a versão {atual}. Ainda não conferi se há uma mais nova nesta máquina: dá para verificar agora ao lado."
         linhas = [{"chave": "", "campo": "Versão", "antes": "", "depois": atual, "tom": "info", "mono": True}]
     else:
         frase = (f"Está. Você usa a versão {atual}, a mais nova, e a última verificação foi {quando}. "
-                 "O PAULUS confere uma vez por dia lendo um arquivo público; nada seu vai junto.")
+                 "O Paulus confere uma vez por dia lendo um arquivo público; nada seu vai junto.")
         linhas = [{"chave": "", "campo": "Na versão mais nova", "antes": "", "depois": atual, "tom": "ok", "mono": True}]
     if quando:
         linhas.append({"chave": "", "campo": "Última verificação", "antes": "", "depois": quando.replace("hoje às", date.today().strftime("%d/%m") + " às"), "tom": "neutro"})
@@ -922,7 +922,7 @@ def _proposta_backup(dados: dict):
         frase = "O último backup falhou: " + b["ultimo_erro"] + ". Abri o Backup ao lado para conferir a pasta e a senha."
     elif b.get("ultimo") and b.get("pasta") and b.get("tem_senha"):
         frase = ("Não: o backup está ligado e o último foi " + _quando(b["ultimo"]) + ", em " + b["pasta"] +
-                 ". Se este computador estragar, é instalar o PAULUS em outro e restaurar de lá com a sua senha.")
+                 ". Se este computador estragar, é instalar o Paulus em outro e restaurar de lá com a sua senha.")
     else:
         frase = ("Hoje, sim: tudo do escritório mora neste computador e o backup nunca foi feito. O backup é um arquivo cifrado com uma senha sua, "
                  "numa pasta que você escolhe, uma vez por dia.")
@@ -956,7 +956,7 @@ def _proposta_word(dados: dict):
     instalado = bool(inst.get("instalado"))
     carregado = bool(inst.get("carregado"))
     if not inst.get("word_no_computador", True):
-        frase = "Não achei o Word neste computador. O PAVLVS funciona dentro do Word para Windows (2016 ou mais novo) ou do Word no navegador, pelo acesso de fora."
+        frase = "Não achei o Word neste computador. O PAVLVS funciona dentro do Word para Windows (2016 ou mais novo) ou do Word no navegador, pelo acesso externo."
     elif not ligado:
         frase = "O PAVLVS vem desligado de fábrica. São três passos e nenhum pede administrador. Abri a página Word ao lado."
     elif not instalado:
@@ -967,7 +967,7 @@ def _proposta_word(dados: dict):
         frase = "O PAVLVS já está funcionando no Word deste computador. Abra o documento no Word e use \"Conferir citações\" na aba PAVLVS."
     passo = 1 if not ligado else 2 if not instalado else 3 if not carregado else 4
     passos = [
-        {"titulo": "Ligar o PAVLVS", "sub": "o texto do documento vai só para este PAULUS", "feito": ligado},
+        {"titulo": "Ligar o PAVLVS", "sub": "o texto do documento vai só para este Paulus", "feito": ligado},
         {"titulo": "Instalar no Word", "sub": "o Windows vai perguntar se confia no certificado: clique em Sim", "feito": instalado},
         {"titulo": "Abrir o documento no Word", "sub": "o painel aparece sozinho, com \"Conferir citações\"", "feito": carregado},
     ]
@@ -978,16 +978,16 @@ def _proposta_acesso(dados: dict):
     a = dados.get("acesso") or {}
     ligado = bool(a.get("ligado"))
     if ligado and a.get("contas"):
-        frase = ("Consegue: o acesso de fora já está ligado" + (f" em {a['hostname']}" if a.get("hostname") else "") +
+        frase = ("Consegue: o acesso externo já está ligado" + (f" em {a['hostname']}" if a.get("hostname") else "") +
                  ". Entre pelo navegador do celular com a sua conta e o código do Google Authenticator.")
     else:
-        frase = "Consegue, pelo acesso de fora. Ele vem desligado e só se liga daqui. Antes de ligar, o que muda:"
+        frase = "Consegue, pelo acesso externo. Ele vem desligado e só se liga daqui. Antes de ligar, o que muda:"
     pontos = [
-        {"icone": "settings", "texto": "Este computador precisa ficar ligado e com o PAULUS aberto enquanto você estiver fora."},
+        {"icone": "settings", "texto": "Este computador precisa ficar ligado e com o Paulus aberto enquanto você estiver fora."},
         {"icone": "verified", "texto": "Os documentos e o modelo de IA não saem daqui. Pela internet passa só a tela e o que você digita."},
         {"icone": "history", "texto": "Toda entrada fica registrada aqui: quem entrou, quando, o que abriu e o que baixou."},
     ]
-    depois = "" if ligado and a.get("contas") else "Abri o Acesso de fora ao lado com a sua conta de titular. Nada é criado antes de você confirmar."
+    depois = "" if ligado and a.get("contas") else "Abri o Acesso externo ao lado com a sua conta de titular. Nada é criado antes de você confirmar."
     return frase, [], {"pontos": pontos, "depois": depois}
 
 
@@ -1000,14 +1000,14 @@ def _proposta_convite(pedido: dict, dados: dict):
              f"{'dela' if not primeiro.endswith('o') else 'dele'} e liga o Google Authenticator no celular.")
     linhas = []
     if not vinculado:
-        frase += " Para mandar o convite, este PAULUS precisa estar vinculado à sua conta Google, e ainda não está."
-        linhas.append({"chave": "", "campo": "Conta Google deste PAULUS", "antes": "", "depois": "não vinculada", "tom": "aviso"})
+        frase += " Para mandar o convite, este Paulus precisa estar vinculado à sua conta Google, e ainda não está."
+        linhas.append({"chave": "", "campo": "Conta Google deste Paulus", "antes": "", "depois": "não vinculada", "tom": "aviso"})
     linhas.append({"chave": "", "campo": nome or "A pessoa", "antes": "", "depois": "convite pronto · colaborador" + ("a" if not primeiro.endswith("o") else ""), "tom": "ok"})
     if not email:
         linhas.append({"chave": "", "campo": "E-mail Google", "antes": "", "depois": "falta informar", "tom": "aviso"})
     linhas.append({"chave": "", "campo": "O que " + ("ela" if not primeiro.endswith("o") else "ele") + " vê e faz", "antes": "", "depois": "escolhido em Permissões", "tom": "pendente"})
     acoes = [{"rotulo": "Abrir Cadastros › Equipe", "faz": "clicar", "seletor": "[data-cfg-equipe]"}]
-    depois = ("Depois de vincular, o PAULUS passa a abrir travado e pede o Google a cada abertura. Dá para manter aberto neste computador."
+    depois = ("Depois de vincular, o Paulus passa a abrir travado e pede o Google a cada abertura. Dá para manter aberto neste computador."
               if not vinculado else "O convite sai pelo botão ao lado; nada é enviado antes disso.")
     return frase, linhas, acoes, {"convite": {"nome": nome, "email": email}, "vinculado": vinculado, "depois": depois}
 

@@ -93,7 +93,7 @@ def decifrar_arquivo(origem: Path, destino: Path, senha: str) -> None:
     with open(origem, "rb") as ent, open(destino, "wb") as sai:
         magico = ent.read(len(MAGICO))
         if magico != MAGICO:
-            raise ErroBackup("este arquivo não é um backup do PAULUS")
+            raise ErroBackup("este arquivo não é um backup do Paulus")
         sal, base = ent.read(16), ent.read(8)
         cabecalho = MAGICO + sal + base
         aes = AESGCM(_chave(senha, sal))
@@ -149,7 +149,7 @@ def fazer(dados: Path, pasta: Path, senha: str, *, versao: str = "", manter: int
         raise ErroBackup(f"não consegui usar a pasta do backup ({exc.strerror or exc})") from exc
     dados = Path(dados).resolve()
     if pasta.resolve() == dados or dados in pasta.resolve().parents:
-        raise ErroBackup("a pasta do backup não pode ficar dentro da pasta de dados do PAULUS")
+        raise ErroBackup("a pasta do backup não pode ficar dentro da pasta de dados do Paulus")
     arquivos = [p for p in dados.rglob("*") if p.is_file() and _entra(p.relative_to(dados))]
     agora = time.strftime("%Y%m%d-%H%M%S")
     nome = f"PAULUS-backup-{agora}{EXTENSAO}"

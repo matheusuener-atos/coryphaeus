@@ -24,7 +24,7 @@ from pathlib import Path
 TIPOS = (".pdf", ".docx", ".txt", ".md", ".xlsx")
 BASE = r"Software\Classes\SystemFileAssociations"
 VERBO = "PAULUS.Perguntar"
-ROTULO = "Perguntar ao PAULUS"
+ROTULO = "Perguntar ao Paulus"
 
 
 def _chave(tipo: str, base: str) -> str:
@@ -68,7 +68,7 @@ def estado(exe: Path | None, base: str = BASE) -> dict:
     alvo = _exe_do_comando(comando)
     meu = bool(exe) and bool(alvo) and Path(alvo).resolve() == Path(exe).resolve()
     return {"disponivel": bool(exe), "ligado": meu, "de_outro": bool(alvo) and not meu,
-            "motivo": "" if exe else "disponível no PAULUS instalado (o PAULUS.exe não foi encontrado)"}
+            "motivo": "" if exe else "disponível no Paulus instalado (o PAULUS.exe não foi encontrado)"}
 
 
 def ligar(exe: Path, base: str = BASE) -> None:

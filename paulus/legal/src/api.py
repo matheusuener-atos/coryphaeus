@@ -1173,7 +1173,7 @@ async def _erro_inesperado(request: Request, exc: Exception):
     rota = getattr(request.scope.get("route"), "path", "") or request.url.path.split("?")[0]
     saude.anotar_erro(f"{request.method} {rota}", exc)
     return JSONResponse(status_code=500, content={
-        "detail": "algo deu errado no PAULUS ao fazer isso. Se continuar, gere o diagnóstico em Configurações › Desempenho"})
+        "detail": "algo deu errado no Paulus ao fazer isso. Se continuar, gere o diagnóstico em Configurações › Desempenho"})
 
 
 @app.exception_handler(nomes_mod.NomeRepetido)
@@ -3008,7 +3008,7 @@ def acervo_incluir_pasta(payload: CaminhoDePasta) -> dict:
 def acervo_tirar_pasta(payload: CaminhoDePasta) -> dict:
     """Deixa de vigiar a pasta. Os arquivos ficam onde estão."""
     if chave_do_caminho(payload.caminho) == chave_do_caminho(estado.pasta):
-        raise HTTPException(status_code=400, detail="a pasta do próprio PAULUS não sai do Acervo")
+        raise HTTPException(status_code=400, detail="a pasta do próprio Paulus não sai do Acervo")
     if not estado.tirar_pasta_do_acervo(payload.caminho):
         raise HTTPException(status_code=404, detail="essa pasta não está no Acervo")
     estado.recarregar()
@@ -3482,7 +3482,7 @@ def _conversa_exportada(trabalho, formato: str) -> bytes:
 
     falas = []
     for m in trabalho.mensagens:
-        quem = "Você" if m.autor == "pessoa" else "PAULUS"
+        quem = "Você" if m.autor == "pessoa" else "Paulus"
         notas = []
         if getattr(m, "interrompida", False):
             notas.append("resposta parada no meio")
@@ -3501,7 +3501,7 @@ def _conversa_exportada(trabalho, formato: str) -> bytes:
         doc = Document()
         doc.add_heading(trabalho.titulo, level=1)
         rodape = doc.add_paragraph()
-        rodape.add_run(f"Exportado do PAULUS Legal em {agora}").italic = True
+        rodape.add_run(f"Exportado do Paulus Legal em {agora}").italic = True
         for quem, em, texto, notas in falas:
             cabeca = doc.add_paragraph()
             cabeca.add_run(quem).bold = True
@@ -3517,14 +3517,14 @@ def _conversa_exportada(trabalho, formato: str) -> bytes:
 
     linhas: list[str] = []
     if formato == "md":
-        linhas += [f"# {trabalho.titulo}", "", f"*Exportado do PAULUS Legal em {agora}*", ""]
+        linhas += [f"# {trabalho.titulo}", "", f"*Exportado do Paulus Legal em {agora}*", ""]
         for quem, em, texto, notas in falas:
             linhas += [f"**{quem}**" + (f" · {em}" if em else ""), "", texto, ""]
             linhas += [f"> _{nota}_" for nota in notas]
             if notas:
                 linhas.append("")
     else:
-        linhas += [trabalho.titulo, f"Exportado do PAULUS Legal em {agora}", ""]
+        linhas += [trabalho.titulo, f"Exportado do Paulus Legal em {agora}", ""]
         for quem, em, texto, notas in falas:
             linhas += [quem + (f" - {em}" if em else ""), texto]
             linhas += [f"({nota})" for nota in notas]
@@ -4777,7 +4777,7 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
             elif ficha["tipo"] in ("socio", "colaborador"):
                 resumo = f"Pus {ficha['nome']} na equipe como {'sócio' if ficha['tipo'] == 'socio' else 'colaborador'}"
                 if campos.get("convite"):
-                    resumo += " e gerei o convite para o PAULUS"
+                    resumo += " e gerei o convite para o Paulus"
                 onde = "equipe"
             else:
                 resumo = f"Cadastrei “{ficha['nome']}” como cliente" + (f", ligado a {ligados} documento{'s' if ligados != 1 else ''}" if ligados else "")
@@ -5055,7 +5055,7 @@ def _gerar_relatorio_financeiro(mes: str, comparar: str) -> dict:
     pasta = _pasta_no_acervo("Relatórios", "Financeiro")
     pdf = pasta / f"relatorio-financeiro-{mes}.pdf"
     pdf.write_bytes(documento.para_pdf(documento.ler_html(fpc.html_do_relatorio(r, _escapar)),
-                                       f"Relatório financeiro · {r['rotulo']} {r['ano']}", "PAULUS · relatório gerado nesta máquina"))
+                                       f"Relatório financeiro · {r['rotulo']} {r['ano']}", "Paulus · relatório gerado nesta máquina"))
     xlsx = _pasta_no_acervo("Financeiro", "Planilhas") / f"financeiro-{mes}.xlsx"
     _exportar_mes_em(xlsx, mes)
     estado.recarregar_em_segundo_plano()
@@ -5341,7 +5341,7 @@ def _responder_email(trabalho, lido, pergunta: str, request=None) -> StreamingRe
         except HTTPException as exc:
             detalhe = str(exc.detail)
             if exc.status_code == 400:
-                texto = "Nenhuma conta de e-mail está ligada a este PAULUS. Ligue a sua em E-mail › Contas e peça de novo."
+                texto = "Nenhuma conta de e-mail está ligada a este Paulus. Ligue a sua em E-mail › Contas e peça de novo."
             elif exc.status_code == 401:
                 texto = f"Não consegui entrar na caixa: {detalhe}. Abra E-mail uma vez, entre, e peça de novo."
             else:
@@ -5428,7 +5428,7 @@ def _escrever_email_novo(trabalho, lido, pergunta: str, request=None) -> Streami
     try:
         conta, _senha = _conta_e_senha("")
     except HTTPException as exc:
-        texto = ("Nenhuma conta de e-mail está ligada a este PAULUS. Ligue a sua em E-mail › Contas e peça de novo."
+        texto = ("Nenhuma conta de e-mail está ligada a este Paulus. Ligue a sua em E-mail › Contas e peça de novo."
                  if exc.status_code == 400 else f"Não consegui usar a conta de e-mail agora: {exc.detail}.")
         return _so_dizer(trabalho, texto)
     aprovacao = _passa_por_aprovacao(conta, request)
@@ -11712,7 +11712,7 @@ def documentos_assistente(id_: int, payload: PedidoAoAssistente) -> dict:
         trabalho.dizer("paulus", texto, **extras)
         estado.trabalhos.salvar(trabalho)
 
-    aviso = ("Escrito pela IA do PAULUS. Confira nomes, datas, valores e qualquer artigo de lei antes de manter."
+    aviso = ("Escrito pela IA do Paulus. Confira nomes, datas, valores e qualquer artigo de lei antes de manter."
              if na_nuvem else "Escrito por um modelo pequeno rodando nesta máquina. Confira nomes, "
                               "datas, valores e qualquer artigo de lei antes de aceitar.")
     regras_da_casa = estado.contextos.bloco(["Regras de redação"])
@@ -12485,7 +12485,7 @@ def financeiro_painel(mes: str = "") -> dict:
     dados["onde_moram"] = (
         "Os lançamentos ficam no mesmo arquivo do resto do programa, nesta máquina. "
         "Não há senha separada para o financeiro: quem abre o Windows com a sua conta "
-        "vê esta tela. Uma permissão por pessoa só faria sentido num PAULUS de equipe, "
+        "vê esta tela. Uma permissão por pessoa só faria sentido num Paulus de equipe, "
         "que ainda não existe."
     )
 
@@ -12948,7 +12948,7 @@ def relatorios_pdf(payload: dict | None = None):
     pdf = documento.para_pdf(
         documento.ler_html("".join(html)),
         f"Relatório de {quando}",
-        "PAULUS · relatório gerado nesta máquina",
+        "Paulus · relatório gerado nesta máquina",
     )
     return Response(pdf, media_type="application/pdf",
                     headers=_anexo(f"Relatorio {quando}.pdf"))
@@ -13090,7 +13090,7 @@ def backup_configurar(dados: ConfigBackup) -> dict:
         if not pasta.is_absolute():
             raise HTTPException(status_code=400, detail="escolha uma pasta deste computador (caminho completo)")
         if pasta.resolve() == DADOS_DIR or DADOS_DIR in pasta.resolve().parents:
-            raise HTTPException(status_code=400, detail="a pasta do backup não pode ficar dentro da pasta de dados do PAULUS")
+            raise HTTPException(status_code=400, detail="a pasta do backup não pode ficar dentro da pasta de dados do Paulus")
         novo["pasta"] = str(pasta)
     if dados.senha is not None:
         if len(dados.senha) < backup_mod.SENHA_MINIMA:
@@ -13138,7 +13138,7 @@ def backup_restaurar(dados: RestaurarBackup) -> dict:
     """Prepara a restauracao: a troca acontece quando o PAULUS abre de novo."""
     arquivo = Path(dados.arquivo)
     if arquivo.suffix != backup_mod.EXTENSAO:
-        raise HTTPException(status_code=400, detail="escolha um arquivo de backup do PAULUS (.paulusbak)")
+        raise HTTPException(status_code=400, detail="escolha um arquivo de backup do Paulus (.paulusbak)")
     try:
         manifesto = backup_mod.preparar_restauracao(arquivo, dados.senha, DADOS_DIR)
     except backup_mod.ErroBackup as exc:
@@ -13159,7 +13159,7 @@ def backup_reabrir() -> dict:
 
     exe = energia.exe_do_programa()
     if not exe:
-        raise HTTPException(status_code=400, detail="feche e abra o PAULUS para terminar de restaurar")
+        raise HTTPException(status_code=400, detail="feche e abra o Paulus para terminar de restaurar")
     import subprocess
 
     def reabrir() -> None:
@@ -13636,7 +13636,7 @@ def saude_diagnostico() -> Response:
 
     p = estado.prefs.dados
     extras = {
-        "Acesso de fora": "ligado" if (p.get("acesso_remoto") or {}).get("ligado") else "desligado",
+        "Acesso externo": "ligado" if (p.get("acesso_remoto") or {}).get("ligado") else "desligado",
         "Backup automático": "ligado" if (p.get("backup") or {}).get("automatico", True) else "desligado",
         "Documentos no Acervo": len(estado.searcher.documents),
         "Instalado": "sim" if os.environ.get("PAULUS_INSTALADO") else "não (código-fonte)",
@@ -13668,7 +13668,7 @@ def explorer_ligar(dados: LigarMenu) -> dict:
     exe = energia.exe_do_programa()
     if dados.ligado:
         if sys.platform != "win32" or not exe:
-            raise HTTPException(status_code=400, detail="disponível no PAULUS instalado (o PAULUS.exe não foi encontrado)")
+            raise HTTPException(status_code=400, detail="disponível no Paulus instalado (o PAULUS.exe não foi encontrado)")
         menu_explorer.ligar(exe)
     elif sys.platform == "win32":
         menu_explorer.desligar()
@@ -13885,7 +13885,7 @@ def servicos_salvar(payload: FichaServico) -> dict:
             nomes = [l["nome"] for l in estado.base.buscar(
                 f"SELECT nome FROM cadastros WHERE id IN ({','.join('?' for _ in sem)})", tuple(sem))]
             raise HTTPException(status_code=400, detail=(", ".join(nomes) or "essa pessoa") +
-                                " não tem acesso ao PAULUS: convide em Cadastros › Equipe antes de pôr na equipe do serviço")
+                                " não tem acesso ao Paulus: convide em Cadastros › Equipe antes de pôr na equipe do serviço")
     antes = estado.servicos.pasta_de(payload.id, criar=False) if payload.id else None
     try:
         id_ = estado.servicos.salvar(payload.dados, payload.id)
@@ -14725,7 +14725,7 @@ def conexoes_abrir(payload: dict | None = None) -> dict:
             "abriu": False,
             "endereco": endereco,
             "motivo": (
-                "A janela embutida existe quando o PAULUS roda como programa "
+                "A janela embutida existe quando o Paulus roda como programa "
                 "(python src/desktop.py). No navegador, a sessão seria a do próprio "
                 "navegador, não a minha — então prefiro dizer isso a fingir que é igual."
             ),
@@ -14734,7 +14734,7 @@ def conexoes_abrir(payload: dict | None = None) -> dict:
     import webview
 
     webview.create_window(
-        "WhatsApp Web · PAULUS", endereco,
+        "WhatsApp Web · Paulus", endereco,
         width=1100, height=800, min_size=(720, 560),
     )
     return {"abriu": True, "endereco": endereco}

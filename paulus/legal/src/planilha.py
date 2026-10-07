@@ -1486,7 +1486,7 @@ def para_xlsx(abas: list[Aba], calculados: list[dict]) -> bytes:
             if celula.comentario:
                 from openpyxl.comments import Comment
 
-                folha[ref].comment = Comment(celula.comentario, "PAULUS")
+                folha[ref].comment = Comment(celula.comentario, "Paulus")
 
     saida = io.BytesIO()
     livro.save(saida)

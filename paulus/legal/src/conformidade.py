@@ -107,7 +107,7 @@ def gerar(caminho: Path | str, assinaturas: list[dict], pasta: Path, destino: Pa
     fluxo = [
         Paragraph("PAVLVS", marca),
         Paragraph("Certificado de conformidade", titulo),
-        Paragraph(f"Conferência feita em {agora:%d/%m/%Y às %H:%M}, nesta máquina, pelo PAULUS Legal.", miudo),
+        Paragraph(f"Conferência feita em {agora:%d/%m/%Y às %H:%M}, nesta máquina, pelo Paulus Legal.", miudo),
         Spacer(1, 12),
         Paragraph(escape(frase), destaque),
         Paragraph("Documento conferido", secao),
@@ -157,7 +157,7 @@ def gerar(caminho: Path | str, assinaturas: list[dict], pasta: Path, destino: Pa
 
     saida = io.BytesIO()
     doc = SimpleDocTemplate(saida, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm,
-                            bottomMargin=2 * cm, title=NOME, author="PAULUS Legal")
+                            bottomMargin=2 * cm, title=NOME, author="Paulus Legal")
     doc.build(fluxo, onFirstPage=rodape, onLaterPages=rodape)
 
     pasta.mkdir(parents=True, exist_ok=True)

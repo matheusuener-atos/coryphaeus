@@ -228,7 +228,7 @@ class Emissor:
                           "detalhe": (u.get("anterior") or "")[:160]})
         for nome in self.documentacao().get("novos") or []:
             saida.append({"id": f"nfse:layout:{nome}", "titulo": "O portal da NFS-e publicou esquema novo",
-                          "detalhe": f"{nome}: o PAULUS precisa ser atualizado para ele"})
+                          "detalhe": f"{nome}: o Paulus precisa ser atualizado para ele"})
         return saida
 
     # --------------------------------------------------------- rotina diária
@@ -343,7 +343,7 @@ class Emissor:
             # desligada: a frase não pode dizer que "dá para emitir" já.
             m = tabelas.municipio(cmun) or {}
             sit = dict(sit, frase=f"{m.get('nome', cmun)}/{m.get('uf', '')} tem convênio ativo com o Sistema Nacional "
-                                  "da NFS-e: ligando a emissão aqui em cima, as notas passam a sair pelo PAULUS.")
+                                  "da NFS-e: ligando a emissão aqui em cima, as notas passam a sair pelo Paulus.")
         return sit
 
     # ------------------------------------------------------------------- tela

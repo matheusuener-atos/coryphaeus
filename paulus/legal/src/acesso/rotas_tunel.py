@@ -98,7 +98,7 @@ def montar(servico, conexao, r) -> None:
 
         so_local(request)
         if dados.ligado and not energia.exe_do_programa():
-            raise HTTPException(status_code=400, detail="disponível no PAULUS instalado (o PAULUS.exe não foi encontrado)")
+            raise HTTPException(status_code=400, detail="disponível no Paulus instalado (o PAULUS.exe não foi encontrado)")
         energia.abrir_com_windows(dados.ligado)
         servico.prefs.atualizar({"acesso_remoto": {"abrir_com_windows": bool(dados.ligado)}})
         return {"energia": servico.energia()}

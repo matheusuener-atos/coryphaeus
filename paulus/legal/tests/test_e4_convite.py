@@ -73,7 +73,7 @@ def test_http() -> None:
         t = servico.contas.criar("Tita", "tita@x.com", "titular", "senha-da-tita-1")
         servico.contas.confirmar_totp(t["conta"]["id"], codigo_totp(t["segredo"], int(time.time() // 30) - 1))
         r = local.post("/api/acesso/convites", json={"nome": "Bia Souza", "email": "bia@x.com"})
-        checar(r.status_code == 400 and "acesso de fora" in r.json().get("detail", ""), "sem o acesso conectado: nao ha link",
+        checar(r.status_code == 400 and "acesso externo" in r.json().get("detail", ""), "sem o acesso conectado: nao ha link",
                r.text[:160])
         prefs["hostname"] = "moura.paulus.ia.br"
         r = local.post("/api/acesso/convites", json={"nome": "Bia Souza", "email": "bia@x.com",

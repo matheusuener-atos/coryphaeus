@@ -113,7 +113,7 @@ def permitido(conexao: dict, pessoa: dict | None, metodo: str, caminho_da_rota: 
         tem = niveis.get(regra["modulo"], modulo["padrao"] if modulo else permissoes.NAO)
         if permissoes.ORDEM.index(tem) < permissoes.ORDEM.index(regra["nivel"]):
             rotulo = modulo["rotulo"] if modulo else regra["modulo"]
-            return False, f"você não tem acesso a {rotulo} pelo Word; o titular libera em Configurações › Acesso de fora"
+            return False, f"você não tem acesso a {rotulo} pelo Word; o titular libera em Configurações › Acesso externo"
     return True, ""
 
 
@@ -327,7 +327,7 @@ class PortaDoWord:
             return
         tunel = _veio_pelo_tunel(scope, cab)
         if tunel and not self.acesso_ligado():
-            await recusar(scope, send, 403, "o acesso de fora está desligado")
+            await recusar(scope, send, 403, "o acesso externo está desligado")
             return
         if caminho.startswith("/word/"):
             await self._arquivo(scope, send, caminho[len("/word/"):])
@@ -387,7 +387,7 @@ class PortaDoWord:
         autorizacao = cab.get("authorization", "")
         conexao = self.conexoes.do_token(autorizacao[7:].strip() if autorizacao.lower().startswith("bearer ") else "")
         if conexao is None:
-            await recusar(scope, send, 401, "conecte este Word ao PAULUS de novo")
+            await recusar(scope, send, 401, "conecte este Word ao Paulus de novo")
             return
         # Token do Word deste computador não vale pelo túnel: se vazar, não
         # abre o escritório de fora.
@@ -601,7 +601,7 @@ def montar(estado, app, pasta_dados: Path) -> None:
 
         sessao = rotas_do_acesso.pessoa(request)
         if not sessao:
-            raise HTTPException(status_code=403, detail="entre no PAULUS de fora, com a sua conta, para conectar o Word")
+            raise HTTPException(status_code=403, detail="entre no Paulus de fora, com a sua conta, para conectar o Word")
         if not _ligado():
             raise HTTPException(status_code=409, detail="o suplemento do Word está desligado no escritório")
         if not estado.acesso_de_fora.contas.confirmar_de_novo(sessao, payload.codigo_autenticador):
@@ -757,7 +757,7 @@ def montar(estado, app, pasta_dados: Path) -> None:
         (`abrir`): o PAULUS.exe chama aqui (src/desktop.py).
         """
         if not instalacao.instalado():
-            _avisar_no_windows("PAVLVS no Word", "Ative o PAVLVS no PAULUS, em Configurações › Word, para abrir o Word com ele.")
+            _avisar_no_windows("PAVLVS no Word", "Ative o PAVLVS no Paulus, em Configurações › Word, para abrir o Word com ele.")
             return {"aberto": False, "motivo": "não instalado"}
         if acao == "abrir":
             arquivo = Path(caminho)
@@ -776,7 +776,7 @@ def montar(estado, app, pasta_dados: Path) -> None:
         if instalacao.precisa_fechar_o_word():
             _avisar_no_windows("Feche o Word para usar o PAVLVS",
                                "O Word está aberto desde antes de o PAVLVS ser instalado. Salve e feche o Word: "
-                               "assim que ele fechar, o PAULUS abre de novo com o PAVLVS.")
+                               "assim que ele fechar, o Paulus abre de novo com o PAVLVS.")
             _quando_o_word_fechar(abrir)
             return {"aberto": False, "esperando": True, "resultado": resultado}
         abrir()
@@ -837,7 +837,7 @@ def montar(estado, app, pasta_dados: Path) -> None:
         if not p or p["estado"] != "esperando":
             raise HTTPException(status_code=404, detail="esse pedido não existe mais (vale 10 minutos)")
         if p["origem"] != "local":
-            raise HTTPException(status_code=403, detail="pedido de outro computador: quem conecta é a pessoa, no PAULUS de fora, com o autenticador")
+            raise HTTPException(status_code=403, detail="pedido de outro computador: quem conecta é a pessoa, no Paulus de fora, com o autenticador")
         conexao, token = estado.word_conexoes.criar(pessoa=_nome_local(), email="", papel="titular", conta_id=0,
                                                     origem="local", word=p["word"])
         estado.word_pedidos.decidir(id_, conexao=conexao, token=token)

@@ -451,7 +451,7 @@ class AreaDoCliente:
     def _carta(self, tipo: str, pessoa: dict, servico_id: int | None = None, quem: str = "", **extra) -> str:
         link = self.link(pessoa)
         if not link:
-            return "o acesso de fora não está conectado"
+            return "o acesso externo não está conectado"
         dados = {"tipo": tipo, "para": pessoa["email"], "link": link, "nome": pessoa["nome"],
                  "escritorio": self.escritorio() or ""}
         if servico_id is not None:
@@ -479,7 +479,7 @@ class AreaDoCliente:
         if not email_valido(email):
             raise ErroDoCliente("esse e-mail não parece certo")
         if not (self.hostname() or "").strip():
-            raise ErroDoCliente("ligue o acesso de fora antes (Configurações › Acesso de fora): é por ele que o cliente entra", 409)
+            raise ErroDoCliente("ligue o acesso externo antes (Configurações › Acesso externo): é por ele que o cliente entra", 409)
         try:
             cadastro_id = int(cadastro_id) if cadastro_id not in (None, "", 0, "0") else None
         except (TypeError, ValueError):

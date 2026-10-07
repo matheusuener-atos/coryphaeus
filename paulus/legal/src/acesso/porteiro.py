@@ -155,7 +155,7 @@ class Porteiro:
                 from vinculo import passa_travado
 
                 if not passa_travado(scope.get("method", "GET"), scope.get("path", "")):
-                    await recusar(scope, send, 423, "o PAULUS está travado: entre com a conta Google",
+                    await recusar(scope, send, 423, "o Paulus está travado: entre com a conta Google",
                                   [(b"x-paulus-travado", b"1")])
                     return
             await self.app(scope, receive, send)
@@ -187,7 +187,7 @@ class Porteiro:
             await recusar(scope, send)
             return
         cookie = f"{COOKIE}={sessao}; Path=/; HttpOnly; SameSite=Strict"
-        corpo = ("<!doctype html><meta charset=utf-8><title>PAULUS</title>"
+        corpo = ("<!doctype html><meta charset=utf-8><title>Paulus</title>"
                  "<script>location.replace('/' + location.hash)</script>"
                  "<noscript><meta http-equiv=refresh content='0;url=/'></noscript>").encode("utf-8")
         await responder(send, 200, corpo, "text/html; charset=utf-8",

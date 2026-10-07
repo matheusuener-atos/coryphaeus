@@ -108,7 +108,7 @@ def main() -> int:
     base.escrever("UPDATE servicos SET equipe = '[]' WHERE id = ?", (s_alfa,))
     d = local.get("/api/conflitos?conferir=true").json()
     m = base.um("SELECT * FROM conflitos WHERE id = ?", (mur["id"],))
-    checar(m["estado"] == "resolvido" and m["resolucao"] == "sumiu" and m["resolvido_por"] == "PAULUS" and d["conferido"]["fechados_sozinhos"] == 1,
+    checar(m["estado"] == "resolvido" and m["resolucao"] == "sumiu" and m["resolvido_por"] == "Paulus" and d["conferido"]["fechados_sozinhos"] == 1,
            "a pessoa saiu: a conferência geral fecha sozinha, dito", dict(m))
     local.post(f"/api/conflitos/{lados['id']}/reabrir")
     local.put(f"/api/servicos/{s_maria}/partes", json={"partes": []})

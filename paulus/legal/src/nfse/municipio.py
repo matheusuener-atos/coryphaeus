@@ -131,7 +131,7 @@ def frase(cmun: str, situacao: str, detalhes: str = "") -> str:
     if situacao == SEM_CONVENIO:
         return (f"{nome} não emite pelo Sistema Nacional da NFS-e"
                 + (f" ({detalhes})" if detalhes else "") +
-                ". As notas continuam sendo emitidas no sistema da prefeitura, e o PAULUS continua "
+                ". As notas continuam sendo emitidas no sistema da prefeitura, e o Paulus continua "
                 "só registrando o que for emitido lá.")
     if situacao == INDEFINIDO:
         return (f"Não consegui confirmar se {nome} emite pelo Sistema Nacional"

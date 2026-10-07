@@ -201,7 +201,7 @@ def executar_aprovado(estado, pedido) -> dict | str:
         frases = "; ".join(x.get("frase", "") for x in nota.get("rejeicao") or [])[:500]
         raise RuntimeError(f"a Sefin recusou a nota: {frases} — corrija no cartão e peça a aprovação de novo")
     if nota["estado"] in (AGUARDANDO_CONFIRMACAO, NA_FILA):
-        return {"texto": f"enviada; {nota['estado_rotulo'].lower()}: o PAULUS consulta o Sistema Nacional antes de "
+        return {"texto": f"enviada; {nota['estado_rotulo'].lower()}: o Paulus consulta o Sistema Nacional antes de "
                          f"qualquer reenvio e avisa quando confirmar ({nota.get('ultimo_erro') or ''})",
                 "desfecho": {"tela": "nfse", "id": nota["id"]}}
     return {"texto": f"a nota ficou “{nota['estado_rotulo']}”", "desfecho": {"tela": "nfse", "id": nota["id"]}}
@@ -253,11 +253,11 @@ def depois_de_emitir(estado, nota: dict) -> None:
                 alvo_pdf = pasta / f"{base_nome}.pdf"
                 alvo_pdf.write_bytes(pdf)
                 anexos.insert(0, str(alvo_pdf))
-        notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS", "no Acervo: " + ", ".join(Path(a).name for a in anexos))
+        notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus", "no Acervo: " + ", ".join(Path(a).name for a in anexos))
         if hasattr(estado, "recarregar_em_segundo_plano"):
             estado.recarregar_em_segundo_plano()
     except Exception as exc:  # noqa: BLE001
-        notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS", f"não consegui guardar no Acervo: {exc}")
+        notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus", f"não consegui guardar no Acervo: {exc}")
 
     if nota.get("origem") == "teste_assistente":
         # A nota do teste do assistente (teste.py): só no Acervo; nada no
@@ -271,18 +271,18 @@ def depois_de_emitir(estado, nota: dict) -> None:
             "criado_em, chave, ambiente, nfse_nota_id) VALUES ('nota',?,?,?,?,?,?,?,datetime('now','localtime'),?,?,?)",
             (nota["numero_nfse"], nota.get("cadastro_id"), nota.get("lancamento_id"), int(nota["centavos"]),
              (nota.get("dh_proc") or date.today().isoformat())[:10], "emitida",
-             f"NFS-e nacional emitida pelo PAULUS ({ambiente})", nota["chave"], nota["ambiente"], nota["id"]))
+             f"NFS-e nacional emitida pelo Paulus ({ambiente})", nota["chave"], nota["ambiente"], nota["id"]))
         estado.base.escrever("UPDATE nfse_notas SET papel_id = ? WHERE id = ?", (papel, nota["id"]))
-        notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS",
+        notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus",
                     "registrada em notas fiscais" + (" e ligada ao recebimento" if nota.get("lancamento_id") else ""))
     except Exception as exc:  # noqa: BLE001
-        notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS", f"não consegui registrar em notas fiscais: {exc}")
+        notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus", f"não consegui registrar em notas fiscais: {exc}")
 
     try:
         proposta = propor_email(estado, nota, anexos)
-        notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS", proposta)
+        notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus", proposta)
     except Exception as exc:  # noqa: BLE001
-        notas.passo(nota["id"], EMITIDA, EMITIDA, "PAULUS", f"não consegui propor o e-mail: {exc}")
+        notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus", f"não consegui propor o e-mail: {exc}")
 
     auditar(estado, f"NFS-e {nota['numero_nfse']} emitida ({ambiente}) para {nota.get('tomador_nome')}, "
                     f"{nota['valor']} · pedida por {nota.get('pedido_por') or '—'} · aprovada por {nota.get('aprovado_por') or '—'}"
@@ -297,7 +297,7 @@ def propor_email(estado, nota: dict, anexos: list[str]) -> str:
         return "sem e-mail do tomador: a proposta de e-mail não foi criada"
     conta = estado.contas.em_uso if hasattr(estado, "contas") else None
     if conta is None:
-        return "sem conta de e-mail no PAULUS: a proposta de e-mail não foi criada"
+        return "sem conta de e-mail no Paulus: a proposta de e-mail não foi criada"
     if not anexos:
         return "sem os arquivos da nota no Acervo: a proposta de e-mail não foi criada"
     prest = estado.nfse.notas.prestador_da_nota(nota)["dados"]
@@ -317,7 +317,7 @@ def propor_email(estado, nota: dict, anexos: list[str]) -> str:
         resumo = f"Para {para}, com {len(anexos)} anexo(s)"
     pedido = estado.fila.pedir(f"Enviar a NFS-e {nota['numero_nfse']} para {para}", "email", resumo=resumo,
                                etiquetas=["não dá para desfazer", "com anexo"], acao="correio.enviar",
-                               dados=dados, reversivel=False, pedido_por="PAULUS (nota fiscal)")
+                               dados=dados, reversivel=False, pedido_por="Paulus (nota fiscal)")
     return f"e-mail ao cliente proposto em Aprovações ({pedido.id})"
 
 
@@ -344,7 +344,7 @@ def avisos(estado, hoje: date | None = None) -> list[dict]:
                           "detalhe": (n.get("ultimo_erro") or "")[:140], "nota_id": n["id"]})
         elif n["estado"] in (AGUARDANDO_CONFIRMACAO, NA_FILA):
             saida.append({"id": f"nfse:{n['estado']}:{n['id']}", "titulo": f"Nota fiscal {n['estado_rotulo'].lower()} — {nome}",
-                          "detalhe": "o PAULUS consulta antes de reenviar; " + (n.get("ultimo_erro") or "")[:100],
+                          "detalhe": "o Paulus consulta antes de reenviar; " + (n.get("ultimo_erro") or "")[:100],
                           "nota_id": n["id"]})
     for a in getattr(estado.nfse, "avisos_extras", lambda h: [])(hoje):
         saida.append(a)

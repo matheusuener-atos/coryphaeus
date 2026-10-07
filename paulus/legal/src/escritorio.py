@@ -256,7 +256,7 @@ class PapeisFiscais:
         # emitida não se apaga, cancela-se, e o XML fica guardado (N4, N6).
         linha = self.base.um("SELECT nfse_nota_id FROM papeis_fiscais WHERE id = ?", (id_,))
         if linha and linha.get("nfse_nota_id"):
-            raise ValueError("nota emitida pelo PAULUS não sai do registro: para desfazer, cancele a nota")
+            raise ValueError("nota emitida pelo Paulus não sai do registro: para desfazer, cancele a nota")
         return self.base.escrever("DELETE FROM papeis_fiscais WHERE id = ?", (id_,)) > 0
 
     def marcar_pago(self, id_: int, quando: str = "") -> bool:
@@ -508,7 +508,7 @@ def gerar_recibos(da_folha: dict, destino: Path | str, mes_rotulo: str,
         partes.append(Paragraph(pessoa["nome"], corpo))
         partes.append(Spacer(1, 26))
         partes.append(Paragraph(
-            "Documento gerado pelo PAULUS. Assinar com certificado digital é "
+            "Documento gerado pelo Paulus. Assinar com certificado digital é "
             "na tela Assinar documento — este PDF sai sem assinatura.", linha))
 
         doc.build(partes)

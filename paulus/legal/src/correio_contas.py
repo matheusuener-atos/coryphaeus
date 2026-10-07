@@ -71,7 +71,7 @@ CONHECIDOS: dict[str, dict] = {
 AVISO_MICROSOFT = (
     "A Microsoft desativou a entrada por senha no IMAP e no SMTP das contas Outlook, "
     "Hotmail e Microsoft 365 — elas só entram pelo login da Microsoft, que esta versão "
-    "do PAULUS ainda não traz. Por enquanto, use outra conta."
+    "do Paulus ainda não traz. Por enquanto, use outra conta."
 )
 AVISO_MICROSOFT_OAUTH = (
     "A Microsoft não aceita senha no IMAP e no SMTP das contas Outlook, Hotmail e "
@@ -603,7 +603,7 @@ class Contas:
             credenciais = self.credenciais_oauth(conta.cliente or conta.autenticacao) or {}
             if not credenciais.get("client_id"):
                 raise correio_oauth.ErroOAuth(
-                    f"esta versão do PAULUS não traz o login do {correio_oauth.rotulo(conta.autenticacao)}"
+                    f"esta versão do Paulus não traz o login do {correio_oauth.rotulo(conta.autenticacao)}"
                 )
             try:
                 tokens = correio_oauth.renovar(

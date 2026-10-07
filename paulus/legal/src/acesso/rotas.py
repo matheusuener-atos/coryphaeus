@@ -256,7 +256,7 @@ def montar(servico, r) -> None:
         """
         p = pessoa(request)
         if not p:
-            raise HTTPException(status_code=403, detail="só pelo acesso de fora, com a sua conta")
+            raise HTTPException(status_code=403, detail="só pelo acesso externo, com a sua conta")
         if p["papel"] != "titular":
             raise HTTPException(status_code=403, detail="só o titular pode fazer isso")
         if not servico.contas.confirmar_de_novo(p, codigo):
@@ -343,10 +343,10 @@ def montar(servico, r) -> None:
         so_local(request)
         vinculo = getattr(servico, "vinculo", None)
         if vinculo is not None and not vinculo.vinculado():
-            raise HTTPException(status_code=400, detail="vincule este PAULUS à sua conta Google antes de convidar a equipe")
+            raise HTTPException(status_code=400, detail="vincule este Paulus à sua conta Google antes de convidar a equipe")
         host = servico.preferencias().get("hostname", "")
         if not host:
-            raise HTTPException(status_code=400, detail="ligue o acesso de fora antes: o convite é um link do endereço do escritório")
+            raise HTTPException(status_code=400, detail="ligue o acesso externo antes: o convite é um link do endereço do escritório")
         # O plano tem vaga? (a conta so nasce no aceite, que confere de novo)
         if servico.contas.vaga is not None:
             servico.contas.vaga(len(servico.contas.listar()))

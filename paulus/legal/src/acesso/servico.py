@@ -133,7 +133,7 @@ class AcessoDeFora:
         from acesso.provisao import ErroProvisao, ErroRemovido
 
         if not self.cofre.tem() or self.conexao is None:
-            return "o acesso de fora não está conectado"
+            return "o acesso externo não está conectado"
         try:
             self.conexao.provisao.email_do_cliente(self.cofre.segredo(), dados)
         except ErroRemovido as exc:
@@ -162,7 +162,7 @@ class AcessoDeFora:
         try:
             import avisos
 
-            avisos.avisar("acesso", "Acesso de fora desligado", texto[:1].upper() + texto[1:] + ".")
+            avisos.avisar("acesso", "Acesso externo desligado", texto[:1].upper() + texto[1:] + ".")
         except Exception:  # noqa: BLE001 - sem aviso do Windows, a tela mostra
             pass
 
@@ -274,7 +274,7 @@ class AcessoDeFora:
         suspende = e.minutos_ate_suspender()
         tomada, bateria = suspende.get("tomada_min", 0), suspende.get("bateria_min", 0)
         if self.acordado.ligado:
-            situacao, tom = "o Windows não suspende por inatividade enquanto o acesso de fora estiver ligado", "ok"
+            situacao, tom = "o Windows não suspende por inatividade enquanto o acesso externo estiver ligado", "ok"
         elif tomada:
             situacao, tom = f"sem o acesso ligado, o Windows suspende depois de {tomada} min parado", "acc"
         else:
@@ -321,7 +321,7 @@ class AcessoDeFora:
         pedido = self.fila.pedir(
             f"{sessao['nome']} propôs de fora: {rotulo}" + (f" — {nome}" if nome else ""),
             "permissao",
-            resumo=f"Pedido feito pelo acesso de fora ({sessao['email']}). Nada foi gravado: "
+            resumo=f"Pedido feito pelo acesso externo ({sessao['email']}). Nada foi gravado: "
                    "aprovar faz exatamente o que foi pedido.",
             etiquetas=["de fora"] + (["sai desta máquina"] if sai else []),
             pedido_por=f"{sessao['nome']} (de fora)",
@@ -402,7 +402,7 @@ class AcessoDeFora:
         try:
             import avisos
 
-            avisos.avisar("acesso", "Acesso de fora bloqueado", texto)
+            avisos.avisar("acesso", "Acesso externo bloqueado", texto)
         except Exception:  # noqa: BLE001 - sem aviso do Windows, o evento fica na tela
             pass
 

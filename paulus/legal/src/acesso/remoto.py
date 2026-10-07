@@ -151,7 +151,7 @@ class PortaoRemoto:
     async def __call__(self, app, scope, receive, send, cab: dict) -> None:
         send = com_cabecalhos(send, self._seguranca)
         if not self.ligado():
-            await recusar(scope, send, 403, "o acesso de fora está desligado")
+            await recusar(scope, send, 403, "o acesso externo está desligado")
             return
         ip = cab.get("cf-connecting-ip", "")
         estado = scope.setdefault("state", {})

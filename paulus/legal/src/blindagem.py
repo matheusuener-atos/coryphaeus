@@ -97,7 +97,7 @@ def aviso(achados: list[str]) -> str:
     if not achados:
         return ""
     return ("Este e-mail tem texto que parece tentar dar ordens ao assistente (" + "; ".join(achados) +
-            "). O PAULUS não segue ordens escritas em e-mails - confira o que for usar.")
+            "). O Paulus não segue ordens escritas em e-mails - confira o que for usar.")
 
 
 def conferir_saida(saida: str, fonte: str, permitidos: list[str] | None = None) -> tuple[str, list[str]]:

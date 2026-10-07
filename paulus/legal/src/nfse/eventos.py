@@ -86,7 +86,7 @@ class Eventos:
         if dias is None or not emitida:
             return {"dias": None, "ate": "", "dentro": True,
                     "frase": "O prazo de cancelamento é do município e não veio nos parâmetros: se tiver passado, a "
-                             "Sefin recusa (regra E0822) e o PAULUS mostra o motivo."}
+                             "Sefin recusa (regra E0822) e o Paulus mostra o motivo."}
         ate = date.fromisoformat(emitida) + timedelta(days=int(dias))
         dentro = hoje <= ate
         return {"dias": int(dias), "ate": ate.isoformat(), "dentro": dentro,
@@ -194,7 +194,7 @@ class Eventos:
         if ev["estado"] == REJEITADO:
             frases = "; ".join(x.get("frase", "") for x in ev["rejeicao"])[:500]
             raise RuntimeError(f"a Sefin recusou o cancelamento: {frases}")
-        return {"texto": "pedido enviado; aguardando confirmação: o PAULUS consulta os eventos da nota antes de pedir de novo",
+        return {"texto": "pedido enviado; aguardando confirmação: o Paulus consulta os eventos da nota antes de pedir de novo",
                 "desfecho": {"tela": "nfse", "id": nota["id"]}}
 
     def enviar(self, ev_id: int, quem: str = "") -> dict:
@@ -334,7 +334,7 @@ class Eventos:
             return
         original = self.notas.obter(nota["substitui_id"])
         if original and original["estado"] == EMITIDA:
-            self._marcar(original, SUBSTITUIDA, "substituída", "PAULUS",
+            self._marcar(original, SUBSTITUIDA, "substituída", "Paulus",
                          f"substituída pela NFS-e {nota['numero_nfse']} (a Sefin cancela por substituição)",
                          substituida_por_id=nota["id"])
 

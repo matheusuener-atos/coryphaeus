@@ -55,7 +55,7 @@ LIMITE_DO_PEDIDO = 64 * 1024
 
 FERRAMENTAS = {
     "leis_instaladas": {
-        "description": "Lista os códigos de lei guardados neste PAULUS (texto compilado do Planalto), com a data de "
+        "description": "Lista os códigos de lei guardados neste Paulus (texto compilado do Planalto), com a data de "
                        "importação. Use antes de citar, para saber o que dá para conferir.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
@@ -83,7 +83,7 @@ FERRAMENTAS = {
 FERRAMENTAS_DO_ESCRITORIO = {
     "sumulas_stj": {
         "publica": True,
-        "description": "Procura nas súmulas do STJ guardadas neste PAULUS (texto oficial) por palavras ou pelo número.",
+        "description": "Procura nas súmulas do STJ guardadas neste Paulus (texto oficial) por palavras ou pelo número.",
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string", "description": "palavras que o enunciado tem"},
             "numero": {"type": "string", "description": "opcional: o número da súmula"}}, "additionalProperties": False},
@@ -98,7 +98,7 @@ FERRAMENTAS_DO_ESCRITORIO = {
     # N8: as súmulas do STF e as vinculantes, e as teses de repercussão geral, no instalador.
     "sumulas_stf": {
         "publica": True,
-        "description": "Procura nas súmulas do STF e nas súmulas vinculantes guardadas neste PAULUS (texto oficial, do "
+        "description": "Procura nas súmulas do STF e nas súmulas vinculantes guardadas neste Paulus (texto oficial, do "
                        "portal do STF, na data do instalador) por palavras ou pelo número.",
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string", "description": "palavras que o enunciado tem"},
@@ -112,10 +112,10 @@ FERRAMENTAS_DO_ESCRITORIO = {
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string"}, "numero": {"type": "string"}}, "additionalProperties": False},
     },
-    # N13: os acórdãos do STJ baixados neste PAULUS (dados abertos, CC-BY).
+    # N13: os acórdãos do STJ baixados neste Paulus (dados abertos, CC-BY).
     "jurisprudencia_stj": {
         "publica": True,
-        "description": "Procura nos acórdãos do STJ baixados neste PAULUS (espelhos de acórdãos do Portal de Dados Abertos do "
+        "description": "Procura nos acórdãos do STJ baixados neste Paulus (espelhos de acórdãos do Portal de Dados Abertos do "
                        "STJ): a ementa oficial e a citação, por palavras, ou os que citam um artigo (codigo + artigo).",
         "inputSchema": {"type": "object", "properties": {
             "termo": {"type": "string"}, "codigo": {"type": "string", "description": "cc, cpc, cdc, cf..."},
@@ -136,7 +136,7 @@ FERRAMENTAS_DO_ESCRITORIO = {
     # com a conexão, e tarefa e compromisso param em Aprovações até o sim.
     "criar_rascunho": {
         "publica": False, "escreve": True,
-        "description": "Cria um rascunho novo no editor do PAULUS (título e texto). Não mexe em nenhum documento que existe; "
+        "description": "Cria um rascunho novo no editor do Paulus (título e texto). Não mexe em nenhum documento que existe; "
                        "a pessoa do escritório revisa lá.",
         "inputSchema": {"type": "object", "properties": {
             "titulo": {"type": "string"}, "texto": {"type": "string", "description": "o texto do rascunho; parágrafos separados por linha em branco"}},
@@ -256,7 +256,7 @@ class Conexoes:
         if privadas and not entendi:
             raise ValueError("marque que entendeu: os trechos vão para o assistente conectado e para a empresa dele")
         if any(escreve(f) for f in pedidas) and not entendi_escrever:
-            raise ValueError("marque que entendeu que esta conexão vai criar coisas no PAULUS: rascunhos, anotações e pedidos em Aprovações")
+            raise ValueError("marque que entendeu que esta conexão vai criar coisas no Paulus: rascunhos, anotações e pedidos em Aprovações")
         nome = " ".join(str(nome or "").split())[:60] or "Assistente"
         token = "paulus_mcp_" + secrets.token_urlsafe(32)
         conexao = {"id": uuid.uuid4().hex[:10], "nome": nome, "ferramentas": pedidas, "resumo": _resumo(token),
@@ -304,7 +304,7 @@ def _texto_do_artigo(a: dict, importado_em: str) -> str:
     linhas.append(a["texto"])
     if a.get("alterado_em"):
         linhas.append(f"Última alteração da redação (pelas notas do Planalto): {a['alterado_em']}.")
-    linhas.append(f"Fonte: texto compilado do Planalto, guardado no PAULUS do escritório em {importado_em or '?'}.")
+    linhas.append(f"Fonte: texto compilado do Planalto, guardado no Paulus do escritório em {importado_em or '?'}.")
     return "\n".join(linhas)
 
 
@@ -315,7 +315,7 @@ def chamar(leis, nome: str, argumentos: dict) -> tuple[str, bool]:
     instalados = {l["codigo"]: l for l in leis.instalados() if l["instalado"]}
     if nome == "leis_instaladas":
         if not instalados:
-            return "Nenhum código de lei guardado neste PAULUS ainda.", False
+            return "Nenhum código de lei guardado neste Paulus ainda.", False
         return "\n".join(f"{c} — {l['nome']} ({l['lei']}), {l['artigos']} artigos, importado em {l['importado_em']}"
                          for c, l in instalados.items()), False
     if nome == "citar_artigo":
@@ -324,7 +324,7 @@ def chamar(leis, nome: str, argumentos: dict) -> tuple[str, bool]:
         if codigo not in leis_mod.CODIGOS:
             return f"Não conheço o código '{codigo}'. Os que existem: {', '.join(leis_mod.CODIGOS)}.", True
         if codigo not in instalados:
-            return f"O {leis_mod.CODIGOS[codigo]['nome']} não está guardado neste PAULUS: não dá para conferir.", True
+            return f"O {leis_mod.CODIGOS[codigo]['nome']} não está guardado neste Paulus: não dá para conferir.", True
         a = leis.artigo(codigo, numero)
         if not a:
             return f"Não achei o art. {numero} no {leis_mod.CODIGOS[codigo]['nome']}.", True
@@ -401,7 +401,7 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
                                                numero=str(argumentos.get("numero") or ""), limite=40)
                    if "do STJ" in x["titulo"]][:8]
         if not achadas:
-            return "Nenhuma súmula do STJ com isso nas guardadas neste PAULUS.", False
+            return "Nenhuma súmula do STJ com isso nas guardadas neste Paulus.", False
         return "\n\n".join(f"{s['titulo']}\n{s['texto']}" for s in achadas), False
     if nome == "sumulas_stf":
         from biblioteca.rotas import procurar_sumulas
@@ -411,25 +411,25 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
                                                numero=str(argumentos.get("numero") or ""), limite=40)
                    if "do STF" in x["titulo"] and (not so_vinculantes or "Vinculante" in x["titulo"])][:8]
         if not achadas:
-            return "Nenhuma súmula do STF com isso nas guardadas neste PAULUS.", False
+            return "Nenhuma súmula do STF com isso nas guardadas neste Paulus.", False
         return "\n\n".join(f"{s['titulo']}\n{s['texto']}" for s in achadas), False
     if nome == "temas_repercussao_geral":
         achados = [t for t in estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=30)
                    if t.get("tribunal") == "STF"][:6]
         if not achados:
-            return "Nenhuma tese de repercussão geral com isso nas guardadas neste PAULUS.", False
+            return "Nenhuma tese de repercussão geral com isso nas guardadas neste Paulus.", False
         return "\n\n".join(f"{t['rotulo']} — {t['situacao']}" + (f" · {t['assuntos']}" if t.get("assuntos") else "")
                             + f"\nTese: {t['tese']}" for t in achados), False
     if nome == "jurisprudencia_stj":
         jur = getattr(estado, "jurisprudencia", None)
         if jur is None or not jur.instalado():
-            return "A jurisprudência do STJ não foi baixada neste PAULUS (Biblioteca › Jurisprudência).", False
+            return "A jurisprudência do STJ não foi baixada neste Paulus (Biblioteca › Jurisprudência).", False
         if argumentos.get("codigo") and argumentos.get("artigo"):
             achados = jur.do_artigo(str(argumentos["codigo"]).lower(), str(argumentos["artigo"]), limite=6)
         else:
             achados = jur.procurar(str(argumentos.get("termo") or ""), limite=6)
         if not achados:
-            return "Nenhum acórdão com isso nos baixados neste PAULUS.", False
+            return "Nenhum acórdão com isso nos baixados neste Paulus.", False
         return "\n\n".join(f"{a['citacao']}\nEmenta: {a['ementa'][:1200]}" for a in achados), False
     if nome == "temas_stj":
         achados = [t for t in estado.temas.procurar(str(argumentos.get("termo") or ""), str(argumentos.get("numero") or ""), limite=30)
@@ -444,7 +444,7 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
 
         a = estado.leis.artigo(str(argumentos.get("codigo", "")).lower(), str(argumentos.get("numero", "")))
         if not a:
-            return "Artigo não encontrado nos códigos guardados neste PAULUS.", True
+            return "Artigo não encontrado nos códigos guardados neste Paulus.", True
         quando = str(argumentos.get("data") or _date.today().isoformat())[:10]
         try:
             _date.fromisoformat(quando)
@@ -486,7 +486,7 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
             return "Esse documento não está entre os liberados para esta conexão.", True
         metas, _ = estado.saber.metadados_de([doc])
         if not metas:
-            return "Esse documento ainda não foi lido pelo PAULUS: não há fatos conferidos.", False
+            return "Esse documento ainda não foi lido pelo Paulus: não há fatos conferidos.", False
         cartao = ajuda.cartao(metas[0], doc.name) or {}
         itens = cartao.get("itens") or []
         if not itens:
@@ -514,7 +514,7 @@ def _escrever(estado, conexao: dict, nome: str, argumentos: dict) -> tuple[str, 
         corpo = "".join(f"<p>{_html.escape(' '.join(p.split()))}</p>" for p in _re.split(r"\n\s*\n", texto) if p.strip())
         corpo = f"<p><em>Rascunho criado pelo {_html.escape(quem)} — revise antes de usar.</em></p>" + corpo
         id_ = estado.documentos.criar(f"{titulo} (rascunho do assistente)", "texto", corpo)
-        return f"Rascunho criado no editor do PAULUS: “{titulo} (rascunho do assistente)” (número {id_}). Quem revisa é o escritório.", False
+        return f"Rascunho criado no editor do Paulus: “{titulo} (rascunho do assistente)” (número {id_}). Quem revisa é o escritório.", False
     if nome == "anotar_no_servico":
         alvo = str(argumentos.get("servico") or "").strip()
         texto = " ".join(str(argumentos.get("texto") or "").split())[:2000]
@@ -666,7 +666,7 @@ class ServidorMCP:
         if metodo == "initialize":
             return ok({"protocolVersion": PROTOCOLO, "capabilities": {"tools": {"listChanged": False}},
                        "serverInfo": {"name": "paulus", "version": self.versao or "0"},
-                       "instructions": "O PAULUS do escritório: leis do texto compilado do Planalto (o revogado vem "
+                       "instructions": "O Paulus do escritório: leis do texto compilado do Planalto (o revogado vem "
                                        "marcado), súmulas e temas do STJ e do STF e, se liberado para esta conexão, documentos "
                                        "do escritório. As ferramentas que escrevem só criam (rascunho, anotação) ou pedem em "
                                        "Aprovações (tarefa, compromisso) - nada apaga nem muda o que existe. Cite pelo texto "
@@ -706,7 +706,7 @@ class ServidorMCP:
         # Só deste computador, e nunca pelo túnel (que também chega pelo 127.0.0.1).
         cliente = (scope.get("client") or ("", 0))[0]
         if cliente not in ("127.0.0.1", "::1") or any(k.startswith("cf-") for k in cab) or "x-forwarded-for" in cab:
-            await recusar(scope, send, 403, "o MCP do PAULUS só atende este computador")
+            await recusar(scope, send, 403, "o MCP do Paulus só atende este computador")
             return
         if scope.get("method") != "POST":
             await recusar(scope, send, 405, "use POST com JSON-RPC")

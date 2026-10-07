@@ -91,10 +91,10 @@ def _frase_do_erro(resposta, servico: str) -> ErroGoogle:
     mensagem = str(erro.get("message", ""))
     rotulo = ROTULOS.get(servico, "Google")
     if resposta.status_code == 403 and ("insufficient" in motivo.lower() or "SCOPE" in motivo):
-        return ErroGoogle(f"falta autorizar o PAULUS a usar {rotulo}: em Configurações › Conexões, clique em Conectar",
+        return ErroGoogle(f"falta autorizar o Paulus a usar {rotulo}: em Configurações › Conexões, clique em Conectar",
                           autorizar=servico, status=403)
     if resposta.status_code == 403 and ("accessNotConfigured" in motivo or "SERVICE_DISABLED" in motivo or "has not been used" in mensagem):
-        return ErroGoogle(f"a API de {rotulo} não está ligada no projeto do PAULUS no Google Cloud - "
+        return ErroGoogle(f"a API de {rotulo} não está ligada no projeto do Paulus no Google Cloud - "
                           "é um passo de quem publica o programa (docs/google-servicos.md)", status=403)
     if resposta.status_code == 401:
         return ErroGoogle("o Google recusou o acesso: entre de novo com a conta Google em E-mail › Contas", status=401)
@@ -158,7 +158,7 @@ class Google:
             "summary": c["titulo"],
             "start": {"dateTime": inicio.isoformat(timespec="seconds")},
             "end": {"dateTime": fim.isoformat(timespec="seconds")},
-            "description": "Marcado no PAULUS.",
+            "description": "Marcado no Paulus.",
             "extendedProperties": {"private": {"paulus_id": str(c["id"])}},
         }
         if c.get("onde") in ONDE_ROTULO:

@@ -269,7 +269,7 @@ def conferir_todos(base) -> dict:
     agora = _agora()
     for c in base.buscar("SELECT id FROM conflitos WHERE estado = 'aberto'"):
         if int(c["id"]) not in achadas:
-            base.escrever("UPDATE conflitos SET estado = 'resolvido', resolucao = 'sumiu', resolvido_por = 'PAULUS', resolvido_em = ?"
+            base.escrever("UPDATE conflitos SET estado = 'resolvido', resolucao = 'sumiu', resolvido_por = 'Paulus', resolvido_em = ?"
                           " WHERE id = ?", (agora, c["id"]))
             fechados += 1
     return {"abertos": base.contar("conflitos", "estado = 'aberto'"), "fechados_sozinhos": fechados}

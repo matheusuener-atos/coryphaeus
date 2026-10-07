@@ -471,7 +471,7 @@ class Cofre:
         """
         if self.origem == "windows":
             if not _confere_senha(senha, self.dados.get("senha_paulus") or ""):
-                return Certificado(erro="senha do PAULUS incorreta")
+                return Certificado(erro="senha do Paulus incorreta")
             return ler_do_windows(self.windows.get("der") or "")
         alvo = self.arquivo
         if not alvo or not alvo.exists():

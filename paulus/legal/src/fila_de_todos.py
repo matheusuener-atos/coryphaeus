@@ -249,7 +249,7 @@ def para_tela(estado, registro: dict, dono: str) -> dict:
     if viva and not viva["vez"].saiu:
         saida.update(estado.fila_modelo.para_evento(viva["vez"]))
     elif saida["estado"] == "interrompida":
-        saida["motivo"] = registro.get("motivo") or "o PAULUS reiniciou antes de mandar"
+        saida["motivo"] = registro.get("motivo") or "o Paulus reiniciou antes de mandar"
     return saida
 
 
@@ -260,7 +260,7 @@ def recuperar(estado) -> int:
         mudou = False
         for r in trabalho.contexto.get("pendentes") or []:
             if r.get("estado") == "na_fila" and r["id"] not in _VIVAS:
-                r["estado"], r["motivo"] = "interrompida", "o PAULUS reiniciou antes de mandar"
+                r["estado"], r["motivo"] = "interrompida", "o Paulus reiniciou antes de mandar"
                 mudou = True
                 n += 1
         if mudou:

@@ -583,7 +583,7 @@
    ],
    "nao_faz": [
     "A visão Prazos não calcula prazo: mostra a data que o modelo leu no documento, nos próximos 90 dias.",
-    "Apagar do disco só vale para o que está na pasta do próprio PAULUS; das pastas incluídas, o documento só sai do Acervo.",
+    "Apagar do disco só vale para o que está na pasta do próprio Paulus; das pastas incluídas, o documento só sai do Acervo.",
     "Não vigia disco inteiro, a pasta do usuário inteira nem pasta de sistema."
    ],
    "tarefas": [
@@ -677,7 +677,7 @@
      ],
      "passos": [
       "Abra Acervo e marque os documentos.",
-      "Na barra de seleção, clique em Mover para pasta, Exportar ou no ícone de lixeira (Apagar do disco, só para o que é da pasta do PAULUS).",
+      "Na barra de seleção, clique em Mover para pasta, Exportar ou no ícone de lixeira (Apagar do disco, só para o que é da pasta do Paulus).",
       "O pedido vai para Aprovações. Confirme lá para que aconteça."
      ],
      "evidencia": "frontend/js/12-telas-e-acervo.js:588"
@@ -1205,7 +1205,7 @@
      "passos": [
       "Em Assinatura › Certificado digital, clique em Usar um já instalado no Windows.",
       "Escolha o certificado na lista.",
-      "Crie uma senha do PAULUS e clique em Usar este certificado."
+      "Crie uma senha do Paulus e clique em Usar este certificado."
      ],
      "evidencia": "frontend/js/15-certificado.js:111"
     },
@@ -1409,7 +1409,7 @@
      "passos": [
       "Abra Financeiro e, em Papéis do mês, na parte de Notas fiscais, clique em Registrar.",
       "Preencha Número da nota, Valor, Emitida em e Cliente.",
-      "Clique em Guardar registro. Serve para a nota emitida fora do PAULUS (na prefeitura ou no Emissor Nacional)."
+      "Clique em Guardar registro. Serve para a nota emitida fora do Paulus (na prefeitura ou no Emissor Nacional)."
      ],
      "evidencia": "frontend/js/20-financeiro.js:1069"
     },
@@ -1656,7 +1656,7 @@
       "Abra E-mail no menu à esquerda e clique em Contas.",
       "Clique em Adicionar conta e depois em Entrar com Google.",
       "Faça o login na página do Google que abre no navegador e autorize.",
-      "Volte ao PAULUS: a caixa de entrada abre sozinha."
+      "Volte ao Paulus: a caixa de entrada abre sozinha."
      ],
      "evidencia": "frontend/js/30-email-oauth.js:58"
     },
@@ -2067,7 +2067,7 @@
     "preferências"
    ],
    "faz": [
-    "Seções: Meus dados, Assistente e modelo, Modelos, Desempenho, Conexões, Acesso de fora, Escritório e equipe, Backup, Biblioteca, Aparência e avisos, Módulos, Feedback, Versão e Lixeira.",
+    "Seções: Meus dados, Assistente e modelo, Modelos, Desempenho, Conexões, Acesso externo, Escritório e equipe, Backup, Biblioteca, Aparência e avisos, Módulos, Feedback, Versão e Lixeira.",
     "Assistente e modelo: escolhe o modelo do Ollama, liga “Ir devagar quando eu usar o PC”, define os Limites da IA e reindexa o Acervo.",
     "Na Lixeira os itens apagados ficam por 30 dias e podem ser restaurados.",
     "As mudanças só valem depois de Salvar alterações (ou Ctrl+S).",
@@ -2321,7 +2321,7 @@
    ],
    "faz": [
     "A estante (livros, manuais e tabelas por área) fica na Biblioteca, no menu; Configurações › Biblioteca tem as chaves e os lembretes.",
-    "A Constituição, os códigos (CC, CPC, CP, CPP, CLT, CDC, CTN, CTB, ECA e Lei do Inquilinato) e as súmulas do STJ vêm com o PAULUS, no texto oficial, e são consultados sem internet.",
+    "A Constituição, os códigos (CC, CPC, CP, CPP, CLT, CDC, CTN, CTB, ECA e Lei do Inquilinato) e as súmulas do STJ vêm com o Paulus, no texto oficial, e são consultados sem internet.",
     "Consulta um processo pelo número único no DataJud, a base pública do CNJ: só o número sai da máquina.",
     "Material de consulta: guarda PDFs, DOCX, TXT e MD nesta máquina e, em cada pergunta da conversa, consulta os trechos que têm a ver, citando o material e a página.",
     "Guarda lembretes que entram em toda pergunta da conversa; as regras de redação também entram quando o assistente escreve no editor.",
@@ -2336,7 +2336,7 @@
    ],
    "tarefas": [
     {
-     "pergunta": "Como ensino o PAULUS com um PDF?",
+     "pergunta": "Como ensino o Paulus com um PDF?",
      "palavras": [
       "ensinar com pdf",
       "aprender pdf",
@@ -2421,13 +2421,13 @@
      "passos": [
       "Abra a Biblioteca, no menu.",
       "Na Estante, clique na obra e, na faixa que abre embaixo, no … escolha Conferir a ficha.",
-      "Corrija o que precisar e clique em Guardar a ficha: o que você escreve vale sobre o que o PAULUS leu."
+      "Corrija o que precisar e clique em Guardar a ficha: o que você escreve vale sobre o que o Paulus leu."
      ],
      "evidencia": "frontend/js/59-estante.js:304",
      "c4": true
     },
     {
-     "pergunta": "Como importo um pacote de material de outro PAULUS?",
+     "pergunta": "Como importo um pacote de material de outro Paulus?",
      "palavras": [
       "importar pacote",
       "importo um pacote",
@@ -2490,7 +2490,7 @@
    "nao_faz": [
     "Não aperta enviar no WhatsApp por você e não lê as suas conversas.",
     "O anexo não vai sozinho: você arrasta o arquivo para a conversa.",
-    "Não lê o seu Drive inteiro pela internet: só o que o PAULUS enviou. Para o Acervo ler tudo, use o Google Drive para computador.",
+    "Não lê o seu Drive inteiro pela internet: só o que o Paulus enviou. Para o Acervo ler tudo, use o Google Drive para computador.",
     "Não edita os eventos do Google: eles aparecem na Agenda só para ver."
    ],
    "tarefas": [
@@ -2622,13 +2622,13 @@
    "faz": [
     "Fica em Agenda › To-do, no filtro Publicações (só no computador do escritório).",
     "Consulta o Diário de Justiça Eletrônico Nacional (DJEN) pelas OABs acompanhadas: a de Meus dados e as que você acrescentar em OABs.",
-    "Com Consultar todo dia ligado, consulta uma vez por dia, com o PAULUS aberto; Consultar agora consulta na hora.",
+    "Com Consultar todo dia ligado, consulta uma vez por dia, com o Paulus aberto; Consultar agora consulta na hora.",
     "Cada comunicação nova aparece em Novas, com o tipo, o processo, o tribunal e a data de disponibilização.",
     "Criar prazo conta os dias a partir da publicação e cria a tarefa na lista Prazos, com a conta na anotação para você conferir.",
     "Só o número e a UF da OAB saem deste computador, na consulta ao CNJ."
    ],
    "nao_faz": [
-    "De fora do escritório (Acesso de fora), o filtro Publicações não aparece.",
+    "De fora do escritório (Acesso externo), o filtro Publicações não aparece.",
     "Criar prazo não protocola nada: só cria a tarefa."
    ],
    "tarefas": [
@@ -2670,7 +2670,7 @@
      ],
      "passos": [
       "Em Agenda › To-do › Publicações, clique em Consultar agora.",
-      "Para consultar sozinho uma vez por dia, com o PAULUS aberto, ligue Consultar todo dia."
+      "Para consultar sozinho uma vez por dia, com o Paulus aberto, ligue Consultar todo dia."
      ],
      "evidencia": "frontend/js/48-publicacoes.js:33",
      "c4": true
@@ -2723,7 +2723,7 @@
      "passos": [
       "Em Agenda › To-do › Publicações, clique em Feriados (ou aperte Ctrl+K e escolha Feriados do escritório).",
       "Escreva um por linha, com a data primeiro (ex.: 24/10/2026 Aniversário de Goiânia), e clique em Guardar.",
-      "Os nacionais, o Carnaval, a Sexta-feira Santa, Corpus Christi e o recesso de 20/12 a 20/01 o PAULUS já conta."
+      "Os nacionais, o Carnaval, a Sexta-feira Santa, Corpus Christi e o recesso de 20/12 a 20/01 o Paulus já conta."
      ],
      "evidencia": "frontend/js/48-publicacoes.js:134",
      "c4": true
@@ -2950,19 +2950,19 @@
     "túnel"
    ],
    "faz": [
-    "Fica em Configurações › Acesso de fora. Desligado de fábrica: só o computador do escritório liga.",
-    "Ligar o acesso de fora tem três etapas: o Endereço (nome.paulus.ia.br), a Sua conta de titular com o autenticador do celular, e Confirmar no navegador.",
+    "Fica em Configurações › Acesso externo. Desligado de fábrica: só o computador do escritório liga.",
+    "Ligar o acesso externo tem três etapas: o Endereço (nome.paulus.ia.br), a Sua conta de titular com o autenticador do celular, e Confirmar no navegador.",
     "Contas: cada pessoa entra com a própria conta; Permissões diz o que cada uma vê.",
     "Quem acessou registra neste computador quem entrou, quando, o que abriu e o que baixou; Sessões abertas de fora encerra quem está dentro.",
     "Os documentos, o índice e o modelo de IA não saem deste computador: o que passa pela internet é a tela e o que se digita nela."
    ],
    "nao_faz": [
-    "Com o computador do escritório desligado ou o PAULUS fechado, o endereço para de responder.",
+    "Com o computador do escritório desligado ou o Paulus fechado, o endereço para de responder.",
     "De fora, algumas telas e ações só existem no computador do escritório."
    ],
    "tarefas": [
     {
-     "pergunta": "Como uso o PAULUS de casa ou do celular?",
+     "pergunta": "Como uso o Paulus de casa ou do celular?",
      "palavras": [
       "=paulus de casa",
       "=programa de casa",
@@ -2984,8 +2984,8 @@
       "=usar o paulus de fora"
      ],
      "passos": [
-      "Abra Configurações e clique em Acesso de fora.",
-      "No cartão Ligar o acesso de fora, confira o Endereço (nome.paulus.ia.br).",
+      "Abra Configurações e clique em Acesso externo.",
+      "No cartão Ligar o acesso externo, confira o Endereço (nome.paulus.ia.br).",
       "Em Sua conta de titular, clique em Criar a conta e ler o QR e leia o código com o Google Authenticator.",
       "Clique em Conectar e confirme no navegador, que abre em paulus.ia.br/conectar."
      ],
@@ -2993,7 +2993,7 @@
      "c4": true
     },
     {
-     "pergunta": "Como vejo quem acessou o PAULUS de fora?",
+     "pergunta": "Como vejo quem acessou o Paulus de fora?",
      "palavras": [
       "quem acessou",
       "registro de acessos",
@@ -3002,14 +3002,14 @@
       "=acessos de fora"
      ],
      "passos": [
-      "Abra Configurações e clique em Acesso de fora.",
+      "Abra Configurações e clique em Acesso externo.",
       "O cartão Quem acessou mostra quem entrou, quando e o que abriu; Filtrar escolhe o que ver e Exportar PDF guarda a lista inteira."
      ],
      "evidencia": "frontend/js/42-acesso.js:136",
      "c4": true
     },
     {
-     "pergunta": "Como desligo o acesso de fora?",
+     "pergunta": "Como desligo o acesso externo?",
      "palavras": [
       "desligar o acesso",
       "desligo o acesso",
@@ -3018,9 +3018,9 @@
       "tirar do ar"
      ],
      "passos": [
-      "Abra Configurações e clique em Acesso de fora.",
+      "Abra Configurações e clique em Acesso externo.",
       "No cartão Endereço, clique em Desligar: o túnel para e o endereço fica guardado.",
-      "Para apagar o endereço em paulus.ia.br, clique em Remover o acesso de fora."
+      "Para apagar o endereço em paulus.ia.br, clique em Remover o acesso externo."
      ],
      "evidencia": "frontend/js/43-acesso-tunel.js:407",
      "c4": true
@@ -3035,14 +3035,14 @@
       "derrubar quem"
      ],
      "passos": [
-      "Abra Configurações e clique em Acesso de fora.",
+      "Abra Configurações e clique em Acesso externo.",
       "No cartão Sessões abertas de fora, clique em Encerrar todas as sessões e confirme."
      ],
      "evidencia": "frontend/js/42-acesso.js:311",
      "c4": true
     },
     {
-     "pergunta": "Como dou acesso de fora a alguém da equipe?",
+     "pergunta": "Como dou acesso externo a alguém da equipe?",
      "palavras": [
       "acesso para a equipe",
       "acesso a alguem",
@@ -3051,7 +3051,7 @@
       "nova conta de acesso"
      ],
      "passos": [
-      "Abra Configurações e clique em Acesso de fora.",
+      "Abra Configurações e clique em Acesso externo.",
       "No cartão Contas, clique em Convidar pela internet (aparece com a sua conta de titular pronta) ou em Criar aqui.",
       "Na linha da conta, clique em Permissões e escolha o que a pessoa vê."
      ],

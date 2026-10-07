@@ -333,7 +333,7 @@ def test_troca_e_renovacao(token: TokenFalso) -> None:
         correio_oauth.renovar("google", {"client_id": "cliente-ruim"}, "x", endpoint=token.url)
         checar(False, "client errado vira erro")
     except correio_oauth.ErroOAuth as exc:
-        checar(not exc.precisa_entrar and "aplicativo PAULUS" in str(exc), "client ID recusado diz que o registro do aplicativo precisa ser conferido")
+        checar(not exc.precisa_entrar and "aplicativo Paulus" in str(exc), "client ID recusado diz que o registro do aplicativo precisa ser conferido")
     try:
         correio_oauth.renovar("google", cred, "x", endpoint="http://127.0.0.1:9/token")
         checar(False, "sem rede vira erro")

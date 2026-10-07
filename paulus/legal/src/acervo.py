@@ -338,7 +338,7 @@ def resumo_do_lote(acao: str, itens: list[dict], destino: str = "") -> str:
                 f"Os arquivos saem de onde estão; dá para desfazer pelo diário.")
     if acao == "apagar":
         return (f"Tirar {quantos} {plural} da biblioteca: {primeiros}{se_mais}. "
-                f"Apaga a cópia que o PAULUS guarda; o arquivo original de onde "
+                f"Apaga a cópia que o Paulus guarda; o arquivo original de onde "
                 f"veio não é tocado.")
     if acao == "exportar":
         return (f"Copiar {quantos} {plural} para {destino}: {primeiros}{se_mais}. "

@@ -160,7 +160,7 @@ def politica_efetiva(sessao: dict, metodo: str, caminho_da_rota: str | None, pol
     nivel = niveis.get(m["id"], m["padrao"])
     chave = ("GET" if metodo == "HEAD" else metodo, caminho_da_rota)
     if nivel == NAO:
-        return politicas.BLOQUEADO, f"você não tem acesso a {m['rotulo']}; o titular libera em Configurações › Acesso de fora"
+        return politicas.BLOQUEADO, f"você não tem acesso a {m['rotulo']}; o titular libera em Configurações › Acesso externo"
     if politica == politicas.BLOQUEADO:
         if nivel == FAZ and chave in m.get("libera_faz", set()):
             return politicas.PERMITIDO, ""
@@ -169,7 +169,7 @@ def politica_efetiva(sessao: dict, metodo: str, caminho_da_rota: str | None, pol
         return politica, ""
     le = metodo in SEGUROS or chave in m.get("consultas", set()) or politica == politicas.DOWNLOAD
     if nivel == VER and not le:
-        return politicas.BLOQUEADO, f"você só pode ver {m['rotulo']}; o titular libera em Configurações › Acesso de fora"
+        return politicas.BLOQUEADO, f"você só pode ver {m['rotulo']}; o titular libera em Configurações › Acesso externo"
     if nivel == FAZ and politica in (politicas.PROPOR, politicas.TITULAR):
         return politicas.PERMITIDO, ""
     return politica, ""

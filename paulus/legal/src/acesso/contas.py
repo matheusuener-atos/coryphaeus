@@ -50,7 +50,7 @@ SCRYPT_MEMORIA = 64 * 1024 * 1024
 TOTP_PASSO = 30
 TOTP_DIGITOS = 6
 TOTP_JANELA = 1
-EMISSOR = "PAULUS"
+EMISSOR = "Paulus"
 CODIGOS_DE_RECUPERACAO = 10
 
 SESSAO_OCIOSA_S = 30 * 60
@@ -155,7 +155,7 @@ def uri_otpauth(segredo: str, email: str) -> str:
     from urllib.parse import quote
 
     # Os dois-pontos entre emissor e conta ficam literais: e o formato que os
-    # autenticadores mostram como "PAULUS (ana@...)".
+    # autenticadores mostram como "Paulus (ana@...)".
     rotulo = quote(f"{EMISSOR}:{email}", safe=":")
     return (f"otpauth://totp/{rotulo}?secret={segredo}&issuer={quote(EMISSOR)}"
             f"&algorithm=SHA1&digits={TOTP_DIGITOS}&period={TOTP_PASSO}")
@@ -658,7 +658,7 @@ class Contas:
         linha = self._conta_por_email(email)
         if not linha:
             self._errou_ip(ip)
-            raise ErroEntrada("esta conta do Google não tem acesso ao PAULUS deste escritório; peça um convite ao titular")
+            raise ErroEntrada("esta conta do Google não tem acesso ao Paulus deste escritório; peça um convite ao titular")
         if not pronta(linha):
             raise ErroEntrada("esta conta ainda não confirmou o autenticador; abra o convite de novo")
         pendente = secrets.token_urlsafe(24)

@@ -127,7 +127,7 @@ def ler(conteudo: bytes) -> dict:
     except (ValueError, UnicodeDecodeError) as exc:
         raise ValueError("o pacote está corrompido") from exc
     if manifesto.get("formato") != FORMATO:
-        raise ValueError("formato de pacote que esta versão do PAULUS não conhece")
+        raise ValueError("formato de pacote que esta versão do Paulus não conhece")
     if not isinstance(ficha, dict) or ficha.get("tipo") not in EXPORTAVEIS:
         raise ValueError("o pacote não é de artigo, modelo de peça ou manual - não entra")
     return {"manifesto": manifesto, "ficha": ficha, "texto": texto, "anotacoes": anotacoes}

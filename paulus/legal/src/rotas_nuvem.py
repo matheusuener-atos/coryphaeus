@@ -148,7 +148,7 @@ def montar(estado, app, dados_dir) -> None:
     def nuvem_guardar_chave(payload: Chave) -> dict:
         """Guarda cifrada e testa (a única chamada: a lista de modelos que a chave enxerga)."""
         if payload.provedor == "paulus":
-            raise HTTPException(status_code=400, detail="o PAULUS (nuvem) não usa chave colada: ative com o Google")
+            raise HTTPException(status_code=400, detail="o Paulus (nuvem) não usa chave colada: ative com o Google")
         try:
             nuvem.guardar_chave(estado, payload.provedor, payload.chave)
         except ValueError as exc:

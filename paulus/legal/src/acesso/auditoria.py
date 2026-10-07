@@ -39,10 +39,10 @@ ACOES = {
     "recusa": "recusou",
     "proposta": "propôs",
     "recusado": "tentou o que é só do escritório",
-    "conexao": "conectou o acesso de fora",
-    "ligado": "ligou o acesso de fora",
-    "desligado": "desligou o acesso de fora",
-    "removido": "removeu o acesso de fora",
+    "conexao": "conectou o acesso externo",
+    "ligado": "ligou o acesso externo",
+    "desligado": "desligou o acesso externo",
+    "removido": "removeu o acesso externo",
     "liberado": "endereço liberado por falta de uso",
     "senha": "trocou a senha",
     "sessoes": "encerrou as sessões",
@@ -211,7 +211,7 @@ class Auditoria:
             saida.append({**{k: l.get(k, "") for k in CAMPOS}, "acao_rotulo": ACOES.get(l.get("acao", ""), l.get("acao", ""))})
         return saida
 
-    def pdf(self, linhas: list[dict], titulo: str = "Registro de acessos de fora") -> bytes:
+    def pdf(self, linhas: list[dict], titulo: str = "Registro do acesso externo") -> bytes:
         """O registro filtrado em PDF, pelo reportlab que o programa ja usa, com o estado da corrente."""
         from io import BytesIO
 
@@ -225,7 +225,7 @@ class Auditoria:
         pequeno = estilos["BodyText"].clone("pequeno", fontSize=8, leading=10)
         saida = BytesIO()
         doc = SimpleDocTemplate(saida, pagesize=landscape(A4), leftMargin=1.5 * cm, rightMargin=1.5 * cm,
-                                topMargin=1.5 * cm, bottomMargin=1.5 * cm, title=titulo, author="PAULUS")
+                                topMargin=1.5 * cm, bottomMargin=1.5 * cm, title=titulo, author="Paulus")
         conf = self.verificar()
         estado = (f"Corrente de hashes íntegra: {conf['total']} linha(s) conferidas." if conf["integro"]
                   else f"ATENÇÃO: o registro foi alterado — a corrente de hashes quebra na linha {conf['linha']} de {conf['total']}.")

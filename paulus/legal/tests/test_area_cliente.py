@@ -126,7 +126,7 @@ def test_http() -> None:
 
     print("  compartilhar")
     r = local.post(f"/api/servicos/{sid}/cliente/compartilhar", json={"nome": "João Cliente", "email": "joao@cliente.com"})
-    checar(r.status_code == 409 and "acesso de fora" in r.json()["detail"], "sem o acesso de fora ligado, nao compartilha (e diz por que)", r.text[:200])
+    checar(r.status_code == 409 and "acesso externo" in r.json()["detail"], "sem o acesso externo ligado, nao compartilha (e diz por que)", r.text[:200])
     estado.prefs.dados["acesso_remoto"].update({"ligado": True, "hostname": "moura.paulus.ia.br"})
     r = local.post(f"/api/servicos/{sid}/cliente/compartilhar", json={"nome": "João Cliente", "email": "Joao@Cliente.com", "cadastro_id": cliente_id})
     d = r.json()

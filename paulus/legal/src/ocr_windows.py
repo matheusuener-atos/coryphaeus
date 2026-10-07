@@ -75,7 +75,7 @@ def _situacao_na_linha() -> dict:
         try:
             motor, idioma, idiomas = _criar_motor()
         except ImportError:
-            _situacao = {"ok": False, "idioma": "", "motivo": "o leitor de imagem do Windows não está instalado no PAULUS"}
+            _situacao = {"ok": False, "idioma": "", "motivo": "o leitor de imagem do Windows não está instalado no Paulus"}
             return _situacao
         except Exception as exc:  # noqa: BLE001 - Windows antigo, serviço desligado
             _situacao = {"ok": False, "idioma": "", "motivo": "o leitor de imagem do Windows não respondeu: " + str(exc)[:120]}

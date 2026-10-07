@@ -88,7 +88,7 @@ def test_registro() -> None:
     menu_explorer.ligar(exe, BASE_TESTE)
     comandos = {t: _ler(t, r"\command") for t in menu_explorer.TIPOS}
     checar(all(c == f'"{exe}" --perguntar "%1"' for c in comandos.values()), "ligar: os cinco tipos com o comando do desktop.py", comandos)
-    checar(_ler(".pdf") == "Perguntar ao PAULUS", "o rotulo do menu", _ler(".pdf"))
+    checar(_ler(".pdf") == "Perguntar ao Paulus", "o rotulo do menu", _ler(".pdf"))
     checar(menu_explorer.estado(exe, BASE_TESTE)["ligado"], "o estado diz ligado")
     o = menu_explorer.estado(outro, BASE_TESTE)
     checar(not o["ligado"] and o["de_outro"], "outra instalacao ve que o menu e de outro PAULUS", o)

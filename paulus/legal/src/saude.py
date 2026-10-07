@@ -73,7 +73,7 @@ def verificar(*, dados: Path, modelo_ok: tuple[bool, str], backup: dict, acesso:
         livre = shutil.disk_usage(dados).free
         estado = "ok" if livre >= 5e9 else ("aviso" if livre >= 1e9 else "erro")
         itens.append(_item("disco", "Espaço em disco", estado, _gb(livre) + " livres",
-                           "" if estado == "ok" else "Libere espaço: com o disco cheio, o PAULUS não grava documentos nem backups."))
+                           "" if estado == "ok" else "Libere espaço: com o disco cheio, o Paulus não grava documentos nem backups."))
     except OSError:
         pass
     ok, msg = modelo_ok
@@ -95,20 +95,20 @@ def verificar(*, dados: Path, modelo_ok: tuple[bool, str], backup: dict, acesso:
             itens.append(_item("backup", "Backup", "aviso", "ainda não fez", "Faça o primeiro em Configurações › Backup."))
         elif dias > 2:
             itens.append(_item("backup", "Backup", "aviso", f"há {int(dias)} dias",
-                               "O backup automático só roda com o PAULUS aberto. Faça um agora em Configurações › Backup."))
+                               "O backup automático só roda com o Paulus aberto. Faça um agora em Configurações › Backup."))
         else:
             itens.append(_item("backup", "Backup", "ok", "em dia"))
     if acesso.get("ligado"):
         conectado = acesso.get("estado") == "conectado"
-        itens.append(_item("acesso", "Acesso de fora", "ok" if conectado else "aviso",
+        itens.append(_item("acesso", "Acesso externo", "ok" if conectado else "aviso",
                            acesso.get("hostname") or ("conectado" if conectado else acesso.get("estado", "")),
                            "" if conectado else "O túnel não está conectado: confira a internet deste computador."))
     else:
-        itens.append(_item("acesso", "Acesso de fora", "neutro", "desligado"))
+        itens.append(_item("acesso", "Acesso externo", "neutro", "desligado"))
     if sem_internet is not None:
         pronto = bool(sem_internet.get("pronto"))
         itens.append(_item("sem_internet", "Entrar sem internet", "ok" if pronto else "aviso", "ligado" if pronto else "desligado",
-                           "" if pronto else "Sem internet, o PAULUS travado não abre. Ligue em Configurações › Escritório e equipe."))
+                           "" if pronto else "Sem internet, o Paulus travado não abre. Ligue em Configurações › Escritório e equipe."))
     if anuncio and anuncio.get("nova"):
         itens.append(_item("versao", "Versão", "aviso", f"{versao} · a {anuncio.get('versao')} está disponível",
                            "Atualize em Configurações › Versão."))
@@ -122,7 +122,7 @@ def verificar(*, dados: Path, modelo_ok: tuple[bool, str], backup: dict, acesso:
 
 def diagnostico(itens: list[dict], *, versao: str, extras: dict) -> str:
     """O texto que o escritorio manda ao suporte: estado e erros, sem dado de cliente."""
-    linhas = [f"PAULUS {versao} — diagnóstico de {time.strftime('%d/%m/%Y %H:%M')}", "",
+    linhas = [f"Paulus {versao} — diagnóstico de {time.strftime('%d/%m/%Y %H:%M')}", "",
               f"Windows: {platform.platform()}", f"Python: {sys.version.split()[0]}"]
     try:
         import psutil

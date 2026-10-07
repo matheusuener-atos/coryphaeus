@@ -63,7 +63,7 @@ from versao import VERSAO
 
 SITE = os.environ.get("PAULUS_SITE", "https://paulus.ia.br").rstrip("/")
 PROVEDORES = {
-    "paulus": {"nome": "PAULUS (nuvem)", "padrao": "meta-llama/Llama-3.3-70B-Instruct", "formato": "openai",
+    "paulus": {"nome": "Paulus (nuvem)", "padrao": "meta-llama/Llama-3.3-70B-Instruct", "formato": "openai",
                "modelos": SITE + "/api/ia/modelos", "url": SITE + "/api/ia/v1/chat/completions", "assinatura": True},
     "deepinfra": {"nome": "DeepInfra (chave do escritório)", "padrao": "meta-llama/Llama-3.3-70B-Instruct", "formato": "openai",
                   "modelos": "https://api.deepinfra.com/v1/openai/models",
@@ -161,7 +161,7 @@ TERMO_VERSAO = "2026-10-03"
 def termo(provedor: str) -> list[str]:
     """O texto que o titular lê antes do sim. Cada frase tem código que a garante (tests/test_v_nuvem.py)."""
     if provedor == "paulus":
-        para_onde = ("Para onde: para o portão do PAULUS em paulus.ia.br (Cloudflare), que repassa à empresa que roda o modelo "
+        para_onde = ("Para onde: para o portão do Paulus em paulus.ia.br (Cloudflare), que repassa à empresa que roda o modelo "
                      "do plano: o DeepInfra (Estados Unidos) no Advogado, a Mistral AI (França) no Escritório e a Anthropic "
                      "(Estados Unidos) no Escritório Plus. É transferência internacional de dados pessoais (LGPD, art. 33). O "
                      "portão não guarda o texto: anota só os créditos gastos, as datas, o modelo e o plano.")
@@ -183,7 +183,7 @@ def termo(provedor: str) -> list[str]:
         para_onde,
         politica,
         "Nunca vai: o que veio do e-mail (os anexos guardados desta versão em diante e a reescrita de e-mail), a cópia das "
-        "pastas do Drive feita pelo PAULUS, o caso marcado só no escritório, o parecer do Financeiro, o juiz e a leitura do Acervo.",
+        "pastas do Drive feita pelo Paulus, o caso marcado só no escritório, o parecer do Financeiro, o juiz e a leitura do Acervo.",
         "Mascarar (ligado de fábrica): CPF, CNPJ, número de processo, e-mail e telefone saem como marcadores e voltam na "
         "resposta. Reduz a exposição, não anonimiza: nomes, endereços e o resto do texto vão como estão.",
         custo,
@@ -274,7 +274,7 @@ def paulus_bytes(estado, caminho: str) -> tuple[bytes, str]:
     """
     k = chave(estado, "paulus")
     if not k:
-        raise ErroNuvem("a conta da nuvem do PAULUS não está ativada nesta instalação")
+        raise ErroNuvem("a conta da nuvem do Paulus não está ativada nesta instalação")
     try:
         r = _pedir("GET", SITE + caminho, {"Authorization": f"Bearer {k}", "X-PAULUS-Versao": VERSAO}, None, False)
     except Exception as exc:  # noqa: BLE001
@@ -509,7 +509,7 @@ def _cabecalhos(provedor: str, k: str) -> dict:
 
 FRASES_DO_PORTAO = {
     "cota": "os tokens deste ciclo do plano acabaram (a recarga fica em Configurações › Modelos)",
-    "sem_plano": "o plano da nuvem do PAULUS não está em dia",
+    "sem_plano": "o plano da nuvem do Paulus não está em dia",
     "consentimento": "paulus.ia.br não tem o sim do titular: dê o sim de novo em Configurações › Modelos",
     "por_minuto": "muitos pedidos à nuvem neste minuto; espere um pouco",
 }
@@ -671,7 +671,7 @@ def motivo_para_ficar(estado, caminhos) -> str:
     # A cópia das pastas do Drive feita pelo PAULUS vem das APIs do Google:
     # pela política (Uso Limitado), não vai a terceiros.
     if _da_copia_do_drive(estado, caminhos):
-        return "usa um arquivo copiado do Google Drive pelo PAULUS, e o que vem das APIs do Google nunca vai à nuvem"
+        return "usa um arquivo copiado do Google Drive pelo Paulus, e o que vem das APIs do Google nunca vai à nuvem"
     return ""
 
 

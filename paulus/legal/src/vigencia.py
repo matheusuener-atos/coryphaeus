@@ -304,7 +304,7 @@ def _limites() -> str:
     p = pacote()
     if not p.get("leis"):
         return ("Pela data da lei que mudou (a vacatio legis dela não entra na conta) e pelas notas do texto compilado "
-                "do Planalto guardado neste PAULUS; o texto de uma redação anterior não vem no compilado.")
+                "do Planalto guardado neste Paulus; o texto de uma redação anterior não vem no compilado.")
     quando = str(p.get("montado_em") or "")[:10]
     return ("Pelas notas do texto compilado do Planalto e pelo pacote de vigência do instalador (montado em "
             f"{_br(quando) if quando else '?'}): a data em que cada mudança passou a valer é a publicação mais a vacatio "

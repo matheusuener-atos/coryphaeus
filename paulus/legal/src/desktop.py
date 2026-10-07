@@ -53,7 +53,7 @@ def _registro_do_instalado() -> None:
 
 _registro_do_instalado()
 
-TITULO = "PAULUS Legal"
+TITULO = "Paulus Legal"
 # O "P" do programa (frontend/img/paulus-logo.svg), desenhado de 16 a 256 px.
 ICONE = Path(__file__).parent.parent / "frontend" / "img" / "paulus.ico"
 
@@ -810,9 +810,9 @@ def _avisar_falha_ao_abrir(texto: str) -> None:
             import ctypes
 
             ctypes.windll.user32.MessageBoxW(
-                None, "O PAULUS não conseguiu abrir.\n\n" + texto.strip().splitlines()[-1][:300] +
+                None, "O Paulus não conseguiu abrir.\n\n" + texto.strip().splitlines()[-1][:300] +
                 "\n\nO detalhe ficou em " + str(_pasta_de_dados() / "logs" / "erro-ao-abrir.log") +
-                ". Tente abrir de novo; se continuar, mande esse arquivo ao suporte.", "PAULUS", 0x10)
+                ". Tente abrir de novo; se continuar, mande esse arquivo ao suporte.", "Paulus", 0x10)
         except Exception:  # noqa: BLE001
             pass
 

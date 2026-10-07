@@ -213,7 +213,7 @@ class Conexoes:
                 "publica: ele não quebra, e apertar enviar continua sendo seu."
             ),
             "aviso_internet": (
-                "Esta é a única tela do PAULUS que vai para a internet. O site carrega o que "
+                "Esta é a única tela do Paulus que vai para a internet. O site carrega o que "
                 "o site carrega; eu não copio nada dele para cá."
             ),
         }

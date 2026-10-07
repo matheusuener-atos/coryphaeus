@@ -43,13 +43,13 @@ def enviar(amostras: list[dict], versao: str = "", url: str = URL, postar=None) 
     try:
         r = postar(url, json={"amostras": amostras[:50], "programa": versao}, timeout=TEMPO)
     except requests.RequestException as exc:
-        raise ErroCalibracao("não consegui falar com o site do PAULUS: " + str(exc)[:120]) from exc
+        raise ErroCalibracao("não consegui falar com o site do Paulus: " + str(exc)[:120]) from exc
     if r.status_code >= 400:
         try:
             motivo = r.json().get("erro", "")
         except ValueError:
             motivo = ""
-        raise ErroCalibracao(f"o site do PAULUS recusou ({r.status_code}) {motivo}".strip())
+        raise ErroCalibracao(f"o site do Paulus recusou ({r.status_code}) {motivo}".strip())
     try:
         return r.json()
     except ValueError:
@@ -64,7 +64,7 @@ def baixar(destino: Path, url: str = URL, pegar=None) -> int:
         r.raise_for_status()
         amostras = [a for a in (r.json().get("amostras") or []) if isinstance(a, dict)]
     except (requests.RequestException, ValueError) as exc:
-        raise ErroCalibracao("não consegui ler a calibração do site do PAULUS: " + str(exc)[:120]) from exc
+        raise ErroCalibracao("não consegui ler a calibração do site do Paulus: " + str(exc)[:120]) from exc
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text(json.dumps({"quando": datetime.now().strftime("%Y-%m-%d %H:%M"), "amostras": amostras},
                                   ensure_ascii=False), encoding="utf-8")

@@ -253,7 +253,7 @@ def main() -> int:
     checar(r["ligada"] and not r["pedir_cada_envio"], "ligada, sem pedir a cada envio")
     situacao = local.get("/api/nuvem/situacao").json()
     niveis = situacao.pop("profundidade", {}).get("niveis") or []
-    checar(situacao == {"ligada": True, "provedor": "paulus", "nome": "PAULUS (nuvem)",
+    checar(situacao == {"ligada": True, "provedor": "paulus", "nome": "Paulus (nuvem)",
                         "modelo": "meta-llama/Llama-3.3-70B-Instruct", "pedir_cada_envio": False} and len(niveis) == 5,
            "a situação da pílula: só o necessário (e os níveis de profundidade)")
 

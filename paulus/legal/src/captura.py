@@ -192,7 +192,7 @@ def receber(estado, dados_dir: Path, pessoa: dict | None, fotos: list[bytes], gi
     quem = str(pessoa.get("nome") or pessoa.get("email") or "alguém de fora")
     pedido = estado.fila.pedir(
         f"Entrar no Acervo: {nome}", "acervo", acao="captura.entrar",
-        resumo=f"{paginas} página(s) fotografada(s) por {quem}, pelo acesso de fora. Aprovar põe o PDF no Acervo, "
+        resumo=f"{paginas} página(s) fotografada(s) por {quem}, pelo acesso externo. Aprovar põe o PDF no Acervo, "
                "onde ele é lido (OCR) como qualquer escaneado.",
         etiquetas=["fotografado"], pedido_por=quem,
         dados={"arquivo": str(arquivo), "nome": nome, "paginas": paginas, "servico_id": servico_id})

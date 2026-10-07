@@ -213,10 +213,10 @@ class ConexaoDoTunel:
         nome = " ".join(str(nome_escritorio or "").split())
         slug = str(slug or "").strip().lower()
         if not self.servico.contas.disponivel():
-            raise ErroConexao("este computador não tem como guardar os segredos do acesso de fora com proteção")
+            raise ErroConexao("este computador não tem como guardar os segredos do acesso externo com proteção")
         vinculo = getattr(self.servico, "vinculo", None)
         if vinculo is not None and not vinculo.vinculado():
-            raise ErroConexao("vincule este PAULUS à sua conta Google antes (Configurações › Escritório e equipe)")
+            raise ErroConexao("vincule este Paulus à sua conta Google antes (Configurações › Escritório e equipe)")
         if not self.titulares_prontos():
             raise ErroConexao("primeiro crie a conta do titular e confirme o autenticador")
         if len(nome) < 2:
@@ -225,9 +225,9 @@ class ConexaoDoTunel:
         if motivo:
             raise ErroConexao("endereço: " + motivo)
         if not self.servico.cloudflared()["basta"]:
-            raise ErroConexao("falta o cloudflared neste computador: reinstale o PAULUS (o instalador traz)")
+            raise ErroConexao("falta o cloudflared neste computador: reinstale o Paulus (o instalador traz)")
         if self.servico.cofre.tem():
-            raise ErroConexao("este PAULUS já está conectado; para trocar, remova antes")
+            raise ErroConexao("este Paulus já está conectado; para trocar, remova antes")
         # O endereco nasce da conta Google vinculada: o id_token do ultimo
         # login prova isso ao Worker (e e o que deixa retomar depois).
         token = self._id_token()
@@ -334,7 +334,7 @@ class ConexaoDoTunel:
         """A porta fixa estava ocupada: escolhe outra, avisa o Worker e reabre."""
         segredo = self.servico.cofre.segredo()
         if not segredo:
-            raise ErroConexao("este PAULUS não está conectado")
+            raise ErroConexao("este Paulus não está conectado")
         nova = porta_livre_na_faixa()
         try:
             self.provisao.porta(segredo, nova)

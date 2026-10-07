@@ -827,7 +827,7 @@ def _construir(classe, blocos, titulo, rodape, timbre, formato, total=0):
         saida, pagesize=A4,
         leftMargin=MARGEM_CM * cm, rightMargin=MARGEM_CM * cm,
         topMargin=MARGEM_CM * cm + alto, bottomMargin=MARGEM_CM * cm,
-        title=titulo or "Documento", author="PAULUS",
+        title=titulo or "Documento", author="Paulus",
     )
     desenhar = _decorar(rodape, timbre, formato, total)
     doc.build(_montar_fluxo(blocos, estilos, formato),

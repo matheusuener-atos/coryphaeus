@@ -367,7 +367,7 @@ def _postar(url: str, campos: dict) -> dict:
             ) from exc
         if codigo in ("invalid_client", "unauthorized_client"):
             raise ErroOAuth(
-                "o provedor recusou o aplicativo PAULUS - o registro dele (src/oauth_app.py) precisa ser conferido por quem mantém o programa"
+                "o provedor recusou o aplicativo Paulus - o registro dele (src/oauth_app.py) precisa ser conferido por quem mantém o programa"
                 + (f" ({descricao})" if descricao else ""),
             ) from exc
         raise ErroOAuth(f"o servidor de login recusou o pedido: {codigo}"
@@ -536,9 +536,9 @@ class Entrada:
         if provedor not in PROVEDORES:
             raise ErroOAuth("provedor desconhecido")
         if not credenciais.get("client_id"):
-            raise ErroOAuth(f"este PAULUS ainda não traz o login do {rotulo(provedor)}")
+            raise ErroOAuth(f"este Paulus ainda não traz o login do {rotulo(provedor)}")
         if PROVEDORES[provedor]["precisa_secret"] and not credenciais.get("client_secret"):
-            raise ErroOAuth(f"este PAULUS ainda não traz o login do {rotulo(provedor)}")
+            raise ErroOAuth(f"este Paulus ainda não traz o login do {rotulo(provedor)}")
         self.provedor = provedor
         self.credenciais = credenciais
         self.ao_concluir = ao_concluir

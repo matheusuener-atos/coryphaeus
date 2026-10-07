@@ -36,7 +36,7 @@ def mb(tamanho: int) -> float:
 def faixa(tamanho: int, autorizado: bool) -> tuple[str, str]:
     """("entra" | "perguntar" | "recusar", motivo)."""
     if tamanho > TETO:
-        return "recusar", f"tem {mb(tamanho):.0f} MB; o teto do PAULUS é {TETO // MB} MB".replace(".", ",")
+        return "recusar", f"tem {mb(tamanho):.0f} MB; o teto do Paulus é {TETO // MB} MB".replace(".", ",")
     if tamanho > LIMITE and not autorizado:
         return "perguntar", f"tem {mb(tamanho)} MB, acima de {LIMITE // MB} MB".replace(".", ",")
     return "entra", ""

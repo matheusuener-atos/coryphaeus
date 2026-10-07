@@ -64,7 +64,7 @@ TELAS_EXTRAS = {
 #   publicacoes - Agenda › To-do, filtro Publicações (js/48-publicacoes.js)
 #   busca       - a caixa do Ctrl+K (js/50-busca.js + GET /api/busca)
 #   leis        - Configurações › Assistente e modelo › Códigos de lei
-#   acesso      - Configurações › Acesso de fora (js/42-acesso.js)
+#   acesso      - Configurações › Acesso externo (js/42-acesso.js)
 # A tela "Agentes" ainda não existe: entra quando existir, não antes.
 TELAS_C4 = {
     "publicacoes": ("Publicações",
@@ -75,9 +75,9 @@ TELAS_C4 = {
     "leis": ("Códigos de lei",
              "Os códigos instalados nesta máquina, do texto compilado do Planalto, para citar o artigo com o "
              "texto certo. Ficam em Configurações › Assistente e modelo."),
-    "acesso": ("Acesso de fora",
-               "Usar o PAULUS de casa ou do celular por um endereço paulus.ia.br, com o computador do escritório "
-               "ligado. Fica em Configurações › Acesso de fora."),
+    "acesso": ("Acesso externo",
+               "Usar o Paulus de casa ou do celular por um endereço paulus.ia.br, com o computador do escritório "
+               "ligado. Fica em Configurações › Acesso externo."),
 }
 
 # Com a chave, o nome que a tela tem hoje: a seção de Configurações que o
@@ -85,9 +85,9 @@ TELAS_C4 = {
 # escritório (M0-M7); "Aprendizado" não aparece mais em lugar nenhum da tela.
 NOMES_C4 = {"habilidades": "Biblioteca"}
 RESOLVE_C4 = {
-    "habilidades": "O que o PAULUS consulta para responder: livros, manuais e leis, com a fonte de cada um, e o "
+    "habilidades": "O que o Paulus consulta para responder: livros, manuais e leis, com a fonte de cada um, e o "
                    "que o escritório ensinou com as próprias palavras, a Constituição, os códigos e as súmulas do STJ que vêm "
-                   "com o PAULUS, e o processo pelo número no DataJud. Fica na Biblioteca, no menu.",
+                   "com o Paulus, e o processo pelo número no DataJud. Fica na Biblioteca, no menu.",
 }
 
 # Pedido de 02/10/2026: "garanta que exista chamada para chegarmos em cada
@@ -119,7 +119,7 @@ TELAS_NAVEGAVEIS = {
     "mais": ("Mais",
              "O menu do perfil e das Configurações. No celular, é o ☰ da barra de baixo.",
              ("menu", "menu mais", "mais", "menu de configuracoes", "menu do perfil")),
-    "config_perfil": ("Meus dados", "Seus dados e os do escritório, que entram nos documentos que o PAULUS gera.",
+    "config_perfil": ("Meus dados", "Seus dados e os do escritório, que entram nos documentos que o Paulus gera.",
                       ("meus dados", "meu perfil", "perfil", "dados pessoais", "meu cadastro")),
     "config_vinculos": ("Escritório e equipe", "O escritório, a equipe e o que cada pessoa pode fazer.",
                         ("escritorio", "equipe", "escritorio e equipe", "minha equipe", "usuarios")),
@@ -139,7 +139,7 @@ TELAS_NAVEGAVEIS = {
                      ("versao", "atualizacoes", "atualizacao", "sobre o paulus", "sobre")),
     "config_word": ("Word", "O PAVLVS dentro do Word: o painel que confere citações e insere trechos.",
                     ("word", "suplemento do word", "paulus no word", "complemento do word")),
-    "config_feedback": ("Feedback", "Mandar uma sugestão ou um problema para quem faz o PAULUS.",
+    "config_feedback": ("Feedback", "Mandar uma sugestão ou um problema para quem faz o Paulus.",
                         ("feedback", "enviar feedback", "sugestao", "reportar problema")),
 }
 

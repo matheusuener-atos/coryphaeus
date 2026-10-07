@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 VALIDADE_S = 60
 _CACHE = {"quando": 0.0, "situacao": None}
 
-FRASE_SEM_PLANO = ("A IA do PAULUS faz parte da assinatura. O resto do programa continua aqui; para as respostas "
+FRASE_SEM_PLANO = ("A IA do Paulus faz parte da assinatura. O resto do programa continua aqui; para as respostas "
                    "que leem os seus documentos, resumos e redação, assine em Configurações › Modelos.")
 
 

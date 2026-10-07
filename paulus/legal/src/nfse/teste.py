@@ -32,9 +32,9 @@ from .notas import APROVADA, CANCELADA, EMITIDA, REJEITADA
 
 ORIGEM = "teste_assistente"
 VALOR_CENTAVOS = 100
-DESCRICAO = "Nota de teste do PAULUS — produção restrita, sem valor fiscal"
+DESCRICAO = "Nota de teste do Paulus — produção restrita, sem valor fiscal"
 MOTIVO_CANCELAMENTO = "1"
-TEXTO_CANCELAMENTO = "Nota de teste do assistente do PAULUS, emitida em produção restrita, sem valor fiscal."
+TEXTO_CANCELAMENTO = "Nota de teste do assistente do Paulus, emitida em produção restrita, sem valor fiscal."
 FORA_DA_IMPRESSAO = ("ambiente", "revisado_por", "revisado_em")
 
 
@@ -117,7 +117,7 @@ class Teste:
         if nota["estado"] != EMITIDA:
             etapa("Assinada e enviada ao Sistema Nacional", True)
             etapa("Aceita pela Sefin", False, nota.get("ultimo_erro") or nota["estado_rotulo"])
-            return fim(False, "O Sistema Nacional não respondeu a tempo. O PAULUS consulta antes de reenviar; "
+            return fim(False, "O Sistema Nacional não respondeu a tempo. O Paulus consulta antes de reenviar; "
                        "tente o teste de novo em alguns minutos.", nota_id=nota["id"])
         etapa("Assinada e enviada ao Sistema Nacional", True)
         etapa("Aceita pela Sefin", True, f"NFS-e nº {nota['numero_nfse']}")

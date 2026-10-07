@@ -57,7 +57,7 @@ class Provisao:
         if r.status_code == 410 and dados.get("removido"):
             raise ErroRemovido(str(dados.get("motivo") or ""))
         if r.status_code == 404:
-            raise ErroProvisao("o acesso de fora ainda não está disponível em paulus.ia.br")
+            raise ErroProvisao("o acesso externo ainda não está disponível em paulus.ia.br")
         if r.status_code >= 400:
             erro = ErroProvisao(dados.get("erro") or f"paulus.ia.br respondeu {r.status_code}")
             erro.sugestao = dados.get("sugestao", "")

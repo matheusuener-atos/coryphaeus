@@ -440,7 +440,7 @@ def montar(estado, app, dados_dir) -> None:
             raise HTTPException(status_code=400, detail="falta o e-mail do contador em Configurações › Nota fiscal")
         conta = estado.contas.em_uso if hasattr(estado, "contas") else None
         if conta is None:
-            raise HTTPException(status_code=400, detail="não há conta de e-mail no PAULUS para enviar")
+            raise HTTPException(status_code=400, detail="não há conta de e-mail no Paulus para enviar")
         feito = _exportar(mes)
         rel = feito["relatorio"]
         assunto = f"NFS-e de {mes[5:7]}/{mes[:4]} — {prest.get('razao_social') or ''}".strip(" —")
@@ -454,7 +454,7 @@ def montar(estado, app, dados_dir) -> None:
                                    etiquetas=["não dá para desfazer", "com anexo"], acao="correio.enviar",
                                    dados={"conta_id": conta.id, "para": para, "cc": "", "cco": "", "assunto": assunto,
                                           "corpo": corpo, "corpo_html": "", "anexos": [feito["caminho"]], "responder_a": ""},
-                                   reversivel=False, pedido_por="PAULUS (nota fiscal)")
+                                   reversivel=False, pedido_por="Paulus (nota fiscal)")
         return {"pedido": pedido.id, "caminho": feito["caminho"]}
 
     # ------------------------------------------------- recorrência (N7)

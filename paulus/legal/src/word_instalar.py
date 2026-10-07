@@ -440,7 +440,7 @@ class Instalacao:
         if montagem == "fora":
             base = self.endereco_de_fora()
             if not base:
-                raise FalhaNaInstalacao("o acesso de fora não está ligado e conectado: sem ele não há endereço para o Word de outro computador")
+                raise FalhaNaInstalacao("o acesso externo não está ligado e conectado: sem ele não há endereço para o Word de outro computador")
         else:
             porta = self.porta()
             if not porta:
@@ -523,12 +523,12 @@ class Instalacao:
         texto = documento_base([
             ("titulo", "PAVLVS no Word"),
             ("", "Este documento abriu o Word com o PAVLVS: a aba PAVLVS lá em cima e o painel ao lado."),
-            ("", "Para começar, clique em Conectar ao PAULUS no painel e confira o código na janela do PAULUS."),
+            ("", "Para começar, clique em Conectar ao Paulus no painel e confira o código na janela do Paulus."),
             ("", "Para escrever um documento novo com o PAVLVS, use o atalho Word com PAVLVS da área de trabalho. "
                  "Para abrir um arquivo seu com ele, clique com o botão direito no arquivo .docx e escolha Abrir no Word "
                  "com o PAVLVS (no Windows 11, em Mostrar mais opções). Dali em diante, o duplo clique já abre com o PAVLVS."),
-            ("", "No Editor do PAULUS, o botão Abrir no Word também abre o documento com o PAVLVS, e todo documento Word que "
-                 "o PAULUS gera já vem com ele. O PAVLVS continua no documento depois que você salva."),
+            ("", "No Editor do Paulus, o botão Abrir no Word também abre o documento com o PAVLVS, e todo documento Word que "
+                 "o Paulus gera já vem com ele. O PAVLVS continua no documento depois que você salva."),
         ])
         destino = self.pasta / "PAVLVS - comece aqui.docx"
         self.pasta.mkdir(parents=True, exist_ok=True)

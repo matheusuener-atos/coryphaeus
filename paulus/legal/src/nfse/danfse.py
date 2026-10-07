@@ -187,7 +187,7 @@ def gerar(xml: bytes) -> bytes:
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     c.setTitle(f"DANFSe {d['numero']} - {d['chave']}")
-    c.setAuthor("PAULUS Legal")
+    c.setAuthor("Paulus Legal")
     larg, alt = A4
     m = 0.2 * cm
     x0, x1 = m, larg - m
