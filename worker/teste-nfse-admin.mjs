@@ -248,7 +248,7 @@ console.log("1. as portas do painel");
 let r = await admin("GET", "/api/admin/nfse/emissor/situacao", { semAccess: true });
 checar(r.status === 401, "sem o Cloudflare Access: 401");
 r = await admin("GET", "/api/admin/nfse/emissor/situacao");
-checar(r.status === 401 && (await r.json()).passo === "github", "com o Access e sem a sessão do GitHub: 401 passo github");
+checar(r.status === 401 && (await r.json()).passo === "sessao", "com o Access e sem a sessão do painel: 401 passo sessao");
 r = await admin("GET", "/api/admin/nfse/emissor/situacao", { email: "intruso@gmail.com", cookie: SESSOES["dono@paulus.ia.br"] });
 checar(r.status === 403, "e-mail fora da equipe: 403");
 r = await admin("GET", "/api/admin/nfse/emissor/situacao", { email: "sup@paulus.ia.br", cookie: SESSOES["dono@paulus.ia.br"] });

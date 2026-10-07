@@ -2046,7 +2046,9 @@
     location.assign("/cdn-cgi/access/logout");
   };
   A.recarregar = function () { location.reload(); };
-  A.github = function () { location.assign("/api/admin/github/entrar"); };
+  A.github = function () { location.assign("/api/admin/github/entrar?volta=" + encodeURIComponent(E.tela || "visao")); };
+  // Comitar e pushar / retroagir sem o GitHub: o servidor responde 403 com passo "github".
+  function pedeGitHub(e) { return e && e.status === 403 && e.dados && e.dados.passo === "github"; }
   A.entrarPainel = function () { try { sessionStorage.setItem("pv-admin-dentro", "1"); } catch (e) { /* nada */ } mostrarCasca(); };
 
   // contas e gaveta
@@ -3079,7 +3081,7 @@
       if (E.modal !== M) return;
       toast("Retroagido · " + (r.commit ? String(r.commit).slice(0, 7) : "commit de reversão"), false);
       fecharModal(); ler("alteracoes");
-    } catch (e) { if (E.modal !== M) return; M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada(); }
+    } catch (e) { if (E.modal !== M) return; if (pedeGitHub(e)) { A.github(); return; } M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada(); }
   };
   A.publicar = async function () {
     var M = E.modal; if (M.texto.trim() !== "comitar e pushar" || M.enviando) return;
@@ -3096,6 +3098,7 @@
       ler("alteracoes");
     } catch (e) {
       if (E.modal !== M) return;
+      if (pedeGitHub(e)) { A.github(); return; }
       M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada();
     }
   };
@@ -3300,9 +3303,9 @@
   function renderEntrada(erroLeitura) {
     var s = E.sessao || {}, acc = !!(s.access && s.access.ok), gh = !!(s.github && s.github.ok);
     var nome = primeiro(s.nome), sd = saudacaoHora();
-    var saud = gh && acc ? sd + (nome ? ", " + nome : "") + ". Tudo pronto." : acc ? sd + (nome ? ", " + nome : "") + ". Falta o GitHub." : sd + ". Bem‑vindo de volta.";
-    var cA = cfg("access"), cG = cfg("github");
-    var h = '<div class="entrada-marca"><h1 class="saudacao">' + esc(saud) + '</h1><p class="sub">Administração do Paulus. Duas portas, nenhuma senha.</p></div><div class="campos" style="gap:18px">';
+    var saud = acc ? sd + (nome ? ", " + nome : "") + ". Tudo pronto." : sd + ". Bem‑vindo de volta.";
+    var cA = cfg("access");
+    var h = '<div class="entrada-marca"><h1 class="saudacao">' + esc(saud) + '</h1><p class="sub">Administração do Paulus. Nenhuma senha.</p></div><div class="campos" style="gap:18px">';
     if (erroLeitura) h += '<p class="erro-campo">Não foi possível conferir a sessão: ' + esc(erroLeitura) + "</p>";
     if (E.erroVolta) h += '<p class="erro-campo" role="alert">' + esc(E.erroVolta) + "</p>";
     // passo 1
@@ -3310,12 +3313,9 @@
       '<div class="selo"><span class="selo-esq">' + (acc ? '<span class="selo-icone">' + ic("check") + "</span>" : '<img class="selo-marca" src="' + ASSETS + 'cloudflare.svg" alt="" width="22" height="22">') + "<span>" + esc(acc ? s.access.email : "Cloudflare Access") + '</span></span><span class="selo-dir"><b>ZERO TRUST</b><span>só o e-mail da equipe</span></span></div>';
     if (!acc) h += '<button type="button" class="btn-duplo largo" data-a="recarregar"' + attrDis(desligado(cA), cA.falta) + "><span>" + ic("shield") + "Entrar pelo Cloudflare Access</span></button>" + (desligado(cA) ? '<p class="erro-campo">' + esc(cA.falta) + "</p>" : "");
     h += '<span class="nota-campo">O Access confere o seu e-mail com um código de uso único antes de a página carregar. Só quem está na lista da equipe chega aqui.</span></div>';
-    // passo 2
-    h += '<div class="passo' + (acc ? "" : " depois") + '">' +
-      '<div class="selo"><span class="selo-esq">' + (gh ? '<span class="selo-icone">' + ic("check") + "</span>" : '<span class="selo-marca selo-github" aria-hidden="true">' + GITHUB_SVG.replace('width="15" height="15"', 'width="22" height="22"') + "</span>") + "<span>" + esc(gh ? s.github.login : "GitHub") + '</span></span><span class="selo-dir"><b>COLABORADOR</b><span>repositório coryphaeus</span></span></div>';
-    if (acc && !gh) h += '<button type="button" class="btn-duplo largo" data-a="github"' + attrDis(desligado(cG), cG.falta) + "><span>" + GITHUB_SVG + "Entrar com o GitHub</span></button>" + (desligado(cG) ? '<p class="erro-campo">' + esc(cG.falta) + "</p>" : "");
-    h += "</div>";
-    if (acc && gh) {
+    // O GitHub nao e porta de entrada: so e pedido para comitar e pushar ou retroagir.
+    if (acc) h += '<span class="nota-campo">' + (gh ? "GitHub " + esc(s.github.login) + " ligado nesta sessão, para comitar e pushar ou retroagir." : "Para comitar e pushar ou retroagir, o painel pede a sua conta do GitHub na hora.") + "</span>";
+    if (acc) {
       if (s.pronto) h += '<button type="button" class="btn-duplo largo" data-a="entrarPainel" id="entrar-painel"><span>Entrar no painel' + ic("arrow_forward", "s18") + "</span></button>";
       else h += '<p class="erro-campo">' + (s.papel ? "A sessão ainda não está pronta. Recarregue a página." : "O e-mail " + esc(s.access.email) + " não está na equipe do painel.") + "</p>";
     }
@@ -3359,7 +3359,10 @@
     if (avn) avn.textContent = s.nome || "Minha conta";
     var bc = $("adm-conta"); if (bc) bc.title = (s.nome || (s.access && s.access.email) || "") + (s.papel ? " · " + s.papel : "");
     var dentro = false; try { dentro = sessionStorage.getItem("pv-admin-dentro") === "1"; } catch (x) { /* nada */ }
-    if (s.pronto && s.access && s.access.ok && s.github && s.github.ok && dentro && !E.erroVolta) mostrarCasca();
+    // Volta do GitHub (?github=1): entra direto, na tela de onde saiu.
+    if (u.searchParams.get("github") === "1") { dentro = true; u.searchParams.delete("github"); history.replaceState(null, "", u.pathname + u.search + u.hash); try { sessionStorage.setItem("pv-admin-dentro", "1"); } catch (x) { /* nada */ } }
+    if (s.pronto && s.access && s.access.ok && dentro && !E.erroVolta) mostrarCasca();
+    if (E.dentro && s.github && s.github.ok && u.hash) toast("GitHub ligado. Agora é só confirmar de novo.", false);
     else mostrarEntrada();
   }
 

@@ -184,7 +184,25 @@ r = await admin("GET", "/api/admin/visao", { email: "intruso@gmail.com" });
 checar(r.status === 403, "e-mail fora da equipe: 403");
 r = await admin("GET", "/api/admin/visao");
 d = await r.json();
-checar(r.status === 401 && d.passo === "github", "com o Access e sem o GitHub: 401 passo github", d);
+checar(r.status === 401 && d.passo === "sessao", "com o Access e sem a sessão: 401 passo sessao", d);
+// A sessao nasce do Access, sem o GitHub.
+r = await admin("GET", "/api/admin/sessao");
+d = await r.json();
+const soAccess = (r.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)?.[1];
+checar(r.status === 200 && d.pronto && d.access.ok && !d.github.ok && soAccess && /HttpOnly; Secure; SameSite=Lax/.test(r.headers.get("set-cookie")),
+  "com o Access e o e-mail na equipe, a sessão nasce sem o GitHub", d);
+r = await admin("GET", "/api/admin/sessao", { cookie: soAccess });
+checar(!r.headers.get("set-cookie") && (await r.json()).pronto, "com o cookie, a mesma sessão (sem criar outra)");
+r = await admin("GET", "/api/admin/visao", { cookie: soAccess });
+checar(r.status === 200, "só com o Access, o painel abre");
+r = await admin("POST", "/api/admin/publicar", { cookie: soAccess, corpo: { confirmacao: "comitar e pushar" } });
+d = await r.json();
+checar(r.status === 403 && d.passo === "github" && d.erro.includes("comitar e pushar"), "comitar e pushar sem o GitHub: 403 passo github", d);
+r = await admin("POST", "/api/admin/retroagir", { cookie: soAccess, corpo: { commit: "abc1234", confirmacao: "retroagir" } });
+d = await r.json();
+checar(r.status === 403 && d.passo === "github" && d.erro.includes("retroagir"), "retroagir sem o GitHub: 403 passo github", d);
+r = await admin("GET", "/api/admin/sessao", { semAccess: true, cookie: soAccess });
+checar(!(await r.json()).pronto, "o cookie sozinho, sem o Access, não vale");
 
 r = await admin("GET", "/api/admin/github/entrar");
 const loc = new URL(r.headers.get("location"));
@@ -1179,7 +1197,8 @@ const sOutra = await entrar("suporte@paulus.ia.br");
 guardados.set("admin:sessao:" + "a".repeat(48), JSON.stringify({ email: "dono@paulus.ia.br", login: "matheus", token: "gho_x" }));
 r = await admin("POST", "/api/admin/sessoes/encerrar", { cookie: s1 });
 d = await r.json();
-checar(r.status === 200 && d.encerradas === 3 && /Max-Age=0/.test(r.headers.get("set-cookie")) && !guardados.has("admin:sessao:" + s1) && !guardados.has("admin:sessao:" + s2)
+// 4: as duas do GitHub, a de antes do indice e a so do Access, do comeco.
+checar(r.status === 200 && d.encerradas === 4 && !guardados.has("admin:sessao:" + soAccess) && /Max-Age=0/.test(r.headers.get("set-cookie")) && !guardados.has("admin:sessao:" + s1) && !guardados.has("admin:sessao:" + s2)
   && !guardados.has("admin:sessao:" + "a".repeat(48)) && guardados.has("admin:sessao:" + sOutra) && !guardados.has("admin:sessoes:dono@paulus.ia.br"),
   "encerra todas as sessões do painel da pessoa (esta também, e as de antes do índice), e só as dela", d);
 checar(d.access.feito === false && d.access.frase.includes("CF_ACCESS_TOKEN"), "sem a API do Access, diz que as sessões do Access ficam até vencer", d.access);

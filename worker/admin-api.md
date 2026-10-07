@@ -24,7 +24,10 @@ politica do Access) e os textos dos planos que a pagina de assinatura le
 (`/api/planos/textos`).
 
 Toda resposta e JSON com `cache-control: no-store`. Erro: `{erro: "frase"}`
-com o status. Sem a sessao do GitHub: 401 `{erro, passo: "github"}`; sem o
+com o status. Sem a sessao do painel (ela nasce do Access em `GET /api/admin/sessao`): 401
+`{erro, passo: "sessao"}`; `POST /api/admin/publicar` e `/retroagir` sem o GitHub na sessao:
+403 `{erro, passo: "github"}` (a tela leva a `/api/admin/github/entrar?volta=<tela>`, que volta a
+`/admin/?github=1#<tela>`); sem o
 Access: 401 `{erro, passo: "access"}`; papel sem permissao: 403
 `{erro: "o papel X nao pode ..."}`.
 

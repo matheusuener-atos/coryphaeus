@@ -6,16 +6,19 @@
 //
 // As notas fiscais (NFS-e do PAVLVS) sao emitidas daqui: /api/admin/nfse/emissor/*
 // vai ao emissor da nuvem (worker/nfse/api.js, o Durable Object EmissorNFSe),
-// atras das mesmas duas portas; dono e financeiro emitem e configuram, suporte
+// atras do mesmo Access; dono e financeiro emitem e configuram, suporte
 // so le. Essas acoes sao na hora (nao passam pela fila de alteracoes).
 //
-// Duas portas, nenhuma senha:
+// Nenhuma senha:
 //   1. Cloudflare Access na frente de /admin e /api/admin (e-mail da equipe,
 //      codigo de uso unico). Aqui o Worker confere o JWT que o Access poe em
 //      cada pedido - sem ele, nada passa (e sem ACCESS_TEAM/ACCESS_AUD
 //      configurados o painel fica fechado).
-//   2. Login social do GitHub: a conta precisa ter escrita no repositorio. A
-//      sessao (cookie pv_admin, 24 h) fica no KV APOIOS, "admin:sessao:<id>".
+//   2. A sessao (cookie pv_admin, 24 h, no KV APOIOS "admin:sessao:<id>")
+//      nasce do Access, na primeira leitura de /api/admin/sessao. O login
+//      social do GitHub (conta com escrita no repositorio) so e pedido para
+//      "Comitar e pushar" e para retroagir: sem ele, essas duas rotas
+//      respondem 403 com passo "github".
 // O papel (dono, financeiro, suporte) vem de ADMIN_EQUIPE (JSON) ou, depois de
 // publicado pelo painel, de "admin:equipe" no KV.
 //
@@ -131,11 +134,11 @@ export async function atenderAdmin(request, env, url, ctx, deps = {}) {
   if (!access.ok) return json({ erro: access.erro, passo: "access" }, access.status || 401);
   const membro = await membroDaEquipe(env, access.email);
   if (!membro) return json({ erro: "o e-mail " + access.email + " não está na equipe do painel", passo: "access" }, 403);
-  if (p === "/api/admin/github/entrar" && m === "GET") return githubEntrar(env, access);
+  if (p === "/api/admin/github/entrar" && m === "GET") return githubEntrar(env, access, url);
   if (p === "/api/admin/github/retorno" && m === "GET") return githubRetorno(env, url, access, membro, deps);
 
   const sessao = await sessaoDoCookie(request, env, access);
-  if (!sessao) return json({ erro: "entre com o GitHub", passo: "github" }, 401);
+  if (!sessao) return json({ erro: "a sessão do painel venceu: recarregue a página", passo: "sessao" }, 401);
   const quem = { email: access.email, nome: membro.nome || "", papel: membro.papel, login: sessao.login, token: sessao.token, sessao };
   if (p === "/api/admin/sair" && m === "POST") {
     await env.APOIOS.delete("admin:sessao:" + sessao.id);
@@ -189,6 +192,9 @@ async function rotear(c, request, url, p, m) {
   if (m === "POST") {
     const d = (await lerJSON(request)) || {};
     if (p === "/api/admin/alteracoes") return enfileirar(c, d);
+    if ((p === "/api/admin/publicar" || p === "/api/admin/retroagir") && !c.quem.token) {
+      return json({ erro: "para " + (p.endsWith("publicar") ? "comitar e pushar" : "retroagir") + ", entre com o GitHub (a conta precisa ter escrita no repositório)", passo: "github" }, 403);
+    }
     if (p === "/api/admin/publicar") return publicar(c, d);
     if (p === "/api/admin/retroagir") return retroagir(c, d);
     if (p === "/api/admin/sessoes/encerrar") return encerrarSessoes(c.env, c.quem);
@@ -566,15 +572,34 @@ async function revogarNoAccess(env, email) {
   }
 }
 
+/* GET /api/admin/sessao: com o Access e o e-mail na equipe, a sessao nasce aqui (sem o GitHub). */
 async function sessaoAtual(request, env, access) {
   const membro = access.ok ? await membroDaEquipe(env, access.email) : null;
-  const sessao = access.ok && membro ? await sessaoDoCookie(request, env, access) : null;
+  let sessao = access.ok && membro ? await sessaoDoCookie(request, env, access) : null;
+  let novo = null;
+  if (access.ok && membro && !sessao) {
+    sessao = await criarSessao(env, access.email, {});
+    novo = cookie(sessao.id, SESSAO_S);
+  }
   return json({
     access: { ok: Boolean(access.ok && membro), email: access.ok ? access.email : "", erro: access.ok ? (membro ? "" : "esse e-mail não está na equipe do painel") : access.erro },
-    github: { ok: Boolean(sessao), login: sessao ? sessao.login : "" },
+    github: { ok: Boolean(sessao && sessao.token), login: sessao && sessao.login ? sessao.login : "" },
     papel: membro ? membro.papel : "", nome: membro ? membro.nome : "",
     worker: await versaoDoSite(env), pronto: Boolean(sessao), config: configuracao(env),
-  });
+  }, 200, novo ? { "set-cookie": novo } : {});
+}
+
+/* Uma sessao nova do painel (com o GitHub, extra traz login e token): {id, ...}. */
+async function criarSessao(env, email, extra) {
+  const id = aleatorio(24);
+  const s = { email, login: "", token: "", ...extra, criada: new Date().toISOString() };
+  await env.APOIOS.put("admin:sessao:" + id, JSON.stringify(s), { expirationTtl: SESSAO_S });
+  await env.APOIOS.put("admin:acesso:" + email, JSON.stringify({ ultimo: s.criada, login: s.login }));
+  // O indice das sessoes da pessoa: e por ele que "Encerrar todas as sessoes" acha as dos outros aparelhos.
+  const chave = "admin:sessoes:" + email;
+  const ids = ((await kvJSON(env, chave, [])) || []).filter((x) => /^[0-9a-f]{48}$/.test(x));
+  await env.APOIOS.put(chave, JSON.stringify([...ids.slice(-19), id]), { expirationTtl: SESSAO_S });
+  return { ...s, id };
 }
 
 async function versaoDoSite(env) {
@@ -586,10 +611,12 @@ async function versaoDoSite(env) {
   }
 }
 
-async function githubEntrar(env, access) {
+async function githubEntrar(env, access, url) {
   if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) return json({ erro: "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)" }, 503);
   const state = aleatorio(16);
-  await env.APOIOS.put("admin:gh:" + state, JSON.stringify({ email: access.email }), { expirationTtl: 600 });
+  // A tela para onde voltar (#alteracoes etc.): so um nome simples, nunca um endereco.
+  const volta = /^[a-z-]{1,30}$/.test(String(url.searchParams.get("volta") || "")) ? url.searchParams.get("volta") : "";
+  await env.APOIOS.put("admin:gh:" + state, JSON.stringify({ email: access.email, volta }), { expirationTtl: 600 });
   const q = new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID, redirect_uri: SITE + "/api/admin/github/retorno", scope: "public_repo read:user", state, allow_signup: "false" });
   return new Response(null, { status: 302, headers: { location: "https://github.com/login/oauth/authorize?" + q.toString(), "cache-control": "no-store" } });
 }
@@ -616,14 +643,9 @@ async function githubRetorno(env, url, access, membro, deps) {
   const perm = await gh("GET", "https://api.github.com/repos/" + REPO + "/collaborators/" + encodeURIComponent(login) + "/permission", token);
   const nivel = perm.ok && perm.dados ? String(perm.dados.permission || "") : "";
   if (!["admin", "write", "maintain"].includes(nivel)) return voltarComErro("a conta " + login + " não tem escrita em " + REPO);
-  const id = aleatorio(24);
-  await env.APOIOS.put("admin:sessao:" + id, JSON.stringify({ email: access.email, login, token, criada: new Date().toISOString() }), { expirationTtl: SESSAO_S });
-  await env.APOIOS.put("admin:acesso:" + access.email, JSON.stringify({ ultimo: new Date().toISOString(), login }));
-  // O indice das sessoes da pessoa: e por ele que "Encerrar todas as sessoes" acha as dos outros aparelhos.
-  const chave = "admin:sessoes:" + access.email;
-  const ids = ((await kvJSON(env, chave, [])) || []).filter((x) => /^[0-9a-f]{48}$/.test(x));
-  await env.APOIOS.put(chave, JSON.stringify([...ids.slice(-19), id]), { expirationTtl: SESSAO_S });
-  return new Response(null, { status: 302, headers: { location: "/admin/", "set-cookie": cookie(id, SESSAO_S), "cache-control": "no-store" } });
+  const { id } = await criarSessao(env, access.email, { login, token });
+  const destino = "/admin/" + (guardado.volta ? "?github=1#" + guardado.volta : "");
+  return new Response(null, { status: 302, headers: { location: destino, "set-cookie": cookie(id, SESSAO_S), "cache-control": "no-store" } });
 }
 
 /* Apaga as sessoes do painel de um e-mail (as do KV): as do indice e, para as
@@ -1882,7 +1904,7 @@ function emailDoConvite(env, cv, token) {
       quem + " convidou você para o painel de administração do Paulus, com o papel " + (NOME_DO_PAPEL[cv.papel] || cv.papel) + ". O link abaixo vale até " + dataBR(cv.vence) + ".\n\n" +
       (auto ? "Ao aceitar, o seu e-mail é liberado no Cloudflare Access do painel."
         : "Depois de aceitar, avise quem convidou: a liberação do seu e-mail no Cloudflare Access do painel ainda é feita à mão.") +
-      " Para entrar, o Access manda um código para este e-mail, e depois você entra com a sua conta do GitHub, que precisa ter escrita no repositório do PAVLVS." +
+      " Para entrar, o Access manda um código para este e-mail. A conta do GitHub (com escrita no repositório do PAVLVS) só é pedida para comitar e pushar ou retroagir." +
       "\n\nSe não esperava este convite, ignore este e-mail.",
     botao: "Abrir o convite", link: SITE + "/api/equipe/convite?t=" + token,
   });
@@ -1937,7 +1959,7 @@ async function conviteDaEquipe(request, env, url, deps) {
   const auto = accessConfigurado(env);
   const papel = NOME_DO_PAPEL[cv.papel] || cv.papel;
   const linhas = [["Nome", cv.nome || "—"], ["E-mail", cv.email], ["Papel", papel], ["Vale até", dataBR(cv.vence)]];
-  const github = "Depois, você entra com a sua conta do GitHub, que precisa ter escrita no repositório do PAVLVS.";
+  const github = "A conta do GitHub (com escrita no repositório do PAVLVS) só é pedida para comitar e pushar ou retroagir.";
   if (m === "GET") {
     return paginaDoConvite(200, {
       titulo: "Entrar na equipe do Paulus?", linhas, form: token, botao: "Aceitar o convite",
