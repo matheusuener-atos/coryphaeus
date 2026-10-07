@@ -33,8 +33,9 @@
 // ainda estiverem la ("pix:", "assinatura:", "cartao:") vencem sozinhas.
 
 import { atenderTunel, ehRotaDoTunel, limparEscritorios } from "./tunel.js";
-import { atenderIA, avisoDaIA, ehRotaDaIA } from "./ia.js";
-import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas } from "./admin.js";
+import { atenderIA, avisoDaIA, cronDaConta, ehRotaDaIA } from "./ia.js";
+import { atenderConta, ehRotaDaConta } from "./conta.js";
+import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas, enviarEmail } from "./admin.js";
 import { depoisPendentes } from "./nfse/api.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
@@ -79,7 +80,17 @@ export default {
         return json({ erro: "falha no servidor da nuvem" }, 500);
       }
     }
+    // A Minha conta (worker/conta.js): a sessao do site, o plano, o pagamento e o escritorio.
+    if (ehRotaDaConta(url)) {
+      try {
+        return await atenderConta(request, env, url, ctx, { dentroDoLimite, chamarMP });
+      } catch (erro) {
+        return json({ erro: "falha no servidor da Minha conta" }, 500);
+      }
+    }
     if (url.pathname === "/cadastro" || url.pathname.startsWith("/cadastro/")) return comCSP(await env.ASSETS.fetch(request));
+    // A Minha conta tem o cartao (os campos seguros do Mercado Pago) e o botao do Google: a mesma CSP do cadastro.
+    if (/^\/(minha-conta|en\/my-account)(\/|$)/.test(url.pathname)) return comCSP(await env.ASSETS.fetch(request));
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
       if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env, ctx);
@@ -106,7 +117,12 @@ export default {
     if (controller && controller.cron === "* * * * *") {
       ctx.waitUntil(enviarCampanhas(env));
       ctx.waitUntil(depoisPendentes(env).catch(() => null));
-    } else ctx.waitUntil(limparEscritorios(env));
+    } else {
+      ctx.waitUntil(limparEscritorios(env));
+      // A Minha conta: o Pix do mes de quem paga no Pix (3 dias antes) e os
+      // valores de assinatura que o Mercado Pago recusou voltar (worker/ia.js).
+      ctx.waitUntil(cronDaConta(env, chamarMP, enviarEmail).catch(() => null));
+    }
   },
 };
 

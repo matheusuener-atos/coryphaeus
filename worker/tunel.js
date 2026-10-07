@@ -1080,3 +1080,31 @@ async function emailDoCliente(env, registro, dados, agora) {
   await kvPut(env, chaveHora, naHora + 1, 2 * 3600);
   return json({ ok: true });
 }
+
+// ------------------------------------------------------- a Minha conta
+
+/* O escritorio de uma conta Google (o endereco mais novo dela), para a Minha
+   conta (worker/conta.js): o nome, o endereco, se o tunel esta no ar e de que
+   instalacao ele e. No ar = a Cloudflare diz healthy/degraded; sem a API
+   configurada, a ultima conexao dos ultimos 15 minutos. null sem endereco. */
+export async function escritorioDoDono(env, dono, agora = Date.now()) {
+  if (!env.ESCRITORIOS || !dono) return null;
+  const indice = (await kvGet(env, "dono:" + dono.sub)) || { slugs: [] };
+  let achado = null;
+  for (const slug of indice.slugs || []) {
+    const r = await kvGet(env, "escritorio:" + slug);
+    if (mesmoDono(r, dono) && (!achado || String(r.criado_em || "") > String(achado.criado_em || ""))) achado = r;
+  }
+  if (!achado) return null;
+  let online = Date.parse(achado.ultima_conexao || "") > agora - 15 * 60 * 1000;
+  if (cfConfigurado(env) && achado.tunnel_id) {
+    try {
+      const t = await chamarCF(env, "GET", "/accounts/" + env.CF_ACCOUNT_ID + "/cfd_tunnel/" + achado.tunnel_id);
+      online = (t.status === "healthy" || t.status === "degraded") && achado.ativo !== false;
+    } catch (e) {
+      // sem resposta da API: fica a ultima conexao
+    }
+  }
+  return { slug: achado.slug, nome: achado.nome || "", online: Boolean(online && achado.ativo !== false), ativo: achado.ativo !== false,
+    ultima_conexao: achado.ultima_conexao || null, instalacao_id: achado.instalacao_id || "" };
+}

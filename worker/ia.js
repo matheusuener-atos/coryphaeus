@@ -260,8 +260,8 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
 // Gravadas pela ponte da casa (worker/nfse-casa.js) em "nfse:nota:<conta>:<id>"
 // e os arquivos em "nfse:nota-pdf:..." e "nfse:nota-xml:..." (base64).
 
-/* As notas da conta, para GET /api/ia/nfse (sem os arquivos). */
-async function notasDoCliente(env, conta) {
+/* As notas da conta, para GET /api/ia/nfse (sem os arquivos). Tambem a Minha conta (worker/conta.js). */
+export async function notasDoCliente(env, conta) {
   if (!env.APOIOS) return [];
   const notas = [];
   const chaves = [];
@@ -281,7 +281,7 @@ async function notasDoCliente(env, conta) {
 }
 
 /* O PDF ou o XML de uma nota da conta, como Response; 404 se nao houver. */
-async function arquivoDoCliente(env, conta, id, tipo) {
+export async function arquivoDoCliente(env, conta, id, tipo) {
   if (!env.APOIOS || !/^[A-Za-z0-9_.-]{1,64}$/.test(id) || !["pdf", "xml"].includes(tipo)) return json({ erro: "não encontrado" }, 404);
   const meta = await lerKV(env, "nfse:nota:" + conta + ":" + id);
   if (!meta || meta.conta !== conta) return json({ erro: "essa nota não existe" }, 404);
@@ -356,7 +356,9 @@ export async function autenticar(request, env) {
   if (!m) return { erro: "não autorizado", status: 401 };
   const hash = await sha256(segredo);
   const conta = medidor(env, m[1]);
-  const r = await conta.pedir("conferir", { hash });
+  // A versao do PAULUS que pede (X-PAULUS-Versao), para a lista de instalacoes da Minha conta.
+  const v = String(request.headers.get("x-paulus-versao") || "");
+  const r = await conta.pedir("conferir", { hash, versao: /^\d{1,3}(?:\.\d{1,3}){1,3}$/.test(v) ? v : "" });
   if (!r.ok) return { erro: "não autorizado", status: 401 };
   return { conta, id: m[1], hash };
 }
@@ -680,7 +682,7 @@ const RENOVA_ANUAL_MS = 45 * 24 * 3600 * 1000;
 // Os periodos pagos de uma vez, sem renovar sozinhos: o anual (cartao ou Pix)
 // e o mes avulso (Pix). Vale ate pago_ate; cada mes abre o seu ciclo.
 const PREPAGOS = ["anual", "avulso"];
-const prepago = (periodo) => PREPAGOS.includes(periodo);
+export const prepago = (periodo) => PREPAGOS.includes(periodo);
 // O Pix vence em 30 minutos; depois, gera-se outro.
 const PIX_VENCE_MS = 30 * 60 * 1000;
 const PAGINA_DO_PAGAMENTO = "https://paulus.ia.br/cadastro/pagamento/";
@@ -722,8 +724,17 @@ async function ofertaDoPagamento(env, atual, { plano, periodo, meio }) {
         : "a assinatura mensal já está ativa; para mudar de plano, use a troca de plano", status: 409 };
     }
   }
-  const valor = anual ? escolhido.valor_anual : escolhido.valor;
-  return { plano: escolhido, periodo, meio: pix ? "pix" : "cartao", valor, parcelas_max: anual && !pix ? 12 : 1, meses: anual ? 12 : 1 };
+  let valor = anual ? escolhido.valor_anual : escolhido.valor;
+  // O preco especial da oferta de volta do painel (Nao renovacoes): o mes, no
+  // plano dela, sai por ele - a primeira cobranca do cartao, ou o mes no Pix.
+  const ov = atual.oferta_volta;
+  const agora = Date.parse(atual.agora || "") || Date.now();
+  let especial = null;
+  if (!anual && ov && ov.tipo === "preco" && ov.plano === escolhido.id && Date.parse(ov.ate) > agora && ov.valor > 0 && ov.valor < valor) {
+    especial = { valor: ov.valor, valor_cheio: valor };
+    valor = ov.valor;
+  }
+  return { plano: escolhido, periodo, meio: pix ? "pix" : "cartao", valor, parcelas_max: anual && !pix ? 12 : 1, meses: anual ? 12 : 1, especial };
 }
 
 // Os motivos de recusa do cartao, em portugues (status_detail do Mercado Pago).
@@ -795,7 +806,8 @@ async function pagarFora(env, conta, id, dono, mp, d) {
       status: "pending",
     });
     if (!r.ok || !r.dados || !r.dados.init_point) return json({ erro: "o Mercado Pago não abriu a página de assinatura: tente de novo em instantes" }, 502);
-    await conta.pedir("assinatura", { plano: plano.id, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
+    await conta.pedir("assinatura", { plano: plano.id, assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor },
+      ...(oferta.especial ? { ajuste: oferta.especial } : {}) });
     return json({ link: r.dados.init_point, periodo: "mensal" });
   }
   const ref = "ia-anual-" + id + "-" + plano.id + "-" + aleatorio(4);
@@ -823,6 +835,8 @@ async function pagar(env, conta, id, dono, mp, d) {
   await conta.pedir("documento", { hash: await resumoDoDocumento(cartao.identificacao.number) });
   const { plano, valor } = oferta;
   if (oferta.periodo === "mensal") {
+    // A bandeira e o final do cartao, para a Minha conta (lidos do token antes de usa-lo).
+    const infoDoCartao = await lerCartao(env, mp, cartao.token, cartao.metodo);
     const r = await mp(env, "/preapproval", "POST", {
       reason: "PAULUS - plano " + plano.nome,
       external_reference: "ia-assinatura-" + id,
@@ -836,7 +850,8 @@ async function pagar(env, conta, id, dono, mp, d) {
       return json({ erro: "o Mercado Pago não aceitou o cartão para a assinatura: confira os dados ou use outro cartão de crédito", status_mp: r.status }, 402);
     }
     const resumo = await conta.pedir("assinatura", { plano: plano.id,
-      assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor } });
+      assinatura: { id: String(r.dados.id), situacao: r.dados.status || "pending", valor }, ...(oferta.especial ? { ajuste: oferta.especial } : {}) });
+    if (infoDoCartao) await conta.pedir("cartao", infoDoCartao);
     return json({ ok: true, periodo: "mensal", situacao: r.dados.status, conta: resumo });
   }
   // O anual: a referencia leva a conta e o plano; o pendente fica anotado para a conferencia.
@@ -980,6 +995,280 @@ async function trocarPlano(env, conta, mp, plano) {
   });
   if (!r.ok) return json({ erro: "o Mercado Pago recusou mudar o valor da assinatura", status: r.status }, 502);
   return json(await conta.pedir("plano_proximo", { plano: novo.id, valor: novo.valor }));
+}
+
+// --------------------------------------- a Minha conta e as ofertas
+// O que a Minha conta (worker/conta.js) e o painel (worker/admin.js) mudam na
+// cobranca: cada funcao faz a parte do Mercado Pago e depois anota na conta
+// (as acoes de fazerConta, no medidor). Devolvem {ok, status, erro, ...}.
+
+const falha = (status, erro, extra = {}) => ({ ok: false, status, erro, ...extra });
+
+/* O valor que a assinatura mensal cobra daqui em diante. -> true se o Mercado Pago aceitou. */
+async function valorDaAssinatura(env, mp, preapproval, valor, nome) {
+  if (!preapproval || !(valor > 0)) return false;
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(preapproval), "PUT", {
+    ...(nome ? { reason: "PAULUS - plano " + nome } : {}), auto_recurring: { transaction_amount: Math.round(valor * 100) / 100, currency_id: "BRL" } });
+  return Boolean(r && r.ok);
+}
+
+/* A bandeira, os 4 ultimos digitos, a validade e o nome do cartao de um token
+   do Mercado Pago (lido antes de usa-lo); null se o Mercado Pago nao disser. */
+async function lerCartao(env, mp, token, metodo) {
+  const r = await mp(env, "/v1/card_tokens/" + encodeURIComponent(token), "GET").catch(() => null);
+  const t = (r && r.ok && r.dados) || null;
+  if (!t || !t.last_four_digits) return null;
+  const validade = t.expiration_month && t.expiration_year ? String(t.expiration_month).padStart(2, "0") + "/" + String(t.expiration_year).slice(-2) : "";
+  return { bandeira: metodo, final: String(t.last_four_digits), validade, titular: String((t.cardholder || {}).name || "") };
+}
+
+/* Ao cancelar pela Minha conta: 20 M de creditos agora, ou 30% a menos nas
+   duas proximas cobrancas do cartao (OFERTA_FICAR). Uma vez a cada 12 meses. */
+export async function ofertaParaFicar(env, mp, id, { tipo, motivo = "", por = "" }) {
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  if (!atual.oferta_ficar.pode) return falha(409, atual.oferta_ficar.motivo);
+  if (tipo === "creditos") return { ok: true, ...(await conta.pedir("oferta_ficar", { tipo, motivo, por })) };
+  if (tipo !== "desconto") return falha(400, "essa oferta não existe");
+  const a = atual.assinatura;
+  if (!a || !a.id || a.situacao !== "authorized" || prepago(atual.periodo)) {
+    return falha(409, "o desconto é para a assinatura mensal no cartão; no plano pago de uma vez, a oferta é de créditos");
+  }
+  if (atual.ajuste) return falha(409, "já há uma cobrança com valor ajustado em curso; a oferta fica para depois dela");
+  const cheio = Number(a.valor) || atual.plano.valor;
+  const valor = Math.round(cheio * (1 - OFERTA_FICAR.desconto) * 100) / 100;
+  if (!(await valorDaAssinatura(env, mp, a.id, valor))) return falha(502, "o Mercado Pago recusou mudar o valor da assinatura: tente de novo em instantes");
+  const r = await conta.pedir("oferta_ficar", { tipo, motivo, por, valor, valor_cheio: cheio, cobrancas: OFERTA_FICAR.cobrancas });
+  if (r.ok === false) {
+    await valorDaAssinatura(env, mp, a.id, cheio);
+    return falha(r.status || 409, r.erro);
+  }
+  return { ok: true, ...r };
+}
+
+/* A oferta do painel para quem nao renovou (Nao renovacoes, renov.oferta), sem
+   cupom: {tipo: "creditos", tokens} entram com o proximo pagamento confirmado;
+   {tipo: "preco", valor, plano} e o valor do proximo pagamento do plano. Se a
+   assinatura mensal ainda existe (pausada, pendente, cobranca recusada), ela
+   ja passa a cobrar o valor especial; senao, o valor vale quando a pessoa
+   assinar de novo pelo site (ofertaDoPagamento). 60 dias. */
+export async function ofertaDeVolta(env, mp, id, oferta, por = "") {
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  const o = oferta && typeof oferta === "object" ? oferta : {};
+  if (o.tipo === "creditos") {
+    const tokens = Math.round(Number(o.tokens) || 0);
+    if (!(tokens >= 1e5 && tokens <= 5e8)) return falha(400, "os créditos vão de 0,1 M a 500 M");
+    return { ok: true, ...(await conta.pedir("oferta_volta", { tipo: "creditos", tokens, por })) };
+  }
+  if (o.tipo !== "preco") return falha(400, "essa oferta não existe");
+  const n = numeros(env);
+  if (!n.planos.some((x) => x.id === o.plano)) return falha(400, "esse plano não existe");
+  const plano = planoDe(n, o.plano);
+  const valor = Math.round(Number(o.valor) * 100) / 100;
+  if (!(valor > 0 && valor < plano.valor)) return falha(400, "o preço especial fica entre zero e o valor do plano (" + plano.valor + ")");
+  const a = atual.assinatura;
+  const viva = a && a.id && !prepago(atual.periodo) && !["cancelled", "refunded"].includes(a.situacao) && !String(a.id).startsWith("pix-");
+  if (viva && atual.plano.id === plano.id && !atual.ajuste) {
+    if (!(await valorDaAssinatura(env, mp, a.id, valor))) return falha(502, "o Mercado Pago recusou mudar o valor da assinatura");
+    return { ok: true, na_assinatura: true, ...(await conta.pedir("oferta_volta", { tipo: "preco", valor, plano: plano.id, por, ajuste: { valor_cheio: plano.valor } })) };
+  }
+  return { ok: true, na_assinatura: false, ...(await conta.pedir("oferta_volta", { tipo: "preco", valor, plano: plano.id, por })) };
+}
+
+/* Trocar de plano pela Minha conta. Para um mais caro, com a assinatura mensal:
+   vale agora, a cota deste ciclo cresce na proporcao dos dias que faltam, e a
+   proxima cobranca leva a diferenca (depois, o valor do plano novo). Para um
+   mais barato: vale na proxima cobranca (o ciclo pago fica no plano em que foi
+   pago). Para o anual: a pagina de pagamento, que cancela a mensal quando o
+   ano entra. */
+export async function trocarPlanoAgora(env, mp, id, { plano, periodo }) {
+  const n = numeros(env);
+  if (!n.planos.some((x) => x.id === plano)) return falha(400, "esse plano não existe");
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  const novo = planoDe(n, plano);
+  if (periodo === "anual") {
+    const ida = await linkDoPagamento(env, conta, { plano: novo.id, periodo: "anual" });
+    return { ok: true, proximo: ida.link };
+  }
+  const a = atual.assinatura;
+  if (!a || !a.id || a.situacao !== "authorized") return falha(409, "a troca é para quem tem a assinatura ativa; sem ela, é só assinar o plano escolhido");
+  if (prepago(atual.periodo)) return falha(409, "no plano pago de uma vez, a troca de plano é na renovação (pago até " + dataBR(atual.pago_ate) + ")");
+  if (novo.id === atual.plano.id) {
+    // O plano de agora de novo: desfaz a troca marcada para a proxima cobranca.
+    if (!atual.plano_proximo) return falha(409, "esse já é o plano de agora");
+    if (!(await valorDaAssinatura(env, mp, a.id, novo.valor, novo.nome))) return falha(502, "o Mercado Pago recusou mudar o valor da assinatura");
+    return { ok: true, agora: false, desfeita: true, conta: await conta.pedir("plano_proximo", { plano: novo.id, valor: novo.valor }) };
+  }
+  if (atual.ajuste) return falha(409, "há uma cobrança com valor ajustado em curso (uma oferta ou a troca anterior); a troca fica para depois dela");
+  if (novo.valor > atual.plano.valor) {
+    const o = await conta.pedir("orcar_troca", { plano: novo.id });
+    if (!(await valorDaAssinatura(env, mp, a.id, o.proxima, novo.nome))) return falha(502, "o Mercado Pago recusou mudar o valor da assinatura");
+    const resumo = await conta.pedir("plano_agora", { plano: novo.id, ajuste: o.diferenca > 0 ? { valor: o.proxima } : null });
+    return { ok: true, agora: true, diferenca: o.diferenca, proxima: o.proxima, conta: resumo };
+  }
+  if (!(await valorDaAssinatura(env, mp, a.id, novo.valor, novo.nome))) return falha(502, "o Mercado Pago recusou mudar o valor da assinatura");
+  const resumo = await conta.pedir("plano_proximo", { plano: novo.id, valor: novo.valor });
+  return { ok: true, agora: false, vale_em: (atual.ciclo || {}).fim || "", conta: resumo };
+}
+
+/* Cancelar pela Minha conta, com o motivo (vai para Nao renovacoes, no painel).
+   A mensal no cartao sai do Mercado Pago, e o ciclo pago fica ate o fim; o pago
+   de uma vez nao renova sozinho (no Pix mensal, param os lembretes). */
+export async function cancelarPelaConta(env, mp, id, { motivo = "", texto = "", por = "" }) {
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  const a = atual.assinatura;
+  if (!a || ["cancelled", "refunded", "expired"].includes(a.situacao)) return falha(409, "não há assinatura ativa");
+  if (prepago(atual.periodo)) {
+    await conta.pedir("cancelamento", { motivo, texto, por });
+    return { ok: true, ate: atual.pago_ate || "" };
+  }
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
+  if (!r.ok) return falha(502, "o Mercado Pago recusou cancelar: tente de novo em instantes");
+  await conta.pedir("assinatura", { assinatura: { ...a, situacao: "cancelled" } });
+  await conta.pedir("cancelamento", { motivo, texto, por });
+  return { ok: true, ate: (atual.ciclo || {}).fim || "" };
+}
+
+/* O cartao novo da assinatura mensal (os campos seguros do Mercado Pago na
+   Minha conta geram o token). A conta guarda so a bandeira, os 4 ultimos
+   digitos, a validade e o nome impresso. */
+export async function cartaoNovo(env, mp, id, { token, metodo }) {
+  if (!/^[A-Za-z0-9]{16,64}$/.test(String(token || ""))) return falha(400, "o cartão não foi lido: digite de novo");
+  if (!/^[a-z0-9_]{2,30}$/.test(String(metodo || ""))) return falha(400, "a bandeira do cartão não foi reconhecida");
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  const a = atual.assinatura;
+  if (!a || !a.id || prepago(atual.periodo) || !["authorized", "paused", "pending"].includes(a.situacao)) {
+    return falha(409, "o cartão é o da assinatura mensal, e não há uma ativa nesta conta");
+  }
+  const info = await lerCartao(env, mp, token, metodo);
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { card_token_id: token });
+  if (!r.ok) return falha(402, "o Mercado Pago não aceitou o cartão: confira os dados ou use outro cartão de crédito");
+  const cartao = info || { bandeira: metodo, final: "", validade: "", titular: "" };
+  await conta.pedir("cartao", cartao);
+  return { ok: true, cartao };
+}
+
+/* O Pix de uma recarga pela Minha conta (um dos pacotes do plano). */
+export async function pixDaRecarga(env, mp, id, { pacote, email }) {
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  if (!atual.plano_vigente) return falha(409, "a recarga é para quem tem o plano em dia");
+  const para = String(email || atual.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para) || para.length > 120) return falha(400, "e-mail inválido");
+  const plano = planoDe(numeros(env), atual.plano.id);
+  const p = recargasDe(plano).find((x) => x.id === String(pacote || "1"));
+  if (!p) return falha(400, "esse pacote de recarga não existe");
+  const valor = p.valor.toFixed(2);
+  const r = await mp(env, "/v1/orders", "POST", {
+    type: "online", total_amount: valor, external_reference: "ia-recarga-" + id + "-" + aleatorio(6) + "-" + plano.id, processing_mode: "automatic",
+    transactions: { payments: [{ amount: valor, payment_method: { id: "pix", type: "bank_transfer" }, expiration_time: "PT30M" }] },
+    payer: { email: para },
+  });
+  if (!r.ok || !r.dados) return falha(502, "o Mercado Pago recusou criar o Pix: tente de novo em instantes");
+  const meio = ((((r.dados.transactions || {}).payments || [])[0] || {}).payment_method) || {};
+  if (!meio.qr_code) return falha(502, "o Mercado Pago não devolveu o Pix: tente de novo em instantes");
+  return { ok: true, id: String(r.dados.id), valor: p.valor, tokens: p.tokens, vence_em_minutos: 30, copia: meio.qr_code, qr_code_base64: meio.qr_code_base64 || "" };
+}
+
+/* Pagar todo mes no Pix, em vez do cartao: a assinatura sai do Mercado Pago, o
+   ciclo pago vira o mes pago, e 3 dias antes de cada mes novo o Pix vai por
+   e-mail (pixDoMes, no Cron). Precisa do e-mail ligado (RESEND_API_KEY) e do
+   CPF/CNPJ do cadastro (o Pix pede). Do Pix de volta ao cartao: pela pagina de
+   pagamento, quando o mes pago vencer. */
+export async function pagarNoPix(env, mp, id, { por = "" } = {}) {
+  if (!env.RESEND_API_KEY) return falha(503, "o Pix mensal manda o QR por e-mail, e o e-mail do Paulus ainda não está ligado");
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  if (atual.forma && atual.forma.tipo === "pix" && !atual.forma.parado) return { ok: true, ja: true };
+  const a = atual.assinatura;
+  if (!a || !a.id || a.situacao !== "authorized" || prepago(atual.periodo)) return falha(409, "o Pix mensal é para quem tem a assinatura mensal ativa no cartão");
+  if (!atual.cadastro || !atual.cadastro.documento) return falha(409, "o Pix pede o CPF ou CNPJ do cadastro: preencha a aba Cadastro antes");
+  if (atual.ajuste) return falha(409, "há uma cobrança com valor ajustado em curso; a troca para o Pix fica para depois dela");
+  const r = await mp(env, "/preapproval/" + encodeURIComponent(a.id), "PUT", { status: "cancelled" });
+  if (!r.ok) return falha(502, "o Mercado Pago recusou tirar o cartão: tente de novo em instantes");
+  const resumo = await conta.pedir("forma_pix", { por });
+  if (env.APOIOS) await env.APOIOS.put("conta:pix:" + id, JSON.stringify({ desde: new Date().toISOString() }));
+  return { ok: true, ate: resumo.pago_ate || "" };
+}
+
+/* O Pix do mes que vem de uma conta no Pix mensal, mandado por e-mail 3 dias
+   antes de o mes pago acabar (uma vez por mes). `enviar` e o enviarEmail do
+   painel. -> {ok, enviado} ou o motivo de nao ter mandado. */
+export async function pixDoMes(env, mp, id, { enviar, agora = Date.now() }) {
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  const f = atual.forma;
+  if (!atual.ok || !f || f.tipo !== "pix" || f.parado) return { ok: false, motivo: "não está no Pix mensal" };
+  const ate = Date.parse(atual.pago_ate || "");
+  if (!(ate - agora <= 3 * 24 * 3600 * 1000)) return { ok: false, motivo: "ainda não é hora" };
+  if (f.aviso && f.aviso.para === atual.pago_ate) return { ok: false, motivo: "já mandado para este mês" };
+  const email = (atual.cadastro && atual.cadastro.email_cobranca) || atual.email;
+  const plano = planoDe(numeros(env), atual.plano.id);
+  const doc = soDigitos(atual.cadastro && atual.cadastro.documento);
+  const ref = "ia-mes-" + id + "-" + plano.id + "-" + aleatorio(4);
+  // O Pix vale ate 3 dias depois de o mes pago acabar (o Mercado Pago aceita ate 30 dias).
+  const vence = new Date(Math.max(ate, agora) + 3 * 24 * 3600 * 1000 - 3 * 3600 * 1000).toISOString().replace("Z", "-03:00");
+  const r = await mp(env, "/v1/payments", "POST", {
+    transaction_amount: plano.valor, description: "PAULUS - plano " + plano.nome + " (um mês)", payment_method_id: "pix",
+    payer: { email, identification: { type: doc.length === 11 ? "CPF" : "CNPJ", number: doc } }, external_reference: ref, date_of_expiration: vence,
+  }, { "X-Idempotency-Key": "pix-mes-" + id + "-" + atual.pago_ate });
+  const pg = (r && r.ok && r.dados) || null;
+  const t = (pg && pg.point_of_interaction && pg.point_of_interaction.transaction_data) || {};
+  if (!pg || !t.qr_code) return { ok: false, motivo: "o Mercado Pago não gerou o Pix" };
+  await conta.pedir("anual_pendente", { ref, plano: plano.id, valor: plano.valor, meses: 1 });
+  const e = await enviar(env, {
+    para: email, assunto: "O Pix do próximo mês do Paulus",
+    titulo: "O plano " + plano.nome + " renova em " + dataBR(atual.pago_ate),
+    texto: "Para continuar com o plano " + plano.nome + " no Pix, pague R$ " + plano.valor.toFixed(2).replace(".", ",") + " até " + dataBR(new Date(Math.max(ate, agora) + 3 * 24 * 3600 * 1000).toISOString()) +
+      ". O código Pix (copia e cola) está abaixo; o QR também está no anexo." + "\n\n" + t.qr_code,
+    botao: t.ticket_url ? "Abrir o Pix no Mercado Pago" : "", link: t.ticket_url || "",
+    anexos: t.qr_code_base64 ? [{ nome: "pix-paulus.png", b64: t.qr_code_base64 }] : [],
+  });
+  if (!e.ok) return { ok: false, motivo: e.erro };
+  await conta.pedir("pix_avisado", { para: atual.pago_ate, pagamento: String(pg.id) });
+  return { ok: true, enviado: email, pagamento: String(pg.id) };
+}
+
+/* O Cron do dia (worker/index.js): os Pix do mes de quem paga no Pix e os
+   valores de assinatura que o Mercado Pago recusou voltar. */
+export async function cronDaConta(env, mp, enviar, agora = Date.now()) {
+  if (!env.APOIOS || !env.CONTAS_IA) return { pix: 0, restaurados: 0 };
+  let pix = 0;
+  let restaurados = 0;
+  const listar = async (prefixo) => {
+    const nomes = [];
+    let cursor;
+    do {
+      const l = await env.APOIOS.list({ prefix: prefixo, cursor });
+      for (const k of l.keys) nomes.push(k.name.slice(prefixo.length));
+      cursor = l.list_complete ? undefined : l.cursor;
+    } while (cursor);
+    return nomes;
+  };
+  for (const id of await listar("conta:pix:")) {
+    const r = await pixDoMes(env, mp, id, { enviar, agora }).catch(() => ({ ok: false }));
+    if (r.ok) pix++;
+  }
+  for (const id of await listar("conta:restaurar:")) {
+    const atual = await medidor(env, id).pedir("minha_conta").catch(() => null);
+    const v = atual && atual.valor_a_restaurar;
+    if (v && v.assinatura && !(await valorDaAssinatura(env, mp, v.assinatura, v.valor).catch(() => false))) continue;
+    if (v) await medidor(env, id).pedir("ajuste_restaurado");
+    await env.APOIOS.delete("conta:restaurar:" + id);
+    if (v) restaurados++;
+  }
+  return { pix, restaurados };
 }
 
 // ------------------------------------------------------- o site (cadastro)
@@ -1411,6 +1700,16 @@ export async function avisoDaIA(env, tipo, dados, mp) {
       const r = await medidor(env, m[1]).pedir("renovar", { cobranca: String(dados.id), quando: dados.debit_date || dados.date_created || "",
         valor: Number(dados.transaction_amount) || 0 });
       await anotarPagamento(env, { id: String(dados.id), conta: m[1], tipo: "mensalidade", valor: Number(dados.transaction_amount) || 0 });
+      // A cobranca com valor proprio (desconto, diferenca da troca, preco
+      // especial) foi paga: a assinatura passa ao valor seguinte, ou volta ao cheio.
+      if (r && r.valor_assinatura_novo && mp) {
+        const ok = await valorDaAssinatura(env, mp, String(dados.preapproval_id || ""), r.valor_assinatura_novo).catch(() => false);
+        if (!ok) {
+          await medidor(env, m[1]).pedir("restaurar_pendente", { valor: r.valor_assinatura_novo, assinatura: String(dados.preapproval_id || "") });
+          if (env.APOIOS) await env.APOIOS.put("conta:restaurar:" + m[1], "1");
+          await anotarAviso(env, { conta: m[1], tipo: "valor da assinatura", status: "o Mercado Pago recusou; o Cron tenta de novo", valor: r.valor_assinatura_novo });
+        }
+      }
       // O cliente desistiu antes de a primeira cobranca chegar: ela volta agora.
       if (r && r.desistencia_pendente && mp) {
         await devolverPagamento(env, mp, m[1], String(dados.id), { por: "o cliente (desistência)" }).catch(() => null);
@@ -1429,6 +1728,12 @@ const SEMANA_MS = 7 * 24 * 3600 * 1000;
 // 49): neles a cota e so a da semana, sem adiantamento - quem desiste nao
 // leva mais do que uma semana de IA.
 const ARREPENDIMENTO_MS = 7 * 24 * 3600 * 1000;
+// A oferta para ficar (Minha conta, ao cancelar): 20 M de creditos agora, ou
+// 30% a menos nas duas proximas cobrancas do cartao. Uma vez a cada 12 meses.
+export const OFERTA_FICAR = { creditos: 20000000, desconto: 0.3, cobrancas: 2 };
+const OFERTA_FICAR_INTERVALO_MS = 365 * 24 * 3600 * 1000;
+// A oferta do painel para quem nao renovou vale 60 dias.
+const OFERTA_VOLTA_MS = 60 * 24 * 3600 * 1000;
 
 function menosUmMes(ms) {
   const d = new Date(ms);
@@ -1506,8 +1811,18 @@ export class ContaIA {
     const conta = c;
     this.limparReservas(conta, agora);
     if (acao === "conferir") {
-      const ok = (conta.segredos || []).some((s) => s.hash === d.hash);
-      return [{ ok }, null];
+      const s = (conta.segredos || []).find((x) => x.hash === d.hash);
+      if (!s) return [{ ok: false }, null];
+      // Quando esta instalacao falou com a nuvem pela ultima vez, e em que
+      // versao (a lista de instalacoes da Minha conta): anotado no maximo de
+      // hora em hora, para nao gravar a cada pergunta.
+      const versao = String(d.versao || "").slice(0, 20);
+      if (agora - (Date.parse(s.visto || "") || 0) > 3600 * 1000 || (versao && versao !== s.versao)) {
+        s.visto = new Date(agora).toISOString();
+        if (versao) s.versao = versao;
+        return [{ ok: true }, conta];
+      }
+      return [{ ok: true }, null];
     }
     if (acao === "resumo") return [this.resumo(conta, n, agora), conta];
     if (acao === "sair") {
@@ -1577,6 +1892,8 @@ export class ContaIA {
         desde: antes.desde || new Date(agora).toISOString() };
       conta.pagamentos = [...conta.pagamentos, { tipo, ref: d.pagamento, valor: Number(d.valor) || 0,
         quando: new Date(Date.parse(d.quando || "") || agora).toISOString() }].slice(-60);
+      // A oferta de volta do painel: os creditos entram com este pagamento (o preco especial ja foi cobrado nele).
+      this.usarOfertaDeVolta(conta, agora);
       // O ano pago abre um ciclo novo agora, com os creditos do plano pago (a
       // renovacao antecipada espera o fim do ciclo aberto, que ja esta pago).
       if (inicio === agora) this.abrirCiclo(conta, n, agora, tipo, d.pagamento);
@@ -1607,6 +1924,13 @@ export class ContaIA {
       }
       // O plano escolhido entra com a assinatura nova; o ciclo aberto continua o dele.
       if (d.plano) conta.plano = d.plano;
+      // O preco especial da volta (ofertaDoPagamento), na assinatura nova: a
+      // primeira cobranca sai nele, e depois a assinatura volta ao valor do plano.
+      if (d.ajuste) {
+        const v = Math.round(Number(d.ajuste.valor) * 100) / 100;
+        conta.ajuste = { motivo: "o preço especial da volta", cobrancas: [v], valor_cheio: Number(d.ajuste.valor_cheio) || 0, atual: v, quando: new Date(agora).toISOString() };
+        if (conta.oferta_volta && conta.oferta_volta.tipo === "preco") delete conta.oferta_volta;
+      }
       const antes = conta.assinatura || {};
       conta.assinatura = { ...antes, ...d.assinatura, desde: antes.desde || new Date(agora).toISOString() };
       // Cartao posto e aceito: o primeiro ciclo comeca agora; a cobranca do
@@ -1621,6 +1945,12 @@ export class ContaIA {
       const quando = Date.parse(d.quando || "") || agora;
       conta.pagamentos = [...(conta.pagamentos || []), { tipo: "assinatura", ref: d.cobranca,
         valor: Number(d.valor) || (conta.assinatura || {}).valor || planoDe(n, conta.plano).valor, quando: new Date(quando).toISOString() }].slice(-60);
+      // A oferta de volta do painel (os creditos) e as cobrancas com valor
+      // proprio (conta.ajuste): o valor que a assinatura passa a ter volta na
+      // resposta, e quem chamou (avisoDaIA) acerta no Mercado Pago.
+      const daVolta = this.usarOfertaDeVolta(conta, agora);
+      const valorNovo = this.avancarAjuste(conta, Number(d.valor) || 0);
+      const extras = { ...(valorNovo ? { valor_assinatura_novo: valorNovo } : {}), ...(daVolta ? { creditos_da_volta: daVolta } : {}) };
       // A primeira cobranca logo depois da assinatura e a do ciclo que acabou
       // de abrir; as outras abrem o ciclo seguinte.
       const aberto = this.cicloAberto(conta, agora);
@@ -1634,6 +1964,11 @@ export class ContaIA {
         }
         this.abrirCiclo(conta, n, Math.min(quando, agora), "cobranca", d.cobranca);
       }
+      return [{ ...this.resumo(conta, n, agora), ...extras }, conta];
+    }
+    if (acao === "restaurar_pendente") {
+      // O Mercado Pago recusou voltar ao valor cheio: o Cron do dia tenta de novo (restaurarValores).
+      conta.valor_a_restaurar = { valor: Number(d.valor) || 0, assinatura: String(d.assinatura || ""), quando: new Date(agora).toISOString() };
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "creditar") {
@@ -1680,6 +2015,158 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao.startsWith("admin_")) return this.fazerAdmin(acao, conta, d, n, agora);
+    return this.fazerConta(acao, conta, d, n, agora);
+  }
+
+  /* A Minha conta (worker/conta.js) e as ofertas: o que a conta guarda. O
+     Mercado Pago e chamado antes, de fora (as funcoes exportadas abaixo de
+     trocarPlano); aqui so a anotacao, sem I/O. */
+  fazerConta(acao, conta, d, n, agora) {
+    const iso = (t) => new Date(t).toISOString();
+    if (acao === "minha_conta") return [this.minhaConta(conta, n, agora), conta];
+    if (acao === "cancelamento") {
+      conta.cancelamento = { quando: iso(agora), motivo: String(d.motivo || "").slice(0, 20),
+        texto: String(d.texto || "").replace(/[\u0000-\u001f<>]/g, " ").slice(0, 600), por: String(d.por || "").slice(0, 120) };
+      // No Pix mensal, cancelar e parar os lembretes: o mes pago fica ate o fim.
+      if (conta.forma && conta.forma.tipo === "pix") conta.forma = { ...conta.forma, parado: iso(agora) };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "orcar_troca") {
+      // A troca para um plano mais caro com a assinatura mensal: o que falta do
+      // ciclo (f, de 0 a 1) e a diferenca que entra na proxima cobranca.
+      const novo = planoDe(n, d.plano);
+      const antigo = planoDe(n, conta.plano);
+      const c = this.cicloAberto(conta, agora);
+      if (!c) return [{ ok: true, f: 0, diferenca: 0, proxima: novo.valor }, null];
+      const total = Date.parse(c.fim) - Date.parse(c.inicio);
+      const f = total > 0 ? Math.max(0, Math.min(1, (Date.parse(c.fim) - agora) / total)) : 0;
+      const diferenca = Math.round((novo.valor - antigo.valor) * f * 100) / 100;
+      return [{ ok: true, f, diferenca, proxima: Math.round((novo.valor + diferenca) * 100) / 100, fim: c.fim }, null];
+    }
+    if (acao === "plano_agora") {
+      // O plano novo vale agora: a cota deste ciclo cresce na proporcao dos
+      // dias que faltam, e a proxima cobranca leva a diferenca (conta.ajuste).
+      const novo = planoDe(n, d.plano);
+      const antigo = planoDe(n, conta.plano);
+      const c = this.cicloAberto(conta, agora);
+      if (c) {
+        const total = Date.parse(c.fim) - Date.parse(c.inicio);
+        const f = total > 0 ? Math.max(0, Math.min(1, (Date.parse(c.fim) - agora) / total)) : 0;
+        c.tokens = Math.max(c.usados, Math.round(c.tokens + (novo.tokens - antigo.tokens) * f));
+        if (c.semana) c.semana = Math.round((novo.tokens * 7) / 30);
+      }
+      conta.plano = novo.id;
+      delete conta.plano_proximo;
+      if (conta.assinatura) conta.assinatura = { ...conta.assinatura, valor: novo.valor };
+      if (d.ajuste) {
+        const v = Math.round(Number(d.ajuste.valor) * 100) / 100;
+        conta.ajuste = { motivo: "a diferença da troca de plano", cobrancas: [v], valor_cheio: novo.valor, atual: v, quando: iso(agora) };
+      }
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "oferta_ficar") {
+      const motivo = this.motivoSemOfertaParaFicar(conta, agora);
+      if (motivo) return [{ ok: false, status: 409, erro: motivo }, null];
+      const reg = { tipo: String(d.tipo || ""), motivo: String(d.motivo || "").slice(0, 20), quando: iso(agora), por: String(d.por || "").slice(0, 120) };
+      if (d.tipo === "creditos") {
+        const tokens = OFERTA_FICAR.creditos;
+        conta.extra = (conta.extra || 0) + tokens;
+        conta.recargas = [...(conta.recargas || []), { pedido: "ficar-" + agora, tokens, valor: 0, quando: iso(agora), cortesia: true, por: "oferta para ficar" }].slice(-50);
+        reg.tokens = tokens;
+      } else if (d.tipo === "desconto") {
+        if (conta.ajuste) return [{ ok: false, status: 409, erro: "já há uma cobrança com valor ajustado em curso; a oferta fica para depois dela" }, null];
+        const v = Math.round(Number(d.valor) * 100) / 100;
+        const vezes = Math.max(1, Math.min(6, Math.round(Number(d.cobrancas) || OFERTA_FICAR.cobrancas)));
+        conta.ajuste = { motivo: "o desconto para ficar", cobrancas: Array(vezes).fill(v), valor_cheio: Number(d.valor_cheio) || 0, atual: v, quando: iso(agora) };
+        reg.valor = v;
+        reg.cobrancas = vezes;
+      } else {
+        return [{ ok: false, status: 400, erro: "essa oferta não existe" }, null];
+      }
+      conta.ofertas = [...(conta.ofertas || []), reg].slice(-10);
+      return [{ ...this.resumo(conta, n, agora), oferta: reg }, conta];
+    }
+    if (acao === "oferta_volta") {
+      // A oferta do painel para quem nao renovou (Nao renovacoes), sem cupom:
+      // os creditos entram com o proximo pagamento confirmado; o preco especial
+      // vale para o proximo pagamento do plano dela. 60 dias.
+      const o = { tipo: String(d.tipo || ""), quando: iso(agora), ate: iso(agora + OFERTA_VOLTA_MS), por: String(d.por || "").slice(0, 120) };
+      if (d.tipo === "creditos") o.tokens = Math.max(1e5, Math.min(5e8, Math.round(Number(d.tokens) || 0)));
+      else if (d.tipo === "preco") {
+        o.valor = Math.round(Number(d.valor) * 100) / 100;
+        o.plano = String(d.plano || "");
+      } else return [{ ok: false, status: 400, erro: "essa oferta não existe" }, null];
+      conta.oferta_volta = o;
+      if (d.ajuste) conta.ajuste = { motivo: "o preço especial da volta", cobrancas: [o.valor], valor_cheio: Number(d.ajuste.valor_cheio) || 0, atual: o.valor, quando: iso(agora) };
+      return [{ ...this.resumo(conta, n, agora), oferta_volta: o }, conta];
+    }
+    if (acao === "ajuste_restaurado") {
+      // O valor cheio voltou ao Mercado Pago depois de uma falha (o Cron tentou de novo).
+      delete conta.valor_a_restaurar;
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "cartao") {
+      // So a bandeira, os 4 ultimos digitos, a validade e o nome impresso: o numero fica no Mercado Pago.
+      conta.cartao = { bandeira: String(d.bandeira || "").replace(/[^a-z0-9_]/gi, "").slice(0, 20), final: String(d.final || "").replace(/\D/g, "").slice(-4),
+        validade: /^\d{2}\/\d{2}$/.test(String(d.validade || "")) ? d.validade : "", titular: String(d.titular || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, 60),
+        quando: iso(agora) };
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "forma_pix") {
+      // A assinatura no cartao ja saiu do Mercado Pago (worker/conta.js): o
+      // ciclo pago vira o mes pago, e cada mes novo vem por um Pix mandado por
+      // e-mail 3 dias antes (pixDoMes, no Cron). O mesmo modelo do mes avulso.
+      const c = this.cicloAberto(conta, agora);
+      const a = conta.assinatura || {};
+      conta.forma = { tipo: "pix", desde: iso(agora), cartao_cancelado: a.id || "" };
+      conta.periodo = "avulso";
+      conta.pago_ate = c ? c.fim : iso(agora);
+      conta.assinatura = { ...a, id: "pix-" + (a.id || agora), situacao: "authorized", periodo: "avulso" };
+      delete conta.ajuste;
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "pix_avisado") {
+      conta.forma = { ...(conta.forma || { tipo: "pix" }), aviso: { para: d.para, pagamento: String(d.pagamento || ""), quando: iso(agora) } };
+      return [{ ok: true }, conta];
+    }
+    if (acao === "remover_instalacao") {
+      const antes = (conta.segredos || []).length;
+      conta.segredos = (conta.segredos || []).filter((s) => s.instalacao !== d.instalacao);
+      if (conta.segredos.length === antes) return [{ ok: false, status: 404, erro: "esse computador não está na conta" }, null];
+      return [this.resumo(conta, n, agora), conta];
+    }
+    if (acao === "pessoa_convidar") {
+      const email = String(d.email || "").toLowerCase();
+      const outras = (conta.pessoas || []).filter((p) => p.email !== email);
+      if (outras.length >= 10) return [{ ok: false, status: 409, erro: "a Minha conta aceita até 10 pessoas além do titular" }, null];
+      conta.pessoas = [...outras, { email, papel: "financeiro", convite: { hash: String(d.hash), ate: String(d.ate), quando: iso(agora) }, por: String(d.por || "").slice(0, 120) }];
+      return [{ ok: true }, conta];
+    }
+    if (acao === "pessoa_aceitar") {
+      const email = String(d.email || "").toLowerCase();
+      const p = (conta.pessoas || []).find((x) => x.email === email && x.convite && x.convite.hash === d.hash);
+      if (!p || !(Date.parse(p.convite.ate) > agora)) return [{ ok: false, status: 410, erro: "este convite venceu ou é de outra conta Google; peça outro ao titular" }, null];
+      delete p.convite;
+      p.aceito = iso(agora);
+      p.nome = String(d.nome || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, 80);
+      return [{ ok: true, papel: p.papel }, conta];
+    }
+    if (acao === "pessoa_papel") {
+      const p = (conta.pessoas || []).find((x) => x.email === String(d.email || "").toLowerCase() && x.aceito);
+      return [{ ok: Boolean(p), papel: p ? p.papel : "" }, null];
+    }
+    if (acao === "pessoa_remover") {
+      const email = String(d.email || "").toLowerCase();
+      const antes = (conta.pessoas || []).length;
+      conta.pessoas = (conta.pessoas || []).filter((p) => p.email !== email);
+      if (conta.pessoas.length === antes) return [{ ok: false, status: 404, erro: "essa pessoa não está na conta" }, null];
+      return [{ ok: true }, conta];
+    }
+    if (acao === "google_ordem") {
+      // A mesma ordem do painel (admin_google): que servicos do Google o PAULUS do escritorio mantem ligados.
+      conta.google_pendente = { id: "g" + agora, ligados: (d.ligados || []).map(String).slice(0, 10), quando: iso(agora), por: "Minha conta" };
+      return [this.resumo(conta, n, agora), conta];
+    }
     return [{ ok: false, erro: "ação desconhecida", status: 400 }, null];
   }
 
@@ -1702,6 +2189,71 @@ export class ContaIA {
     const valor = pgs.reduce((t, p) => t + (Number(p.valor) || 0), 0) + (semCobranca ? Number(a.valor) || 0 : 0);
     return { pode: true, refs: pgs.map((p) => p.ref), mensal_sem_cobranca: semCobranca, valor, ate: new Date(inicio + ARREPENDIMENTO_MS).toISOString(),
       docs: conta.docs || [], doc_cadastro: (conta.cadastro || {}).documento || "" };
+  }
+
+  /* O que a Minha conta mostra (worker/conta.js), alem do resumo. */
+  minhaConta(conta, n, agora) {
+    const motivo = this.motivoSemOfertaParaFicar(conta, agora);
+    return {
+      ...this.resumo(conta, n, agora),
+      dono: conta.dono || null,
+      criada: conta.criada || "",
+      cadastro: conta.cadastro || null,
+      cartao: conta.cartao || null,
+      forma: conta.forma || null,
+      pagamentos: conta.pagamentos || [],
+      uso: conta.uso || [],
+      uso_mes: conta.uso_mes || {},
+      ciclo_completo: conta.ciclo ? { ...conta.ciclo } : null,
+      instalacoes_lista: (conta.segredos || []).map((s) => ({ instalacao: s.instalacao, criado: s.criado || "", visto: s.visto || "", versao: s.versao || "" })),
+      google: conta.google || null,
+      pessoas: (conta.pessoas || []).map((p) => ({ email: p.email, nome: p.nome || "", papel: p.papel, convite: Boolean(p.convite), aceito: p.aceito || "" })),
+      cancelamento: conta.cancelamento || null,
+      ajuste: conta.ajuste ? { motivo: conta.ajuste.motivo, cobrancas: conta.ajuste.cobrancas || [], valor_cheio: conta.ajuste.valor_cheio } : null,
+      oferta_ficar: { pode: !motivo, motivo },
+      valor_a_restaurar: conta.valor_a_restaurar || null,
+    };
+  }
+
+  /* "" se a conta pode receber a oferta para ficar (ao cancelar); senao, o porque. */
+  motivoSemOfertaParaFicar(conta, agora) {
+    if (conta.cortesia) return "o plano de cortesia não tem oferta";
+    const ultima = (conta.ofertas || []).slice(-1)[0];
+    if (ultima && agora - Date.parse(ultima.quando) < OFERTA_FICAR_INTERVALO_MS) return "a oferta para ficar já foi usada nos últimos 12 meses";
+    return "";
+  }
+
+  /* A oferta de volta do painel, com um pagamento confirmado: os creditos
+     entram agora; o preco especial ja foi usado na cobranca. Vencida, sai sem nada. */
+  usarOfertaDeVolta(conta, agora) {
+    const o = conta.oferta_volta;
+    if (!o) return 0;
+    delete conta.oferta_volta;
+    if (!(Date.parse(o.ate || "") > agora) || o.tipo !== "creditos") return 0;
+    const tokens = Math.max(0, Math.round(Number(o.tokens) || 0));
+    conta.extra = (conta.extra || 0) + tokens;
+    conta.recargas = [...(conta.recargas || []), { pedido: "volta-" + agora, tokens, valor: 0, quando: new Date(agora).toISOString(), cortesia: true, por: o.por || "oferta de volta" }].slice(-50);
+    return tokens;
+  }
+
+  /* As cobrancas com valor proprio (o desconto para ficar, a diferenca da troca
+     de plano, o preco especial da volta): a cobranca de `valor` acabou de ser
+     paga. Se era a ajustada, passa para a seguinte e devolve o valor que a
+     assinatura deve ter daqui em diante (0 quando nao muda); a ultima devolve
+     o valor cheio, e o ajuste acaba. Cobranca de outro valor (a que ja estava
+     marcada antes do ajuste) nao conta. */
+  avancarAjuste(conta, valor) {
+    const aj = conta.ajuste;
+    if (!aj) return 0;
+    if (valor && Math.abs(Number(valor) - Number(aj.atual)) > 0.01) return 0;
+    aj.cobrancas = (aj.cobrancas || []).slice(1);
+    if (aj.cobrancas.length) {
+      if (Math.abs(aj.cobrancas[0] - aj.atual) <= 0.01) return 0;
+      aj.atual = aj.cobrancas[0];
+      return aj.atual;
+    }
+    delete conta.ajuste;
+    return Number(aj.valor_cheio) || 0;
   }
 
   cicloAberto(conta, agora) {
@@ -1819,7 +2371,7 @@ export class ContaIA {
     let u = conta.uso[conta.uso.length - 1];
     if (!u || u.dia !== dia) {
       u = { dia, tokens: 0 };
-      conta.uso = [...conta.uso, u].slice(-62);
+      conta.uso = [...conta.uso, u].slice(-400);
     }
     u.tokens += tokens;
     u.entrada = (u.entrada || 0) + entrada;
@@ -1835,7 +2387,7 @@ export class ContaIA {
       u.modelos[m].entrada += entrada;
       u.modelos[m].saida += saida;
     }
-    // O mes inteiro, que nao sai depois de 62 dias (o "2026" do painel).
+    // O mes inteiro, que fica depois que o dia sai (400 dias; o "2026" do painel).
     const mes = dia.slice(0, 7);
     conta.uso_mes = conta.uso_mes || {};
     const um = (conta.uso_mes[mes] = conta.uso_mes[mes] || { entrada: 0, saida: 0, modelos: {} });
@@ -1947,6 +2499,10 @@ export class ContaIA {
       // A ordem do painel para o PAULUS instalado: que servicos do Google
       // continuam ligados (o resto ele desliga; nenhum: revoga o acesso todo).
       google_pendente: conta.google_pendente || null,
+      // A oferta do painel para quem nao renovou: o preco especial entra na
+      // proxima cobranca (ofertaDoPagamento); os creditos, com o pagamento.
+      oferta_volta: conta.oferta_volta && Date.parse(conta.oferta_volta.ate) > agora
+        ? (({ tipo, tokens, valor, plano, ate }) => ({ tipo, tokens, valor, plano, ate }))(conta.oferta_volta) : null,
     };
   }
 
@@ -1959,6 +2515,9 @@ export class ContaIA {
         instalacoes_lista: (conta.segredos || []).map((x) => ({ instalacao: x.instalacao, hash8: String(x.hash).slice(0, 8), criado: x.criado })),
         pagamentos: conta.pagamentos || [], uso: conta.uso || [], uso_mes: conta.uso_mes || {}, google: conta.google || null,
         desvinculado: conta.desvinculado || null, plano_id: conta.plano || null, extra: conta.extra || 0, recargas: conta.recargas || [],
+        // A Minha conta: o motivo de quem cancelou (Nao renovacoes), as ofertas, a cobranca ajustada, o cartao e a forma.
+        cancelamento: conta.cancelamento || null, ofertas: conta.ofertas || [], ajuste: conta.ajuste || null,
+        cartao: conta.cartao || null, forma: conta.forma || null, valor_a_restaurar: conta.valor_a_restaurar || null,
       }, null];
     }
     if (acao === "admin_creditar") {
