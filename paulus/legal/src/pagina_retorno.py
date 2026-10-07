@@ -126,7 +126,11 @@ def pagina(estado: str, *, provedor: str = "Google", escopos: str = "", detalhe:
     # com o selo, o que foi autorizado numa caixa so, com a marca de cada
     # servico, e o "Voltar ao PAVLVS" no trilho.
     painel = ""
-    if estado == "sucesso":
+    if estado == "sucesso" and not perms:
+        # So o login (o vinculo do PAVLVS, destravar): o desenho "Login recebido"
+        # nao tem a conta; a frase da falha aparece se o Paulus nao terminar.
+        painel = '<p class="falha" id="falha" hidden></p>'
+    elif estado == "sucesso":
         painel = ('<div class="grupo"><span class="etiqueta">CONTA</span>'
                   f'<div class="caixa"><span class="marca">{marca}</span><span class="email" id="email">conferindo a conta…</span>'
                   '<span class="selo" id="selo"><i></i><span id="selo-texto">recebido</span></span></div>'
@@ -270,14 +274,16 @@ font:500 13px 'Manrope',sans-serif;letter-spacing:.01em}
   function perguntar() {
     tentativas += 1;
     fetch("/estado?state=" + encodeURIComponent(dados.state)).then(function (r) { return r.json(); }).then(function (d) {
+      // A conta e o selo so existem na volta da conexao (com os servicos); no login so, nao.
       var selo = document.getElementById("selo"), texto = document.getElementById("selo-texto"), email = document.getElementById("email");
-      if (d.email) email.textContent = d.email;
-      if (d.fase === "pronto") { texto.textContent = "conectado"; selo.className = "selo ok"; voltar(); return; }
+      if (d.email && email) email.textContent = d.email;
+      if (d.fase === "pronto") { if (texto) texto.textContent = "conectado"; if (selo) selo.className = "selo ok"; voltar(); return; }
       if (d.fase === "erro" || d.fase === "cancelado") {
-        texto.textContent = "não conectado"; selo.className = "selo erro";
+        if (texto) texto.textContent = "não conectado";
+        if (selo) selo.className = "selo erro";
         var f = document.getElementById("falha"); f.hidden = false;
         f.textContent = "O Paulus não terminou: " + (d.mensagem || "o login não foi concluído") + ". Volte ao Paulus e tente de novo.";
-        if (!d.email) email.textContent = "conta não confirmada";
+        if (!d.email && email) email.textContent = "conta não confirmada";
         return;
       }
       if (tentativas < 90) setTimeout(perguntar, 1000);

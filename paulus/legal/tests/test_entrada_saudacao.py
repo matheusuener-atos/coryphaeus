@@ -142,6 +142,9 @@ def main() -> int:
                    f"volta do Google ({estado}): o título, a frase do estado e o aparecer devagar")
         html = pagina_retorno.pagina("sucesso", provedor="Google", escopos="https://mail.google.com/")
         checar("Conta Google conectada." in html, "com a conta conectada, a frase diz a conta")
+        so_login = pagina_retorno.pagina("sucesso", provedor="Google", state="x")
+        checar('id="email"' not in so_login and 'id="falha"' in so_login and 'id="email"' in html,
+               "login só (desenho “Login recebido”): sem a linha da conta, com a frase da falha; a conexão mostra a conta")
         pronto = re.search(r'd\.fase === "pronto"\) \{[^}]*\}', html)
         checar(pronto and "voltar()" in pronto.group(0) and "paulus://" not in pronto.group(0),
                "login pronto: a página pede ao PAULUS que venha para a frente, sem o diálogo do paulus://")
