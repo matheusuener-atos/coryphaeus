@@ -41,7 +41,7 @@ SECOES = {
     "aprendizado": ("Biblioteca", "nada sai desta máquina"),
     "aparencia": ("Aparência e avisos", "tema, avisos e atalhos"),
     "menu": ("Módulos", "desligar só tira do menu"),
-    "plano": ("Versão", "software livre, licença MIT"),
+    "plano": ("Versão", "atualização e novidades"),
     "lixeira": ("Lixeira", "30 dias para voltar"),
 }
 
@@ -860,7 +860,6 @@ def _proposta_versao(dados: dict):
         frase = (f"Está. Você usa a versão {atual}, a mais nova, e a última verificação foi {quando}. "
                  "O PAULUS confere uma vez por dia lendo um arquivo público; nada seu vai junto.")
         linhas = [{"chave": "", "campo": "Na versão mais nova", "antes": "", "depois": atual, "tom": "ok", "mono": True}]
-    linhas.append({"chave": "", "campo": "Licença", "antes": "", "depois": "MIT · código aberto", "tom": "neutro"})
     if quando:
         linhas.append({"chave": "", "campo": "Última verificação", "antes": "", "depois": quando.replace("hoje às", date.today().strftime("%d/%m") + " às"), "tom": "neutro"})
     if a.get("erro"):

@@ -1,8 +1,7 @@
 // O painel de administracao do PAVLVS (paulus.ia.br/admin; o contrato das
 // rotas esta em worker/admin-api.md). A equipe ve as contas da nuvem, os
 // tuneis do acesso de fora, as nao renovacoes, as campanhas de e-mail, os
-// tokens e a receita, os planos, os materiais para moderar, as
-// notas fiscais e a propria equipe.
+// tokens e a receita, os planos, as notas fiscais e a propria equipe.
 //
 // As notas fiscais (NFS-e do PAVLVS) sao emitidas daqui: /api/admin/nfse/emissor/*
 // vai ao emissor da nuvem (worker/nfse/api.js, o Durable Object EmissorNFSe),
@@ -59,7 +58,6 @@ const PODE = {
   "campanha.disparar": TODOS,
   "plano.editar": ["dono", "financeiro"],
   "plano.criar": ["dono", "financeiro"],
-  "material.situacao": TODOS,
   "nfse.config": ["dono", "financeiro"],
   "equipe.papel": ["dono"],
 };
@@ -81,15 +79,14 @@ export const MATRIZ = [
 // ---------------------------------------------------------------- entrada
 
 export function ehRotaDoAdmin(url) {
-  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/") || url.pathname === "/api/materiais/enviar";
+  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/");
 }
 
 export async function atenderAdmin(request, env, url, ctx, deps = {}) {
   const p = url.pathname;
   const m = request.method;
-  // Fora do Access: o rastreio dos e-mails e o envio de material pelo PAULUS.
+  // Fora do Access: o rastreio dos e-mails.
   if (p.startsWith("/api/e/")) return rastreio(env, url);
-  if (p === "/api/materiais/enviar" && m === "POST") return receberMaterial(request, env, deps);
   if (!env.APOIOS) return json({ erro: "o painel precisa do KV APOIOS" }, 503);
 
   const access = await conferirAccess(request, env, deps);
@@ -141,7 +138,6 @@ async function rotear(c, request, url, p, m) {
     if (p === "/api/admin/campanhas") return json(await campanhasParaTela(c));
     if (p === "/api/admin/tokens") return json(await tokens(c, url.searchParams.get("visao") || "geral", url.searchParams.get("periodo") || "mes"));
     if (p === "/api/admin/planos") return json(await planos(c));
-    if (p === "/api/admin/materiais") return json({ materiais: await materiais(c.env) });
     if (p === "/api/admin/nfse") return json(await nfse(c));
     if (p === "/api/admin/equipe") return json(await equipe(c));
     if (p === "/api/admin/busca") return json(await busca(c, url.searchParams.get("q") || ""));
@@ -620,8 +616,6 @@ async function pendencias(c, contas, tuneis) {
   if (parados) lista.push({ icone: "dns", titulo: parados + (parados === 1 ? " túnel parado" : " túneis parados"), sub: "sem conexão ou nunca conectaram; a limpeza diária está contando", tela: "tuneis", filtro: "parados" });
   const semDoc = contas.filter((x) => (x.situacao === "ativa" || x.situacao === "vencida") && !x.escritorio.documento).length;
   if (semDoc) lista.push({ icone: "contacts", titulo: semDoc + (semDoc === 1 ? " cadastro sem CPF/CNPJ" : " cadastros sem CPF/CNPJ"), sub: "assinaram antes da página Assinar pedir o cadastro", tela: "contas" });
-  const fila = (await materiais(c.env)).filter((m) => m.situacao === "fila").length;
-  if (fila) lista.push({ icone: "menu_book", titulo: fila + (fila === 1 ? " material na fila" : " materiais na fila"), sub: "esperando a leitura antes de publicar", tela: "materiais", filtro: "fila" });
   return lista;
 }
 
@@ -973,56 +967,6 @@ export async function comPlanosDoPainel(env) {
   return PLANOS_CACHE.valor ? { ...env, IA_PLANOS: PLANOS_CACHE.valor } : env;
 }
 
-// ---------------------------------------------------------- materiais
-
-const RE_CPF = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
-const RE_CNPJ = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
-const RE_PROCESSO = /\b\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}\b/g;
-
-export function varredura(texto) {
-  const t = String(texto || "");
-  const cnpj = (t.match(RE_CNPJ) || []).length;
-  const processo = (t.match(RE_PROCESSO) || []).length;
-  const semOutros = t.replace(RE_CNPJ, " ").replace(RE_PROCESSO, " ");
-  return { cpf: (semOutros.match(RE_CPF) || []).length, cnpj, processo, nomes: null };
-}
-
-async function materiais(env) {
-  const lista = [];
-  for (const k of await kvPor(env, "admin:material:")) {
-    const x = await kvJSON(env, k, null);
-    if (!x) continue;
-    lista.push({ id: x.id, slug: x.slug, tipo: x.tipo, titulo: x.titulo, areas: x.areas || [], licenca: x.licenca || "CC BY 4.0", autor: x.autor, oab: x.oab || "",
-      enviado: x.enviado, situacao: x.situacao, palavras: String(x.md || "").split(/\s+/).filter(Boolean).length, texto: x.md || "", resumo: x.resumo || "", varredura: varredura(x.md) });
-  }
-  return lista.sort((a, b) => String(b.enviado).localeCompare(String(a.enviado)));
-}
-
-/* O PAULUS manda um material da aba Da comunidade (com o segredo da nuvem). */
-async function receberMaterial(request, env, deps) {
-  if (!env.APOIOS || env.IA_ATIVA !== "1" || !env.CONTAS_IA) return json({ erro: "o envio de materiais ainda não está ligado" }, 503);
-  if (deps.dentroDoLimite && !(await deps.dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-  const cab = request.headers.get("authorization") || "";
-  const segredo = cab.startsWith("Bearer ") ? cab.slice(7).trim() : "";
-  const m = segredo.match(/^pia_([0-9a-f]{24})_([0-9a-f]{64})$/);
-  if (!m) return json({ erro: "não autorizado" }, 401);
-  const conta = medidor(env, m[1]);
-  if (!(await conta.pedir("conferir", { hash: await sha256Hex(segredo) })).ok) return json({ erro: "não autorizado" }, 401);
-  const d = (await lerJSON(request)) || {};
-  const md = String(d.texto || "").slice(0, 200000);
-  const titulo = String(d.titulo || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 160);
-  const autor = String(d.autor || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 100);
-  const tipo = ["artigo", "modelo", "tabela"].includes(d.tipo) ? d.tipo : "artigo";
-  if (titulo.length < 3 || md.length < 200 || !autor) return json({ erro: "faltam o título, o autor ou o texto (pelo menos 200 caracteres)" }, 400);
-  const slug = titulo.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "material";
-  const id = "m" + aleatorio(6);
-  await env.APOIOS.put("admin:material:" + id, JSON.stringify({
-    id, slug, tipo, titulo, autor, oab: String(d.oab || "").slice(0, 20), areas: (Array.isArray(d.areas) ? d.areas : []).map(String).slice(0, 6),
-    licenca: "CC BY 4.0", resumo: String(d.resumo || "").slice(0, 400), md, enviado: new Date().toISOString(), situacao: "fila", conta: m[1],
-  }));
-  return json({ ok: true, id, situacao: "fila" });
-}
-
 // ------------------------------------------------------------- NFS-e
 
 /* A aba Notas fiscais: o emissor da nuvem (situacao, notas, pagamentos sem
@@ -1048,7 +992,7 @@ async function equipe(c) {
 
 async function busca(c, q) {
   const nq = String(q || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-  const vazio = { contas: [], escritorios: [], tuneis: [], planos: [], materiais: [] };
+  const vazio = { contas: [], escritorios: [], tuneis: [], planos: [] };
   if (nq.length < 2) return vazio;
   const bate = (...t) => t.join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(nq);
   const contas = await lerContas(c);
@@ -1059,7 +1003,6 @@ async function busca(c, q) {
     escritorios: escritorios.filter((e) => bate(e.nome, e.slug, e.documento)).slice(0, 6).map((e) => ({ titulo: e.nome, desc: e.contas.length + (e.contas.length === 1 ? " conta" : " contas") + (e.slug ? " · " + e.slug + ".paulus.ia.br" : ""), tela: "contas", alvo: e.nome })),
     tuneis: tuneis.filter((t) => bate(t.slug, t.nome, t.responsavel)).slice(0, 6).map((t) => ({ titulo: t.slug + ".paulus.ia.br", desc: t.nome + " · " + t.estado, tela: "tuneis", alvo: t.slug })),
     planos: numeros(c.env).planos.filter((p) => bate(p.nome, p.id)).slice(0, 6).map((p) => ({ titulo: p.nome, desc: brl(p.valor) + "/mês · " + brl(p.valor_anual) + "/ano · " + Math.round(p.tokens / 1e6) + "M créditos", tela: "planos", alvo: p.id })),
-    materiais: (await materiais(c.env)).filter((x) => bate(x.titulo, x.autor, (x.areas || []).join(" "))).slice(0, 6).map((x) => ({ titulo: x.titulo, desc: x.autor + " · " + x.situacao, tela: "materiais", alvo: x.id })),
   };
 }
 
@@ -1200,8 +1143,6 @@ async function aplicar(c, alt) {
     case "plano.criar":
     case "plano.editar":
       return aplicarPlano(c, alt.tipo, d);
-    case "material.situacao":
-      return aplicarMaterial(c, d);
     case "nfse.config":
       await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email), mail: Boolean(d.mail) }));
       return {};
@@ -1250,79 +1191,6 @@ async function aplicarPlano(c, tipo, d) {
   }
   if (erros.length) throw new Error("o plano mudou, mas o Mercado Pago recusou o valor novo de: " + erros.join(", "));
   return {};
-}
-
-async function aplicarMaterial(c, d) {
-  const { env } = c;
-  const mat = await kvJSON(env, "admin:material:" + d.id, null);
-  if (!mat) throw new Error("esse material não existe mais");
-  let commit = "";
-  if (d.situacao === "publicado") commit = await publicarMaterial(c, mat);
-  if (d.situacao === "recusado" && mat.situacao === "publicado") commit = await tirarMaterial(c, mat);
-  mat.situacao = d.situacao;
-  mat.recado = String(d.recado || "").slice(0, 2000);
-  await env.APOIOS.put("admin:material:" + mat.id, JSON.stringify(mat));
-  // O autor fica sabendo (se o e-mail estiver ligado; sem ele, segue sem avisar).
-  const conta = mat.conta ? await medidor(env, mat.conta).pedir("resumo").catch(() => null) : null;
-  if (conta && conta.email && env.RESEND_API_KEY) {
-    const frases = {
-      publicado: ["Seu material foi publicado", "“" + mat.titulo + "” está em paulus.ia.br/materiais, com o seu nome e a licença " + mat.licenca + "."],
-      ajustes: ["Seu material precisa de um ajuste", "Lemos “" + mat.titulo + "” e ele precisa de um ajuste antes de publicar."],
-      recusado: ["Seu material não foi publicado", "Lemos “" + mat.titulo + "” e ele não vai para paulus.ia.br/materiais."],
-    }[d.situacao];
-    if (frases) await enviarEmail(env, { para: conta.email, assunto: frases[0], titulo: frases[0], texto: frases[1] + (mat.recado ? "\n\n" + mat.recado : "") });
-  }
-  return { commit };
-}
-
-/* O .md em site/materiais e a linha em site/dados/materiais.json, pelo GitHub
-   (com o token do login social de quem publica). O push dispara o deploy. */
-async function publicarMaterial(c, mat) {
-  const gh = c.deps.github || chamarGitHub;
-  const token = c.quem.token;
-  if (!token) throw new Error("entre com o GitHub de novo para publicar");
-  const caminho = "site/materiais/" + mat.slug + ".md";
-  const conteudo = mat.md;
-  const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(conteudo)));
-  const atual = await gh("GET", "https://api.github.com/repos/" + REPO + "/contents/" + caminho + "?ref=" + RAMO, token);
-  const md = await gh("PUT", "https://api.github.com/repos/" + REPO + "/contents/" + caminho, token, {
-    message: "Materiais: publica \"" + mat.titulo + "\" de " + mat.autor + " (painel admin, " + c.quem.login + ")",
-    content: b64, branch: RAMO, ...(atual.ok && atual.dados && atual.dados.sha ? { sha: atual.dados.sha } : {}),
-  });
-  if (!md.ok) throw new Error("o GitHub recusou gravar " + caminho + " (HTTP " + md.status + ")");
-  const lista = await gh("GET", "https://api.github.com/repos/" + REPO + "/contents/site/dados/materiais.json?ref=" + RAMO, token);
-  if (!lista.ok || !lista.dados) throw new Error("não consegui ler site/dados/materiais.json no GitHub");
-  const json_ = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(String(lista.dados.content).replace(/\n/g, "")), (ch) => ch.charCodeAt(0))));
-  json_.materiais = (json_.materiais || []).filter((x) => x.slug !== mat.slug);
-  json_.materiais.unshift({
-    slug: mat.slug, titulo: mat.titulo, autor: mat.autor, oab: mat.oab || "", areas: mat.areas || [], tipo: mat.tipo, resumo: mat.resumo || "",
-    publicado_em: new Date(c.agora).toISOString().slice(0, 10), licenca: mat.licenca, arquivo: "/materiais/" + mat.slug + ".md", sha256: await sha256Hex(conteudo),
-  });
-  json_.atualizado_em = new Date(c.agora).toISOString().slice(0, 10);
-  const texto = JSON.stringify(json_, null, 2) + "\n";
-  const r = await gh("PUT", "https://api.github.com/repos/" + REPO + "/contents/site/dados/materiais.json", token, {
-    message: "Materiais: \"" + mat.titulo + "\" na lista (painel admin)", content: btoa(String.fromCharCode(...new TextEncoder().encode(texto))),
-    branch: RAMO, sha: lista.dados.sha,
-  });
-  if (!r.ok) throw new Error("o GitHub recusou atualizar site/dados/materiais.json (HTTP " + r.status + ")");
-  return (r.dados && r.dados.commit && r.dados.commit.sha) || (md.dados && md.dados.commit && md.dados.commit.sha) || "";
-}
-
-async function tirarMaterial(c, mat) {
-  const gh = c.deps.github || chamarGitHub;
-  const token = c.quem.token;
-  if (!token) throw new Error("entre com o GitHub de novo para tirar do ar");
-  const lista = await gh("GET", "https://api.github.com/repos/" + REPO + "/contents/site/dados/materiais.json?ref=" + RAMO, token);
-  if (!lista.ok || !lista.dados) throw new Error("não consegui ler site/dados/materiais.json no GitHub");
-  const json_ = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(String(lista.dados.content).replace(/\n/g, "")), (ch) => ch.charCodeAt(0))));
-  json_.materiais = (json_.materiais || []).filter((x) => x.slug !== mat.slug);
-  const texto = JSON.stringify(json_, null, 2) + "\n";
-  const r = await gh("PUT", "https://api.github.com/repos/" + REPO + "/contents/site/dados/materiais.json", token, {
-    message: "Materiais: tira \"" + mat.titulo + "\" do ar (painel admin)", content: btoa(String.fromCharCode(...new TextEncoder().encode(texto))),
-    branch: RAMO, sha: lista.dados.sha,
-  });
-  if (!r.ok) throw new Error("o GitHub recusou atualizar site/dados/materiais.json (HTTP " + r.status + ")");
-  return (r.dados && r.dados.commit && r.dados.commit.sha) || "";
 }
 
 /* O disparo de uma campanha: a lista de quem recebe fica no KV ate o fim do

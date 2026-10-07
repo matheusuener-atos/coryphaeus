@@ -66,17 +66,14 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   precos: {entrada, saida, cambio}}` (custo em US$; a pagina converte pelo cambio)
 - `GET /api/admin/planos` -> `{planos: [{id, nome, valor, valor_anual, tokens, pessoas, modelos, recarga, recursos, modelo_nome, custo_modelo, assinantes}], padrao: "escritorio",
   recarga: {valor, tokens}, precos: {entrada, saida, cambio}, json: "..."}`
-- `GET /api/admin/materiais` -> `{materiais: [{id, slug, tipo: "artigo"|"modelo"|"tabela", titulo, areas, licenca,
-  autor, oab, enviado, situacao: "fila"|"ajustes"|"publicado"|"recusado", palavras, texto, resumo,
-  varredura: {cpf, cnpj, processo, nomes}}]}`
 - `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, situacao: Situacao | null,
   notas: [Nota], pagamentos: [{id, conta, cliente, tipo: "mensalidade"|"recarga pix", valor, quando, nota, numero,
   motivo, erro}], cloudflare: Cloudflare, pode: {emitir: bool}, erro}`. `pagamentos` sao so os sem nota
   (nenhuma nota do emissor com aquele pagamento, fora as descartadas); `motivo` diz por que a emissao
   automatica nao saiu. `Situacao`, `Nota` e `Cloudflare` estao em "Notas fiscais", abaixo.
 - `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo}], matriz: [{acao, dono, financeiro, suporte}]}`
-- `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], planos: [...],
-  materiais: [...]}` (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
+- `GET /api/admin/busca?q=` -> `{contas: [...], escritorios: [...], tuneis: [...], planos: [...]}`
+  (ate 6 por grupo; cada item `{titulo, desc, tela, alvo}`)
 - `GET /api/admin/alteracoes` -> `{pendentes: [Alteracao], publicacoes: [{quando, commit, resumo, n, por}]}`
   onde `Alteracao = {id, quando, tela, tipo, alvo, dados, texto}`
 
@@ -118,7 +115,6 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `campanha.disparar` | `{nome, publico, assunto, pre, titulo, texto, botao, link, quando: "agora"|"amanha"|"segunda"}` | todos |
 | `plano.editar` | `{id, valor, valor_anual, tokens}` | dono, financeiro |
 | `plano.criar` | `{id, nome, valor, valor_anual, tokens}` (modelo e recursos: os do Escritorio) | dono, financeiro |
-| `material.situacao` | `{id, situacao: "publicado"|"ajustes"|"recusado", recado}` | todos |
 | `nfse.config` | `{auto, email, mail}` | dono, financeiro |
 | `equipe.papel` | `{email, papel}` | dono |
 

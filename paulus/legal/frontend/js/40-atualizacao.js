@@ -45,7 +45,6 @@ function blocoAtualizacao() {
   if (!d) return '<p class="cfg-texto">Não consegui ler a situação da atualização.</p>';
   const chaves = '<div class="cfg-chaves">' +
     chaveCfg("Versão", d.atual) +
-    chaveCfg("Licença", "MIT · código aberto") +
     chaveCfg("Última verificação", d.ultima_consulta ? d.ultima_consulta.slice(8, 10) + "/" + d.ultima_consulta.slice(5, 7) + " às " + d.ultima_consulta.slice(11, 16) : "ainda não verificou") +
     "</div>";
   const liga = '<div class="cfg-sub">' +

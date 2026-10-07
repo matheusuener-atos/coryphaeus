@@ -1,5 +1,5 @@
-/* PAULUS - as paginas internas do site: Assinar, Desenvolvimento,
-   Materiais e Acessar escritorio. Sobre o site.css (tokens, topo, botao de
+/* PAULUS - as paginas internas do site: Assinar, Cadastro, Pagamento,
+   Minha conta e Acessar escritorio. Sobre o site.css (tokens, topo, botao de
    moldura dupla). Desenho "Site e Entrada" (03/10/2026). */
 
 /* ---------- a coluna de 360 px (Assinar, Acessar escritorio) ---------- */
@@ -262,45 +262,17 @@
 .pronto .troca { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line2); }
 .btn-texto { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); border-bottom: 1px solid var(--line3); cursor: pointer; justify-self: start; }
 
-/* ---------- Desenvolvimento: uma linha por versao ---------- */
-.versoes { display: grid; }
-.versao { display: grid; grid-template-columns: 120px 64px minmax(0, 1fr); gap: 24px; padding: 24px 0; border-top: 1px solid var(--line); scroll-margin-top: 80px; }
-.versoes > .versao:last-of-type { border-bottom: 1px solid var(--line); }
-.versao .quando, .versao .num { font: 400 12px var(--mono); color: var(--ink3); padding-top: 3px; }
-.versao .num { color: var(--ink); }
-.versao ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.versao li { font-size: 13px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
-.versao li:first-child { font: 500 16px/1.5 var(--sans); color: var(--ink); }
-.versao .mais { justify-self: start; padding: 0; border: 0; background: none; font: 500 12px var(--sans); color: var(--mute); cursor: pointer; }
-.versao .mais:hover { color: var(--ink); }
-.ver-anteriores { justify-self: center; margin-top: 28px; padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--mute); cursor: pointer; }
-.ver-anteriores:hover { color: var(--ink); }
 .vazio { padding: 24px 0; font-size: 14px; color: var(--ink2); text-align: center; }
-.atualizado { justify-self: center; margin-top: 18px; font: 400 12px var(--mono); color: var(--ink3); }
 
-/* ---------- Materiais: filtro e linhas ---------- */
+/* ---------- os segmentos (Minha conta) ---------- */
 .segmentos { display: flex; justify-content: center; }
 .segmentos > div { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
 .segmentos button { height: 30px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent; color: var(--mute); font: 500 13px var(--sans); cursor: pointer; }
 .segmentos button:hover { color: var(--ink); }
 .segmentos button[aria-pressed="true"] { background: var(--pill); color: var(--ink); }
-.materiais { display: grid; border-bottom: 1px solid var(--line); }
-.material { display: grid; grid-template-columns: 72px minmax(0, 1fr) 110px; gap: 24px; align-items: start; padding: 20px 0; border-top: 1px solid var(--line); color: var(--ink); }
-.material:hover { color: var(--ink); background: linear-gradient(var(--line2), var(--line2)); }
-.material .tipo { font: 400 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); padding-top: 4px; }
-.material .meio { display: grid; gap: 4px; }
-.material .meio b { font: 500 15px var(--sans); text-wrap: pretty; }
-.material .meio span { font-size: 13px; line-height: 1.5; color: var(--mute); text-wrap: pretty; }
-.material .quem { display: grid; gap: 2px; text-align: right; }
-.material .quem span:first-child { font-size: 12.5px; color: var(--ink2); }
-.material .quem span:last-child { font: 400 11px var(--mono); color: var(--ink3); }
 
 @media (max-width: 640px) {
   .entrada { padding: 48px 20px 88px; justify-content: flex-start; }
   .entrada-marca .logo { margin: 0; font-size: 40px; }
   .voltar-site { left: 16px; top: 16px; }
-  .versao { grid-template-columns: 64px minmax(0, 1fr); gap: 6px 16px; }
-  .versao .quando { grid-column: 1 / -1; padding: 0; }
-  .material { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .material .quem { text-align: left; grid-auto-flow: column; justify-content: start; gap: 10px; }
 }

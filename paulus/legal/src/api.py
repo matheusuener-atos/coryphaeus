@@ -135,10 +135,8 @@ import processos as processos_mod
 import clientes as clientes_mod
 import passos as passos_mod
 import fundamentacao as fundamentacao_mod
-import comunidade as comunidade_mod
 import jurisprudencia as jurisprudencia_mod
 import nuvem as nuvem_mod
-import publico as publico_mod
 import triagem as triagem_mod
 import profundidade as profundidade_mod
 import entrevista as entrevista_mod
@@ -1053,8 +1051,6 @@ clientes_mod.montar(estado, app)
 passos_mod.montar(estado, app, DADOS_DIR)
 # L5: fundamentacao sugerida, temas do STJ e posicao da casa (src/fundamentacao.py).
 fundamentacao_mod.montar(estado, app)
-# L9: materiais entre advogados, pelo site (src/comunidade.py).
-comunidade_mod.montar(estado, app)
 # L10: a vigencia de cada artigo, dispositivo por dispositivo (src/vigencia.py).
 vigencia_mod.montar(estado, app)
 # N13: os acordaos do STJ no computador, baixados so quando a pessoa pede (src/jurisprudencia.py).
@@ -10090,24 +10086,6 @@ def email_reescrever(payload: dict) -> dict:
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {"sugestao": texto, "pedido": pedido}
-
-
-# ------------------------------------------------- o que o site publica
-
-
-@app.get("/api/publico/{qual}")
-def publico_do_site(qual: str) -> dict:
-    """
-    O historico de versoes que o site publica, para a tela Desenvolvimento
-    aberto. So leitura; a ultima copia fica em dados/publico para quando nao
-    houver internet. A versao instalada vai junto, para a tela marcar "e a
-    sua versao".
-    """
-    try:
-        dados = publico_mod.publico(qual, DADOS_DIR / "publico")
-    except publico_mod.ErroDoSite as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return {**dados, "versao_instalada": VERSAO}
 
 
 @app.post("/api/email/traduzir")

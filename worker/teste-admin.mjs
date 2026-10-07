@@ -2,7 +2,7 @@
 //   node worker/teste-admin.mjs
 // O Cloudflare Access assina com uma chave gerada aqui; o GitHub, o Resend e o
 // Mercado Pago sao de mentira; o Durable Object roda aqui sobre um Map.
-import { atenderAdmin, enviarCampanhas, varredura, htmlDoEmail } from "./admin.js";
+import { atenderAdmin, ehRotaDoAdmin, enviarCampanhas, htmlDoEmail } from "./admin.js";
 import { atenderIA, ContaIA } from "./ia.js";
 
 let falhas = 0;
@@ -72,23 +72,10 @@ async function jwt(email, extra = {}) {
 
 // ------------------------------------------------ o GitHub de mentira
 let permissao = "write";
-const ghCommits = [];
-let materiaisJson = { atualizado_em: "2026-09-30", materiais: [{ slug: "antigo", titulo: "Antigo" }] };
 async function github(metodo, url, token, corpo) {
   if (url.includes("/login/oauth/access_token")) return { ok: true, status: 200, dados: corpo.code === "bom" ? { access_token: "gho_x" } : {} };
   if (url.endsWith("/user")) return { ok: true, status: 200, dados: { login: "matheus" } };
   if (url.includes("/collaborators/")) return { ok: true, status: 200, dados: { permission: permissao } };
-  if (url.includes("/contents/site/dados/materiais.json")) {
-    if (metodo === "GET") return { ok: true, status: 200, dados: { sha: "s1", content: Buffer.from(JSON.stringify(materiaisJson)).toString("base64") } };
-    materiaisJson = JSON.parse(Buffer.from(corpo.content, "base64").toString("utf8"));
-    ghCommits.push(corpo.message);
-    return { ok: true, status: 200, dados: { commit: { sha: "abcdef1234" } } };
-  }
-  if (url.includes("/contents/site/materiais/")) {
-    if (metodo === "GET") return { ok: false, status: 404, dados: null };
-    ghCommits.push(corpo.message);
-    return { ok: true, status: 201, dados: { commit: { sha: "123456abcd" } } };
-  }
   return { ok: false, status: 404, dados: null };
 }
 
@@ -268,23 +255,11 @@ d = await r.json();
 checar(!d.abertas.length && d.tratadas.length === 1, "marcar como tratada");
 
 // --------------------------------------------------------- materiais
-console.log("materiais");
-const textoMat = "Este modelo de contrato de honorários traz as cláusulas usuais. ".repeat(6) + " CPF 123.456.789-09 e processo 0001234-56.2024.8.13.0024.";
-const semSegredo = await atenderAdmin(new Request("https://paulus.ia.br/api/materiais/enviar", { method: "POST", body: "{}" }), env, new URL("https://paulus.ia.br/api/materiais/enviar"), {}, deps);
-checar(semSegredo.status === 401, "enviar material sem o segredo da nuvem: 401");
-const reqMat = new Request("https://paulus.ia.br/api/materiais/enviar", { method: "POST", headers: { authorization: "Bearer " + segredos.bruno, "content-type": "application/json" },
-  body: JSON.stringify({ titulo: "Contrato de honorários", autor: "Bruno", tipo: "modelo", texto: textoMat, areas: ["civil"] }) });
-r = await atenderAdmin(reqMat, env, new URL(reqMat.url), {}, deps);
-d = await r.json();
-checar(r.status === 200 && d.situacao === "fila", "material enviado pelo PAULUS entra na fila", d);
+console.log("materiais (saíram)");
+const semMateriais = await atenderAdmin(new Request("https://paulus.ia.br/api/materiais/enviar", { method: "POST", body: "{}" }), env, new URL("https://paulus.ia.br/api/materiais/enviar"), {}, deps);
+checar(semMateriais.status !== 200 && !ehRotaDoAdmin(new URL("https://paulus.ia.br/api/materiais/enviar")), "o envio de material saiu do painel");
 r = await admin("GET", "/api/admin/materiais", como());
-const mats = (await r.json()).materiais;
-checar(mats.length === 1 && mats[0].varredura.cpf === 1 && mats[0].varredura.processo === 1, "a varredura acha o CPF e o processo", mats[0] && mats[0].varredura);
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "material.situacao", dados: { id: mats[0].id, situacao: "publicado" }, texto: "Publiquei o contrato" } }));
-r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
-d = await r.json();
-checar(d.ok && d.publicacao.commit === "abcdef1" && materiaisJson.materiais[0].slug === "contrato-de-honorarios" && ghCommits.length === 2, "publicar material grava o .md e a lista pelo GitHub", { d, ghCommits });
-checar(varredura("CNPJ 12.345.678/0001-90").cnpj === 1 && varredura("CNPJ 12.345.678/0001-90").cpf === 0, "CNPJ nao conta como CPF");
+checar(r.status === 404, "a fila de materiais saiu do painel", r.status);
 
 // --------------------------------------------------------- NFS-e e equipe
 console.log("nfse e equipe");

@@ -37,7 +37,7 @@ const CFG_SECOES = [
   ["aparencia", "Aparência e avisos", "Tema, avisos do Windows, o Paulus no Explorer e atalhos do teclado."],
   ["menu", "Módulos", "O que aparece no menu desta máquina. Desligar só tira do menu: nada é apagado, e ligar de novo traz de volta como estava."],
   ["feedback", "Feedback", "O feedback vai para contato@paulus.ia.br pelo seu e-mail, e você revisa antes de sair. Nenhum documento do escritório vai junto."],
-  ["plano", "Versão", "O Paulus é software livre, com licença MIT."],
+  ["plano", "Versão", "A versão deste Paulus, a atualização automática e o que mudou em cada versão."],
   ["lixeira", "Lixeira", "O que você apaga fica aqui por 30 dias, com tudo que precisa para voltar. Depois some sozinho."],
 ];
 
@@ -1204,11 +1204,8 @@ async function enviarFeedback() {
 /* --------------------------------------------------------------- versao */
 
 function secaoPlano() {
-  const desenvolvimento = '<p class="cfg-texto">As versões publicadas do PAVLVS e o que mudou em cada uma, mês a mês.</p>' +
-    '<div class="cfg-botoes"><button data-cfg-desenvolvimento="1">Desenvolvimento aberto</button></div>';
   return aberturaCfg() +
-    cartaoCfg("Versão e atualização", "", blocoAtualizacao()) +
-    cartaoCfg("Desenvolvimento aberto", "", desenvolvimento);
+    cartaoCfg("Versão e atualização", "", blocoAtualizacao());
 }
 
 /* ------------------------------------------------------------- lixeira */
@@ -1352,7 +1349,6 @@ function ligarConfig() {
     desenharConfig();
     carregarUsuario();
   });
-  clique("[data-cfg-desenvolvimento]", () => mostrarDesenvolvimento());
   if (cfg.secao === "vinculos" && typeof ligarEquipeCfg === "function") ligarEquipeCfg();
   if (cfg.secao === "backup" && typeof ligarBackupCfg === "function") ligarBackupCfg();
   clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));

@@ -1,5 +1,7 @@
 # PAVLVS — Desenvolvimento aberto, Apoiadores e Apoiar
 
+> **Removido em 07/10/2026** (telas revisadas): a página /desenvolvimento saiu do site, a rota `/api/public/desenvolvimento` do Worker, a tela A20 e a rota `/api/publico/{qual}` do programa, e o `tools/desenvolvimento.py` com o `site/dados/versoes.json`. O texto abaixo fica como registro.
+>
 > **Implementado em 28/09/2026**, a partir do pacote `export-desenvolvimento-aberto` (o `IMPLEMENTACAO.md` dele está resumido abaixo). Os `.dc.html` e os JSON de exemplo ficam fora do git: a lista de exemplo traz um nome real.
 
 ## Onde está cada parte

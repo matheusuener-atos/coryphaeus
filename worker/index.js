@@ -11,7 +11,6 @@
 //   POST /api/calibracao      medidas de maquina e modelo, de quem escolheu
 //                             participar (so numeros; veja receberCalibracao)
 //   GET  /api/calibracao      todas as medidas, para o programa estimar melhor
-//   GET  /api/public/desenvolvimento  as versoes publicadas, mes a mes
 //
 // Todo o resto e o site estatico.
 //
@@ -83,7 +82,6 @@ export default {
     if (url.pathname === "/cadastro" || url.pathname.startsWith("/cadastro/")) return comCSP(await env.ASSETS.fetch(request));
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
-      if (url.pathname === "/api/public/desenvolvimento" && request.method === "GET") return await publicoEmCache(request, ctx, () => desenvolvimento(request, env));
       if (url.pathname === "/api/mp/aviso" && request.method === "POST") return await receberAviso(request, url, env, ctx);
       if (url.pathname === "/api/calibracao" && request.method === "POST") {
         if (!(await dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
@@ -249,57 +247,6 @@ function igual(a, b) {
   let diferenca = 0;
   for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diferenca === 0;
-}
-
-// ---------------------------------------------------------- o que e publico
-
-/* O mes ("AAAA-MM") de um instante, no horario de Brasilia. */
-function mesBrasilia(iso) {
-  const ms = Date.parse(iso || "");
-  return new Date((Number.isFinite(ms) ? ms : Date.now()) - 3 * 60 * 60 * 1000).toISOString().slice(0, 7);
-}
-
-async function arquivoDoSite(request, env, caminho) {
-  try {
-    const r = await env.ASSETS.fetch(new Request(new URL(caminho, request.url)));
-    return r.ok ? await r.json() : null;
-  } catch {
-    return null;
-  }
-}
-
-/* A resposta publica fica 15 minutos no cache da borda: a pagina e o
-   programa podem pedir a vontade sem montar tudo a cada vez. */
-async function publicoEmCache(request, ctx, montar) {
-  const cache = typeof caches !== "undefined" ? caches.default : null;
-  const chave = new Request(new URL(request.url).toString(), { method: "GET" });
-  const guardada = cache ? await cache.match(chave) : null;
-  if (guardada) return guardada;
-  const resposta = new Response(JSON.stringify(await montar()), {
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=900",
-      "access-control-allow-origin": "*",
-    },
-  });
-  if (cache && ctx && ctx.waitUntil) ctx.waitUntil(cache.put(chave, resposta.clone()));
-  return resposta;
-}
-
-/* Mes a mes: as versoes publicadas (site/dados/versoes.json, montado das
-   releases). */
-async function desenvolvimento(request, env) {
-  const versoes = (await arquivoDoSite(request, env, "/dados/versoes.json")) || {};
-  const meses = {};
-  const mes = (m) => (meses[m] = meses[m] || { month: m, releases: [] });
-  for (const r of versoes.releases || []) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || "")) mes(r.date.slice(0, 7)).releases.push(r);
-  }
-  for (const m of Object.values(meses)) m.releases.sort((a, b) => b.date.localeCompare(a.date));
-  return {
-    atualizadoEm: mesBrasilia().slice(0, 7) + "-" + new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(8, 10),
-    meses: Object.values(meses).sort((a, b) => b.month.localeCompare(a.month)),
-  };
 }
 
 // ------------------------------------------------------------ calibracao

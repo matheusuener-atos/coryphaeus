@@ -21,7 +21,7 @@ cada etapa com teste que termina em "todos os testes passaram".
 | L6 | Modelo por máquina: perfis por faixa de hardware, com GPU NVIDIA, AMD e Intel | feito | `tests/test_l6_perfis.py` |
 | L7 | Servidor MCP além das leis: Acervo só leitura, permissão e escopo por conexão | feito | `tests/test_l7_mcp.py` |
 | L8 | Captura pelo celular: destino no Serviço, foto borrada avisada, OCR na entrada | feito | `tests/test_l8_captura.py` |
-| L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | feito | `tests/test_l9_materiais.py` |
+| L9 | Materiais entre advogados: página no site, "Da comunidade" na Biblioteca, envio por e-mail com conferência de dados pessoais | feito; **removido em 07/10/2026** (telas revisadas: a página saiu do site, a aba e o `src/comunidade.py` saíram do programa, a fila saiu do painel) | — |
 | L10 | Lei com vigência: histórico de cada artigo e o texto vigente numa data (pelo ano da lei) | feito | `tests/test_l10_vigencia.py` |
 
 O que cada etapa fez, decidiu e mediu fica numa seção abaixo, na ordem.

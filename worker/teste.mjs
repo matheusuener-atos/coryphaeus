@@ -5,10 +5,8 @@ import worker from "./index.js";
 
 const guardados = new Map();
 let chamadasNoLimite = 0;
-// O arquivo do site que o Worker le: as versoes.
-const arquivos = {
-  "/dados/versoes.json": { releases: [{ version: "0.9.3", date: "2026-09-28", changes: ["Extrato novo"] }] },
-};
+// Nenhum arquivo do site e lido pelo Worker nestes testes.
+const arquivos = {};
 const env = {
   MP_WEBHOOK_SECRET: "segredo-de-teste",
   MP_ACCESS_TOKEN: "sem-token",
@@ -71,14 +69,10 @@ const antigas = [
 ];
 checar(antigas.every((r) => r.status === 404), "as rotas do apoio (Pix, cartão, assinatura, mural) dão 404");
 
-// ------------------------------------------------ o que e publico
-console.log("\no que é público");
+// ------------------------------------------------ o que saiu
+console.log("\no que saiu do site");
 const dev = await worker.fetch(new Request("https://paulus.ia.br/api/public/desenvolvimento"), env);
-const devDados = JSON.parse(await dev.text());
-const setembro = devDados.meses.find((m) => m.month === "2026-09") || { releases: [] };
-checar(dev.status === 200 && (dev.headers.get("cache-control") || "").includes("public"), "desenvolvimento responde e pode ficar em cache");
-checar(setembro.releases.length === 1 && setembro.releases[0].version === "0.9.3", "as versões vêm do arquivo do site, no mês delas");
-checar(devDados.meses.every((m) => Object.keys(m).join() === "month,releases"), "o mês só tem as versões (nada de apoio consolidado)");
+checar(dev.status === 404, "a página Desenvolvimento saiu: /api/public/desenvolvimento dá 404");
 
 // ------------------------------------------------ calibracao
 console.log("\ncalibração");

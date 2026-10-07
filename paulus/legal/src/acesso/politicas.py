@@ -145,7 +145,7 @@ _declarar(TITULAR, "POST /api/acesso/minha-senha", "POST /api/acesso/minhas-sess
 _declarar(PERMITIDO,
           "POST /api/acesso/sair",
           "GET /api/status", "GET /api/destinos", "GET /api/novidades", "GET /api/habilidades",
-          "GET /api/preferencias", "GET /marca/{tipo}.png", "GET /api/publico/{qual}",
+          "GET /api/preferencias", "GET /marca/{tipo}.png",
           # conversas
           "GET /api/trabalhos", "POST /api/trabalhos", "GET /api/trabalhos/{id_}",
           "POST /api/trabalhos/{id_}/renomear", "POST /api/trabalhos/{id_}/grupo", "POST /api/grupos/renomear",
@@ -504,8 +504,6 @@ _declarar(BLOQUEADO, "POST /api/biblioteca/temas/atualizar", "PUT /api/leis/posi
 _declarar(BLOQUEADO, "GET /api/maquina/perfil", "POST /api/maquina/perfil/vulkan")
 # --- L8: conferir a nitidez das fotos antes de guardar (nada fica gravado), como a captura.
 _declarar(PERMITIDO, "POST /api/captura/conferir")
-# --- L9: materiais entre advogados (src/comunidade.py): le o site e prepara o envio - so no escritorio.
-_declarar(BLOQUEADO, "GET /api/comunidade/materiais", "POST /api/comunidade/materiais/{slug}/trazer", "POST /api/comunidade/preparar")
 # --- L10: a vigencia de um artigo (src/vigencia.py): leitura, como as leis.
 _declarar(PERMITIDO, "GET /api/leis/vigencia")
 # --- D5: o que o titular controla - so na janela do escritorio (a rota confere de novo).
