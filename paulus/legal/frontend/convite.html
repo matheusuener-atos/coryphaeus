@@ -36,7 +36,7 @@
   quem abriu o link num computador.
 -->
 <style>
-  [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
+[data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio3:rgba(242,241,236,.08); --fio-forte:rgba(242,241,236,.4);
     --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
   [data-tema="claro"] { --bg:#f6f5f1; --surf:#efeee9; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
@@ -58,8 +58,8 @@
      do banco embaixo (js/entrada-saudacao.js) - o jeito da saudacao do assistente: o bloco nasce
      apagado e aparece devagar; ao trocar de passo, a frase sai e a nova entra. PAVLVS e a marca;
      Paulus, o agente. */
-  .marca h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
-  .marca p { margin: 0; max-width: 360px; font: 400 15px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
+  .marca h1 { margin: 0; font: 400 40px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .marca p { margin: 0; max-width: 360px; font: 400 16px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
   .marca > * { transition: opacity .7s ease, transform .7s ease; }
   .marca.abrindo > * { opacity: 0; }
   .marca.saindo > p { opacity: 0; transform: translateY(4px); }
@@ -68,59 +68,59 @@
   .baixo form, .baixo section { display: grid; gap: 14px; margin: 0; }
 
   .grupo { display: grid; gap: 6px; }
-  .rotulo { font: 400 11px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
+  .rotulo { font: 400 12px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
   .rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .lado { font: 400 11px 'Fira Code', monospace; color: var(--apagado); white-space: nowrap; }
+  .lado { font: 400 12px 'Fira Code', monospace; color: var(--apagado); white-space: nowrap; }
   .lado b { font-weight: 400; color: var(--ink3); }
-  .caixa { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio); }
+  .caixa { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio); }
   .caixa svg { width: 16px; height: 16px; flex: none; }
-  .caixa .texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
-  .campo { width: 100%; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio);
-    outline: none; color: var(--ink); font: 400 15px 'Manrope', sans-serif; }
+  .caixa .texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px 'Manrope', sans-serif; color: var(--ink); }
+  .campo { width: 100%; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio);
+    outline: none; color: var(--ink); font: 400 16px 'Manrope', sans-serif; }
   .campo:focus { border-color: var(--fio-forte); }
   .ajuda { margin: 0; font: 400 12px/1.5 'Manrope', sans-serif; color: var(--apagado); text-wrap: pretty; }
   .ajuda b { font-weight: 500; color: var(--ink3); }
   .ajuda.centro { text-align: center; }
-  .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); text-align: center; }
+  .erro { margin: 0; font-size: 13px; line-height: 1.5; color: var(--erro); text-align: center; }
   .erro:empty { display: none; }
 
   /* O botao de moldura dupla: o trilho com a pastilha dentro. */
-  .g-trilho { display: flex; width: 100%; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2);
+  .g-trilho { display: flex; width: 100%; padding: 1px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio2);
     cursor: pointer; position: relative; text-decoration: none; }
   .g-trilho::after { content: ""; position: absolute; inset: -2px 0; } /* 44 px de toque */
-  .g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
-    background: var(--fill2); color: var(--ink); font: 500 13.5px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
+  .g-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
+    background: var(--fill2); color: var(--ink); font: 500 13px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
   .g-pastilha svg { width: 16px; height: 16px; flex: none; }
   .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   .g-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .g-trilho:disabled { opacity: .5; pointer-events: none; }
 
-  .ou { display: flex; align-items: center; gap: 12px; font: 400 11px 'Fira Code', monospace; letter-spacing: .12em; color: var(--apagado); }
+  .ou { display: flex; align-items: center; gap: 12px; font: 400 12px 'Fira Code', monospace; letter-spacing: .12em; color: var(--apagado); }
   .ou::before, .ou::after { content: ""; flex: 1; height: 1px; background: var(--fio2); }
 
   /* O Google Authenticator antes de tudo: uma caixa com o icone e as lojas. */
-  .app { display: grid; gap: 10px; padding: 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2); }
+  .app { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio2); }
   .app-cabeca { display: flex; align-items: center; gap: 10px; font: 400 13px/1.5 'Manrope', sans-serif; color: var(--ink2); }
   .app-cabeca b { font-weight: 500; color: var(--ink); }
   .app-icone { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 8px; background: #fff; }
   .lojas { display: flex; flex-wrap: wrap; gap: 8px; }
-  .lojas a { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--fill2);
-    color: var(--ink); font: 500 12.5px 'Manrope', sans-serif; text-decoration: none; }
+  .lojas a { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 8px; background: var(--fill2);
+    color: var(--ink); font: 500 12px 'Manrope', sans-serif; text-decoration: none; }
   .lojas a:hover { background: var(--pastilha-sobre); }
 
   /* O widget da Cloudflare nao aparece: so se pedir interacao (appearance
      "interaction-only"), e ai ele surge aqui sozinho. O estado vai para o selo. */
   .robo:empty { display: none; }
   .robo { display: flex; justify-content: center; }
-  .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 10px;
+  .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--fio2); }
-  .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13.5px 'Manrope', system-ui, sans-serif; color: var(--ink); }
+  .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13px 'Manrope', system-ui, sans-serif; color: var(--ink); }
   .cf-icone { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none;
     transition: background .24s, transform .24s cubic-bezier(.2,.8,.2,1); }
   .cf-icone svg { width: 15px; height: 15px; fill: #fff; opacity: 0; transition: opacity .2s .12s; }
   .cf-dir { display: grid; justify-items: end; gap: 2px; text-align: right; }
-  .cf-marca { font: 700 9.5px 'Manrope', system-ui, sans-serif; letter-spacing: .12em; color: var(--ink); }
-  .cf-links { font: 400 9.5px 'Manrope', system-ui, sans-serif; color: var(--ink3); }
+  .cf-marca { font: 700 12px 'Manrope', system-ui, sans-serif; letter-spacing: .12em; color: var(--ink); }
+  .cf-links { font: 400 12px 'Manrope', system-ui, sans-serif; color: var(--ink3); }
   .cf-links a { color: inherit; text-decoration: none; }
   .cf-badge[data-estado="verificando"] .cf-icone { border: 2px solid var(--fio); border-top-color: var(--ink); animation: cf-gira .9s linear infinite; }
   .cf-badge[data-estado="ok"] .cf-icone { background: #2f9e5b; animation: cf-surge .24s cubic-bezier(.2,.8,.2,1); }
@@ -134,7 +134,7 @@
   @keyframes cf-surge { from { transform: scale(.6); } to { transform: scale(1); } }
 
   /* O QR (no computador) e a chave para digitar. */
-  .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border-radius: 10px; margin: 0 auto; }
+  .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border-radius: 12px; margin: 0 auto; }
   .qr svg { width: 100%; height: 100%; display: block; }
   .chave { height: auto; min-height: 40px; padding: 9px 12px; font: 400 13px/1.6 'Fira Code', monospace; letter-spacing: .04em;
     color: var(--ink); word-break: break-all; user-select: all; }
@@ -144,7 +144,7 @@
   /* As seis casas do codigo: o campo de verdade fica por cima, transparente
      (o teclado do celular e o colar funcionam), como na tela de entrar. */
   .casas { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
   .casas span.vez { border-color: var(--fio-forte); }
   .casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px;
@@ -152,14 +152,14 @@
 
   /* Os codigos de recuperacao: duas colunas de caixas, para copiar. */
   .codigos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; user-select: all; }
-  .codigos code { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--surf);
+  .codigos code { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--surf);
     border: 1px solid var(--fio); font: 400 14px 'Fira Code', monospace; letter-spacing: .1em; color: var(--ink); }
 
   /* No computador: a coluna de 360 px no meio da tela, a marca em 56 px. */
   @media (min-width: 601px) {
     .tela { max-width: none; align-items: center; gap: 40px; padding: 0 24px 48px; }
     .marca { gap: 14px; padding: calc(22vh - 56px) 0 0; padding-top: calc(22dvh - 56px); }
-    .marca h1 { font-size: 44px; }
+    .marca h1 { font-size: 40px; }
     .baixo { width: 100%; max-width: 360px; padding: 0; margin-top: 0; }
     .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
     .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }

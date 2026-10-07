@@ -2,7 +2,8 @@
 A saudacao das telas de entrar (src/saudacao.py, saudar_entrada;
 config/saudacoes_entrada.json; js/entrada-saudacao.js), sem rede:
 
-  - o titulo e sempre "Paulus está te esperando." (PAVLVS e a marca);
+  - o titulo e "Paulus está te esperando." (PAVLVS e a marca), menos na
+    entrada de fora, que pergunta "O que faremos juntos hoje?" (07/10/2026);
   - toda tela tem frase, os ids sao unicos e nenhuma frase fica com buraco;
   - a frase de boas-vindas segue a hora, o dia e o calendario (manha, Natal);
   - as telas serias (codigo, chave, erro) so tem frases serias e fixas;
@@ -36,6 +37,7 @@ import saudacao  # noqa: E402
 
 _falhas: list[str] = []
 TITULO = "Paulus está te esperando."
+TITULO_DE_FORA = "O que faremos juntos hoje?"
 SERIAS = ("codigo", "trava_codigo", "chave", "convite_erro", "google_negado", "google_expirado", "fora_da_janela", "trava_sem_internet")
 
 
@@ -67,7 +69,10 @@ def main() -> int:
 
         print("\na hora, o dia e o calendário")
         manha = saudacao.saudar_entrada("entrar", datetime(2026, 10, 7, 9, 30), sorteio=random.Random(3))
-        checar(manha["titulo"] == TITULO and manha["subtitulo"], "a resposta tem o título e a frase", manha)
+        checar(manha["titulo"] == TITULO_DE_FORA and manha["subtitulo"], "a resposta tem o título e a frase", manha)
+        outras = {t: saudacao.saudar_entrada(t, datetime(2026, 10, 7, 9, 30))["titulo"] for t in saudacao.TELAS_ENTRADA}
+        checar(all(v == (TITULO_DE_FORA if t in ("entrar", "senha") else TITULO) for t, v in outras.items()),
+               "só a entrada de fora pergunta; as outras telas dizem que o Paulus está esperando", outras)
         bom_dia = {saudacao.saudar_entrada("entrar", datetime(2026, 10, 7, 9, 30), sorteio=random.Random(s))["subtitulo"] for s in range(20)}
         checar(all(x.startswith("Bom dia") for x in bom_dia), "de manhã, as frases do momento vencem as gerais", bom_dia)
         natal = saudacao.saudar_entrada("trava", datetime(2026, 12, 25, 10), sorteio=random.Random(1))
@@ -151,7 +156,14 @@ def main() -> int:
                "o login da trava (destravar, vincular) também traz o PAULUS para a frente", chamado)
         checar(html.count("paulus://voltar") == 1 and ".catch(function () { try { window.location.href = \"paulus://voltar\"" in html,
                "o paulus:// só se o PAULUS não responder")
-        checar(TITULO in porteiro.PAGINA_RECUSADA and "janela do PAULUS" in porteiro.PAGINA_RECUSADA, "fora da janela: o título e o motivo")
+        checar(TITULO in porteiro.PAGINA_RECUSADA and "só abre dentro dele" in porteiro.PAGINA_RECUSADA
+               and 'href="paulus://abrir"' in porteiro.PAGINA_RECUSADA, "fora da janela: o título, o motivo e o Abrir o Paulus")
+        from acesso import remoto
+        script = re.search(r"<script>(.*?)</script>", porteiro.PAGINA_RECUSADA, re.S).group(1)
+        import base64
+        import hashlib
+        hash_tema = "'sha256-" + base64.b64encode(hashlib.sha256(script.encode("utf-8")).digest()).decode() + "'"
+        checar(hash_tema in remoto.politica_de_conteudo(), "o tema da página recusada passa na CSP de quem está de fora")
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "=" * 55)

@@ -17,21 +17,42 @@ from http.cookies import SimpleCookie
 
 from acesso.chave import CABECALHO, COOKIE, ChaveLocal
 
+# A pagina de quem abre o endereco do PAULUS num navegador comum (sem a chave
+# da janela), no desenho "Acesso - Porteiro - endereco recusado" (07/10/2026):
+# a topbar do site com o tema, o motivo e o "Abrir o Paulus" (paulus://, que o
+# instalador e o desktop.py registram; o navegador pergunta antes de abrir).
 PAGINA_RECUSADA = """<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>PAULUS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Paulus</title>
 <link rel="stylesheet" href="/fontes.css">
-<style>:root{--bg:#131312;--ink:#f2f1ec;--ink2:#a8a69e;color-scheme:dark}
-@media (prefers-color-scheme:light){:root{--bg:#faf9f6;--ink:#1c1c1a;--ink2:#5c5b56;color-scheme:light}}
-body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:400 15px/1.6 'Manrope',system-ui,sans-serif;
+<style>:root,[data-tema="escuro"]{--bg:#131312;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#95938a;--fio:rgba(242,241,236,.1);color-scheme:dark}
+[data-tema="claro"]{--bg:#faf9f6;--ink:#1c1c1a;--ink2:#5c5b56;--ink3:#77766f;--fio:rgba(28,28,26,.1);color-scheme:light}
+@media (prefers-color-scheme:light){:root:not([data-tema]){--bg:#faf9f6;--ink:#1c1c1a;--ink2:#5c5b56;--ink3:#77766f;--fio:rgba(28,28,26,.1);color-scheme:light}}
+.barra{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 28px;background:var(--bg);border-bottom:1px solid var(--fio);box-sizing:border-box}
+.barra a{font:400 20px/1 'EB Garamond',Georgia,serif;letter-spacing:.12em;color:var(--ink);text-decoration:none}
+.barra-tema{width:32px;height:32px;margin-right:-8px;padding:0;border:0;border-radius:8px;background:none;color:var(--ink3);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.barra-tema:hover{color:var(--ink)}.barra-tema svg{width:18px;height:18px}
+:root{--surf:#1a1a18;--fill2:#2a2a27;--sobre:#303030}[data-tema="claro"]{--surf:#efeee9;--fill2:#e2e1db;--sobre:#dad9d2}
+@media (prefers-color-scheme:light){:root:not([data-tema]){--surf:#efeee9;--fill2:#e2e1db;--sobre:#dad9d2}}
+.trilho{display:flex;width:100%;max-width:360px;margin:26px auto 0;padding:1px;border-radius:12px;background:var(--surf);border:1px solid var(--fio);text-decoration:none;cursor:pointer;box-sizing:border-box}
+.pastilha{flex:1;height:28px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;background:var(--fill2);color:var(--ink);font:500 13px 'Manrope',system-ui,sans-serif;letter-spacing:.01em}
+.trilho:hover .pastilha{background:var(--sobre)}
+.dica{margin-top:10px;font:400 12px/1.5 'Manrope',sans-serif;color:var(--ink2);opacity:.8}
+@media (max-width:600px){.barra{padding:0 16px}}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:400 16px/1.6 'Manrope',system-ui,sans-serif;
 display:flex;justify-content:center;padding:22vh 24px 48px;box-sizing:border-box}
 main{max-width:360px;display:grid;gap:14px;text-align:center;align-content:start}
-h1{margin:0;font:400 44px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;text-wrap:balance}
+h1{margin:0;font:400 40px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;text-wrap:balance}
 p{margin:0;color:var(--ink2);text-wrap:pretty}
 main>*{animation:aparece .7s ease both}@keyframes aparece{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){main>*{animation:none}}</style></head>
-<body><main><h1>Paulus está te esperando.</h1>
-<p>Este endereço só abre na janela do PAULUS, neste computador. Abra o PAULUS pelo atalho do Windows.</p>
-</main></body></html>"""
+<body><header class="barra"><a href="https://paulus.ia.br">PAVLVS</a><button type="button" class="barra-tema" id="barra-tema" aria-label="Alternar tema"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1.5 3h-3L12 2Zm0 20-1.5-3h3L12 22Zm10-10-3 1.5v-3L22 12ZM2 12l3-1.5v3L2 12Zm17.07-7.07-1.06 3.18-2.12-2.12 3.18-1.06ZM4.93 19.07l1.06-3.18 2.12 2.12-3.18 1.06Zm14.14 0-3.18-1.06 2.12-2.12 1.06 3.18ZM4.93 4.93l3.18 1.06-2.12 2.12-1.06-3.18Z"/></svg></button></header>
+<main><h1>Paulus está te esperando.</h1>
+<p>Este endereço é o do Paulus instalado neste computador e só abre dentro dele. Para entrar de outro lugar, use o endereço do escritório em paulus.ia.br.</p>
+<a class="trilho" href="paulus://abrir"><span class="pastilha">Abrir o Paulus</span></a>
+<span class="dica">O navegador pergunta antes de abrir o programa.</span>
+</main>
+<script>(function(){var h=document.documentElement,b=document.getElementById("barra-tema");if(!b)return;b.onclick=function(){var atual=h.dataset.tema||(matchMedia("(prefers-color-scheme:light)").matches?"claro":"escuro");h.dataset.tema=atual==="claro"?"escuro":"claro";};})();</script>
+</body></html>"""
 
 
 def cabecalhos(scope) -> dict[str, str]:

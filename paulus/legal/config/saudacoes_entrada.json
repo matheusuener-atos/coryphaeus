@@ -1,6 +1,10 @@
 {
-  "_como_ler": "As frases das telas de entrar (src/saudacao.py, saudar_entrada). O titulo e sempre o mesmo; a frase de baixo sai daqui pela regra da saudacao do assistente, so com momento, dia e calendario - nada do escritorio, porque a tela abre para quem ainda nao entrou. 'telas' diz onde a frase vale: entrar (de fora), senha, codigo, chave, convite, convite_erro, convite_autenticador, convite_pronto, trava (a entrada do programa no computador), trava_codigo, trava_sem_internet, google_ok, google_entrou, google_negado, google_expirado, fora_da_janela. Boas-vindas tem tom leve; codigo, chave e erro sao serias. Marcas: {feriado}, {nome}, {escritorio}, {provedor} - a frase so vale quando a marca existe.",
+  "_como_ler": "As frases das telas de entrar (src/saudacao.py, saudar_entrada). O titulo e o mesmo em todas as telas, menos as que 'titulos' lista (a entrada de fora); a frase de baixo sai daqui pela regra da saudacao do assistente, so com momento, dia e calendario - nada do escritorio, porque a tela abre para quem ainda nao entrou. 'telas' diz onde a frase vale: entrar (de fora), senha, codigo, chave, convite, convite_erro, convite_autenticador, convite_pronto, trava (a entrada do programa no computador), trava_codigo, trava_sem_internet, google_ok, google_entrou, google_negado, google_expirado, fora_da_janela. Boas-vindas tem tom leve; codigo, chave e erro sao serias. Marcas: {feriado}, {nome}, {escritorio}, {provedor} - a frase so vale quando a marca existe.",
   "titulo": "Paulus está te esperando.",
+  "titulos": {
+    "entrar": "O que faremos juntos hoje?",
+    "senha": "O que faremos juntos hoje?"
+  },
   "reserva": {
     "entrar": "O mesmo escritório, de onde você estiver.",
     "trava": "Entre com a sua conta para abrir o escritório.",

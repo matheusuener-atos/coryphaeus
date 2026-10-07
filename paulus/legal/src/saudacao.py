@@ -295,7 +295,9 @@ def saudar_entrada(tela: str, agora: datetime, recentes: list[str] | None = None
     escolha = _escolher(frases, conds, marcas, list(recentes or []), sorteio=sorteio, limite=LIMITE_TITULO * 2)
     if escolha is None:
         escolha = {"id": "e-reserva", "texto": banco.get("reserva", {}).get(tela) or "Entre com a sua conta para continuar."}
-    return {"titulo": banco.get("titulo") or TITULO_ENTRADA, "subtitulo": escolha["texto"], "ids": [escolha["id"]], "tela": tela}
+    # A entrada de fora tem o titulo proprio (revisao de 07/10/2026); as outras, o do banco.
+    titulo = (banco.get("titulos") or {}).get(tela) or banco.get("titulo") or TITULO_ENTRADA
+    return {"titulo": titulo, "subtitulo": escolha["texto"], "ids": [escolha["id"]], "tela": tela}
 
 
 # ------------------------------------------------------------------ servidor

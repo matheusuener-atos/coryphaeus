@@ -66,7 +66,8 @@ ICONES = {
     "email": '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M4 7l8 6 8-6"/></svg>',
     "agenda": '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>',
     "pasta": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5a1 1 0 011-1h5l2 2h8a1 1 0 011 1v9.5a1 1 0 01-1 1h-15a1 1 0 01-1-1z"/></svg>',
-    "sol": '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>',
+    # O sol do botao de tema da topbar (o mesmo de entrar.html).
+    "sol": '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5 1.5 3h-3L12 2Zm0 20-1.5-3h3L12 22Zm10-10-3 1.5v-3L22 12ZM2 12l3-1.5v3L2 12Zm17.07-7.07-1.06 3.18-2.12-2.12 3.18-1.06ZM4.93 19.07l1.06-3.18 2.12 2.12-3.18 1.06Zm14.14 0-3.18-1.06 2.12-2.12 1.06 3.18ZM4.93 4.93l3.18 1.06-2.12 2.12-1.06-3.18Z"/></svg>',
     "lua": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 14.5A8 8 0 019.5 4.5a8 8 0 1010 10z"/></svg>',
 }
 
@@ -175,7 +176,7 @@ PAGINA = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PAULUS</title>
+<title>Paulus</title>
 <style>
 %%FONTES%%
 [data-tema="escuro"]{--bg:#131312;--surf:#1a1a18;--fill2:#2a2a27;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#95938a;--apagado:#6f6e68;--marca-dagua:#8a8982;--marca-sub:#6f6e68;
@@ -185,38 +186,46 @@ PAGINA = """<!doctype html>
 *{box-sizing:border-box}html,body{margin:0}
 body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:22vh 24px 48px;padding-top:22dvh;
 background:var(--bg);color:var(--ink);font:400 14px/1.5 'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+/* A topbar do site (56 px, marca de 20 px, fio embaixo), como nas outras telas de entrar. */
+.barra{position:fixed;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 28px;background:var(--bg);border-bottom:1px solid var(--fio2)}
+.barra-marca{font:400 20px/1 'EB Garamond',Georgia,serif;letter-spacing:.12em;color:var(--ink);text-decoration:none}
+.barra-tema{width:32px;height:32px;margin-right:-8px;padding:0;border:0;border-radius:8px;background:none;color:var(--ink3);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.barra-tema:hover{color:var(--ink)}.barra-tema svg{width:18px;height:18px}
+@media (max-width:600px){.barra{padding:0 16px}}
 .coluna{width:100%;max-width:360px;display:grid;gap:40px}
 .topo{display:grid;gap:14px;text-align:center}
-.topo h1{margin:0;font:400 44px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;color:var(--ink);text-wrap:balance}
-.topo p{margin:0;font:400 15px/1.6 'Manrope',sans-serif;color:var(--ink2);text-wrap:pretty}
+.topo h1{margin:0;font:400 40px/1.08 'EB Garamond',Georgia,serif;letter-spacing:-.015em;color:var(--ink);text-wrap:balance}
+.topo p{margin:0;font:400 16px/1.6 'Manrope',sans-serif;color:var(--ink2);text-wrap:pretty}
 .topo>*{transition:opacity .7s ease,transform .7s ease}.topo.abrindo>*{opacity:0}
 @media (prefers-reduced-motion:reduce){.topo>*{transition:none}}
 @media (min-width:520px){.topo h1{margin:0 -60px}}
 .form{display:grid;gap:14px}.grupo{display:grid;gap:6px}
-.etiqueta{font:400 11px 'Fira Code',ui-monospace,monospace;letter-spacing:.18em;color:var(--apagado)}
-.caixa{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:10px;background:var(--surf);border:1px solid var(--fio)}
+.etiqueta{font:400 12px 'Fira Code',ui-monospace,monospace;letter-spacing:.18em;color:var(--apagado)}
+.caixa{display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:12px;background:var(--surf);border:1px solid var(--fio)}
 .marca{display:flex;flex:none}.marca svg{width:16px;height:16px}
-.email{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 13.5px 'Manrope',sans-serif;color:var(--ink)}
-.selo{flex:none;display:flex;align-items:center;gap:6px;font:400 11px 'Fira Code',ui-monospace,monospace;color:var(--apagado);white-space:nowrap}
+.email{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 13px 'Manrope',sans-serif;color:var(--ink)}
+.selo{flex:none;display:flex;align-items:center;gap:6px;font:400 12px 'Fira Code',ui-monospace,monospace;color:var(--apagado);white-space:nowrap}
 .selo i{display:block;width:6px;height:6px;border-radius:50%;background:currentColor}
 .selo.ok{color:var(--ok)}.selo.erro{color:var(--erro)}
-.falha{margin:0;font-size:12.5px;line-height:1.5;color:var(--erro)}
-.lista{display:grid;border-radius:10px;background:var(--surf);border:1px solid var(--fio2);overflow:hidden}
+.falha{margin:0;font-size:12px;line-height:1.5;color:var(--erro)}
+.lista{display:grid;border-radius:12px;background:var(--surf);border:1px solid var(--fio2);overflow:hidden}
 .linha{display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-bottom:1px solid var(--fio3)}
 .linha:last-child{border-bottom:0}
 .servico{display:flex;flex:none}.servico svg{width:16px;height:16px}
-.nome{width:56px;flex:none;font:500 13.5px 'Manrope',sans-serif;color:var(--ink)}
-.linha .d{flex:1;min-width:0;font:400 12.5px 'Manrope',sans-serif;color:var(--ink3);text-align:right}
-.detalhe{height:auto;min-height:40px;padding:10px 12px;font:400 12.5px 'Fira Code',ui-monospace,monospace;color:var(--ink3);word-break:break-all}
-.trilho{display:flex;width:100%;padding:3px;border-radius:10px;background:var(--surf);border:1px solid var(--fio2);cursor:pointer}
-.pastilha{flex:1;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--fill2);color:var(--ink);
-font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
+.nome{width:56px;flex:none;font:500 13px 'Manrope',sans-serif;color:var(--ink)}
+.linha .d{flex:1;min-width:0;font:400 12px 'Manrope',sans-serif;color:var(--ink3);text-align:right}
+.detalhe{height:auto;min-height:36px;padding:9px 12px;font:400 12px 'Fira Code',ui-monospace,monospace;color:var(--ink3);word-break:break-all}
+/* O botao de moldura dupla do padrao de 07/10: 32 px no total (1 px de fundo, 1 px de fio, pastilha de 28). */
+.trilho{display:flex;width:100%;padding:1px;border-radius:12px;background:var(--surf);border:1px solid var(--fio2);cursor:pointer}
+.pastilha{flex:1;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--fill2);color:var(--ink);
+font:500 13px 'Manrope',sans-serif;letter-spacing:.01em}
 .trilho:hover .pastilha{background:var(--sobre)}.trilho:active .pastilha{background:var(--ativa)}
 .trilho:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}
 .dica:empty{display:none}.dica{justify-self:center;font:400 12px/1.5 'Manrope',sans-serif;color:var(--apagado);text-align:center;text-wrap:pretty}
 </style>
 </head>
 <body>
+<header class="barra"><a class="barra-marca" href="https://paulus.ia.br">PAVLVS</a><button type="button" class="barra-tema" id="barra-tema" aria-label="Alternar tema">%%SOL%%</button></header>
 <div class="coluna">
 <div class="topo abrindo" id="topo"><h1>%%ALTO%%</h1><p id="titulo">%%TITULO%%</p></div>
 <div class="form">
@@ -232,6 +241,10 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
   requestAnimationFrame(function () { requestAnimationFrame(function () { document.getElementById("topo").classList.remove("abrindo"); }); });
   var raiz = document.documentElement;
   try { var t = localStorage.getItem("pv-tema"); if (t === "claro" || t === "escuro") raiz.dataset.tema = t; } catch (e) {}
+  document.getElementById("barra-tema").onclick = function () {
+    raiz.dataset.tema = raiz.dataset.tema === "claro" ? "escuro" : "claro";
+    try { localStorage.setItem("pv-tema", raiz.dataset.tema); } catch (e) {}
+  };
   // Voltar ao PAULUS (03/10): a pagina pede ao proprio PAULUS, pelo servidor
   // desta volta (/voltar), que a janela dele venha para a frente - sem
   // dialogo nenhum (src/desktop.py, _trazer_para_frente). Quando o login fica
@@ -263,7 +276,7 @@ font:500 13.5px 'Manrope',sans-serif;letter-spacing:.01em}
       if (d.fase === "erro" || d.fase === "cancelado") {
         texto.textContent = "não conectado"; selo.className = "selo erro";
         var f = document.getElementById("falha"); f.hidden = false;
-        f.textContent = "O PAULUS não terminou: " + (d.mensagem || "o login não foi concluído") + ". Volte ao PAULUS e tente de novo.";
+        f.textContent = "O Paulus não terminou: " + (d.mensagem || "o login não foi concluído") + ". Volte ao Paulus e tente de novo.";
         if (!d.email) email.textContent = "conta não confirmada";
         return;
       }

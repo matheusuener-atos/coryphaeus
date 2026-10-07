@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 
 from acesso import permissoes, politicas
-from acesso.porteiro import PESSOA_DA_VEZ, cookies, recusar, responder
+from acesso.porteiro import PAGINA_RECUSADA, PESSOA_DA_VEZ, cookies, recusar, responder
 
 COOKIE_SESSAO = "paulus_sessao"
 CABECALHO_CSRF = "x-paulus-csrf"
@@ -50,11 +50,15 @@ def _hashes_dos_scripts() -> list[str]:
     nao precisa de 'unsafe-inline' para script - e script injetado nao roda.
     """
     saida = []
+    paginas = []
     for pagina in (FRONTEND / "index.html", PAGINA_DE_ENTRADA, PAGINA_DO_CONVITE):
         try:
-            html = pagina.read_text(encoding="utf-8")
+            paginas.append(pagina.read_text(encoding="utf-8"))
         except OSError:
             continue
+    # A pagina recusada (o tema da topbar) sai tambem para quem esta de fora.
+    paginas.append(PAGINA_RECUSADA)
+    for html in paginas:
         for corpo in re.findall(r"<script>(.*?)</script>", html, flags=re.S):
             saida.append("'sha256-" + base64.b64encode(hashlib.sha256(corpo.encode("utf-8")).digest()).decode() + "'")
     return saida

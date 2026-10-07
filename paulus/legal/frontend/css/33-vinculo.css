@@ -51,9 +51,10 @@
   .trava-manter i .ic { font-size: 13px; width: 13px; height: 13px; color: var(--ink); opacity: 0; }
   .trava-manter input:checked + i .ic { opacity: 1; }
   .trava-manter input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
-  .trava-trilho { display: flex; width: 100%; height: auto; padding: 3px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); cursor: pointer; }
+  /* O botao de moldura dupla do padrao de 07/10: 32 px no total (1 px de fundo, 1 px de fio, pastilha de 28). */
+  .trava-trilho { display: flex; width: 100%; height: auto; padding: 1px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); cursor: pointer; }
   .trava-trilho:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); }
-  .trava-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
+  .trava-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
     background: var(--fill2); color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; }
   .trava-pastilha svg { width: 16px; height: 16px; flex: none; }
   /* Sobre e apertado: as cores do desenho (#303030 e #333330 no escuro);

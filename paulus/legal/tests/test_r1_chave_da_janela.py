@@ -79,7 +79,7 @@ def test_todas_as_rotas_sem_chave() -> None:
     checar(not do_word, "as do suplemento do Word recusam com 404 (desligado) ou 401 (sem token)", do_word[:5])
     checar(sem.get("/rota/que/nao/existe").status_code == 403, "ate rota que nao existe responde 403 (nao 404)")
     r = sem.get("/")
-    checar(r.status_code == 403 and "janela do PAULUS" in r.text, "a pagina inicial explica, em HTML", r.status_code)
+    checar(r.status_code == 403 and "só abre dentro dele" in r.text, "a pagina inicial explica, em HTML", r.status_code)
     r = sem.get("/api/status")
     checar(r.status_code == 403 and r.headers["content-type"].startswith("application/json"), "a API recusa em JSON")
     _ = APIRoute

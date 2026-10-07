@@ -41,7 +41,7 @@
   pagina so deixa carregar dela mesma e do Turnstile).
 -->
 <style>
-  [data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill:#222220; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
+[data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill:#222220; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio-forte:rgba(242,241,236,.4); --borda-btn:rgba(242,241,236,.14);
     --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; color-scheme:dark; }
   [data-tema="claro"] { --bg:#f6f5f1; --surf:#efeee9; --fill:#e8e7e1; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
@@ -54,7 +54,7 @@
   .tela { width: 100%; max-width: 440px; height: 100%; display: flex; flex-direction: column; overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom, 0px); }
   .mono { font-family: 'Fira Code', ui-monospace, monospace; }
-  .serif { font-family: 'EB Garamond', Georgia, serif; }
+  .serif { font-family: 'Manrope', system-ui, sans-serif; }
   button { font: inherit; }
   [hidden] { display: none !important; }
 
@@ -69,27 +69,27 @@
      do banco embaixo (js/entrada-saudacao.js) - o jeito da saudacao do assistente: o bloco nasce
      apagado e aparece devagar; ao trocar de passo, a frase sai e a nova entra. PAVLVS e a marca;
      Paulus, o agente. */
-  .marca h1 { margin: 0; font: 400 38px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
-  .marca p { margin: 0; max-width: 360px; font: 400 15px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
+  .marca h1 { margin: 0; font: 400 40px/1.08 'EB Garamond', Georgia, serif; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+  .marca p { margin: 0; max-width: 360px; font: 400 16px/1.6 'Manrope', sans-serif; color: var(--ink2); text-wrap: pretty; }
   .marca > * { transition: opacity .7s ease, transform .7s ease; }
   .marca.abrindo > * { opacity: 0; }
   .marca.saindo > p { opacity: 0; transform: translateY(4px); }
   @media (prefers-reduced-motion: reduce) { .marca > * { transition: none; } }
   .baixo { flex: none; display: grid; gap: 14px; padding: 0 20px 28px; margin-top: auto; }
-  .rotulo { font: 400 11px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
+  .rotulo { font: 400 12px 'Fira Code', monospace; letter-spacing: .18em; color: var(--apagado); }
   .escritorio { display: grid; gap: 6px; }
-  .escritorio label { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
+  .escritorio label { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--fio); cursor: text; }
   .escritorio label:focus-within { border-color: var(--fio-forte); }
   .escritorio input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; outline: none;
     font: 400 14px 'Fira Code', monospace; color: var(--ink); }
   /* "Entrar com Google": o trilho com a pastilha dentro (guia de 02/10),
      travado ate a verificacao contra robos passar. */
-  .g-trilho { display: flex; width: 100%; padding: 3px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio2);
+  .g-trilho { display: flex; width: 100%; padding: 1px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio2);
     cursor: pointer; position: relative; }
   .g-trilho::after { content: ""; position: absolute; inset: -2px 0; } /* 44 px de toque */
-  .g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
-    background: var(--fill2); color: var(--ink); font: 500 13.5px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
+  .g-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
+    background: var(--fill2); color: var(--ink); font: 500 13px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
   .g-pastilha svg { width: 16px; height: 16px; flex: none; }
   .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   .g-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
@@ -99,15 +99,15 @@
   .robo:empty { display: none; }
   .robo { display: flex; justify-content: center; }
   /* O selo proprio, no lugar do widget: verificando, sucesso ou de novo. */
-  .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 10px;
+  .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--fio2); }
-  .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13.5px 'Manrope', system-ui, sans-serif; color: var(--ink); }
+  .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13px 'Manrope', system-ui, sans-serif; color: var(--ink); }
   .cf-icone { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none;
     transition: background .24s, transform .24s cubic-bezier(.2,.8,.2,1); }
   .cf-icone svg { width: 15px; height: 15px; fill: #fff; opacity: 0; transition: opacity .2s .12s; }
   .cf-dir { display: grid; justify-items: end; gap: 2px; text-align: right; }
-  .cf-marca { font: 700 9.5px 'Manrope', system-ui, sans-serif; letter-spacing: .12em; color: var(--ink); }
-  .cf-links { font: 400 9.5px 'Manrope', system-ui, sans-serif; color: var(--ink3); }
+  .cf-marca { font: 700 12px 'Manrope', system-ui, sans-serif; letter-spacing: .12em; color: var(--ink); }
+  .cf-links { font: 400 12px 'Manrope', system-ui, sans-serif; color: var(--ink3); }
   .cf-links a { color: inherit; text-decoration: none; }
   .cf-badge[data-estado="verificando"] .cf-icone { border: 2px solid var(--fio); border-top-color: var(--ink); animation: cf-gira .9s linear infinite; }
   .cf-badge[data-estado="ok"] .cf-icone { background: #2f9e5b; animation: cf-surge .24s cubic-bezier(.2,.8,.2,1); }
@@ -121,12 +121,12 @@
   @keyframes cf-surge { from { transform: scale(.6); } to { transform: scale(1); } }
   .link-senha { justify-self: center; border: 0; background: none; padding: 10px 0; color: var(--ink3); font: 500 13px 'Manrope', sans-serif; cursor: pointer; }
   .campos { display: grid; gap: 10px; }
-  .campos input { width: 100%; height: 44px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio);
-    outline: none; color: var(--ink); font: 400 15px 'Manrope', sans-serif; }
+  .campos input { width: 100%; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio);
+    outline: none; color: var(--ink); font: 400 16px 'Manrope', sans-serif; }
   .campos input:focus { border-color: var(--fio-forte); }
   .campos input::placeholder { color: var(--ink3); }
   .ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-wrap: pretty; text-align: center; }
-  .erro { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--erro); text-align: center; }
+  .erro { margin: 0; font-size: 13px; line-height: 1.5; color: var(--erro); text-align: center; }
   .erro:empty { display: none; }
 
   /* --- 2. o codigo (e a chave de recuperacao), no desenho "Codigo" */
@@ -138,24 +138,24 @@
   .voltar:hover, .link-senha:hover { color: var(--ink); }
   .voltar svg { width: 18px; height: 18px; }
   .voltar:hover { color: var(--ink); }
-  .conta { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf); border: 1px solid var(--fio); }
+  .conta { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio); }
   .conta .g-ic { width: 16px; height: 16px; flex: none; }
-  .conta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .conta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px 'Manrope', sans-serif; color: var(--ink); }
   .trocar { flex: none; border: 0; background: none; padding: 10px 0; color: var(--apagado); font: 500 12px 'Manrope', sans-serif; cursor: pointer; }
   .trocar:hover { color: var(--ink); }
   .rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; }
-  .renova { font: 400 11px 'Fira Code', monospace; color: var(--apagado); }
+  .renova { font: 400 12px 'Fira Code', monospace; color: var(--apagado); }
   .renova b { font-weight: 400; color: var(--ink3); }
   .casas { position: relative; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 8px; }
-  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+  .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
   .casas span.vez { border-color: var(--fio-forte); }
   /* O campo de verdade fica por cima das casas, transparente: o teclado do
      celular, o colar e o preenchimento do codigo pelo SMS funcionam. */
   .casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px;
     color: transparent; caret-color: transparent; background: none; }
-  .confiar { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--surf);
-    border: 1px solid var(--fio2); cursor: pointer; font: 400 13.5px 'Manrope', sans-serif; color: var(--ink); }
+  .confiar { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surf);
+    border: 1px solid var(--fio2); cursor: pointer; font: 400 13px 'Manrope', sans-serif; color: var(--ink); }
   .confiar input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   .confiar i { width: 16px; height: 16px; flex: none; border-radius: 4px; background: var(--fill2); border: 1px solid var(--fio-forte);
     display: flex; align-items: center; justify-content: center; }
@@ -167,7 +167,7 @@
      com a borda acesa, e a ajuda embaixo. */
   .casas.campo { display: block; }
   .casas.campo span { display: none; }
-  .casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 10px;
+  .casas.campo input { position: static; display: block; width: 100%; height: 40px; padding: 0 12px; opacity: 1; border-radius: 12px;
     background: var(--surf); border: 1px solid var(--fio-forte); outline: none; color: var(--ink); caret-color: var(--ink);
     font: 400 15px 'Fira Code', monospace; letter-spacing: .14em; text-transform: uppercase; }
   .ajuda-chave { font: 400 12px/1.5 'Manrope', sans-serif; color: var(--apagado); text-wrap: pretty; }
@@ -180,7 +180,7 @@
     .passo { justify-content: flex-start; align-items: center; gap: 40px; padding: 0 24px 48px; }
     .passo .marca { flex: none; min-height: 0; gap: 14px; padding: calc(22vh - 56px) 0 0; padding-top: calc(22dvh - 56px); }
     .passo .baixo { margin-top: 0; }
-    .passo .marca h1 { font-size: 44px; }
+    .passo .marca h1 { font-size: 40px; }
     .passo .baixo { width: 100%; max-width: 360px; padding: 0; }
     .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
     .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }

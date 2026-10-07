@@ -168,9 +168,9 @@ class Vinculo:
         if finalidade == "vincular" and self.vinculado() and self.travado():
             raise ErroVinculo("destrave antes de trocar a conta vinculada")
         if finalidade == "confirmar" and (not self.vinculado() or self.travado()):
-            raise ErroVinculo("este PAULUS não está vinculado a uma conta Google")
+            raise ErroVinculo("este Paulus não está vinculado a uma conta Google")
         if finalidade == "destravar" and not self.vinculado():
-            raise ErroVinculo("este PAULUS não está vinculado a uma conta Google")
+            raise ErroVinculo("este Paulus não está vinculado a uma conta Google")
         credenciais = self.credenciais()
         with self._trava:
             if self.entrada and not self.entrada.terminou:
@@ -220,7 +220,7 @@ class Vinculo:
             return {"email": email, "nome": nome}
         esperado = str(self.dados().get("email") or "").lower()
         if email != esperado:
-            raise correio_oauth.ErroOAuth(f"esta não é a conta Google deste PAULUS ({esperado}); entre com ela")
+            raise correio_oauth.ErroOAuth(f"esta não é a conta Google deste Paulus ({esperado}); entre com ela")
         self._guardar_id_token(tokens)
         if self.finalidade == "confirmar":
             return {"email": email, "nome": nome}
@@ -405,7 +405,7 @@ class Vinculo:
     def travar(self) -> None:
         """Sair: trava a janela do servidor ate alguem entrar com o Google."""
         if not self.vinculado():
-            raise ErroVinculo("para sair, vincule antes este PAULUS a uma conta Google (Configurações › Escritório e equipe)")
+            raise ErroVinculo("para sair, vincule antes este Paulus a uma conta Google (Configurações › Escritório e equipe)")
         self.destravado = False
         self._conta_do_codigo = 0
         self._id_token, self._id_token_exp = "", 0.0
