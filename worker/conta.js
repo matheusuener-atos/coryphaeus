@@ -16,14 +16,14 @@
 // e cuida do pagamento (forma, cartao, recarga). Cada rota confere o papel.
 //
 // Nada de dinheiro e decidido aqui: as mudancas na cobranca sao as funcoes do
-// worker/ia.js (trocarPlanoAgora, ofertaParaFicar, cancelarPelaConta,
+// worker/ia.js (trocarPlanoAgora e orcarTrocaDePlano, ofertaParaFicar, cancelarPelaConta,
 // cartaoNovo, pixDaRecarga, pagarNoPix), com as mesmas regras do resto da
 // nuvem. Os POST so valem da propria origem (o cookie e SameSite=Lax e a
 // origem e conferida).
 
 import {
   OFERTA_FICAR, arquivoDoCliente, cancelarPelaConta, cartaoNovo, catalogo, conferirCadastro, medidor, modelosDoPlano,
-  notasDoCliente, numeros, ofertaParaFicar, pagarNoPix, pixDaRecarga, prepago, recargasDe, trocarPlanoAgora,
+  notasDoCliente, numeros, ofertaParaFicar, orcarTrocaDePlano, pagarNoPix, pixDaRecarga, prepago, recargasDe, trocarPlanoAgora,
 } from "./ia.js";
 import { alterarEndereco, disponibilidade, donoDoToken, escritorioDoDono } from "./tunel.js";
 import { enviarEmail } from "./admin.js";
@@ -106,6 +106,10 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
 
   // Daqui em diante, so o titular.
   if (p === "/api/conta/cadastro" && m === "POST") return salvarCadastro(request, env, s);
+  if (p === "/api/conta/plano/orcar" && m === "GET") {
+    const q = url.searchParams;
+    return responder(await orcarTrocaDePlano(env, s.conta, { plano: String(q.get("plano") || ""), periodo: q.get("periodo") === "anual" ? "anual" : "mensal" }));
+  }
   if (p === "/api/conta/plano" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
     const d = (await lerJSON(request)) || {};

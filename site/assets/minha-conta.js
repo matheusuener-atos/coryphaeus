@@ -1,9 +1,12 @@
 /* Minha conta (paulus.ia.br/minha-conta/): o titular da assinatura - e quem ele autorizar - cuida do plano,
    do consumo, das faturas, da forma de pagamento, do cadastro e do escritorio. Entra com a conta Google.
-   Desenho: a topbar do site, o titulo centrado e as abas na pilula (como a pagina da conta no Admin). */
+   Desenho: a topbar do site, o titulo centrado e as abas na pilula (como a pagina da conta no Admin).
+   O servidor e o worker/conta.js: GET /api/conta traz tudo, cada acao e um POST da propria origem e o
+   papel (titular ou financeiro) e conferido la. O cartao vai pelos campos seguros do Mercado Pago; o
+   Google entra pelo botao oficial, o mesmo cliente web do cadastro. */
 (function () {
   "use strict";
-  var S = { aba: "resumo", d: null, modal: null, filtroFat: "todas", periodo: "ciclo", anual: false, pix: null, recarga: 1 };
+  var S = { aba: "resumo", d: null, modal: null, filtroFat: "todas", periodo: "ciclo", anual: null, pix: null, recarga: "1", convite: "", erroEntrar: "" };
   var ABAS = [["resumo", "Resumo"], ["consumo", "Consumo"], ["faturas", "Faturas"], ["pagamento", "Pagamento"], ["plano", "Plano"], ["cadastro", "Cadastro"], ["escritorio", "Escritório"], ["pessoas", "Pessoas"]];
   var DO_FINANCEIRO = { resumo: 1, consumo: 1, faturas: 1, pagamento: 1 };
   var MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -15,27 +18,31 @@
   function brl0(v) { return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }); }
   function tok(n) { var m = Number(n || 0) / 1e6; return (m >= 10 ? Math.round(m) : Math.round(m * 10) / 10).toLocaleString("pt-BR") + " M"; }
   function dt(iso) { if (!iso) return "—"; var p = String(iso).slice(0, 10).split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
-  function mesAno(iso) { var p = String(iso).slice(0, 10).split("-"); return MESES[Number(p[1]) - 1] + "/" + p[0]; }
+  function dtHora(iso) { var t = new Date(iso); if (isNaN(t)) return "—"; return t.toLocaleDateString("pt-BR") + ", " + t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+  function mesAno(iso) { if (!iso) return "—"; var p = String(iso).slice(0, 10).split("-"); return MESES[Number(p[1]) - 1] + "/" + p[0]; }
   function diasAte(iso) { var a = new Date(); a.setHours(0, 0, 0, 0); return Math.round((new Date(String(iso).slice(0, 10) + "T00:00") - a) / 864e5); }
   function iniciais(n) { var p = String(n || "").trim().split(/\s+/).filter(Boolean); return p.length ? (p.length > 1 ? p[0][0] + p[p.length - 1][0] : p[0].slice(0, 2)).toUpperCase() : "?"; }
+  // As frases do servidor vem em minusculas (servem no meio de outra frase); sozinhas, com a primeira maiuscula.
+  function cap(t) { t = String(t || ""); return t.charAt(0).toUpperCase() + t.slice(1); }
+  function L(pt, en) { return window.MC_IDIOMA === "en" ? en : pt; }
   function titular() { return S.d && S.d.perfil.papel === "titular"; }
   function abas() { return ABAS.filter(function (a) { return titular() || DO_FINANCEIRO[a[0]]; }); }
 
   var PIX = '<svg class="mc-pix" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.3 11.9a2 2 0 0 1-1.4-.6L8.6 9a.4.4 0 0 0-.6 0l-2.3 2.3a2 2 0 0 1-1.4.6h-.5l2.9 2.9a2.3 2.3 0 0 0 3.3 0l2.9-2.9h-.6ZM4.3 4.1a2 2 0 0 1 1.4.6L8 7a.4.4 0 0 0 .6 0l2.3-2.3a2 2 0 0 1 1.4-.6h.4L9.8 1.2a2.3 2.3 0 0 0-3.3 0L3.7 4.1h.6Zm10.5 2.2L13 4.6h-.7a1.4 1.4 0 0 0-1 .4L9.1 7.3a1.1 1.1 0 0 1-1.6 0L5.3 5a1.4 1.4 0 0 0-1-.4h-.9L1.2 6.3a2.3 2.3 0 0 0 0 3.3l1.7 1.7h1a1.4 1.4 0 0 0 1-.4l2.3-2.3a1.1 1.1 0 0 1 1.6 0l2.3 2.3a1.4 1.4 0 0 0 1 .4h.7l1.7-1.7a2.3 2.3 0 0 0 0-3.3Z"/></svg>';
-  var GOOGLE = '<svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.7H9v3.3h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/><path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/><path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/><path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.5 1.4l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>';
+  // A bandeira pelo id do Mercado Pago ("master", "visa", "elo", "amex", "hipercard").
   function bandeira(b) {
     var k = String(b || "").toLowerCase();
-    if (k === "mastercard") return '<span class="mc-bandeira" aria-label="Mastercard"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><circle cx="9.5" cy="8" r="5" fill="#EB001B"/><circle cx="14.5" cy="8" r="5" fill="#F79E1B"/><path d="M12 3.6a5 5 0 0 1 0 8.8 5 5 0 0 1 0-8.8Z" fill="#FF5F00"/></svg></span>';
+    if (k === "mastercard" || k === "master") return '<span class="mc-bandeira" aria-label="Mastercard"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><circle cx="9.5" cy="8" r="5" fill="#EB001B"/><circle cx="14.5" cy="8" r="5" fill="#F79E1B"/><path d="M12 3.6a5 5 0 0 1 0 8.8 5 5 0 0 1 0-8.8Z" fill="#FF5F00"/></svg></span>';
     if (k === "visa") return '<span class="mc-bandeira" aria-label="Visa"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="11.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8.4" font-weight="700" font-style="italic" fill="#1A1F71">VISA</text></svg></span>';
     if (k === "elo") return '<span class="mc-bandeira" style="background:#000" aria-label="Elo"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="11.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8.6" font-weight="700" fill="#fff">elo</text></svg></span>';
     if (k === "amex") return '<span class="mc-bandeira" style="background:#016FD0" aria-label="American Express"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="10.6" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="6.6" font-weight="700" fill="#fff">AMEX</text></svg></span>';
     if (k === "hipercard") return '<span class="mc-bandeira" style="background:#B3131B" aria-label="Hipercard"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="10.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="4.6" font-weight="700" fill="#fff">Hipercard</text></svg></span>';
-    return '<span class="mc-bandeira texto">' + esc(b || "Cartão") + "</span>";
+    return '<span class="mc-bandeira texto">' + esc(b && k !== "cartão" ? b : "Cartão") + "</span>";
   }
   function forma(f) {
     if (!f) return "—";
     if (f.tipo === "pix") return '<span class="mc-forma">' + PIX + "<span>Pix</span></span>";
-    return '<span class="mc-forma">' + bandeira(f.bandeira) + "<span>•••• " + esc(f.final) + "</span></span>";
+    return '<span class="mc-forma">' + bandeira(f.bandeira) + (f.final ? "<span>•••• " + esc(f.final) + "</span>" : "") + "</span>";
   }
   function painel(rot, dir, miolo, cls) {
     return '<section class="painel mc-painel' + (cls ? " " + cls : "") + '"><div class="painel-cab"><span class="rotulo">' + esc(rot) + "</span>" + (dir ? "<span>" + dir + "</span>" : "") + "</div>" + miolo + "</section>";
@@ -47,62 +54,97 @@
   }
   function api(metodo, caminho, corpo) {
     return fetch(caminho, { method: metodo, credentials: "same-origin", headers: corpo ? { "Content-Type": "application/json" } : {}, body: corpo ? JSON.stringify(corpo) : undefined })
-      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { var e = new Error(j.erro || "não foi possível agora"); e.status = r.status; throw e; } return j; }); });
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok) { var e = new Error(j.erro || "não foi possível agora"); e.status = r.status; e.dados = j; throw e; }
+          return j;
+        });
+      });
   }
   function toast(t, erro) {
     var el = $("mc-toast"); if (!el) { el = document.createElement("div"); el.id = "mc-toast"; el.className = "mc-toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
-    el.textContent = t; el.classList.toggle("erro", !!erro); el.classList.add("on");
-    clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("on"); }, 3200);
+    el.textContent = cap(t); el.classList.toggle("erro", !!erro); el.classList.add("on");
+    clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("on"); }, erro ? 5200 : 3200);
+  }
+  // Os scripts de fora (o botao do Google, o SDK do Mercado Pago) so carregam quando a tela precisa deles.
+  var scripts = {};
+  function carregarScript(src) {
+    if (!scripts[src]) scripts[src] = new Promise(function (ok, falha) {
+      var s = document.createElement("script"); s.src = src; s.async = true;
+      s.onload = function () { ok(); }; s.onerror = function () { delete scripts[src]; falha(new Error("não carregou")); };
+      document.head.appendChild(s);
+    });
+    return scripts[src];
   }
 
   /* ------------------------------------------------------------ as abas */
   var TELAS = {};
+  var SIT = { ativa: ["Ativa", "ok"], cortesia: ["Cortesia", "ok"], cancelada: ["Cancelada", "atencao"], vencida: ["Vencida", "erro"], pausada: ["Pausada no Mercado Pago", "atencao"], pendente: ["Esperando o Mercado Pago", "atencao"] };
+  // Ate quando vale o que ja foi pago: no anual e no Pix mensal, o pago_ate; no cartao, o fim do ciclo.
+  function pagoAte(a) { return a.periodo === "anual" || a.forma === "pix" ? a.proxima : a.ciclo.ate; }
 
   TELAS.resumo = function (d) {
-    var a = d.assinatura, c = a.ciclo, pct = Math.min(100, Math.round(c.usados / c.tokens * 100)), resta = Math.max(0, c.tokens - c.usados), dias = diasAte(a.proxima);
+    var a = d.assinatura, c = a.ciclo, s = SIT[a.situacao] || [a.situacao, "mudo"];
+    var cob;
+    if (a.situacao === "cortesia") cob = ["Cobrança", "sem cobrança"];
+    else if (a.situacao === "vencida" || a.situacao === "cancelada") cob = ["Próxima cobrança", "nenhuma"];
+    else if (a.forma === "pix") cob = ["Próximo Pix", dt(a.proxima) + " · " + brl(a.valor_plano)];
+    else if (a.periodo === "anual") cob = ["Pago até", dt(a.proxima)];
+    else cob = ["Próxima cobrança", dt(a.proxima) + " · " + brl(a.valor)];
+    var semCob = a.situacao === "cortesia" || a.situacao === "vencida";
     var assin = '<div class="mc-corpo"><div class="mc-plano-nome"><h2>' + esc(a.nome) + '</h2><span class="mc-tag">' + (a.periodo === "anual" ? "anual" : "mensal") + "</span></div>" +
       '<dl class="mc-fatos">' +
-      "<div><dt>Situação</dt><dd>" + '<span class="mc-bolinha ok"></span>Ativa</dd></div>' +
-      "<div><dt>Próxima cobrança</dt><dd>" + dt(a.proxima) + " · " + brl(a.valor) + "</dd></div>" +
-      "<div><dt>Cobrança em</dt><dd>" + (d.pagamento.tipo === "pix" ? forma({ tipo: "pix" }) : forma(d.pagamento.cartao)) + "</dd></div>" +
+      '<div><dt>Situação</dt><dd><span class="mc-bolinha ' + s[1] + '"></span>' + esc(s[0]) + (a.situacao === "cancelada" ? " · vale até " + dt(pagoAte(a)) : "") + "</dd></div>" +
+      "<div><dt>" + cob[0] + "</dt><dd>" + esc(cob[1]) + "</dd></div>" +
+      (a.plano_proximo ? "<div><dt>A partir de " + dt(a.proxima) + "</dt><dd>plano " + esc(a.plano_proximo.nome) + "</dd></div>" : "") +
+      "<div><dt>Cobrança em</dt><dd>" + (semCob ? "—" : d.pagamento.tipo === "pix" ? forma({ tipo: "pix" }) : forma(d.pagamento.cartao)) + "</dd></div>" +
       "<div><dt>Assinante desde</dt><dd>" + mesAno(a.desde) + "</dd></div></dl></div>" +
       '<div class="mc-pe">' + (titular() ? '<button type="button" class="mini" data-aba="plano">Trocar de plano</button>' : "") + '<button type="button" class="mini" data-aba="faturas">Ver faturas</button></div>';
-    var uso = '<div class="mc-corpo"><div class="mc-uso-num"><b>' + pct + '%</b><span>' + tok(c.usados) + " de " + tok(c.tokens) + " tokens</span></div>" +
-      '<span class="mc-barra" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + pct + '%"></i></span>' +
-      '<dl class="mc-fatos"><div><dt>Restam</dt><dd>' + tok(resta) + " tokens</dd></div><div><dt>Renova em</dt><dd>" + dt(a.proxima) + " · " + dias + (dias === 1 ? " dia" : " dias") + "</dd></div>" +
-      (c.recargas ? "<div><dt>Recargas no ciclo</dt><dd>" + tok(c.recargas) + " tokens</dd></div>" : "") + "</dl></div>" +
-      '<div class="mc-pe"><button type="button" class="mini" data-aba="consumo">Ver consumo</button><button type="button" class="mini" data-a="recarga">' + PIX + "Recarga no Pix</button></div>";
+    var uso;
+    if (!c.tokens) {
+      uso = '<div class="mc-corpo"><p class="mc-p">Não há um ciclo aberto agora.' + (a.situacao === "vencida" ? " O plano venceu: assine de novo na aba Plano." : "") + "</p></div>";
+    } else {
+      var pct = Math.min(100, Math.round(c.usados / c.tokens * 100)), resta = Math.max(0, c.tokens - c.usados), dias = diasAte(c.ate);
+      uso = '<div class="mc-corpo"><div class="mc-uso-num"><b>' + pct + '%</b><span>' + tok(c.usados) + " de " + tok(c.tokens) + " tokens</span></div>" +
+        '<span class="mc-barra" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + pct + '%"></i></span>' +
+        '<dl class="mc-fatos"><div><dt>Restam</dt><dd>' + tok(resta) + " tokens</dd></div>" +
+        "<div><dt>" + (a.situacao === "cancelada" ? "Termina em" : "Renova em") + "</dt><dd>" + dt(c.ate) + " · " + dias + (dias === 1 ? " dia" : " dias") + "</dd></div>" +
+        (c.recargas ? "<div><dt>Recargas no ciclo</dt><dd>" + tok(c.recargas) + " tokens</dd></div>" : "") +
+        (c.extra ? "<div><dt>Créditos de recarga</dt><dd>" + tok(c.extra) + " tokens · não vencem na renovação</dd></div>" : "") + "</dl></div>";
+    }
+    uso += '<div class="mc-pe"><button type="button" class="mini" data-aba="consumo">Ver consumo</button>' + (a.situacao === "vencida" ? "" : '<button type="button" class="mini" data-a="recarga">' + PIX + "Recarga no Pix</button>") + "</div>";
     var ult = d.faturas.slice(0, 3).map(linhaFatura).join("");
-    return '<div class="mc-grade2">' + painel("Assinatura", "", assin) + painel("Uso do ciclo", dt(c.de).slice(0, 5) + " – " + dt(c.ate).slice(0, 5), uso) + "</div>" +
-      painel("Últimas faturas", "", '<div class="mc-tabela">' + cabFatura() + ult + '</div><div class="mc-ver"><button type="button" class="mc-ver-mais" data-aba="faturas">Ver todas' + ic("arrow_outward") + "</button></div>");
+    return '<div class="mc-grade2">' + painel("Assinatura", "", assin) + painel("Uso do ciclo", c.de ? dt(c.de).slice(0, 5) + " – " + dt(c.ate).slice(0, 5) : "", uso) + "</div>" +
+      painel("Últimas faturas", "", '<div class="mc-tabela">' + cabFatura() + (ult || '<p class="mc-vazio">Nenhuma fatura ainda.</p>') + '</div><div class="mc-ver"><button type="button" class="mc-ver-mais" data-aba="faturas">Ver todas' + ic("arrow_outward") + "</button></div>");
   };
 
   TELAS.consumo = function (d) {
-    var dias = d.consumo.dias, ritmo = d.assinatura.ciclo.tokens / dias.length;
+    var k = d.consumo, dias = k.dias || [];
+    var mm = mesesAssinatura(d, false), rotEsc = S.cicloEsc ? MESES[Number(S.cicloEsc.slice(5)) - 1] + "/" + S.cicloEsc.slice(0, 4) : "";
+    var pop = S.calAberto && S.calAberto.alvo === "consumo" ? calPop(mm[0], mm[1], S.cicloEsc) : "";
+    var outro = [["ciclo", "Este ciclo"], ["anterior", "Ciclo anterior"], ["outro", S.periodo === "outro" && rotEsc ? "Ciclo de " + rotEsc : "Outro ciclo"]];
+    var seletor = '<span class="mc-periodo">' + pilula("periodo", outro, S.periodo) + pop + "</span>";
+    if (!dias.length) return painel("Por dia", seletor, '<p class="mc-vazio">Não há consumo para mostrar neste período.</p>', "mc-com-pop");
+    var ritmo = d.assinatura.ciclo.tokens ? d.assinatura.ciclo.tokens / dias.length : 0;
     var maior = Math.max.apply(null, dias.map(function (x) { return x.tokens; }).concat([1])), max = Math.max(maior, ritmo) * 1.1;
     var total = dias.reduce(function (s, x) { return s + x.tokens; }, 0);
     // Uma barra por dia; a linha tracejada e o ritmo da cota (o que da para usar por dia sem faltar no fim do ciclo).
-    var barras = '<p class="mc-legenda"><span><i class="mc-leg-barra"></i>tokens usados no dia</span><span><i class="mc-leg-linha"></i>ritmo da cota: ' + tok(ritmo) + ' por dia</span><span><i class="mc-leg-futuro"></i>dias que ainda não chegaram</span></p>' +
-      '<div class="mc-grafico-area"><span class="mc-ritmo" style="bottom:' + (ritmo / max * 100) + '%"></span><div class="mc-grafico" role="img" aria-label="Tokens por dia no ciclo">' + dias.map(function (x) {
-      var h = x.tokens ? Math.max(3, Math.round(x.tokens / max * 100)) : 0;
-      return '<span class="mc-dia' + (x.futuro ? " futuro" : "") + '" title="' + dt(x.data) + (x.futuro ? "" : " · " + tok(x.tokens) + " tokens") + '"><i style="height:' + h + '%"></i></span>';
-    }).join("") + '</div></div><div class="mc-grafico-eixo"><span>' + dt(dias[0].data).slice(0, 5) + "</span><span>" + dt(dias[dias.length - 1].data).slice(0, 5) + "</span></div>";
+    var barras = '<p class="mc-legenda"><span><i class="mc-leg-barra"></i>tokens usados no dia</span>' + (ritmo ? '<span><i class="mc-leg-linha"></i>ritmo da cota: ' + tok(ritmo) + " por dia</span>" : "") + '<span><i class="mc-leg-futuro"></i>dias que ainda não chegaram</span></p>' +
+      '<div class="mc-grafico-area">' + (ritmo ? '<span class="mc-ritmo" style="bottom:' + (ritmo / max * 100) + '%"></span>' : "") + '<div class="mc-grafico" role="img" aria-label="Tokens por dia no ciclo">' + dias.map(function (x) {
+        var h = x.tokens ? Math.max(3, Math.round(x.tokens / max * 100)) : 0;
+        return '<span class="mc-dia' + (x.futuro ? " futuro" : "") + '" title="' + dt(x.data) + (x.futuro ? "" : " · " + tok(x.tokens) + " tokens") + '"><i style="height:' + h + '%"></i></span>';
+      }).join("") + '</div></div><div class="mc-grafico-eixo"><span>' + dt(dias[0].data).slice(0, 5) + "</span><span>" + dt(dias[dias.length - 1].data).slice(0, 5) + "</span></div>";
     var feitos = dias.filter(function (x) { return !x.futuro; });
     var media = feitos.length ? total / feitos.length : 0;
-    var graf = '<div class="mc-corpo">' + barras + '<dl class="mc-fatos linha"><div><dt>No ciclo</dt><dd>' + tok(total) + " tokens</dd></div><div><dt>Média por dia</dt><dd>" + tok(media) + "</dd></div><div><dt>Maior dia</dt><dd>" + tok(maior) + "</dd></div></dl></div>";
-    var ps = d.consumo.pessoas.slice().sort(function (a, b) { return b.tokens - a.tokens; });
-    var pessoas = ps.map(function (p) {
+    var graf = '<div class="mc-corpo">' + barras + '<dl class="mc-fatos linha"><div><dt>No ciclo</dt><dd>' + tok(total) + " tokens</dd></div><div><dt>Média por dia</dt><dd>" + tok(media) + "</dd></div><div><dt>Maior dia</dt><dd>" + tok(maior) + "</dd></div></dl>" +
+      (k.sem_dias ? '<p class="mc-nota">Este ciclo é de antes do registro dia a dia: no total, foram ' + tok(k.total_do_mes) + " tokens.</p>" : "") + "</div>";
+    var ps = (k.pessoas || []).slice().sort(function (a, b) { return b.tokens - a.tokens; });
+    var pessoas = ps.length ? ps.map(function (p) {
       var pc = total ? Math.round(p.tokens / total * 100) : 0;
       return '<div class="mc-linha"><span class="mc-avatar">' + esc(iniciais(p.nome)) + '</span><span class="mc-txt"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + '</small></span><span class="mc-uso-pessoa"><span class="mc-barra fina"><i style="width:' + pc + '%"></i></span></span><span class="mc-num">' + tok(p.tokens) + '</span><span class="mc-num mudo">' + pc + "%</span></div>";
-    }).join("");
-    // "Outro ciclo" abre o seletor de mes e ano do Admin (vista de meses; o titulo troca para a vista de anos).
-    // So ficam liberados os meses com assinatura, do inicio ate o ciclo antes do anterior.
-    var ini = new Date(d.assinatura.desde + "T12:00"), at = new Date(d.assinatura.ciclo.de + "T12:00");
-    var primeiro = ini.getFullYear() * 12 + ini.getMonth(), ultimo = at.getFullYear() * 12 + at.getMonth() - 2;
-    var rotEsc = S.cicloEsc ? MESES[Number(S.cicloEsc.slice(5)) - 1] + "/" + S.cicloEsc.slice(0, 4) : "";
-    var pop = S.calAberto && S.calAberto.alvo === "consumo" ? calPop(primeiro, ultimo, S.cicloEsc) : "";
-    var outro = [["ciclo", "Este ciclo"], ["anterior", "Ciclo anterior"], ["outro", S.periodo === "outro" && rotEsc ? "Ciclo de " + rotEsc : "Outro ciclo"]];
-    return painel("Por dia · " + dt(d.consumo.de).slice(0, 5) + " – " + dt(d.consumo.ate).slice(0, 5), '<span class="mc-periodo">' + pilula("periodo", outro, S.periodo) + pop + "</span>", graf, "mc-com-pop") + painel("Por pessoa", ps.length + (ps.length === 1 ? " pessoa" : " pessoas"), pessoas);
+    }).join("") : '<p class="mc-vazio">Quem perguntou fica no Paulus do escritório: a nuvem recebe só o total de cada dia, sem saber de quem foi a pergunta.</p>';
+    return painel("Por dia · " + dt(k.de).slice(0, 5) + " – " + dt(k.ate).slice(0, 5), seletor, graf, "mc-com-pop") +
+      painel("Por pessoa", ps.length ? ps.length + (ps.length === 1 ? " pessoa" : " pessoas") : "", pessoas);
   };
 
   // O calendario do Admin (vistas de meses e de anos), para escolher um mes entre primeiro e ultimo (contados em meses).
@@ -124,8 +166,10 @@
     }
     return h + "</div>";
   }
+  // Os meses com assinatura: do inicio ate o ciclo atual (faturas) ou ate o de antes do anterior (consumo).
   function mesesAssinatura(d, ateAtual) {
-    var ini = new Date(d.assinatura.desde + "T12:00"), at = new Date(d.assinatura.ciclo.de + "T12:00");
+    var a = d.assinatura, hoje = new Date();
+    var ini = new Date((a.desde || a.ciclo.de || hoje.toISOString().slice(0, 10)) + "T12:00"), at = new Date((a.ciclo.de || hoje.toISOString().slice(0, 10)) + "T12:00");
     return [ini.getFullYear() * 12 + ini.getMonth(), at.getFullYear() * 12 + at.getMonth() - (ateAtual ? 0 : 2)];
   }
   function cabFatura() { return '<div class="mc-fat cab"><span>Data</span><span>Descrição</span><span>Forma</span><span class="dir">Valor</span><span>Situação</span><span>NFS-e</span><span class="centro">Arquivos</span></div>'; }
@@ -133,7 +177,7 @@
   function linhaFatura(f) {
     var s = SIT_FAT[f.situacao] || [f.situacao, "mudo"];
     return '<div class="mc-fat"><span class="mono">' + dt(f.data) + '</span><span class="mc-corta">' + esc(f.descricao) + "</span><span>" + forma(f.forma) + '</span><span class="dir mono">' + brl(f.valor) + '</span><span><span class="mc-sit ' + s[1] + '"><span class="mc-bolinha"></span>' + s[0] + '</span></span><span class="mono">' + esc(f.nfse || "—") + "</span>" +
-      '<span class="centro mc-arquivos">' + (f.nfse ? '<a class="btn-icone" href="' + esc(f.pdf || "#") + '" title="NFS-e em PDF" aria-label="Baixar a NFS-e em PDF">' + ic("picture_as_pdf") + '</a><a class="btn-icone" href="' + esc(f.xml || "#") + '" title="NFS-e em XML" aria-label="Baixar o XML da NFS-e">' + ic("code") + "</a>" : '<span class="mudo">—</span>') + "</span></div>";
+      '<span class="centro mc-arquivos">' + (f.nfse && f.pdf ? '<a class="btn-icone" href="' + esc(f.pdf) + '" title="NFS-e em PDF" aria-label="Baixar a NFS-e em PDF">' + ic("picture_as_pdf") + '</a><a class="btn-icone" href="' + esc(f.xml) + '" title="NFS-e em XML" aria-label="Baixar o XML da NFS-e">' + ic("code") + "</a>" : '<span class="mudo">—</span>') + "</span></div>";
   }
   TELAS.faturas = function (d) {
     var l = d.faturas.filter(function (f) { return (S.filtroFat === "todas" || f.situacao === S.filtroFat) && (!S.mesFat || String(f.data).slice(0, 7) === S.mesFat); });
@@ -142,86 +186,132 @@
     var cab = '<span class="mc-periodo">' + pilula("faturas", [["todas", "Todas"], ["paga", "Pagas"], ["pendente", "Pendentes"]], S.filtroFat) +
       '<div class="segmentos mc-seg"><div><button type="button" class="mc-seg-cal" data-a="mesFatAbrir" aria-pressed="' + !!S.mesFat + '" aria-expanded="' + !!pop + '">' + ic("calendar_month") + "<span>" + (rotM || "Outro período") + "</span></button>" +
       (S.mesFat ? '<button type="button" data-a="mesFatLimpar" aria-label="Tirar o período" title="Tirar o período">' + ic("close") + "</button>" : "") + "</div></div>" + pop + "</span>";
+    var ano = S.mesFat ? S.mesFat.slice(0, 4) : String(new Date().getFullYear());
+    var temNota = d.faturas.some(function (f) { return f.nfse && String(f.data).slice(0, 4) === ano; });
     return painel("Faturas · " + l.length, cab, '<div class="mc-tabela">' + cabFatura() + (l.length ? l.map(linhaFatura).join("") : '<p class="mc-vazio">Nenhuma fatura com esse filtro.</p>') + "</div>" +
-      '<div class="mc-pe"><button type="button" class="mini" data-a="baixarTudo">' + ic("download") + "Baixar as NFS-e do ano (.zip)</button></div>", "mc-com-pop") +
-      '<p class="mc-nota">A NFS-e sai em até 2 dias úteis depois do pagamento, em nome de ' + esc(d.cadastro.nome) + ".</p>";
+      '<div class="mc-pe"><button type="button" class="mini" data-a="baixarTudo" data-v="' + ano + '"' + (temNota ? ' title="As de ' + ano + '"' : ' disabled title="Ainda não há NFS-e em ' + ano + '"') + ">" + ic("download") + "Baixar as NFS-e do ano (.zip)</button></div>", "mc-com-pop") +
+      '<p class="mc-nota">A NFS-e de cada pagamento sai em nome de ' + esc(d.cadastro.nome || "quem está no Cadastro") + ". Quando ela sai, o PDF e o XML aparecem nesta lista.</p>";
   };
 
   TELAS.pagamento = function (d) {
-    var p = d.pagamento, c = p.cartao, rc = d.recarga;
-    var formaH = '<div class="mc-corpo"><div class="mc-opcoes" role="radiogroup">' +
-      '<button type="button" class="mc-opcao' + (p.tipo === "cartao" ? " on" : "") + '" role="radio" aria-checked="' + (p.tipo === "cartao") + '" data-a="formaPag" data-v="cartao"><span class="mc-radio"></span><span class="mc-txt"><b>Cartão de crédito</b><small>cobrança automática todo mês</small></span>' + (c ? forma(c) : "") + "</button>" +
-      '<button type="button" class="mc-opcao' + (p.tipo === "pix" ? " on" : "") + '" role="radio" aria-checked="' + (p.tipo === "pix") + '" data-a="formaPag" data-v="pix"><span class="mc-radio"></span><span class="mc-txt"><b>Pix</b><small>o QR chega por e-mail 3 dias antes de cada cobrança</small></span>' + PIX + "</button></div>" +
-      (c ? '<dl class="mc-fatos"><div><dt>Cartão</dt><dd>' + forma(c) + "</dd></div><div><dt>Validade</dt><dd>" + esc(c.validade) + "</dd></div><div><dt>Nome no cartão</dt><dd>" + esc(c.titular) + "</dd></div></dl>" : "") + "</div>" +
-      '<div class="mc-pe"><span class="mc-mp">Pagamentos pelo Mercado Pago</span><button type="button" class="mini" data-a="trocarCartao">' + ic("credit_card") + (c ? "Trocar cartão" : "Cadastrar cartão") + "</button></div>";
+    var p = d.pagamento, c = p.cartao, rc = d.recarga, a = d.assinatura;
+    var formaH;
+    if (a.situacao === "cortesia") {
+      formaH = '<div class="mc-corpo"><p class="mc-p">O plano de cortesia não tem cobrança.</p></div>';
+    } else if (a.periodo === "anual") {
+      formaH = '<div class="mc-corpo"><p class="mc-p">O plano anual foi pago de uma vez e vale até ' + dt(a.proxima) + ". Ele não renova sozinho.</p></div>";
+    } else {
+      var naPix = p.tipo === "pix", pixFechado = !naPix && !p.pix.pode;
+      var cartaoPode = !naPix && ["ativa", "pausada", "pendente"].indexOf(a.situacao) >= 0;
+      formaH = '<div class="mc-corpo"><div class="mc-opcoes" role="radiogroup" aria-label="Forma de pagamento">' +
+        '<button type="button" class="mc-opcao' + (!naPix ? " on" : "") + '" role="radio" aria-checked="' + !naPix + '" data-a="formaPag" data-v="cartao"><span class="mc-radio"></span><span class="mc-txt"><b>Cartão de crédito</b><small>cobrança automática todo mês</small></span>' + (c ? forma(c) : "") + "</button>" +
+        '<button type="button" class="mc-opcao' + (naPix ? " on" : "") + '" role="radio" aria-checked="' + naPix + '" data-a="formaPag" data-v="pix"' + (pixFechado ? " disabled" : "") + '><span class="mc-radio"></span><span class="mc-txt"><b>Pix</b><small>' +
+        (pixFechado ? esc(cap(p.pix.motivo)) : "o QR chega por e-mail 3 dias antes de cada cobrança") + "</small></span>" + PIX + "</button></div>" +
+        (naPix ? '<dl class="mc-fatos"><div><dt>Mês pago até</dt><dd>' + dt(p.pix_ate) + "</dd></div><div><dt>O Pix chega em</dt><dd>" + esc(d.cadastro.email_cobranca || d.perfil.email) + "</dd></div></dl>"
+          : c ? '<dl class="mc-fatos"><div><dt>Cartão</dt><dd>' + forma(c) + "</dd></div><div><dt>Validade</dt><dd>" + esc(c.validade || "—") + "</dd></div><div><dt>Nome no cartão</dt><dd>" + esc(c.titular || "—") + "</dd></div></dl>" : "") + "</div>" +
+        '<div class="mc-pe"><span class="mc-mp">Pagamentos pelo Mercado Pago</span>' + (cartaoPode ? '<button type="button" class="mini" data-a="trocarCartao">' + ic("credit_card") + (c ? "Trocar cartão" : "Cadastrar cartão") + "</button>" : "") + "</div>";
+    }
     var recH;
-    if (S.pix) {
-      recH = '<div class="mc-corpo mc-pix-gerado"><div class="mc-qr" aria-label="QR Code do Pix">' + ic("qr_code_2") + '</div><div class="mc-pix-lado"><b>' + brl(S.pix.valor) + " · " + tok(S.pix.tokens) + " tokens</b><small>Vale por 30 minutos. Os créditos entram assim que o pagamento cair, e não vencem na renovação.</small>" +
+    if (a.situacao === "vencida") {
+      recH = '<div class="mc-corpo"><p class="mc-p">A recarga é para quem tem o plano em dia.</p></div>';
+    } else if (S.pix) {
+      recH = '<div class="mc-corpo mc-pix-gerado"><div class="mc-qr">' + (S.pix.qr ? '<img src="data:image/png;base64,' + esc(S.pix.qr) + '" alt="QR Code do Pix" width="132" height="132">' : ic("qr_code_2")) + '</div><div class="mc-pix-lado"><b>' + brl(S.pix.valor) + " · " + tok(S.pix.tokens) + " tokens</b><small>Vale por 30 minutos. Os créditos entram assim que o pagamento cair, e não vencem na renovação.</small>" +
         '<label class="campo-site"><span>Pix copia e cola</span><span class="caixa-campo"><input readonly value="' + esc(S.pix.copia) + '"><button type="button" class="btn-icone" data-a="copiarPix" aria-label="Copiar" title="Copiar">' + ic("content_copy") + "</button></span></label></div></div>" +
         '<div class="mc-pe"><button type="button" class="mc-texto" data-a="pixCancelar">Escolher outro valor</button></div>';
     } else {
+      var pac = rc.pacotes || [], esc1 = pac.filter(function (x) { return x.id === S.recarga; })[0] || pac[0];
       recH = '<div class="mc-corpo"><p class="mc-p">Se a cota do ciclo acabar, a recarga é no Pix, no preço do seu plano: ' + brl0(rc.valor) + " a cada " + tok(rc.tokens) + " tokens.</p>" +
-        '<div class="mc-pacotes">' + [1, 2, 3].map(function (n) {
-          return '<button type="button" class="mc-pacote' + (S.recarga === n ? " on" : "") + '" data-a="pacote" data-v="' + n + '"><b>' + brl(rc.valor * n) + "</b><small>" + tok(rc.tokens * n) + " tokens</small></button>";
+        '<div class="mc-pacotes">' + pac.map(function (x) {
+          return '<button type="button" class="mc-pacote' + (esc1 && esc1.id === x.id ? " on" : "") + '" data-a="pacote" data-v="' + esc(x.id) + '"><b>' + brl(x.valor) + "</b><small>" + tok(x.tokens) + " tokens</small></button>";
         }).join("") + "</div></div>" +
-        '<div class="mc-pe"><span></span><button type="button" class="btn-duplo pequeno" data-a="gerarPix"><span>' + PIX + "Gerar Pix de " + brl0(rc.valor * S.recarga) + "</span></button></div>";
+        '<div class="mc-pe"><span></span><button type="button" class="btn-duplo pequeno" data-a="gerarPix"' + (esc1 ? "" : " disabled") + "><span>" + PIX + "Gerar Pix de " + brl(esc1 ? esc1.valor : 0) + "</span></button></div>";
     }
     return '<div class="mc-grade2">' + painel("Forma de pagamento", "", formaH) + painel("Recarga de créditos", "", recH, "mc-recarga") + "</div>";
   };
 
   TELAS.plano = function (d) {
-    var a = d.assinatura, per = S.anual ? "anual" : "mensal";
+    var a = d.assinatura, per = S.anual ? "anual" : "mensal", fim = pagoAte(a);
+    var assinar = a.situacao === "vencida", cortesia = a.situacao === "cortesia", cancelada = a.situacao === "cancelada";
     var cards = d.planos.map(function (p) {
-      var atual = p.id === a.plano && per === a.periodo, preco = S.anual ? p.valor_anual : p.valor;
-      return '<div class="mc-plano' + (atual ? " atual" : "") + '"><div class="mc-plano-topo"><b>' + esc(p.nome) + "</b>" + (atual ? '<span class="mc-tag">plano atual</span>' : "") + "</div>" +
+      var atual = p.id === a.plano && per === a.periodo && !assinar, preco = S.anual ? p.valor_anual : p.valor;
+      var proximo = a.plano_proximo && a.plano_proximo.id === p.id && per === "mensal";
+      var acao;
+      if (assinar) acao = '<a class="mini cheia" href="/cadastro/?plano=' + encodeURIComponent(p.id) + "&periodo=" + per + '">Assinar este</a>';
+      else if (cortesia || cancelada) acao = atual ? '<span class="mc-plano-pe mudo">É o que você tem hoje</span>' : "";
+      else if (atual) acao = a.plano_proximo && per === "mensal" ? '<button type="button" class="mini cheia" data-a="trocarPlano" data-id="' + esc(p.id) + '">Ficar neste plano</button>' : '<span class="mc-plano-pe mudo">É o que você tem hoje</span>';
+      else if (proximo) acao = '<span class="mc-plano-pe mudo">Vale a partir de ' + dt(a.proxima) + "</span>";
+      else acao = '<button type="button" class="mini cheia" data-a="trocarPlano" data-id="' + esc(p.id) + '">Trocar para este</button>';
+      return '<div class="mc-plano' + (atual ? " atual" : "") + '"><div class="mc-plano-topo"><b>' + esc(p.nome) + "</b>" + (atual ? '<span class="mc-tag">plano atual</span>' : proximo ? '<span class="mc-tag atencao">próximo</span>' : "") + "</div>" +
         '<div class="mc-preco"><span>' + brl0(preco) + "</span><small>" + (S.anual ? "por ano" : "por mês") + "</small></div>" +
         (S.anual ? '<small class="mc-economia">' + Math.round((1 - p.valor_anual / (p.valor * 12)) * 100) + "% a menos que 12 meses</small>" : "") +
         '<ul class="mc-itens"><li>' + tok(p.tokens) + " tokens por mês</li><li>" + (p.pessoas === 1 ? "1 pessoa" : "até " + p.pessoas + " pessoas") + "</li><li>" + esc((p.modelos_info || []).map(function (m) { return m.nome; }).join(" e ")) + "</li></ul>" +
-        (atual ? '<span class="mc-plano-pe mudo">É o que você tem hoje</span>' : '<button type="button" class="mini cheia" data-a="trocarPlano" data-id="' + esc(p.id) + '">Trocar para este</button>') + "</div>";
+        acao + "</div>";
     }).join("");
-    return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" +
-      '<div class="mc-planos">' + cards + "</div>" +
-      '<div class="mc-cancelar"><span>Cancelar a assinatura mantém o plano até ' + dt(a.ciclo.ate) + ". Depois, o Paulus abre só com os arquivos.</span>" +
+    var pe;
+    if (cortesia) pe = '<div class="mc-cancelar"><span>O plano de cortesia não tem cobrança. Para mudar de plano, escreva para contato@paulus.ia.br.</span></div>';
+    else if (assinar) pe = '<div class="mc-cancelar"><span>O plano venceu. Para voltar, escolha um plano: o Paulus volta a responder com a IA assim que o pagamento entrar, sem reinstalar.</span></div>';
+    else if (cancelada) pe = '<div class="mc-cancelar"><span>A assinatura foi cancelada' + (a.cancelamento ? " em " + dt(a.cancelamento.quando) : "") + ". O plano vale até " + dt(fim) + '. Para continuar depois disso, assine de novo.</span><a class="mini" href="/assinatura/">Ver os planos</a></div>';
+    else pe = '<div class="mc-cancelar"><span>Cancelar a assinatura mantém o plano até ' + dt(fim) + ". Depois, o Paulus continua com a Agenda, o Acervo, o Financeiro e os cadastros, mas sem a IA.</span>" +
       '<button type="button" class="mc-texto perigo" data-a="cancelar">Cancelar assinatura</button></div>';
+    return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" +
+      '<div class="mc-planos">' + cards + "</div>" + pe;
   };
 
   var UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
   TELAS.cadastro = function (d) {
     var c = d.cadastro;
-    var campo = function (k, rot, extra, cls) { return '<label class="campo-site' + (cls ? " " + cls : "") + '"><span>' + rot + '</span><span class="caixa-campo"><input data-cad="' + k + '" value="' + esc(c[k] || "") + '"' + (extra || "") + "></span></label>"; };
+    var campo = function (k, rot, extra, cls) { return '<label class="campo-site' + (cls ? " " + cls : "") + '"><span>' + rot + '</span><span class="caixa-campo"><input id="mc-cad-' + k + '" data-cad="' + k + '" value="' + esc(c[k] || "") + '"' + (extra || "") + "></span></label>"; };
     var corpo = '<div class="mc-corpo mc-form">' +
       '<div class="mc-form-grade">' + campo("nome", "Nome ou razão social", "", "largo") + campo("documento", "CPF ou CNPJ", ' inputmode="numeric"') + campo("oab", "OAB") + campo("telefone", "Telefone", ' inputmode="tel"') + campo("email_cobranca", "E-mail das faturas", ' type="email"') + "</div>" +
       '<span class="rotulo mc-sub">Endereço</span>' +
-      '<div class="mc-form-grade">' + campo("cep", "CEP", ' inputmode="numeric"') + campo("logradouro", "Logradouro", "", "largo") + campo("numero", "Número") + campo("complemento", "Complemento") + campo("bairro", "Bairro") + campo("cidade", "Cidade") +
-      '<label class="campo-site"><span>UF</span><span class="caixa-campo"><select data-cad="uf">' + UFS.map(function (u) { return "<option" + (u === c.uf ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select>" + ic("expand_more") + "</span></label></div></div>" +
+      '<div class="mc-form-grade">' + campo("cep", "CEP", ' inputmode="numeric" data-a-in="cep"') + campo("logradouro", "Logradouro", "", "largo") + campo("numero", "Número") + campo("complemento", "Complemento") + campo("bairro", "Bairro") + campo("cidade", "Cidade", ' data-a-in="semCmun"') +
+      '<label class="campo-site"><span>UF</span><span class="caixa-campo"><select id="mc-cad-uf" data-cad="uf" data-a-in="semCmun">' + (c.uf ? "" : '<option value="" selected>—</option>') + UFS.map(function (u) { return "<option" + (u === c.uf ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select>" + ic("expand_more") + "</span></label></div>" +
+      '<p class="mc-nota" id="mc-cep-nota" hidden></p></div>' +
       '<div class="mc-pe"><span class="mc-nota">As próximas NFS-e saem com estes dados.</span><button type="button" class="btn-duplo pequeno" data-a="salvarCadastro"><span>Salvar</span></button></div>';
     return painel("Dados do cadastro", "", corpo);
   };
 
   TELAS.escritorio = function (d) {
-    var e = d.escritorio;
-    var end = '<div class="mc-corpo"><div class="mc-endereco"><img class="mc-cf" src="' + MP_IMG + 'cloudflare.svg" alt="Cloudflare" width="24" height="24"><span class="mc-bolinha ' + (e.online ? "ok" : "erro") + '"></span><b class="mono">' + esc(e.slug) + '<span class="mudo">.paulus.ia.br</span></b><span class="mc-sit ' + (e.online ? "ok" : "erro") + '">' + (e.online ? "no ar" : "fora do ar") + "</span></div>" +
-      '<p class="mc-p">É por este endereço que a equipe e os clientes entram no Paulus do escritório, pelo túnel do Cloudflare.</p></div>' +
-      '<div class="mc-pe"><a class="mini" href="https://' + esc(e.slug) + '.paulus.ia.br" target="_blank" rel="noopener">' + ic("arrow_outward") + "Abrir</a>" + '<button type="button" class="mini" data-a="alterarEndereco">' + ic("edit") + "Alterar endereço</button></div>";
-    var inst = d.instalacoes.map(function (i) {
+    var e = d.escritorio, end;
+    if (!e) {
+      end = '<div class="mc-corpo"><p class="mc-p">Este escritório ainda não tem endereço. Ele nasce no Paulus do escritório, em Configurações › Acesso externo; depois de ligado, aparece aqui.</p></div>';
+    } else {
+      var no = e.ativo !== false && e.online, sitE = e.ativo === false ? "desligado" : e.online ? "no ar" : "fora do ar";
+      end = '<div class="mc-corpo"><div class="mc-endereco"><img class="mc-cf" src="' + MP_IMG + 'cloudflare.svg" alt="Cloudflare" width="24" height="24"><span class="mc-bolinha ' + (no ? "ok" : "erro") + '"></span><b class="mono">' + esc(e.slug) + '<span class="mudo">.paulus.ia.br</span></b><span class="mc-sit ' + (no ? "ok" : "erro") + '">' + sitE + "</span></div>" +
+        '<p class="mc-p">É por este endereço que a equipe e os clientes entram no Paulus do escritório, pelo túnel do Cloudflare.</p></div>' +
+        '<div class="mc-pe"><a class="mini" href="https://' + esc(e.slug) + '.paulus.ia.br" target="_blank" rel="noopener">' + ic("arrow_outward") + "Abrir</a>" + '<button type="button" class="mini" data-a="alterarEndereco">' + ic("edit") + "Alterar endereço</button></div>";
+    }
+    var inst = d.instalacoes.length ? d.instalacoes.map(function (i) {
       return '<div class="mc-linha"><span class="mc-linha-ic">' + ic("computer") + '</span><span class="mc-txt"><b>' + esc(i.nome) + (i.principal ? ' <span class="mc-tag">principal</span>' : "") + "</b><small>versão " + esc(i.versao) + " · último acesso " + esc(i.ultimo) + "</small></span>" +
         (i.principal ? "" : '<button type="button" class="btn-icone" data-a="removerInstalacao" data-id="' + esc(i.id) + '" aria-label="Tirar ' + esc(i.nome) + '" title="Tirar este computador">' + ic("delete") + "</button>") + "</div>";
-    }).join("");
-    // O mesmo card das Permissoes do Google do Admin (que veio das Conexoes do assistente): a conta e uma linha por servico, com a marca.
-    var g = d.google, lig = {}; g.servicos.forEach(function (s) { lig[s.id] = !!s.ligado; });
+    }).join("") : '<p class="mc-vazio">Nenhum computador entrou com esta conta no Paulus ainda.</p>';
+    return painel("Endereço do escritório", "", end) + '<div class="mc-grade2">' + painel("Instalações", d.instalacoes.length + (d.instalacoes.length === 1 ? " computador" : " computadores"), inst) + painel("Permissões Google", "", googleHtml(d)) + "</div>";
+  };
+
+  // O mesmo card das Permissoes do Google do Admin: a conta e uma linha por servico, com a marca. O estado e o
+  // que o Paulus do escritorio contou a nuvem; a ordem nova (ligar, desligar, desvincular) vale quando ele a
+  // recebe - ele e quem guarda a permissao do Google, a nuvem nao.
+  function googleHtml(d) {
+    var g = d.google, lig = {}, pend = g.pendente;
+    if (pend) (pend.ligados || []).forEach(function (e) { ESC_G.forEach(function (x) { if (String(e).indexOf(x[1]) >= 0) lig[x[0]] = true; }); });
+    else g.servicos.forEach(function (s) { lig[s.id] = !!s.ligado; });
+    var mexe = titular() && (g.informado || pend);
     var linhaG = function (id, marca, nome, desc, junto) {
-      var on = lig[id];
-      return '<div class="g-servico' + (on ? " on" : "") + (junto ? " junto" : "") + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : ' role="switch" tabindex="0" aria-checked="' + on + '" aria-label="' + esc(nome + ", " + desc) + '" data-a="servico" data-id="' + id + '"') + ">" +
+      var on = !!lig[id], ativo = mexe && !junto;
+      return '<div class="g-servico' + (on ? " on" : "") + (junto ? " junto" : "") + (ativo ? "" : " parado") + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : ' role="switch" aria-checked="' + on + '" aria-label="' + esc(nome + ", " + desc) + '"' + (ativo ? ' tabindex="0" data-a="servico" data-id="' + id + '"' : ' aria-disabled="true"')) + ">" +
         '<span class="g-marca">' + SIMB_G[marca] + '</span><span class="g-nome">' + esc(nome) + '</span><span class="g-desc">' + esc(desc) + '</span><span class="interruptor-min' + (on ? " on" : "") + '"></span></div>';
     };
-    var perm = '<div class="mc-corpo"><span class="rotulo">Conta</span><div class="g-conta"><span class="g-marca">' + SIMB_G.google + '</span><span class="mc-txt"><b>' + esc(d.cadastro.nome) + "</b><small>" + esc(g.conta) + '</small></span><span class="etiqueta-ok">conectado</span></div>' +
+    var estado = pend ? '<p class="mc-nota mc-pendente">Ordem enviada em ' + dtHora(pend.quando) + ". O Paulus do escritório cumpre quando estiver aberto e ligado à internet.</p>"
+      : !g.informado ? '<p class="mc-nota">Nenhum serviço do Google ligado — ou o Paulus do escritório ainda não contou. Ele conta quando está aberto e ligado à internet.</p>'
+        : '<p class="mc-nota">Conferido pelo Paulus do escritório em ' + dtHora(g.conferido) + ".</p>";
+    return '<div class="mc-corpo"><span class="rotulo">Conta</span><div class="g-conta"><span class="g-marca">' + SIMB_G.google + '</span><span class="mc-txt"><b>' + esc(d.cadastro.nome) + "</b><small>" + esc(g.conta) + "</small></span>" + (g.informado ? '<span class="etiqueta-ok">conectado</span>' : "") + "</div>" +
       '<span class="rotulo">O que autorizar</span><div class="g-servicos">' +
       linhaG("gmail", "gmail", "Gmail", "ler e enviar, com Aprovações") + linhaG("agenda", "agenda", "Agenda", "ler e criar eventos") + linhaG("agenda", "meet", "Meet", "criar reuniões nos eventos", true) +
-      linhaG("drive_enviar", "drive", "Drive", "só os arquivos que o Paulus envia") + linhaG("drive_ler", "drive", "Drive", "ler as pastas escolhidas") + "</div>" +
-      '<p class="mc-nota">Desligar um serviço revoga só esse acesso no Google, na hora.</p></div>' +
-      '<div class="mc-pe g-desv"><span class="mc-txt"><b>Desvincular a conta Google</b><small>Revoga todas as permissões de uma vez.</small></span><button type="button" class="mc-perigo mini-perigo" data-a="desvincular">Desvincular</button></div>';
-    return painel("Endereço do escritório", "", end) + '<div class="mc-grade2">' + painel("Instalações", d.instalacoes.length + (d.instalacoes.length === 1 ? " computador" : " computadores"), inst) + painel("Permissões Google", "", perm) + "</div>";
-  };
+      linhaG("drive_enviar", "drive", "Drive", "só os arquivos que o Paulus envia") + linhaG("drive_ler", "drive", "Drive", "ler as pastas escolhidas") + "</div>" + estado +
+      '<p class="mc-nota">Desligar um serviço faz o Paulus do escritório parar de usá-lo. O Google não tira uma permissão sozinha: para revogar tudo no Google, use Desvincular. Para ligar um serviço que nunca foi autorizado, entre com o Google no Paulus do escritório.</p></div>' +
+      (titular() ? '<div class="mc-pe g-desv"><span class="mc-txt"><b>Desvincular a conta Google</b><small>Revoga todas as permissões de uma vez.</small></span><button type="button" class="mc-perigo mini-perigo" data-a="desvincular">Desvincular</button></div>' : "");
+  }
+  var ESC_G = [["gmail", "mail.google.com"], ["agenda", "calendar.events"], ["drive_enviar", "drive.file"], ["drive_ler", "drive.readonly"]];
 
   var SIMB_G = {
     google: '<svg class="eo-simbolo" viewBox="0 0 48 48" aria-hidden="true">' +
@@ -241,47 +331,112 @@
         '<span class="mc-tag">' + esc(PAPEIS[p.papel] || p.papel) + "</span>" +
         (p.papel === "titular" ? '<span class="mc-acao-vazia"></span>' : '<button type="button" class="btn-icone" data-a="removerPessoa" data-id="' + esc(p.email) + '" aria-label="Tirar ' + esc(p.nome || p.email) + '" title="Tirar o acesso">' + ic("close") + "</button>") + "</div>";
     }).join("");
-    return painel("Quem entra em Minha conta", '<button type="button" class="mini cheia" data-a="convidar">' + ic("person_add") + "Convidar</button>", l) +
+    var conv = d.email_ligado ? '<button type="button" class="mini cheia" data-a="convidar">' + ic("person_add") + "Convidar</button>"
+      : '<button type="button" class="mini cheia" disabled title="O convite vai por e-mail, e o e-mail do Paulus ainda não está ligado">' + ic("person_add") + "Convidar</button>";
+    return painel("Quem entra em Minha conta", conv, l) +
       '<p class="mc-nota centro">O financeiro vê o resumo, o consumo, as faturas e a forma de pagamento. Trocar de plano, cancelar e mexer no escritório são só do titular.</p>';
   };
 
   /* ------------------------------------------------------------ trocar o cartao: pagina propria, com os campos seguros do Mercado Pago */
-  function bandDe(n) {
-    if (/^(4011|4312|4389|4514|4576|5041|5066|5067|509|6277|6362|6363|650|6516|6550)/.test(n)) return "elo";
-    if (/^(606282|3841)/.test(n)) return "hipercard";
-    if (/^4/.test(n)) return "visa";
-    if (/^(5[1-5]|2[2-7])/.test(n)) return "mastercard";
-    if (/^3[47]/.test(n)) return "amex";
-    return "";
-  }
-  function bandSlot(n) { var b = bandDe(n); return b ? '<span class="mc-k-surge">' + bandeira(b) + "</span>" : ic("credit_card"); }
-  function luhn(n) { var s = 0, dbl = false; for (var k = n.length - 1; k >= 0; k--) { var x = Number(n[k]); if (dbl) { x *= 2; if (x > 9) x -= 9; } s += x; dbl = !dbl; } return s % 10 === 0; }
-  function cartaoValido() {
-    var K = S.cartao; if (!K) return false;
-    var m = /^(\d{2})\/(\d{2})$/.exec(K.val), agora = new Date(), mesOk = false;
-    if (m) { var mm = Number(m[1]), aa = 2000 + Number(m[2]); mesOk = mm >= 1 && mm <= 12 && (aa * 12 + mm) >= (agora.getFullYear() * 12 + agora.getMonth() + 1); }
-    var doc = K.doc.replace(/\D/g, "");
-    return K.num.length >= 13 && luhn(K.num) && mesOk && /^\d{3,4}$/.test(K.cvv) && K.nome.trim().length >= 3 && (doc.length === 11 || doc.length === 14);
-  }
-  function cartaoOk() { var b = $("mc-cartao-salvar"); if (b) b.disabled = !cartaoValido(); }
+  // O numero, a validade e o codigo sao quadros do Mercado Pago (Secure Fields, o SDK v2): o que se digita neles
+  // nao passa por esta pagina. O SDK devolve o token do cartao, e so o token (com a bandeira) vai ao servidor.
+  var SDK_MP = "https://sdk.mercadopago.com/js/v2";
+  var FONTES = [{ src: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500&display=swap" }];
   // As imagens ficam em site/assets/: a pagina real esta em /minha-conta/ e a demonstracao na raiz do projeto.
   var MP_IMG = /\/en\/my-account\//.test(location.pathname) ? "../../assets/" : /\/minha-conta\//.test(location.pathname) ? "../assets/" : "site/assets/";
   function cartaoHtml(d) {
-    var c = d.pagamento.cartao, K = S.cartao || (S.cartao = { num: "", val: "", cvv: "", nome: "", doc: d.cadastro.documento || "" });
-    var campo = function (id, k, rot, extra, val) { return '<label class="campo-site"><span>' + rot + '</span><span class="caixa-campo"><input id="' + id + '" data-a-in="' + k + '" value="' + esc(val) + '"' + extra + ">" + (k === "kNum" ? '<span id="mc-k-band" class="mc-k-band">' + bandSlot(K.num) + "</span>" : "") + "</span></label>"; };
-    var form = '<div class="mc-corpo mc-form">' +
-      campo("mc-k-num", "kNum", "Número do cartão", ' inputmode="numeric" autocomplete="cc-number" placeholder="0000 0000 0000 0000"', K.num.replace(/(.{4})(?=.)/g, "$1 ")) +
-      '<div class="mc-k-grade">' + campo("mc-k-val", "kVal", "Validade", ' inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA"', K.val) +
-      campo("mc-k-cvv", "kCvv", "Código de segurança", ' inputmode="numeric" autocomplete="cc-csc" placeholder="' + (bandDe(K.num) === "amex" ? "4 dígitos" : "3 dígitos") + '"', K.cvv) + "</div>" +
-      campo("mc-k-nome", "kNome", "Nome impresso no cartão", ' autocomplete="cc-name" spellcheck="false"', K.nome) +
-      campo("mc-k-doc", "kDoc", "CPF ou CNPJ do titular do cartão", ' inputmode="numeric"', K.doc) + "</div>" +
-      '<div class="mc-pe"><button type="button" class="mc-texto" data-a="cartaoVoltar">Cancelar</button><button type="button" class="btn-duplo pequeno" id="mc-cartao-salvar" data-a="cartaoSalvar"' + (cartaoValido() ? "" : " disabled") + "><span>" + ic("lock") + "Salvar cartão</span></button></div>";
+    var c = d.pagamento.cartao;
+    var quadro = function (id, rot) {
+      return '<div class="campo-site"><span>' + rot + '</span><span class="caixa-campo mc-k-caixa" id="' + id + '-caixa"><div id="' + id + '" class="mc-k-seguro"></div>' +
+        (id === "mc-k-num" ? '<span id="mc-k-band" class="mc-k-band">' + ic("credit_card") + "</span>" : "") + "</span></div>";
+    };
+    var form = '<div class="mc-corpo mc-form">' + quadro("mc-k-num", "Número do cartão") +
+      '<div class="mc-k-grade">' + quadro("mc-k-val", "Validade") + quadro("mc-k-cvv", "Código de segurança") + "</div>" +
+      '<label class="campo-site"><span>Nome impresso no cartão</span><span class="caixa-campo"><input id="mc-k-nome" data-a-in="kCampo" autocomplete="cc-name" spellcheck="false"></span></label>' +
+      '<label class="campo-site"><span>CPF ou CNPJ do titular do cartão</span><span class="caixa-campo"><input id="mc-k-doc" data-a-in="kCampo" inputmode="numeric" autocomplete="off" value="' + esc(d.cadastro.documento || "") + '"></span></label>' +
+      '<p class="mc-nota mc-erro" id="mc-k-erro" role="alert"' + (S.erroCartao ? "" : " hidden") + ">" + esc(S.erroCartao || "") + "</p></div>" +
+      '<div class="mc-pe"><button type="button" class="mc-texto" data-a="cartaoVoltar">Cancelar</button><button type="button" class="btn-duplo pequeno" id="mc-cartao-salvar" data-a="cartaoSalvar" disabled><span>' + ic("lock") + "Salvar cartão</span></button></div>";
     return '<div class="mc-col mc-col-estreita"><button type="button" class="mc-voltar" data-a="cartaoVoltar">← Voltar</button>' +
-      '<header class="mc-cab"><h1>Trocar o cartão</h1><p class="texto-lead">' + (c ? "Hoje as cobranças saem no " + forma(c) + ". " : "") + "A próxima, em " + dt(d.assinatura.proxima) + ", já sai no cartão novo.</p></header>" +
+      '<header class="mc-cab"><h1>Trocar o cartão</h1><p class="texto-lead">' + (c && c.final ? "Hoje as cobranças saem no " + forma(c) + ". " : "") + "A próxima, em " + dt(d.assinatura.proxima) + ", já sai no cartão novo.</p></header>" +
       painel("Cartão novo", "", form) +
       '<div class="selo"><span class="selo-esq"><span class="selo-mp"><img class="mp-pluma" src="' + MP_IMG + 'mercadopago-pluma.png" alt="" width="57" height="23"><img class="mp-cor" src="' + MP_IMG + 'mercadopago-cor.png" alt="" width="57" height="23"></span>Campos seguros do Mercado Pago</span><span class="selo-dir"><span>Cartão</span></span></div>' +
-      '<p class="mc-nota centro">O número, a validade e o código vão direto para o Mercado Pago. O PAVLVS guarda só a bandeira e os 4 últimos dígitos.</p></div>';
+      '<p class="mc-nota centro">O número, a validade e o código vão direto para o Mercado Pago. O PAVLVS guarda só a bandeira, os 4 últimos dígitos, a validade e o nome impresso.</p></div>';
   }
+  function erroCartao(t) { S.erroCartao = t || ""; var e = $("mc-k-erro"); if (e) { e.textContent = cap(t || ""); e.hidden = !t; } }
+  function estiloDosCampos() {
+    var css = getComputedStyle(document.documentElement), v = function (n) { return css.getPropertyValue(n).trim(); };
+    return { color: v("--ink"), placeholderColor: v("--ink3"), fontSize: "14px", fontFamily: "Manrope, system-ui, sans-serif" };
+  }
+  function cartaoValido() {
+    var K = S.cartao; if (!K || !K.campos) return false;
+    var nome = (($("mc-k-nome") || {}).value || "").trim(), doc = (($("mc-k-doc") || {}).value || "").replace(/\D/g, "");
+    var semErro = ["cardNumber", "expirationDate", "securityCode"].every(function (k) { return K.validos[k] !== false; });
+    return Boolean(K.metodo) && semErro && nome.length >= 3 && (doc.length === 11 || doc.length === 14);
+  }
+  function cartaoOk() { var b = $("mc-cartao-salvar"); if (b && !(S.cartao && S.cartao.salvando)) b.disabled = !cartaoValido(); }
+  function mostrarBandeira(m) {
+    var b = $("mc-k-band"); if (!b) return;
+    if (!m) { b.innerHTML = ic("credit_card"); return; }
+    var nossa = /^(master|visa|elo|amex|hipercard)$/.test(m.id);
+    b.innerHTML = '<span class="mc-k-surge">' + (nossa ? bandeira(m.id) : m.secure_thumbnail ? '<img class="mc-k-thumb" src="' + esc(m.secure_thumbnail) + '" alt="' + esc(m.name || m.id) + '">' : bandeira(m.name || m.id)) + "</span>";
+  }
+  function desmontarCartao() {
+    var K = S.cartao; if (!K || !K.campos) return;
+    Object.keys(K.campos).forEach(function (k) { try { K.campos[k].unmount(); } catch (e) { /* ja saiu */ } });
+    K.campos = null;
+  }
+  function montarCampos() {
+    var K = S.cartao, mp = K.mp, estilo = estiloDosCampos();
+    K.validos = {}; K.metodo = ""; K.bin = ""; mostrarBandeira(null);
+    var cria = function (tipo, id, ph) {
+      var f = mp.fields.create(tipo, { placeholder: ph, style: estilo, customFonts: FONTES }).mount(id);
+      try {
+        f.on("validityChange", function (ev) {
+          K.validos[tipo] = !(ev && ev.errorMessages && ev.errorMessages.length);
+          var cx = $(id + "-caixa"); if (cx) cx.classList.toggle("erro", K.validos[tipo] === false);
+          cartaoOk();
+        });
+      } catch (e) { /* sem o aviso de validade, o createCardToken confere na hora de salvar */ }
+      return f;
+    };
+    K.campos = {
+      num: cria("cardNumber", "mc-k-num", "0000 0000 0000 0000"),
+      val: cria("expirationDate", "mc-k-val", L("MM/AA", "MM/YY")),
+      cvv: cria("securityCode", "mc-k-cvv", L("3 ou 4 dígitos", "3 or 4 digits")),
+    };
+    // A bandeira pelos primeiros digitos; a assinatura e no cartao de credito (o Mercado Pago recusa debito e pre-pago nela).
+    K.campos.num.on("binChange", function (ev) {
+      var bin = ev && ev.bin;
+      if (!bin) { K.bin = ""; K.metodo = ""; mostrarBandeira(null); cartaoOk(); return; }
+      if (bin === K.bin) return;
+      K.bin = bin;
+      mp.getPaymentMethods({ bin: bin }).then(function (r) {
+        var m = r && r.results && r.results[0];
+        if (K.bin !== bin || !K.campos) return;
+        if (!m) { K.metodo = ""; mostrarBandeira(null); cartaoOk(); return; }
+        mostrarBandeira(m);
+        if (m.payment_type_id !== "credit_card") { K.metodo = ""; erroCartao("use um cartão de crédito: a assinatura não aceita cartão de débito nem pré-pago"); cartaoOk(); return; }
+        K.metodo = m.id; erroCartao("");
+        var s = m.settings && m.settings[0];
+        if (s) { try { K.campos.num.update({ settings: s.card_number }); K.campos.cvv.update({ settings: s.security_code }); } catch (e) { /* o SDK valida do jeito dele */ } }
+        cartaoOk();
+      }).catch(function () { /* sem a bandeira, o botao fica parado */ });
+    });
+  }
+  function montarCartao() {
+    var d = S.d;
+    if (!d.mp_public_key) { erroCartao("não dá para trocar o cartão por aqui agora: escreva para contato@paulus.ia.br"); return; }
+    carregarScript(SDK_MP).then(function () {
+      if (S.sub !== "cartao" || typeof window.MercadoPago !== "function") return;
+      S.cartao = { mp: new window.MercadoPago(d.mp_public_key, { locale: "pt-BR" }), campos: null, validos: {} };
+      montarCampos();
+    }).catch(function () { erroCartao("o formulário do cartão não carregou (um bloqueador de anúncios pode ter barrado o Mercado Pago). Recarregue a página para tentar de novo"); });
+  }
+  // O tema mudou com a pagina do cartao aberta: os quadros do Mercado Pago sao montados de novo com as cores novas.
+  new MutationObserver(function () {
+    if (S.sub === "cartao" && S.cartao && S.cartao.campos) { desmontarCartao(); montarCampos(); cartaoOk(); }
+    if (S.d && S.d.entrar) botaoGoogle();
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   /* ------------------------------------------------------------ os pop-ups (o dialogo do Paulus) */
   function dialogo(tit, ctx, corpo, pe) {
@@ -292,7 +447,7 @@
   var SLUG_OK = /^[a-z0-9](?:[a-z0-9-]{1,22}[a-z0-9])$/, slugT = null;
   // As frases curtas do Admin (Alterar endereco), com a bolinha da cor do estado.
   function endStatus(M) {
-    var v = M.v || "", atual = S.d.escritorio.slug, C = M.check || {}, f = function (cls, msg, ok) { return { cls: cls, icone: "", msg: msg ? "<i></i>" + msg : "", ok: !!ok }; };
+    var v = M.v || "", atual = S.d.escritorio.slug, C = M.check || {}, f = function (cls, msg, ok) { return { cls: cls, icone: "", msg: msg ? "<i></i>" + esc(msg) : "", ok: !!ok }; };
     if (!v) return f("", "");
     if (v.length < 3) return f("erro", "use pelo menos 3 letras");
     if (/^-|-$/.test(v)) return f("erro", "não comece nem termine com hífen");
@@ -305,35 +460,59 @@
   }
   function endAtualizar() {
     var M = S.modal; if (!M || M.tipo !== "endereco") return; var st = endStatus(M);
-    var cx = $("mc-slug-caixa"), ico = $("mc-slug-st"), msg = $("mc-slug-msg"), b = $("mc-end-ok");
+    var cx = $("mc-slug-caixa"), msg = $("mc-slug-msg"), b = $("mc-end-ok");
     if (cx) cx.className = "caixa-campo mono mc-slug-caixa" + (st.cls ? " " + st.cls : "");
     if (msg) { msg.className = "mc-slug-msg " + st.cls; msg.innerHTML = st.msg; }
     if (b) b.disabled = !st.ok;
   }
+  function fatos(l) { return '<dl class="mc-fatos">' + l.map(function (x) { return "<div><dt>" + x[0] + "</dt><dd>" + x[1] + "</dd></div>"; }).join("") + "</dl>"; }
+  function dialogoTroca(M, d) {
+    var p = d.planos.filter(function (x) { return x.id === M.id; })[0], a = d.assinatura, O = M.orc, anual = M.periodo === "anual";
+    var cancel = '<button type="button" class="mc-texto" data-a="fechar">Cancelar</button>';
+    var ctx = "Plano · " + (anual ? "anual" : "mensal");
+    if (M.erro) return dialogo("Trocar para o " + p.nome + "?", ctx, "<p>" + esc(cap(M.erro)) + "</p>", '<button type="button" class="mc-texto" data-a="fechar">Fechar</button>');
+    if (!O) return dialogo("Trocar para o " + p.nome + "?", ctx, "<p>Conferindo os valores…</p>", cancel + '<button type="button" class="btn-duplo pequeno" disabled><span>Trocar de plano</span></button>');
+    var hoje = esc(a.nome) + " · " + brl0(a.valor_plano) + (a.periodo === "anual" ? "/ano" : "/mês");
+    if (O.tipo === "anual") {
+      return dialogo("Passar para o " + p.nome + " anual?", ctx,
+        "<p>O ano é pago de uma vez, " + brl(O.valor) + ", na página de pagamento (Pix ou cartão). Quando o pagamento entra, a assinatura mensal sai do Mercado Pago e o ano começa.</p>" +
+        fatos([["Hoje", hoje], ["Novo", esc(p.nome) + " · " + brl0(O.valor) + "/ano"], ["Tokens", tok(p.tokens) + " por mês"]]),
+        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Ir para o pagamento</span></button>');
+    }
+    if (O.tipo === "desfazer") {
+      return dialogo("Ficar no " + p.nome + "?", ctx,
+        "<p>A troca para o " + esc(O.marcado) + ", marcada para " + dt(O.vale_em) + ", sai. A próxima cobrança continua no " + esc(p.nome) + ", " + brl(O.valor) + " por mês.</p>",
+        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Ficar neste plano</span></button>');
+    }
+    var corpo = O.tipo === "agora"
+      ? (O.diferenca > 0 ? "<p>A troca vale a partir de hoje: a cota deste ciclo cresce na proporção dos dias que faltam. A diferença deste ciclo, " + brl(O.diferenca) + ", entra na próxima cobrança, em " + dt(O.vale_em) + ", que sai por " + brl(O.proxima) + ". Depois, " + brl(O.valor) + " por mês.</p>"
+        : "<p>A troca vale a partir de hoje. A próxima cobrança, em " + dt(O.vale_em) + ", sai por " + brl(O.proxima) + ".</p>")
+      : "<p>O ciclo pago continua no " + esc(a.nome) + " até " + dt(O.vale_em) + ". A partir da próxima cobrança, nessa data, o plano passa a ser o " + esc(p.nome) + ", por " + brl(O.valor) + " por mês.</p>";
+    return dialogo("Trocar para o " + p.nome + "?", ctx,
+      corpo + fatos([["Hoje", hoje], ["Novo", esc(p.nome) + " · " + brl0(O.valor) + "/mês"], ["Tokens", tok(p.tokens) + " por mês"]]),
+      cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Trocar de plano</span></button>');
+  }
   function modalHtml() {
     var M = S.modal, d = S.d; if (!M) return "";
     var cancel = '<button type="button" class="mc-texto" data-a="fechar">Cancelar</button>';
-    if (M.tipo === "trocarPlano") {
-      var p = d.planos.filter(function (x) { return x.id === M.id; })[0], novo = S.anual ? p.valor_anual : p.valor;
-      return dialogo("Trocar para o " + p.nome + "?", "Plano · " + (S.anual ? "anual" : "mensal"),
-        "<p>A troca vale a partir de hoje. A diferença deste ciclo é calculada pelos dias que faltam e entra na próxima cobrança, em " + dt(d.assinatura.proxima) + ".</p>" +
-        '<dl class="mc-fatos"><div><dt>Hoje</dt><dd>' + esc(d.assinatura.nome) + " · " + brl0(d.assinatura.valor) + (d.assinatura.periodo === "anual" ? "/ano" : "/mês") + "</dd></div><div><dt>Novo</dt><dd>" + esc(p.nome) + " · " + brl0(novo) + (S.anual ? "/ano" : "/mês") + "</dd></div><div><dt>Tokens</dt><dd>" + tok(p.tokens) + " por mês</dd></div></dl>",
-        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Trocar de plano</span></button>');
-    }
+    if (M.tipo === "trocarPlano") return dialogoTroca(M, d);
     if (M.tipo === "cancelar") {
+      var a = d.assinatura, o = d.oferta_ficar || {};
       if (M.passo === 1) return dialogo("Por que você quer cancelar?", "Cancelar assinatura",
         '<div class="mc-opcoes">' + MOTIVOS.map(function (m) { return '<button type="button" class="mc-opcao' + (M.motivo === m[0] ? " on" : "") + '" role="radio" aria-checked="' + (M.motivo === m[0]) + '" data-a="motivo" data-v="' + m[0] + '"><span class="mc-radio"></span><span class="mc-txt"><b>' + m[1] + "</b></span></button>"; }).join("") + "</div>" +
-        '<label class="campo-site"><span>Quer contar mais? (opcional)</span><span class="caixa-campo"><input data-a-in="motivoTexto" value="' + esc(M.texto || "") + '"></span></label>',
+        '<label class="campo-site"><span>Quer contar mais? (opcional)</span><span class="caixa-campo"><input data-a-in="motivoTexto" maxlength="600" value="' + esc(M.texto || "") + '"></span></label>',
         cancel + '<button type="button" class="btn-duplo pequeno" data-a="cancelarPasso" data-v="2"' + (M.motivo ? "" : " disabled") + "><span>Continuar</span></button>");
       if (M.passo === 2) {
-        var credito = M.motivo === "uso" || M.motivo === "falta";
-        return dialogo(credito ? "Antes de sair: 20 M de tokens por nossa conta" : "Antes de sair: 30% a menos por 2 meses", "Cancelar assinatura",
-          "<p>" + (credito ? "Entram agora no ciclo, sem custo, para você testar o que ainda não usou. O plano continua igual." : "As duas próximas cobranças do " + esc(d.assinatura.nome) + " saem por " + brl0(d.assinatura.valor * 0.7) + ". Depois, volta ao preço do plano.") + "</p>",
+        // A oferta do motivo: preco (e outro) leva o desconto, quando a assinatura mensal no cartao permite; senao, os creditos.
+        var credito = !(M.motivo === "preco" || M.motivo === "outro") || !o.desconto_pode;
+        var pct = Math.round((o.desconto || 0.3) * 100), vezes = o.cobrancas || 2;
+        return dialogo(credito ? "Antes de sair: " + tok(o.creditos) + " de tokens por nossa conta" : "Antes de sair: " + pct + "% a menos por " + vezes + " meses", "Cancelar assinatura",
+          "<p>" + (credito ? "Entram agora no ciclo, sem custo, para você testar o que ainda não usou. O plano continua igual." : "As " + (vezes === 2 ? "duas" : vezes) + " próximas cobranças do " + esc(a.nome) + " saem por " + brl(Math.round(a.valor * (1 - (o.desconto || 0.3)) * 100) / 100) + ". Depois, volta ao preço do plano.") + "</p>",
           '<button type="button" class="mc-texto perigo" data-a="cancelarPasso" data-v="3">Cancelar mesmo assim</button><button type="button" class="btn-duplo pequeno" data-a="aceitarOferta" data-v="' + (credito ? "creditos" : "desconto") + '"><span>Aceitar a oferta</span></button>');
       }
       return dialogo("Cancelar a assinatura?", "Cancelar assinatura",
-        "<p>O " + esc(d.assinatura.nome) + " fica ativo até <b>" + dt(d.assinatura.ciclo.ate) + "</b>. Depois disso, o Paulus abre só com os arquivos: sem respostas da IA, sem NFS-e e sem os demais serviços. Ao assinar de novo, volta tudo, sem reinstalar.</p>",
-        '<button type="button" class="mc-texto" data-a="cancelarPasso" data-v="2">Voltar</button><button type="button" class="mc-perigo" data-a="confirmarCancelar">Cancelar assinatura</button>');
+        "<p>O " + esc(a.nome) + " fica ativo até <b>" + dt(pagoAte(a)) + "</b>. Depois disso, o Paulus continua com a Agenda, o Acervo, o Financeiro e os cadastros, mas sem a IA: nem a da nuvem nem a do computador. Ao assinar de novo, a IA volta, sem reinstalar.</p>",
+        '<button type="button" class="mc-texto" data-a="cancelarPasso" data-v="' + (o.pode ? 2 : 1) + '">Voltar</button><button type="button" class="mc-perigo" data-a="confirmarCancelar">Cancelar assinatura</button>');
     }
     if (M.tipo === "endereco") {
       var st = endStatus(M);
@@ -351,7 +530,8 @@
         "<p>Entra como <b>financeiro</b>: vê o resumo, o consumo, as faturas e a forma de pagamento. Ela recebe um e-mail com o link, válido por 7 dias.</p>",
         cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarConvite"' + (okE ? "" : " disabled") + "><span>Enviar convite</span></button>");
     }
-    if (M.tipo === "confirmar") return dialogo(M.titulo, M.ctx, "<p>" + M.texto + "</p>", cancel + '<button type="button" class="mc-perigo" data-a="confirmarSim">' + esc(M.botao) + "</button>");
+    if (M.tipo === "aviso") return dialogo(M.titulo, M.ctx, "<p>" + esc(M.texto) + "</p>", cancel + '<a class="btn-duplo pequeno" href="' + esc(M.link) + '"><span>' + esc(M.botao) + "</span></a>");
+    if (M.tipo === "confirmar") return dialogo(M.titulo, M.ctx, "<p>" + M.texto + "</p>", cancel + '<button type="button" class="' + (M.leve ? "btn-duplo pequeno" : "mc-perigo") + '" data-a="confirmarSim">' + (M.leve ? "<span>" + esc(M.botao) + "</span>" : esc(M.botao)) + "</button>");
     return "";
   }
 
@@ -359,100 +539,179 @@
   function render() {
     var r = $("mc-raiz"); if (!r) return;
     if (!S.d) { r.innerHTML = '<div class="mc-carregando">Carregando…</div>'; return; }
-    if (S.d.entrar) { r.innerHTML = entrarHtml(); return; }
-    if (S.sub === "cartao") { r.innerHTML = cartaoHtml(S.d); renderModal(); return; }
+    if (S.d.entrar) { r.innerHTML = entrarHtml(); botaoGoogle(); renderModal(); return; }
+    if (S.sub === "cartao") { r.innerHTML = cartaoHtml(S.d); renderModal(); montarCartao(); return; }
     var lista = abas(); if (!lista.some(function (a) { return a[0] === S.aba; })) S.aba = "resumo";
     var a = S.d.assinatura;
-    var h = '<div class="mc-col"><header class="mc-cab"><h1>Minha conta</h1><p class="texto-lead">' + esc(S.d.cadastro.nome) + " · plano " + esc(a.nome) + " · " + esc(S.d.perfil.email) + (titular() ? "" : " (financeiro)") + "</p></header>" +
+    var h = '<div class="mc-col"><header class="mc-cab"><h1>Minha conta</h1><p class="texto-lead">' + esc(S.d.cadastro.nome) + " · plano " + esc(a.nome) + " · " + esc(S.d.perfil.email) + (titular() ? "" : " (financeiro)") +
+      ' <button type="button" class="mc-sair" data-a="sair">Sair</button></p></header>' +
       '<div class="mc-centro">' + pilula("aba", lista, S.aba) + "</div>" +
       '<div class="mc-tela" data-tela="' + S.aba + '">' + TELAS[S.aba](S.d) + "</div></div>";
     r.innerHTML = h;
+    // No celular as abas rolam dentro da pilula: a aba aberta fica a vista.
+    var on = r.querySelector('.mc-centro [data-seg="aba"][aria-pressed="true"]');
+    if (on && on.parentElement.scrollWidth > on.parentElement.clientWidth) on.parentElement.scrollLeft = on.offsetLeft - (on.parentElement.clientWidth - on.offsetWidth) / 2;
+    renderModal();
+  }
+  function renderModal() {
     var c = $("mc-camada"); if (!c) { c = document.createElement("div"); c.id = "mc-camada"; document.body.appendChild(c); }
     c.innerHTML = modalHtml();
   }
-  function renderModal() { var c = $("mc-camada"); if (c) c.innerHTML = modalHtml(); }
+  // O botao do Google e o oficial (Google Identity Services), o mesmo cliente web do cadastro: ele entrega o
+  // id_token, e o Worker abre a sessao da Minha conta (um cookie HttpOnly). Nenhuma senha a mais.
+  var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   function entrarHtml() {
-    return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">Entre com a conta Google da assinatura, ou com a que o titular autorizou. Nenhuma senha a mais.</p>' +
-      '<button type="button" class="btn-duplo" data-a="entrarGoogle"><span>' + GOOGLE + "Entrar com o Google</span></button>" +
+    return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com a conta Google do e-mail que recebeu o convite." :
+      "Entre com a conta Google da assinatura, ou com a que o titular autorizou. Nenhuma senha a mais.") + "</p>" +
+      '<div class="mc-google" id="mc-google" aria-live="polite"></div>' +
+      (S.erroEntrar ? '<p class="mc-nota centro mc-erro" role="alert">' + esc(cap(S.erroEntrar)) + "</p>" : "") +
       '<p class="mc-nota centro">Ainda não assina? <a href="' + (MP_IMG === "../../assets/" ? "../../assinatura/" : MP_IMG === "../assets/" ? "../assinatura/" : "Site - Assinatura.dc.html") + '">Conheça os planos</a>.</p></div>';
+  }
+  function botaoGoogle() {
+    var lugar = $("mc-google"); if (!lugar) return;
+    carregarScript("https://accounts.google.com/gsi/client").then(function () {
+      var l = $("mc-google"); if (!l || !(window.google && google.accounts && google.accounts.id)) return;
+      var claro = document.documentElement.getAttribute("data-theme") === "light";
+      if (!botaoGoogle.pronto) {
+        google.accounts.id.initialize({ client_id: CLIENTE_GOOGLE, callback: function (r) { if (r && r.credential) A.entrarComToken(r.credential); }, ux_mode: "popup", auto_select: false });
+        botaoGoogle.pronto = true;
+      }
+      l.innerHTML = "";
+      google.accounts.id.renderButton(l, { theme: claro ? "outline" : "filled_black", size: "large", text: "signin_with", shape: "rectangular", width: Math.min(320, l.clientWidth || 320), locale: L("pt-BR", "en") });
+    }).catch(function () {
+      var l = $("mc-google"); if (l) l.innerHTML = '<p class="mc-nota centro mc-erro">O botão do Google não carregou. Confira a internet ou o bloqueador de anúncios e recarregue a página.</p>';
+    });
   }
 
   /* ------------------------------------------------------------ acoes */
+  function recarregar() { return api("GET", "/api/conta").then(function (d) { S.d = d; render(); }).catch(function () { location.reload(); }); }
   var A = {
     fechar: function () { S.modal = null; renderModal(); },
-    recarga: function () { S.aba = "pagamento"; render(); },
-    pacote: function (el) { S.recarga = Number(el.dataset.v); render(); },
-    gerarPix: function () {
-      var rc = S.d.recarga, n = S.recarga;
-      api("POST", "/api/conta/recarga", { pacotes: n }).then(function (j) { S.pix = { valor: rc.valor * n, tokens: rc.tokens * n, copia: j.copia || "00020126580014br.gov.bcb.pix0136pavlvs-recarga-" + Date.now() + "5204000053039865802BR6304ABCD" }; render(); })
-        .catch(function (e) { toast(e.message, true); });
+    recarga: function () { SEGS.aba("pagamento"); render(); },
+    pacote: function (el) { S.recarga = el.dataset.v; render(); },
+    gerarPix: function (el) {
+      var pac = (S.d.recarga.pacotes || []).filter(function (x) { return x.id === S.recarga; })[0] || (S.d.recarga.pacotes || [])[0]; if (!pac) return;
+      el.disabled = true;
+      api("POST", "/api/conta/recarga", { pacote: pac.id }).then(function (j) { S.pix = { valor: j.valor, tokens: j.tokens, copia: j.copia, qr: j.qr_code_base64 || "" }; render(); })
+        .catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
     pixCancelar: function () { S.pix = null; render(); },
-    copiarPix: function () { try { navigator.clipboard.writeText(S.pix.copia); toast("Código do Pix copiado"); } catch (e) { toast("Copie o código no campo", true); } },
-    formaPag: function (el) { var v = el.dataset.v; if (S.d.pagamento.tipo === v) return; S.d.pagamento.tipo = v; render(); api("POST", "/api/conta/forma", { tipo: v }).then(function () { toast(v === "pix" ? "As próximas cobranças saem no Pix" : "As próximas cobranças saem no cartão"); }).catch(function (e) { toast(e.message, true); }); },
-    trocarCartao: function () { S.sub = "cartao"; S.cartao = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#cartao"); } catch (e) {} render(); setTimeout(function () { var i = $("mc-k-num"); if (i) i.focus(); }, 30); },
-    cartaoVoltar: function () { S.sub = null; S.cartao = null; S.aba = "pagamento"; window.scrollTo(0, 0); try { history.replaceState(null, "", "#pagamento"); } catch (e) {} render(); },
-    cartaoSalvar: function (el) {
-      // Na pagina real, os campos sao os Secure Fields do Mercado Pago: o SDK gera o token do cartao e so o token chega aqui.
-      var K = S.cartao; if (!cartaoValido()) return; el.disabled = true;
-      api("POST", "/api/conta/cartao", { token: "card_token_demo", ultimos: K.num.slice(-4), bandeira: bandDe(K.num) }).then(function () {
-        var p = S.d.pagamento; p.tipo = "cartao"; p.cartao = { bandeira: bandDe(K.num) || "Cartão", final: K.num.slice(-4), validade: K.val, titular: K.nome.trim().toUpperCase() };
-        var fim = K.num.slice(-4); A.cartaoVoltar(); toast("Cartão trocado. As próximas cobranças saem no final " + fim);
-      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
+    copiarPix: function () {
+      var feito = function () { toast("Código do Pix copiado"); }, falhou = function () { toast("Copie o código no campo", true); };
+      try { navigator.clipboard.writeText(S.pix.copia).then(feito, falhou); } catch (e) { falhou(); }
     },
-    trocarPlano: function (el) { S.modal = { tipo: "trocarPlano", id: el.dataset.id }; renderModal(); },
-    confirmarTroca: function () {
-      var M = S.modal, p = S.d.planos.filter(function (x) { return x.id === M.id; })[0];
-      api("POST", "/api/conta/plano", { plano: p.id, periodo: S.anual ? "anual" : "mensal" }).then(function () {
-        var a = S.d.assinatura; a.plano = p.id; a.nome = p.nome; a.periodo = S.anual ? "anual" : "mensal"; a.valor = S.anual ? p.valor_anual : p.valor; a.ciclo.tokens = p.tokens;
-        S.modal = null; render(); toast("Plano trocado para o " + p.nome);
-      }).catch(function (e) { toast(e.message, true); });
+    formaPag: function (el) {
+      var v = el.dataset.v, p = S.d.pagamento; if (p.tipo === v) return;
+      if (v === "pix") {
+        // Passar para o Pix tira a assinatura do cartao no Mercado Pago: confirma antes.
+        S.modal = { tipo: "confirmar", leve: true, titulo: "Pagar todo mês no Pix?", ctx: "Forma de pagamento", botao: "Passar para o Pix",
+          texto: "A assinatura no cartão sai do Mercado Pago, e o mês já pago vale até " + dt(S.d.assinatura.ciclo.ate) + ". Três dias antes de cada mês novo, o Pix (QR e copia e cola) chega em " + esc(S.d.cadastro.email_cobranca || S.d.perfil.email) + ". Para voltar ao cartão, é pela página de pagamento, quando o mês pago vencer.",
+          fazer: function () { return api("POST", "/api/conta/forma", { tipo: "pix" }).then(function () { toast("As próximas cobranças saem no Pix"); return recarregar(); }); } };
+        renderModal(); return;
+      }
+      api("POST", "/api/conta/forma", { tipo: "cartao" }).then(function () { recarregar(); }).catch(function (e) {
+        if (e.dados && e.dados.proximo) { S.modal = { tipo: "aviso", titulo: "Voltar ao cartão", ctx: "Forma de pagamento", texto: cap(e.message) + ".", botao: "Ir para o pagamento", link: e.dados.proximo }; renderModal(); return; }
+        toast(e.message, true);
+      });
+    },
+    trocarCartao: function () { S.sub = "cartao"; S.cartao = null; S.erroCartao = ""; S.modal = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#cartao"); } catch (e) {} render(); },
+    cartaoVoltar: function () { desmontarCartao(); S.sub = null; S.cartao = null; S.erroCartao = ""; S.aba = "pagamento"; window.scrollTo(0, 0); try { history.replaceState(null, "", "#pagamento"); } catch (e) {} render(); },
+    cartaoSalvar: function (el) {
+      var K = S.cartao; if (!K || !K.mp || !cartaoValido()) return;
+      var nome = $("mc-k-nome").value.trim(), doc = $("mc-k-doc").value.replace(/\D/g, "");
+      K.salvando = true; el.disabled = true; erroCartao("");
+      K.mp.fields.createCardToken({ cardholderName: nome, identificationType: doc.length === 14 ? "CNPJ" : "CPF", identificationNumber: doc })
+        .then(function (t) {
+          if (!t || !t.id) throw new Error("");
+          return api("POST", "/api/conta/cartao", { token: t.id, metodo: K.metodo });
+        })
+        .then(function (j) {
+          S.d.pagamento.cartao = j.cartao; S.d.pagamento.tipo = "cartao";
+          var fim = j.cartao && j.cartao.final; A.cartaoVoltar(); toast(fim ? "Cartão trocado. As próximas cobranças saem no final " + fim : "Cartão trocado");
+        })
+        .catch(function (e) { K.salvando = false; cartaoOk(); erroCartao(e && e.status ? e.message : "confira o número, a validade e o código do cartão"); });
+    },
+    trocarPlano: function (el) {
+      var M = S.modal = { tipo: "trocarPlano", id: el.dataset.id, periodo: S.anual ? "anual" : "mensal" }; renderModal();
+      api("GET", "/api/conta/plano/orcar?plano=" + encodeURIComponent(M.id) + "&periodo=" + M.periodo).then(function (j) { if (S.modal === M) { M.orc = j; renderModal(); } })
+        .catch(function (e) { if (S.modal === M) { M.erro = e.message; renderModal(); } });
+    },
+    confirmarTroca: function (el) {
+      var M = S.modal, p = S.d.planos.filter(function (x) { return x.id === M.id; })[0]; el.disabled = true;
+      api("POST", "/api/conta/plano", { plano: p.id, periodo: M.periodo }).then(function (j) {
+        if (j.proximo) { location.assign(j.proximo); return; }
+        S.modal = null; toast(j.desfeita ? "A troca marcada saiu: o plano continua o " + S.d.assinatura.nome : j.agora ? "Plano trocado para o " + p.nome : "O " + p.nome + " vale a partir de " + dt(j.vale_em || S.d.assinatura.proxima));
+        return recarregar();
+      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
     cancelar: function () { S.modal = { tipo: "cancelar", passo: 1, motivo: null, texto: "" }; renderModal(); },
     motivo: function (el) { S.modal.motivo = el.dataset.v; renderModal(); },
-    cancelarPasso: function (el) { S.modal.passo = Number(el.dataset.v); renderModal(); },
+    cancelarPasso: function (el) {
+      var v = Number(el.dataset.v);
+      // Sem oferta para ficar (uma a cada 12 meses, e so com a assinatura ativa), o passo 2 e pulado.
+      if (v === 2 && !(S.d.oferta_ficar || {}).pode) v = S.modal.passo === 3 ? 1 : 3;
+      S.modal.passo = v; renderModal();
+    },
     aceitarOferta: function (el) {
-      var v = el.dataset.v; api("POST", "/api/conta/oferta", { tipo: v, motivo: S.modal.motivo }).then(function () {
-        if (v === "creditos") S.d.assinatura.ciclo.tokens += 20e6;
-        S.modal = null; render(); toast(v === "creditos" ? "20 M de tokens entraram no ciclo" : "As duas próximas cobranças saem com 30% a menos");
-      }).catch(function (e) { toast(e.message, true); });
+      var v = el.dataset.v, o = S.d.oferta_ficar; el.disabled = true;
+      api("POST", "/api/conta/oferta", { tipo: v, motivo: S.modal.motivo }).then(function () {
+        S.modal = null; toast(v === "creditos" ? tok(o.creditos) + " de tokens entraram no ciclo" : "As " + (o.cobrancas === 2 ? "duas" : o.cobrancas) + " próximas cobranças saem com " + Math.round(o.desconto * 100) + "% a menos");
+        return recarregar();
+      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
-    confirmarCancelar: function () {
-      var M = S.modal; api("POST", "/api/conta/cancelar", { motivo: M.motivo, texto: M.texto }).then(function () {
-        S.modal = null; render(); toast("Assinatura cancelada. O plano fica ativo até " + dt(S.d.assinatura.ciclo.ate));
-      }).catch(function (e) { toast(e.message, true); });
+    confirmarCancelar: function (el) {
+      var M = S.modal; el.disabled = true;
+      api("POST", "/api/conta/cancelar", { motivo: M.motivo, texto: M.texto }).then(function (j) {
+        S.modal = null; toast("Assinatura cancelada. O plano fica ativo até " + dt(j.ate || pagoAte(S.d.assinatura)));
+        return recarregar();
+      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
-    salvarCadastro: function () {
+    salvarCadastro: function (el) {
       var v = {}; document.querySelectorAll("[data-cad]").forEach(function (i) { v[i.dataset.cad] = i.value.trim(); });
-      api("POST", "/api/conta/cadastro", v).then(function () { Object.assign(S.d.cadastro, v); toast("Cadastro salvo"); }).catch(function (e) { toast(e.message, true); });
+      if (S.cmun) v.cmun = S.cmun;
+      el.disabled = true;
+      api("POST", "/api/conta/cadastro", v).then(function (j) { el.disabled = false; S.d.cadastro = j.cadastro || S.d.cadastro; S.cmun = ""; render(); toast("Cadastro salvo"); })
+        .catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
     alterarEndereco: function () { S.modal = { tipo: "endereco", v: "" }; renderModal(); setTimeout(function () { var i = $("mc-slug"); if (i) i.focus(); }, 30); },
-    confirmarEndereco: function () {
-      if (!endStatus(S.modal).ok) return; var v = S.modal.v; api("POST", "/api/conta/endereco", { slug: v }).then(function () { S.d.escritorio.slug = v; S.modal = null; render(); toast("Endereço alterado para " + v + ".paulus.ia.br"); }).catch(function (e) { toast(e.message, true); });
+    confirmarEndereco: function (el) {
+      if (!endStatus(S.modal).ok) return; var v = S.modal.v; el.disabled = true;
+      api("POST", "/api/conta/endereco", { slug: v }).then(function (j) { S.d.escritorio.slug = j.slug || v; S.modal = null; render(); toast("Endereço alterado para " + (j.slug || v) + ".paulus.ia.br"); })
+        .catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
     removerInstalacao: function (el) {
       var i = S.d.instalacoes.filter(function (x) { return x.id === el.dataset.id; })[0];
-      S.modal = { tipo: "confirmar", titulo: "Tirar este computador?", ctx: "Instalações", texto: esc(i.nome) + " deixa de abrir o Paulus do escritório. Para usar de novo, é preciso entrar com a conta Google no programa.", botao: "Tirar", fazer: function () { return api("POST", "/api/conta/instalacoes/" + encodeURIComponent(i.id) + "/remover", {}).then(function () { S.d.instalacoes = S.d.instalacoes.filter(function (x) { return x !== i; }); toast("Computador tirado"); }); } };
+      S.modal = { tipo: "confirmar", titulo: "Tirar este computador?", ctx: "Instalações", texto: esc(i.nome) + " deixa de usar a assinatura: a IA e os serviços da nuvem param nele até alguém entrar de novo com a conta Google no programa.", botao: "Tirar",
+        fazer: function () { return api("POST", "/api/conta/instalacoes/" + encodeURIComponent(i.id) + "/remover", {}).then(function () { S.d.instalacoes = S.d.instalacoes.filter(function (x) { return x !== i; }); toast("Computador tirado"); }); } };
       renderModal();
     },
     servico: function (el) {
-      var s = S.d.google.servicos.filter(function (x) { return x.id === el.dataset.id; })[0]; s.ligado = !s.ligado; render();
-      api("POST", "/api/conta/google/servico", { id: s.id, ligado: s.ligado }).then(function () { toast(s.nome + (s.ligado ? " ligado" : " desligado")); }).catch(function (e) { s.ligado = !s.ligado; render(); toast(e.message, true); });
+      var id = el.dataset.id, ligar = el.getAttribute("aria-checked") !== "true";
+      el.setAttribute("aria-checked", String(ligar)); el.classList.toggle("on", ligar); var sw = el.querySelector(".interruptor-min"); if (sw) sw.classList.toggle("on", ligar);
+      api("POST", "/api/conta/google/servico", { id: id, ligado: ligar }).then(function () {
+        var nome = { gmail: "Gmail", agenda: "Agenda", drive_enviar: "Drive · enviar", drive_ler: "Drive · ler" }[id] || id;
+        toast(nome + (ligar ? ": ordem de ligar enviada" : ": ordem de desligar enviada")); return recarregar();
+      }).catch(function (e) { toast(e.message, true); recarregar(); });
     },
     desvincular: function () {
-      S.modal = { tipo: "confirmar", titulo: "Desvincular a conta Google?", ctx: "Permissões Google", texto: "O Paulus perde o acesso ao Gmail, à Agenda e ao Drive de " + esc(S.d.google.conta) + ". Para ligar de novo, faça o consentimento no programa.", botao: "Desvincular", fazer: function () { return api("POST", "/api/conta/google/desvincular", {}).then(function () { S.d.google.servicos.forEach(function (s) { s.ligado = false; }); toast("Conta Google desvinculada"); }); } };
+      S.modal = { tipo: "confirmar", titulo: "Desvincular a conta Google?", ctx: "Permissões Google", botao: "Desvincular",
+        texto: "O Paulus do escritório revoga no Google o acesso ao Gmail, à Agenda e ao Drive, da próxima vez que estiver aberto e ligado à internet. Para ligar de novo, é preciso entrar com o Google no programa.",
+        fazer: function () { return api("POST", "/api/conta/google/desvincular", {}).then(function () { toast("Ordem de desvincular enviada"); return recarregar(); }); } };
       renderModal();
     },
     convidar: function () { S.modal = { tipo: "convidar", email: "" }; renderModal(); setTimeout(function () { var i = $("mc-conv"); if (i) i.focus(); }, 30); },
-    confirmarConvite: function () {
-      var em = S.modal.email.trim(); api("POST", "/api/conta/pessoas", { email: em, papel: "financeiro" }).then(function () { S.d.pessoas.push({ email: em, papel: "financeiro", convite: true }); S.modal = null; render(); toast("Convite enviado para " + em); }).catch(function (e) { toast(e.message, true); });
+    confirmarConvite: function (el) {
+      var em = S.modal.email.trim().toLowerCase(); el.disabled = true;
+      api("POST", "/api/conta/pessoas", { email: em, papel: "financeiro" }).then(function () { S.modal = null; toast("Convite enviado para " + em); return recarregar(); })
+        .catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
     removerPessoa: function (el) {
       var p = S.d.pessoas.filter(function (x) { return x.email === el.dataset.id; })[0];
-      S.modal = { tipo: "confirmar", titulo: p.convite ? "Cancelar o convite?" : "Tirar o acesso?", ctx: "Pessoas", texto: esc(p.nome || p.email) + (p.convite ? " não vai mais poder usar o link." : " deixa de entrar em Minha conta."), botao: p.convite ? "Cancelar convite" : "Tirar o acesso", fazer: function () { return api("POST", "/api/conta/pessoas/" + encodeURIComponent(p.email) + "/remover", {}).then(function () { S.d.pessoas = S.d.pessoas.filter(function (x) { return x !== p; }); toast("Acesso tirado"); }); } };
+      S.modal = { tipo: "confirmar", titulo: p.convite ? "Cancelar o convite?" : "Tirar o acesso?", ctx: "Pessoas", texto: esc(p.nome || p.email) + (p.convite ? " não vai mais poder usar o link." : " deixa de entrar em Minha conta."), botao: p.convite ? "Cancelar convite" : "Tirar o acesso",
+        fazer: function () { return api("POST", "/api/conta/pessoas/" + encodeURIComponent(p.email) + "/remover", {}).then(function () { S.d.pessoas = S.d.pessoas.filter(function (x) { return x !== p; }); toast(p.convite ? "Convite cancelado" : "Acesso tirado"); }); } };
       renderModal();
     },
-    confirmarSim: function (el) { var M = S.modal; el.disabled = true; M.fazer().then(function () { S.modal = null; render(); }).catch(function (e) { el.disabled = false; toast(e.message, true); }); },
+    confirmarSim: function (el) { var M = S.modal; el.disabled = true; M.fazer().then(function () { if (S.modal === M) S.modal = null; render(); }).catch(function (e) { el.disabled = false; toast(e.message, true); }); },
     calMes: function (el) {
       if (S.calAberto && S.calAberto.alvo === "faturas") { S.mesFat = el.dataset.v; S.calAberto = null; render(); return; }
       S.cicloEsc = el.dataset.v; S.periodo = "outro"; S.calAberto = null; render(); carregarConsumo(el.dataset.v);
@@ -462,21 +721,53 @@
     calAnoPasso: function (el) { S.calAberto.ano += Number(el.dataset.v) * (S.calAberto.vista === "anos" ? 12 : 1); render(); },
     calVistaAnos: function () { S.calAberto.vista = "anos"; render(); },
     calAno: function (el) { S.calAberto.ano = Number(el.dataset.v); S.calAberto.vista = "meses"; render(); },
-    baixarTudo: function () { toast("O .zip com as NFS-e do ano está sendo preparado"); },
-    entrarGoogle: function () { api("POST", "/api/conta/entrar", {}).then(function (j) { if (j.url) location.assign(j.url); else carregar(); }).catch(function (e) { toast(e.message, true); }); },
-  };
-  var ENTRADAS = {
-    kNum: function (el) {
-      var d = el.value.replace(/\D/g, "").slice(0, bandDe(el.value.replace(/\D/g, "")) === "amex" ? 15 : 19), antes = bandDe(S.cartao.num);
-      el.value = bandDe(d) === "amex" ? d.replace(/^(\d{4})(\d{1,6})?(\d{1,5})?$/, function (_, a, b, c) { return [a, b, c].filter(Boolean).join(" "); }) : d.replace(/(.{4})(?=.)/g, "$1 ");
-      S.cartao.num = d; var b = $("mc-k-band"); if (b && antes !== bandDe(d)) b.innerHTML = bandSlot(d);
-      var cvv = $("mc-k-cvv"); if (cvv) cvv.placeholder = bandDe(d) === "amex" ? "4 dígitos" : "3 dígitos";
-      cartaoOk();
+    // O .zip das NFS-e do ano: baixado aqui (fetch) para que um ano sem notas vire um aviso, e nao uma pagina de erro.
+    baixarTudo: function (el) {
+      var ano = el.dataset.v; el.disabled = true;
+      fetch("/api/conta/nfse.zip?ano=" + encodeURIComponent(ano), { credentials: "same-origin" }).then(function (r) {
+        if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.erro || "não foi possível agora"); });
+        return r.blob();
+      }).then(function (b) {
+        var u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = "nfse-pavlvs-" + ano + ".zip"; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(u); }, 4000); el.disabled = false;
+      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
     },
-    kVal: function (el) { var d = el.value.replace(/\D/g, "").slice(0, 4); el.value = d.length > 2 ? d.slice(0, 2) + "/" + d.slice(2) : d; S.cartao.val = el.value; cartaoOk(); },
-    kCvv: function (el) { el.value = el.value.replace(/\D/g, "").slice(0, 4); S.cartao.cvv = el.value; cartaoOk(); },
-    kNome: function (el) { S.cartao.nome = el.value; cartaoOk(); },
-    kDoc: function (el) { S.cartao.doc = el.value; cartaoOk(); },
+    entrarComToken: function (credencial) {
+      S.erroEntrar = "";
+      api("POST", "/api/conta/entrar", { credential: credencial, convite: S.convite || "" }).then(function () { S.convite = ""; S.d = null; render(); carregar(); })
+        .catch(function (e) { S.erroEntrar = e.message; render(); });
+    },
+    sair: function () {
+      api("POST", "/api/conta/sair", {}).catch(function () { /* o cookie some de qualquer jeito */ }).then(function () {
+        try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) { /* nada */ }
+        S.d = { entrar: true }; S.modal = null; S.sub = null; S.aba = "resumo"; S.anual = null; try { history.replaceState(null, "", location.pathname); } catch (e) {} render();
+      });
+    },
+  };
+  // O CEP com 8 digitos preenche rua, bairro, cidade e UF pela ViaCEP e guarda o codigo IBGE do municipio (vai na NFS-e).
+  var cepLido = "";
+  function buscarCep(el) {
+    var cep = el.value.replace(/\D/g, ""), nota = $("mc-cep-nota");
+    if (cep.length !== 8) { if (nota) nota.hidden = true; return; }
+    if (cep === cepLido) return;
+    cepLido = cep; S.cmun = "";
+    if (nota) { nota.textContent = "Procurando o CEP…"; nota.hidden = false; }
+    fetch("https://viacep.com.br/ws/" + cep + "/json/").then(function (r) { return r.json().then(function (d) { if (!r.ok || !d || d.erro) throw new Error(""); return d; }); }).then(function (d) {
+      if ((($("mc-cad-cep") || {}).value || "").replace(/\D/g, "") !== cep) return;
+      var por = function (k, v) { var i = $("mc-cad-" + k); if (i && v) i.value = v; };
+      por("logradouro", d.logradouro); por("bairro", d.bairro); por("cidade", d.localidade);
+      var uf = $("mc-cad-uf"); if (uf && d.uf) uf.value = d.uf;
+      S.cmun = /^\d{7}$/.test(String(d.ibge || "")) ? d.ibge : "";
+      if (nota) nota.hidden = true;
+      var foco = $(d.logradouro ? "mc-cad-numero" : "mc-cad-logradouro"); if (foco) foco.focus();
+    }).catch(function () {
+      if (nota) { nota.textContent = "Não achei esse CEP agora. Confira o número ou preencha o endereço à mão."; nota.hidden = false; }
+    });
+  }
+  var ENTRADAS = {
+    kCampo: function () { cartaoOk(); },
+    cep: buscarCep,
+    semCmun: function () { S.cmun = ""; },
     motivoTexto: function (el) { S.modal.texto = el.value; },
     slug: function (el) {
       var v = el.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 24); if (el.value !== v) el.value = v;
@@ -497,7 +788,7 @@
     aba: function (v) { S.aba = v; S.pix = null; S.calAberto = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#" + v); } catch (e) {} },
     faturas: function (v) { S.filtroFat = v; S.calAberto = null; },
     periodo: function (v) {
-      if (v === "outro") { var base = S.cicloEsc ? Number(S.cicloEsc.slice(0, 4)) : new Date(S.d.assinatura.ciclo.de + "T12:00").getFullYear(); S.calAberto = S.calAberto ? null : { ano: base, vista: "meses", alvo: "consumo" }; return; }
+      if (v === "outro") { var base = S.cicloEsc ? Number(S.cicloEsc.slice(0, 4)) : new Date((S.d.assinatura.ciclo.de || new Date().toISOString().slice(0, 10)) + "T12:00").getFullYear(); S.calAberto = S.calAberto ? null : { ano: base, vista: "meses", alvo: "consumo" }; return; }
       S.calAberto = null; S.periodo = v; carregarConsumo(v);
     },
     periodoPlano: function (v) { S.anual = v === "anual"; },
@@ -509,20 +800,30 @@
     var a = ev.target.closest("[data-a]"); if (a && A[a.dataset.a] && !a.disabled) { ev.preventDefault(); A[a.dataset.a](a); }
   });
   document.addEventListener("input", function (ev) { var k = ev.target.dataset && ev.target.dataset.aIn; if (k && ENTRADAS[k]) ENTRADAS[k](ev.target); });
+  document.addEventListener("change", function (ev) { if (ev.target.tagName === "SELECT") { var k = ev.target.dataset && ev.target.dataset.aIn; if (k && ENTRADAS[k]) ENTRADAS[k](ev.target); } });
   document.addEventListener("keydown", function (ev) { var sw = ev.target.closest && ev.target.closest('[role="switch"][data-a]'); if (sw && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); sw.click(); } });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") { if (S.modal) A.fechar(); else if (S.calAberto) { S.calAberto = null; render(); } } });
   document.addEventListener("mousedown", function (ev) { if (S.calAberto && !ev.target.closest(".mc-periodo")) { S.calAberto = null; render(); } });
 
-  function carregarConsumo(v) { api("GET", "/api/conta/consumo?ciclo=" + v).then(function (j) { S.d.consumo = j; render(); }).catch(function () { /* fica o que tinha */ }); }
+  function carregarConsumo(v) { api("GET", "/api/conta/consumo?ciclo=" + encodeURIComponent(v)).then(function (j) { S.d.consumo = j; render(); }).catch(function (e) { toast(e.message, true); }); }
   function carregar() {
-    api("GET", "/api/conta").then(function (d) { S.d = d; render(); })
-      .catch(function (e) { S.d = e.status === 401 ? { entrar: true } : { entrar: true }; render(); });
+    api("GET", "/api/conta").then(function (d) {
+      S.d = d; if (!d.entrar && S.anual === null) S.anual = d.assinatura.periodo === "anual";
+      render();
+    }).catch(function (e) { S.d = { entrar: true }; if (e.status !== 401) S.erroEntrar = e.message; render(); });
   }
   function iniciar(op) {
     op = op || {};
-    var h = (location.hash || "").slice(1); if (op.aba) S.aba = op.aba; else if (h) S.aba = h;
+    var h = (location.hash || "").slice(1);
+    // O link do convite (#convite=<codigo>): o codigo vai junto ao entrar com o Google, e sai do endereco.
+    if (/^convite=[0-9a-f]{48}$/.test(h)) { S.convite = h.slice(8); h = ""; try { history.replaceState(null, "", location.pathname); } catch (e) {} }
+    if (op.aba) S.aba = op.aba; else if (h) S.aba = h;
     if (S.aba === "cartao") { S.aba = "pagamento"; S.sub = "cartao"; }
     render(); carregar();
   }
   window.MinhaConta = { iniciar: iniciar };
+  // Comeca sozinha: a CSP da pagina (a do cadastro, por causa do cartao) nao deixa script inline.
+  if (document.getElementById("mc-raiz")) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { iniciar(); }); else iniciar();
+  }
 })();

@@ -5,7 +5,7 @@
 // O Durable Object roda aqui sobre um Map; o Mercado Pago, o Google, a
 // Cloudflare e o e-mail sao de mentira. O relogio e um so (Date.now tambem).
 import worker from "./index.js";
-import { ContaIA, atenderIA, avisoDaIA, cronDaConta, ofertaDeVolta, ofertaParaFicar, pixDoMes, trocarPlanoAgora } from "./ia.js";
+import { ContaIA, atenderIA, avisoDaIA, cronDaConta, ofertaDeVolta, ofertaParaFicar, orcarTrocaDePlano, pixDoMes, trocarPlanoAgora } from "./ia.js";
 import { atenderConta, consumoDo } from "./conta.js";
 
 let falhas = 0;
@@ -166,7 +166,9 @@ console.log("a troca de plano com a diferença");
   // Metade do ciclo depois: para o Escritorio, a diferenca e metade de (1290 - 449).
   relogio += 15 * DIA;
   const antes = (await resumoDe(helena)).ciclo_completo;
+  const orc = await orcarTrocaDePlano(env, helena, { plano: "escritorio", periodo: "mensal" });
   const t = await trocarPlanoAgora(env, chamarMP, helena, { plano: "escritorio", periodo: "mensal" });
+  checar(orc.ok && orc.tipo === "agora" && orc.diferenca === t.diferenca && orc.proxima === t.proxima && orc.vale_em === antes.fim, "o orçamento mostra antes a mesma diferença da troca", { orc, t });
   r = await resumoDe(helena);
   const total = Date.parse(antes.fim) - Date.parse(antes.inicio);
   const f = (Date.parse(antes.fim) - relogio) / total;
@@ -181,10 +183,14 @@ console.log("a troca de plano com a diferença");
   await cobranca(pre.id, t.proxima, "cob2");
   r = await resumoDe(helena);
   checar(pre.auto_recurring.transaction_amount === 1290 && !r.ajuste, "paga a cobrança com a diferença, volta ao valor do plano", { valor: pre.auto_recurring.transaction_amount, ajuste: r.ajuste });
+  const orcDesce = await orcarTrocaDePlano(env, helena, { plano: "advogado", periodo: "mensal" });
+  checar(orcDesce.ok && orcDesce.tipo === "proxima" && orcDesce.valor === 449 && orcDesce.vale_em && pre.auto_recurring.transaction_amount === 1290, "orçar não muda nada: mais barato vale na próxima", orcDesce);
   const desce = await trocarPlanoAgora(env, chamarMP, helena, { plano: "advogado", periodo: "mensal" });
   r = await resumoDe(helena);
   checar(desce.ok && !desce.agora && r.plano.id === "escritorio" && r.plano_proximo && r.plano_proximo.id === "advogado" && pre.auto_recurring.transaction_amount === 449,
     "mais barato: vale na próxima cobrança, o ciclo pago fica no plano dele", { desce, prox: r.plano_proximo });
+  const orcDesfaz = await orcarTrocaDePlano(env, helena, { plano: "escritorio", periodo: "mensal" });
+  checar(orcDesfaz.ok && orcDesfaz.tipo === "desfazer" && orcDesfaz.marcado === "Advogado", "o plano de agora, com troca marcada: orçar diz que desfaz", orcDesfaz);
   const desfaz = await trocarPlanoAgora(env, chamarMP, helena, { plano: "escritorio", periodo: "mensal" });
   checar(desfaz.ok && desfaz.desfeita && !(await resumoDe(helena)).plano_proximo && pre.auto_recurring.transaction_amount === 1290, "pedir o plano de agora desfaz a troca marcada", desfaz);
   const ano = await trocarPlanoAgora(env, chamarMP, helena, { plano: "plus", periodo: "anual" });
@@ -312,6 +318,9 @@ let ckBruno;
   const v = await conta("GET", "/api/conta", null, ckBruno);
   checar(v.status === 200 && v.d.perfil.papel === "financeiro" && v.d.assinatura.nome === "Escritório", "o financeiro vê a conta do titular", v.d && v.d.perfil);
   checar((await conta("POST", "/api/conta/plano", { plano: "plus" }, ckBruno)).status === 403, "trocar de plano é só do titular");
+  checar((await conta("GET", "/api/conta/plano/orcar?plano=plus", null, ckBruno)).status === 403, "orçar a troca também é só do titular");
+  const orc = await conta("GET", "/api/conta/plano/orcar?plano=plus&periodo=anual", null, ck);
+  checar(orc.status === 200 && orc.d.tipo === "anual" && orc.d.valor > 0, "o titular orça a troca pela Minha conta", orc.d);
   checar((await conta("POST", "/api/conta/cancelar", { motivo: "preco" }, ckBruno)).status === 403, "cancelar é só do titular");
   const lista = (await conta("GET", "/api/conta", null, ck)).d.pessoas;
   checar(lista.length === 2 && lista[1].email === "bruno@moura.adv.br" && lista[1].papel === "financeiro" && !lista[1].convite, "a lista de pessoas", lista);

@@ -1116,6 +1116,33 @@ export async function trocarPlanoAgora(env, mp, id, { plano, periodo }) {
   return { ok: true, agora: false, vale_em: (atual.ciclo || {}).fim || "", conta: resumo };
 }
 
+/* O que a troca de plano faria, sem fazer (o dialogo da Minha conta mostra os
+   valores antes de confirmar): as mesmas regras de trocarPlanoAgora. ->
+   {tipo: "agora"|"proxima"|"desfazer"|"anual", ...} ou a falha que a troca daria. */
+export async function orcarTrocaDePlano(env, id, { plano, periodo }) {
+  const n = numeros(env);
+  if (!n.planos.some((x) => x.id === plano)) return falha(400, "esse plano não existe");
+  const conta = medidor(env, id);
+  const atual = await conta.pedir("minha_conta");
+  if (!atual.ok) return falha(404, "conta não encontrada");
+  const novo = planoDe(n, plano);
+  if (periodo === "anual") return { ok: true, tipo: "anual", valor: novo.valor_anual };
+  const a = atual.assinatura;
+  if (!a || !a.id || a.situacao !== "authorized") return falha(409, "a troca é para quem tem a assinatura ativa; sem ela, é só assinar o plano escolhido");
+  if (prepago(atual.periodo)) return falha(409, "no plano pago de uma vez, a troca de plano é na renovação (pago até " + dataBR(atual.pago_ate) + ")");
+  const fim = (atual.ciclo || {}).fim || "";
+  if (novo.id === atual.plano.id) {
+    if (!atual.plano_proximo) return falha(409, "esse já é o plano de agora");
+    return { ok: true, tipo: "desfazer", valor: novo.valor, vale_em: fim, marcado: atual.plano_proximo.nome };
+  }
+  if (atual.ajuste) return falha(409, "há uma cobrança com valor ajustado em curso (uma oferta ou a troca anterior); a troca fica para depois dela");
+  if (novo.valor > atual.plano.valor) {
+    const o = await conta.pedir("orcar_troca", { plano: novo.id });
+    return { ok: true, tipo: "agora", diferenca: o.diferenca, proxima: o.proxima, vale_em: o.fim || fim, valor: novo.valor };
+  }
+  return { ok: true, tipo: "proxima", valor: novo.valor, vale_em: fim };
+}
+
 /* Cancelar pela Minha conta, com o motivo (vai para Nao renovacoes, no painel).
    A mensal no cartao sai do Mercado Pago, e o ciclo pago fica ate o fim; o pago
    de uma vez nao renova sozinho (no Pix mensal, param os lembretes). */

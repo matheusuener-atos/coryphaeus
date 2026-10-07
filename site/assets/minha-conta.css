@@ -13,13 +13,13 @@
 /* paineis */
 .mc-painel { display: flex; flex-direction: column; }
 .mc-painel .painel-cab > span:last-child:not(.rotulo) { font: 400 12px var(--mono); color: var(--mute); display: flex; align-items: center; }
-.mc-corpo { display: grid; gap: 16px; padding: 16px; flex: 1; align-content: start; }
+.mc-corpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 16px; flex: 1; align-content: start; }
 .mc-pe { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line2); }
 .mc-pe > .mc-nota, .mc-pe > .mc-mp { margin-right: auto; }
 .mc-mp { font-size: 12px; color: var(--ink3); }
 .mc-p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
 .mc-nota { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink3); }
-.mc-nota.centro { text-align: center; }
+.mc-nota.centro { display: block; text-align: center; }
 .mc-nota a { color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; }
 .mc-vazio { margin: 0; padding: 24px 16px; font-size: 13px; color: var(--ink3); }
 .mudo { color: var(--ink3); }
@@ -336,3 +336,35 @@
 .mc-gira { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--line3); border-top-color: var(--ink2); animation: mc-gira .7s linear infinite; }
 .mc-slug-msg { display: flex; align-items: center; gap: 6px; font: 400 12px var(--mono); min-height: 18px; }
 .mc-slug-msg i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+/* Ligado ao servidor (07/10): entrar com o botao do Google, sair, os campos seguros do Mercado Pago, o QR do Pix e os estados novos. */
+.mc-google { width: 100%; max-width: 320px; min-height: 44px; display: flex; justify-content: center; }
+.mc-google iframe { color-scheme: normal; }
+.mc-erro { color: var(--erro); }
+.mc-sair { border: 0; background: none; padding: 0 2px; margin-left: 4px; font: inherit; color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mc-sair:hover { color: var(--ink); }
+.mc-bolinha.atencao { background: var(--mc-atencao); }
+.mc-qr { overflow: hidden; }
+.mc-qr img { display: block; width: 100%; height: 100%; }
+.mc-opcao:disabled { cursor: default; opacity: .6; }
+.mc-opcao:disabled:hover { border-color: var(--line); }
+.mc-col .mini:disabled { opacity: .45; cursor: default; }
+.mc-k-seguro { position: relative; flex: 1; min-width: 0; height: 22px; }
+.mc-k-seguro iframe { display: block; width: 100%; height: 100%; border: 0; }
+.mc-k-caixa.erro { border-color: color-mix(in srgb, var(--erro) 60%, transparent); }
+.mc-k-thumb { display: block; height: 20px; width: auto; }
+.g-servico.parado { cursor: default; }
+.g-servico.parado:hover { background: none; }
+.mc-pendente { color: var(--mc-atencao); }
+/* No celular, as abas rolam dentro da pilula (a pagina nao rola para o lado). */
+.mc-centro { min-width: 0; }
+.mc-centro > .segmentos { min-width: 0; max-width: 100%; }
+.mc-centro > .segmentos > div { min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.mc-centro > .segmentos > div::-webkit-scrollbar { display: none; }
+.g-servicos { grid-template-columns: minmax(0, 1fr); }
+/* No celular, o cabecalho dos cards com o seletor de periodo (Consumo, Faturas) vira duas linhas: o rotulo e, embaixo, as pilulas. */
+@media (max-width: 640px) {
+  .mc-painel.mc-com-pop .painel-cab { height: auto; min-height: 44px; flex-wrap: wrap; padding: 8px 14px; }
+  .mc-painel.mc-com-pop .painel-cab > span:last-child { flex: 1 1 100%; min-width: 0; }
+  .mc-periodo { flex-wrap: wrap; max-width: 100%; }
+  .mc-periodo .calendario-adm { left: 0; right: auto; }
+}

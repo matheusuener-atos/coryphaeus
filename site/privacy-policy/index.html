@@ -41,7 +41,7 @@
 <header class="doc-cabeca"><div>
   <h1>Privacy Policy</h1>
   <p class="lead">How PAULUS (PAULUS Legal; app name on Google: PAVLVS) accesses, uses, stores and protects data — especially data from your Google account and Gmail.</p>
-  <span class="data">Last updated: October 6, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
+  <span class="data">Last updated: October 7, 2026 · English version of the <a href="../politica-de-privacidade/" lang="pt-BR">Política de privacidade</a> (Portuguese), which has the same commitments with some extra detail.</span>
 </div></header>
 
 <div class="doc"><div class="doc-grade">
@@ -232,6 +232,16 @@
       <li><strong>On the page:</strong> Google's confirmation is kept only in the browser tab, for up to one hour, so the page knows whose subscription it is when coming back from Mercado Pago. When the postal code (CEP) is typed, the page queries the public ViaCEP service (viacep.com.br) with only the CEP, to fill in street, neighborhood, city and state. When a complete CNPJ is typed, the page queries BrasilAPI (brasilapi.com.br) with only the CNPJ, to fill in the name, phone and address with the public Federal Revenue data; CPF is never looked up. No tracking cookies.</li>
     </ul>
 
+    <h2 id="my-account">My account on the website</h2>
+    <p>On the <a href="../en/my-account/">paulus.ia.br/en/my-account</a> page, the subscription owner — and whoever they invite — follows the plan, usage, invoices and payment method; only the owner changes the plan, the billing details, the office address, the Google permissions and the people. The page shows what the cloud already keeps (see <a href="#cloud">Cloud</a> and <a href="#signup">Sign-up and subscription</a>) and adds only this:</p>
+    <ul>
+      <li><strong>The session:</strong> sign-in is with the Google button. The website checks Google's confirmation and opens a session with its own cookie, needed for the page to work (<code>pv_conta</code>: this website only, out of reach of the page's scripts, for 12 hours), deleted on sign-out. From the session, the website keeps only the SHA-256 digest of the cookie, the Google account's email and name, and the role (owner or finance).</li>
+      <li><strong>People:</strong> the owner can invite someone as finance. The website keeps the email, the role and, once the person accepts, the name of their Google account. The invite goes by email (through Resend) with a link valid for 7 days; of the link, the website keeps only the SHA-256 digest. The owner removes access whenever they want.</li>
+      <li><strong>Cancelling:</strong> the chosen reason and the optional text stay in the account, so the team understands why the person left and, where it fits, makes an offer.</li>
+      <li><strong>Payment:</strong> the new card is typed in Mercado Pago's fields; the website keeps only the brand, the last 4 digits, the expiry and the printed name. With monthly Pix, each month's QR code goes to the invoice email, through Resend. When the postal code is typed in the billing details, the page queries ViaCEP with only the postal code.</li>
+      <li><strong>Computers:</strong> to list the installations, the website keeps, for each one, the PAULUS version and the time of the last access to the cloud.</li>
+    </ul>
+
     <h2 id="admin">Cloud administration and announcements</h2>
     <p>The PAVLVS team runs the cloud from an internal panel at <code>paulus.ia.br/admin</code>, open only to team members: sign-in goes through Cloudflare Access (team e-mail and a one-time code) and then a GitHub account with write access to the PAVLVS repository. The panel adds no new data; it shows what the cloud and remote access already keep. For it, the website also keeps:</p>
     <ul>
@@ -240,7 +250,7 @@
       <li><strong>Invoices:</strong> each confirmed payment enters a queue for the service invoice (account, type, amount and date). Automatic issuing is not switched on yet.</li>
     </ul>
     <p><strong>E-mails.</strong> From the panel, the team sends service notices (a plan that did not renew, remote access that stopped) and announcements about PAVLVS to the e-mail of the cloud's Google account. Sending is done by <strong>Resend</strong>, a United States company, which receives the address, subject and text of each e-mail. Announcements carry a 1-pixel image and a counting link so the team knows how many were opened and clicked: the website keeps only an "opened" and "clicked" mark per recipient, for up to 180 days, with no IP address or browser. The recipient list of an announcement stays on the website until sending ends and is removed afterwards; only the counts remain. To stop receiving announcements, reply to any of them asking so.</p>
-    <p><strong>Orders to an account.</strong> The panel can credit tokens, switch off an installation, cancel the subscription at Mercado Pago, and record in the account a request for PAULUS to stop using a Google service (Gmail, Calendar or Drive) or to unlink the Google account from the cloud. That request keeps only the service names, no Google data. The installed PAULUS follows it from the version that brings this feature; until then, the office switches services off in Settings. Every change to an account goes through a team confirmation and is recorded with who made it.</p>
+    <p><strong>Orders to an account.</strong> The panel can credit tokens, switch off an installation, cancel the subscription at Mercado Pago, and record in the account a request for PAULUS to stop using a Google service (Gmail, Calendar or Drive) or to unlink the Google account from the cloud. The owner makes the same request about Google services from <a href="#my-account">My account</a>. That request keeps only the service names, no Google data. The installed PAULUS follows it from the version that brings this feature; until then, the office switches services off in Settings. Every change to an account goes through a team confirmation and is recorded with who made it.</p>
 
     <h2 id="invoice">Service invoice (NFS-e, optional)</h2>
     <p>The office can issue Brazilian service invoices (NFS-e) through the <strong>National Standard</strong> from PAULUS. <strong>It ships turned off.</strong> It is only turned on from the office computer's window, in Settings › Invoice; from outside (remote access) the tax setup and the certificate cannot be used. Neither we nor paulus.ia.br are in the middle: requests go from the office computer straight to the National NFS-e System (gov.br).</p>

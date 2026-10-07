@@ -229,6 +229,7 @@ def main() -> int:
     checar(c["url"] == "https://api.deepinfra.com/v1/openai/chat/completions" and c["corpo"]["max_tokens"] == nuvem.MAX_TOKENS and
            c["cabecalhos"]["Authorization"] == "Bearer di-chave" and uso == {"tokens_entrada": 1000, "tokens_saida": 200},
            "o formato OpenAI do DeepInfra, com o teto de saída e os tokens", c["corpo"].keys())
+    checar("X-PAULUS-Versao" not in c["cabecalhos"], "a versão do PAULUS não vai a provedor de fora", c["cabecalhos"].keys())
     r = local.post("/api/nuvem/configurar", json={"provedor": "paulus"}).json()
     checar(not r["consentido"], "trocar de provedor pede outro sim (o termo diz para onde vai)")
 
@@ -286,6 +287,8 @@ def main() -> int:
     checar(len(ida) == n0 + 2 and all(x["cabecalhos"]["Authorization"] == "Bearer " + SEGREDO and
                                       x["corpo"]["model"] == "meta-llama/Llama-3.3-70B-Instruct" for x in ida[n0:]),
            "a pergunta vai ao portão de paulus.ia.br com o segredo da instalação", len(ida) - n0)
+    from versao import VERSAO
+    checar(all(x["cabecalhos"].get("X-PAULUS-Versao") == VERSAO for x in ida[n0:]), "e com a versão do PAULUS (a lista de instalações da Minha conta)", ida[-1]["cabecalhos"].keys())
     checar(len(api.estado.fila.pendentes) == n_pend and "com o sim do titular" in mandando.get("como", ""), "sem pedido em Aprovações: vai com o sim do titular", mandando)
     enviado = json.dumps(ida[-1]["corpo"], ensure_ascii=False)
     checar(CPF not in enviado and "[CPF 1]" in enviado, "mascarado: o CPF não sai")

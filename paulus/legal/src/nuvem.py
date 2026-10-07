@@ -59,6 +59,8 @@ from urllib.parse import unquote
 from datetime import datetime
 from pathlib import Path
 
+from versao import VERSAO
+
 SITE = os.environ.get("PAULUS_SITE", "https://paulus.ia.br").rstrip("/")
 PROVEDORES = {
     "paulus": {"nome": "PAULUS (nuvem)", "padrao": "meta-llama/Llama-3.3-70B-Instruct", "formato": "openai",
@@ -237,7 +239,8 @@ def _paulus(estado, metodo: str, caminho: str, corpo: dict | None = None, segred
     """Uma chamada ao Worker com o segredo desta instalação. Levanta ErroNuvem com a frase do Worker."""
     # segredo="-": a chamada que ainda não tem segredo (ativar).
     k = "" if segredo == "-" else (segredo or chave(estado, "paulus"))
-    cab = {"Content-Type": "application/json"}
+    # A versão vai só ao paulus.ia.br: é a que a Minha conta mostra na lista de instalações.
+    cab = {"Content-Type": "application/json", "X-PAULUS-Versao": VERSAO}
     if k:
         cab["Authorization"] = f"Bearer {k}"
     try:
@@ -264,7 +267,7 @@ def paulus_bytes(estado, caminho: str) -> tuple[bytes, str]:
     if not k:
         raise ErroNuvem("a conta da nuvem do PAULUS não está ativada nesta instalação")
     try:
-        r = _pedir("GET", SITE + caminho, {"Authorization": f"Bearer {k}"}, None, False)
+        r = _pedir("GET", SITE + caminho, {"Authorization": f"Bearer {k}", "X-PAULUS-Versao": VERSAO}, None, False)
     except Exception as exc:  # noqa: BLE001
         raise ErroNuvem("não consegui falar com paulus.ia.br agora (sem internet?)") from exc
     if r.status_code == 404:
@@ -485,6 +488,8 @@ def _pedir(metodo: str, url: str, cabecalhos: dict, corpo: dict | None, stream: 
 def _cabecalhos(provedor: str, k: str) -> dict:
     if provedor == "anthropic":
         return {"x-api-key": k, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+    if provedor == "paulus":
+        return {"Authorization": f"Bearer {k}", "Content-Type": "application/json", "X-PAULUS-Versao": VERSAO}
     return {"Authorization": f"Bearer {k}", "Content-Type": "application/json"}
 
 
