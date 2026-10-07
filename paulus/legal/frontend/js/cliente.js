@@ -35,7 +35,8 @@ window.AreaCliente = (function () {
   }
 
   // O calendario do Admin (mes, setas, dias da semana, hoje marcado, dias passados apagados), para escolher um dia so.
-  var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  // O mes por extenso e o MESES_LONGOS: um segundo "var MESES" aqui trocava os meses curtos da pagina inteira
+  // ("16 outubro" no lugar de "16 out", e o "OUTUBRO" sem caber no quadrinho das proximas datas).
   function isoDe(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function montarCalRemarcar(form) {
     var caixa = form.querySelector("[data-pcl-cal]"); if (!caixa) return;
@@ -43,7 +44,7 @@ window.AreaCliente = (function () {
     var mes = form._mes || base;
     var hoje = isoDe(new Date());
     var ini = new Date(mes.getFullYear(), mes.getMonth(), 1), comeco = new Date(ini); comeco.setDate(1 - ini.getDay());
-    var h = '<div class="pcl-cal-topo"><button type="button" class="pcl-btn-icone" data-pcl-cal-mes="-1" aria-label="Mês anterior"' + (mes <= base ? " disabled" : "") + ">" + ic("chevron_left") + "</button><b>" + MESES[mes.getMonth()] + " " + mes.getFullYear() + '</b><button type="button" class="pcl-btn-icone" data-pcl-cal-mes="1" aria-label="Próximo mês">' + ic("chevron_right") + "</button></div>" +
+    var h = '<div class="pcl-cal-topo"><button type="button" class="pcl-btn-icone" data-pcl-cal-mes="-1" aria-label="Mês anterior"' + (mes <= base ? " disabled" : "") + ">" + ic("chevron_left") + "</button><b>" + MESES_LONGOS[mes.getMonth()] + " " + mes.getFullYear() + '</b><button type="button" class="pcl-btn-icone" data-pcl-cal-mes="1" aria-label="Próximo mês">' + ic("chevron_right") + "</button></div>" +
       '<div class="pcl-cal-grade">' + ["D", "S", "T", "Q", "Q", "S", "S"].map(function (s) { return '<span class="pcl-cal-sem">' + s + "</span>"; }).join("");
     for (var i = 0; i < 42; i++) {
       var d = new Date(comeco); d.setDate(comeco.getDate() + i); var iso = isoDe(d);
