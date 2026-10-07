@@ -172,6 +172,14 @@ checar(pagina.status === 200 && html.includes("moura-associados.paulus.ia.br") &
   "a página mostra o endereço, o código e o widget do Turnstile", html.slice(0, 200));
 checar(!/cloudflareaccess|access/i.test(pagina.headers.get("content-security-policy") || "") && pagina.headers.get("x-frame-options") === "DENY",
   "sem Access, e com cabeçalhos de segurança");
+checar(/<form [^>]*id="conectar"/.test(html) && /<button [^>]*type="submit" form="conectar" id="confirmar" disabled>/.test(html),
+  "o Confirmar fica no rodapé, ligado ao formulário por form=\"conectar\", e nasce travado até o Turnstile passar");
+const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+const hashInline = inline.length ? "'sha256-" + Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(inline[0]))).toString("base64") + "'" : "?";
+checar(inline.length === 1 && (pagina.headers.get("content-security-policy") || "").includes("script-src " + hashInline),
+  "um script inline só, liberado na CSP pelo hash dele", inline.length);
+checar(html.includes("Conectar o Paulus do escritório?") && !html.includes("PAULUS") && !html.includes("acesso de fora"),
+  "o texto diz Paulus (PAVLVS só na marca) e acesso externo");
 const antes = { t: conta.tuneis.size, d: conta.dns.size };
 const semTurnstile = await confirmar(env, inicio.dados.codigo_usuario);
 checar(semTurnstile.status === 403 && conta.tuneis.size === antes.t && conta.dns.size === antes.d, "confirmar sem Turnstile: recusado, nada criado");

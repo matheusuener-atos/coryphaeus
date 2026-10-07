@@ -440,22 +440,26 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-// As paginas do Worker no desenho "Conectar escritorio" (docs/ui, export
-// retorno-google): a marca e o tema no topo, o texto a esquerda e o painel a
-// direita. Escuro por padrao; o botao do canto troca e lembra (o mesmo
-// "paulus.tema" do programa). As fontes sao as do site.
-const TONS = { ok: "var(--ok)", aviso: "var(--warn)", erro: "var(--erro)", neutro: "var(--ink3)" };
-const SETA = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M16.2 13H4v-2h12.2l-5.6-5.6L12 4l8 8-8 8-1.4-1.4 5.6-5.6Z"/></svg>';
-const SETA_FORA = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M6.4 18 5 16.6 14.6 7H6V5h12v12h-2V8.4L6.4 18Z"/></svg>';
+// As paginas do Worker nos desenhos "Tunel - 01" a "08" (telas revisadas,
+// 07/10/2026): o layout do assistente de configuracao - a topbar do site, o
+// texto a esquerda e o painel de 440 px a direita, centralizados, sem rolagem
+// - e as acoes num rodape de fio recuado (a dica a esquerda, o botao a
+// direita), montado aqui no servidor. Escuro por padrao; o botao do canto
+// troca e lembra (o mesmo "paulus.tema" do programa). As fontes sao as do site.
 
-// O script da pagina: o tema e, com o Turnstile, o widget desenhado no tema
-// da vez (render explicito). Vai na CSP pelo hash - nenhum outro script inline roda.
+// O script da pagina: o tema e, com o Turnstile, o selo proprio da Cloudflare
+// (verificando, sucesso, de novo) no lugar do widget, que so aparece se pedir
+// interacao ("interaction-only"); o Confirmar so destrava com o token. Vai na
+// CSP pelo hash - nenhum outro script inline roda.
 const SCRIPT_PAGINA = `(function(){var d=document.documentElement,t="escuro";try{var g=localStorage.getItem("paulus.tema");if(g==="claro"||g==="escuro")t=g}catch(e){}d.dataset.tema=t;
 var SOL='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17q-2.08 0-3.54-1.46Q7 14.08 7 12t1.46-3.54Q9.92 7 12 7t3.54 1.46Q17 9.92 17 12t-1.46 3.54Q14.08 17 12 17ZM2 13v-2h3v2H2Zm17 0v-2h3v2h-3ZM11 5V2h2v3h-2Zm0 17v-3h2v3h-2ZM6.35 7.75 4.5 5.9l1.4-1.4 1.85 1.85-1.4 1.4Zm11.75 11.75-1.85-1.85 1.4-1.4 1.85 1.85-1.4 1.4Zm-1.85-13.15L18.1 4.5l1.4 1.4-1.85 1.85-1.4-1.4ZM4.5 18.1l1.85-1.85 1.4 1.4L5.9 19.5l-1.4-1.4Z"/></svg>';
 var LUA='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21q-3.75 0-6.37-2.63Q3 15.75 3 12t2.63-6.37Q8.25 3 12 3q.35 0 .69.02.34.03.66.08-1.03.72-1.64 1.89Q11.1 6.15 11.1 7.5q0 2.25 1.58 3.83Q14.25 12.9 16.5 12.9q1.38 0 2.53-.61 1.16-.61 1.87-1.64.05.33.08.66Q21 11.65 21 12q0 3.75-2.63 6.37Q15.75 21 12 21Z"/></svg>';
+function selo(estado,texto){var s=document.getElementById("cf-badge"),t=document.getElementById("cf-texto"),b=document.getElementById("confirmar");if(s)s.dataset.estado=estado;if(t)t.textContent=texto;if(b)b.disabled=estado!=="ok"}
 var robo=null;function desenharRobo(){var el=document.getElementById("robo");if(!window.turnstile)return;if(!el){if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",desenharRobo,{once:true});return}if(robo!==null){window.turnstile.remove(robo)}
-robo=window.turnstile.render(el,{sitekey:el.dataset.sitekey,language:"pt-br",theme:d.dataset.tema==="escuro"?"dark":"light",
-callback:function(){var b=document.getElementById("confirmar");if(b)b.disabled=false}})}
+selo("verificando","Verificando…");
+robo=window.turnstile.render(el,{sitekey:el.dataset.sitekey,language:"pt-br",appearance:"interaction-only",theme:d.dataset.tema==="escuro"?"dark":"light",
+callback:function(){selo("ok","Sucesso!")},"error-callback":function(){selo("erro","Tente de novo")},"expired-callback":function(){selo("verificando","Verificando…");desenharRobo()}})}
+document.addEventListener("DOMContentLoaded",function(){var s=document.getElementById("cf-badge");if(!s)return;s.addEventListener("click",function(e){if(s.dataset.estado!=="erro"||e.target.closest("a"))return;desenharRobo()})});
 window.paulusRobo=desenharRobo;
 document.addEventListener("DOMContentLoaded",function(){var b=document.getElementById("tema");if(!b)return;
 var pintar=function(){b.innerHTML=d.dataset.tema==="escuro"?SOL:LUA};pintar();
@@ -475,63 +479,95 @@ function linhas(pares) {
   return '<div class="linhas">' + pares.map(([r, v]) => `<div class="linha"><span class="r">${r}</span><span>${v}</span></div>`).join("") + "</div>";
 }
 
-async function pagina(titulo, { rotulo, tom = "neutro", h1, texto = "", nota = "", painel = "", topo = DOMINIO }, status = 200, comTurnstile = false) {
+// O selo da verificacao contra robos, no lugar do widget do Turnstile: o
+// estado (verificando, sucesso, tente de novo), a marca e os links da Cloudflare.
+const SELO = '<div class="cf-badge" id="cf-badge" data-estado="verificando" role="status" aria-live="polite"><span class="cf-esq"><span class="cf-icone">' +
+  '<svg class="cf-v" viewBox="0 0 24 24" aria-hidden="true"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"></path></svg>' +
+  '<svg class="cf-x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 19 5 17.6 10.6 12 5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6Z"></path></svg>' +
+  '</span><span id="cf-texto">Verificando…</span></span><span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links">' +
+  '<a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · ' +
+  '<a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noopener">Termos</a></span></span></div>';
+
+// O botao principal (o trilho e, dentro, a pastilha) como link.
+const link = (texto, href) => `<a class="principal" href="${esc(href)}"><span>${texto}</span></a>`;
+
+// A moldura de toda pagina: a topbar do site (a marca e o tema), o texto a
+// esquerda, o painel a direita e o rodape com a dica e o botao (`acao`). Sem
+// painel, o texto fica sozinho na coluna da esquerda; sem dica nem botao, sem rodape.
+async function pagina(titulo, { rotulo, h1, texto = "", nota = "", painel = "", dica = "", acao = "" }, status = 200, comTurnstile = false) {
+  const pe = dica || acao
+    ? `<footer class="pe">${dica ? `<span class="pe-dica">${dica}</span>` : ""}${acao ? `<span class="pe-acoes">${acao}</span>` : ""}</footer>`
+    : "";
   const html = `<!doctype html><html lang="pt-BR" data-tema="escuro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PAULUS — ${esc(titulo)}</title><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" href="/assets/favicon-32.png">
+<title>${esc(titulo)} — PAVLVS</title><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" href="/assets/favicon-32.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Manrope:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap">
 <script>${SCRIPT_PAGINA}</script>
 ${comTurnstile ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=paulusRobo" async defer></script>' : ""}<style>
-[data-tema="claro"]{--bg:#f6f5f1;--panel:#efeee9;--pill:#e2e1db;--pill-h:#dad9d2;--ink:#1c1c1a;--ink2:#55544f;--ink3:#77766f;--line:rgba(28,28,26,.12);--line2:rgba(28,28,26,.25);
---fill:#efeee9;--ok:#2f6b42;--warn:#8a5a12;--erro:#a3322b;color-scheme:light}
-[data-tema="escuro"]{--bg:#131312;--panel:#1a1a18;--pill:#2a2a27;--pill-h:#303030;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#6f6e68;--line:rgba(242,241,236,.1);--line2:rgba(242,241,236,.2);--fill:#20201e;
---ok:#7fbf8e;--warn:#e8c283;--erro:#e0877d;color-scheme:dark}
+[data-tema="claro"]{--bg:#f6f5f1;--panel:#efeee9;--pill:#e2e1db;--pill-h:#dad9d2;--ink:#1c1c1a;--ink2:#55544f;--ink3:#77766f;--line:rgba(28,28,26,.12);--line2:rgba(28,28,26,.25);color-scheme:light}
+[data-tema="escuro"]{--bg:#131312;--panel:#1a1a18;--pill:#2a2a27;--pill-h:#303030;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#6f6e68;--line:rgba(242,241,236,.1);--line2:rgba(242,241,236,.2);color-scheme:dark}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%}
-body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;
-font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+body{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:auto;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;
+font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit}.mono{font-family:"Fira Code",ui-monospace,monospace}.serif{font-family:"EB Garamond",Georgia,serif}
-header{padding:0 24px;min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px 24px;border-bottom:1px solid var(--line)}
+header{flex:none;padding:0 28px;min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px 24px;border-bottom:1px solid var(--line)}
 .marca{font-size:20px;letter-spacing:.12em;font-weight:400;line-height:1;text-decoration:none}
-.topo{display:flex;align-items:center;gap:18px}.dominio{font-size:12px;color:var(--ink3)}
-.tema{width:36px;height:36px;border:0;background:transparent;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.topo{display:flex;align-items:center;gap:18px}
+.tema{width:32px;height:32px;margin-right:-8px;border:0;border-radius:8px;background:transparent;color:var(--ink3);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .tema:hover{color:var(--ink)}
-main{flex:1;width:100%;max-width:1280px;margin:0 auto;padding:clamp(56px,9vw,120px) clamp(20px,5vw,48px);display:flex;flex-wrap:wrap;
-gap:48px clamp(48px,8vw,112px);align-items:start}
-.texto{flex:1 1 380px;min-width:0;display:grid;gap:20px}
-.rotulo{display:flex;align-items:center;gap:8px;font:400 11px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--tom)}
-.rotulo i{display:block;width:6px;height:6px;border-radius:50%;background:var(--tom)}
-h1{margin:0;font-weight:400;font-size:clamp(36px,5vw,52px);line-height:1.1;text-wrap:balance}
-.texto p{margin:0;font-size:15px;line-height:1.6;color:var(--ink2);text-wrap:pretty;max-width:560px}
+/* O miolo cresce ate o rodape e nunca encolhe abaixo do conteudo: na tela
+   pequena a pagina rola, e o rodape vem depois dele, sem ficar por cima. */
+main{flex:1 0 auto;width:100%;padding:32px clamp(24px,5vw,64px) 48px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);align-items:center}
+.texto{min-width:0;display:grid;gap:18px;align-content:center;max-width:580px}
+.rotulo{display:flex;align-items:center;font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
+h1{margin:0;font-weight:400;font-size:clamp(32px,3.6vw,46px);line-height:1.05;text-wrap:balance}
+.texto p{margin:0;font-size:14px;line-height:1.6;color:var(--ink2);text-wrap:pretty;max-width:560px}
 .texto p b{color:var(--ink);font-weight:600}
 .nota{font-size:13px;line-height:1.55;color:var(--ink3)}
-.painel{flex:1 1 360px;min-width:0;max-width:520px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:24px;display:grid;gap:24px}
-.painel:empty{display:none}
-form{display:grid;gap:22px;margin:0}
-.linhas{display:grid;gap:2px}
-.linha{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
-.linha .r{color:var(--ink2)}.linha b{font-weight:600}
+.painel{width:100%;max-width:440px;justify-self:center;min-width:0;display:grid;gap:14px}
+form{display:grid;gap:14px;margin:0}
+.linhas{display:grid;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.linha{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:baseline;padding:10px 12px;border-top:1px solid var(--line);font-size:14px}
+.linha:first-child{border-top:0}
+.linha .r{font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}.linha b{font-weight:500}
 .linha .end{font-family:"Fira Code",ui-monospace,monospace;font-size:13px;word-break:break-all}
-.bloco{display:grid;gap:8px}
-.etiqueta{font:400 11px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
-.codigo{font:400 clamp(28px,3vw,34px)/1.1 "Fira Code",ui-monospace,monospace;letter-spacing:.18em}
-.ajuda{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink2);text-wrap:pretty}
-.robo{min-height:65px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:13.5px;color:var(--ink2)}
-.acoes{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.dica{font-size:12.5px;color:var(--ink3)}
-/* O botao de moldura dupla do site (.btn-duplo): trilho de 3 px com fio e, dentro, a pastilha. */
-.principal{height:34px;padding:0 22px;border:0;border-radius:8px;background:var(--pill);color:var(--ink);font:500 13.5px Manrope,system-ui,sans-serif;letter-spacing:.01em;
-box-shadow:0 0 0 3px var(--panel),0 0 0 4px var(--line);margin:4px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:background .12s}
-.principal:hover{background:var(--pill-h)}.principal:disabled{opacity:.5;cursor:default}
-.detalhe{font-family:"Fira Code",ui-monospace,monospace;font-size:13.5px;color:var(--ink2);word-break:break-all;padding-bottom:14px;border-bottom:1px solid var(--line)}
-footer{border-top:1px solid var(--line);padding:24px clamp(20px,5vw,88px)}
-footer p{margin:0;max-width:720px;font-size:13px;line-height:1.65;color:var(--ink3);text-wrap:pretty}
-@media (max-width:760px){.painel{border-left:0;padding-left:0;max-width:none}main{padding-top:40px}}
-</style></head><body style="--tom:${TONS[tom] || TONS.neutro}">
-<header><a class="marca serif" href="/">PAVLVS</a><div class="topo"><span class="dominio mono">${esc(topo)}</span>
-<button type="button" class="tema" id="tema" aria-label="Alternar tema"></button></div></header>
-<main><section class="texto"><span class="rotulo mono"><i></i>${esc(rotulo)}</span><h1 class="serif">${h1}</h1>${texto}
-${nota ? `<span class="nota serif">${nota}</span>` : ""}</section>
-<section class="painel">${painel}</section></main>
-<footer><p>Os documentos e o modelo de IA continuam no computador do escritório. O Atos cria o endereço e não roteia, não inspeciona nem registra o conteúdo que passa por ele.</p></footer>
+.bloco{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.etiqueta{font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
+.codigo{font:400 32px/1.1 "Fira Code",ui-monospace,monospace;letter-spacing:.18em}
+.ajuda{margin:0;font-size:14px;line-height:1.6;color:var(--ink2);text-wrap:pretty}
+.detalhe{font-family:"Fira Code",ui-monospace,monospace;font-size:13px;color:var(--ink2);word-break:break-all}
+/* O widget do Turnstile fica escondido (interaction-only): so aparece aqui se pedir interacao. */
+.robo{display:flex;justify-content:center}
+.cf-badge{display:flex;align-items:center;justify-content:space-between;height:52px;padding:0 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.cf-esq{display:flex;align-items:center;gap:10px;font:500 14px Manrope,system-ui,sans-serif;color:var(--ink)}
+.cf-icone{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;transition:background .24s,transform .24s cubic-bezier(.2,.8,.2,1)}
+.cf-icone svg{width:15px;height:15px;fill:#fff;opacity:0;transition:opacity .2s .12s}
+.cf-dir{display:grid;justify-items:end;gap:2px;text-align:right}
+.cf-marca{font:700 12px Manrope,system-ui,sans-serif;letter-spacing:.12em;color:var(--ink)}
+.cf-links{font:400 12px Manrope,system-ui,sans-serif;color:var(--ink3)}.cf-links a{color:inherit;text-decoration:none}
+.cf-badge[data-estado="verificando"] .cf-icone{border:2px solid var(--line);border-top-color:var(--ink);animation:cf-gira .9s linear infinite}
+.cf-badge[data-estado="ok"] .cf-icone{background:#2f9e5b;animation:cf-surge .24s cubic-bezier(.2,.8,.2,1)}
+.cf-badge[data-estado="erro"]{cursor:pointer}.cf-badge[data-estado="erro"] .cf-icone{background:#b84a3c}
+.cf-badge:is([data-estado="ok"],[data-estado="erro"]) .cf-icone svg{opacity:1}
+.cf-badge .cf-x{display:none}.cf-badge[data-estado="erro"] .cf-x{display:block}.cf-badge[data-estado="erro"] .cf-v{display:none}
+@keyframes cf-gira{to{transform:rotate(360deg)}}@keyframes cf-surge{from{transform:scale(.6)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.cf-icone{animation:none!important}}
+.pe{flex:none;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 clamp(24px,5vw,64px);padding:18px 0 28px;border-top:1px solid var(--line)}
+.pe-dica{font-size:12px;color:var(--ink3)}.pe-acoes{display:flex;align-items:center;gap:18px;margin-left:auto}
+/* O botao de moldura dupla (padrao de 07/10, o .g-trilho/.g-pastilha de Entrar):
+   32 px no total - 1 px de fio, 1 px de trilho e a pastilha de 28 px. */
+.principal{display:inline-flex;padding:1px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);font:500 13px Manrope,system-ui,sans-serif;
+letter-spacing:.01em;text-decoration:none;cursor:pointer;white-space:nowrap}
+.principal>span{flex:1;height:28px;padding:0 22px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;background:var(--pill);transition:background .12s}
+.principal:hover{border-color:var(--line2)}.principal:hover>span{background:var(--pill-h)}
+.principal:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}
+.principal:disabled{opacity:.5;cursor:default;pointer-events:none}
+@media (max-width:1000px){main{grid-template-columns:minmax(0,1fr);align-items:start;padding-top:40px}.painel{max-width:none}}
+</style></head><body>
+<header><a class="marca serif" href="/">PAVLVS</a><div class="topo"><button type="button" class="tema" id="tema" aria-label="Alternar tema"></button></div></header>
+<main><section class="texto"><span class="rotulo mono">${esc(rotulo)}</span><h1 class="serif">${h1}</h1>${texto}
+${nota ? `<span class="nota">${nota}</span>` : ""}</section>
+${painel ? `<section class="painel">${painel}</section>` : ""}</main>
+${pe}
 </body></html>`;
   const csp = "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" +
     "; script-src " + (await hashScript()) + (comTurnstile ? " https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src https://challenges.cloudflare.com" : "");
@@ -539,17 +575,18 @@ ${nota ? `<span class="nota serif">${nota}</span>` : ""}</section>
     "x-frame-options": "DENY", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", "content-security-policy": csp } });
 }
 
-const VOLTE = '<div class="acoes"><span class="dica">Volte ao PAVLVS do escritório: ele mostra o próximo passo.</span></div>';
+const VOLTE = "Volte ao Paulus do escritório: ele mostra o próximo passo.";
 
 function vencido() {
-  return pagina("Código vencido", { rotulo: "CÓDIGO VENCIDO", tom: "erro", h1: "Este código expirou.",
-    texto: "<p>Ele vale por 15 minutos. Comece de novo no PAVLVS do escritório — o nome escolhido continua lá.</p>",
-    nota: "Nada foi criado.", painel: VOLTE }, 410);
+  return pagina("Código vencido", { rotulo: "Código vencido", h1: "Este código expirou.",
+    texto: "<p>Ele vale por 15 minutos. Comece de novo no Paulus do escritório — o nome escolhido continua lá.</p>",
+    nota: "Nada foi criado.", dica: VOLTE }, 410);
 }
 
 function jaConectado() {
-  return pagina("Já conectado", { rotulo: "CONECTADO", tom: "ok", h1: "Este pedido já foi confirmado.",
-    texto: "<p>O endereço já existe e o PAVLVS do escritório já o recebeu.</p>", nota: "Já pode fechar esta página.", painel: VOLTE });
+  return pagina("Já conectado", { rotulo: "Conectado", h1: "Este pedido já foi confirmado.",
+    texto: "<p>O endereço já existe e o Paulus do escritório já o recebeu.</p>", nota: "Já pode fechar esta página.",
+    dica: "Nada para fazer aqui." });
 }
 
 function linhasDoPedido(pedido, endereco) {
@@ -567,20 +604,22 @@ async function paginaConectar(env, url) {
   const { pedido } = achado;
   if (pedido.estado !== "pendente") return jaConectado();
   const endereco = "https://" + pedido.slug + "." + DOMINIO;
+  // O botao fica no rodape, fora do <form>: o atributo form="conectar" e que
+  // o liga ao envio. Nasce travado; o selo o destrava quando o Turnstile passa.
   return pagina("Conectar", {
-    topo: DOMINIO + "/conectar",
-    rotulo: pedido.retomar ? "ENDEREÇO DA SUA CONTA" : "NOVO ENDEREÇO",
-    h1: pedido.retomar ? "Retomar o endereço do escritório?" : "Conectar o PAVLVS do escritório?",
+    rotulo: pedido.retomar ? "Endereço da sua conta" : "Novo endereço",
+    h1: pedido.retomar ? "Retomar o endereço do escritório?" : "Conectar o Paulus do escritório?",
     texto: pedido.retomar
-      ? `<p>Este endereço já é da conta Google <b>${esc(pedido.dono.email)}</b>. Confirmando, ele passa para o PAVLVS de <b>${esc(pedido.nome)}</b> neste computador, e o de antes deixa de atender por ele.</p>`
-      : `<p>O PAVLVS de <b>${esc(pedido.nome)}</b> passa a atender neste endereço pelo túnel da Cloudflare. Quem entrar por ele passa por uma verificação contra robôs, pela conta Google e pelo código do celular de cada pessoa.</p>`,
-    nota: "Você pode desligar o acesso de fora quando quiser.",
-    painel: linhasDoPedido(pedido, endereco) + `<form method="post" action="/conectar"><input type="hidden" name="c" value="${esc(pedido.codigo_usuario)}">
-<div class="bloco"><span class="etiqueta mono">CÓDIGO NO PAVLVS</span><span class="codigo">${esc(pedido.codigo_usuario)}</span>
-<span class="ajuda">Confira se é o mesmo código que aparece na tela do PAVLVS.</span></div>
+      ? `<p>Este endereço já é da conta Google <b>${esc(pedido.dono.email)}</b>. Confirmando, ele passa para o Paulus de <b>${esc(pedido.nome)}</b> neste computador, e o de antes deixa de atender por ele.</p>`
+      : `<p>O Paulus de <b>${esc(pedido.nome)}</b> passa a atender neste endereço pelo túnel da Cloudflare. Quem entrar por ele passa por uma verificação contra robôs, pela conta Google e pelo código do celular de cada pessoa.</p>`,
+    nota: "Você pode desligar o acesso externo quando quiser.",
+    painel: linhasDoPedido(pedido, endereco) + `<form method="post" action="/conectar" id="conectar"><input type="hidden" name="c" value="${esc(pedido.codigo_usuario)}">
+<div class="bloco"><span class="etiqueta mono">Código no Paulus</span><span class="codigo">${esc(pedido.codigo_usuario)}</span>
+<span class="ajuda">Confira se é o mesmo código que aparece na tela do Paulus.</span></div>
 <div class="robo" aria-label="Verificação contra robôs"><div id="robo" data-sitekey="${esc(env.TURNSTILE_SITEKEY || "")}"></div></div>
-<div class="acoes"><button class="principal" type="submit" id="confirmar">${pedido.retomar ? "Retomar" : "Confirmar"}${SETA}</button>
-<span class="dica">código diferente? feche esta página</span></div></form>`,
+${SELO}</form>`,
+    dica: "Código diferente? Feche esta página.",
+    acao: `<button class="principal" type="submit" form="conectar" id="confirmar" disabled><span>${pedido.retomar ? "Retomar" : "Confirmar"}</span></button>`,
   }, 200, true);
 }
 
@@ -595,12 +634,12 @@ async function confirmar(request, env, agora) {
   if (!achado) return vencido();
   const { hash, pedido } = achado;
   if (pedido.estado !== "pendente") return jaConectado();
-  const tentar = `<div class="acoes"><a class="principal" href="/conectar?c=${esc(pedido.codigo_usuario)}">Tentar de novo${SETA}</a></div>`;
+  const tentar = link("Tentar de novo", "/conectar?c=" + pedido.codigo_usuario);
   // A barreira contra criacao de enderecos em massa: nada e criado sem o
   // Turnstile resolvido nesta pagina.
   if (!(await turnstileValido(env, token, DOMINIO, request.headers.get("cf-connecting-ip")))) {
-    return pagina("Verificação", { rotulo: "VERIFICAÇÃO", tom: "aviso", h1: "Não deu para confirmar.",
-      texto: "<p>A verificação contra robôs não passou ou venceu.</p>", nota: "Nada foi criado.", painel: tentar }, 403);
+    return pagina("Verificação", { rotulo: "Verificação", h1: "Não foi possível confirmar.",
+      texto: "<p>A verificação contra robôs não passou ou venceu.</p>", nota: "Nada foi criado.", acao: tentar }, 403);
   }
   const antigo = await kvGet(env, "escritorio:" + pedido.slug);
   if (antigo && pedido.retomar && mesmoDono(antigo, pedido.dono)) {
@@ -609,27 +648,26 @@ async function confirmar(request, env, agora) {
     // existir, ouve "endereço removido" na proxima conversa.
     await remover(env, antigo, "retomado pela mesma conta Google em outra instalação");
   } else if (antigo) {
-    return pagina("Nome em uso", { rotulo: "NOME EM USO", tom: "aviso", h1: "Esse endereço acabou de ser usado.",
-      texto: "<p>Outro escritório ficou com ele há pouco. Volte ao PAVLVS do escritório e escolha outro nome.</p>",
-      nota: "Nada foi criado.", painel: VOLTE }, 409);
+    return pagina("Nome em uso", { rotulo: "Nome em uso", h1: "Esse endereço acabou de ser usado.",
+      texto: "<p>Outro escritório ficou com ele há pouco. Volte ao Paulus do escritório e escolha outro nome.</p>",
+      nota: "Nada foi criado.", dica: VOLTE }, 409);
   }
   let criado;
   try {
     criado = await provisionar(env, pedido.slug, pedido, agora);
   } catch (e) {
-    return pagina("Não deu certo", { rotulo: "NÃO DEU CERTO", tom: "erro", h1: "Não consegui criar o endereço.",
+    return pagina("Não deu certo", { rotulo: "Não deu certo", h1: "Não consegui criar o endereço.",
       texto: "<p>O que tinha sido criado foi desfeito. Tente de novo em alguns minutos.</p>", nota: "Nada ficou pela metade.",
-      painel: `<div class="bloco"><span class="etiqueta mono">DETALHE</span><span class="detalhe">${esc(e.message)}</span></div>` + tentar }, 502);
+      painel: `<div class="bloco"><span class="etiqueta mono">Detalhe</span><span class="detalhe">${esc(e.message)}</span></div>`, acao: tentar }, 502);
   }
   await env.ESCRITORIOS.delete("reserva:" + pedido.slug);
   await kvPut(env, "pedido:" + hash, { ...pedido, estado: "pronto", entrega: criado.entrega }, PEDIDO_TTL_S);
   return pagina("Conectado", {
-    topo: DOMINIO + "/conectar",
-    rotulo: "CONECTADO", tom: "ok", h1: "Endereço conectado.",
-    texto: "<p>O PAVLVS do escritório já recebeu o endereço e liga o túnel sozinho. A partir de agora, a equipe pode entrar de fora com a própria conta.</p>",
+    rotulo: "Conectado", h1: "Endereço conectado.",
+    texto: "<p>O Paulus do escritório já recebeu o endereço e liga o túnel sozinho. A partir de agora, a equipe pode entrar de fora com a própria conta.</p>",
     nota: "Já pode fechar esta página.",
-    painel: linhasDoPedido(pedido, criado.entrega.endereco) +
-      `<div class="acoes"><a class="principal" href="${esc(criado.entrega.endereco)}">Abrir o endereço${SETA_FORA}</a><span class="dica">ou feche esta página</span></div>`,
+    painel: linhasDoPedido(pedido, criado.entrega.endereco),
+    dica: "Ou feche esta página.", acao: link("Abrir o endereço", criado.entrega.endereco),
   });
 }
 
