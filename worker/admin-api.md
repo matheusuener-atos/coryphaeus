@@ -18,9 +18,10 @@ contrato entre a pagina e o Worker; quem mudar um lado muda o outro e este texto
 3. O papel (`dono` | `financeiro` | `suporte`) vem de `ADMIN_EQUIPE` (JSON
    `[{email, nome, papel}]`) ou, depois de publicado, de `admin:equipe` no KV.
 
-Fora do Access ficam so o rastreio dos e-mails (`/api/e/*`) e a pagina do convite
-da equipe (`/api/equipe/convite`, abaixo): quem foi convidado ainda nao esta na
-politica do Access.
+Fora do Access ficam so o rastreio dos e-mails (`/api/e/*`), a pagina do convite
+da equipe (`/api/equipe/convite`, abaixo: quem foi convidado ainda nao esta na
+politica do Access) e os textos dos planos que a pagina de assinatura le
+(`/api/planos/textos`).
 
 Toda resposta e JSON com `cache-control: no-store`. Erro: `{erro: "frase"}`
 com o status. Sem a sessao do GitHub: 401 `{erro, passo: "github"}`; sem o
@@ -64,14 +65,25 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   cadastro: {documento, telefone, oab, termos, quando, cep, logradouro, numero, complemento, bairro, cidade, uf,
   cmun, ajustado: {quando, por, campos} | null} | null, consentimento: {versao, quem, quando} | null,
   assinatura: {id, situacao, valor, desde} | null, plano_proximo, instalacoes: [{instalacao, hash8, criado}],
-  pagamentos: [{tipo: "assinatura"|"anual"|"avulso"|"recarga", valor, quando, ref, reembolso?, nfse: Nfse | null}], recargas,
-  google_pendente | null}`. O endereco do cadastro vem achatado (o medidor guarda em `cadastro.endereco`).
+  pagamentos: [{tipo: "assinatura"|"anual"|"avulso"|"recarga", valor, quando, ref, reembolso?, situacao: "pago"|"reembolsado",
+  forma: Forma | null, forma_falta?, nfse: Nfse | null}], pendentes: [{tipo: "anual"|"avulso", ref, valor, quando: null,
+  situacao: "pendente", forma: null, forma_falta, plano}], recargas, google_pendente | null}`. O endereco do cadastro vem
+  achatado (o medidor guarda em `cadastro.endereco`).
+  `Forma = {tipo: "pix"} | {tipo: "cartao", bandeira?, final?, parcelas?, debito?} | {tipo: "saldo"}`. O medidor guarda de
+  cada pagamento so o tipo, a referencia, o valor e a data; a forma sai do que e certo - a recarga e o mes no Pix sao Pix;
+  a mensalidade e cartao, com a bandeira e o final do cartao guardado na conta (`admin_detalhe.cartao`) quando a cobranca
+  e de depois que ele foi posto - e o resto (o anual, que pode ser no cartao ou no Pix, e a mensalidade de antes do
+  cartao de agora) do Mercado Pago (`GET /v1/payments/{id}`; a mensalidade pela cobranca, `GET /authorized_payments/{id}`),
+  ate 6 consultas por ficha, guardado em `admin:forma:<pagamento>` (so a forma; 400 dias). O que nao da para saber vem
+  com `forma_falta` (a frase: sem o Mercado Pago, ele nao disse, ou "na proxima vez que a conta abrir"). `situacao` e a do
+  medidor (o reembolso pelo painel ou o estorno do anual); as cobrancas recusadas nao ficam na conta. `pendentes`: o
+  pagamento de uma vez que ainda espera a confirmacao (`anual_pendente`; `avulso` quando a referencia e de um mes).
   `Nfse = {id, numero, estado: "emitida"|"cancelada"|"substituida", ambiente, quando, pdf, xml}`: a nota do pagamento no
   emissor da nuvem (a emitida - a substituta, quando houve substituicao; sem ela, a ultima cancelada ou substituida);
   `pdf` e `xml` sao as rotas do painel, atras do Access, de "Notas fiscais" abaixo
   (`https://paulus.ia.br/api/admin/nfse/emissor/notas/:id/pdf?baixar=1` e `.../xml`; todos os papeis baixam).
-  Sem o emissor ligado, `nfse` e `null` em todos. O extrato da aba Pagamentos (JSON e PDF, montados na pagina) leva o
-  numero, o estado e esses dois links.
+  Sem o emissor ligado, `nfse` e `null` em todos. O extrato da aba Pagamentos (JSON e PDF, montados na pagina) leva a
+  forma, a situacao, o numero, o estado e esses dois links; a tela diz quantos pagamentos ficaram sem a forma e por que.
 - `GET /api/admin/tuneis` -> `{tuneis: [{slug, nome, responsavel, estado: "healthy"|"degraded"|"inactive"|"down"|"desativado",
   ultima_conexao, criado_em, tunnel_id, porta, ativo, limpeza: {dias, motivo} | null,
   historico: [{quando, texto}]}], livres: [slug], cf: {ligado, falta}, registro: [Evento]}` onde
@@ -109,8 +121,22 @@ Datas em ISO 8601 (UTC); dinheiro em reais (numero); tokens em unidades.
   por milhao}`, e a receita de cada conta paga vai para os modelos que ela usou, na proporcao do uso (sem uso no
   periodo, para o modelo principal do plano dela); o uso de antes do registro por modelo e uma linha propria, no
   preco do `IA_PRECOS`.
-- `GET /api/admin/planos` -> `{planos: [{id, nome, valor, valor_anual, tokens, pessoas, modelos, recarga, recursos, modelo_nome, custo_modelo, assinantes}], padrao: "escritorio",
-  recarga: {valor, tokens}, precos: {entrada, saida, cambio}, json: "..."}`
+- `GET /api/admin/planos` -> `{planos: [{id, nome, valor, valor_anual, tokens, pessoas, modelos, recarga, recursos, para, heranca,
+  itens: [{titulo, descricao}], textos: {para, heranca, itens}, textos_padrao: {para, heranca}, modelo_nome, custo_modelo,
+  assinantes}], padrao: "escritorio",
+  recarga: {valor, tokens}, precos: {entrada, saida, cambio}, json: "...", versoes: [Versao], publicado}`. Os planos que
+  valem sao os de `admin:planos` (o IA_PLANOS do painel) ou, sem ele, os de fabrica (`worker/ia.js`); o painel le sempre
+  do KV, nao do cache de 60 s. `para` (a frase do plano), `heranca` (o texto antes dos itens) e `itens` sao os textos da
+  pagina de assinatura: os escritos no painel ou os padrao, montados com os numeros do plano
+  (`worker/planos-textos.js`, o mesmo que a pagina mostrava sozinha); `textos` diz quais sao escritos no painel (true), e
+  `textos_padrao` traz a frase e o texto antes dos itens que valem com o campo vazio (a aba Edicao os mostra no campo).
+  `json`: a lista como fica guardada (os numeros e so os textos escritos no painel). `Versao = {n, quando, quem, resumo,
+  planos}`: uma por publicacao que muda os planos (e por retroagir), as 30 ultimas, em `admin:planos:versoes`; a
+  primeira e a de antes do historico (os de fabrica ou os que o painel tinha publicado). A ultima e a que esta no ar.
+- `GET /api/planos/textos` (fora do Access, `cache-control: public, max-age=60`) -> `{planos: [{id, para, heranca,
+  itens: [{titulo, descricao}]}]}`: os textos que a pagina de assinatura (`site/assets/assinatura.js`) mostra - os do
+  painel ou os padrao. Os numeros ela le de `/api/ia/planos`. Le os planos do cache do Worker (o mesmo de
+  `/api/ia/*`): uma mudanca chega a pagina em ate 60 s.
 - `GET /api/admin/nfse` -> `{config: {auto, email, mail}, emissor: {ligado, falta}, situacao: Situacao | null,
   notas: [Nota], pagamentos: [{id, conta, cliente, tipo: "mensalidade"|"recarga pix", valor, quando, nota, numero,
   motivo, erro}], cloudflare: Cloudflare, pode: {emitir: bool}, erro}`. `pagamentos` sao so os sem nota
@@ -173,9 +199,11 @@ Tipos (`tipo` -> `dados`), e o papel que pode:
 | `tunel.endereco` | `{slug, novo}` | dono, suporte |
 | `tunel.ativo` | `{slug, ativo}` | dono, suporte |
 | `campanha.disparar` | `{nome, publico, contas?, assunto, pre, titulo, texto, botao, link, quando, de?, hora?}` | todos |
+| `campanha.cancelar` | `{id}` | todos |
 | `renov.oferta` | `{id, tipo: "creditos", tokens}` ou `{id, tipo: "preco", valor, plano}` | dono, financeiro |
-| `plano.editar` | `{id, valor, valor_anual, tokens}` | dono, financeiro |
+| `plano.editar` | `{id, valor, valor_anual, tokens, nome?, pessoas?, recarga?: {valor, tokens}, para?, heranca?, itens?: [{titulo, descricao}]}` | dono, financeiro |
 | `plano.criar` | `{id, nome, valor, valor_anual, tokens}` (modelo e recursos: os do Escritorio) | dono, financeiro |
+| `planos.json` | `{planos: [{id, nome, valor, valor_anual, tokens, pessoas?, modelos?, recarga?, recursos?, para?, heranca?, itens?}]}` | dono, financeiro |
 | `nfse.config` | `{auto, email, mail}` | dono, financeiro |
 | `equipe.papel` | `{email, papel}` | dono |
 | `equipe.membro` | `{acao: "criar", nome, email, papel}`, `{acao: "editar", de, nome, email, papel}`, `{acao: "excluir", email}` ou `{acao: "cancelar_convite", email}` | dono |
@@ -204,7 +232,7 @@ O que cada tipo novo faz na publicacao:
 - `conta.pausar` - `PUT /preapproval/{id} {status: "paused"}` (com `retomar: true`, `"authorized"`), e a conta anota a
   situacao. Recusado: o pago de uma vez (anual ou mes no Pix) e o Pix mensal ("nao ha cobranca automatica no Mercado
   Pago para pausar"), sem assinatura, ou na situacao errada (so a ativa pausa, so a pausada retoma). Retomar depois
-  do fim do ciclo: o aviso do Mercado Pago (`avisoDaIA`) abre o ciclo como numa assinatura nova.
+  do fim do ciclo nao abre o ciclo antes da cobranca: ele vem com a cobranca, como nas outras renovacoes.
 - `campanha.disparar` - `quando`: `"agora"`, `"amanha"` e `"segunda"` (9 h de Brasilia) ou `"agendado"` com `de`
   (`AAAA-MM-DD`) e `hora` (`HH:MM`), no horario de Brasilia: fica guardada (`agendada`, com `envio_em`) e o Cron de cada
   minuto (`enviarCampanhas`) manda na hora marcada. Na fila, sem dia ou hora, ou com a hora ja passada (ou a mais de
@@ -225,7 +253,20 @@ O que cada tipo novo faz na publicacao:
   link para de valer. A equipe nunca fica sem dono.
 - `plano.editar` - o valor novo vai para as assinaturas mensais que o plano cobra na proxima cobranca (o plano marcado
   para a renovacao, se houver, senao o de agora); o pago de uma vez nao tem preapproval, e quem esta com uma cobranca
-  de valor ajustado fica com o ajuste (o `aviso` diz quem).
+  de valor ajustado fica com o ajuste e passa ao preco do plano quando ele acabar (o `aviso` diz quem). Da aba Edicao
+  vem tambem o nome, as pessoas (de 1 a 500; o Paulus instalado le), a recarga (`{valor, tokens}`, os pacotes do Pix;
+  `null` fica a de agora) e os textos da pagina de assinatura (a frase ate 160 caracteres, o texto antes dos itens ate
+  120, ate 20 itens com titulo ate 80 e descricao ate 600). Texto vazio, ou igual ao padrao (o de antes da mudanca ou o
+  de depois, com os numeros novos), nao e guardado: a pagina fica com o padrao, que acompanha os numeros do plano.
+- `planos.json` - a aba .JSON: a lista inteira no lugar da de agora, conferida com as regras do Worker (sem elas ele
+  ignoraria a lista e voltaria aos planos de fabrica): ate 12 planos, ids unicos, o `escritorio` (o padrao) presente, so
+  os campos de plano, valores maiores que zero, tokens inteiros, pessoas de 1 a 500, modelos do catalogo (`MODELOS`)
+  nos niveis que existem, recursos que existem (com `profundidade` num nivel), recarga com valor e tokens, e os textos
+  como no `plano.editar`. Plano que sai da lista com conta nele (ou com a troca marcada para ele): recusado. Os textos
+  iguais aos padrao nao sao guardados; quem assina um plano cujo valor mudou passa a pagar o novo na proxima cobranca.
+- `campanha.cancelar` - a campanha agendada (ou a que ainda esta saindo) para: o que falta sair nao sai mais, a lista
+  de e-mails sai do KV e ela fica `cancelada` (com quem e quando); o que ja saiu continua (o `aviso` diz quantos). A que
+  ja saiu inteira ou ja cancelada: 400. Vale na publicacao: se a hora marcada chegar antes, ela sai.
 
 ## O convite da equipe (fora do Access)
 
@@ -249,12 +290,13 @@ O que cada tipo novo faz na publicacao:
 - `POST /api/admin/retroagir` `{publicacao (o id) | commit, confirmacao: "retroagir"}` (so o dono) ->
   `{ok, commit, publicacao: Publicacao, avisos: [frase]}`. A tela manda o `commit`.
 - Cada publicacao guarda, desde 07/10/2026, o retrato do que mudou (`admin:retrato:<id>`, 30 dias). Volta: o que so
-  mudou o KV do painel (`plano.criar`, `plano.editar`, `nfse.config`, `equipe.papel`), com o valor de antes e o de
-  depois - no `plano.editar`, quem assina volta a pagar o valor de antes no Mercado Pago -; `conta.cadastro` (o
+  mudou o KV do painel (`plano.criar`, `plano.editar`, `planos.json`, `nfse.config`, `equipe.papel`), com o valor de antes
+  e o de depois - nos planos, quem assina um plano cujo valor voltou volta a pagar o de antes no Mercado Pago, e o
+  historico ganha a versao "Retroagi: ..." -; `conta.cadastro` (o
   cadastro de antes); `campanha.disparar` (o que ainda nao saiu e cancelado; os e-mails que sairam continuam, e o
   aviso diz); `conta.pausar` (o Mercado Pago volta a situacao de antes). O resto mudou fora do painel (creditos,
-  reembolso, cancelamento no Mercado Pago, Google, tuneis, convites, a troca de plano, a oferta) e e desfeito pela
-  propria tela.
+  reembolso, cancelamento no Mercado Pago, Google, tuneis, convites, a troca de plano, a oferta, a campanha cancelada) e
+  e desfeito pela propria tela.
 - Tudo ou nada: se um item nao volta, ou o que ele mudou mudou de novo depois (outra publicacao por cima, a equipe
   com um convite aceito, um plano criado que ja tem conta), 409 com cada um e o porque, e nada muda. Retroaja a mais
   nova primeiro. Os itens desfeitos ficam marcados: se um parar no meio (o Mercado Pago recusou), tentar de novo

@@ -27,9 +27,10 @@
 // ("admin:retrato:<id>", 30 dias): e com ele que o dono retroage
 // (POST /api/admin/retroagir) o que da para desfazer.
 //
-// Fora do Access ficam so o rastreio dos e-mails (/api/e/*) e a pagina do
-// convite da equipe (/api/equipe/convite): quem foi convidado ainda nao esta
-// na politica do Access. Aceito o convite, o Worker poe o e-mail na politica
+// Fora do Access ficam so o rastreio dos e-mails (/api/e/*), a pagina do
+// convite da equipe (/api/equipe/convite: quem foi convidado ainda nao esta
+// na politica do Access) e os textos dos planos que a pagina de assinatura le
+// (/api/planos/textos). Aceito o convite, o Worker poe o e-mail na politica
 // pela API da Cloudflare (CF_ACCESS_TOKEN, CF_ACCOUNT_ID, ACCESS_APP_ID e
 // ACCESS_POLICY_ID); sem eles, a pagina e o painel dizem que isso e a mao.
 //
@@ -37,8 +38,10 @@
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
 
 import {
-  MODELOS, PLANO_PADRAO, TOLERANCIA_MS, conferirCadastro, devolverPagamento, medidor, modelosDoPlano, numeros, ofertaDeVolta, planoDe,
+  MODELOS, NIVEIS, PLANOS_DE_FABRICA, PLANO_PADRAO, TOLERANCIA_MS, conferirCadastro, devolverPagamento, medidor, modelosDoPlano, numeros, ofertaDeVolta,
+  planoDe,
 } from "./ia.js";
+import { conferirTextos, guardarTextos, textosDoPlano, textosPadrao } from "./planos-textos.js";
 import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
   anotarHistorico, cfConfigurado, registroDeEnderecos,
@@ -81,8 +84,10 @@ const PODE = {
   "tunel.ativo": ["dono", "suporte"],
   "campanha.disparar": TODOS,
   "renov.oferta": ["dono", "financeiro"],
+  "campanha.cancelar": TODOS,
   "plano.editar": ["dono", "financeiro"],
   "plano.criar": ["dono", "financeiro"],
+  "planos.json": ["dono", "financeiro"],
   "nfse.config": ["dono", "financeiro"],
   "equipe.papel": ["dono"],
   "equipe.membro": ["dono"],
@@ -108,14 +113,15 @@ export const MATRIZ = [
 // ---------------------------------------------------------------- entrada
 
 export function ehRotaDoAdmin(url) {
-  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/") || url.pathname === "/api/equipe/convite";
+  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/") || url.pathname === "/api/equipe/convite" || url.pathname === "/api/planos/textos";
 }
 
 export async function atenderAdmin(request, env, url, ctx, deps = {}) {
   const p = url.pathname;
   const m = request.method;
-  // Fora do Access: o rastreio dos e-mails e o convite da equipe.
+  // Fora do Access: o rastreio dos e-mails, o convite da equipe e os textos dos planos (a pagina de assinatura).
   if (p.startsWith("/api/e/")) return rastreio(env, url);
+  if (p === "/api/planos/textos") return m === "GET" ? textosDosPlanos(env) : json({ erro: "rota não existe" }, 404);
   if (!env.APOIOS) return json({ erro: "o painel precisa do KV APOIOS" }, 503);
   if (p === "/api/equipe/convite") return conviteDaEquipe(request, env, url, deps);
 
@@ -705,6 +711,7 @@ async function contaParaTela(c, id) {
   const cad = d.cadastro || null;
   const end = (cad && cad.endereco) || {};
   const notas = await notasDaConta(c, id);
+  const formas = await formasDosPagamentos(c, d);
   return {
     ...publica(conta), criada: d.criada, ciclo: d.ciclo || null,
     // O endereco vem achatado (cep, logradouro...), como a ficha e o "Editar cadastro" leem.
@@ -713,10 +720,96 @@ async function contaParaTela(c, id) {
       cidade: end.cidade || "", uf: end.uf || "", cmun: end.cmun || "", ajustado: cad.ajustado || null } : null,
     consentimento: d.consentimento || null, assinatura: d.assinatura || null, plano_proximo: d.plano_proximo || null,
     instalacoes: d.instalacoes_lista || [],
-    pagamentos: (d.pagamentos || []).map((p) => ({ ...p, nfse: notaDoPagamento(notas, p.ref) })),
+    pagamentos: (d.pagamentos || []).map((p) => ({ ...p, situacao: p.reembolso ? "reembolsado" : "pago", ...formas.get(String(p.ref)), nfse: notaDoPagamento(notas, p.ref) })),
+    // O pagamento de uma vez que ainda nao foi confirmado (o Pix gerado, o anual em analise).
+    pendentes: d.anual_pendente ? [{ tipo: /^ia-mes-/.test(String(d.anual_pendente.ref || "")) ? "avulso" : "anual", ref: d.anual_pendente.ref, valor: Number(d.anual_pendente.valor) || 0, quando: null, situacao: "pendente",
+      forma: null, forma_falta: "o pagamento ainda não foi confirmado pelo Mercado Pago", plano: d.anual_pendente.plano || "" }] : [],
     recargas: d.recargas || [],
     google_pendente: d.google_pendente || null, desvinculado: d.desvinculado || null, pago_ate: d.pago_ate || null, periodo: d.periodo || "mensal",
   };
+}
+
+// ------------------------------------------------- a forma de cada pagamento
+//
+// O medidor guarda de cada pagamento so o tipo, a referencia, o valor e a data.
+// A forma sai do que e certo: a recarga e o mes no Pix sao Pix; a mensalidade
+// e o cartao da assinatura (a bandeira e o final, do cartao guardado na conta,
+// para as cobrancas depois que ele foi posto). O resto - o anual, que pode ser
+// no cartao ou no Pix, e a mensalidade de antes do cartao de agora - o Mercado
+// Pago diz (/v1/payments e /authorized_payments), ate 6 consultas por ficha; a
+// resposta fica em "admin:forma:<pagamento>" (so o tipo, a bandeira, o final e
+// as parcelas; 400 dias). O que nao da para saber vem com forma_falta.
+const FORMA_S = 400 * 24 * 3600;
+const CONSULTAS_POR_FICHA = 6;
+
+function bandeiraDe(metodo) {
+  const m = String(metodo || "").toLowerCase();
+  if (m === "master" || m === "debmaster") return "mastercard";
+  if (m === "visa" || m === "debvisa") return "visa";
+  return m ? m.charAt(0).toUpperCase() + m.slice(1) : "";
+}
+
+/* A forma pelo pagamento do Mercado Pago (/v1/payments/{id}). */
+function formaDoMP(pg) {
+  if (!pg || (!pg.payment_method_id && !pg.payment_type_id)) return null;
+  if (pg.payment_method_id === "pix" || pg.payment_type_id === "bank_transfer") return { tipo: "pix" };
+  if (pg.payment_type_id === "credit_card" || pg.payment_type_id === "debit_card" || pg.card) {
+    return { tipo: "cartao", bandeira: bandeiraDe(pg.payment_method_id), final: String((pg.card || {}).last_four_digits || "").slice(-4),
+      parcelas: Number(pg.installments) || 1, ...(pg.payment_type_id === "debit_card" ? { debito: true } : {}) };
+  }
+  if (pg.payment_type_id === "account_money") return { tipo: "saldo" };
+  return { tipo: String(pg.payment_type_id || "outro").slice(0, 20) };
+}
+
+/* {forma, forma_falta} de cada pagamento da conta (Map pela referencia). */
+async function formasDosPagamentos(c, d) {
+  const saida = new Map();
+  const mp = c.deps.chamarMP;
+  const ligado = Boolean(mp && c.env.MP_ACCESS_TOKEN);
+  const cartao = d.cartao && d.cartao.final ? d.cartao : null;
+  let consultas = 0;
+  const doMP = async (p) => {
+    const chave = "admin:forma:" + p.ref;
+    const guardada = await kvJSON(c.env, chave, null);
+    if (guardada && guardada.tipo) return { forma: guardada };
+    if (!ligado) return null;
+    const custo = p.tipo === "assinatura" ? 2 : 1;
+    if (consultas + custo > CONSULTAS_POR_FICHA) return { espera: true };
+    consultas += custo;
+    let id = p.ref;
+    if (p.tipo === "assinatura") {
+      const ap = await mp(c.env, "/authorized_payments/" + encodeURIComponent(p.ref), "GET").catch(() => null);
+      id = ap && ap.ok && ap.dados && ap.dados.payment && ap.dados.payment.id;
+      if (!id) return null;
+    }
+    const r = await mp(c.env, "/v1/payments/" + encodeURIComponent(id), "GET").catch(() => null);
+    const forma = r && r.ok ? formaDoMP(r.dados) : null;
+    if (!forma) return null;
+    await c.env.APOIOS.put(chave, JSON.stringify(forma), { expirationTtl: FORMA_S });
+    return { forma };
+  };
+  // Os mais novos primeiro: a consulta ao Mercado Pago gasta o limite com eles.
+  for (const p of (d.pagamentos || []).slice().sort((a, b) => String(b.quando).localeCompare(String(a.quando)))) {
+    const ref = String(p.ref);
+    if (p.tipo === "recarga" || p.tipo === "avulso") {
+      saida.set(ref, { forma: { tipo: "pix" } });
+      continue;
+    }
+    if (p.tipo === "assinatura" && cartao && cartao.quando && String(p.quando) >= String(cartao.quando)) {
+      saida.set(ref, { forma: { tipo: "cartao", bandeira: bandeiraDe(cartao.bandeira), final: cartao.final } });
+      continue;
+    }
+    const r = await doMP(p);
+    if (r && r.forma) saida.set(ref, { forma: r.forma });
+    else if (p.tipo === "assinatura") {
+      saida.set(ref, { forma: { tipo: "cartao" }, forma_falta: r && r.espera ? "a bandeira e o final saem do Mercado Pago na próxima vez que a conta abrir"
+        : ligado ? "o Mercado Pago não disse qual cartão pagou a mensalidade" : "a bandeira e o final saem do Mercado Pago, e ele não está ligado (falta MP_ACCESS_TOKEN)" });
+    } else {
+      saida.set(ref, { forma: null, forma_falta: r && r.espera ? "a forma sai do Mercado Pago na próxima vez que a conta abrir"
+        : ligado ? "o Mercado Pago não disse a forma do anual (pode ser no cartão ou no Pix)" : "a forma do anual sai do Mercado Pago, e ele não está ligado (falta MP_ACCESS_TOKEN)" });
+    }
+  }
+  return saida;
 }
 
 /* As NFS-e de uma conta no emissor da nuvem ([] sem o emissor ou se ele nao responde). */
@@ -1338,16 +1431,244 @@ function linhasPorModelo(c, porConta) {
 }
 
 // ------------------------------------------------------------ planos
+//
+// Os planos que valem sao os de "admin:planos" (o IA_PLANOS do painel: cada
+// plano com os numeros e, quando o painel trocou, os textos da pagina de
+// assinatura - worker/planos-textos.js) ou, sem ele, os de fabrica
+// (worker/ia.js, numeros). O Worker cobra, abre os ciclos e monta as recargas
+// por eles; o Paulus instalado le as pessoas e os recursos; a pagina de
+// assinatura le os numeros (/api/ia/planos) e os textos (/api/planos/textos).
+// Cada publicacao que muda os planos guarda uma versao
+// ("admin:planos:versoes", as 30 ultimas), que a aba Historico mostra.
+
+const CAMPOS_DO_PLANO = ["id", "nome", "para", "valor", "valor_anual", "tokens", "pessoas", "modelos", "recarga", "recursos", "heranca", "itens"];
+const VERSOES_MAX = 30;
+const centavos = (v) => Math.round(Number(v) * 100) / 100;
+
+/* Os planos de agora, sempre do KV (nao do cache de 60 s): {guardados (a lista
+   crua de admin:planos, ou null), n (numeros com eles)}. */
+async function planosAgora(c) {
+  let guardados = null;
+  try {
+    guardados = JSON.parse((await c.env.APOIOS.get("admin:planos")) || "null");
+  } catch {
+    guardados = null;
+  }
+  const lista = Array.isArray(guardados) ? guardados : null;
+  return { guardados: lista, n: numeros(lista ? { ...c.env, IA_PLANOS: JSON.stringify(lista) } : c.env) };
+}
+
+/* O env com os planos de agora (do KV, nao do cache de 60 s), para o que
+   cobra ou confere valor de plano (worker/ia.js le os planos do env). */
+async function envComPlanos(c) {
+  const raw = await c.env.APOIOS.get("admin:planos");
+  return raw ? { ...c.env, IA_PLANOS: raw } : c.env;
+}
+
+/* A lista para guardar: os numeros completos de cada plano e os textos
+   proprios que ele ja tinha (os padrao nao vao). */
+function listaParaGuardar(n, guardados) {
+  const porId = new Map((guardados || []).filter(Boolean).map((x) => [x.id, x]));
+  return n.planos.map((p) => {
+    const g = porId.get(p.id) || {};
+    const o = { id: p.id, nome: p.nome, valor: p.valor, valor_anual: p.valor_anual, tokens: p.tokens, pessoas: p.pessoas,
+      modelos: { ...p.modelos }, recarga: { ...p.recarga }, recursos: { ...p.recursos } };
+    if (g.para) o.para = g.para;
+    if (g.heranca) o.heranca = g.heranca;
+    if (Array.isArray(g.itens) && g.itens.length) o.itens = g.itens;
+    return o;
+  });
+}
 
 async function planos(c) {
-  const n = numeros(c.env);
+  const { guardados, n } = await planosAgora(c);
+  const porId = new Map((guardados || []).filter(Boolean).map((x) => [x.id, x]));
   const contas = await lerContas(c);
+  const versoes = ((await kvJSON(c.env, "admin:planos:versoes", [])) || []).filter((v) => v && v.n);
   return {
-    planos: n.planos.map((p) => ({ ...p, assinantes: contas.filter((x) => x.plano && x.plano.id === p.id && x.situacao === "ativa").length,
-      modelo_nome: (MODELOS[p.modelos.padrao] || {}).nome || p.modelos.padrao, custo_modelo: (MODELOS[p.modelos.padrao] || {}).usd || null })),
+    planos: n.planos.map((p) => {
+      const t = textosDoPlano(p, porId.get(p.id)), tp = textosPadrao(p);
+      return { ...p, para: t.para, heranca: t.heranca || null, itens: t.itens, textos: t.proprios, textos_padrao: { para: tp.para, heranca: tp.heranca },
+        assinantes: contas.filter((x) => x.plano && x.plano.id === p.id && x.situacao === "ativa").length,
+        modelo_nome: (MODELOS[p.modelos.padrao] || {}).nome || p.modelos.padrao, custo_modelo: (MODELOS[p.modelos.padrao] || {}).usd || null };
+    }),
     padrao: PLANO_PADRAO, recarga: { valor: n.recargaValor, tokens: n.recargaTokens }, precos: precos(c.env),
-    json: JSON.stringify(n.planos.map(({ id, nome, valor, valor_anual, tokens: t, pessoas, modelos, recarga }) => ({ id, nome, valor, valor_anual, tokens: t, pessoas, modelos, recarga })), null, 2),
+    json: JSON.stringify(listaParaGuardar(n, guardados), null, 2),
+    versoes, publicado: Boolean(guardados),
   };
+}
+
+/* Guarda a lista em admin:planos e anota a versao. */
+async function guardarPlanos(c, lista, resumo) {
+  const { guardados, n } = await planosAgora(c);
+  await c.env.APOIOS.put("admin:planos", JSON.stringify(lista));
+  PLANOS_CACHE = { quando: 0, valor: null };
+  await anotarVersaoDosPlanos(c, { lista: listaParaGuardar(n, guardados), doPainel: Boolean(guardados) }, lista, resumo);
+}
+
+/* Uma versao no historico dos planos (admin:planos:versoes, as 30 ultimas). Na
+   primeira, entra antes a de antes da mudanca (`antes`: {lista, doPainel}). */
+async function anotarVersaoDosPlanos(c, antes, lista, resumo) {
+  const versoes = ((await kvJSON(c.env, "admin:planos:versoes", [])) || []).filter((v) => v && v.n);
+  if (!versoes.length) {
+    versoes.push({ n: 1, quando: iso(c.agora), quem: "antes do histórico", planos: antes.lista,
+      resumo: antes.doPainel ? "Os planos que o painel tinha publicado antes do histórico" : "Os planos de fábrica (worker/ia.js)" });
+  }
+  versoes.push({ n: versoes[versoes.length - 1].n + 1, quando: iso(c.agora), quem: c.quem.login || c.quem.email, resumo: String(resumo || "").slice(0, 200), planos: lista });
+  await c.env.APOIOS.put("admin:planos:versoes", JSON.stringify(versoes.slice(-VERSOES_MAX)));
+}
+
+/* As contas que estao num plano (ou com a troca marcada para ele). */
+function contasNoPlano(contas, id) {
+  return contas.filter((x) => x._d.plano_id === id || (x._d.plano_proximo && x._d.plano_proximo.id === id));
+}
+
+/* Confere a lista inteira de planos do editor .JSON ("" se serve). As regras
+   sao as do Worker (worker/ia.js, lerPlanos): sem elas, ele ignoraria a lista
+   inteira e voltaria aos planos de fabrica sem ninguem ver. */
+async function conferirListaDePlanos(c, lista) {
+  if (!Array.isArray(lista) || !lista.length) return "mande a lista de planos: [ { … }, … ]";
+  if (lista.length > 12) return "no máximo 12 planos";
+  const ids = new Set();
+  const niveis = ["padrao", ...NIVEIS];
+  const recursosQueExistem = Object.keys(PLANOS_DE_FABRICA.find((p) => p.id === PLANO_PADRAO).recursos);
+  for (const [i, p] of lista.entries()) {
+    const qual = "o plano " + (i + 1) + (p && p.nome ? " (" + p.nome + ")" : "");
+    if (!p || typeof p !== "object" || Array.isArray(p)) return qual + " não é um objeto";
+    const fora = Object.keys(p).filter((k) => !CAMPOS_DO_PLANO.includes(k));
+    if (fora.length) return qual + ": " + fora.join(", ") + (fora.length === 1 ? " não é campo" : " não são campos") + " de plano (os campos: " + CAMPOS_DO_PLANO.join(", ") + ")";
+    if (!/^[a-z0-9-]{2,24}$/.test(String(p.id || ""))) return qual + ": o id tem de 2 a 24 letras minúsculas, números e hífen";
+    if (ids.has(p.id)) return "há dois planos com o id " + p.id;
+    ids.add(p.id);
+    const nome = String(p.nome || "").trim();
+    if (nome.length < 2 || nome.length > 40) return qual + ": o nome tem de 2 a 40 letras";
+    for (const k of ["valor", "valor_anual"]) if (!(Number(p[k]) > 0 && Number(p[k]) <= 1e6)) return qual + ": " + k + " precisa ser um número maior que zero";
+    if (!(Number.isInteger(p.tokens) && p.tokens > 0 && p.tokens <= 1e10)) return qual + ": tokens são os créditos do mês, um número inteiro maior que zero (60000000 são 60 milhões)";
+    if (p.pessoas !== undefined && !(Number.isInteger(p.pessoas) && p.pessoas >= 1 && p.pessoas <= 500)) return qual + ": pessoas é um número inteiro de 1 a 500";
+    if (p.modelos !== undefined) {
+      if (!p.modelos || typeof p.modelos !== "object" || Array.isArray(p.modelos)) return qual + ": modelos é um objeto {nível: modelo}";
+      for (const [nivel, m] of Object.entries(p.modelos)) {
+        if (!niveis.includes(nivel)) return qual + ": o nível " + nivel + " não existe (os níveis: " + niveis.join(", ") + ")";
+        if (!MODELOS[m]) return qual + ": o modelo " + m + " não está no catálogo (" + Object.keys(MODELOS).join(", ") + ")";
+      }
+    }
+    if (p.recarga !== undefined && !(p.recarga && Number(p.recarga.valor) > 0 && Number.isInteger(p.recarga.tokens) && p.recarga.tokens > 0)) {
+      return qual + ": a recarga é {valor, tokens}, os dois maiores que zero (tokens inteiros)";
+    }
+    if (p.recursos !== undefined) {
+      if (!p.recursos || typeof p.recursos !== "object" || Array.isArray(p.recursos)) return qual + ": recursos é um objeto";
+      for (const [k, v] of Object.entries(p.recursos)) {
+        if (!recursosQueExistem.includes(k)) return qual + ": o recurso " + k + " não existe (os recursos: " + recursosQueExistem.join(", ") + ")";
+        if (k === "profundidade" ? !NIVEIS.includes(v) : !(v === null || typeof v === "boolean" || (typeof v === "number" && v >= 0))) {
+          return qual + ": o valor de " + k + " não serve (" + (k === "profundidade" ? NIVEIS.join(", ") : "true, false, um número ou null, que é sem limite") + ")";
+        }
+      }
+    }
+    const t = conferirTextos(p);
+    if (t.erro) return qual + ": " + t.erro;
+  }
+  if (!ids.has(PLANO_PADRAO)) return "a lista precisa do plano " + PLANO_PADRAO + " (o padrão: sem ele, o Worker volta aos planos de fábrica)";
+  const contas = await lerContas(c);
+  for (const id of new Set(contas.map((x) => x._d.plano_id).concat(contas.map((x) => (x._d.plano_proximo || {}).id)).filter(Boolean))) {
+    if (ids.has(id)) continue;
+    const n = contasNoPlano(contas, id).length;
+    if (n) return "o plano " + id + " saiu da lista, mas " + n + (n === 1 ? " conta está nele" : " contas estão nele") + " (ou com a troca marcada para ele): troque o plano delas antes";
+  }
+  return "";
+}
+
+/* plano.criar e plano.editar. No editar vem so o que a tela manda: os numeros,
+   e da aba Edicao tambem o nome, as pessoas, a recarga, a frase, o texto antes
+   dos itens e os itens. */
+async function aplicarPlano(c, tipo, d, resumo) {
+  const { guardados, n } = await planosAgora(c);
+  const lista = listaParaGuardar(n, guardados);
+  const valor = centavos(d.valor);
+  const tokensDoPlano = Math.round(Number(d.tokens) < 10000 ? Number(d.tokens) * 1e6 : Number(d.tokens));
+  if (tipo === "plano.criar") {
+    if (lista.some((p) => p.id === d.id)) throw new Error("esse id já existe");
+    lista.push({ id: String(d.id), nome: String(d.nome).trim().slice(0, 40), valor, valor_anual: centavos(d.valor_anual), tokens: tokensDoPlano });
+  } else {
+    const p = lista.find((x) => x.id === d.id);
+    if (!p) throw new Error("esse plano não existe");
+    const t = conferirTextos(d);
+    if (t.erro) throw new Error(t.erro);
+    const antes = n.planos.find((x) => x.id === d.id);
+    p.valor = valor;
+    p.tokens = tokensDoPlano;
+    if (d.valor_anual !== undefined) p.valor_anual = centavos(d.valor_anual);
+    if (d.nome !== undefined && String(d.nome).trim()) p.nome = String(d.nome).trim().slice(0, 40);
+    if (d.pessoas !== undefined && d.pessoas !== null) p.pessoas = Math.round(Number(d.pessoas));
+    if (d.recarga) p.recarga = { valor: centavos(d.recarga.valor), tokens: Math.round(Number(d.recarga.tokens)) };
+    const depois = numeros({ ...c.env, IA_PLANOS: JSON.stringify(lista) }).planos.find((x) => x.id === d.id);
+    guardarTextos(p, t.textos, [antes, depois].filter(Boolean).map(textosPadrao));
+  }
+  await guardarPlanos(c, lista, resumo);
+  if (tipo !== "plano.editar") return {};
+  // Quem ja assina passa a pagar o valor novo a partir da proxima cobranca
+  // (o Mercado Pago cobra o que o preapproval disser); o ciclo pago fica.
+  return valorNasAssinaturas(c, d.id, valor, "o plano mudou, mas o Mercado Pago recusou o valor novo de: ");
+}
+
+/* planos.json (a aba .JSON): a lista inteira, conferida, no lugar da de agora.
+   Os textos iguais aos padrao nao sao guardados; quem assina um plano cujo
+   valor mudou passa a pagar o novo na proxima cobranca. */
+async function aplicarPlanosJson(c, d, resumo) {
+  const erro = await conferirListaDePlanos(c, d.planos);
+  if (erro) throw new Error(erro);
+  const { n } = await planosAgora(c);
+  const nova = d.planos.map((p) => {
+    const o = { id: p.id, nome: String(p.nome).trim(), valor: centavos(p.valor), valor_anual: centavos(p.valor_anual), tokens: p.tokens };
+    if (p.pessoas !== undefined) o.pessoas = p.pessoas;
+    if (p.modelos !== undefined) o.modelos = { ...p.modelos };
+    if (p.recarga !== undefined) o.recarga = { valor: centavos(p.recarga.valor), tokens: p.recarga.tokens };
+    if (p.recursos !== undefined) o.recursos = { ...p.recursos };
+    return o;
+  });
+  const nNova = numeros({ ...c.env, IA_PLANOS: JSON.stringify(nova) });
+  // A mesma conferencia do Worker: se ele nao aceitasse a lista, voltaria aos de fabrica.
+  if (nNova.planos.length !== nova.length || nNova.planos.some((p, i) => p.id !== nova[i].id || p.valor !== nova[i].valor)) {
+    throw new Error("o Worker não aceitaria essa lista (voltaria aos planos de fábrica): confira valor, valor_anual e tokens de cada plano");
+  }
+  d.planos.forEach((p, i) => {
+    const padroes = [nNova.planos[i], n.planos.find((x) => x.id === p.id)].filter(Boolean).map(textosPadrao);
+    guardarTextos(nova[i], conferirTextos(p).textos, padroes);
+  });
+  await guardarPlanos(c, nova, resumo);
+  const avisos = [];
+  const erros = [];
+  for (const p of nNova.planos) {
+    const antes = n.planos.find((x) => x.id === p.id);
+    if (!antes || Math.abs(antes.valor - p.valor) < 0.005) continue;
+    try {
+      const r = await valorNasAssinaturas(c, p.id, p.valor, "");
+      if (r.aviso) avisos.push(p.nome + ": " + r.aviso);
+    } catch (e) {
+      erros.push(p.nome + ": " + String((e && e.message) || e));
+    }
+  }
+  if (erros.length) throw new Error("os planos mudaram, mas o Mercado Pago recusou o valor novo de " + erros.join("; "));
+  return avisos.length ? { aviso: avisos.join("; ") } : {};
+}
+
+/* GET /api/planos/textos (publico, fora do Access): os textos de cada plano na
+   pagina de assinatura - os proprios do painel ou os padrao. Os numeros a
+   pagina le de /api/ia/planos. */
+function textosDosPlanos(env) {
+  let guardados = null;
+  try {
+    guardados = JSON.parse(env.IA_PLANOS || "null");
+  } catch {
+    guardados = null;
+  }
+  const porId = new Map((Array.isArray(guardados) ? guardados : []).filter(Boolean).map((x) => [x.id, x]));
+  const planos = numeros(env).planos.map((p) => {
+    const t = textosDoPlano(p, porId.get(p.id));
+    return { id: p.id, para: t.para, heranca: t.heranca, itens: t.itens };
+  });
+  return new Response(JSON.stringify({ planos }), {
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60" },
+  });
 }
 
 /* Os planos publicados pelo painel ficam no KV e valem no lugar de IA_PLANOS.
@@ -1703,9 +2024,11 @@ async function conferirAlteracao(c, tipo, d) {
     if (!/^[0-9a-f]{24}$/.test(String(d.id || ""))) return "conta inválida";
   }
   if (tipo === "conta.plano") {
-    if (!numeros(c.env).planos.some((p) => p.id === String(d.plano || ""))) return "esse plano não existe";
+    if (!(await planosAgora(c)).n.planos.some((p) => p.id === String(d.plano || ""))) return "esse plano não existe";
     return motivoContraTrocaDePlano(c, d.id, String(d.plano));
   }
+  if (tipo === "planos.json") return conferirListaDePlanos(c, d.planos);
+  if (tipo === "campanha.cancelar") return motivoContraCancelar(c, d);
   if (tipo === "conta.cadastro") {
     const r = await cadastroEditado(c, d);
     return r.erro || "";
@@ -1728,8 +2051,19 @@ async function conferirAlteracao(c, tipo, d) {
   }
   if (tipo === "plano.criar") {
     if (!/^[a-z0-9-]{2,24}$/.test(String(d.id || ""))) return "o id tem de 2 a 24 letras minúsculas, números e hífen";
-    if (numeros(c.env).planos.some((p) => p.id === d.id)) return "esse id já existe";
+    if ((await planosAgora(c)).n.planos.some((p) => p.id === d.id)) return "esse id já existe";
     if (!String(d.nome || "").trim()) return "dê um nome ao plano";
+  }
+  if (tipo === "plano.editar") {
+    if (!(await planosAgora(c)).n.planos.some((p) => p.id === d.id)) return "esse plano não existe";
+    const nome = d.nome === undefined || d.nome === null ? null : String(d.nome).trim();
+    if (nome !== null && (nome.length < 2 || nome.length > 40)) return "o nome do plano tem de 2 a 40 letras";
+    if (d.pessoas !== undefined && d.pessoas !== null && !(Number.isInteger(Number(d.pessoas)) && Number(d.pessoas) >= 1 && Number(d.pessoas) <= 500)) return "pessoas é um número inteiro de 1 a 500";
+    if (d.recarga !== undefined && d.recarga !== null && !(d.recarga && Number(d.recarga.valor) > 0 && Math.round(Number(d.recarga.tokens)) > 0)) {
+      return "a recarga precisa de valor e de créditos maiores que zero (sem recarga, o plano fica com a de agora)";
+    }
+    const t = conferirTextos(d);
+    if (t.erro) return t.erro;
   }
   if ((tipo === "plano.criar" || tipo === "plano.editar") && !(Number(d.valor) > 0 && Number(d.tokens) > 0)) return "valor e tokens precisam ser maiores que zero";
   if (tipo === "plano.criar" && !(Number(d.valor_anual) > 0)) return "diga o valor do ano";
@@ -1819,7 +2153,7 @@ async function publicar(c, d) {
 // continua); e a pausa da cobranca (o Mercado Pago volta a situacao de antes).
 // O resto mudou fora do painel e e desfeito pela propria tela.
 
-const KV_DA_ALTERACAO = { "plano.criar": ["admin:planos"], "plano.editar": ["admin:planos"], "nfse.config": ["admin:nfse:config"], "equipe.papel": ["admin:equipe"] };
+const KV_DA_ALTERACAO = { "plano.criar": ["admin:planos"], "plano.editar": ["admin:planos"], "planos.json": ["admin:planos"], "nfse.config": ["admin:nfse:config"], "equipe.papel": ["admin:equipe"] };
 const ROTULO_DO_KV = { "admin:planos": "os planos", "admin:nfse:config": "os interruptores das notas fiscais", "admin:equipe": "a equipe" };
 const NAO_VOLTA = {
   "conta.creditar": "os créditos já estão na conta (o medidor não tira créditos pelo painel)",
@@ -1834,6 +2168,7 @@ const NAO_VOLTA = {
   "tunel.ativo": "para voltar, use Ativar ou Desativar acesso em Túneis",
   "equipe.membro": "convites e acessos voltam pela tela Equipe (convidar de novo ou excluir)",
   "renov.oferta": "a oferta já foi mandada para a pessoa",
+  "campanha.cancelar": "a campanha cancelada não volta: dispare de novo",
 };
 
 async function aplicarComRetrato(c, alt, item) {
@@ -1846,8 +2181,6 @@ async function aplicarComRetrato(c, alt, item) {
     const r = await aplicar(c, alt);
     item.kv = [];
     for (let i = 0; i < chaves.length; i++) item.kv.push({ chave: chaves[i], antes: antes[i], depois: await env.APOIOS.get(chaves[i]) });
-    if (alt.tipo === "plano.editar") item.plano = String(d.id || "");
-    if (alt.tipo === "plano.criar") item.plano_novo = String(d.id || "");
     return r;
   }
   if (alt.tipo === "conta.cadastro") {
@@ -1872,9 +2205,15 @@ async function conflitoDoRetrato(c, x, contas) {
     for (const k of x.kv) {
       if ((await c.env.APOIOS.get(k.chave)) !== k.depois) return (ROTULO_DO_KV[k.chave] || k.chave) + " mudaram depois dessa publicação: retroaja a mais nova antes";
     }
-    if (x.plano_novo) {
-      const n = contas.filter((y) => (y._d.plano_id || (y.plano || {}).id) === x.plano_novo || (y._d.plano_proximo && y._d.plano_proximo.id === x.plano_novo)).length;
-      if (n) return n + (n === 1 ? " conta já usa" : " contas já usam") + " o plano " + x.plano_novo;
+    // Plano que a publicacao criou e que ja tem conta: voltar a lista o tiraria debaixo dela.
+    const kvPlanos = x.kv.find((k) => k.chave === "admin:planos");
+    if (kvPlanos) {
+      const ids = (t) => numeros({ ...c.env, IA_PLANOS: t || "" }).planos.map((p) => p.id);
+      const antes = ids(kvPlanos.antes);
+      for (const id of ids(kvPlanos.depois).filter((y) => !antes.includes(y))) {
+        const n = contasNoPlano(contas, id).length;
+        if (n) return n + (n === 1 ? " conta já usa" : " contas já usam") + " o plano " + id;
+      }
     }
   }
   if (x.cadastro) {
@@ -1892,25 +2231,38 @@ async function conflitoDoRetrato(c, x, contas) {
 async function desfazerDoRetrato(c, x) {
   const { env } = c;
   if (x.kv) {
+    const kvPlanos = x.kv.find((k) => k.chave === "admin:planos");
+    const antesDosPlanos = kvPlanos ? await planosAgora(c) : null;
     for (const k of x.kv) {
       if (k.antes === null || k.antes === undefined) await env.APOIOS.delete(k.chave);
       else await env.APOIOS.put(k.chave, k.antes);
       if (k.chave === "admin:planos") PLANOS_CACHE = { quando: 0, valor: null };
     }
-    // O plano editado: quem assina volta a pagar o valor de antes (como aplicarPlano fez para o novo).
-    if (x.plano) {
-      const kvPlanos = x.kv.find((k) => k.chave === "admin:planos");
-      const plano = numeros({ ...env, IA_PLANOS: kvPlanos && kvPlanos.antes ? kvPlanos.antes : "" }).planos.find((p) => p.id === x.plano);
-      if (plano) {
-        try {
-          const r = await valorNasAssinaturas(c, x.plano, plano.valor, "o Mercado Pago recusou o valor de antes de: ");
-          return r.aviso || "";
-        } catch (e) {
-          return "o plano voltou, mas " + String((e && e.message) || e);
-        }
+    if (!kvPlanos) return "";
+    // Os planos voltaram: entra uma versao no historico, e quem assina um plano
+    // cujo valor voltou passa a pagar o de antes (como a publicacao fez com o novo).
+    const voltou = numeros({ ...env, IA_PLANOS: kvPlanos.antes || "" });
+    const tinha = numeros({ ...env, IA_PLANOS: kvPlanos.depois || "" });
+    let lista;
+    try {
+      lista = kvPlanos.antes ? JSON.parse(kvPlanos.antes) : listaParaGuardar(voltou, null);
+    } catch {
+      lista = listaParaGuardar(voltou, null);
+    }
+    await anotarVersaoDosPlanos(c, { lista: listaParaGuardar(antesDosPlanos.n, antesDosPlanos.guardados), doPainel: Boolean(antesDosPlanos.guardados) }, lista,
+      "Retroagi: " + x.texto);
+    const avisos = [];
+    for (const p of voltou.planos) {
+      const q = tinha.planos.find((y) => y.id === p.id);
+      if (!q || Math.abs(q.valor - p.valor) < 0.005) continue;
+      try {
+        const r = await valorNasAssinaturas(c, p.id, p.valor, "o Mercado Pago recusou o valor de antes de: ");
+        if (r.aviso) avisos.push(r.aviso);
+      } catch (e) {
+        avisos.push("o plano voltou, mas " + String((e && e.message) || e));
       }
     }
-    return "";
+    return avisos.join("; ");
   }
   if (x.cadastro) {
     await medidor(env, x.cadastro.conta).pedir("cadastro", { cadastro: x.cadastro.antes });
@@ -1945,6 +2297,28 @@ async function cancelarCampanha(env, id) {
   return saiu ? saiu + (saiu === 1 ? " e-mail" : " e-mails") + " da campanha “" + camp.nome + "” já tinham saído e continuam valendo; o resto foi cancelado" : "";
 }
 
+/* campanha.cancelar {id}: por que nao da ("" se da). A agendada (e a que ainda
+   esta saindo) cancela; a que ja saiu inteira, nao. */
+async function motivoContraCancelar(c, d) {
+  if (!/^c[0-9a-f]{14}$/.test(String(d.id || ""))) return "campanha inválida";
+  const camp = await kvJSON(c.env, "admin:campanha:" + d.id, null);
+  if (!camp) return "essa campanha não existe";
+  if (camp.situacao === "cancelada") return "essa campanha já foi cancelada";
+  if (camp.situacao === "enviada") return "essa campanha já saiu inteira: os e-mails não voltam";
+  return "";
+}
+
+/* Na publicacao: o que falta sair nao sai mais (o que ja saiu continua). */
+async function cancelarCampanhaPelaFila(c, d) {
+  const motivo = await motivoContraCancelar(c, d);
+  if (motivo) throw new Error(motivo);
+  const aviso = await cancelarCampanha(c.env, d.id);
+  const k = "admin:campanha:" + d.id;
+  const camp = await kvJSON(c.env, k, null);
+  if (camp) await c.env.APOIOS.put(k, JSON.stringify({ ...camp, cancelada: { quando: iso(c.agora), por: c.quem.email } }));
+  return aviso ? { aviso } : {};
+}
+
 /* POST /api/admin/retroagir {publicacao | commit, confirmacao: "retroagir"} - so o dono.
    Tudo ou nada: se um item nao volta (mudou fora do painel, ou de novo depois),
    nada muda e a resposta diz qual e por que. O que mudou commits no GitHub
@@ -1964,7 +2338,7 @@ async function retroagir(c, d) {
   const retrato = pub.retrato ? await kvJSON(c.env, "admin:retrato:" + pub.id, null) : null;
   if (pub.retrato && !retrato) return json({ erro: "o retrato dessa publicação venceu (vale 30 dias): não dá para retroagir; desfaça à mão" }, 409);
   const itens = retrato ? retrato.itens || [] : [];
-  const contas = itens.some((x) => x.plano_novo) ? await lerContas(c) : [];
+  const contas = itens.some((x) => x.kv && x.kv.some((k) => k.chave === "admin:planos")) ? await lerContas(c) : [];
   const motivos = [];
   for (const x of itens) {
     const m = await conflitoDoRetrato(c, x, contas);
@@ -2109,7 +2483,11 @@ async function aplicar(c, alt) {
       return aplicarMembro(c, d);
     case "plano.criar":
     case "plano.editar":
-      return aplicarPlano(c, alt.tipo, d);
+      return aplicarPlano(c, alt.tipo, d, alt.texto);
+    case "planos.json":
+      return aplicarPlanosJson(c, d, alt.texto);
+    case "campanha.cancelar":
+      return cancelarCampanhaPelaFila(c, d);
     case "nfse.config":
       await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email), mail: Boolean(d.mail) }));
       return {};
@@ -2151,7 +2529,7 @@ async function motivoContraTrocaDePlano(c, id, plano) {
    cobranca, e a conta marca a troca (plano_proximo; o ciclo pago fica no
    plano dele). O plano de agora de novo desfaz a troca marcada. */
 async function aplicarContaPlano(c, d) {
-  const { env } = c;
+  const env = await envComPlanos(c);
   const motivo = await motivoContraTrocaDePlano(c, d.id, String(d.plano));
   if (motivo) throw new Error(motivo);
   const mp = c.deps.chamarMP;
@@ -2255,7 +2633,7 @@ async function conferirOferta(c, d) {
     const t = Math.round(Number(d.tokens) || 0);
     if (!(t >= 1e5 && t <= 5e8)) return "os créditos vão de 0,1 M a 500 M";
   } else if (d.tipo === "preco") {
-    const n = numeros(c.env);
+    const n = numeros(await envComPlanos(c));
     if (!n.planos.some((p) => p.id === String(d.plano || ""))) return "esse plano não existe";
     const plano = planoDe(n, String(d.plano));
     const v = Math.round(Number(d.valor) * 100) / 100;
@@ -2268,7 +2646,7 @@ async function conferirOferta(c, d) {
 }
 
 async function aplicarOferta(c, d) {
-  const { env } = c;
+  const env = await envComPlanos(c);
   const erro = await conferirOferta(c, d);
   if (erro) throw new Error(erro);
   const oferta = d.tipo === "creditos" ? { tipo: "creditos", tokens: Math.round(Number(d.tokens)) }
@@ -2323,34 +2701,12 @@ function emailDaOferta(item, oferta, r, n) {
   };
 }
 
-async function aplicarPlano(c, tipo, d) {
-  const { env } = c;
-  const lista = numeros(env).planos.map((p) => ({ ...p }));
-  const valor = Math.round(Number(d.valor) * 100) / 100;
-  const tokensDoPlano = Math.round(Number(d.tokens) < 10000 ? Number(d.tokens) * 1e6 : Number(d.tokens));
-  if (tipo === "plano.criar") {
-    if (lista.some((p) => p.id === d.id)) throw new Error("esse id já existe");
-    lista.push({ id: String(d.id), nome: String(d.nome).trim().slice(0, 40), valor, valor_anual: Math.round(Number(d.valor_anual) * 100) / 100, tokens: tokensDoPlano });
-  } else {
-    const p = lista.find((x) => x.id === d.id);
-    if (!p) throw new Error("esse plano não existe");
-    p.valor = valor;
-    p.tokens = tokensDoPlano;
-    if (d.valor_anual !== undefined) p.valor_anual = Math.round(Number(d.valor_anual) * 100) / 100;
-  }
-  await env.APOIOS.put("admin:planos", JSON.stringify(lista));
-  PLANOS_CACHE = { quando: 0, valor: null };
-  if (tipo !== "plano.editar") return {};
-  // Quem ja assina passa a pagar o valor novo a partir da proxima cobranca
-  // (o Mercado Pago cobra o que o preapproval disser); o ciclo pago fica.
-  return valorNasAssinaturas(c, d.id, valor, "o plano mudou, mas o Mercado Pago recusou o valor novo de: ");
-}
-
 /* As assinaturas mensais que o Mercado Pago cobra no proximo mes pelo plano
    `id` (o plano marcado para a renovacao, se houver, senao o de agora) passam
    a cobrar `valor`. O pago de uma vez (anual, mes no Pix) nao tem
    preapproval; quem esta com uma cobranca de valor ajustado (oferta,
-   diferenca de troca) fica com o ajuste, e o aviso diz quem. */
+   diferenca de troca) fica com o ajuste e passa ao preco do plano quando ele
+   acabar; o aviso diz quem. */
 async function valorNasAssinaturas(c, id, valor, frase) {
   const { env } = c;
   const mp = c.deps.chamarMP;
@@ -2372,7 +2728,8 @@ async function valorNasAssinaturas(c, id, valor, frase) {
     if (!r.ok) erros.push(conta.nome);
   }
   if (erros.length) throw new Error(frase + erros.join(", "));
-  return ajustadas.length ? { aviso: "com cobrança de valor ajustado em curso, ficou o ajuste: " + ajustadas.join(", ") } : {};
+  // No fim do ajuste, quem pagava o preco do plano passa ao preco dele de entao (worker/ia.js, avancarAjuste).
+  return ajustadas.length ? { aviso: "com uma cobrança de valor ajustado em curso, passam ao preço do plano quando o ajuste acabar: " + ajustadas.join(", ") } : {};
 }
 
 /* O disparo de uma campanha: a lista de quem recebe fica no KV ate o fim do

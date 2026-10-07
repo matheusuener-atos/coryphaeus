@@ -3,7 +3,7 @@
 // O Cloudflare Access assina com uma chave gerada aqui; o GitHub, o Resend, o
 // Mercado Pago e a API da Cloudflare (tuneis e a politica do Access) sao de
 // mentira; o Durable Object roda aqui sobre um Map.
-import { atenderAdmin, ehRotaDoAdmin, enviarCampanhas, htmlDoEmail } from "./admin.js";
+import { atenderAdmin, comPlanosDoPainel, ehRotaDoAdmin, enviarCampanhas, htmlDoEmail } from "./admin.js";
 import { atenderIA, ContaIA } from "./ia.js";
 import { atenderTunel, limparEscritorios, provisionar } from "./tunel.js";
 
@@ -81,10 +81,17 @@ globalThis.fetch = async (url, init = {}) => {
   }
   return new Response("{}", { status: 404 });
 };
+// Os pagamentos que o Mercado Pago conhece (a forma no extrato): id -> o /v1/payments/{id}.
+const pagamentosMP = new Map();
 async function chamarMP(env, caminho, metodo, corpo, extra = {}) {
   mp.push({ caminho, metodo, corpo, extra });
   // A cobranca da assinatura traz o pagamento dela (o reembolso da mensalidade).
-  if (/^\/authorized_payments\//.test(caminho)) return { ok: true, status: 200, dados: { id: caminho.split("/").pop(), payment: { id: 555 } } };
+  if (/^\/authorized_payments\//.test(caminho)) {
+    const id = caminho.split("/").pop();
+    return { ok: true, status: 200, dados: { id, payment: { id: pagamentosMP.has("cobranca:" + id) ? pagamentosMP.get("cobranca:" + id) : 555 } } };
+  }
+  const pg = metodo === "GET" && caminho.match(/^\/v1\/payments\/([^/]+)$/);
+  if (pg && pagamentosMP.has(pg[1])) return { ok: true, status: 200, dados: pagamentosMP.get(pg[1]) };
   return { ok: true, status: 200, dados: {} };
 }
 
@@ -415,7 +422,8 @@ d = await r.json();
 checar(r.status === 200, "trocar o plano entra na fila", d);
 d = await publicarFila();
 const putEva = mp.slice(antesMP2).find((x) => x.caminho === "/preapproval/preEva" && x.metodo === "PUT");
-checar(d.ok && putEva && putEva.corpo.auto_recurring.transaction_amount === 1290 && putEva.corpo.reason === "Paulus - plano Escritório",
+// O valor do Escritorio e o de agora no painel (R$ 320, editado na fila acima), nao o de fabrica.
+checar(d.ok && putEva && putEva.corpo.auto_recurring.transaction_amount === 320 && putEva.corpo.reason === "Paulus - plano Escritório",
   "publicado: o Mercado Pago passa a cobrar o valor do Escritório", { d, putEva });
 det = await (await admin("GET", "/api/admin/contas/" + idEva, como())).json();
 checar(det.plano.id === "advogado" && det.plano_proximo && det.plano_proximo.id === "escritorio", "o ciclo de agora fica no Advogado; o Escritório vale na renovação",
@@ -914,6 +922,186 @@ checar(r.status === 200 && d.commit === "reverte" && arvore.corpo.base_tree === 
   "commit no GitHub: um commit de reversão na main (o arquivo criado sai, o mudado volta), com o token de quem está logado", { d, arvore: arvore.corpo, commitNovo: commitNovo.corpo });
 r = await retroagir({ publicacao: "naoexiste" });
 checar(r.status === 404, "publicação que não está no histórico: 404");
+
+// ================================================ etapa 6, segunda volta: o que a tela ainda pedia
+// ---------------------------------------------- planos: os textos da pagina, o .JSON e as versoes
+console.log("planos: textos da página, .JSON e versões");
+await limparFila();
+let pl = await (await admin("GET", "/api/admin/planos", como())).json();
+const plAdv = pl.planos.find((p) => p.id === "advogado") || {};
+checar(plAdv.para === "Para quem advoga sozinho." && plAdv.heranca === null && plAdv.textos && !plAdv.textos.itens && plAdv.itens[0].titulo.startsWith("IA Llama")
+  && plAdv.itens.some((x) => x.titulo === "Biblioteca jurídica"), "cada plano traz os textos da página (os padrão, montados com os números do plano)", plAdv.itens && plAdv.itens.slice(0, 2));
+const plEsc = pl.planos.find((p) => p.id === "escritorio") || {};
+checar(plAdv.textos_padrao && plAdv.textos_padrao.heranca === "" && plAdv.textos_padrao.para === "Para quem advoga sozinho."
+  && plEsc.textos_padrao && plEsc.textos_padrao.heranca === "Tudo do plano Advogado, e mais",
+  "e o padrão da frase e do texto antes dos itens (o que vale com o campo vazio)", [plAdv.textos_padrao, plEsc.textos_padrao]);
+checar(Array.isArray(pl.versoes) && pl.versoes.length >= 2 && pl.versoes[0].quem === "antes do histórico" && pl.versoes[0].resumo.includes("fábrica")
+  && pl.versoes.every((v, i) => !i || v.n === pl.versoes[i - 1].n + 1) && pl.versoes[1].resumo === "Escritório a R$ 320",
+  "o histórico: a versão de antes (os planos de fábrica) e uma por publicação, com quem e o resumo", pl.versoes.map((v) => [v.n, v.quem, v.resumo]));
+// Como o worker/index.js: os planos do painel (o cache de 60 s do IA_PLANOS) no env de cada pedido.
+const publico = async (caminho) => atenderAdmin(new Request("https://paulus.ia.br" + caminho), await comPlanosDoPainel(env), new URL("https://paulus.ia.br" + caminho), { waitUntil() {} }, deps);
+checar(ehRotaDoAdmin(new URL("https://paulus.ia.br/api/planos/textos")), "os textos dos planos são rota do Worker, fora do /api/admin (e do Access)");
+r = await publico("/api/planos/textos");
+let txt = await r.json();
+checar(r.status === 200 && /public, max-age=60/.test(r.headers.get("cache-control")) && JSON.stringify(txt.planos.find((p) => p.id === "advogado").itens) === JSON.stringify(plAdv.itens),
+  "a página de assinatura lê os mesmos textos, sem o Access (60 s de cache)");
+r = await atenderAdmin(new Request("https://paulus.ia.br/api/planos/textos", { method: "POST", body: "{}" }), env, new URL("https://paulus.ia.br/api/planos/textos"), {}, deps);
+checar(r.status === 404, "só GET");
+// A aba Edicao manda tudo: numeros, pessoas, recarga e os textos (aqui, os de agora).
+const edicao = (extra) => ({ id: "advogado", nome: plAdv.nome, para: plAdv.para, heranca: null, valor: plAdv.valor, valor_anual: plAdv.valor_anual, tokens: plAdv.tokens,
+  pessoas: plAdv.pessoas, recarga: plAdv.recarga, itens: plAdv.itens, ...extra });
+r = await pedir("plano.editar", edicao({ pessoas: 0 }));
+checar(r.status === 400 && (await r.json()).erro.includes("pessoas"), "pessoas fora de 1 a 500: recusado");
+r = await pedir("plano.editar", edicao({ recarga: { valor: 60, tokens: 0 } }));
+checar(r.status === 400 && (await r.json()).erro.includes("recarga"), "recarga sem créditos: recusada");
+r = await pedir("plano.editar", edicao({ itens: [{ titulo: "", descricao: "x" }] }));
+checar(r.status === 400 && (await r.json()).erro.includes("sem título"), "item sem título: recusado");
+await pedir("plano.editar", edicao({ pessoas: 2, recarga: { valor: 60, tokens: 12e6 } }), "Advogado com 2 pessoas e recarga de R$ 60");
+d = await publicarFila();
+let advKV = JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "advogado");
+checar(d.ok && advKV.pessoas === 2 && advKV.recarga.valor === 60 && advKV.recarga.tokens === 12e6 && !("itens" in advKV) && !("para" in advKV) && !("heranca" in advKV),
+  "pessoas e recarga entram no plano; os textos iguais aos padrão não são guardados (continuam acompanhando os números)", advKV);
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+const advDepois = pl.planos.find((p) => p.id === "advogado");
+checar(advDepois.pessoas === 2 && advDepois.recarga.valor === 60 && advDepois.recarga.tokens === 12e6 && advDepois.textos.itens === false,
+  "o painel lê o plano com as pessoas e a recarga novas, e os itens continuam os padrão", { pessoas: advDepois.pessoas, recarga: advDepois.recarga });
+const itensProprios = [{ titulo: "IA para o dia a dia", descricao: "Perguntas, peças e prazos (em breve: mais)." }, { titulo: "Suporte por e-mail", descricao: "Em até um dia útil." }];
+await pedir("plano.editar", edicao({ pessoas: 2, recarga: { valor: 60, tokens: 12e6 }, para: "Para quem trabalha sozinho.", heranca: "Comece por aqui", itens: itensProprios }), "Textos novos no Advogado");
+d = await publicarFila();
+advKV = JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "advogado");
+txt = await (await publico("/api/planos/textos")).json();
+const txtAdv = txt.planos.find((p) => p.id === "advogado");
+checar(d.ok && advKV.para === "Para quem trabalha sozinho." && advKV.heranca === "Comece por aqui" && advKV.itens.length === 2 && txtAdv.para === "Para quem trabalha sozinho."
+  && txtAdv.heranca === "Comece por aqui" && JSON.stringify(txtAdv.itens) === JSON.stringify(itensProprios), "os textos próprios valem na página de assinatura", txtAdv);
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+checar(pl.planos.find((p) => p.id === "advogado").textos.itens === true, "e o painel diz que os itens são escritos no painel");
+await pedir("plano.editar", edicao({ pessoas: 2, recarga: { valor: 60, tokens: 12e6 }, para: "", heranca: "", itens: [] }), "Textos do Advogado de volta ao padrão");
+d = await publicarFila();
+advKV = JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "advogado");
+txt = await (await publico("/api/planos/textos")).json();
+checar(d.ok && !("itens" in advKV) && !("para" in advKV) && txt.planos.find((p) => p.id === "advogado").para === "Para quem advoga sozinho.", "vazio volta ao padrão");
+
+const atuais = JSON.parse(pl.json);
+const comMudanca = (f) => { const l = structuredClone(atuais); f(l); return l; };
+for (const [lista, frase, descricao] of [
+  [comMudanca((l) => l.splice(l.findIndex((p) => p.id === "escritorio"), 1)), "plano escritorio", "sem o plano padrão"],
+  [comMudanca((l) => { l[0].preco = 10; }), "não é campo", "campo que não é de plano"],
+  [comMudanca((l) => { l[0].modelos = { padrao: "gpt-9" }; }), "não está no catálogo", "modelo fora do catálogo"],
+  [comMudanca((l) => { l[0].recursos = { teletransporte: true }; }), "não existe", "recurso que não existe"],
+  [comMudanca((l) => { l[0].tokens = "30M"; }), "tokens", "tokens que não é número inteiro"],
+  [comMudanca((l) => l.splice(l.findIndex((p) => p.id === "advogado"), 1)), "contas estão nele", "tirar um plano com contas"],
+]) {
+  r = await pedir("planos.json", { planos: lista });
+  const e = await r.json();
+  if (!(r.status === 400 && String(e.erro).includes(frase))) checar(false, "o .JSON recusa " + descricao, e);
+}
+checar(true, "o .JSON recusa: sem o plano padrão, campo de fora, modelo fora do catálogo, recurso que não existe, tokens que não é número e tirar um plano com contas (com o porquê)");
+// O que a aba .JSON manda sem mexer (site/assets/admin.js, planosAtuais): os campos do plano como o GET devolve,
+// com os textos que valem (os padrão inclusive) e heranca null. Entra, e os padrão não vão para o KV.
+const CAMPOS_DA_ABA = ["id", "nome", "para", "valor", "valor_anual", "tokens", "pessoas", "modelos", "recarga", "recursos", "heranca", "itens"];
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+const comoAba = pl.planos.map((p) => Object.fromEntries(CAMPOS_DA_ABA.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])));
+r = await pedir("planos.json", { planos: comoAba }, "Atualizei o IA_PLANOS (como a aba manda)");
+const rAba = await r.json();
+d = await publicarFila();
+const kvAba = JSON.parse(guardados.get("admin:planos"));
+checar(r.status === 200 && d.ok && kvAba.every((p) => !("itens" in p) && !("para" in p) && !("heranca" in p)),
+  "a lista como a aba .JSON manda (textos padrão, heranca null) entra, e os textos padrão não são guardados", rAba.erro || kvAba.map((p) => Object.keys(p)));
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+const idPlus = await novaConta("plusa");
+await contaDo(idPlus, "assinatura", { plano: "plus", assinatura: { id: "prePlus", situacao: "authorized", valor: 3490 } });
+const novaLista = comMudanca((l) => {
+  l.find((p) => p.id === "plus").valor = 3590;
+  l.push({ id: "socio", nome: "Sócio", valor: 990, valor_anual: 9900, tokens: 20000000, pessoas: 3, itens: [{ titulo: "Para dois sócios", descricao: "Com a IA do Escritório." }] });
+});
+const planosAntesJson = guardados.get("admin:planos");
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+const versoesAntes = pl.versoes.length;
+antesMP2 = mp.length;
+r = await pedir("planos.json", { planos: novaLista }, "Atualizei o IA_PLANOS (4 planos)");
+checar(r.status === 200, "a lista inteira entra na fila");
+d = await publicarFila();
+const pubJson = d.publicacao;
+const kvJson = JSON.parse(guardados.get("admin:planos"));
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+checar(d.ok && kvJson.length === 4 && kvJson.find((p) => p.id === "socio").itens.length === 1 && !("itens" in kvJson.find((p) => p.id === "plus"))
+  && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/prePlus" && x.corpo.auto_recurring.transaction_amount === 3590),
+  "publicado: o plano novo com os itens dele, os textos padrão não guardados, e quem assina o Plus passa a pagar o valor novo", kvJson.map((p) => p.id));
+checar(pl.versoes.length === versoesAntes + 1 && pl.versoes[pl.versoes.length - 1].resumo === "Atualizei o IA_PLANOS (4 planos)" && pl.versoes[pl.versoes.length - 1].quem === "matheus"
+  && pl.versoes[pl.versoes.length - 1].planos.length === 4, "e entra uma versão nova no histórico, com a lista guardada");
+txt = await (await publico("/api/planos/textos")).json();
+checar(JSON.stringify((txt.planos.find((p) => p.id === "socio") || {}).itens) === JSON.stringify([{ titulo: "Para dois sócios", descricao: "Com a IA do Escritório." }]),
+  "o plano novo chega à página de assinatura com os itens dele");
+antesMP2 = mp.length;
+r = await retroagir({ publicacao: pubJson.id });
+d = await r.json();
+pl = await (await admin("GET", "/api/admin/planos", como())).json();
+checar(r.status === 200 && guardados.get("admin:planos") === planosAntesJson && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/prePlus" && x.corpo.auto_recurring.transaction_amount === 3490)
+  && pl.versoes[pl.versoes.length - 1].resumo === "Retroagi: Atualizei o IA_PLANOS (4 planos)", "retroagir o .JSON: a lista de antes volta, o Plus volta ao valor dele, e o histórico anota", d);
+
+// ---------------------------------------------- cancelar a campanha agendada
+console.log("cancelar a campanha agendada");
+await limparFila();
+const daqui3 = new Date(relogio + 2 * DIA - 3 * 3600 * 1000).toISOString();
+await pedir("campanha.disparar", { nome: "Lançamento", publico: "todos", assunto: "Novidade", texto: "Texto", quando: "agendado", de: daqui3.slice(0, 10), hora: daqui3.slice(11, 16) }, "Agendei Lançamento");
+await publicarFila();
+camps = (await (await admin("GET", "/api/admin/campanhas", como())).json()).campanhas;
+const lanc = camps.find((x) => x.nome === "Lançamento");
+r = await pedir("campanha.cancelar", { id: "c123" });
+checar(r.status === 400, "campanha inválida: recusada");
+r = await admin("POST", "/api/admin/alteracoes", comoSuporte({ corpo: { tela: "emails", tipo: "campanha.cancelar", alvo: lanc.id, dados: { id: lanc.id }, texto: "Cancelei o envio de Lançamento" } }));
+checar(r.status === 200, "o cancelamento entra na fila (qualquer papel que dispara também cancela)");
+d = await (await admin("POST", "/api/admin/publicar", comoSuporte({ corpo: { confirmacao: "comitar e pushar" } }))).json();
+const lancKV = JSON.parse(guardados.get("admin:campanha:" + lanc.id));
+checar(d.ok && lancKV.situacao === "cancelada" && lancKV.cancelada.por === "suporte@paulus.ia.br" && !JSON.parse(guardados.get("admin:campanhas:fila")).includes(lanc.id)
+  && lancKV.destinatarios.every((x) => !x.email), "publicado: a campanha fica cancelada, sai da fila do Cron e a lista de e-mails some", lancKV.situacao);
+emails.length = 0;
+envio = await enviarCampanhas(env, relogio + 3 * DIA);
+checar(!emails.some((e) => e.subject === "Novidade"), "e o Cron não manda nada dela na hora marcada");
+r = await pedir("campanha.cancelar", { id: lanc.id });
+checar(r.status === 400 && (await r.json()).erro.includes("já foi cancelada"), "cancelar de novo: recusado");
+const enviada = camps.find((x) => x.situacao === "enviada");
+r = await pedir("campanha.cancelar", { id: enviada.id });
+checar(r.status === 400 && (await r.json()).erro.includes("saiu inteira"), "a que já saiu inteira não cancela: os e-mails não voltam");
+
+// ---------------------------------------------- a forma e a situacao no extrato
+console.log("forma e situação no extrato");
+const idLia = await novaConta("lia");
+const quandoIso = (ms) => new Date(ms).toISOString();
+await contaDo(idLia, "assinatura", { plano: "advogado", assinatura: { id: "preLia", situacao: "authorized", valor: 449 } });
+await contaDo(idLia, "renovar", { cobranca: "COBL0", valor: 449, quando: quandoIso(relogio - 40 * DIA) });
+await contaDo(idLia, "cartao", { bandeira: "master", final: "4242", validade: "12/30", titular: "LIA" });
+await contaDo(idLia, "renovar", { cobranca: "COBL1", valor: 449, quando: quandoIso(relogio + 60 * 1000) });
+await contaDo(idLia, "creditar", { pedido: "ORDL1", valor: 50, plano: "advogado" });
+await contaDo(idLia, "anual_pago", { pagamento: "PAYL2", plano: "advogado", valor: 3990, meses: 12, quando: quandoIso(relogio) });
+await contaDo(idLia, "anual_pendente", { ref: "ia-mes-" + idLia + "-advogado-ab12", plano: "advogado", valor: 449, meses: 1 });
+pagamentosMP.set("cobranca:COBL0", 777);
+pagamentosMP.set("777", { id: 777, status: "approved", payment_method_id: "visa", payment_type_id: "credit_card", card: { last_four_digits: "1111" }, installments: 1 });
+pagamentosMP.set("PAYL2", { id: "PAYL2", status: "approved", payment_method_id: "pix", payment_type_id: "bank_transfer" });
+antesMP2 = mp.length;
+det = await (await admin("GET", "/api/admin/contas/" + idLia, como())).json();
+const pgLia = (ref) => (det.pagamentos || []).find((x) => x.ref === ref) || {};
+checar(pgLia("COBL1").forma.tipo === "cartao" && pgLia("COBL1").forma.bandeira === "mastercard" && pgLia("COBL1").forma.final === "4242" && !pgLia("COBL1").forma_falta,
+  "mensalidade depois do cartão guardado: a bandeira e o final dele", pgLia("COBL1"));
+checar(pgLia("COBL0").forma.bandeira === "visa" && pgLia("COBL0").forma.final === "1111" && mp.slice(antesMP2).some((x) => x.caminho === "/authorized_payments/COBL0")
+  && mp.slice(antesMP2).some((x) => x.caminho === "/v1/payments/777"), "mensalidade de antes do cartão de agora: o cartão que o Mercado Pago diz", pgLia("COBL0"));
+checar(pgLia("ORDL1").forma.tipo === "pix" && pgLia("PAYL2").forma.tipo === "pix" && pgLia("PAYL2").situacao === "pago" && pgLia("ORDL1").situacao === "pago",
+  "a recarga é Pix; o anual, o que o Mercado Pago diz (aqui, Pix); a situação de cada um", { r: pgLia("ORDL1"), a: pgLia("PAYL2") });
+checar(det.pendentes.length === 1 && det.pendentes[0].situacao === "pendente" && det.pendentes[0].tipo === "avulso" && det.pendentes[0].valor === 449 && det.pendentes[0].forma_falta,
+  "o mês no Pix que ainda espera a confirmação aparece como pendente", det.pendentes);
+checar(JSON.parse(guardados.get("admin:forma:COBL0")).final === "1111" && JSON.parse(guardados.get("admin:forma:PAYL2")).tipo === "pix", "o que o Mercado Pago disse fica guardado (só a forma)");
+antesMP2 = mp.length;
+det = await (await admin("GET", "/api/admin/contas/" + idLia, como())).json();
+checar(mp.length === antesMP2 && pgLia("COBL0").forma.final === "1111", "na próxima vez, sem perguntar de novo ao Mercado Pago");
+await contaDo(idLia, "anual_pago", { pagamento: "PAYL3", plano: "advogado", valor: 3990, meses: 12, quando: quandoIso(relogio + 2 * 60 * 1000) });
+det = await (await admin("GET", "/api/admin/contas/" + idLia, { ...como(), envUsado: { ...env, MP_ACCESS_TOKEN: "" } })).json();
+checar(pgLia("PAYL3").forma === null && pgLia("PAYL3").forma_falta.includes("MP_ACCESS_TOKEN"), "sem o Mercado Pago, o anual fica sem a forma e diz o que falta", pgLia("PAYL3"));
+// Muitas mensalidades antigas: o Mercado Pago responde ate 6 consultas por ficha; o resto fica para a proxima vez.
+for (let i = 0; i < 4; i++) await contaDo(idLia, "renovar", { cobranca: "COBV" + i, valor: 449, quando: quandoIso(relogio - (80 + i) * DIA) });
+det = await (await admin("GET", "/api/admin/contas/" + idLia, como())).json();
+const semAgora = det.pagamentos.filter((x) => /^COBV/.test(x.ref) && x.forma_falta && x.forma_falta.includes("próxima vez"));
+checar(semAgora.length >= 1 && det.pagamentos.filter((x) => /^COBV/.test(x.ref)).every((x) => x.forma && x.forma.tipo === "cartao"),
+  "com muitas a conferir, o resto espera a próxima vez, e diz", semAgora.map((x) => x.ref));
 
 // --------------------------------------------------------- privacidade
 const pessoais = [...guardados.entries()].filter(([k]) => !k.startsWith("admin:"));

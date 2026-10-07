@@ -79,7 +79,7 @@
   var PAPEIS = { "retroagir": ["dono"],
     "conta.creditar": DF, "conta.instalacao.apagar": DS, "conta.cancelar": DF, "conta.reembolsar": DF, "google.servicos": DS, "google.desvincular": DS,
     "tunel.apagar": DS, "tunel.endereco": DS, "tunel.ativo": DS, "plano.editar": DF,
-    "plano.criar": DF, "nfse.config": DF, "equipe.papel": ["dono"],
+    "plano.criar": DF, "planos.json": DF, "nfse.config": DF, "equipe.papel": ["dono"],
   };
   var PAPEL_NOME = { dono: "Dono", financeiro: "Financeiro", suporte: "Suporte" };
 
@@ -635,13 +635,17 @@
     if (aba === "campanhas") {
       var st = d.stats || {};
       h += '<dl class="kpis k150">' + [["Enviados", String(st.enviados || 0)], ["Abertura", taxa(st.abertura)], ["Cliques", taxa(st.cliques)], ["Devolvidos", String(st.devolvidos || 0)]].map(function (k) { return "<div><dt>" + k[0] + "</dt><dd>" + esc(k[1]) + "</dd></div>"; }).join("") + "</dl>";
-      var cols = "minmax(180px,1fr) 130px 70px 70px 70px 100px";
+      var cols = "minmax(180px,1fr) 130px 70px 70px 70px 100px 28px";
       var linhas = cs.map(function (c) {
         var n = Number(c.enviados) || 0, cor = SIT_CAMP[c.situacao] || "var(--ink3)";
-        return '<div class="grade-linha"><span class="cel-nome"><b class="corta">' + esc(c.nome) + '</b><small class="sit" style="color:' + cor + '"><i></i>' + esc(c.situacao) + "</small></span>" +
-          '<span class="t125 corta">' + esc(c.publico ? c.publico.label : "—") + '</span><span class="num dir c-ink2">' + (n ? n : "—") + '</span><span class="num dir">' + (n ? pct((c.abertos || 0) / n) : "—") + '</span><span class="num dir">' + (n ? pct((c.cliques || 0) / n) : "—") + '</span><span class="num dir c-ink3">' + esc(c.situacao === "enviada" ? ddmm(c.quando) : quando(c.quando)) + "</span></div>";
+        // A agendada cancela antes da hora (pela fila, como o disparo).
+        var filaC = naFila("campanha.cancelar", c.id);
+        var cancelar = c.situacao === "agendada" ? '<button type="button" class="btn-icone" data-a="campCancelar" data-id="' + esc(c.id) + '"' + attrDis(filaC, "o cancelamento já está na fila de alterações") +
+          ' aria-label="Cancelar o envio de ' + esc(c.nome) + '" title="' + (filaC ? "Cancelamento na fila" : "Cancelar o envio") + '">' + ic("close") + "</button>" : "<span></span>";
+        return '<div class="grade-linha"><span class="cel-nome"><b class="corta">' + esc(c.nome) + '</b><small class="sit" style="color:' + cor + '"><i></i>' + esc(filaC ? "agendada · cancelamento na fila" : c.situacao) + "</small></span>" +
+          '<span class="t125 corta">' + esc(c.publico ? c.publico.label : "—") + '</span><span class="num dir c-ink2">' + (n ? n : "—") + '</span><span class="num dir">' + (n ? pct((c.abertos || 0) / n) : "—") + '</span><span class="num dir">' + (n ? pct((c.cliques || 0) / n) : "—") + '</span><span class="num dir c-ink3">' + esc(c.situacao === "enviada" ? ddmm(c.quando) : quando(c.quando)) + "</span>" + cancelar + "</div>";
       }).join("") || '<p class="vazio-linha">Nenhuma campanha ainda.</p>';
-      h += '<div class="painel">' + grade(cols, 680, '<span>Campanha</span><span>Público</span><span class="dir">Enviados</span><span class="dir">Abertura</span><span class="dir">Cliques</span><span class="dir">Quando</span>', linhas) + "</div>";
+      h += '<div class="painel">' + grade(cols, 716, '<span>Campanha</span><span>Público</span><span class="dir">Enviados</span><span class="dir">Abertura</span><span class="dir">Cliques</span><span class="dir">Quando</span><span></span>', linhas) + "</div>";
       h += '<button type="button" class="btn-duplo inicio" data-a="seg" data-seg="emails.aba" data-v="nova"><span>' + ic("campaign") + "Nova campanha</span></button>";
       return h;
     }
@@ -728,6 +732,8 @@
       kpi("Custo", brl(custoR), usd(k.custo_usd) + " · câmbio " + cambioTxt(cambio)) + kpi("Arrecadado", brl(rec), "assinaturas + Pix") +
       kpi("Margem", mg == null ? "—" : pct(mg), brl(rec - custoR) + " líquido", mg == null ? "" : mg >= 0 ? "var(--ok)" : "var(--erro)") +
       kpi("Custo por conta", nc ? brl(custoR / nc) : "—", nc ? "média · " + brl(rec / nc) + " arrecadado" : "sem contas") + "</dl>";
+    // O medidor nao guarda o uso por dia de todo o periodo: o numero pode sair menor que o real.
+    if (d.incompleto && d.aviso) h += '<p class="aviso-falta">' + ic("warning") + "<span>" + esc(d.aviso) + "</span></p>";
     var ls = (d.linhas || []).slice().sort(function (a, b) { return ((b.entrada || 0) + (b.saida || 0)) - ((a.entrada || 0) + (a.saida || 0)); });
     var max = ls.reduce(function (m, l) { return Math.max(m, (l.entrada || 0) + (l.saida || 0)); }, 0) || 1;
     var cols = "minmax(160px,1fr) 80px 80px 96px 96px 70px";
@@ -839,7 +845,8 @@
         '<div><dt>Se usar tudo, custa</dt><dd>' + (cc != null ? esc(brl(cc)) + '<small class="plano-nota" style="color:' + (mg >= 0.4 ? "var(--ok)" : "var(--erro)") + '">margem mínima de ' + Math.round(mg * 100) + "%</small>" : '<span class="c-mute">' + (D["tokens:geral:mes"] && D["tokens:geral:mes"].carregando ? "carregando preços…" : "sem os preços do provedor") + "</span>") + "</dd></div>" +
         '<div><dt>Recarga (Pix)</dt><dd>' + (p.recarga ? esc(brl(p.recarga.valor)) + '<small class="plano-nota">' + esc(tok(p.recarga.tokens)) + " tokens</small>" : "—") + "</dd></div></dl>" +
         ((p.itens || []).length ? '<div class="plano-pag"><span class="td-tit">Na página de assinatura</span>' + (p.para ? '<p class="plano-para">' + esc(p.para) + (p.heranca ? " " + esc(p.heranca) + ":" : "") + "</p>" : "") +
-          '<ul class="plano-itens">' + p.itens.map(function (it) { return "<li><b>" + esc(it.titulo) + "</b><span>" + esc(it.descricao || "") + "</span></li>"; }).join("") + "</ul></div>" : "") + "</div>";
+          '<ul class="plano-itens">' + p.itens.map(function (it) { return "<li><b>" + esc(it.titulo) + "</b><span>" + esc(it.descricao || "") + "</span></li>"; }).join("") + "</ul>" +
+          '<span class="nota-campo">' + (p.textos && p.textos.itens ? "Itens escritos no painel." : "Itens padrão: a página os monta com os números do plano.") + "</span></div>" : "") + "</div>";
     }).join("") +
       "</div>";
     // A coluna da direita edita o plano da guia escolhida: numeros, frase, heranca e os itens da pagina de assinatura.
@@ -852,12 +859,13 @@
       var vv = numDec(v.valor), tt = numDec(v.tokens) * 1e6, cc2 = tt ? custoCheio(tt, pe.custo_modelo) : null, mg2 = cc2 != null && vv ? 1 - cc2 / vv : null;
       var cE = function (k, rot, pre, suf) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo mono fundo">' + (pre ? '<span class="pre">' + pre + "</span>" : "") + '<input data-in="planoEd" data-k="' + k + '" value="' + esc(v[k]) + '" inputmode="decimal" style="width:0">' + (suf ? '<span class="sufixo">' + suf + "</span>" : "") + "</span></label>"; };
       var cT = function (k, rot, ph) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input data-in="planoEd" data-k="' + k + '" value="' + esc(v[k]) + '" placeholder="' + esc(ph || "") + '"></span></label>'; };
+      var tp = pe.textos_padrao || {};
       dir = '<div class="painel res-card"><div class="painel-cab secao-cab"><span class="rotulo">Editar ' + esc(pe.nome) + '</span></div><div class="ed-corpo">' +
-        cT("para", "Frase do plano", "Para quem advoga sozinho.") +
+        cT("para", "Frase do plano", tp.para || "Vazio: o cartão sai sem frase") +
         '<div class="grade-campos">' + cE("valor", "Valor por mês", "R$") + cE("anual", "Valor por ano", "R$") + "</div>" +
         '<div class="grade-campos">' + cE("tokens", "Créditos por mês", "", "M") + cE("pessoas", "Pessoas", "") + "</div>" +
         '<div class="grade-campos">' + cE("rv", "Recarga (Pix)", "R$") + cE("rt", "Tokens da recarga", "", "M") + "</div>" +
-        cT("heranca", "Antes dos itens", "Tudo do plano Advogado, e mais") +
+        cT("heranca", "Antes dos itens", tp.heranca || "Vazio: nada antes dos itens") +
         '<div class="conta-rapida"><span class="rotulo">Conta rápida</span><span>' + (tt ? esc(brl(vv / (tt / 1e6))) + " por milhão de tokens" : "Preencha valor e créditos.") + "</span>" +
         (cc2 != null ? '<span style="color:' + (mg2 >= 0.4 ? "var(--ok)" : "var(--erro)") + '">Se o assinante usar tudo, custa ' + esc(brl(cc2)) + ": margem mínima de " + Math.round(mg2 * 100) + "%.</span>" : "") + "</div>" +
         '<div class="secao-cab"><span class="rotulo">Itens na página de assinatura</span><button type="button" class="btn-texto-mudo s12" data-a="planoEdItemMais">' + ic("add") + "Item</button></div>" +
@@ -869,7 +877,7 @@
             '<span class="caixa-campo fundo"><input data-in="planoEdItem" data-i="' + k + '" data-k="titulo" value="' + esc(it.titulo) + '" placeholder="Título"></span>' +
             '<textarea class="area fundo" rows="2" data-in="planoEdItem" data-i="' + k + '" data-k="descricao" placeholder="Descrição">' + esc(it.descricao || "") + "</textarea></div>";
         }).join("") + "</div>" +
-        '<span class="nota-campo">Quem já assina fica no valor de agora; o novo só entra na próxima renovação.</span>' +
+        '<span class="nota-campo">Quem já assina fica no valor de agora; o novo só entra na próxima renovação. Pessoas e recarga valem no Paulus e na recarga no Pix. A frase, o texto antes dos itens e os itens vão para a página de assinatura; vazio, ou igual ao padrão, fica o padrão, que acompanha os números do plano.</span>' +
         '<div class="par" style="justify-content:flex-end"><button type="button" class="btn-texto-mudo s12" data-a="planoEdDesfazer">Desfazer</button>' +
         '<button type="button" class="btn-duplo" data-a="planoEdSalvar"' + attrDis(filaE, "já está na fila de alterações") + "><span>Salvar " + esc(pe.nome) + "</span></button></div></div></div>";
     } else {
@@ -1334,6 +1342,10 @@
     } else if (M.tipo === "membroExcluir") {
       h += modalCab(M.convite ? "Cancelar convite" : "Excluir da equipe") + '<div class="modal-corpo"><p class="t135">' + (M.convite ? "O link enviado para " + esc(M.email) + " deixa de funcionar." : esc(M.nome || M.email) + " (" + esc(M.email) + ") perde o acesso a este painel" + (desligado(cfg("equipe")) ? ". O endereço continua na política do Cloudflare Access até você tirar à mão." : ", e o endereço sai do Cloudflare Access.")) + "</p></div>" +
         modalPe('<button type="button" class="btn-acao perigo-cheio" data-a="membroExcluirOk">' + (M.convite ? "Cancelar convite" : "Excluir") + "</button>");
+    } else if (M.tipo === "campCancelar") {
+      h += modalCab("Cancelar o envio") + '<div class="modal-corpo"><p class="t135">A campanha <b>' + esc(M.nome) + "</b>, agendada para " + esc(quando(M.quando)) +
+        ", não sai mais. O cancelamento entra na fila e vale quando você confirmar as alterações; se a hora chegar antes disso, ela sai.</p></div>" +
+        modalPe('<button type="button" class="btn-acao perigo-cheio" data-a="campCancelarOk" id="modal-ok">Cancelar o envio</button>');
     } else if (M.tipo === "escContas") {
       var todasC = (dadosDe("contas") || {}).contas, qn = norm(M.q || "");
       // Duas colunas: a esquerda as contas que ainda nao entraram (com a busca); clicar joga para a direita, e clicar la devolve.
@@ -1416,20 +1428,28 @@
       var fT = M.filtro || "todos", fP = M.periodo || "tudo", agoraE = Date.now(), anoE = String(new Date().getFullYear());
       var itensF = M.itens.filter(function (x) {
         var okT = fT === "todos" || (fT === "reembolsados" ? !!x.reembolso : !x.reembolso && x.tipo === fT);
-        var dd = (agoraE - Date.parse(x.quando)) / 864e5;
-        var dia = String(x.quando).slice(0, 10);
+        var qx = x.quando || new Date(agoraE).toISOString();
+        var dd = (agoraE - Date.parse(qx)) / 864e5;
+        var dia = qx.slice(0, 10);
         var okP = fP === "tudo" || (fP === "custom" ? dia >= M.de && dia <= M.ate : fP === "ano" ? dia.slice(0, 4) === anoE : dd <= Number(fP));
         return okT && okP;
       });
       var linhasE = itensF.map(function (x) {
         var st = SIT_FAT[x.reembolso ? "reembolsado" : (x.situacao || "pago")] || [x.situacao, "var(--ink3)"], nf = x.nfse;
         var arq = function (tipo, icone) { return nf ? '<a class="btn-icone ext-arq" href="' + NF + "notas/" + esc(nf.id) + "/" + tipo + (tipo === "pdf" ? "?baixar=1" : "") + '" download aria-label="' + tipo.toUpperCase() + " da NFS-e " + esc(nf.numero) + '" title="' + tipo.toUpperCase() + '">' + ic(icone) + "</a>" : '<span class="c-ink3">—</span>'; };
-        return '<div class="grade-linha p10"><span class="num">' + esc(ddmmaaaa(x.quando)) + '</span><span class="corta">' + esc(descPag(x, M)) + "</span>" + formaHtml(x.forma) +
+        return '<div class="grade-linha p10"><span class="num">' + esc(ddmmaaaa(x.quando)) + '</span><span class="corta">' + esc(descPag(x, M)) + "</span>" + formaHtml(x.forma, x.forma_falta) +
           '<span class="num dir">' + esc(brl(x.valor)) + '</span><span class="corta">' + esc(MODALIDADE[x.tipo] || "—") + "</span>" +
           sit(st[0], st[1]) + '<span class="num"' + (nf && nf.estado && nf.estado !== "emitida" ? ' title="NFS-e ' + esc(nf.estado === "substituida" ? "substituída" : nf.estado) + '"' : "") + ">" + esc(nf ? nf.numero : "—") + "</span>" + arq("pdf", "picture_as_pdf") + arq("xml", "code") + "</div>";
       }).join("") || '<p class="vazio-linha">Nenhum pagamento com esse filtro.</p>';
-      var pago = itensF.reduce(function (s, x) { return s + (x.reembolso ? 0 : Number(x.valor) || 0); }, 0);
-      if (itensF.length) linhasE += '<div class="grade-linha linha-total"><span class="tot-rot"><b>Total pago</b><small>' + itensF.length + (itensF.length === 1 ? " lançamento" : " lançamentos") + "</small></span><span></span>" +
+      var pago = itensF.reduce(function (s, x) { return s + (x.reembolso || x.situacao === "pendente" ? 0 : Number(x.valor) || 0); }, 0);
+      // O que o extrato nao sabe dizer: a forma que falta e por que (o medidor guarda so o tipo, o valor e a data).
+      var semForma = itensF.filter(function (x) { return x.forma_falta; });
+      var faltas = semForma.map(function (x) { return x.forma_falta; }).filter(function (t, i, l) { return l.indexOf(t) === i; });
+      var notaE = '<p class="nota-campo">' + (faltas.length ? "Sem a forma completa de " + semForma.length + (semForma.length === 1 ? " pagamento: " : " pagamentos: ") + esc(faltas.join("; ")) + ". " : "") +
+        "As cobranças recusadas não ficam na conta: elas aparecem no Mercado Pago.</p>";
+      var nPend = itensF.filter(function (x) { return x.situacao === "pendente"; }).length;
+      if (itensF.length) linhasE += '<div class="grade-linha linha-total"><span class="tot-rot"><b>Total pago</b><small>' + itensF.length + (itensF.length === 1 ? " lançamento" : " lançamentos") +
+        (nPend ? " · " + nPend + (nPend === 1 ? " pendente, fora do total" : " pendentes, fora do total") : "") + "</small></span><span></span>" +
         '<span class="num dir tot-v">' + esc(brl(pago)) + '</span><span class="extrato-baixar">' +
         '<button type="button" class="mini" data-a="extratoJson">' + ic("download") + 'JSON</button><button type="button" class="mini" data-a="extratoPdf">' + ic("picture_as_pdf") + "PDF</button></span></div>";
       var A_ = M.ass, SIT_PRE = { authorized: ["ativa", "var(--ok)"], paused: ["pausada", "var(--atencao)"], cancelled: ["cancelada", "var(--erro)"], pending: ["pendente", "var(--atencao)"], expired: ["vencida", "var(--erro)"], refunded: ["reembolsada", "var(--ink3)"] };
@@ -1441,14 +1461,15 @@
         '<span class="ass-sit"><i style="background:' + sa[1] + '"></i>' + esc(sa[0]) + "</span></div>" +
         '<div class="ass-tiles">' + tile("Assinante desde", esc(A_.desde ? ddmmaaaa(A_.desde) : "—")) +
         tile(A_.prepago ? "Pago até" : "Próxima cobrança", esc(A_.prepago ? (M.pagoAte ? ddmmaaaa(M.pagoAte) : "—") : (M.proxima ? ddmmaaaa(M.proxima) : "—")) +
-          (!A_.prepago && A_.situacao === "authorized" && pode("conta.cancelar") ? '<button type="button" class="btn-icone ass-copiar" data-a="contaPausar" data-id="' + esc(M.id) + '"' + attrDis(naFila("conta.pausar", M.id), "já está na fila de alterações") + ' aria-label="Pausar a cobrança" title="Pausar a cobrança">' + ic("pause_circle") + "</button>" : "")) +
+          (!A_.prepago && A_.situacao === "authorized" && pode("conta.cancelar") ? '<button type="button" class="btn-icone ass-copiar" data-a="contaPausar" data-id="' + esc(M.id) + '"' + attrDis(naFila("conta.pausar", M.id), "já está na fila de alterações") + ' aria-label="Pausar a cobrança" title="Pausar a cobrança">' + ic("pause_circle") + "</button>" : "") +
+          (!A_.prepago && A_.situacao === "paused" && pode("conta.cancelar") ? '<button type="button" class="btn-icone ass-copiar" data-a="contaRetomar" data-id="' + esc(M.id) + '"' + attrDis(naFila("conta.pausar", M.id), "já está na fila de alterações") + ' aria-label="Retomar a cobrança" title="Retomar a cobrança">' + ic("play_circle") + "</button>" : "")) +
         (A_.id ? tile("ID no Mercado Pago", '<span class="ass-id-linha"><span class="ass-id" title="' + esc(A_.id) + '">' + esc(A_.id) + '</span><button type="button" class="btn-icone ass-copiar" data-a="copiarTexto" data-t="' + esc(A_.id) + '" aria-label="Copiar o ID" title="Copiar">' + ic("content_copy") + "</button></span>") : "") + "</div></div>";
       h += modalCab("Extrato") + '<div class="modal-corpo">' + (M.embutido ? "" : '<div class="quem"><b>' + esc(M.nome) + "</b><span>" + esc(M.email) + "</span></div>") + cardAss +
         '<div class="barra-filtros">' + seg("extrato.tipo", [["todos", "Todos"], ["assinatura", "Mensalidades"], ["anual", "Anuais"], ["recarga", "Recargas"], ["reembolsados", "Reembolsados"]], fT) +
         seg("extrato.periodo", [["tudo", "Tudo"], ["30", "30 dias"], ["90", "90 dias"]], fP).replace(/<\/div><\/div>$/, "") +
         '<button type="button" class="seg-cal" data-a="extratoCal" aria-pressed="' + (fP === "custom") + '" aria-expanded="' + !!M.cal + '" title="Período específico" aria-label="Período específico">' + ic("calendar_month") +
         "<span>" + (fP === "custom" ? esc(ddmm(M.de) + " – " + ddmm(M.ate)) : "Outro período") + "</span></button></div></div>" + (M.cal ? calHtml(M.cal) : "") + "</div>" +
-        '<div class="painel">' + grade(cols, 840, "<span>Data</span><span>Descrição</span><span>Forma</span><span class=\"dir\">Valor</span><span>Modalidade</span><span>Status</span><span>NFS-e</span><span>PDF</span><span>XML</span>", linhasE) + "</div>" +
+        '<div class="painel">' + grade(cols, 840, "<span>Data</span><span>Descrição</span><span>Forma</span><span class=\"dir\">Valor</span><span>Modalidade</span><span>Status</span><span>NFS-e</span><span>PDF</span><span>XML</span>", linhasE) + "</div>" + notaE +
         "</div>" + '<div class="modal-pe"><button type="button" class="btn-acao" data-a="fecharModal" id="modal-ok">Fechar</button></div>';
     } else if (M.tipo === "tunelHist") {
       h += modalCab("Histórico · " + M.slug + ".paulus.ia.br") + '<div class="modal-corpo"><div class="painel">' +
@@ -1480,11 +1501,12 @@
     } else if (M.tipo === "commit") {
       h += modalCab("Commitar e pushar");
       if (M.resultado) {
-        var R = M.resultado, falhas = (R.resultados || []).filter(function (x) { return !x.ok; });
+        var R = M.resultado, falhas = (R.resultados || []).filter(function (x) { return !x.ok; }), avisos = (R.resultados || []).filter(function (x) { return x.ok && x.aviso; });
         var porId = {}; (M.itens || []).forEach(function (a) { porId[a.id] = a; });
         h += '<div class="modal-corpo"><p class="t13" style="line-height:1.55"><b class="c-ink" style="font-weight:500">' + ((R.resultados || []).length - falhas.length) + " de " + (R.resultados || []).length + "</b> alterações foram para o ar" + (R.publicacao && R.publicacao.commit ? " no commit " + esc(String(R.publicacao.commit).slice(0, 7)) : "") + ".</p>" +
           (falhas.length ? '<div class="lista-commit"><span class="rotulo">Falharam</span>' + falhas.map(function (x) { var a = porId[x.id]; return '<span class="falhou"><span>—</span>' + esc((a ? a.texto : x.id) + ": " + (x.erro || "sem motivo")) + "</span>"; }).join("") + "</div>" +
-            '<p class="nota-campo">As que falharam continuam na fila; as outras não são desfeitas.</p>' : "") + "</div>" +
+            '<p class="nota-campo">As que falharam continuam na fila; as outras não são desfeitas.</p>' : "") +
+          (avisos.length ? '<div class="lista-commit"><span class="rotulo">Feitas, com aviso</span>' + avisos.map(function (x) { var a = porId[x.id]; return "<span><span>—</span>" + esc((a ? a.texto : x.id) + ": " + x.aviso) + "</span>"; }).join("") + "</div>" : "") + "</div>" +
           '<div class="modal-pe"><button type="button" class="btn-acao" data-a="fecharModal" id="modal-ok">Fechar</button></div>';
       } else {
         var ps = E.pendentes, okTxt = M.texto.trim() === "comitar e pushar";
@@ -2334,6 +2356,14 @@
     var ok = await enfileirar("emails", "campanha.disparar", dd.nome, dd, 'Pedi o disparo "' + dd.nome + '" para ' + n + (n === 1 ? " conta" : " contas") + " (" + q + ")");
     if (ok) { var keep = { botao: c.botao, link: c.link }; U.emails.camp = novaCamp(); U.emails.camp.botao = keep.botao; U.emails.camp.link = keep.link; U.emails.so = null; U.emails.aba = "campanhas"; U.emails.passo = 1; render(); }
   };
+  A.campCancelar = function (el) {
+    var c = (((dadosDe("campanhas") || {}).campanhas) || []).filter(function (x) { return x.id === el.dataset.id; })[0]; if (!c) return;
+    abrirModal({ tipo: "campCancelar", id: c.id, nome: c.nome, quando: c.quando });
+  };
+  A.campCancelarOk = function () {
+    var M = E.modal; fecharModal();
+    enfileirar("emails", "campanha.cancelar", M.id, { id: M.id }, 'Cancelei o envio de "' + M.nome + '" (' + quando(M.quando) + ")");
+  };
   A.enviarTeste = function () { naHora("POST", "/api/admin/campanhas/teste", { campanha: dadosCampanha() }, "Teste enviado para " + (E.sessao.access && E.sessao.access.email || "você")); };
 
   // planos
@@ -2550,6 +2580,7 @@
     render();
   };
   var MODALIDADE = { assinatura: "Assinatura mensal", anual: "Assinatura anual", avulso: "Mês avulso", recarga: "Recarga avulsa" };
+  var SIT_FAT_TXT = { pago: "paga", pendente: "pendente", recusado: "recusada", reembolsado: "reembolsada" };
   function descPag(x, M) { return x.tipo === "recarga" ? "Recarga" + (x.tokens ? " de " + tok(x.tokens) + " tokens" : "") : "Plano " + (M.plano || ""); }
   // A forma: o simbolo do Pix e a chave, ou a bandeira do cartao e o final.
   var PIX_SVG = '<svg class="pix-ic" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.3 11.9a2 2 0 0 1-1.4-.6L8.6 9a.4.4 0 0 0-.6 0l-2.3 2.3a2 2 0 0 1-1.4.6h-.5l2.9 2.9a2.3 2.3 0 0 0 3.3 0l2.9-2.9h-.6ZM4.3 4.1a2 2 0 0 1 1.4.6L8 7a.4.4 0 0 0 .6 0l2.3-2.3a2 2 0 0 1 1.4-.6h.4L9.8 1.2a2.3 2.3 0 0 0-3.3 0L3.7 4.1h.6Zm10.5 2.2L13 4.6h-.7a1.4 1.4 0 0 0-1 .4L9.1 7.3a1.1 1.1 0 0 1-1.6 0L5.3 5a1.4 1.4 0 0 0-1-.4h-.9L1.2 6.3a2.3 2.3 0 0 0 0 3.3l1.7 1.7h1a1.4 1.4 0 0 0 1-.4l2.3-2.3a1.1 1.1 0 0 1 1.6 0l2.3 2.3a1.4 1.4 0 0 0 1 .4h.7l1.7-1.7a2.3 2.3 0 0 0 0-3.3Z"/></svg>';
@@ -2560,27 +2591,44 @@
     if (k === "visa") return '<span class="bandeira-c" aria-label="Visa"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="11.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8.4" font-weight="700" font-style="italic" fill="#1A1F71" letter-spacing=".2">VISA</text></svg></span>';
     return '<span class="bandeira">' + esc(b || "Cartão") + "</span>";
   }
-  function formaHtml(f) {
-    if (!f) return '<span class="c-ink3">—</span>';
-    if (f.tipo === "pix") return '<span class="forma" title="Pix · ' + esc(f.chave || "") + '">' + PIX_SVG + '<span class="corta">' + esc(f.chave || "Pix") + "</span></span>";
-    return '<span class="forma" title="' + esc((f.bandeira || "Cartão") + " final " + (f.final || "")) + '">' + bandeiraHtml(f.bandeira) + '<span class="num">•••• ' + esc(f.final || "") + "</span></span>";
+  // Sem a forma (ou sem a bandeira e o final), o traço diz por quê ao passar o mouse.
+  function formaHtml(f, falta) {
+    if (!f) return '<span class="c-ink3"' + (falta ? ' title="' + esc(falta) + '"' : "") + ">—</span>";
+    if (f.tipo === "pix") return '<span class="forma" title="Pix' + (f.chave ? " · " + esc(f.chave) : "") + '">' + PIX_SVG + '<span class="corta">' + esc(f.chave || "Pix") + "</span></span>";
+    if (f.tipo === "saldo") return '<span class="forma corta" title="Saldo no Mercado Pago">Saldo no Mercado Pago</span>';
+    if (f.tipo !== "cartao") return '<span class="corta">' + esc(f.tipo) + "</span>";
+    if (!f.final) return '<span class="forma"' + (falta ? ' title="' + esc(falta) + '"' : "") + ">" + (f.bandeira ? bandeiraHtml(f.bandeira) : '<span class="bandeira">Cartão</span>') + "</span>";
+    return '<span class="forma" title="' + esc((f.bandeira || "Cartão") + " final " + f.final + (f.parcelas > 1 ? " · em " + f.parcelas + "×" : "") + (f.debito ? " · débito" : "")) + '">' + bandeiraHtml(f.bandeira) + '<span class="num">•••• ' + esc(f.final) + "</span></span>";
+  }
+  function formaTexto(f) {
+    if (!f) return null;
+    if (f.tipo === "pix") return "Pix" + (f.chave ? " " + f.chave : "");
+    if (f.tipo === "saldo") return "Saldo no Mercado Pago";
+    if (f.tipo !== "cartao") return f.tipo;
+    return (f.bandeira || "Cartão") + (f.final ? " •••• " + f.final : "") + (f.parcelas > 1 ? " em " + f.parcelas + "×" : "");
   }
   function extratoLinhas(M) {
     var fT = M.filtro || "todos", fP = M.periodo || "tudo", agora = Date.now(), ano = String(new Date().getFullYear());
     return M.itens.filter(function (x) {
       var okT = fT === "todos" || (fT === "reembolsados" ? !!x.reembolso : !x.reembolso && x.tipo === fT);
-      var dd = (agora - Date.parse(x.quando)) / 864e5;
-      var dia = String(x.quando).slice(0, 10);
+      var qx = x.quando || new Date(agora).toISOString();
+      var dd = (agora - Date.parse(qx)) / 864e5;
+      var dia = qx.slice(0, 10);
       return okT && (fP === "tudo" || (fP === "custom" ? dia >= M.de && dia <= M.ate : fP === "ano" ? dia.slice(0, 4) === ano : dd <= Number(fP)));
     }).map(function (x) {
       // A NFS-e do pagamento: o numero, o estado e os links do painel para o PDF e o XML (atras do Access).
       var nf = x.nfse ? { numero: x.nfse.numero, estado: x.nfse.estado || "emitida", pdf: x.nfse.pdf || location.origin + NF + "notas/" + x.nfse.id + "/pdf?baixar=1", xml: x.nfse.xml || location.origin + NF + "notas/" + x.nfse.id + "/xml" } : null;
-      return { data: (x.quando || "").slice(0, 10), descricao: descPag(x, M), forma: x.forma ? (x.forma.tipo === "pix" ? "Pix " + (x.forma.chave || "") : (x.forma.bandeira || "Cartão") + " •••• " + (x.forma.final || "")) : null, modalidade: MODALIDADE[x.tipo] || null, valor: Number(x.valor) || 0, status: x.reembolso ? "reembolsada" : (x.situacao || "pago"), nfse: nf, ref: x.ref };
+      var st = SIT_FAT_TXT[x.reembolso ? "reembolsado" : (x.situacao || "pago")] || x.situacao;
+      return { data: (x.quando || "").slice(0, 10), descricao: descPag(x, M), forma: formaTexto(x.forma), forma_falta: x.forma_falta || null, modalidade: MODALIDADE[x.tipo] || null, valor: Number(x.valor) || 0, status: st, nfse: nf, ref: x.ref };
     });
   }
   A.contaPausar = function (el) {
     var c = contaAtual() || contaResumo(el.dataset.id); if (!c) return;
     enfileirar("contas", "conta.pausar", c.id, { id: c.id }, "Pausei a cobrança da assinatura de " + c.nome + " no Mercado Pago");
+  };
+  A.contaRetomar = function (el) {
+    var c = contaAtual() || contaResumo(el.dataset.id); if (!c) return;
+    enfileirar("contas", "conta.pausar", c.id, { id: c.id, retomar: true }, "Retomei a cobrança da assinatura de " + c.nome + " no Mercado Pago");
   };
   A.copiarTexto = async function (el) { try { await navigator.clipboard.writeText(el.dataset.t || ""); toast("Copiado"); } catch (e) { toast("O navegador não deixou copiar", true); } };
   A.extratoJson = function () {
@@ -2592,7 +2640,7 @@
   // O PDF sai pela impressao do navegador, numa pagina limpa so com a tabela.
   A.extratoPdf = function () {
     var M = E.modal; if (!M || M.tipo !== "contaExtrato") return;
-    var ls = extratoLinhas(M), tot = ls.reduce(function (s, x) { return s + (x.status === "reembolsada" ? 0 : x.valor); }, 0);
+    var ls = extratoLinhas(M), tot = ls.reduce(function (s, x) { return s + (x.status === "reembolsada" || x.status === "pendente" ? 0 : x.valor); }, 0);
     var w = window.open("", "_blank"); if (!w) { toast("O navegador bloqueou a janela do PDF", true); return; }
     w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Extrato · ' + esc(M.nome) + '</title><style>body{font:13px/1.5 system-ui,sans-serif;color:#1c1c1a;margin:32px}h1{font-size:18px;margin:0 0 2px}p{margin:0 0 18px;color:#66655f}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #ddd}th{font-weight:600;font-size:12px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tfoot td{font-weight:600;border-top:2px solid #1c1c1a}</style></head><body>' +
       "<h1>Extrato · " + esc(M.nome) + "</h1><p>" + esc(M.email) + " · gerado em " + esc(ddmmaaaa(new Date().toISOString())) + "</p><table><thead><tr><th>Data</th><th>Descrição</th><th>Forma</th><th class=\"n\">Valor</th><th>Modalidade</th><th>Status</th><th>NFS-e</th></tr></thead><tbody>" +
@@ -2608,7 +2656,9 @@
     var c = contaAtual(); if (!c || !E.gaveta.det) return;
     var ass = E.gaveta.det.assinatura, prep = ass && (ass.periodo === "anual" || ass.periodo === "avulso");
     abrirModal({ tipo: "contaExtrato", id: c.id, nome: c.nome, email: c.email, plano: c.plano ? c.plano.nome : "", valor: c.plano ? c.plano.valor : null, pagoAte: E.gaveta.det.pago_ate, proxima: E.gaveta.det.ciclo ? E.gaveta.det.ciclo.fim : null,
-      ass: ass ? { periodo: ass.periodo, situacao: ass.situacao, desde: ass.desde, id: ass.id, prepago: prep } : null, itens: (E.gaveta.det.pagamentos || []).slice().sort(function (a, b) { return Date.parse(b.quando) - Date.parse(a.quando); }) });
+      ass: ass ? { periodo: ass.periodo, situacao: ass.situacao, desde: ass.desde, id: ass.id, prepago: prep } : null,
+      // Os pagamentos e, no alto, o de uma vez que ainda espera a confirmacao do Mercado Pago.
+      itens: (E.gaveta.det.pendentes || []).concat((E.gaveta.det.pagamentos || []).slice().sort(function (a, b) { return Date.parse(b.quando) - Date.parse(a.quando); })) });
   };
 
   A.googleSelSair = function () { U.google.sel = null; render(); };
@@ -3038,9 +3088,10 @@
       var r = await api("POST", "/api/admin/publicar", { confirmacao: "comitar e pushar" });
       if (E.modal !== M) return;
       M.enviando = false;
-      var falhas = (r.resultados || []).filter(function (x) { return !x.ok; });
+      var falhas = (r.resultados || []).filter(function (x) { return !x.ok; }), avisos = (r.resultados || []).filter(function (x) { return x.ok && x.aviso; });
       toast("Publicado · " + (r.publicacao && r.publicacao.commit ? String(r.publicacao.commit).slice(0, 7) : "sem commit"), false);
-      if (falhas.length) { M.resultado = r; renderCamada(); var b = $("modal-ok"); if (b) b.focus(); }
+      // Com falha ou com aviso (feita, mas com uma parte a mao), o resultado fica aberto para ler.
+      if (falhas.length || avisos.length) { M.resultado = r; renderCamada(); var b = $("modal-ok"); if (b) b.focus(); }
       else fecharModal();
       ler("alteracoes");
     } catch (e) {
