@@ -58,8 +58,8 @@
   .bv-entrada .bv-rotulo { color: var(--ink3); }
   .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); }
   .bv-linha:hover { background: var(--surf); border-color: var(--ink-a2); }
-  .bv-g-trilho { display: flex; width: 100%; padding: 3px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink); cursor: pointer; }
-  .bv-g-pastilha { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--fill2); font: 500 13px var(--sans); letter-spacing: .01em; }
+  .bv-g-trilho { display: flex; width: 100%; padding: 1px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink); cursor: pointer; }
+  .bv-g-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--fill2); font: 500 13px var(--sans); letter-spacing: .01em; }
   .bv-g-pastilha svg { width: 16px; height: 16px; flex: none; }
   .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--pastilha-sobre); }
   .bv-g-trilho:active:not(:disabled) .bv-g-pastilha { background: var(--pastilha-ativa); }
@@ -245,12 +245,12 @@
   .bv-versao { font-size: 13px; }
   .bv-rodape .bv-ligacao { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; }
   .bv-ligacao.apagada { color: var(--ink2); }
-  /* O .btn-duplo do site: trilho com fio fino e, dentro, a pastilha. */
+  /* O .btn-duplo do site: trilho com fio fino e, dentro, a pastilha - 32 px no total (padrao de 07/10). */
   .bv-continuar {
-    display: inline-flex; padding: 3px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf);
+    display: inline-flex; padding: 1px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf);
     font: 500 13px var(--sans); letter-spacing: .01em; color: var(--ink); white-space: nowrap; cursor: pointer;
   }
-  .bv-continuar > span { display: flex; align-items: center; justify-content: center; gap: 8px; height: 34px; padding: 0 22px; border-radius: 8px; background: var(--fill2); color: var(--ink); transition: background .12s; }
+  .bv-continuar > span { display: flex; align-items: center; justify-content: center; gap: 8px; height: 28px; padding: 0 22px; border-radius: 8px; background: var(--fill2); color: var(--ink); transition: background .12s; }
   .bv-continuar:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); color: var(--ink); }
   .bv-continuar:hover:not(:disabled) > span { background: var(--pastilha-sobre); }
   .bv-continuar:disabled { opacity: .5; }
