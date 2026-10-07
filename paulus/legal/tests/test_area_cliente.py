@@ -267,6 +267,18 @@ def test_http() -> None:
     checar(r.status_code == 200 and any(p["pendencia"] == "confirmar" for p in r.json()["pendencias"]), "pediu para remarcar: continua pendente")
     conf = local.get(f"/api/servicos/{sid}").json()["cliente"]["confirmacoes"][str(audiencia)]
     checar(conf["resposta"] == "remarcar" and conf["sugestao"] == "quinta à tarde", "o escritorio ve a sugestao na pasta", conf)
+    # O formato da tela nova: "dd/mm/aaaa · período · observação"; o dia tem de existir e não ter passado.
+    r = f.post(f"/api/cliente/pastas/{sid}/compromissos/{audiencia}/responder", json={"resposta": "remarcar", "sugestao": "31/02/2030 · tarde"})
+    checar(r.status_code == 400 and "não existe" in r.text, "remarcar para um dia que não existe: 400", r.text[:200])
+    r = f.post(f"/api/cliente/pastas/{sid}/compromissos/{audiencia}/responder", json={"resposta": "remarcar", "sugestao": "02/01/2020 · manhã"})
+    checar(r.status_code == 400 and "já passou" in r.text, "remarcar para um dia que já passou: 400", r.text[:200])
+    futuro = (date.today() + timedelta(days=9)).strftime("%d/%m/%Y")
+    r = f.post(f"/api/cliente/pastas/{sid}/compromissos/{audiencia}/responder", json={"resposta": "remarcar", "sugestao": futuro + " · tarde · depois das 15h"})
+    checar(r.status_code == 200, "remarcar no formato da tela: 200", r.text[:200])
+    trilha = [x for x in api.estado.servicos.obter(sid)["trilha"] if x.get("tipo") == "cliente_remarcar"]
+    dados = trilha[0].get("dados", {}) if trilha else {}
+    checar(dados.get("dia") == (date.today() + timedelta(days=9)).isoformat() and dados.get("periodo") == "tarde" and dados.get("observacao") == "depois das 15h",
+           "o pedido vai à trilha da pasta com o dia, o período e a observação separados", dados)
     r = f.post(f"/api/cliente/pastas/{sid}/compromissos/{audiencia}/responder", json={"resposta": "confirmado"})
     checar(r.status_code == 200 and not r.json()["pendencias"], "confirmou: nada pendente")
     checar(f.post(f"/api/cliente/pastas/{sid}/compromissos/{almoco}/responder", json={"resposta": "confirmado"}).status_code == 404,

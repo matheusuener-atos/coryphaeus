@@ -119,6 +119,25 @@ def _agora() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+# O pedido de remarcar chega da tela como "dd/mm/aaaa · período · observação" (o
+# calendário, as pílulas e o campo opcional); texto livre também vale, como antes.
+_RE_REMARCAR = re.compile(r"^(\d{2})/(\d{2})/(\d{4})(?: · ([^·]{1,40}?))?(?: · (.+))?$")
+
+
+def _remarcar(sugestao: str) -> dict:
+    """O dia, o período e a observação do pedido, quando ele vem no formato da tela. O dia tem de existir e não ter passado."""
+    m = _RE_REMARCAR.match(sugestao)
+    if not m:
+        return {}
+    try:
+        dia = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    except ValueError:
+        raise ErroDoCliente("essa data não existe: escolha o dia no calendário") from None
+    if dia < date.today():
+        raise ErroDoCliente("esse dia já passou: escolha outro no calendário")
+    return {"dia": dia.isoformat(), "periodo": (m.group(4) or "").strip(), "observacao": (m.group(5) or "").strip()}
+
+
 def _resumo(valor: str) -> str:
     return hashlib.sha256(valor.encode("utf-8")).hexdigest()
 
@@ -989,6 +1008,7 @@ class AreaDoCliente:
         sugestao = " ".join(str(sugestao or "").split())[:300]
         if resposta == "remarcar" and not sugestao:
             raise ErroDoCliente("diga que dia e horário ficam melhor para você")
+        pedido_novo = _remarcar(sugestao) if resposta == "remarcar" else {}
         self.base.escrever("UPDATE cliente_confirmacoes SET resposta = ?, sugestao = ?, quem = ?, respondido_em = ? WHERE compromisso_id = ?",
                            (resposta, sugestao if resposta == "remarcar" else "", pessoa["nome"], _agora(), int(compromisso_id)))
         quando = datetime.fromisoformat(c["data"]).strftime("%d/%m") + (f" às {c['hora']}" if c["hora"] else "")
@@ -1001,7 +1021,7 @@ class AreaDoCliente:
             texto = f"Preciso remarcar {c['titulo']} ({quando}). Fica melhor: {sugestao}"
             self.anotar(pessoa, "remarcar", servico_id, f"{c['titulo']} · {quando} → {sugestao}", ip)
             self.servicos.trilha(servico_id, f"{pessoa['nome']} pediu para remarcar: {c['titulo']} ({quando})", f"{pessoa['nome']} (cliente)",
-                                 tipo="cliente_remarcar", dados={"titulo": c["titulo"], "quando": quando, "sugestao": sugestao})
+                                 tipo="cliente_remarcar", dados={"titulo": c["titulo"], "quando": quando, "sugestao": sugestao, **pedido_novo})
         self._escrever(servico_id, "cliente", pessoa["nome"], texto, pessoa["id"], c["titulo"])
         self._avisar_escritorio(servico_id, f"{pessoa['nome']} respondeu sobre um horário", texto[:160])
         return self.visao(servico_id)
