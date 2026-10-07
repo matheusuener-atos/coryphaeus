@@ -396,6 +396,10 @@ console.log("\nescritório, instalações, Google e notas");
   const troca = await conta("POST", "/api/conta/endereco", { slug: "moura-souza" }, ck);
   checar(troca.status === 200 && JSON.parse(await ESCRITORIOS.get("escritorio:moura-souza")).slug === "moura-souza" && !(await ESCRITORIOS.get("escritorio:moura")),
     "trocar o endereço move o registro do túnel", troca.d);
+  const evs = [];
+  for (const [k, v] of ESCRITORIOS.m) if (k.startsWith("evento:")) evs.push(JSON.parse(v));
+  checar(evs.some((e) => e.evento === "alterado" && e.slug === "moura-souza" && e.de === "moura" && e.quem === "Minha conta (helena@moura.adv.br)"),
+    "o registro de endereços do painel diz que foi pela Minha conta, e de quem", evs);
   const g = await conta("POST", "/api/conta/google/servico", { id: "gmail", ligado: true }, ck);
   const g2 = await conta("POST", "/api/conta/google/servico", { id: "agenda", ligado: true }, ck);
   const g3 = await conta("POST", "/api/conta/google/servico", { id: "gmail", ligado: false }, ck);

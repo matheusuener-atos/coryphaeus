@@ -397,7 +397,7 @@ async function trocarEndereco(request, env, s) {
   const disp = await disponibilidade(env, novo, "", r.dono);
   if (!disp.disponivel || disp.retomar) return json({ erro: disp.retomar ? "esse endereço já é desta conta" : disp.motivo || "esse endereço não está livre" }, 409);
   try {
-    await alterarEndereco(env, esc.slug, novo, Date.now());
+    await alterarEndereco(env, esc.slug, novo, Date.now(), "Minha conta (" + s.email + ")");
   } catch (e) {
     return json({ erro: "não foi possível trocar o endereço agora: " + String((e && e.message) || e) }, 502);
   }
