@@ -738,8 +738,11 @@ function passoConexoes() {
    retorno (src/pagina_retorno.py), e aqui so se espera e se confere. */
 async function pedirConsentimentoBv(servicos) {
   try {
-    const r = await (await fetch("/api/conexoes/autorizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servicos }) })).json();
-    if (r && r.url) window.open(r.url, "_blank", "noopener");
+    const resp = await fetch("/api/conexoes/autorizar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servicos }) });
+    const r = await resp.json().catch(() => ({}));
+    // Recusado (o Gmail que falta, o serviço desligado na Minha conta): diz por quê, sem ficar esperando o Google.
+    if (!resp.ok || !r.url) { avisoCert(maiuscula(r.detail || "não deu para abrir a autorização do Google"), { tom: "erro", dura: 8000 }); return; }
+    window.open(r.url, "_blank", "noopener");
     bv.consentEsperando = true; pararEsperaConsent(); bv.consentEsperando = true;
     bv.relogioConsent = setInterval(conferirConsentBv, 4000);
     setTimeout(pararEsperaConsent, 5 * 60 * 1000);
@@ -887,6 +890,8 @@ function ligarBoasVindas() {
             // Se o Gmail ja estiver autorizado nesta maquina, Conexoes mostra conectado.
             await conferirContasBv();
             if (bv.google) bv.autorizados.gmail = true;
+            // A assinatura e a desta conta: conferida agora, com o login recente (GET /api/assinatura).
+            await lerAssinatura();
           }
           if (passoBv() === "google") desenharBoasVindas();
         }, false);
@@ -996,11 +1001,15 @@ async function acaoBoasVindas(qual) {
     window.open("https://paulus.ia.br" + pagina + (email ? "?email=" + encodeURIComponent(email) : ""), "_blank", "noopener");
     if (qual === "editar-site") {
       // Espera a volta: consulta a assinatura e, quando algum dado mudar, mostra o formulario de novo.
-      const antes = JSON.stringify([bv.pessoa, bv.escritorio]);
+      // Compara com o que o site tinha quando a pessoa saiu (a ultima resposta de GET /api/assinatura),
+      // e nao com os dados daqui: uma diferenca antiga entre os dois nao e edicao.
+      const base = bv.assinatura || {};
+      const antes = JSON.stringify([base.pessoa || {}, base.escritorio || ""]);
       bv.dadosEsperando = true; pararEsperaDados();
       bv.relogioDados = setInterval(async () => {
         const r = await lerAssinatura(true);
         if (r && r.ativa && JSON.stringify([r.pessoa || {}, r.escritorio || ""]) !== antes) {
+          bv.assinatura = r;
           if (r.pessoa) Object.assign(bv.pessoa, r.pessoa);
           if (r.escritorio) bv.escritorio = r.escritorio;
           pararEsperaDados(); desenharBoasVindas();
@@ -1024,7 +1033,10 @@ async function acaoBoasVindas(qual) {
   }
   if (qual === "outra-conta") {
     pararEsperaAssinatura(); bv.assinaturaEsperando = false;
-    fetch("/api/vinculo/desfazer", { method: "POST" }).catch(() => {});
+    // Trocar de conta e desvincular (src/vinculo.py): o passo Conta Google volta a pedir o Google,
+    // e a assinatura e conferida de novo para a conta que entrar.
+    try { await postVinculo("/api/vinculo/desvincular", {}); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    bv.assinatura = null;
     bv.passo = Math.max(0, ordemBv().indexOf("google")); desenharBoasVindas(); return;
   }
   if (qual === "pular") { bv.passo += 1; desenharBoasVindas(); return; }
@@ -1063,7 +1075,13 @@ async function acaoBoasVindas(qual) {
     const errado = camposInvalidos($("boas-vindas"));
     if (errado) { errado.focus(); avisoCert("confira o campo marcado — ou deixe em branco e preencha depois"); return; }
     $("boas-vindas").querySelectorAll("[data-bv-pessoa]").forEach((i) => { bv.pessoa[i.dataset.bvPessoa] = i.value; });
-    await gravarBoasVindas({ pessoa: bv.pessoa });
+    // O documento do cadastro do site pode ser o CNPJ do escritorio: ele vai para o escritorio, e o CPF de
+    // Meus dados fica como estava. O nome do escritorio vem da assinatura (este caminho nao tem o passo Escritorio).
+    const pessoa = Object.assign({}, bv.pessoa);
+    const escritorio = {};
+    if (bv.caminho === "criar" && String(bv.escritorio || "").trim()) escritorio.nome = String(bv.escritorio).trim();
+    if (pessoa.cpf && (String(pessoa.cpf).replace(/\D/g, "").length > 11 || /[A-Za-z]/.test(pessoa.cpf))) { escritorio.cnpj = pessoa.cpf; delete pessoa.cpf; }
+    await gravarBoasVindas(Object.keys(escritorio).length ? { pessoa, escritorio } : { pessoa });
   }
   if (passo === "escritorio" && bv.caminho === "criar") {
     const campo = $("boas-vindas").querySelector("[data-bv-escritorio]");

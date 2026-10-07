@@ -30,6 +30,9 @@
 //   POST /api/ia/google            o que o PAULUS do escritorio usa do Google (so
 //                                  os nomes curtos dos escopos) e a ordem que ele
 //                                  cumpriu; volta a ordem que falta cumprir
+//   GET  /api/ia/cadastro          o cadastro do site desta conta (escritorio,
+//                                  documento, OAB, telefone, endereco), para o
+//                                  assistente de configuracao mostrar
 //
 // Todas, menos ativar, com o segredo da instalacao (Authorization: Bearer
 // pia_<conta>_<64 hex>). A conta vem escrita no segredo; quem confere e o
@@ -239,6 +242,8 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   if (p === "/api/ia/v1/chat/completions" && m === "POST") return completar(request, env, ctx, conta);
   if (p === "/api/ia/sair" && m === "POST") return json(await conta.pedir("sair", { hash: quem.hash }));
   if (p === "/api/ia/google" && m === "POST") return relatarGoogle(request, conta);
+  // O cadastro e da conta dona deste segredo, e so dela: sem o segredo dela, nao se chega aqui.
+  if (p === "/api/ia/cadastro" && m === "GET") return json(cadastroDaConta(await conta.pedir("ler_cadastro")));
   const mp = deps.chamarMP;
   if (p === "/api/ia/assinar" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
@@ -282,6 +287,19 @@ async function relatarGoogle(request, conta) {
   if (r.ok === false) return json({ erro: r.erro || "não foi possível guardar agora" }, r.status || 400);
   const g = r.google_pendente;
   return json({ ok: true, pendente: g && g.id ? { id: g.id, ligados: g.ligados || [], quando: g.quando || "", por: g.por || "" } : null });
+}
+
+/* GET /api/ia/cadastro: o que a pagina de cadastro do site guardou desta conta
+   (conferirCadastro), so os campos que o assistente de configuracao do PAULUS
+   mostra em "Seus dados" - sem os termos aceitos nem o e-mail das faturas. */
+export function cadastroDaConta(r) {
+  const c = r && r.cadastro;
+  return {
+    ok: true,
+    email: (r && r.email) || "",
+    cadastro: c ? { nome_escritorio: c.nome_escritorio || "", documento: c.documento || "", oab: c.oab || "", telefone: c.telefone || "",
+      endereco: c.endereco || null } : null,
+  };
 }
 
 // --------------------------------------------- as NFS-e da conta

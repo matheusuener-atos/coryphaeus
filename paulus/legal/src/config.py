@@ -150,7 +150,12 @@ PADRAO: dict = {
                       # De fora, toda entrada e pelo Google (+ o codigo do celular) - decisao do
                       # dono, 28/09/2026. Sem o Google configurado, ninguem entra de fora (a tela
                       # diz o que falta). Desligar existe so para os testes do caminho por senha.
-                      "so_google": True},
+                      "so_google": True,
+                      # "Nao quero acessar a distancia", no assistente de configuracao
+                      # (js/23-boas-vindas.js): o acesso vem ligado, e quem recusa fica
+                      # recusado ao rever o assistente. Tem de estar aqui: _fundir
+                      # descarta chave que o padrao nao conhece.
+                      "recusado": False},
     "modelo": "",
     # O que chega ao modelo (src/inferencia.py), uma chave por etapa do plano
     # de melhoria da IA - para dar para voltar atras sem mexer em codigo.

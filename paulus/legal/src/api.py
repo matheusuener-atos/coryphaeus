@@ -1088,6 +1088,15 @@ rotas_nuvem.montar(estado, app, DADOS_DIR)
 # (src/google_nuvem.py): depois de entrar ou sair com o Google e a cada leitura
 # da conta na nuvem, o Paulus conta que servicos usa e cumpre a ordem que vier.
 google_nuvem.montar(estado)
+# O assistente de configuracao novo (js/23-boas-vindas.js): a assinatura da
+# conta Google que entrou e o consentimento do passo Conexoes
+# (src/rotas_boas_vindas.py). As funcoes do Google e da janela sao as de
+# Conexoes, definidas mais abaixo neste arquivo - por isso os lambdas.
+import rotas_boas_vindas  # noqa: E402
+
+rotas_boas_vindas.montar(estado, app, credenciais=lambda provedor: _credenciais_oauth(provedor),
+                         ao_voltar=lambda: _trazer_o_paulus(),
+                         ao_ligar_agenda=lambda: _no_google_em_segundo_plano(_sincronizar_agenda_toda))
 # N1: o emissor de NFS-e pelo Padrao Nacional (src/nfse/, rotas em src/rotas_nfse.py).
 import rotas_nfse  # noqa: E402
 
@@ -14694,6 +14703,10 @@ def lixeira_tirar(id_: int) -> dict:
 def conexoes_ver() -> dict:
     dados = estado.conexoes.para_tela()
     dados["janela_embutida"] = _tem_janela()
+    # O que a conta Google do escritorio deixa usar, servico por servico
+    # (gmail, agenda, meet, drive, drive_leitura): o passo Conexoes do
+    # assistente confere aqui se o consentimento voltou (src/rotas_boas_vindas.py).
+    dados.update(rotas_boas_vindas.autorizados(estado))
     return dados
 
 

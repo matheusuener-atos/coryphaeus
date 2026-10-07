@@ -23,6 +23,7 @@ falhar - nao e razoavel exigir navegador para rodar a suite inteira.
 
 from __future__ import annotations
 
+import json
 import socket
 import sys
 import threading
@@ -379,94 +380,166 @@ def main() -> int:
             checar(pagina.evaluate("() => !document.getElementById('bsc-veu')"), "Esc fecha a busca")
 
             print("\nprimeira abertura")
-            # Com uma query nova: so trocar o hash nao recarrega a pagina, e o
-            # passeio e decidido na abertura.
-            pagina.goto(base + "/?passeio=1#boasvindas", wait_until="networkidle")
-            pagina.wait_for_timeout(1500)
-            checar(
-                pagina.evaluate("() => !document.getElementById('boas-vindas').hidden"),
-                "#boasvindas abre o passeio de boas-vindas",
-            )
-            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(600)
-            # O PAULUS do servidor vinculado a conta Google (E5): o passo vem
-            # logo depois das boas-vindas, e da para pular.
-            checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "2Conta Google"
-                and pagina.evaluate("() => !!document.querySelector('[data-bv-google]') || !!document.querySelector('[data-bv-manter]')")
-                and pagina.evaluate("() => !!document.querySelector('[data-bv=pular]')"),
-                "Comecar leva ao passo Conta Google, com o botao do Google e 'Pular por agora'",
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
-            )
-            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(400)
-            # Seus dados vem logo depois da Conta Google (o nome e o e-mail
-            # saem dela); "Pular" para nao gravar nada nos dados de verdade.
-            checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "3Seus dados",
-                "depois da Conta Google, Seus dados",
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
-            )
-            pagina.evaluate("() => document.querySelector('[data-bv=pular]').click()")
-            pagina.wait_for_timeout(400)
-            checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "4Escritório",
-                "depois de Seus dados, o passo Escritorio",
-            )
-            checar(
-                pagina.evaluate("() => !!document.getElementById('bv-escritorio')"),
-                "quem cria o escritorio da o nome no passo Escritorio",
-            )
-            # Continuar sem mexer no nome: o teste roda tambem nos dados de
-            # verdade, e o nome que estiver la fica como esta.
-            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(700)
-            checar(
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent") == "5Acesso à distância",
-                "logo depois do nome do escritorio vem 'Acesso a distancia'",
-                pagina.evaluate("() => (document.querySelector('.bv-etapa.atual') || {}).textContent"),
-            )
-            # De fabrica vem desligado; nos dados de verdade, com um endereco
-            # ja gravado, vem ligado. O teste confere o que os dados dizem.
-            ja_tem = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("hostname"))
-            checar(
-                pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == str(ja_tem).lower()
-                and (ja_tem or not pagina.evaluate("() => !!document.getElementById('cx-slug')")),
-                "desligado de fabrica (ou como os dados dizem), sem nada para preencher",
-            )
-            # Ligado, com o Worker de mentira: so a disponibilidade.
-            from types import SimpleNamespace
+            # A ordem do assistente novo (07/10/2026, js/23-boas-vindas.js):
+            # Boas-vindas, Conta Google, Assinatura, Seus dados, Conexoes,
+            # Acesso a distancia e Atualizacoes. A assinatura e a do site
+            # (src/rotas_boas_vindas.py): aqui ela e de mentira, para o passeio
+            # nao depender da conta da nuvem - primeiro sem assinatura (o passo
+            # segura), depois ativa (o passo some sozinho). E nada do passeio
+            # grava nas preferencias: o que o assistente mandaria fica anotado.
+            import rotas_boas_vindas
 
-            conexao = api.estado.acesso_de_fora.conexao
-            provisao_antes = conexao.provisao
-            conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst, token="": {"disponivel": True, "motivo": "", "sugestao": ""})
+            assinatura_antes = rotas_boas_vindas.assinatura
+            sem_assinatura = {"ativa": False, "situacao": "nenhuma", "email": "teste@exemplo.com.br", "pessoa": {}, "escritorio": "",
+                              "plano": "", "renova_em": ""}
+            situacao = {"a": sem_assinatura}
+            rotas_boas_vindas.assinatura = lambda estado: situacao["a"]
+            gravados: list[str] = []
+
+            def sem_gravar(rota):
+                if rota.request.method == "POST":
+                    gravados.append(rota.request.post_data or "")
+                    rota.fulfill(status=200, content_type="application/json", body="{}")
+                else:
+                    rota.continue_()
+
+            pagina.route("**/api/preferencias", sem_gravar)
+            etapa = "() => (document.querySelector('.bv-etapa.atual') || {}).textContent"
             try:
-                # Com um endereco ja gravado (dados de verdade), ligar nao se aplica.
-                if not ja_tem:
-                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
-                    pagina.wait_for_selector("#cx-slug", timeout=5000)
-                    pagina.fill("#cx-slug", "escritorio-da-tela")
-                    pagina.wait_for_timeout(1200)
-                    checar(
-                        pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
-                        and "disponível" in pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
-                        "ligado: o endereco, conferido enquanto digita, com o final em destaque",
-                        pagina.evaluate("() => document.getElementById('cx-disp').textContent"),
-                    )
-                    checar(
-                        pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
-                        "as tres etapas: endereco, conta do titular, confirmar no navegador",
-                    )
-                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
-                    pagina.wait_for_timeout(300)
+                # Com uma query nova: so trocar o hash nao recarrega a pagina, e o
+                # passeio e decidido na abertura.
+                pagina.goto(base + "/?passeio=1#boasvindas", wait_until="networkidle")
+                pagina.wait_for_timeout(1500)
+                checar(
+                    pagina.evaluate("() => !document.getElementById('boas-vindas').hidden"),
+                    "#boasvindas abre o passeio de boas-vindas",
+                )
+                checar(
+                    pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent).join('|')")
+                    == "Boas-vindas|Conta Google|Assinatura|Seus dados|Conexões|Acesso à distância|Atualizações",
+                    "as etapas na ordem nova, so com o nome",
+                    pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent).join('|')"),
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+                pagina.wait_for_timeout(600)
+                # O PAULUS do servidor vinculado a conta Google (E5): o passo vem
+                # logo depois das boas-vindas, e da para pular.
+                checar(
+                    pagina.evaluate(etapa) == "Conta Google"
+                    and pagina.evaluate("() => !!document.querySelector('[data-bv-google]') || !!document.querySelector('[data-bv-manter]')")
+                    and pagina.evaluate("() => !!document.querySelector('[data-bv=pular]')"),
+                    "Comecar leva ao passo Conta Google, com o botao do Google e 'Pular por agora'",
+                    pagina.evaluate(etapa),
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+                pagina.wait_for_timeout(400)
+                # Sem assinatura, o passo segura: nao ha Continuar, so assinar no site.
+                checar(
+                    pagina.evaluate(etapa) == "Assinatura"
+                    and pagina.evaluate("() => !document.querySelector('[data-bv=continuar]') && !!document.querySelector('[data-bv=assinar]')")
+                    and pagina.evaluate("() => !!document.querySelector('[data-bv=outra-conta]')"),
+                    "sem assinatura, o passo Assinatura segura: so 'Assinar no site' e a troca de conta",
+                    pagina.evaluate(etapa),
+                )
+                # O site confirmou: a proxima conferencia tira o passo, e o assistente segue para Seus dados.
+                documento_antes = str((api.estado.prefs.dados.get("pessoa") or {}).get("cpf") or "")
+                situacao["a"] = {"ativa": True, "situacao": "ativa", "email": "teste@exemplo.com.br", "escritorio": "Escritório da Tela",
+                                 "plano": "Escritório", "renova_em": "2026-11-07",
+                                 "pessoa": {"nome": "Helena Teste", "oab": "PA 12345", "cpf": "11.222.333/0001-81",
+                                            "telefone": "(91) 98888-7777", "endereco": "Rua A, 1 - Centro, Belém - PA, CEP 66010-000"}}
+                pagina.evaluate("async () => { await lerAssinatura(); desenharBoasVindas(); }")
+                pagina.wait_for_timeout(400)
+                checar(
+                    pagina.evaluate(etapa) == "Seus dados"
+                    and pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].every(e => e.textContent !== 'Assinatura')"),
+                    "com a assinatura confirmada, o passo some e o assistente segue para Seus dados",
+                    pagina.evaluate(etapa),
+                )
+                dados = pagina.evaluate("() => document.querySelector('.bv-dados').textContent")
+                checar(
+                    pagina.evaluate("() => document.querySelectorAll('.bv-campo-ro').length") == 7
+                    and "Escritório da Tela" in dados and "renova em 07/11/2026" in pagina.evaluate("() => document.querySelector('.bv-entrada').textContent"),
+                    "Seus dados mostra o cadastro da assinatura, so para ler, com o plano e quando renova",
+                    dados,
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+                pagina.wait_for_timeout(500)
+                salvo = json.loads(gravados[-1]) if gravados else {}
+                checar(
+                    (salvo.get("escritorio") or {}).get("nome") == "Escritório da Tela"
+                    and (documento_antes or ((salvo.get("escritorio") or {}).get("cnpj") == "11.222.333/0001-81"
+                                             and "cpf" not in (salvo.get("pessoa") or {}))),
+                    "Continuar grava o nome do escritorio e leva o CNPJ para o escritorio, e nao para o CPF de Meus dados",
+                    salvo,
+                )
+                checar(
+                    pagina.evaluate(etapa) == "Conexões"
+                    and pagina.evaluate("() => document.querySelectorAll('.bv-servico').length") == 5
+                    and pagina.evaluate("() => !!document.querySelector('[data-bv=pular]')"),
+                    "depois de Seus dados, Conexoes: os cinco servicos e 'Pular por agora'",
+                    pagina.evaluate(etapa),
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv=pular]').click()")
+                pagina.wait_for_timeout(700)
+                checar(
+                    pagina.evaluate(etapa) == "Acesso à distância",
+                    "depois de Conexoes, 'Acesso a distancia'",
+                    pagina.evaluate(etapa),
+                )
+                # O acesso vem ligado (o caminho normal); o interruptor e o da
+                # recusa, "Nao quero acessar a distancia": aria-checked = !acesso.
+                ja_tem = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("hostname"))
+                recusado = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("recusado"))
+                checar(
+                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == str(recusado).lower(),
+                    "o interruptor da recusa vem como os dados dizem (de fabrica, desligado: o acesso vem ligado)",
+                )
+                # Ligado, com o Worker de mentira: so a disponibilidade.
+                from types import SimpleNamespace
+
+                conexao = api.estado.acesso_de_fora.conexao
+                provisao_antes = conexao.provisao
+                conexao.provisao = SimpleNamespace(disponivel=lambda nome, inst, token="": {"disponivel": True, "motivo": "", "sugestao": ""})
+                try:
+                    # Com um endereco ja gravado, so o endereco aparece; recusado, nada a preencher.
+                    if not ja_tem and not recusado:
+                        pagina.wait_for_selector("#cx-slug", timeout=5000)
+                        pagina.fill("#cx-slug", "escritorio-da-tela")
+                        pagina.wait_for_timeout(1200)
+                        # No assistente, o desenho novo nao escreve "disponivel": o campo fica
+                        # verde (data-tom "ok") e o final do endereco fica no proprio campo.
+                        checar(
+                            pagina.evaluate("() => document.getElementById('cx-final').textContent") == "escritorio-da-tela.paulus.ia.br"
+                            and pagina.evaluate("() => document.getElementById('cx-disp').dataset.tom") == "ok"
+                            and pagina.evaluate("() => document.querySelector('#boas-vindas .acesso-slug').dataset.tom") == "ok",
+                            "ligado: o endereco, conferido enquanto digita (disponivel: o campo fica verde)",
+                            pagina.evaluate("() => [document.getElementById('cx-final').textContent, document.getElementById('cx-disp').dataset.tom, document.getElementById('cx-disp').textContent]"),
+                        )
+                        checar(
+                            pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
+                            "as tres etapas: endereco, conta do titular, confirmar no navegador",
+                        )
+                        pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                        pagina.wait_for_timeout(400)
+                        checar(
+                            pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == "true"
+                            and not pagina.evaluate("() => !!document.getElementById('cx-slug')")
+                            and any('"recusado": true' in g or '"recusado":true' in g for g in gravados),
+                            "recusar tira o endereco da tela e grava a recusa",
+                        )
+                        pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
+                        pagina.wait_for_timeout(300)
+                finally:
+                    conexao.provisao = provisao_antes
+                pagina.evaluate("() => concluirBoasVindas(true)")
+                pagina.wait_for_timeout(600)
+                checar(
+                    pagina.evaluate("() => document.getElementById('boas-vindas').hidden"),
+                    "concluir fecha o passeio e devolve o programa",
+                )
             finally:
-                conexao.provisao = provisao_antes
-            pagina.evaluate("() => concluirBoasVindas(true)")
-            pagina.wait_for_timeout(600)
-            checar(
-                pagina.evaluate("() => document.getElementById('boas-vindas').hidden"),
-                "concluir fecha o passeio e devolve o programa",
-            )
+                rotas_boas_vindas.assinatura = assinatura_antes
+                pagina.unroute("**/api/preferencias")
 
             print("\ncada destino do menu")
             ver_compositor = """() => {
@@ -1115,16 +1188,15 @@ def main() -> int:
             pagina.evaluate("() => { location.hash = '#boasvindas'; verificarPrimeiraAbertura(); }")
             pagina.wait_for_selector("[data-bv=continuar]", timeout=40000)
             pagina.wait_for_timeout(300)
-            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(400)
-            # boas-vindas -> Conta Google (E5) -> Seus dados -> Escritorio
-            pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-            pagina.wait_for_timeout(400)
-            pagina.evaluate("() => document.querySelector('[data-bv=pular]').click()")
-            pagina.wait_for_timeout(400)
+            # O assistente novo nao tem o passo Escritorio (o nome vem da
+            # assinatura) nem o caminho de quem entra num escritorio existente
+            # (os Codigos): so o de quem cria.
             checar(
-                pagina.evaluate("() => !document.querySelector('[data-caminho]') && !!document.querySelector('[data-bv-escritorio]')"),
-                "o passo Escritorio pede so o nome, sem 'entrar num existente'",
+                pagina.evaluate("() => bv.caminho === 'criar' && !document.querySelector('[data-caminho]')")
+                and not any(n in pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent)")
+                            for n in ("Escritório", "Códigos")),
+                "o assistente e so o de quem cria o escritorio, sem 'entrar num existente'",
+                pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent).join('|')"),
             )
             pagina.evaluate("() => concluirBoasVindas(true)")
             pagina.wait_for_timeout(600)
