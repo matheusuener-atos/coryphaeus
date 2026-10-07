@@ -113,6 +113,7 @@ const donos = {
   "tk-bruno": { sub: "222", email: "bruno@moura.adv.br" },
   "tk-sem": { sub: "333", email: "ninguem@x.com" },
   "tk-ana": { sub: "444", email: "ana@silva.adv.br" },
+  "tk-dora": { sub: "555", email: "dora@lima.adv.br" },
 };
 const emails = [];
 const enviar = async (e, carta) => { emails.push(carta); return { ok: true }; };
@@ -257,6 +258,27 @@ console.log("\no valor que o Mercado Pago recusou voltar");
   recusarPut.delete(nova.id);
   const cron = await cronDaConta(env, chamarMP, enviar, relogio);
   checar(cron.restaurados === 1 && nova.auto_recurring.transaction_amount === 1290 && !APOIOS.m.has("conta:restaurar:" + bruno), "o Cron do dia tenta de novo e volta ao valor cheio", cron);
+}
+
+console.log("\nretomar a assinatura pausada");
+{
+  // Pausada depois do fim do ciclo, retomada: o ciclo novo (a cota) vem com a cobranca, nao antes dela.
+  const t0 = relogio;
+  const dora = await idDe("555");
+  await assinar("tk-dora", "advogado");
+  const pre = preDe(dora);
+  await cobranca(pre.id, 449, "cobD1");
+  const antes = (await resumoDe(dora)).ciclo_completo;
+  relogio = Date.parse(antes.fim) + 5 * DIA;
+  const pedir = (d) => CONTAS_IA.get(dora).fetch("https://x/assinatura", { method: "POST", body: JSON.stringify({ acao: "assinatura", ...d }) });
+  await pedir({ assinatura: { ...(await resumoDe(dora)).assinatura, situacao: "paused" } });
+  await pedir({ assinatura: { ...(await resumoDe(dora)).assinatura, situacao: "authorized" } });
+  let r = await resumoDe(dora);
+  checar(r.ciclo_completo.inicio === antes.inicio && !r.plano_vigente, "retomada: nenhum ciclo novo antes da cobrança", { ciclo: r.ciclo_completo, vigente: r.plano_vigente });
+  await cobranca(pre.id, 449, "cobD2");
+  r = await resumoDe(dora);
+  checar(r.ciclo_completo.inicio !== antes.inicio && r.plano_vigente && r.ciclo_completo.usados === 0, "a cobrança da retomada abre o ciclo novo", r.ciclo_completo);
+  relogio = t0;
 }
 
 // ================================================= a Minha conta (worker/conta.js)

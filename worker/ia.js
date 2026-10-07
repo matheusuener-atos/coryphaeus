@@ -1990,7 +1990,10 @@ export class ContaIA {
       conta.assinatura = { ...antes, ...d.assinatura, desde: antes.desde || new Date(agora).toISOString() };
       // Cartao posto e aceito: o primeiro ciclo comeca agora; a cobranca do
       // Mercado Pago, que vem em seguida, so confirma (renovar e idempotente).
-      if (conta.assinatura.situacao === "authorized" && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "assinatura");
+      // A mesma assinatura retomada depois de pausada nao abre ciclo: o ciclo
+      // novo vem com a cobranca (renovar), e nao antes dela.
+      const retomada = antes.id && antes.id === conta.assinatura.id && antes.situacao === "paused";
+      if (conta.assinatura.situacao === "authorized" && !retomada && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "assinatura");
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "renovar") {
