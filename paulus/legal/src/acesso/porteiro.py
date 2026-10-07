@@ -121,7 +121,7 @@ class Porteiro:
         # () -> a porta do suplemento do Word (src/word_suplemento.py): o painel
         # tem token proprio e entra antes da chave da janela, como o /mcp.
         self.word = word
-        # () -> bool: o PAULUS vinculado a conta Google e travado (src/vinculo.py).
+        # () -> bool: o PAULUS vinculado a uma conta e travado (src/vinculo.py).
         # Travado, a janela local so alcanca a tela de destravar.
         self.travado = travado
         # async (scope, receive, send, cab) -> bool: True se ja respondeu ou
@@ -155,7 +155,7 @@ class Porteiro:
                 from vinculo import passa_travado
 
                 if not passa_travado(scope.get("method", "GET"), scope.get("path", "")):
-                    await recusar(scope, send, 423, "o Paulus está travado: entre com a conta Google",
+                    await recusar(scope, send, 423, "o Paulus está travado: entre com a sua conta",
                                   [(b"x-paulus-travado", b"1")])
                     return
             await self.app(scope, receive, send)

@@ -1118,12 +1118,13 @@ function limpo(t, max) {
 
 async function emailDoCliente(env, registro, dados, agora) {
   const tipo = String(dados.tipo || "");
-  if (!["convite", "codigo", "mensagem"].includes(tipo)) return json({ erro: "tipo de e-mail desconhecido" }, 400);
+  // "senha" (07/10/2026): o codigo do "Esqueci a senha" de quem entra no PAULUS de fora.
+  if (!["convite", "codigo", "mensagem", "senha"].includes(tipo)) return json({ erro: "tipo de e-mail desconhecido" }, 400);
   const para = String(dados.para || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para) || para.length > 200) return json({ erro: "e-mail do destinatário inválido" }, 400);
   const host = registro.slug + "." + DOMINIO;
   const link = String(dados.link || "");
-  if (!link.startsWith("https://" + host + "/cliente/")) return json({ erro: "o link precisa ser do endereço deste escritório" }, 400);
+  if (!link.startsWith("https://" + host + (tipo === "senha" ? "/" : "/cliente/"))) return json({ erro: "o link precisa ser do endereço deste escritório" }, 400);
   const escritorio = limpo(dados.escritorio || registro.nome, 60) || "Seu escritório";
   const advogado = limpo(dados.advogado, 60) || escritorio;
   const pasta = limpo(dados.pasta, 80);
@@ -1139,7 +1140,16 @@ async function emailDoCliente(env, registro, dados, agora) {
   if (naHora >= CLIENTE_EMAIL_POR_HORA) return json({ erro: "muitos e-mails para esta pessoa na última hora — espere um pouco" }, 429);
 
   let carta;
-  if (tipo === "codigo") {
+  if (tipo === "senha") {
+    const codigo = String(dados.codigo || "");
+    if (!/^\d{6}$/.test(codigo)) return json({ erro: "código inválido" }, 400);
+    carta = {
+      assunto: "Código para trocar a senha: " + codigo, titulo: "Seu código: " + codigo, pre: "Trocar a senha de entrada no Paulus do " + escritorio,
+      texto: (pessoa ? "Olá, " + pessoa.split(" ")[0] + ".\n\n" : "") + "Use este código para trocar a sua senha de entrada no Paulus do " + escritorio + ". Ele vale por 10 minutos. " +
+        "Depois da senha nova, a entrada continua pedindo o código do autenticador do celular.\n\n" +
+        "Se não foi você que pediu, ignore este e-mail: a senha atual continua valendo.",
+    };
+  } else if (tipo === "codigo") {
     const codigo = String(dados.codigo || "");
     if (!/^\d{6}$/.test(codigo)) return json({ erro: "código inválido" }, 400);
     carta = {

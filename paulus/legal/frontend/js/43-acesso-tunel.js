@@ -85,12 +85,12 @@ function textoDisponibilidade() {
   const x = conexaoUI.disp;
   if (!conexaoUI.slug) return ["", ""];
   if (!x || conexaoUI.perguntado !== conexaoUI.slug) return ["conferindo…", ""];
-  if (x.disponivel === true && x.retomar) return [ic("check_circle", 16) + "é seu — da sua conta Google; conectar o traz para este Paulus", "ok"];
+  if (x.disponivel === true && x.retomar) return [ic("check_circle", 16) + "é seu — da sua conta; conectar o traz para este Paulus", "ok"];
   if (x.disponivel === true) return [conexaoUI.onde === "bv" ? "" : ic("check_circle", 16) + "disponível", "ok"];
   if (x.disponivel === null) return [ic("error", 16) + esc(x.motivo || "não consegui conferir agora"), "nao"];
   const motivo = conexaoUI.onde === "bv" && !x.motivo ? "" : ic("close", 16) + esc(x.motivo || "indisponível");
   return [motivo +
-    (x.confirmar_google ? (motivo ? " · " : "") + '<button type="button" class="em-ligacao" data-cx-meu="1">é meu: entrar com o Google</button>' : "") +
+    (x.confirmar_google ? (motivo ? " · " : "") + '<button type="button" class="em-ligacao" data-cx-meu="1">é meu: confirmar a minha conta</button>' : "") +
     (x.sugestao ? (motivo || x.confirmar_google ? " · " : "") + '<button type="button" class="em-ligacao" data-cx-sugestao="' + esc(x.sugestao) + '">usar ' + esc(x.sugestao) + "</button>" : ""), "nao"];
 }
 
@@ -133,11 +133,11 @@ function blocoConexao() {
     conta = (conexaoUI.onde === "bv"
       ? '<p class="cfg-texto"><span class="fin-meta-ponto ok"><i></i>autenticador configurado</span></p>'
       : '<p class="cfg-texto">' + esc(t.nome) + " · " + esc(t.email) + ' · <span class="fin-meta-ponto ok"><i></i>pronta</span></p>') +
-      '<p class="cfg-explica">Entra com o Google e o código do autenticador. As contas da equipe se criam em Configurações › Acesso externo.</p>';
+      '<p class="cfg-explica">Entra com a conta (Google ou e-mail e senha) e o código do autenticador. As contas da equipe se criam em Configurações › Acesso externo.</p>';
   } else {
     const v = conexaoUI.conta;
-    // Vinculado a conta Google (E5): o e-mail dela e o da conta de titular,
-    // fixo; o nome vem do Google. Sobra so o secundario.
+    // Vinculado (E5): o e-mail da conta vinculada e o da conta de titular,
+    // fixo; o nome vem da conta. Sobra so o secundario.
     const vinculo = d.vinculo || {};
     if (vinculo.email) {
       v.email = vinculo.email;
@@ -156,8 +156,13 @@ function blocoConexao() {
       if (daPessoa.nome) v.nome = daPessoa.nome;
       if (vinculo.email) v.email = vinculo.email; else if (daPessoa.email) v.email = daPessoa.email;
       v.secundario = daPessoa.secundario || "";
-      // A senha e a do Google: aqui so o autenticador.
-      conta = '<p class="cfg-texto">Para entrar de fora: a sua conta Google e o código de 6 dígitos do aplicativo autenticador do celular.</p>' +
+      // Vinculado pelo Google, a senha e a do Google: aqui so o autenticador. Pela conta PAVLVS
+      // de e-mail e senha (07/10), a entrada de fora pede uma senha deste computador - pode ser a mesma.
+      conta = (vinculo.por === "senha"
+        ? '<p class="cfg-texto">Para entrar de fora: o seu e-mail, uma senha e o código de 6 dígitos do aplicativo autenticador do celular. A senha fica só neste computador; pode ser a mesma da sua conta PAVLVS.</p>' +
+          '<div class="acesso-form">' + campo("senha", "Senha para entrar de fora", "password", "pelo menos 10 caracteres") +
+          campo("repetir", "Confirmar a senha", "password", "") + "</div>"
+        : '<p class="cfg-texto">Para entrar de fora: a sua conta Google e o código de 6 dígitos do aplicativo autenticador do celular.</p>') +
         '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
         '<div class="acesso-pe"><button class="primario com-icone" data-cx-criar-conta="1"><img class="marca-ic" src="/img/marcas/authenticator.webp" alt="" width="18" height="18">Ler o QR no celular</button>' +
         '<p class="cfg-explica">O código fica só neste computador. Sem ele, ninguém entra de fora.</p></div>';
@@ -214,24 +219,35 @@ function blocoConexao() {
       '<div class="acesso-pe"><button class="primario com-icone" data-cx-conectar="1"' + (pronto ? "" : " disabled") + ">" + ic("link", 16) +
       (conexaoUI.disp && conexaoUI.disp.retomar ? "Retomar o endereço" : "Conectar") + "</button>" +
       '<p class="cfg-explica">O Paulus abre o navegador em paulus.ia.br/conectar. Nada é criado antes de você confirmar lá.' +
-      (d.google_recente ? "" : " Antes, o Google confirma a sua conta: o endereço fica dela, e você o retoma se reinstalar.") + "</p></div>";
+      (d.google_recente ? "" : ((d.vinculo || {}).por === "senha" ? " Antes, a senha da sua conta PAVLVS confirma que é você" : " Antes, o Google confirma a sua conta") +
+        ": o endereço fica dela, e você o retoma se reinstalar.") + "</p></div>";
   }
   return '<div class="acesso-etapas">' + endereco + etapaConta +
     etapaConexao(3, "Confirmar no navegador", confirmar, pedido && pedido.estado === "concluido") + "</div>";
 }
 
-/* Os enderecos que ja sao desta conta Google (reinstalou, trocou de
-   computador): conectar um deles o traz para este Paulus. */
+/* Os enderecos que ja sao desta conta (reinstalou, trocou de computador):
+   conectar um deles o traz para este Paulus. */
 function blocoMeus(d, esperando) {
   const meus = (d.meus || []).filter((m) => m.slug !== conexaoUI.slug);
   if (esperando || !meus.length) return "";
-  return '<p class="cfg-explica">Da sua conta Google: ' + meus.map((m) =>
+  return '<p class="cfg-explica">Da sua conta: ' + meus.map((m) =>
     '<button type="button" class="em-ligacao" data-cx-sugestao="' + esc(m.slug) + '">' + esc(m.slug) + ".paulus.ia.br</button>").join(" · ") + "</p>";
 }
 
-/* Entrar de novo com a conta vinculada (o navegador abre) so para provar ao
-   Worker de quem e o endereco; volta e segue com `depois`. */
+/* Entrar de novo com a conta vinculada so para provar ao Worker de quem e o
+   endereco; volta e segue com `depois`. Pelo Google, o navegador abre; pela
+   conta PAVLVS de e-mail e senha, um dialogo pede a senha. */
 async function confirmarComGoogle(depois) {
+  if (typeof vincPorSenha === "function" && vincPorSenha()) {
+    if (!(await confirmarComSenha())) return;
+    await carregarTunel();
+    conexaoUI.disp = null;
+    conexaoUI.perguntado = "";
+    if (depois) await depois();
+    else conexaoUI.redesenhar && conexaoUI.redesenhar();
+    return;
+  }
   let feito = false;
   try {
     await entrarNoGoogleDoVinculo("confirmar", async () => {
@@ -308,12 +324,12 @@ async function conectarTunel(deNovo) {
   const pedido = (d.conexao || {}).pedido;
   const slug = deNovo && pedido ? pedido.slug : conexaoUI.slug;
   const nome = deNovo && pedido ? pedido.nome : (d.escritorio || (typeof bv !== "undefined" && bv.escritorio) || "");
-  // O endereco nasce da conta Google: sem login recente, entrar antes.
+  // O endereco nasce da conta vinculada: sem login recente, confirmar antes.
   if (!d.google_recente) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
   try {
     await acessoPost("/api/acesso/tunel/conectar", { nome: nome || slug, slug: slug });
   } catch (err) {
-    if (/confirme com o Google/.test(err.message)) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
+    if (/confirme a sua conta/.test(err.message)) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
     avisoCert(err.message, { tom: "erro" });
   }
   await carregarTunel();
@@ -345,10 +361,12 @@ function ligarBlocoConexao(raiz) {
     const v = conexaoUI.conta;
     raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { v[i.dataset.cxConta] = i.value; });
     conexaoUI.erroConta = "";
-    // No assistente a senha e sempre pedida (Google + senha + autenticador); nome e e-mail ja vieram.
+    // No assistente, nome e e-mail ja vieram. Vinculado pelo Google, a conta entra pelo Google (sem senha
+    // daqui); pela conta PAVLVS de e-mail e senha, a senha de fora e pedida aqui.
     const noBv = conexaoUI.onde === "bv";
-    const soGoogle = noBv || Boolean((tunelCfg.dados || {}).so_google);
-    if (!v.nome.trim() || !v.email.trim()) conexaoUI.erroConta = noBv ? "a conta Google ainda não foi reconhecida; volte um passo" : "diga o nome e o e-mail";
+    const porSenha = (((tunelCfg.dados || {}).vinculo) || {}).por === "senha";
+    const soGoogle = noBv ? !porSenha : Boolean((tunelCfg.dados || {}).so_google);
+    if (!v.nome.trim() || !v.email.trim()) conexaoUI.erroConta = noBv ? "a sua conta ainda não foi reconhecida; volte ao passo Sua conta" : "diga o nome e o e-mail";
     else if (!soGoogle && (v.senha || "").length < 10) conexaoUI.erroConta = "a senha precisa de pelo menos 10 caracteres";
     else if (!soGoogle && v.senha !== v.repetir) conexaoUI.erroConta = "as duas senhas não são iguais";
     if (!conexaoUI.erroConta) {

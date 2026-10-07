@@ -44,9 +44,11 @@ function dataNuvem(iso) {
 function painelDoPlano(d) {
   const prov = (d.provedores || []).find((p) => p.id === "paulus") || {};
   if (!prov.tem_chave) {
-    return '<div class="cfg-servico"><span class="duas-linhas cresce"><b>Conta da nuvem</b><small>A conta é a conta Google vinculada a este Paulus. ' +
-      "Ativar abre o Google para confirmar; nada sai antes do sim do titular.</small></span>" +
-      '<button class="primario com-icone" data-nuvem-ativar="1">' + ic("login", 16) + "Ativar com o Google</button></div>";
+    // A conta vinculada pode ser a do Google ou a conta PAVLVS de e-mail e senha (07/10).
+    const porSenha = typeof vincPorSenha === "function" && vincPorSenha();
+    return '<div class="cfg-servico"><span class="duas-linhas cresce"><b>Conta da nuvem</b><small>A conta é a conta vinculada a este Paulus. ' +
+      (porSenha ? "Ativar pede a senha dela para confirmar" : "Ativar abre o Google para confirmar") + "; nada sai antes do sim do titular.</small></span>" +
+      '<button class="primario com-icone" data-nuvem-ativar="1">' + ic("login", 16) + (porSenha ? "Ativar com a senha" : "Ativar com o Google") + "</button></div>";
   }
   const c = nuvemTela.conta;
   if (!c) {
@@ -242,7 +244,9 @@ async function ativarNuvemPaulus(redesenhar) {
     return true;
   };
   if (await tentar()) return;
-  if (typeof entrarNoGoogleDoVinculo !== "function") { avisoCert("Vincule este Paulus a uma conta Google antes (Configurações › Conta).", { tom: "erro" }); return; }
+  // A conta PAVLVS de e-mail e senha (07/10): a senha confirma, sem abrir o navegador.
+  if (typeof vincPorSenha === "function" && vincPorSenha()) { if (await confirmarComSenha()) await tentar(); return; }
+  if (typeof entrarNoGoogleDoVinculo !== "function") { avisoCert("Vincule este Paulus a uma conta antes (Configurações › Conta).", { tom: "erro" }); return; }
   let feito = false;
   try {
     await entrarNoGoogleDoVinculo("confirmar", async () => {
@@ -342,7 +346,7 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
     if (!r) return;
     if (!r.link) { avisoCert("paulus.ia.br não devolveu a página de pagamento", { tom: "erro" }); return; }
     window.open(r.link, "_blank");
-    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: o cartão vai nos campos seguros do Mercado Pago" +
+    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta: o cartão vai nos campos seguros do Mercado Pago" +
       (anual ? ", em até 12 vezes." : ".") + " O plano aparece aqui assim que o pagamento for aprovado.");
     await carregarContaNuvem(true); redesenhar();
   }; });
@@ -359,7 +363,7 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
   });
   clique("[data-nuvem-recarga]", () => recarregarNuvem(redesenhar));
   clique("[data-nuvem-sair]", async () => {
-    const res = await dialogo({ titulo: "Desligar esta instalação?", texto: "O segredo desta instalação é apagado daqui e de paulus.ia.br. A conta e o plano continuam; para usar de novo, ative com o Google.",
+    const res = await dialogo({ titulo: "Desligar esta instalação?", texto: "O segredo desta instalação é apagado daqui e de paulus.ia.br. A conta e o plano continuam; para usar de novo, ative outra vez.",
       confirmar: "Desligar", perigo: true });
     if (!res || !res.ok) return;
     const r = await nuvemPost("/api/nuvem/chave/paulus", null, "DELETE");

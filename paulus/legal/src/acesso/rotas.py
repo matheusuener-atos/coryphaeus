@@ -117,6 +117,17 @@ class SoCodigo(BaseModel):
     codigo: str
 
 
+class EsqueciSenha(BaseModel):
+    email: str
+    turnstile: str = ""
+
+
+class RedefinirSenha(BaseModel):
+    email: str
+    codigo: str
+    senha: str
+
+
 def e_local(request: Request | None) -> bool:
     """
     Se o pedido veio da janela local. Sem `request` - a rota chamada de dentro
@@ -307,7 +318,12 @@ def montar(servico, r) -> None:
     @r.post("/api/acesso/contas")
     def criar_conta(dados: NovaConta, request: Request) -> dict:
         so_local(request)
-        if not servico.so_google() and not dados.senha:
+        # Sem senha, so quem entra pelo Google: com o login do Google nesta
+        # versao, a conta nasce com senha sorteada (e o "Esqueci a senha" da uma
+        # depois). O endereco pode nem existir ainda - o assistente cria a conta
+        # do titular antes de conectar.
+        com_google = bool((servico.google.credenciais() or {}).get("client_id"))
+        if not dados.senha and not (servico.so_google() or com_google):
             raise HTTPException(status_code=400, detail="escolha a senha (pelo menos 10 caracteres)")
         try:
             criada = servico.contas.criar(dados.nome, dados.email, dados.papel,
@@ -343,7 +359,7 @@ def montar(servico, r) -> None:
         so_local(request)
         vinculo = getattr(servico, "vinculo", None)
         if vinculo is not None and not vinculo.vinculado():
-            raise HTTPException(status_code=400, detail="vincule este Paulus à sua conta Google antes de convidar a equipe")
+            raise HTTPException(status_code=400, detail="vincule este Paulus à sua conta antes de convidar a equipe")
         host = servico.preferencias().get("hostname", "")
         if not host:
             raise HTTPException(status_code=400, detail="ligue o acesso externo antes: o convite é um link do endereço do escritório")
@@ -418,6 +434,61 @@ def montar(servico, r) -> None:
             raise HTTPException(status_code=503, detail="não consegui conferir a verificação contra robôs agora; tente de novo em instantes")
         if veredito != "ok":
             raise HTTPException(status_code=403, detail="a verificação contra robôs não passou; tente de novo")
+
+    # ------------------------------------------- esqueci a senha (07/10)
+
+    @r.post("/api/acesso/senha/esqueci")
+    def senha_esqueci(dados: EsqueciSenha, request: Request) -> dict:
+        """
+        O codigo para trocar a senha vai ao e-mail da conta. A resposta e a
+        mesma exista a conta ou nao, e o e-mail sai em segundo plano: nem a
+        frase nem o tempo dizem quem tem conta. O que impediu o envio fica em
+        "quem acessou".
+        """
+        import threading
+
+        if servico.so_google():
+            raise HTTPException(status_code=403, detail="neste escritório se entra com o Google: não há senha para trocar")
+        _anti_robo(request, dados.turnstile)
+        if not servico.cofre.tem():
+            # Sem o acesso de fora conectado nao ha por onde mandar o e-mail - vale para todos.
+            raise HTTPException(status_code=503, detail="o envio do código depende do acesso externo conectado; "
+                                                        "no computador do escritório, a senha se troca em Configurações › Acesso externo")
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        ip = remoto.get("ip", "")
+        try:
+            achado = servico.contas.pedir_troca_de_senha(dados.email, ip=ip)
+        except ErroEntrada as exc:
+            raise HTTPException(status_code=429 if exc.ate else 400, detail=str(exc)) from exc
+        if achado:
+            conta, codigo = achado
+
+            def mandar() -> None:
+                erro = servico.email_da_senha(conta, codigo)
+                servico.anotar(acao="senha_codigo", alvo=f"o e-mail não saiu: {erro}" if erro else "código enviado por e-mail",
+                               pessoa=conta["nome"], email=conta["email"], ip=ip)
+
+            threading.Thread(target=mandar, name="acesso-esqueci", daemon=True).start()
+        return {"ok": True, "enviado": True}
+
+    @r.post("/api/acesso/senha/redefinir")
+    def senha_redefinir(dados: RedefinirSenha, request: Request) -> dict:
+        if servico.so_google():
+            raise HTTPException(status_code=403, detail="neste escritório se entra com o Google: não há senha para trocar")
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        ip = remoto.get("ip", "")
+        try:
+            conta = servico.contas.trocar_senha_com_codigo(dados.email, dados.codigo, dados.senha, ip=ip)
+        except ErroEntrada as exc:
+            servico.anotar(acao="login_falho", alvo="código de trocar a senha", ip=ip, pessoa=dados.email)
+            raise HTTPException(status_code=429 if exc.ate else 400, detail=str(exc)) from exc
+        except ErroConta as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        servico.anotar(acao="senha", alvo="trocou a senha pelo código do e-mail", pessoa=conta["nome"], email=conta["email"], ip=ip)
+        # A senha nova nao abre sessao: a entrada e a de sempre, com o codigo do celular quando a conta o pede.
+        com_codigo = conta.get("seguranca") != "simples"
+        return {"ok": True, "codigo_do_celular": com_codigo,
+                "detail": "senha trocada: entre com ela" + (" e o código do autenticador" if com_codigo else "")}
 
     @r.post("/api/acesso/google/iniciar")
     def google_iniciar(dados: IrAoGoogle, request: Request):

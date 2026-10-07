@@ -71,12 +71,13 @@ async function convidarPessoa(ficha, depois, inicial) {
     titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao Paulus",
     texto: (eqp.soGoogle
       ? "A pessoa recebe um link, entra com a conta Google dela e, se a segurança pedir, liga o Google Authenticator no próprio celular."
-      : "A pessoa recebe um link, escolhe a senha e, se a segurança pedir, liga o Google Authenticator no próprio celular.") +
-      "\nO e-mail do convite precisa ser o da conta Google da pessoa (Gmail ou Google Workspace)." +
+      : "A pessoa recebe um link, entra com a conta Google dela ou escolhe uma senha (com confirmação) e, se a segurança pedir, liga o Google Authenticator no próprio celular.") +
+      (eqp.soGoogle ? "\nO e-mail do convite precisa ser o da conta Google da pessoa (Gmail ou Google Workspace)."
+        : "\nServe qualquer e-mail: o do Google (para entrar pelo Google) ou outro, de domínio próprio ou da Microsoft (para entrar com a senha).") +
       (ficha ? "" : " Ela também entra em Cadastros › Equipe."),
     campos: [
       { chave: "nome", rotulo: "Nome", valor: ficha ? ficha.nome : (ja.nome || ""), obrigatorio: true },
-      { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true },
+      { chave: "email", rotulo: eqp.soGoogle ? "E-mail Google" : "E-mail", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
     ],
     depois: (ficha ? "" : '<div class="dialogo-duas"><div class="dialogo-campo"><label for="eqp-tipo">Vínculo</label><div class="dialogo-caixa">' +
@@ -114,8 +115,9 @@ async function convidarPessoa(ficha, depois, inicial) {
 
 async function mostrarConviteCriado(nome, email, link, simples) {
   const mensagem = "Olá, " + String(nome || "").split(" ")[0] + "! Este é o seu convite para o Paulus do escritório. " +
-    (simples ? "Abra e entre com a sua conta Google (" + email + "): " : eqp.soGoogle ? "Abra no celular, entre com a sua conta Google (" + email + ") e ligue o Google Authenticator: "
-      : "Abra no celular, escolha a sua senha e ligue o Google Authenticator: ") + link + " (vale 7 dias, uma vez)";
+    (simples ? (eqp.soGoogle ? "Abra e entre com a sua conta Google (" + email + "): " : "Abra e entre com a sua conta Google (" + email + ") ou escolha uma senha: ")
+      : eqp.soGoogle ? "Abra no celular, entre com a sua conta Google (" + email + ") e ligue o Google Authenticator: "
+        : "Abra no celular, entre com a sua conta Google ou escolha uma senha, e ligue o Google Authenticator: ") + link + " (vale 7 dias, uma vez)";
   const escolha = await dialogo({
     titulo: "Convite pronto", contexto: "Convidar " + nome,
     texto: "Mande este link para " + nome + ". Ele vale 7 dias e uma vez só, e não aparece de novo — se perder, é só convidar outra vez.",
@@ -161,7 +163,7 @@ function blocoAcessoDaPessoa(f) {
   else if (a.estado === "ativo") { texto = "Entra no Paulus pela internet com " + a.conta.email + "."; acoes = botao('data-eqp-permissoes="1"', "shield_person", "Permissões"); }
   else if (a.estado === "pendente") texto = "A conta existe, mas falta confirmar o autenticador (em Configurações › Acesso externo).";
   else if (a.estado === "convidado") { texto = "Convite enviado — espera a pessoa abrir o link."; acoes = botao('data-eqp-convite="1"', "send", "Convidar de novo"); }
-  else if (a.estado === "sem-email") { texto = "Sem acesso ao Paulus. Para convidar, é preciso o e-mail Google da pessoa."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o Paulus"); }
+  else if (a.estado === "sem-email") { texto = "Sem acesso ao Paulus. Para convidar, é preciso o e-mail da pessoa."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o Paulus"); }
   else { texto = "Sem acesso ao Paulus."; acoes = botao('data-eqp-convite="1"', "send", "Convidar para o Paulus"); }
   return '<div class="cad-bloco"><span class="cad-bloco-titulo">Acesso ao Paulus <small>' + esc(a.rotulo) + "</small></span>" +
     '<p class="cad-nota">' + esc(texto) + "</p>" + (acoes ? '<div class="dialogo-acoes">' + acoes + "</div>" : "") + "</div>";
@@ -197,7 +199,7 @@ function cartaoDaEquipeCfg() {
     (linhas || novo ? '<div class="cfg-linhas">' + linhas + novo + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>') +
     '<div class="acesso-pe"><button class="primario com-icone" data-eqp-cfg-novo="1">' + ic("send", 16) + "Convidar pela internet</button>" +
     '<button class="com-icone" data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button>" +
-    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao Paulus se liga a cada pessoa pelo e-mail Google.</p></div>');
+    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao Paulus se liga a cada pessoa pelo e-mail' + (eqp.soGoogle ? " Google" : "") + ".</p></div>");
 }
 
 function ligarEquipeCfg() {

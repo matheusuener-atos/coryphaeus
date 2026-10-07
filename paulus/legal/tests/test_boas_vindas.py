@@ -247,8 +247,8 @@ def test_assinatura() -> None:
 
     print("\na assinatura (GET /api/assinatura)")
     a = local.get("/api/assinatura").json()
-    checar(a["ativa"] is False and a["situacao"] == "nenhuma" and "Conta Google" in a.get("motivo", "") and not fake.chamadas,
-           "sem conta Google: nenhuma, e nada vai à nuvem", a)
+    checar(a["ativa"] is False and a["situacao"] == "nenhuma" and "Sua conta" in a.get("motivo", "") and not fake.chamadas,
+           "sem conta vinculada: nenhuma, e nada vai à nuvem", a)
     if not segredos.disponivel():
         print("  pulado: sem DPAPI (o segredo da nuvem não se guarda)")
         return

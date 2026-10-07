@@ -216,7 +216,7 @@ class ConexaoDoTunel:
             raise ErroConexao("este computador não tem como guardar os segredos do acesso externo com proteção")
         vinculo = getattr(self.servico, "vinculo", None)
         if vinculo is not None and not vinculo.vinculado():
-            raise ErroConexao("vincule este Paulus à sua conta Google antes (Configurações › Escritório e equipe)")
+            raise ErroConexao("vincule este Paulus à sua conta antes (Configurações › Escritório e equipe)")
         if not self.titulares_prontos():
             raise ErroConexao("primeiro crie a conta do titular e confirme o autenticador")
         if len(nome) < 2:
@@ -228,11 +228,11 @@ class ConexaoDoTunel:
             raise ErroConexao("falta o cloudflared neste computador: reinstale o Paulus (o instalador traz)")
         if self.servico.cofre.tem():
             raise ErroConexao("este Paulus já está conectado; para trocar, remova antes")
-        # O endereco nasce da conta Google vinculada: o id_token do ultimo
-        # login prova isso ao Worker (e e o que deixa retomar depois).
+        # O endereco nasce da conta vinculada (Google ou e-mail e senha): o
+        # token do ultimo login prova isso ao Worker (e e o que deixa retomar depois).
         token = self._id_token()
         if vinculo is not None and not token:
-            raise ErroConexao("confirme com o Google antes de conectar")
+            raise ErroConexao("confirme a sua conta antes de conectar")
         instalacao = self._instalacao()
         porta = porta_livre_na_faixa()
         try:

@@ -240,6 +240,12 @@ console.log("\no e-mail da Área do cliente");
   checar(e1 && e1.html.includes("a pedido do Moura Advogados"), "o rodapé diz que foi a pedido do escritório");
   r = await cli({ tipo: "codigo", para: "cliente@exemplo.com", link, codigo: "123456", escritorio: "Moura Advogados" });
   checar(r.status === 200 && emails[emails.length - 1].subject === "Seu código de acesso: 123456", "código: o assunto traz o código");
+  r = await cli({ tipo: "senha", para: "equipe@exemplo.com", link: "https://moura-associados.paulus.ia.br/", codigo: "654321", nome: "Bia Souza", escritorio: "Moura Advogados" });
+  const es = emails[emails.length - 1];
+  checar(r.status === 200 && es.subject === "Código para trocar a senha: 654321" && es.text.includes("Olá, Bia") && es.text.includes("autenticador") && !/área do cliente/i.test(es.text),
+    "senha (o \"Esqueci a senha\" da equipe): o texto é o de trocar a senha, com o link da raiz do escritório", es && es.text);
+  r = await cli({ tipo: "senha", para: "equipe@exemplo.com", link: "https://golpe.com/", codigo: "654321" });
+  checar(r.status === 400, "senha com link de fora do escritório: recusado");
   r = await cli({ tipo: "convite", para: "cliente@exemplo.com", link: "https://golpe.com/cliente/x" });
   checar(r.status === 400, "link de fora do endereço do escritório: recusado", r.status);
   r = await cli({ tipo: "qualquer", para: "cliente@exemplo.com", link });

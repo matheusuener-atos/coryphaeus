@@ -33,6 +33,17 @@ id_token (assinado pelo Google, vale 1 hora), que vai ao Worker de
 paulus.ia.br so para provar de que conta e o endereco do acesso de fora: e
 assim que a mesma conta retoma o endereco depois de reinstalar. Ele fica so
 na memoria.
+
+E-MAIL E SENHA (07/10/2026): o Google deixa de ser obrigatorio. A conta PAVLVS
+por e-mail e senha (worker/identidade.js, rotas /api/id/*) e a alternativa
+inteira: quem usa e-mail do proprio dominio ou da Microsoft cria a conta com um
+codigo que chega no e-mail, entra com a senha e troca a senha esquecida por
+outro codigo. O Worker devolve um token dele (HS256, 1 hora, {sub, email,
+name}) que vale onde vale o id_token do Google - aqui ele fica no mesmo lugar,
+so na memoria, e o resto (vincular, destravar, confirmar, o codigo do celular
+da conta de titular) e o mesmo caminho. A senha passa por aqui so de ida para
+paulus.ia.br: nada dela fica neste computador. O Gmail, a Agenda e o Drive
+continuam do Google, em Conexoes, e sao opcionais.
 """
 
 from __future__ import annotations
@@ -79,6 +90,59 @@ ESCOPOS_COM_SERVICOS = ("openid email profile https://mail.google.com/ https://w
 
 class ErroVinculo(RuntimeError):
     """O que impede agora; a frase vai para a tela."""
+
+
+# ------------------------------------------------- a conta PAVLVS por senha
+
+# As rotas /api/id/* do Worker esperam a resposta inteira (o cadastro manda o
+# e-mail antes de responder): (conexao, leitura) em segundos.
+TEMPO_ID = (10, 30)
+SENHA_MIN, SENHA_MAX = 10, 200
+FINALIDADES = ("vincular", "destravar", "confirmar")
+
+
+def problema_da_senha(senha: str) -> str:
+    """A mesma regra do Worker (worker/identidade.js, conferirSenha): "" quando serve."""
+    s = str(senha or "")
+    if len(s) < SENHA_MIN:
+        return f"a senha precisa ter pelo menos {SENHA_MIN} caracteres"
+    if len(s) > SENHA_MAX:
+        return f"a senha pode ter no máximo {SENHA_MAX} caracteres"
+    if not any(c.isalpha() for c in s) or not any(c.isdigit() for c in s):
+        return "use letras e números na senha"
+    return ""
+
+
+def _email_valido(email: str) -> str:
+    e = str(email or "").strip().lower()
+    if "@" not in e or "." not in e.split("@")[-1] or " " in e or len(e) > 200:
+        raise ErroVinculo("confira o e-mail")
+    return e
+
+
+def identidade(caminho: str, corpo: dict) -> dict:
+    """
+    Uma chamada a /api/id/<caminho> no Worker de paulus.ia.br. Pela mesma
+    porta das chamadas da nuvem (nuvem._pedir, que os testes trocam), com a
+    versao no cabecalho - vai so ao paulus.ia.br. ErroVinculo com a frase do
+    Worker quando ele recusa.
+    """
+    import nuvem
+    from versao import VERSAO
+
+    cab = {"Content-Type": "application/json", "X-PAULUS-Versao": VERSAO}
+    try:
+        r = nuvem._pedir("POST", nuvem.SITE + "/api/id/" + caminho, cab, corpo, False, timeout=TEMPO_ID)
+    except Exception as exc:  # noqa: BLE001 - sem rede, DNS, tempo: a mesma frase
+        raise ErroVinculo("não consegui falar com paulus.ia.br agora (sem internet?)") from exc
+    try:
+        dados = r.json()
+    except Exception:  # noqa: BLE001
+        dados = {}
+    dados = dados if isinstance(dados, dict) else {}
+    if r.status_code >= 400:
+        raise ErroVinculo(str(dados.get("erro") or f"paulus.ia.br respondeu com erro ({r.status_code})"))
+    return dados
 
 
 class Vinculo:
@@ -134,6 +198,9 @@ class Vinculo:
         return {
             "vinculado": bool(d.get("email")), "email": d.get("email", ""), "nome": d.get("nome", ""),
             "vinculado_em": d.get("em", ""), "manter_aberto": bool(d.get("manter_aberto")),
+            # Como a conta foi vinculada: "google" ou "senha" (a conta PAVLVS por
+            # e-mail e senha). Vinculo de antes de 07/10 nao tem: era o Google.
+            "por": (d.get("por") or "google") if d.get("email") else "",
             "travado": self.travado(), "google": bool(self.credenciais().get("client_id")),
             "fase": e.get("fase", ""), "mensagem": self.erro or e.get("mensagem", ""),
             "url": e.get("url", ""), "finalidade": self.finalidade,
@@ -161,16 +228,7 @@ class Vinculo:
         `servicos` (so ao vincular): o mesmo login ja conecta o Gmail, a Agenda
         e o Drive dessa conta - sem um segundo login no passo Conexoes.
         """
-        # "confirmar": entrar com a mesma conta so para ter um id_token novo
-        # (o acesso de fora pede, para o Worker saber de quem e o endereco).
-        if finalidade not in ("vincular", "destravar", "confirmar"):
-            raise ErroVinculo("finalidade desconhecida")
-        if finalidade == "vincular" and self.vinculado() and self.travado():
-            raise ErroVinculo("destrave antes de trocar a conta vinculada")
-        if finalidade == "confirmar" and (not self.vinculado() or self.travado()):
-            raise ErroVinculo("este Paulus não está vinculado a uma conta Google")
-        if finalidade == "destravar" and not self.vinculado():
-            raise ErroVinculo("este Paulus não está vinculado a uma conta Google")
+        self._conferir_finalidade(finalidade)
         credenciais = self.credenciais()
         with self._trava:
             if self.entrada and not self.entrada.terminou:
@@ -190,6 +248,18 @@ class Vinculo:
                 raise ErroVinculo(str(exc)) from exc
         return self.entrada.iniciar()
 
+    def _conferir_finalidade(self, finalidade: str) -> None:
+        # "confirmar": entrar com a mesma conta so para ter um id_token novo
+        # (o acesso de fora pede, para o Worker saber de quem e o endereco).
+        if finalidade not in FINALIDADES:
+            raise ErroVinculo("finalidade desconhecida")
+        if finalidade == "vincular" and self.vinculado() and self.travado():
+            raise ErroVinculo("destrave antes de trocar a conta vinculada")
+        if finalidade == "confirmar" and (not self.vinculado() or self.travado()):
+            raise ErroVinculo("este Paulus não está vinculado a uma conta")
+        if finalidade == "destravar" and not self.vinculado():
+            raise ErroVinculo("este Paulus não está vinculado a uma conta")
+
     def _voltar_ao_paulus(self) -> None:
         if self.ao_voltar:
             self.ao_voltar()
@@ -200,8 +270,19 @@ class Vinculo:
             # A mesma conta vira a conta de e-mail do escritorio, com a Agenda e
             # o Drive (os escopos voltam juntos no token).
             self.ligar_servicos(tokens, email, nome)
+        try:
+            return self._concluir(email, nome, tokens, "google")
+        except ErroVinculo as exc:
+            # A volta do Google so entende o erro dela (a pagina de retorno o mostra).
+            raise correio_oauth.ErroOAuth(str(exc)) from exc
+
+    def _concluir(self, email: str, nome: str, tokens: dict, por: str) -> dict:
+        """
+        Quem entrou (pelo Google ou pela senha), conforme a finalidade de agora:
+        vincular grava a conta; destravar e confirmar conferem que e a mesma.
+        """
         if self.finalidade == "vincular":
-            self.prefs.atualizar({"vinculo": {"email": email, "nome": nome,
+            self.prefs.atualizar({"vinculo": {"email": email, "nome": nome, "por": por,
                                               "em": time.strftime("%Y-%m-%dT%H:%M:%S")}})
             # Quem vincula ja e o dono: o nome e o e-mail entram em Meus dados
             # quando estao vazios.
@@ -209,7 +290,7 @@ class Vinculo:
             novos = {"email": email}
             if nome and not pessoa.get("nome"):
                 novos["nome"] = nome
-            # O e-mail de Meus dados passa a ser o do Google; o que havia, se
+            # O e-mail de Meus dados passa a ser o da conta vinculada; o que havia, se
             # outro, vira o secundario (quando este esta vazio) - nada se perde.
             antigo = str(pessoa.get("email") or "").strip().lower()
             if antigo and antigo != email and not pessoa.get("email_secundario"):
@@ -220,7 +301,8 @@ class Vinculo:
             return {"email": email, "nome": nome}
         esperado = str(self.dados().get("email") or "").lower()
         if email != esperado:
-            raise correio_oauth.ErroOAuth(f"esta não é a conta Google deste Paulus ({esperado}); entre com ela")
+            qual = "a conta Google" if por == "google" else "a conta"
+            raise ErroVinculo(f"esta não é {qual} deste Paulus ({esperado}); entre com ela")
         self._guardar_id_token(tokens)
         if self.finalidade == "confirmar":
             return {"email": email, "nome": nome}
@@ -241,6 +323,80 @@ class Vinculo:
         self.destravado = True
         if self.dados().get("saiu"):
             self.prefs.atualizar({"vinculo": {"saiu": False}})
+
+    # ---------------------------------------------- e-mail e senha (07/10)
+
+    def _comecar_por_senha(self, finalidade: str, email: str) -> str:
+        """
+        As mesmas conferencias do Google, antes de ir ao Worker: para destravar
+        e confirmar, so o e-mail vinculado serve (nem se pergunta ao Worker por
+        outro). Um login do Google esperando no navegador deixa de valer.
+        """
+        self._conferir_finalidade(finalidade)
+        email = _email_valido(email)
+        if finalidade != "vincular":
+            esperado = str(self.dados().get("email") or "").lower()
+            if email != esperado:
+                raise ErroVinculo(f"esta não é a conta deste Paulus ({esperado}); entre com ela")
+        with self._trava:
+            if self.entrada and not self.entrada.terminou:
+                self.entrada.cancelar()
+            self.entrada = None
+            self.erro = ""
+            self._conta_do_codigo = 0
+            self._com_servicos = False
+            self.finalidade = finalidade
+        return email
+
+    def _com_o_token(self, resposta: dict) -> dict:
+        """A resposta do Worker ({token, email, nome}) vira a mesma volta do Google."""
+        token = str(resposta.get("token") or "")
+        email = str(resposta.get("email") or "").strip().lower()
+        if not token or not email:
+            raise ErroVinculo("paulus.ia.br não confirmou a entrada; tente de novo")
+        return self._concluir(email, str(resposta.get("nome") or "").strip(), {"id_token": token}, "senha")
+
+    def entrar_com_senha(self, email: str, senha: str, finalidade: str = "vincular") -> dict:
+        email = self._comecar_por_senha(finalidade, email)
+        if not str(senha or ""):
+            raise ErroVinculo("digite a senha")
+        return self._com_o_token(identidade("entrar", {"email": email, "senha": str(senha)}))
+
+    def cadastrar(self, email: str, senha: str, nome: str = "") -> dict:
+        """Criar a conta PAVLVS: o Worker manda o codigo ao e-mail; a conta nasce no confirmar."""
+        email = _email_valido(email)
+        problema = problema_da_senha(senha)
+        if problema:
+            raise ErroVinculo(problema)
+        identidade("cadastrar", {"email": email, "senha": str(senha), "nome": " ".join(str(nome or "").split())[:80]})
+        return {"enviado": True, "email": email}
+
+    def confirmar_cadastro(self, email: str, codigo: str, finalidade: str = "vincular") -> dict:
+        email = self._comecar_por_senha(finalidade, email)
+        codigo = "".join(ch for ch in str(codigo or "") if ch.isdigit())
+        if len(codigo) != 6:
+            raise ErroVinculo("o código tem 6 números")
+        return self._com_o_token(identidade("confirmar", {"email": email, "codigo": codigo}))
+
+    def esqueci(self, email: str) -> dict:
+        """
+        O codigo para trocar a senha. O Worker responde igual exista a conta ou
+        nao; quem ja entrou com o Google por esse e-mail ganha a senha na mesma
+        conta.
+        """
+        email = _email_valido(email)
+        identidade("esqueci", {"email": email})
+        return {"enviado": True, "email": email}
+
+    def redefinir(self, email: str, codigo: str, senha: str, finalidade: str = "vincular") -> dict:
+        email = self._comecar_por_senha(finalidade, email)
+        problema = problema_da_senha(senha)
+        if problema:
+            raise ErroVinculo(problema)
+        codigo = "".join(ch for ch in str(codigo or "") if ch.isdigit())
+        if len(codigo) != 6:
+            raise ErroVinculo("o código tem 6 números")
+        return self._com_o_token(identidade("redefinir", {"email": email, "codigo": codigo, "senha": str(senha)}))
 
     # ------------------------------------------------------ sem internet
 
@@ -361,7 +517,7 @@ class Vinculo:
 
     def codigo(self, codigo: str, confiar: bool = False) -> None:
         if not self._conta_do_codigo:
-            raise ErroVinculo("entre com o Google antes")
+            raise ErroVinculo("entre com a sua conta antes")
         # Sem sessao de fora aqui: "hash" vazio nao marca sessao nenhuma.
         if not self.contas.confirmar_de_novo({"conta_id": self._conta_do_codigo, "hash": ""}, codigo):
             raise ErroVinculo("o código não confere; digite o que aparece agora no celular")
@@ -397,15 +553,15 @@ class Vinculo:
     def cancelar(self) -> None:
         if self.entrada:
             self.entrada.cancelar()
-        # "Trocar", no passo do codigo: volta ao Google.
+        # "Trocar", no passo do codigo: volta a entrar (Google ou senha).
         self._conta_do_codigo = 0
 
     # ------------------------------------------------------------ depois
 
     def travar(self) -> None:
-        """Sair: trava a janela do servidor ate alguem entrar com o Google."""
+        """Sair: trava a janela do servidor ate alguem entrar com a conta vinculada."""
         if not self.vinculado():
-            raise ErroVinculo("para sair, vincule antes este Paulus a uma conta Google (Configurações › Escritório e equipe)")
+            raise ErroVinculo("para sair, vincule antes este Paulus a uma conta (Configurações › Escritório e equipe)")
         self.destravado = False
         self._conta_do_codigo = 0
         self._id_token, self._id_token_exp = "", 0.0
@@ -419,7 +575,7 @@ class Vinculo:
     def desvincular(self) -> None:
         if self.travado():
             raise ErroVinculo("destrave antes")
-        self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
+        self.prefs.atualizar({"vinculo": {"email": "", "nome": "", "em": "", "por": "", "manter_aberto": False, "saiu": False,
                                           "codigo_confiado": dict(SEM_CONFIANCA),
                                           "offline": dict(OFFLINE_VAZIO)}})
         self.destravado = False
@@ -464,6 +620,15 @@ class Ligar(BaseModel):
     ligado: bool
 
 
+class PorSenha(BaseModel):
+    """A conta PAVLVS por e-mail e senha: cada rota usa so os campos dela."""
+    email: str = ""
+    senha: str = ""
+    nome: str = ""
+    codigo: str = ""
+    finalidade: str = "vincular"
+
+
 def montar(app, vinculo: Vinculo) -> None:
     """As rotas do vinculo (so da janela local: de fora, a politica bloqueia)."""
     from acesso.rotas import so_local
@@ -481,6 +646,53 @@ def montar(app, vinculo: Vinculo) -> None:
         so_local(request)
         try:
             vinculo.iniciar(dados.finalidade, dados.servicos)
+        except ErroVinculo as exc:
+            falhar(exc)
+        return vinculo.estado()
+
+    # E-mail e senha (07/10/2026): a conta PAVLVS do Worker (worker/identidade.js).
+    # Entrar, confirmar o cadastro e redefinir devolvem o estado, como a volta do
+    # Google; cadastrar e esqueci so dizem que o codigo foi pedido.
+
+    @app.post("/api/vinculo/senha/entrar")
+    def vinculo_senha_entrar(dados: PorSenha, request: Request) -> dict:
+        so_local(request)
+        try:
+            vinculo.entrar_com_senha(dados.email, dados.senha, dados.finalidade)
+        except ErroVinculo as exc:
+            falhar(exc)
+        return vinculo.estado()
+
+    @app.post("/api/vinculo/senha/cadastrar")
+    def vinculo_senha_cadastrar(dados: PorSenha, request: Request) -> dict:
+        so_local(request)
+        try:
+            return vinculo.cadastrar(dados.email, dados.senha, dados.nome)
+        except ErroVinculo as exc:
+            falhar(exc)
+
+    @app.post("/api/vinculo/senha/confirmar")
+    def vinculo_senha_confirmar(dados: PorSenha, request: Request) -> dict:
+        so_local(request)
+        try:
+            vinculo.confirmar_cadastro(dados.email, dados.codigo, dados.finalidade)
+        except ErroVinculo as exc:
+            falhar(exc)
+        return vinculo.estado()
+
+    @app.post("/api/vinculo/senha/esqueci")
+    def vinculo_senha_esqueci(dados: PorSenha, request: Request) -> dict:
+        so_local(request)
+        try:
+            return vinculo.esqueci(dados.email)
+        except ErroVinculo as exc:
+            falhar(exc)
+
+    @app.post("/api/vinculo/senha/redefinir")
+    def vinculo_senha_redefinir(dados: PorSenha, request: Request) -> dict:
+        so_local(request)
+        try:
+            vinculo.redefinir(dados.email, dados.codigo, dados.senha, dados.finalidade)
         except ErroVinculo as exc:
             falhar(exc)
         return vinculo.estado()

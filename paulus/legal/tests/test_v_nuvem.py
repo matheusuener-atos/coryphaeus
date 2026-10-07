@@ -236,7 +236,8 @@ def main() -> int:
     print("\no PAULUS (nuvem): ativar")
     api.estado.vinculo.id_token_valido = lambda margem=120: ""
     r = local.post("/api/nuvem/paulus/ativar")
-    checar(r.status_code == 401 and "Google" in r.json()["detail"], "sem o login Google recente, pede o Google", r.json())
+    checar(r.status_code == 401 and "confirme a sua conta" in r.json()["detail"],
+           "sem o login recente da conta (Google ou senha), pede para confirmar", r.json())
     api.estado.vinculo.id_token_valido = lambda margem=120: "id-token-de-mentira"
     r = local.post("/api/nuvem/paulus/ativar").json()
     ativar = fake.ultimas("/api/ia/ativar")[-1]

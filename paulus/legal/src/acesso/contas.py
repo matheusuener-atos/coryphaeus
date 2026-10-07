@@ -70,6 +70,14 @@ IP_FALHAS_ATE_BLOQUEAR = 20
 IP_JANELA_S = 10 * 60
 IP_BLOQUEIO_S = 60 * 60
 
+# "Esqueci a senha" (07/10/2026): um codigo de 6 numeros vai ao e-mail da conta
+# e vale 10 minutos, 5 tentativas; no maximo 3 pedidos por hora por e-mail. A
+# senha nova so troca a senha: a entrada continua pedindo o codigo do
+# autenticador (conforme o nivel da conta), e o bloqueio por erros nao zera.
+TROCA_VALE_S = 10 * 60
+TROCA_TENTATIVAS = 5
+TROCAS_POR_HORA = 3
+
 
 class ErroConta(ValueError):
     """Pedido que nao da para cumprir; a mensagem vai para a tela."""
@@ -268,6 +276,9 @@ class Contas:
         self.vaga = None
         self._trava = threading.RLock()
         self._pendentes: dict[str, tuple[int, float, str, str]] = {}
+        # "Esqueci a senha": e-mail -> {conta_id, resumo, expira, tentativas, pedidos}.
+        # So em memoria: fechar o programa invalida os codigos (valem 10 min).
+        self._trocas: dict[str, dict] = {}
         with self._db() as c:
             c.executescript(_ESQUEMA)
             # E2 (docs/PLANO-EQUIPE.md): o nivel de cada pessoa em cada modulo.
@@ -478,6 +489,71 @@ class Contas:
         if not n:
             raise ErroConta("conta não encontrada")
         return self.encerrar_sessoes(conta_id)
+
+    # ------------------------------------------------- esqueci a senha
+
+    def pedir_troca_de_senha(self, email: str, *, ip: str = "") -> tuple[dict, str] | None:
+        """
+        O primeiro passo do "Esqueci a senha": (a conta, o codigo) quando o
+        e-mail tem conta; None quando nao tem. Quem chama manda o codigo ao
+        e-mail e responde igual nos dois casos. O teto por hora conta todo
+        e-mail digitado, exista a conta ou nao - ele tambem nao vira oraculo.
+        """
+        self._porta_do_ip(ip)
+        try:
+            email = self._email(email)
+        except ErroConta as exc:
+            raise ErroEntrada("confira o e-mail") from exc
+        agora = self.relogio()
+        linha = self._conta_por_email(email)
+        with self._trava:
+            for k in [k for k, v in self._trocas.items() if all(agora - t >= 3600 for t in v.get("pedidos", []))]:
+                self._trocas.pop(k, None)
+            item = self._trocas.get(email) or {}
+            pedidos = [t for t in item.get("pedidos", []) if agora - t < 3600]
+            if len(pedidos) >= TROCAS_POR_HORA:
+                raise ErroEntrada("já mandamos vários códigos na última hora; use o último que chegou ou espere um pouco",
+                                  pedidos[0] + 3600)
+            pedidos.append(agora)
+            if not linha:
+                self._trocas[email] = {"pedidos": pedidos}
+                return None
+            codigo = f"{secrets.randbelow(10 ** 6):06d}"
+            self._trocas[email] = {"conta_id": linha["id"], "resumo": _resumo(f"{linha['id']}:{codigo}"),
+                                   "expira": agora + TROCA_VALE_S, "tentativas": 0, "pedidos": pedidos}
+        return self._publica(linha), codigo
+
+    def trocar_senha_com_codigo(self, email: str, codigo: str, nova: str, *, ip: str = "") -> dict:
+        """
+        O segundo passo: o codigo do e-mail troca a senha e derruba as sessoes
+        da conta. Nao abre sessao nenhuma - a pessoa entra depois pela tela de
+        entrar, com a senha nova e o codigo do autenticador.
+        """
+        self._porta_do_ip(ip)
+        try:
+            email = self._email(email)
+        except ErroConta as exc:
+            raise ErroEntrada("confira o e-mail") from exc
+        conferir_forca(nova)
+        codigo = "".join(ch for ch in str(codigo or "") if ch.isdigit())
+        agora = self.relogio()
+        with self._trava:
+            item = self._trocas.get(email) or {}
+            if not item.get("resumo") or float(item.get("expira") or 0) < agora:
+                self._errou_ip(ip)
+                raise ErroEntrada("o código venceu ou não foi pedido; peça outro")
+            if int(item.get("tentativas") or 0) >= TROCA_TENTATIVAS:
+                raise ErroEntrada("o código foi digitado errado muitas vezes; peça outro")
+            if not hmac.compare_digest(_resumo(f"{item['conta_id']}:{codigo}"), item["resumo"]):
+                item["tentativas"] = int(item.get("tentativas") or 0) + 1
+                self._errou_ip(ip)
+                restam = TROCA_TENTATIVAS - item["tentativas"]
+                raise ErroEntrada("o código não confere" + (f" (restam {restam} tentativas)" if restam > 1 else
+                                                            " (resta 1 tentativa)" if restam == 1 else "; peça outro"))
+            conta_id = int(item["conta_id"])
+            item.update(resumo="", expira=0)
+        self.trocar_senha(conta_id, nova)
+        return self.obter(conta_id)
 
     def _linha(self, conta_id: int) -> sqlite3.Row | None:
         with self._db() as c:

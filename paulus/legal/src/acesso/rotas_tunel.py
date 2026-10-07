@@ -44,10 +44,18 @@ def montar(servico, conexao, r) -> None:
                 # e se ha um login recente no Google para provar a conta.
                 "meus": conexao.meus(),
                 "google_recente": bool(conexao._id_token()),
-                # A conta Google vinculada a este PAULUS (E5): e o e-mail da conta
-                # de titular - a tela nao pede de novo.
-                "vinculo": {"email": (getattr(servico, "vinculo", None).dados().get("email", "") if getattr(servico, "vinculo", None) else ""),
-                            "nome": (getattr(servico, "vinculo", None).dados().get("nome", "") if getattr(servico, "vinculo", None) else "")}}
+                # A conta vinculada a este PAULUS (E5): e o e-mail da conta de
+                # titular - a tela nao pede de novo. `por`: "google" ou "senha"
+                # (a conta PAVLVS de e-mail e senha pede a senha de fora aqui).
+                "vinculo": _vinculo(servico)}
+
+    def _vinculo(servico) -> dict:
+        v = getattr(servico, "vinculo", None)
+        if v is None:
+            return {"email": "", "nome": "", "por": ""}
+        d = v.dados()
+        return {"email": d.get("email", ""), "nome": d.get("nome", ""),
+                "por": (d.get("por") or "google") if d.get("email") else ""}
 
     @r.get("/api/acesso/tunel/sugestao")
     def tunel_sugestao(nome: str, request: Request) -> dict:
@@ -67,7 +75,7 @@ def montar(servico, conexao, r) -> None:
         try:
             return conexao.iniciar(dados.nome, dados.slug)
         except ErroConexao as exc:
-            if "confirme com o Google" in str(exc):
+            if "confirme a sua conta" in str(exc):
                 raise HTTPException(status_code=428, detail=str(exc)) from exc
             falhar(exc)
 

@@ -50,7 +50,7 @@ const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
 const NOMES_BV = {
   boasvindas: "Boas-vindas", escritorio: "Escritório", dados: "Seus dados", ia: "Modelo de IA", assinatura: "Assinatura",
   modulos: "Módulos", conexoes: "Conexões", atualizacoes: "Atualizações", codigos: "Códigos",
-  acesso: "Acesso à distância", google: "Conta Google",
+  acesso: "Acesso à distância", google: "Sua conta",
 };
 const CARGOS_VINCULO = ["Advogado(a)", "Sócio(a)", "Financeiro", "Secretaria", "Estagiário(a)", "Outro"];
 const DESTINOS_PRESOS = new Set(["servicos", "gravacoes", "calendario", "agendamento", "tarefas", "biblioteca", "organizar", "caixa", "financeiro", "relatorios", "cadastros", "aprovacoes"]);
@@ -293,52 +293,79 @@ function passoEscritorio() {
   return [texto, lado];
 }
 
-/* ----------------------------------------------------- conta Google */
+/* ------------------------------------------------------- sua conta */
 
-/* O Paulus do servidor vinculado a conta Google de quem o administra
-   (src/vinculo.py, E5). Da para pular e vincular depois, em Configuracoes;
-   vinculado, ele abre travado e pede o Google a cada abertura - salvo
-   "manter aberto neste computador". */
+/* O Paulus do servidor vinculado a conta de quem o administra (src/vinculo.py,
+   E5): a conta Google ou, desde 07/10/2026, a conta PAVLVS por e-mail e senha
+   (o formulario de js/45-vinculo.js). Da para pular e vincular depois, em
+   Configuracoes; vinculado, ele abre travado e pede a conta a cada abertura -
+   salvo "manter aberto neste computador". */
 function passoGoogle() {
   const e = (typeof vinc !== "undefined" && vinc.estado) || null;
   if (!e && typeof lerVinculoGoogle === "function") lerVinculoGoogle().then(() => { if (passoBv() === "google") desenharBoasVindas(); });
-  const texto = "<h1>Entre com sua conta Google.</h1>" +
-    "<p>Este computador passa a ser o servidor do escritório, e a conta Google é a sua chave de acesso. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
+  const texto = "<h1>Entre com a sua conta.</h1>" +
+    "<p>Este computador passa a ser o servidor do escritório, e a sua conta é a chave de acesso: a do Google ou uma conta PAVLVS com e-mail e senha — serve e-mail de qualquer provedor, inclusive do seu domínio ou da Microsoft. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
     infosBv([
-      "O Google só confirma quem é você. Nenhum documento vai para ele.",
+      "O Google, ou paulus.ia.br no caso da senha, só confirma quem é você. Nenhum documento vai junto.",
       "É com ela que o Paulus confere a assinatura e, depois, convida a equipe.",
+      "O Gmail, a Agenda e o Drive são opcionais e se conectam depois, em Conexões, com uma conta Google.",
     ]);
   const esperando = e && ["aguardando", "trocando", "testando"].includes(e.fase);
   let lado;
   if (e && e.vinculado) {
     // A mesma coluna do passo anterior: a conta vinculada no lugar do botao, e o interruptor como linha.
-    lado = '<div class="bv-entrada"><span class="bv-rotulo">CONTA GOOGLE</span>' +
-      '<div class="bv-linha bv-conta-ok"><span class="bv-vinculo">' + logoBv() + '<span class="bv-g">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + '</span></span><span class="duas-linhas"><b>Vinculado</b><small>' + esc(e.email) + "</small></span></div>" +
+    // O G do Google ao lado da logo so na conta Google; a conta PAVLVS e so a logo.
+    const marcaDaConta = e.por === "senha" ? "" : '<span class="bv-g">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + "</span>";
+    lado = '<div class="bv-entrada"><span class="bv-rotulo">' + (e.por === "senha" ? "CONTA PAVLVS" : "CONTA GOOGLE") + "</span>" +
+      '<div class="bv-linha bv-conta-ok"><span class="bv-vinculo">' + logoBv() + marcaDaConta + '</span><span class="duas-linhas"><b>Vinculado</b><small>' + esc(e.email) + "</small></span></div>" +
       '<div class="bv-modulo bv-linha" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
       '<span class="duas-linhas"><b>Manter aberto neste computador</b></span>' +
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
-      '<p class="bv-ajuda">' + (e.manter_aberto ? "O Paulus abre direto neste computador, sem pedir o Google de novo." : "O Paulus abre travado e pede o Google a cada abertura.") + "</p></div>";
+      '<p class="bv-ajuda">' + (e.manter_aberto ? "O Paulus abre direto neste computador, sem pedir a conta de novo." : "O Paulus abre travado e pede a conta a cada abertura.") + "</p></div>";
   } else {
-    // A coluna de /entrar (entrar.html): sem cartao, rotulo mono, linha com fio e o trilho com a pastilha.
-    lado = '<div class="bv-entrada"><span class="bv-rotulo">CONTA GOOGLE</span>' +
-      '<button type="button" class="bv-g-trilho" data-bv-google="1"' + (esperando || (e && !e.google) ? " disabled" : "") + '><span class="bv-g-pastilha">' +
-      (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</span></button>" +
-      (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
-      (e && !e.google ? '<p class="bv-ajuda">Esta versão do Paulus não traz o login do Google.</p>' : "") +
-      '<p class="bv-ajuda">Ao clicar, o seu navegador abre a página de login do Google. Entre com a conta que vai administrar o escritório e, quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho.</p></div>';
+    // A coluna de /entrar (entrar.html): sem cartao, rotulo mono, o trilho com a pastilha do Google e,
+    // embaixo, a conta PAVLVS por e-mail e senha. Criar conta e Esqueci a senha escondem o Google ate voltar.
+    const noComeco = typeof contaSenha === "undefined" || (contaSenha.modo === "entrar" && !contaSenha.etapa);
+    // O e-mail de Seus dados (se ja houver) vem no campo; a pessoa troca se quiser.
+    if (typeof contaSenha !== "undefined" && !contaSenha.email && bv.pessoa.email) contaSenha.email = bv.pessoa.email;
+    const rotulo = noComeco ? "SUA CONTA" : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
+    const comGoogle = noComeco && !(e && !e.google);
+    lado = '<div class="bv-entrada"><span class="bv-rotulo">' + rotulo + "</span>" +
+      (comGoogle ? '<button type="button" class="bv-g-trilho" data-bv-google="1"' + (esperando ? " disabled" : "") + '><span class="bv-g-pastilha">' +
+        (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</span></button>" +
+        (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
+        '<div class="cs-ou">OU COM E-MAIL E SENHA</div>' : "") +
+      (typeof formContaSenha === "function" ? formContaSenha({ v: VISUAL_BV }) : "") +
+      (comGoogle ? '<p class="bv-ajuda">Com o Google, o seu navegador abre a página de login; quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho. Com e-mail e senha, tudo acontece aqui.</p>' : "") +
+      (noComeco && e && !e.google ? '<p class="bv-ajuda">Esta versão do Paulus não traz o login do Google: entre com e-mail e senha.</p>' : "") + "</div>";
   }
   return [texto, lado];
+}
+
+/* Depois de vincular (pelo Google ou pela senha): o e-mail entra em Seus
+   dados, Conexoes sabe se o Gmail ja esta autorizado aqui e a assinatura e a
+   desta conta (GET /api/assinatura, com o login recente). */
+async function aoVincularBv() {
+  const e = vinc.estado || {};
+  if (e.vinculado) {
+    bv.pessoa.email = e.email;
+    if (!bv.pessoa.nome && e.nome) bv.pessoa.nome = e.nome;
+    await conferirContasBv();
+    if (bv.google) bv.autorizados.gmail = true;
+    await lerAssinatura();
+  }
+  if (passoBv() === "google") desenharBoasVindas();
 }
 
 /* ------------------------------------------------- acesso a distancia */
 
 function passoAcesso() {
   const texto = "<h1>O Paulus vai com você: de casa, do celular, do fórum.</h1>" +
-    "<p>Este computador atende pelo endereço ao lado. É por ele também que a equipe entra, cada um com a própria conta Google.</p>" +
+    "<p>Este computador atende pelo endereço ao lado. É por ele também que a equipe entra, cada um com a própria conta.</p>" +
     infosBv([
       "O endereço é só seu. Nada seu vai para a internet: é você que acessa o seu computador, diretamente, por ele.",
       "O serviço é o Zero Trust, protegido pela Cloudflare, e fica disponível enquanto o seu computador estiver ligado.",
-      "Havendo equipe, cada pessoa acessa com a própria conta Google, depois da verificação de segurança.",
+      "Havendo equipe, cada pessoa acessa com a própria conta — Google ou e-mail e senha —, depois da verificação de segurança.",
     ]);
   // A tela afirma; quem nao quer, liga o interruptor do cartao de baixo - e o cartao das etapas some.
   const chave = "";
@@ -364,8 +391,8 @@ function passoAcesso() {
   conexaoUI.onde = "bv";
   conexaoUI.redesenhar = desenharBoasVindas;
   const v = conexaoUI.conta;
-  // A conta de titular sai de Seus dados: nome, e-mail (o do Google, com o
-  // vinculo) e o secundario - o bloco so mostra, nao pede de novo.
+  // A conta de titular sai de Seus dados: nome, e-mail (o da conta vinculada)
+  // e o secundario - o bloco so mostra, nao pede de novo.
   conexaoUI.daPessoa = { nome: bv.pessoa.nome || "", email: bv.pessoa.email || "", secundario: bv.pessoa.email_secundario || "" };
   if (!v.nome && bv.pessoa.nome) v.nome = bv.pessoa.nome;
   if (!v.email && bv.pessoa.email) v.email = bv.pessoa.email;
@@ -407,10 +434,10 @@ function passoAssinatura() {
       ? ["Os dados e os documentos continuam seus, no seu computador, com ou sem assinatura.", "Ao regularizar, tudo volta na hora, sem reinstalar."]
       : ["O cadastro no site já pede nome, OAB, CPF ou CNPJ e endereço: aqui você só confere.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
   const lado = '<div class="bv-entrada"><span class="bv-rotulo">ASSINATURA</span>' +
-    // O seletor de conta do Google ("Continuar como…"): avatar, nome, e-mail com a setinha e o G.
+    // O seletor de conta ("Continuar como…"): avatar, nome, e-mail com a setinha e o G (so da conta Google).
     '<button type="button" class="bv-conta-g" data-bv="outra-conta" title="Trocar de conta"><span class="bv-avatar">' + esc(iniciaisBv(nome)) + "</span>" +
       '<span class="bv-conta-txt"><b>Continuar como ' + esc(nome) + "</b><small>" + esc(email) + ic("expand_more", 14) + "</small></span>" +
-      '<span class="bv-g-solto">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + "</span></button>" +
+      (e && e.por === "senha" ? "" : '<span class="bv-g-solto">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + "</span>") + "</button>" +
     (esperando
       ? '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a confirmação do site…</b><small>a janela segue sozinha quando o pagamento confirmar</small></span></div>' +
         '<button type="button" class="bv-continuar bv-largo" data-bv="assinatura-conferir"><span>Já assinei, conferir agora</span></button>'
@@ -700,9 +727,13 @@ const SERVICOS_BV = [
 
 function passoConexoes() {
   const e = (typeof vinc !== "undefined" && vinc.estado) || null;
-  const conta = bv.google || (e && e.vinculado ? e.email : "");
+  // Com a conta PAVLVS de e-mail e senha, o e-mail pode nem ser do Google: a conta e a que a pessoa escolher no consentimento.
+  const porSenha = Boolean(e && e.vinculado && e.por === "senha");
+  const conta = bv.google || (e && e.vinculado && !porSenha ? e.email : "");
   const texto = "<h1>Conectar o Gmail, a Agenda e o Drive?</h1>" +
-    "<p>É a mesma conta Google de agora. Cada serviço pede a própria permissão ao Google, uma vez. Tudo opcional.</p>" +
+    (porSenha && !bv.google
+      ? "<p>São serviços do Google: use uma conta Google, que pode ser outra, diferente do e-mail com que você entrou. Cada serviço pede a própria permissão ao Google, uma vez. Tudo opcional.</p>"
+      : "<p>É a mesma conta Google de agora. Cada serviço pede a própria permissão ao Google, uma vez. Tudo opcional.</p>") +
     infosBv([
       "Dá para conectar ou desconectar depois em Configurações › Conexões.",
       "A autorização fica nesta máquina, cifrada pela sua conta do Windows.",
@@ -882,22 +913,14 @@ function ligarBoasVindas() {
   caixa.querySelectorAll("[data-bv-google]").forEach((b) => {
     b.onclick = async () => {
       try {
-        await entrarNoGoogleDoVinculo("vincular", async () => {
-          const e = vinc.estado || {};
-          if (e.vinculado) {
-            bv.pessoa.email = e.email;
-            if (!bv.pessoa.nome && e.nome) bv.pessoa.nome = e.nome;
-            // Se o Gmail ja estiver autorizado nesta maquina, Conexoes mostra conectado.
-            await conferirContasBv();
-            if (bv.google) bv.autorizados.gmail = true;
-            // A assinatura e a desta conta: conferida agora, com o login recente (GET /api/assinatura).
-            await lerAssinatura();
-          }
-          if (passoBv() === "google") desenharBoasVindas();
-        }, false);
+        await entrarNoGoogleDoVinculo("vincular", aoVincularBv, false);
       } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     };
   });
+  // A conta PAVLVS por e-mail e senha (js/45-vinculo.js): entrou, segue como a volta do Google.
+  if (passoBv() === "google" && typeof ligarContaSenha === "function") {
+    ligarContaSenha(caixa, { finalidade: "vincular", redesenhar: desenharBoasVindas, aoEntrar: aoVincularBv });
+  }
   caixa.querySelectorAll("[data-bv-servico]").forEach((m) => {
     teclaAtiva(m, () => {
       const id = m.getAttribute("data-bv-servico");
@@ -1033,7 +1056,7 @@ async function acaoBoasVindas(qual) {
   }
   if (qual === "outra-conta") {
     pararEsperaAssinatura(); bv.assinaturaEsperando = false;
-    // Trocar de conta e desvincular (src/vinculo.py): o passo Conta Google volta a pedir o Google,
+    // Trocar de conta e desvincular (src/vinculo.py): o passo Sua conta volta a pedir a conta,
     // e a assinatura e conferida de novo para a conta que entrar.
     try { await postVinculo("/api/vinculo/desvincular", {}); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     bv.assinatura = null;

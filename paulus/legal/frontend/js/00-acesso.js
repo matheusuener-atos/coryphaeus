@@ -150,8 +150,12 @@ function quemCriou(nome, conta) {
       '<div class="conta-cabeca"><span class="cad-avatar">' + esc(iniciais(p.nome)) + "</span>" +
       '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + " · " + (titular ? "titular" : "colaborador") + "</small></span></div>" +
       '<div class="conta-acoes">' +
+      // Trocar a senha (07/10/2026: e-mail e senha valem de fora, salvo no escritorio so do Google) e
+      // encerrar as sessoes: so o titular, e as duas pedem o codigo do autenticador de novo.
+      (titular && !acessoDeFora.soGoogle
+        ? linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do autenticador")
+        : "") +
       (titular
-        // Sem senha: a conta e a Google. So o encerrar sessoes.
         ? linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
         : "") +
       // O Google de trabalho da pessoa (E3b): o e-mail, a Agenda e o Drive dela.
@@ -167,7 +171,9 @@ function quemCriou(nome, conta) {
       // W1: o Word desta pessoa, em outro computador ou no navegador (js/76-word.js).
       linha("word", "description", "Conectar o Word", "o código do painel do PAVLVS e o do autenticador") +
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
-      (titular ? "" : '<p class="conta-nota">Você entra com o Google e o código do celular; o autenticador se troca com o titular, no computador do escritório.</p>');
+      (titular ? "" : '<p class="conta-nota">Você entra com a sua conta (' + (acessoDeFora.soGoogle ? "o Google" : "o Google ou o e-mail e a senha") +
+        ") e o código do celular" + (acessoDeFora.soGoogle ? "" : '; a senha esquecida se troca pelo "Esqueci a senha" da tela de entrar') +
+        "; o autenticador se troca com o titular, no computador do escritório.</p>");
     let escolha = "";
     const aberto = dialogo({ titulo: "Minha conta", contexto: "Acesso externo", html: html, confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
     document.querySelectorAll("[data-conta-acao]").forEach((b) => b.addEventListener("click", () => {
@@ -193,7 +199,7 @@ function quemCriou(nome, conta) {
     if (escolha === "sessoes") {
       const r = await dialogo({
         titulo: "Encerrar todas as sessões?", contexto: "Minha conta",
-        texto: "Todo mundo que está de fora sai agora — você também. Para entrar de novo: a conta Google e o código do celular.",
+        texto: "Todo mundo que está de fora sai agora — você também. Para entrar de novo: a sua conta e o código do celular.",
         campos: [codigo], confirmar: "Encerrar", perigo: true,
       });
       if (!r || !r.ok) return;

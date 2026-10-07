@@ -87,6 +87,9 @@ _declarar(PUBLICO,
           "POST /api/acesso/convite/{codigo}/confirmar", "GET /api/acesso/convite/{codigo}/google",
           # entrar com o Google (E3a)
           "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno",
+          # "Esqueci a senha" (07/10/2026): o codigo vai ao e-mail da conta; a
+          # senha nova nao dispensa o codigo do autenticador na entrada
+          "POST /api/acesso/senha/esqueci", "POST /api/acesso/senha/redefinir",
           # a frase das telas de entrar (src/saudacao.py): so a hora, o dia e o calendario
           "GET /api/saudacao/entrada")
 
@@ -99,6 +102,8 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               ("POST", "/api/acesso/entrar/codigo"),
               # entrar com o Google (E3a): ir ao Google e voltar dele
               ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno"),
+              # "Esqueci a senha": quem esqueceu ainda nao tem sessao
+              ("POST", "/api/acesso/senha/esqueci"), ("POST", "/api/acesso/senha/redefinir"),
               # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)
               ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js")}
 
@@ -280,6 +285,9 @@ _declarar(BLOQUEADO,
           "POST /api/vinculo/travar", "POST /api/vinculo/manter-aberto", "POST /api/vinculo/desvincular",
           "POST /api/vinculo/sem-internet", "POST /api/vinculo/sem-internet/ligar",
           "POST /api/vinculo/sem-internet/confirmar", "POST /api/vinculo/sem-internet/desligar",
+          # e-mail e senha (07/10/2026): a conta PAVLVS do Worker, tambem so na janela do servidor
+          "POST /api/vinculo/senha/entrar", "POST /api/vinculo/senha/cadastrar", "POST /api/vinculo/senha/confirmar",
+          "POST /api/vinculo/senha/esqueci", "POST /api/vinculo/senha/redefinir",
           "GET /api/acesso/convites", "POST /api/acesso/convites", "DELETE /api/acesso/convites/{id_}",
           "GET /api/acesso/tunel", "POST /api/acesso/tunel/conectar", "POST /api/acesso/tunel/cancelar",
           "POST /api/acesso/tunel/ligar", "POST /api/acesso/tunel/porta", "GET /api/acesso/tunel/disponivel",

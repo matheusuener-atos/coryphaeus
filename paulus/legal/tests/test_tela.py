@@ -149,6 +149,9 @@ def test_celular(navegador, base: str) -> None:
     servico = api.estado.acesso_de_fora
     prefs = api.estado.prefs.dados["acesso_remoto"]
     antes_chave = prefs.get("turnstile_sitekey", "")
+    # A regra de antes volta no fim (desde 07/10/2026 o padrao e desligado): este teste roda
+    # tambem sobre os dados de verdade, e nao pode deixar o escritorio so com o Google.
+    antes_so_google = bool(prefs.get("so_google", False))
     email = "celular-tela@escritorio.com"
     conta = None
     pedido = None
@@ -217,7 +220,7 @@ def test_celular(navegador, base: str) -> None:
         ctx.close()
     finally:
         prefs["ligado"] = False
-        prefs["so_google"] = True
+        prefs["so_google"] = antes_so_google
         servico.__dict__.pop("conferir_turnstile", None)
         prefs["turnstile_sitekey"] = antes_chave
         if pedido:

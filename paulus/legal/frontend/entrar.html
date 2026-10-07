@@ -128,6 +128,7 @@
   .ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-wrap: pretty; text-align: center; }
   .erro { margin: 0; font-size: 13px; line-height: 1.5; color: var(--erro); text-align: center; }
   .erro:empty { display: none; }
+  .ajuda:empty { display: none; }
 
   /* --- 2. o codigo (e a chave de recuperacao), no desenho "Codigo" */
   .passo { position: relative; max-width: none; overflow: visible; }
@@ -211,10 +212,20 @@
     </div>
     <form id="form-senha" class="baixo" autocomplete="on">
       <button type="button" class="g-trilho" id="google" disabled><span class="g-pastilha"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar com Google</span></button>
-      <!-- E-mail e senha: so no escritorio sem o Google configurado. -->
+      <!-- E-mail e senha (07/10/2026: valem por inteiro, com o Google como opcao). -->
       <div class="campos" id="por-senha" hidden>
         <input id="email" type="email" autocomplete="username" placeholder="E-mail" aria-label="E-mail">
         <input id="senha" type="password" autocomplete="current-password" minlength="10" placeholder="Senha" aria-label="Senha">
+      </div>
+      <!-- Esqueci a senha: o codigo vai ao e-mail da conta; a senha nova nao dispensa o codigo do celular. -->
+      <div class="campos" id="por-esqueci" hidden>
+        <p class="ajuda" id="esqueci-texto">Digite o e-mail da sua conta: mandamos um código para trocar a senha.</p>
+        <input id="esqueci-email" type="email" autocomplete="username" placeholder="E-mail" aria-label="E-mail">
+        <div class="campos" id="esqueci-campos" hidden>
+          <input id="esqueci-codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Código do e-mail (6 números)" aria-label="Código do e-mail">
+          <input id="esqueci-senha" type="password" autocomplete="new-password" placeholder="Nova senha (10 ou mais caracteres)" aria-label="Nova senha">
+          <input id="esqueci-repetir" type="password" autocomplete="new-password" placeholder="Confirmar a nova senha" aria-label="Confirmar a nova senha">
+        </div>
       </div>
       <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
       <div class="cf-badge" id="cf-badge" data-estado="verificando" role="status" aria-live="polite">
@@ -222,7 +233,9 @@
         <span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · <a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener">Ajuda</a></span></span>
       </div>
       <p class="erro" id="erro-senha" role="alert"></p>
-      <button type="submit" class="g-trilho" id="continuar-senha" hidden><span class="g-pastilha">Continuar</span></button>
+      <p class="ajuda" id="aviso-senha" role="status"></p>
+      <button type="submit" class="g-trilho" id="continuar-senha" hidden><span class="g-pastilha" id="continuar-texto">Continuar</span></button>
+      <div class="ligacoes" id="links-senha" hidden><button type="button" class="link-senha" id="esqueci">Esqueci a senha</button><button type="button" class="link-senha" id="reenviar" hidden>Reenviar código</button></div>
       <button type="button" class="link-senha" id="usar-senha" hidden>Entrar com e-mail e senha</button>
     </form>
   </section>
@@ -266,24 +279,74 @@
   const $ = (id) => document.getElementById(id);
 
 
-  // O jeito de entrar: o Google (o desenho) ou, so no escritorio que deixa,
-  // e-mail e senha - sozinhos quando o Google nao foi configurado, ou por
-  // escolha no "Entrar com e-mail e senha".
+  // O jeito de entrar: o Google (o desenho) ou e-mail e senha - sozinhos
+  // quando o Google nao foi configurado, ou por escolha no "Entrar com e-mail
+  // e senha". O escritorio que escolheu so o Google (so_google) nao mostra a
+  // senha. "Esqueci a senha" (07/10/2026) e o terceiro modo: o e-mail, e
+  // depois o codigo que chegou nele com a senha nova.
+  let etapaEsqueci = "";
   function escolher(qual) {
     modo = qual;
     const senha = qual === "senha";
-    $("google").hidden = senha;
+    const esqueci = qual === "esqueci";
+    $("google").hidden = senha || esqueci;
     $("por-senha").hidden = !senha;
+    $("por-esqueci").hidden = !esqueci;
+    $("esqueci-campos").hidden = !(esqueci && etapaEsqueci);
+    $("esqueci-email").readOnly = Boolean(esqueci && etapaEsqueci);
     $("email").required = senha;
     $("senha").required = senha;
-    $("continuar-senha").hidden = !senha;
-    $("usar-senha").hidden = !(config.google && !config.so_google);
+    $("continuar-senha").hidden = !(senha || esqueci);
+    $("continuar-texto").textContent = esqueci ? (etapaEsqueci ? "Trocar a senha" : "Enviar código") : "Continuar";
+    $("usar-senha").hidden = esqueci || !(config.google && !config.so_google);
     $("usar-senha").textContent = senha ? "Entrar com Google" : "Entrar com e-mail e senha";
+    $("links-senha").hidden = !(senha || esqueci) || config.so_google;
+    $("esqueci").textContent = esqueci ? "Voltar para a senha" : "Esqueci a senha";
+    $("reenviar").hidden = !(esqueci && etapaEsqueci);
     $("erro-senha").textContent = "";
-    if (!$("entrar-senha").hidden) saudar($("marca-entrar"), senha ? "senha" : "entrar");
+    if (!$("entrar-senha").hidden) saudar($("marca-entrar"), senha || esqueci ? "senha" : "entrar");
   }
   $("google").addEventListener("click", () => entrarComGoogle());
   $("usar-senha").addEventListener("click", () => { escolher(modo === "senha" ? "google" : "senha"); if (modo === "senha") $("email").focus(); });
+  $("esqueci").addEventListener("click", () => {
+    $("aviso-senha").textContent = "";
+    if (modo === "esqueci") { etapaEsqueci = ""; escolher("senha"); $("email").focus(); return; }
+    $("esqueci-email").value = $("email").value.trim();
+    etapaEsqueci = "";
+    escolher("esqueci");
+    $("esqueci-email").focus();
+  });
+  $("reenviar").addEventListener("click", () => { etapaEsqueci = ""; escolher("esqueci"); $("aviso-senha").textContent = "Confirme a verificação contra robôs e peça o código de novo."; });
+
+  // Esqueci a senha: pedir o codigo (com o anti-robo) e, com ele, a senha nova.
+  // A senha nova nao abre sessao: a entrada e a de sempre, com o codigo do celular.
+  async function esqueciASenha() {
+    const email = $("esqueci-email").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("confira o e-mail");
+    if (!etapaEsqueci) {
+      const token = tokenDoRobo();
+      if (!token) throw new Error("confirme a verificação contra robôs acima");
+      await enviar("/api/acesso/senha/esqueci", { email, turnstile: token });
+      etapaEsqueci = "codigo";
+      escolher("esqueci");
+      $("esqueci-texto").textContent = "Se " + email + " tem conta neste escritório, enviamos um código de 6 números para ele. O código vale 10 minutos.";
+      $("esqueci-codigo").focus();
+      return;
+    }
+    const codigo = $("esqueci-codigo").value.replace(/\D/g, "");
+    const nova = $("esqueci-senha").value;
+    if (codigo.length !== 6) throw new Error("o código tem 6 números");
+    if (nova.length < 10) throw new Error("a senha precisa ter pelo menos 10 caracteres");
+    if (nova !== $("esqueci-repetir").value) throw new Error("as duas senhas não são iguais");
+    const d = await enviar("/api/acesso/senha/redefinir", { email, codigo, senha: nova });
+    ["esqueci-codigo", "esqueci-senha", "esqueci-repetir"].forEach((id) => { $(id).value = ""; });
+    etapaEsqueci = "";
+    $("esqueci-texto").textContent = "Digite o e-mail da sua conta: mandamos um código para trocar a senha.";
+    $("email").value = email;
+    escolher("senha");
+    $("aviso-senha").textContent = "Senha trocada. Entre com ela" + (d.codigo_do_celular ? " — o código do celular continua sendo pedido." : ".");
+    $("senha").focus();
+  }
 
   // O selo da verificacao contra robos, no lugar do widget da Cloudflare.
   function selo(estado, texto) {
@@ -414,6 +477,15 @@
     if (modo === "google") return entrarComGoogle();
     const b = $("continuar-senha");
     b.disabled = true; $("erro-senha").textContent = "";
+    if (modo === "esqueci") {
+      const pediu = !etapaEsqueci;
+      try { if (pediu) $("aviso-senha").textContent = ""; await esqueciASenha(); } catch (err) { $("erro-senha").textContent = err.message; }
+      // So o pedido do codigo gasta o token do anti-robo.
+      if (pediu) { selo("verificando", "Verificando…"); novoRobo(); }
+      b.disabled = false;
+      return;
+    }
+    $("aviso-senha").textContent = "";
     try {
       const token = tokenDoRobo();
       if (!token) throw new Error("confirme a verificação contra robôs acima");

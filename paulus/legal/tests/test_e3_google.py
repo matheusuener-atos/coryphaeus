@@ -218,6 +218,8 @@ def test_http() -> None:
         checar(conta["papel"] == "colaborador", "e e colaborador")
 
         print("  so o Google (decisao do escritorio)")
+        # Desde 07/10/2026 o padrao e o e-mail e a senha tambem; o escritorio que escolhe so o Google liga a regra.
+        prefs["so_google"] = True
         checar(f.get("/api/acesso/entrar/config").json().get("so_google") is True, "a tela de entrar sabe que e so o Google")
         r = f.post("/api/acesso/entrar", json={"email": "tita@x.com", "senha": "senha-da-tita-1", "turnstile": "ok"})
         checar(r.status_code == 403 and "Google" in r.json().get("detail", ""), "e-mail e senha de fora: 403", r.text[:160])

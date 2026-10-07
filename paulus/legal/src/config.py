@@ -147,10 +147,13 @@ PADRAO: dict = {
                "ultimo_erro": ""},
     "acesso_remoto": {"seguranca_padrao": "padrao", "ligado": False, "porta": 0, "hostname": "", "turnstile_sitekey": "", "liberado": "",
                       "abrir_com_windows": False, "instalacao_id": "", "cloudflared_minimo": "2025.4.0",
-                      # De fora, toda entrada e pelo Google (+ o codigo do celular) - decisao do
-                      # dono, 28/09/2026. Sem o Google configurado, ninguem entra de fora (a tela
-                      # diz o que falta). Desligar existe so para os testes do caminho por senha.
-                      "so_google": True,
+                      # So o Google de fora (28/09/2026) deixou de ser a regra em 07/10/2026: o
+                      # e-mail e a senha valem por inteiro, com o mesmo codigo do celular, e o
+                      # Google continua como opcao. Ligado, de fora so se entra pelo Google.
+                      "so_google": False,
+                      # A versao da regra acima ja aplicada a este arquivo: o True gravado
+                      # pela regra antiga (que era so o padrao) cai uma vez para False.
+                      "regra_de_entrada": 2,
                       # "Nao quero acessar a distancia", no assistente de configuracao
                       # (js/23-boas-vindas.js): o acesso vem ligado, e quem recusa fica
                       # recusado ao rever o assistente. Tem de estar aqui: _fundir
@@ -343,7 +346,8 @@ PADRAO: dict = {
     "animacoes_reduzidas": False,
     # O PAULUS do servidor vinculado a conta Google de quem o administra
     # (src/vinculo.py, E5). Vinculado, abre travado - salvo manter_aberto.
-    "vinculo": {"email": "", "nome": "", "em": "", "manter_aberto": False, "saiu": False,
+    # `por`: "google" ou "senha" (a conta PAVLVS por e-mail e senha, 07/10/2026).
+    "vinculo": {"email": "", "nome": "", "em": "", "por": "", "manter_aberto": False, "saiu": False,
                 # entrar sem internet com o codigo proprio do servidor (src/vinculo.py)
                 "offline": {"segredo": "", "ultimo_passo": 0, "recuperacao": []},
                 # "Nao pedir o codigo neste computador por 30 dias": a conta e ate quando
@@ -396,12 +400,28 @@ class Preferencias:
             return
         if isinstance(bruto, dict):
             self._fundir(self.dados, bruto)
+            self._regra_de_entrada(bruto)
         self._formatar_gravados()
         # Permissao travada nunca vem do arquivo: alguem editando o JSON na mao
         # nao deve conseguir ligar o que o produto nao oferece.
         for a in AUTONOMIA:
             if a["travada"]:
                 self.dados["autonomia"][a["chave"]] = a["padrao"]
+
+    def _regra_de_entrada(self, bruto: dict) -> None:
+        """
+        07/10/2026: e-mail e senha passam a valer de fora. O `so_google: True`
+        gravado antes era so o padrao de entao (nenhuma tela o mudava): os
+        arquivos daquela regra voltam ao padrao novo, uma vez.
+        """
+        antes = bruto.get("acesso_remoto") if isinstance(bruto.get("acesso_remoto"), dict) else {}
+        try:
+            versao = int(antes.get("regra_de_entrada") or 1)
+        except (TypeError, ValueError):
+            versao = 1
+        if versao < 2:
+            self.dados["acesso_remoto"]["so_google"] = False
+            self.dados["acesso_remoto"]["regra_de_entrada"] = 2
 
     @staticmethod
     def _fundir(base: dict, novo: dict) -> None:

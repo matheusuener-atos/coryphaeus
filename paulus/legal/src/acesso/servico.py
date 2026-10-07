@@ -97,12 +97,12 @@ class AcessoDeFora:
 
     def so_google(self) -> bool:
         """
-        De fora, TODA entrada e pelo Google (+ codigo do celular) - decisao do
-        dono, 28/09/2026. Sem o login do Google configurado, ninguem entra de
-        fora: a tela diz o que falta, e nao volta a pedir senha. A chave
-        `acesso_remoto.so_google` existe para os testes do caminho por senha.
+        Ligado, de fora TODA entrada e pelo Google (+ codigo do celular) - a
+        regra de 28/09/2026. Desde 07/10/2026 o padrao e desligado: e-mail e
+        senha valem por inteiro (com o mesmo codigo do celular e o "Esqueci a
+        senha"), e o Google continua como opcao onde esta configurado.
         """
-        return bool(self.preferencias().get("so_google", True))
+        return bool(self.preferencias().get("so_google", False))
 
     def conferir_turnstile(self, token: str, ip: str = "") -> str:
         """
@@ -142,6 +142,24 @@ class AcessoDeFora:
         except ErroProvisao as exc:
             return str(exc)
         return ""
+
+    def email_da_senha(self, conta: dict, codigo: str) -> str:
+        """
+        O codigo do "Esqueci a senha" de quem entra de fora (07/10/2026), pelo
+        mesmo envio da Area do cliente: o PAULUS manda o tipo e os campos, e o
+        texto e do Worker. O tipo "senha" diz que o codigo e para trocar a
+        senha. O Worker que ainda nao o conhece responde "tipo de e-mail
+        desconhecido": ai vai o "codigo" da Area do cliente - o codigo chega e
+        vale do mesmo jeito, mas o texto do e-mail e o da area do cliente.
+        Devolve "" quando foi, ou a frase do que impediu.
+        """
+        host = self.preferencias().get("hostname", "")
+        escritorio = str((self.prefs.dados.get("escritorio") or {}).get("nome") or "")
+        base = {"para": conta["email"], "nome": conta.get("nome", ""), "codigo": codigo, "escritorio": escritorio}
+        erro = self.email_do_cliente({**base, "tipo": "senha", "link": f"https://{host}/"})
+        if erro and "tipo de e-mail desconhecido" in erro:
+            erro = self.email_do_cliente({**base, "tipo": "codigo", "link": f"https://{host}/cliente/senha"})
+        return erro
 
     def endereco_liberado(self, motivo: str = "") -> None:
         """

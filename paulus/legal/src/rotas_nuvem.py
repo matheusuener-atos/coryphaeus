@@ -244,7 +244,7 @@ def montar(estado, app, dados_dir) -> None:
         """A conta da nuvem é a conta Google vinculada: precisa do login recente (o id_token, 1 h)."""
         token = estado.vinculo.id_token_valido() if getattr(estado, "vinculo", None) else ""
         if not token:
-            raise HTTPException(status_code=401, detail="confirme com o Google para ativar a nuvem")
+            raise HTTPException(status_code=401, detail="confirme a sua conta para ativar a nuvem")
         _paulus_ou_400(lambda: nuvem.ativar_paulus(estado, token, _nome_de_quem(estado)))
         return dict(_estado_da_tela(estado), **_conta(estado))
 

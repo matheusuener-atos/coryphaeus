@@ -101,3 +101,27 @@
 
   /* Dentro do programa, os botoes da janela ficam no canto: o tema fica antes deles. */
   html.com-janela .trava-topo { padding-right: 160px; }
+
+  /* ------------------------- a conta PAVLVS por e-mail e senha (07/10/2026) */
+  /*
+    O formulario de js/45-vinculo.js (formContaSenha): o mesmo no assistente,
+    na trava e em Configuracoes. O rotulo e o trilho sao os de quem usa; aqui
+    so o campo (36 px, raio 12, como os da tela de entrar), o grupo, os links
+    lado a lado e o "ou" entre o Google e a senha.
+  */
+  .cs-form { display: grid; gap: 14px; margin: 0; }
+  .cs-grupo { display: grid; gap: 6px; }
+  .cs-campo { width: 100%; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a12);
+    outline: none; color: var(--ink); font: 400 14px var(--sans); }
+  .cs-campo:focus { border-color: var(--ink3); }
+  .cs-campo::placeholder { color: var(--ink3); }
+  .cs-links { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
+  .cs-ou { display: flex; align-items: center; gap: 12px; font: 400 12px var(--mono); letter-spacing: .12em; color: var(--mute2); }
+  .cs-ou::before, .cs-ou::after { content: ""; flex: 1; height: 1px; background: var(--ink-a12); }
+  /* Em Configuracoes, o formulario fica no cartao, alinhado a esquerda. */
+  .cs-no-cartao { justify-self: start; margin-top: 4px; }
+  /* O erro do assistente (.acesso-erro) no formulario: centrado, e sem lugar quando vazio. */
+  .cs-form .acesso-erro { min-height: 0; margin: 0; text-align: center; }
+  .cs-form .acesso-erro:empty { display: none; }
+  /* A ajuda centrada da trava: .centro sozinho e a coluna da conversa (02-conversa.css). */
+  .cs-centro { text-align: center; }

@@ -177,12 +177,13 @@ function secaoAcesso() {
 /* Os niveis de seguranca (acesso/contas.py NIVEIS): o escritorio escolhe,
    conta por conta, quanto pedir na entrada de fora. */
 const NIVEIS_SEGURANCA = [
-  { id: "reforcada", rotulo: "Reforçada", curto: "Google + código sempre",
-    explica: "Conta Google e o código do autenticador em toda entrada, sem lembrar o navegador." },
-  { id: "padrao", rotulo: "Padrão (recomendada)", curto: "Google + código",
-    explica: "Conta Google e o código do autenticador; a pessoa pode marcar o navegador dela como confiável por 30 dias." },
-  { id: "simples", rotulo: "Simples", curto: "só o Google",
-    explica: "Só a conta Google, sem autenticador. Mais cômodo e mais fraco: quem abrir o Google da pessoa entra no Paulus." },
+  // A conta e a do Google ou o e-mail e a senha (07/10/2026): o nivel diz so o que vem depois dela.
+  { id: "reforcada", rotulo: "Reforçada", curto: "conta + código sempre",
+    explica: "A conta (Google ou e-mail e senha) e o código do autenticador em toda entrada, sem lembrar o navegador." },
+  { id: "padrao", rotulo: "Padrão (recomendada)", curto: "conta + código",
+    explica: "A conta (Google ou e-mail e senha) e o código do autenticador; a pessoa pode marcar o navegador dela como confiável por 30 dias." },
+  { id: "simples", rotulo: "Simples", curto: "só a conta",
+    explica: "Só a conta (Google ou e-mail e senha), sem autenticador. Mais cômodo e mais fraco: quem souber a senha, ou abrir o Google da pessoa, entra no Paulus." },
 ];
 
 function nivelSeguranca(id) {
@@ -245,7 +246,9 @@ function cartaoComoFunciona() {
     ["desktop_windows", "O computador do escritório precisa estar ligado e com o Paulus aberto. Desligado, o endereço para de responder."],
     ["key", "Os documentos, o índice e o modelo de IA não saem deste computador. O que passa pela internet é a tela e o que se digita nela."],
     ["lan", "O caminho é o túnel da Cloudflare, num endereço paulus.ia.br da conta do Atos. A conexão é criptografada, mas a Cloudflare a abre no meio do caminho para entregá-la; o Atos não roteia, não inspeciona e não registra esse conteúdo."],
-    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta Google e, conforme o nível de segurança da conta, o código do autenticador do celular. O nível se escolhe aqui, conta por conta."],
+    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta — " +
+      (acessoCfg.soGoogle ? "a conta Google" : "o Google ou o e-mail e a senha, com \"Esqueci a senha\" por código no e-mail") +
+      " — e, conforme o nível de segurança da conta, o código do autenticador do celular. O nível se escolhe aqui, conta por conta."],
     ["history", "Todo acesso externo fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
   ];
   return cartaoCfg("Como funciona", "",
@@ -399,7 +402,8 @@ async function acessoNovaConta() {
     titulo: primeira ? "Conta do titular" : "Nova conta",
     contexto: "Configurações › Acesso externo",
     texto: (primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora.\n" : "") +
-      "Com a segurança reforçada ou padrão, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele. Na simples, basta a conta Google.",
+      "Com a segurança reforçada ou padrão, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele. Na simples, basta a conta" +
+      (acessoCfg.soGoogle ? " Google." : " (o e-mail e a senha, ou o Google)."),
     html: lojasAutenticador(),
     depois: campoSeguranca("acc-nova-seg", acessoCfg.segurancaPadrao || "padrao"),
     campos: [
@@ -428,8 +432,8 @@ async function acessoNovaConta() {
       seguranca: v.seguranca || "" });
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
   if (criada.conta && criada.conta.seguranca === "simples") {
-    // Sem autenticador: a conta ja entra so com o Google.
-    avisoCert("conta pronta — entra de fora só com a conta Google", { tom: "ok" });
+    // Sem autenticador: a conta ja entra so com ela (o Google ou o e-mail e a senha).
+    avisoCert(acessoCfg.soGoogle ? "conta pronta — entra de fora só com a conta Google" : "conta pronta — entra de fora só com a conta, sem o código do celular", { tom: "ok" });
     acessoRedesenhar();
     return;
   }
@@ -540,9 +544,11 @@ function ligarAcesso() {
     if (!c) return;
     const r = await dialogo({
       titulo: "E-mails de " + c.nome, contexto: "Configurações › Acesso externo",
-      texto: "O e-mail Google é o que entra (Gmail ou do Google Workspace). O secundário é só de contato. Trocar o e-mail Google encerra as sessões da pessoa.",
+      texto: acessoCfg.soGoogle
+        ? "O e-mail Google é o que entra (Gmail ou do Google Workspace). O secundário é só de contato. Trocar o e-mail Google encerra as sessões da pessoa."
+        : "O e-mail de entrada é o que entra (com a senha, ou pelo Google quando é uma conta Google). O secundário é só de contato. Trocar o e-mail de entrada encerra as sessões da pessoa.",
       campos: [
-        { chave: "email", rotulo: "E-mail Google", tipo: "email", valor: c.email, obrigatorio: true },
+        { chave: "email", rotulo: acessoCfg.soGoogle ? "E-mail Google" : "E-mail de entrada", tipo: "email", valor: c.email, obrigatorio: true },
         { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", valor: c.email_secundario || "", obrigatorio: false },
       ],
       confirmar: "Salvar",

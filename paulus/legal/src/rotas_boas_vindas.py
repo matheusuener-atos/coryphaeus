@@ -12,7 +12,11 @@ o desenho "Pós-instalador" entregue em 07/10/2026) que o servidor não tinha.
   GET  /api/conexoes            (src/api.py) ganha o que o Google já autorizou
 
 O "Trocar de conta" do passo Assinatura é o /api/vinculo/desvincular de
-sempre: o passo Conta Google volta a pedir o Google.
+sempre: o passo Sua conta volta a pedir a conta.
+
+Desde 07/10/2026 a conta pode ser também a conta PAVLVS por e-mail e senha
+(src/vinculo.py): o token que o Worker dá a ela vale onde vale o id_token do
+Google, e tudo o que segue abaixo sobre "o login recente" vale para os dois.
 
 A assinatura. A conta da nuvem do Paulus é a da conta Google
 (worker/ia.js): esta instalação fala com ela pelo segredo que o Worker dá ao
@@ -95,7 +99,7 @@ def assinatura(estado) -> dict:
     email = _email_do_vinculo(estado)
     vazia = {"ativa": False, "situacao": "nenhuma", "email": email, "pessoa": {}, "escritorio": "", "plano": "", "renova_em": ""}
     if not email:
-        return {**vazia, "motivo": "entre com a conta Google no passo Conta Google"}
+        return {**vazia, "motivo": "entre com a sua conta no passo Sua conta"}
     # Uma conferencia por vez: duas perguntas juntas (rede lenta) nao ativam a nuvem duas vezes.
     with _trava:
         agora = time.time()
@@ -122,8 +126,8 @@ def _ler(estado, email: str):
         if dono == email:
             return r, _cadastro_pela_chave(estado), ""
         if not token:
-            return None, None, (f"este computador usa a nuvem do Paulus de {dono or 'outra conta Google'}; "
-                                f"para conferir a de {email}, entre de novo com o Google")
+            return None, None, (f"este computador usa a nuvem do Paulus de {dono or 'outra conta'}; "
+                                f"para conferir a de {email}, entre de novo com essa conta")
         if not (dono and _ativada_aqui["email"] == dono):
             # Ativada antes, por outra conta (ou de conta que nao se sabe): nao se troca daqui. So se le a situacao desta.
             r = _pelo_google(estado, token)
@@ -131,7 +135,7 @@ def _ler(estado, email: str):
         # Ativada por este assistente minutos antes, e a pessoa trocou de conta: passa para a de agora.
         nuvem.sair_paulus(estado)
     elif not token:
-        return None, None, "entre de novo com o Google no passo Conta Google para conferir a assinatura"
+        return None, None, "entre de novo com a sua conta no passo Sua conta para conferir a assinatura"
     import segredos
 
     if not segredos.disponivel():
@@ -270,7 +274,11 @@ def autorizar(estado, servicos, tema: str, credenciais, ao_voltar, ao_ligar_agen
     if not pedidos:
         raise HTTPException(status_code=400, detail="marque pelo menos um serviço")
     conta = estado.conta_google_do_escritorio()
-    esperado = conta.email if conta else _email_do_vinculo(estado)
+    # Vinculado pelo Google, os servicos sao da mesma conta. Pela conta PAVLVS de
+    # e-mail e senha (07/10/2026), o e-mail pode nem ser do Google: vale a conta
+    # Google que a pessoa escolher no consentimento.
+    por_google = ((estado.prefs.dados.get("vinculo") or {}).get("por") or "google") == "google"
+    esperado = conta.email if conta else (_email_do_vinculo(estado) if por_google else "")
     for s in pedidos:
         desligado = google_nuvem.frase(estado, s, conta)
         if desligado:

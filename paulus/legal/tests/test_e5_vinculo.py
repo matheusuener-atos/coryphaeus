@@ -104,6 +104,7 @@ def test_http() -> None:
     e = r.json()
     checar(r.status_code == 200 and e["vinculado"] and e["email"] == "dona@gmail.com" and not e["travado"],
            "vincula e ja fica aberto", e)
+    checar(e["por"] == "google", "o vinculo sabe que foi pelo Google (a conta PAVLVS por senha e a outra)", e.get("por"))
     checar(EntradaFalsa.kwargs.get("escopos") == "openid email profile" and EntradaFalsa.kwargs.get("so_identidade"),
            "o login pede so a identidade (nada de e-mail)", EntradaFalsa.kwargs)
     checar(prefs["pessoa"].get("nome") == "Dona do Escritório" and prefs["pessoa"].get("email") == "dona@gmail.com",

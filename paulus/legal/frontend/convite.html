@@ -274,7 +274,7 @@
       <div class="grupo">
         <span class="rotulo">CONTA</span>
         <div class="caixa"><span id="marca-liberado"></span><span class="texto" id="liberado-email"></span></div>
-        <p class="ajuda">O escritório escolheu entrar só com a conta Google, sem o código do celular. Para usar o PAVLVS, entre com essa conta.</p>
+        <p class="ajuda" id="liberado-texto">O escritório escolheu entrar sem o código do celular: a sua conta está pronta. Para usar o PAVLVS, entre com ela.</p>
       </div>
       <a class="g-trilho" href="/"><span class="g-pastilha">Entrar no PAVLVS</span></a>
     </section>
@@ -383,11 +383,14 @@
   relogio();
   setInterval(relogio, 1000);
 
-  function mostrarQr(d) {
+  // `porSenha`: o convite aceito com a senha (e nao com o Google) - muda so o jeito de entrar que a tela diz.
+  function mostrarQr(d, porSenha) {
     if (d.simples) {
       // Seguranca "simples": sem autenticador - a conta ja esta pronta.
       $("liberado-email").textContent = d.email || "";
-      $("marca-liberado").innerHTML = G;
+      $("marca-liberado").innerHTML = porSenha ? ENVELOPE : G;
+      $("liberado-texto").textContent = "O escritório escolheu entrar sem o código do celular: a sua conta está pronta. Para usar o PAVLVS, entre " +
+        (porSenha ? "com este e-mail e a senha que você escolheu." : "com esta conta Google.");
       frase("convite_pronto");
       mostrar("passo-liberado");
       return;
@@ -463,10 +466,12 @@
     if (convite.so_google) return;
     ocupado = true; travar(); $("erro-senha").textContent = "";
     try {
+      // A senha e a confirmacao conferidas aqui tambem, antes de gastar a verificacao contra robos.
+      if ($("senha").value.length < 10) throw new Error("a senha precisa ter pelo menos 10 caracteres");
       if ($("senha").value !== $("repetir").value) throw new Error("as duas senhas não são iguais");
       const d = await enviar(api + "/aceitar", { senha: $("senha").value, turnstile: tokenDoRobo() });
       $("senha").value = ""; $("repetir").value = "";
-      mostrarQr(d);
+      mostrarQr(d, true);
     } catch (err) { $("erro-senha").textContent = err.message; }
     ocupado = false;
     novoRobo();

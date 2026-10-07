@@ -230,7 +230,7 @@ def test_assistente() -> None:
 
     print("  a conta Google prova de quem e o endereco")
     r = local.post("/api/acesso/tunel/conectar", json={"nome": "Moura & Associados Advocacia", "slug": "moura-associados"})
-    checar(r.status_code == 428 and "Google" in r.json().get("detail", ""), "sem login recente no Google: 428, entrar antes",
+    checar(r.status_code == 428 and "confirme a sua conta" in r.json().get("detail", ""), "sem login recente da conta: 428, entrar antes",
            r.text[:160])
     checar("iniciar" not in worker.chamadas, "e nao pede nada ao Worker")
     r = local.get("/api/acesso/tunel/disponivel", params={"nome": "meu-antigo"}).json()
