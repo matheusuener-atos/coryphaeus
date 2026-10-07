@@ -5,7 +5,7 @@
 // O Durable Object roda aqui sobre um Map; o Mercado Pago, o Google, a
 // Cloudflare e o e-mail sao de mentira. O relogio e um so (Date.now tambem).
 import worker from "./index.js";
-import { ContaIA, atenderIA, avisoDaIA, cronDaConta, ofertaDeVolta, ofertaParaFicar, orcarTrocaDePlano, pixDoMes, trocarPlanoAgora } from "./ia.js";
+import { ContaIA, PLANOS_DE_FABRICA, atenderIA, avisoDaIA, cronDaConta, ofertaDeVolta, ofertaParaFicar, orcarTrocaDePlano, pixDoMes, trocarPlanoAgora } from "./ia.js";
 import { atenderConta, consumoDo } from "./conta.js";
 
 let falhas = 0;
@@ -278,6 +278,17 @@ console.log("\nretomar a assinatura pausada");
   await cobranca(pre.id, 449, "cobD2");
   r = await resumoDe(dora);
   checar(r.ciclo_completo.inicio !== antes.inicio && r.plano_vigente && r.ciclo_completo.usados === 0, "a cobrança da retomada abre o ciclo novo", r.ciclo_completo);
+
+  // O painel edita o preco do plano no meio de um ajuste: no fim dele, quem pagava o preco do plano passa ao preco novo.
+  const o = await ofertaParaFicar(env, chamarMP, dora, { tipo: "desconto", motivo: "preco" });
+  checar(o.ok && pre.auto_recurring.transaction_amount === 314.3, "o desconto para ficar: 70% do Advogado", pre.auto_recurring);
+  env.IA_PLANOS = JSON.stringify(PLANOS_DE_FABRICA.map((x) => (x.id === "advogado" ? { ...x, valor: 499 } : x)));
+  relogio += 31 * DIA;
+  await cobranca(pre.id, 314.3, "cobD3");
+  relogio += 31 * DIA;
+  await cobranca(pre.id, 314.3, "cobD4");
+  checar(pre.auto_recurring.transaction_amount === 499 && !(await resumoDe(dora)).ajuste, "no fim do ajuste, o preço novo do plano (e não o de antes da edição)", pre.auto_recurring);
+  delete env.IA_PLANOS;
   relogio = t0;
 }
 

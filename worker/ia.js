@@ -1983,7 +1983,8 @@ export class ContaIA {
       // primeira cobranca sai nele, e depois a assinatura volta ao valor do plano.
       if (d.ajuste) {
         const v = Math.round(Number(d.ajuste.valor) * 100) / 100;
-        conta.ajuste = { motivo: "o preço especial da volta", cobrancas: [v], valor_cheio: Number(d.ajuste.valor_cheio) || 0, atual: v, quando: new Date(agora).toISOString() };
+        conta.ajuste = { motivo: "o preço especial da volta", cobrancas: [v], valor_cheio: Number(d.ajuste.valor_cheio) || 0, atual: v, quando: new Date(agora).toISOString(),
+          preco_plano: planoDe(n, conta.plano).valor };
         if (conta.oferta_volta && conta.oferta_volta.tipo === "preco") delete conta.oferta_volta;
       }
       const antes = conta.assinatura || {};
@@ -2007,7 +2008,7 @@ export class ContaIA {
       // proprio (conta.ajuste): o valor que a assinatura passa a ter volta na
       // resposta, e quem chamou (avisoDaIA) acerta no Mercado Pago.
       const daVolta = this.usarOfertaDeVolta(conta, agora);
-      const valorNovo = this.avancarAjuste(conta, Number(d.valor) || 0);
+      const valorNovo = this.avancarAjuste(conta, Number(d.valor) || 0, n);
       const extras = { ...(valorNovo ? { valor_assinatura_novo: valorNovo } : {}), ...(daVolta ? { creditos_da_volta: daVolta } : {}) };
       // A primeira cobranca logo depois da assinatura e a do ciclo que acabou
       // de abrir; as outras abrem o ciclo seguinte.
@@ -2120,7 +2121,7 @@ export class ContaIA {
       if (conta.assinatura) conta.assinatura = { ...conta.assinatura, valor: novo.valor };
       if (d.ajuste) {
         const v = Math.round(Number(d.ajuste.valor) * 100) / 100;
-        conta.ajuste = { motivo: "a diferença da troca de plano", cobrancas: [v], valor_cheio: novo.valor, atual: v, quando: iso(agora) };
+        conta.ajuste = { motivo: "a diferença da troca de plano", cobrancas: [v], valor_cheio: novo.valor, atual: v, quando: iso(agora), preco_plano: novo.valor };
       }
       return [this.resumo(conta, n, agora), conta];
     }
@@ -2137,7 +2138,8 @@ export class ContaIA {
         if (conta.ajuste) return [{ ok: false, status: 409, erro: "já há uma cobrança com valor ajustado em curso; a oferta fica para depois dela" }, null];
         const v = Math.round(Number(d.valor) * 100) / 100;
         const vezes = Math.max(1, Math.min(6, Math.round(Number(d.cobrancas) || OFERTA_FICAR.cobrancas)));
-        conta.ajuste = { motivo: "o desconto para ficar", cobrancas: Array(vezes).fill(v), valor_cheio: Number(d.valor_cheio) || 0, atual: v, quando: iso(agora) };
+        conta.ajuste = { motivo: "o desconto para ficar", cobrancas: Array(vezes).fill(v), valor_cheio: Number(d.valor_cheio) || 0, atual: v, quando: iso(agora),
+          preco_plano: planoDe(n, conta.plano).valor };
         reg.valor = v;
         reg.cobrancas = vezes;
       } else {
@@ -2157,7 +2159,8 @@ export class ContaIA {
         o.plano = String(d.plano || "");
       } else return [{ ok: false, status: 400, erro: "essa oferta não existe" }, null];
       conta.oferta_volta = o;
-      if (d.ajuste) conta.ajuste = { motivo: "o preço especial da volta", cobrancas: [o.valor], valor_cheio: Number(d.ajuste.valor_cheio) || 0, atual: o.valor, quando: iso(agora) };
+      if (d.ajuste) conta.ajuste = { motivo: "o preço especial da volta", cobrancas: [o.valor], valor_cheio: Number(d.ajuste.valor_cheio) || 0, atual: o.valor, quando: iso(agora),
+        preco_plano: planoDe(n, conta.plano).valor };
       return [{ ...this.resumo(conta, n, agora), oferta_volta: o }, conta];
     }
     if (acao === "ajuste_restaurado") {
@@ -2302,7 +2305,7 @@ export class ContaIA {
      assinatura deve ter daqui em diante (0 quando nao muda); a ultima devolve
      o valor cheio, e o ajuste acaba. Cobranca de outro valor (a que ja estava
      marcada antes do ajuste) nao conta. */
-  avancarAjuste(conta, valor) {
+  avancarAjuste(conta, valor, n) {
     const aj = conta.ajuste;
     if (!aj) return 0;
     if (valor && Math.abs(Number(valor) - Number(aj.atual)) > 0.01) return 0;
@@ -2313,7 +2316,14 @@ export class ContaIA {
       return aj.atual;
     }
     delete conta.ajuste;
-    return Number(aj.valor_cheio) || 0;
+    const cheio = Number(aj.valor_cheio) || 0;
+    // O painel editou o preco do plano no meio do ajuste: quem pagava o preco do
+    // plano passa ao preco novo; quem tinha um valor proprio volta ao dele.
+    if (n && aj.preco_plano && Math.abs(cheio - aj.preco_plano) <= 0.01) {
+      const atual = planoDe(n, conta.plano).valor;
+      if (atual && Math.abs(atual - aj.preco_plano) > 0.01) return atual;
+    }
+    return cheio;
   }
 
   cicloAberto(conta, agora) {
