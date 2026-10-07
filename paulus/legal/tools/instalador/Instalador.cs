@@ -1,11 +1,14 @@
 // O instalador do PAULUS (e o desinstalador: o mesmo programa).
 //
-// Uma janela so, desenhada aqui, no padrao do site (site/assets/site.css):
-// as mesmas cores, o botao de moldura dupla e a marca PAVLVS em Garamond
-// com o espacamento do topo do site; a lateral com PAVLVS e as etapas. A
-// serifa (Garamond) so em PAVLVS e no titulo de cada tela; o resto em Manrope. Quatro telas: Boas-vindas,
-// Local, Instalacao, Concluido. Tudo que e escolha (modelo de IA,
-// escritorio, dados) fica para o assistente de configuracao, dentro do app.
+// Uma janela so, desenhada aqui, no desenho aprovado das telas revisadas
+// (Instalador.dc.html, 07/10/2026): 720 x 540 a 96 DPI, as cores do site
+// (site/assets/site.css) nos dois temas, a lateral com PAVLVS e as etapas, e
+// os elementos no padrao de 07/10 (botao principal de moldura dupla com 32 px,
+// campo de 36 px, cantos 8/12/16). A serifa (Garamond) so em PAVLVS e no
+// titulo de cada tela; o resto em Manrope, com o kerning da fonte, como no
+// navegador. Quatro etapas: Boas-vindas, Local, Instalacao, Concluido. Tudo
+// que e escolha (modelo de IA, escritorio, dados) fica para o assistente de
+// configuracao, dentro do app.
 //
 // O que ele faz: copia o programa para %LOCALAPPDATA%\Programs\PAULUS (sem
 // administrador), cria os atalhos, registra o desinstalador no Windows e,
@@ -26,6 +29,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.IO;
 using System.Net;
@@ -119,8 +123,8 @@ static class Programa
         Application.SetCompatibleTextRenderingDefault(false);
         if (!desinstalar && !Pacote.TemPrograma(eu))
         {
-            MessageBox.Show("Este arquivo não traz o programa do PAULUS. Baixe o instalador de novo em paulus.ia.br.",
-                "PAULUS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Este arquivo não traz o programa do Paulus. Baixe o instalador de novo em paulus.ia.br.",
+                "Paulus", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
         Fontes.Carregar();
@@ -844,7 +848,7 @@ static class Motor
             try
             {
                 string cf = Path.Combine(temp, "cloudflared.exe");
-                Baixar(URL_CLOUDFLARED, cf, a, p0, p0 + 3, "Baixando o acesso de fora (cloudflared)…");
+                Baixar(URL_CLOUDFLARED, cf, a, p0, p0 + 3, "Baixando o acesso externo (cloudflared)…");
                 a.Relatar(p0 + 3, "Conferindo a assinatura da Cloudflare…");
                 // Nunca executar binario que nao passou pela conferencia: sem a
                 // assinatura da Cloudflare, o arquivo sai e a instalacao segue.
@@ -860,8 +864,8 @@ static class Motor
                 File.Copy(cf, CloudflaredExe, true);
                 Registro.Linha("cloudflared " + VERSAO_CLOUDFLARED + " conferido e instalado em " + PastaCloudflared);
             }
-            catch (CanceladoException) { a.Aviso += "O acesso de fora (cloudflared) não foi instalado: cancelado. "; }
-            catch (Exception e) { a.Aviso += "O acesso de fora (cloudflared) não foi instalado: " + e.Message + " "; }
+            catch (CanceladoException) { a.Aviso += "O acesso externo (cloudflared) não foi instalado: cancelado. "; }
+            catch (Exception e) { a.Aviso += "O acesso externo (cloudflared) não foi instalado: " + e.Message + " "; }
             p0 += 4;
         }
         if (baixarOllama)
@@ -1003,7 +1007,7 @@ static class Motor
         ta.InvokeMember("TargetPath", BindingFlags.SetProperty, null, a, new object[] { alvo });
         ta.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, a, new object[] { pasta });
         ta.InvokeMember("IconLocation", BindingFlags.SetProperty, null, a, new object[] { alvo + ",0" });
-        ta.InvokeMember("Description", BindingFlags.SetProperty, null, a, new object[] { "PAULUS: assistente jurídico de IA local" });
+        ta.InvokeMember("Description", BindingFlags.SetProperty, null, a, new object[] { "Paulus: assistente jurídico de IA local" });
         ta.InvokeMember("Save", BindingFlags.InvokeMethod, null, a, null);
         Marshal.FinalReleaseComObject(a);
         Marshal.FinalReleaseComObject(shell);
@@ -1113,7 +1117,7 @@ static class Motor
     public static void Desinstalar(string pasta, bool modelos, bool dados, Andamento a)
     {
         Registro.Linha("desinstalando " + pasta + (modelos ? " + modelos" : "") + (dados ? " + dados" : ""));
-        a.Relatar(5, "Fechando o PAULUS…");
+        a.Relatar(5, "Fechando o Paulus…");
         Fechar(pasta);
         if (modelos)
         {
@@ -1164,7 +1168,7 @@ static class Motor
         // e um cloudflared rodando sem o PAULUS seria a porta de fora sem dono.
         if (Directory.Exists(PastaCloudflared))
         {
-            a.Relatar(85, "Removendo o acesso de fora (cloudflared)…");
+            a.Relatar(85, "Removendo o acesso externo (cloudflared)…");
             FecharCloudflared();
             Apagar(PastaCloudflared);
         }
@@ -1305,13 +1309,211 @@ static class Motor
     }
 }
 
-// ------------------------------------------------------------------ fontes
+// ------------------------------------------------------------- tipografia
+
+/* As medidas de uma fonte como o navegador as usa: o avanco de cada letra
+   (hmtx), a letra de cada caractere (cmap) e o ajuste entre pares (kerning,
+   da tabela GPOS). O GDI+ nao aplica kerning: sem ele as linhas saiam ate 2%
+   mais largas que no desenho e quebravam em outro lugar. So o que as fontes do
+   instalador usam: PairPos (formatos 1 e 2) do recurso "kern". */
+class Metrica
+{
+    readonly byte[] b;
+    public readonly int Upm;
+    readonly Dictionary<int, int> glifos = new Dictionary<int, int>();
+    readonly int[] avancos;
+    readonly List<List<int>> lookups = new List<List<int>>();
+    readonly Dictionary<long, int> cache = new Dictionary<long, int>();
+
+    int U16(int o) { return (b[o] << 8) | b[o + 1]; }
+    int S16(int o) { return (short)U16(o); }
+    int U32(int o) { return (int)(((uint)b[o] << 24) | ((uint)b[o + 1] << 16) | ((uint)b[o + 2] << 8) | b[o + 3]); }
+
+    int Tabela(string tag)
+    {
+        for (int i = 0, n = U16(4); i < n; i++)
+        {
+            int r = 12 + 16 * i;
+            if (b[r] == tag[0] && b[r + 1] == tag[1] && b[r + 2] == tag[2] && b[r + 3] == tag[3]) return U32(r + 8);
+        }
+        throw new InvalidDataException("a fonte nao tem a tabela " + tag);
+    }
+
+    public Metrica(byte[] ttf)
+    {
+        b = ttf;
+        int head = Tabela("head"), hhea = Tabela("hhea"), hmtx = Tabela("hmtx"), maxp = Tabela("maxp");
+        Upm = U16(head + 18);
+        int n = U16(maxp + 4), comMedida = U16(hhea + 34), ultimo = 0;
+        avancos = new int[n];
+        for (int g = 0; g < n; g++) { if (g < comMedida) ultimo = U16(hmtx + 4 * g); avancos[g] = ultimo; }
+        LerCmap(Tabela("cmap"));
+        try { LerGpos(Tabela("GPOS")); } catch (InvalidDataException) { }
+    }
+
+    void LerCmap(int cmap)
+    {
+        int sub = -1, formato = 0;
+        for (int i = 0, n = U16(cmap + 2); i < n; i++)
+        {
+            int r = cmap + 4 + 8 * i, plat = U16(r), enc = U16(r + 2), o = cmap + U32(r + 4), f = U16(o);
+            if (plat == 3 && enc == 10 && f == 12) { sub = o; formato = 12; break; }
+            if ((plat == 3 && enc == 1 || plat == 0) && f == 4 && sub < 0) { sub = o; formato = 4; }
+        }
+        if (formato == 4)
+        {
+            int seg = U16(sub + 6) / 2, fins = sub + 14, inicios = fins + 2 * seg + 2, deltas = inicios + 2 * seg, faixas = deltas + 2 * seg;
+            for (int i = 0; i < seg; i++)
+            {
+                int fim = U16(fins + 2 * i), ini = U16(inicios + 2 * i), delta = S16(deltas + 2 * i), faixa = U16(faixas + 2 * i);
+                if (ini == 0xFFFF) continue;
+                for (int c = ini; c <= fim; c++)
+                {
+                    int g = faixa == 0 ? (c + delta) & 0xFFFF : U16(faixas + 2 * i + faixa + 2 * (c - ini));
+                    if (faixa != 0 && g != 0) g = (g + delta) & 0xFFFF;
+                    if (g != 0) glifos[c] = g;
+                }
+            }
+        }
+        else if (formato == 12)
+        {
+            for (int i = 0, grupos = U32(sub + 12); i < grupos; i++)
+            {
+                int r = sub + 16 + 12 * i, ini = U32(r), fim = U32(r + 4), g0 = U32(r + 8);
+                for (int c = ini; c <= fim && c - ini < 65536; c++) glifos[c] = g0 + c - ini;
+            }
+        }
+    }
+
+    void LerGpos(int gpos)
+    {
+        int recursos = gpos + U16(gpos + 6), lista = gpos + U16(gpos + 8);
+        var indices = new List<int>();
+        for (int i = 0, n = U16(recursos); i < n; i++)
+        {
+            int r = recursos + 2 + 6 * i;
+            if (b[r] != 'k' || b[r + 1] != 'e' || b[r + 2] != 'r' || b[r + 3] != 'n') continue;
+            int f = recursos + U16(r + 4);
+            for (int j = 0, m = U16(f + 2); j < m; j++) { int li = U16(f + 4 + 2 * j); if (!indices.Contains(li)) indices.Add(li); }
+        }
+        indices.Sort();
+        foreach (int li in indices)
+        {
+            int lk = lista + U16(lista + 2 + 2 * li), tipo = U16(lk);
+            var subs = new List<int>();
+            for (int s = 0, n = U16(lk + 4); s < n; s++)
+            {
+                int st = lk + U16(lk + 6 + 2 * s), t = tipo;
+                if (t == 9) { t = U16(st + 2); st += U32(st + 4); }   // extensao
+                if (t == 2) subs.Add(st);
+            }
+            if (subs.Count > 0) lookups.Add(subs);
+        }
+    }
+
+    int Cobertura(int o, int g)
+    {
+        int f = U16(o), n = U16(o + 2);
+        if (f == 1)
+        {
+            int lo = 0, hi = n - 1;
+            while (lo <= hi) { int m = (lo + hi) / 2, v = U16(o + 4 + 2 * m); if (v == g) return m; if (v < g) lo = m + 1; else hi = m - 1; }
+        }
+        else if (f == 2)
+            for (int i = 0; i < n; i++) { int r = o + 4 + 6 * i; if (g >= U16(r) && g <= U16(r + 2)) return U16(r + 4) + g - U16(r); }
+        return -1;
+    }
+
+    int Classe(int o, int g)
+    {
+        int f = U16(o);
+        if (f == 1) { int ini = U16(o + 2), n = U16(o + 4); return g >= ini && g < ini + n ? U16(o + 6 + 2 * (g - ini)) : 0; }
+        if (f == 2) for (int i = 0, n = U16(o + 2); i < n; i++) { int r = o + 4 + 6 * i; if (g >= U16(r) && g <= U16(r + 2)) return U16(r + 4); }
+        return 0;
+    }
+
+    static int Bits(int v) { int n = 0; for (v &= 0xFF; v != 0; v &= v - 1) n++; return n; }
+
+    public int Glifo(char c) { int g; return glifos.TryGetValue(c, out g) ? g : 0; }
+    public int Avanco(int g) { return g >= 0 && g < avancos.Length ? avancos[g] : 0; }
+
+    /* O ajuste entre g1 e g2, em unidades da fonte: em cada lookup, a primeira sub-tabela que se aplica. */
+    public int Kern(int g1, int g2)
+    {
+        long chave = ((long)g1 << 32) | (uint)g2;
+        int v;
+        if (cache.TryGetValue(chave, out v)) return v;
+        v = 0;
+        try
+        {
+            foreach (List<int> subs in lookups)
+            {
+                foreach (int st in subs)
+                {
+                    int formato = U16(st), cob = Cobertura(st + U16(st + 2), g1);
+                    if (cob < 0) continue;
+                    int vf1 = U16(st + 4), vf2 = U16(st + 6), t1 = 2 * Bits(vf1), t2 = 2 * Bits(vf2), reg = -1;
+                    if (formato == 1)
+                    {
+                        int pares = st + U16(st + 10 + 2 * cob), tam = 2 + t1 + t2, lo = 0, hi = U16(pares) - 1;
+                        while (lo <= hi)
+                        {
+                            int m = (lo + hi) / 2, r = pares + 2 + tam * m, segundo = U16(r);
+                            if (segundo == g2) { reg = r + 2; break; }
+                            if (segundo < g2) lo = m + 1; else hi = m - 1;
+                        }
+                        if (reg < 0) continue;
+                    }
+                    else if (formato == 2)
+                    {
+                        int c1 = Classe(st + U16(st + 8), g1), c2 = Classe(st + U16(st + 10), g2), n2 = U16(st + 14);
+                        if (c1 >= U16(st + 12) || c2 >= n2) break;
+                        reg = st + 16 + (c1 * n2 + c2) * (t1 + t2);
+                    }
+                    else continue;
+                    if ((vf1 & 4) != 0) v += S16(reg + 2 * Bits(vf1 & 3));
+                    if ((vf2 & 4) != 0) v += S16(reg + t1 + 2 * Bits(vf2 & 3));
+                    break;
+                }
+            }
+        }
+        catch (Exception) { v = 0; }
+        cache[chave] = v;
+        return v;
+    }
+}
+
+/* Uma fonte do desenho: a do GDI+ e as medidas do .ttf (sem elas, quando a
+   fonte nao carregou e ficou a do Windows, mede o GDI+). Tamanho, subida e
+   descida em pixels da tela. */
+class Fonte : IDisposable
+{
+    public readonly Font F;
+    public readonly Metrica M;
+    public readonly float Px, Sobe, Desce;
+
+    public Fonte(FontFamily familia, Metrica m, float px)
+    {
+        F = new Font(familia, px, FontStyle.Regular, GraphicsUnit.Pixel);
+        M = m;
+        Px = px;
+        float em = familia.GetEmHeight(FontStyle.Regular);
+        Sobe = px * familia.GetCellAscent(FontStyle.Regular) / em;
+        Desce = px * familia.GetCellDescent(FontStyle.Regular) / em;
+    }
+
+    public void Dispose() { F.Dispose(); }
+}
 
 static class Fontes
 {
-    static PrivateFontCollection colecao = new PrivateFontCollection();
+    // Uma colecao por arquivo, achada pelo nome do arquivo: o Windows de hoje le
+    // o nome destas fontes com o peso no fim ("PAULUS Manrope Medio Medium"), e
+    // procurar pelo nome da familia caia na Segoe UI.
+    static readonly List<PrivateFontCollection> colecoes = new List<PrivateFontCollection>();
+    static readonly Dictionary<string, FontFamily> familias = new Dictionary<string, FontFamily>(StringComparer.OrdinalIgnoreCase);
+    static readonly Dictionary<string, Metrica> metricas = new Dictionary<string, Metrica>(StringComparer.OrdinalIgnoreCase);
     static string pasta;
-    static readonly Dictionary<string, FontFamily> familias = new Dictionary<string, FontFamily>();
 
     public static void Carregar()
     {
@@ -1322,34 +1524,43 @@ static class Fontes
             Assembly eu = Assembly.GetExecutingAssembly();
             foreach (string nome in eu.GetManifestResourceNames())
             {
-                if (!nome.EndsWith(".ttf")) continue;
-                string arq = Path.Combine(pasta, nome);
+                if (!nome.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase)) continue;
+                byte[] dados;
                 using (Stream s = eu.GetManifestResourceStream(nome))
-                using (var f = new FileStream(arq, FileMode.Create)) s.CopyTo(f);
-                colecao.AddFontFile(arq);
+                using (var m = new MemoryStream()) { s.CopyTo(m); dados = m.ToArray(); }
+                string arq = Path.Combine(pasta, nome), chave = Path.GetFileNameWithoutExtension(nome);
+                File.WriteAllBytes(arq, dados);
+                var c = new PrivateFontCollection();
+                c.AddFontFile(arq);
+                colecoes.Add(c);
+                if (c.Families.Length > 0) familias[chave] = c.Families[0];
+                try { metricas[chave] = new Metrica(dados); }
+                catch (Exception e) { Registro.Linha("fonte " + nome + ": " + e.Message); }
             }
-            foreach (FontFamily f in colecao.Families) familias[f.Name] = f;
         }
         catch (Exception e) { Registro.Linha("fontes: " + e.Message); }
     }
 
     public static void Liberar()
     {
-        try { colecao.Dispose(); Directory.Delete(pasta, true); } catch (Exception) { }
+        try { foreach (PrivateFontCollection c in colecoes) c.Dispose(); Directory.Delete(pasta, true); } catch (Exception) { }
     }
 
-    static FontFamily Familia(string nome, string reserva)
+    static Fonte Montar(string arquivo, string reserva, float px)
     {
         FontFamily f;
-        if (familias.TryGetValue(nome, out f)) return f;
-        try { return new FontFamily(reserva); } catch (Exception) { return FontFamily.GenericSansSerif; }
+        Metrica m;
+        if (familias.TryGetValue(arquivo, out f)) return new Fonte(f, metricas.TryGetValue(arquivo, out m) ? m : null, px);
+        try { f = new FontFamily(reserva); } catch (Exception) { f = FontFamily.GenericSansSerif; }
+        return new Fonte(f, null, px);
     }
 
-    public static Font Serifa(float px, bool medio) { return new Font(Familia(medio ? "PAULUS Garamond Medio" : "PAULUS Garamond", "Georgia"), px, FontStyle.Regular, GraphicsUnit.Pixel); }
-    public static Font Texto(float px, int peso)
+    /* A serifa (EB Garamond) so em PAVLVS e no titulo de cada tela. */
+    public static Fonte Serifa(float px) { return Montar("PAULUSGaramond", "Georgia", px); }
+
+    public static Fonte Texto(float px, int peso)
     {
-        string nome = peso >= 600 ? "PAULUS Manrope Seminegrito" : peso >= 500 ? "PAULUS Manrope Medio" : "PAULUS Manrope";
-        return new Font(Familia(nome, "Segoe UI"), px, FontStyle.Regular, GraphicsUnit.Pixel);
+        return Montar(peso >= 600 ? "PAULUSManropeSeminegrito" : peso >= 500 ? "PAULUSManropeMedio" : "PAULUSManrope", "Segoe UI", px);
     }
 }
 
@@ -1357,8 +1568,9 @@ static class Fontes
 
 class Tema
 {
-    // As cores sao as do site (site/assets/site.css): --bg, --panel, --pill, --ink, --ink2, --ink3, --line.
-    public Color Bg, Lateral, Tinta, Tinta2, Tinta3, Fio, Preenche, Campo, Botao, BotaoTexto, Botao2, Barra, Trilho, Pastilha, PastilhaEm;
+    // As do desenho (Instalador.dc.html, TEMAS), que sao as do site (site/assets/site.css).
+    public Color Bg, Lateral, Tinta, Tinta2, Tinta3, Fio, Preenche, Campo, Barra, PontoFuturo, Trilho, Pastilha, PastilhaEm;
+    public bool Claro;
 
     static Color H(string hex) { return ColorTranslator.FromHtml(hex); }
 
@@ -1371,20 +1583,24 @@ class Tema
                 if (k != null && k.GetValue("AppsUseLightTheme") is int) claro = (int)k.GetValue("AppsUseLightTheme") != 0;
         }
         catch (Exception) { }
+        return Montar(claro);
+    }
+
+    public static Tema Montar(bool claro)
+    {
         var t = new Tema();
+        t.Claro = claro;
         if (claro)
         {
             t.Bg = H("#f6f5f1"); t.Lateral = H("#f6f5f1"); t.Tinta = H("#1c1c1a"); t.Tinta2 = H("#55544f"); t.Tinta3 = H("#77766f");
-            t.Fio = Color.FromArgb(31, 28, 28, 26); t.Preenche = H("#e8e7e1"); t.Campo = H("#efeee9");
-            t.Botao = H("#1c1c1a"); t.BotaoTexto = H("#f6f5f1"); t.Botao2 = H("#efeee9"); t.Barra = H("#1c1c1a");
-            t.Trilho = H("#efeee9"); t.Pastilha = H("#e2e1db"); t.PastilhaEm = H("#dad9d2");
+            t.Fio = Color.FromArgb(31, 28, 28, 26); t.Preenche = H("#e8e7e1"); t.Campo = H("#efeee9"); t.Barra = H("#1c1c1a");
+            t.PontoFuturo = H("#dad9d2"); t.Trilho = H("#efeee9"); t.Pastilha = H("#e2e1db"); t.PastilhaEm = H("#dad9d2");
         }
         else
         {
             t.Bg = H("#131312"); t.Lateral = H("#131312"); t.Tinta = H("#f2f1ec"); t.Tinta2 = H("#a8a69e"); t.Tinta3 = H("#6f6e68");
-            t.Fio = Color.FromArgb(26, 242, 241, 236); t.Preenche = H("#20201e"); t.Campo = H("#1a1a18");
-            t.Botao = H("#f2f1ec"); t.BotaoTexto = H("#131312"); t.Botao2 = H("#1a1a18"); t.Barra = H("#f2f1ec");
-            t.Trilho = H("#1a1a18"); t.Pastilha = H("#2a2a27"); t.PastilhaEm = H("#303030");
+            t.Fio = Color.FromArgb(26, 242, 241, 236); t.Preenche = H("#20201e"); t.Campo = H("#1a1a18"); t.Barra = H("#f2f1ec");
+            t.PontoFuturo = H("#2a2a27"); t.Trilho = H("#1a1a18"); t.Pastilha = H("#2a2a27"); t.PastilhaEm = H("#303030");
         }
         return t;
     }
@@ -1401,9 +1617,19 @@ class Alvo
 
 enum Tela { BoasVindas, JaInstalado, Local, Instalando, Pronto, Erro, Desinstalar, Desinstalando, Desinstalado }
 enum Dialogo { Nenhum, PastaExiste, FecharPaulus, Cancelar }
+enum Jeito { Principal, Contorno, Texto }
 
 class Janela : Form
 {
+    // O desenho (Instalador.dc.html): 720 x 540 a 96 DPI, com 1 px de fio em
+    // volta. As medidas sao as dele, em pixels do desenho, e ja contam esse fio;
+    // F() e P() passam para os pixels da tela.
+    const float LARGURA = 720, ALTURA = 540;
+    const float COLUNA = 237, TOPO = 53, LINHA = 448;   // a coluna do conteudo
+    const float FIO = 475;                               // o fio do rodape
+    const float BOTOES = 507;                            // o meio da fileira de baixo
+    const float DIREITA = 687;                           // onde a fileira termina
+
     readonly bool modoDesinstalar;
     readonly Tema t = Tema.DoWindows();
     readonly float k;
@@ -1420,6 +1646,10 @@ class Janela : Form
     bool temCloudflared = true;
     long tamanhoCloudflared;
     bool abrirNoFim = true, apagarModelos, apagarDados, modoAtualizar;
+    // A remocao comecou (pelo desinstalador ou pela tela "Ja instalado"): o erro diz "desinstalar".
+    bool removendo;
+    // O que ficou depois de desinstalar: lido uma vez, no fim, e nao a cada pintura.
+    bool ficaramDados, ficaramModelos, ficouOllama;
     double progresso;
     string acao = "", erro = "", aviso = "";
     Andamento andamento;
@@ -1437,8 +1667,8 @@ class Janela : Form
         using (Graphics g = Graphics.FromHwnd(IntPtr.Zero)) k = g.DpiX / 96f;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(S(640), S(480));
-        Text = desinstalar ? "Desinstalar o PAULUS" : "Instalar o PAULUS";
+        ClientSize = new Size(S(LARGURA), S(ALTURA));
+        Text = desinstalar ? "Desinstalar o Paulus" : "Instalar o Paulus";
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
         DoubleBuffered = true;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -1479,6 +1709,11 @@ class Janela : Form
 
     int S(float v) { return (int)Math.Round(v * k); }
     float F(float v) { return v * k; }
+    /* O pixel inteiro mais proximo: o navegador poe as caixas assim. */
+    float P(float v) { return (float)Math.Floor(v * k + .5f); }
+    RectangleF R(float x, float y, float w, float h) { float x0 = P(x), y0 = P(y); return new RectangleF(x0, y0, P(x + w) - x0, P(y + h) - y0); }
+    /* A espessura de um fio de 1 px do desenho (o navegador arredonda para baixo). */
+    float Fino() { return Math.Max(1f, (float)Math.Floor(k)); }
 
     protected override CreateParams CreateParams
     {
@@ -1496,7 +1731,7 @@ class Janela : Form
     static GraphicsPath Arredondado(RectangleF r, float raio)
     {
         var p = new GraphicsPath();
-        float d = raio * 2;
+        float d = Math.Min(raio * 2, Math.Min(r.Width, r.Height));
         if (d <= 0) { p.AddRectangle(r); return p; }
         p.AddArc(r.X, r.Y, d, d, 180, 90);
         p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
@@ -1504,6 +1739,126 @@ class Janela : Form
         p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
         p.CloseFigure();
         return p;
+    }
+
+    static void Preencher(Graphics g, Color c, RectangleF r)
+    {
+        using (var b = new SolidBrush(c)) g.FillRectangle(b, r);
+    }
+
+    /* Pinta as formas (juntas, como uma so) pela cobertura de cada pixel da
+       area, com Z x Z amostras por pixel. A suavizacao do proprio GDI+ puxa as
+       bordas para baixo e para a direita e afina os tracos finos; o navegador
+       do desenho nao. Para pecas pequenas: cantos, pontos, icones. Z = 16 nas
+       caixas arredondadas e no visto, Z = 4 no X e na seta: o que mais se
+       aproximou do desenho, medido pixel a pixel. */
+    static void Cobrir(Graphics g, Color cor, Rectangle area, int Z, params GraphicsPath[] formas)
+    {
+        int w = area.Width, h = area.Height;
+        if (w <= 0 || h <= 0) return;
+        using (var grande = new Bitmap(w * Z, h * Z, PixelFormat.Format32bppArgb))
+        using (var pequeno = new Bitmap(w, h, PixelFormat.Format32bppArgb))
+        {
+            using (Graphics gg = Graphics.FromImage(grande))
+            using (var branco = new SolidBrush(Color.White))
+            {
+                gg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                gg.ScaleTransform(Z, Z);
+                gg.TranslateTransform(-area.X, -area.Y);
+                foreach (GraphicsPath f in formas) gg.FillPath(branco, f);
+            }
+            BitmapData lido = grande.LockBits(new Rectangle(0, 0, w * Z, h * Z), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            var amostras = new byte[lido.Stride * h * Z];
+            Marshal.Copy(lido.Scan0, amostras, 0, amostras.Length);
+            int passo = lido.Stride;
+            grande.UnlockBits(lido);
+            BitmapData escrito = pequeno.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            var pixels = new byte[escrito.Stride * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int soma = 0;
+                    for (int sy = 0; sy < Z; sy++)
+                        for (int sx = 0, o = (y * Z + sy) * passo + x * Z * 4 + 3; sx < Z; sx++, o += 4) soma += amostras[o];
+                    int i = y * escrito.Stride + x * 4;
+                    pixels[i] = cor.B; pixels[i + 1] = cor.G; pixels[i + 2] = cor.R;
+                    pixels[i + 3] = (byte)((soma * cor.A + 255 * Z * Z / 2) / (255 * Z * Z));
+                }
+            Marshal.Copy(pixels, 0, escrito.Scan0, pixels.Length);
+            pequeno.UnlockBits(escrito);
+            InterpolationMode antes = g.InterpolationMode;
+            g.InterpolationMode = InterpolationMode.NearestNeighbor;
+            g.DrawImage(pequeno, area, 0, 0, w, h, GraphicsUnit.Pixel);
+            g.InterpolationMode = antes;
+        }
+    }
+
+    /* Uma caixa de cantos arredondados em nove partes: os quatro cantos (q x q)
+       com a cobertura exata e o resto reto direto, que cai no pixel inteiro -
+       cheia (borda < 0) ou so as faixas da borda. */
+    static void PorPartes(Graphics g, Color c, GraphicsPath forma, RectangleF caixa, float raio, int borda)
+    {
+        Rectangle r = Rectangle.Round(caixa);
+        int q = Math.Min((int)Math.Ceiling(raio), Math.Min(r.Width, r.Height) / 2);
+        int x0 = r.X, y0 = r.Y, x1 = r.Right, y1 = r.Bottom;
+        if (q > 0)
+            foreach (Rectangle canto in new[] { new Rectangle(x0, y0, q, q), new Rectangle(x1 - q, y0, q, q),
+                                                new Rectangle(x0, y1 - q, q, q), new Rectangle(x1 - q, y1 - q, q, q) })
+                Cobrir(g, c, canto, 16, forma);
+        using (var b = new SolidBrush(c))
+        {
+            if (borda < 0)
+            {
+                g.FillRectangle(b, x0 + q, y0, x1 - x0 - 2 * q, q);
+                g.FillRectangle(b, x0, y0 + q, x1 - x0, y1 - y0 - 2 * q);
+                g.FillRectangle(b, x0 + q, y1 - q, x1 - x0 - 2 * q, q);
+            }
+            else
+            {
+                int v = Math.Max(q, borda);
+                g.FillRectangle(b, x0 + q, y0, x1 - x0 - 2 * q, borda);
+                g.FillRectangle(b, x0 + q, y1 - borda, x1 - x0 - 2 * q, borda);
+                g.FillRectangle(b, x0, y0 + v, borda, y1 - y0 - 2 * v);
+                g.FillRectangle(b, x1 - borda, y0 + v, borda, y1 - y0 - 2 * v);
+            }
+        }
+    }
+
+    static void Preencher(Graphics g, Color c, RectangleF r, float raio)
+    {
+        using (GraphicsPath p = Arredondado(r, raio)) PorPartes(g, c, p, r, raio, -1);
+    }
+
+    /* A borda do CSS: um anel por dentro da caixa, da espessura dada. */
+    static void Contorno(Graphics g, Color c, RectangleF r, float raio, float espessura)
+    {
+        using (GraphicsPath fora = Arredondado(r, raio))
+        using (GraphicsPath dentro = Arredondado(RectangleF.Inflate(r, -espessura, -espessura), Math.Max(0, raio - espessura)))
+        using (var anel = new GraphicsPath(FillMode.Alternate))
+        {
+            anel.AddPath(fora, false);
+            anel.AddPath(dentro, false);
+            PorPartes(g, c, anel, r, raio, (int)espessura);
+        }
+    }
+
+    /* Um traco pelos pontos (pontas e juntas redondas) como forma cheia, para o Cobrir. */
+    static GraphicsPath Traco(float largura, params PointF[] pontos)
+    {
+        var p = new GraphicsPath();
+        p.AddLines(pontos);
+        using (var pen = new Pen(Color.Black, largura) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+            p.Widen(pen);
+        p.FillMode = FillMode.Winding;
+        return p;
+    }
+
+    /* A caixa inteira (em pixels) que cobre a forma, com uma folga. */
+    static Rectangle Area(GraphicsPath p)
+    {
+        RectangleF r = p.GetBounds();
+        int x0 = (int)Math.Floor(r.X) - 1, y0 = (int)Math.Floor(r.Y) - 1;
+        return new Rectangle(x0, y0, (int)Math.Ceiling(r.Right) + 1 - x0, (int)Math.Ceiling(r.Bottom) + 1 - y0);
     }
 
     static readonly StringFormat Tipo = MontarFormato();
@@ -1515,81 +1870,176 @@ class Janela : Form
         return f;
     }
 
-    static float Largura(Graphics g, string s, Font f) { return g.MeasureString(s, f, PointF.Empty, Tipo).Width; }
+    static Graphics medidor;
 
-    static List<string> Quebrar(Graphics g, string texto, Font f, float largura)
+    /* Onde cada letra comeca (pixels da tela, a partir de 0): o avanco, o
+       kerning e o espaco entre letras. A ultima posicao e a largura. */
+    static float[] Posicoes(Fonte f, string s, float espaco)
     {
-        var linhas = new List<string>();
-        foreach (string paragrafo in texto.Split('\n'))
+        var x = new float[s.Length + 1];
+        if (f.M == null)
         {
-            string linha = "";
-            foreach (string inteira in paragrafo.Split(' '))
-            {
-                string tentativa = linha == "" ? inteira : linha + " " + inteira;
-                if (Largura(g, tentativa, f) <= largura) { linha = tentativa; continue; }
-                if (linha != "") { linhas.Add(linha); linha = ""; }
-                // Palavra maior que a linha (um caminho sem espaco): quebra por letra.
-                string palavra = inteira;
-                while (palavra.Length > 1 && Largura(g, palavra, f) > largura)
-                {
-                    int n = palavra.Length - 1;
-                    while (n > 1 && Largura(g, palavra.Substring(0, n), f) > largura) n--;
-                    linhas.Add(palavra.Substring(0, n));
-                    palavra = palavra.Substring(n);
-                }
-                linha = palavra;
-            }
-            linhas.Add(linha);
+            if (medidor == null) medidor = Graphics.FromImage(new Bitmap(1, 1));
+            for (int i = 0; i < s.Length; i++) x[i + 1] = x[i] + medidor.MeasureString(s[i].ToString(), f.F, PointF.Empty, Tipo).Width + espaco;
+            return x;
         }
-        return linhas;
-    }
-
-    /* Caminho nao tem espaco: quebra em qualquer letra. */
-    static List<string> QuebrarCaminho(Graphics g, string caminho, Font f, float largura)
-    {
-        var linhas = new List<string>();
-        string linha = "";
-        foreach (char c in caminho)
+        int g = s.Length > 0 ? f.M.Glifo(s[0]) : 0;
+        for (int i = 0; i < s.Length; i++)
         {
-            if (linha != "" && Largura(g, linha + c, f) > largura) { linhas.Add(linha); linha = ""; }
-            linha += c;
-        }
-        if (linha != "") linhas.Add(linha);
-        return linhas;
-    }
-
-    /* Texto que quebra na largura; devolve onde terminou. */
-    float Paragrafo(Graphics g, string texto, Font f, Color c, float x, float y, float largura, float entrelinha)
-    {
-        using (var b = new SolidBrush(c))
-        {
-            foreach (string l in Quebrar(g, texto, f, largura))
-            {
-                g.DrawString(l, f, b, x, y, Tipo);
-                y += entrelinha;
-            }
-        }
-        return y;
-    }
-
-    /* Letra a letra, com espaco entre elas (PAVLVS e os rotulos em mono). */
-    float Espacado(Graphics g, string texto, Font f, Color c, float x, float y, float espaco)
-    {
-        using (var b = new SolidBrush(c))
-        {
-            foreach (char ch in texto)
-            {
-                string s = ch.ToString();
-                g.DrawString(s, f, b, x, y, Tipo);
-                x += Largura(g, s, f) + espaco;
-            }
+            int prox = i + 1 < s.Length ? f.M.Glifo(s[i + 1]) : -1;
+            x[i + 1] = x[i] + (f.M.Avanco(g) + (prox >= 0 ? f.M.Kern(g, prox) : 0)) * f.Px / f.M.Upm + espaco;
+            g = prox;
         }
         return x;
     }
 
-    static Color Misturar(Color a, Color b, float quanto)
+    /* A largura de um texto, em pixels da tela. */
+    static float Largura(Fonte f, string s, float espaco) { return Posicoes(f, s, espaco)[s.Length]; }
+    static float Largura(Fonte f, string s) { return Largura(f, s, 0); }
+
+    /* Escreve letra a letra, cada uma no pixel inteiro mais proximo, como o
+       navegador. x em pixels do desenho; a base em pixels da tela. O GDI+ poe a
+       base no pixel do topo pedido mais a subida arredondada: com o topo inteiro,
+       a base fica onde se quer. */
+    void Escrever(Graphics g, string s, Fonte f, Color c, float x, float baseDaLinha, float espaco)
     {
-        return Color.FromArgb((int)(a.R + (b.R - a.R) * quanto), (int)(a.G + (b.G - a.G) * quanto), (int)(a.B + (b.B - a.B) * quanto));
+        float[] pos = Posicoes(f, s, espaco);
+        float x0 = F(x), y = baseDaLinha - (float)Math.Floor(f.Sobe + .5f);
+        using (var b = new SolidBrush(c))
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (char.IsWhiteSpace(s[i])) continue;
+                // O par de uma letra fora do plano basico (um emoji num caminho) vai junto.
+                int n = char.IsHighSurrogate(s[i]) && i + 1 < s.Length ? 2 : 1;
+                g.DrawString(s.Substring(i, n), f.F, b, (float)Math.Floor(x0 + pos[i] + .5f), y, Tipo);
+                i += n - 1;
+            }
+    }
+
+    /* A base de uma linha de texto, com a conta do navegador: a fonte (subida e
+       descida arredondadas) centrada na caixa da linha, a sobra arredondada para
+       baixo e a base no pixel mais proximo. topo e altura em pixels do desenho;
+       a base volta em pixels da tela. */
+    float Base(Fonte f, float topo, float altura)
+    {
+        float sobe = (float)Math.Floor(f.Sobe + .5f), desce = (float)Math.Floor(f.Desce + .5f);
+        return (float)Math.Floor(F(topo) + Math.Floor((F(altura) - sobe - desce) / 2) + sobe + .5f);
+    }
+
+    /* A base de uma linha centrada em "meio" (a altura normal da fonte, como num botao). */
+    float BaseNoMeio(Fonte f, float meio)
+    {
+        float sobe = (float)Math.Floor(f.Sobe + .5f), desce = (float)Math.Floor(f.Desce + .5f);
+        return (float)Math.Floor(F(meio) - (sobe + desce) / 2 + sobe + .5f);
+    }
+
+    /* As linhas de um texto na largura (pixels do desenho), como o navegador
+       quebra (overflow-wrap: anywhere; com "bonito", text-wrap: pretty): pela
+       ordem, cabendo o que couber; uma palavra maior que a linha quebra depois
+       de um hifen ou em qualquer letra. Se a ultima linha ficou com uma palavra
+       so e curta (menos de um terco da largura), as quebras sao refeitas pelo
+       menor custo - a soma do quadrado da sobra de cada linha, com uma multa
+       alta para a palavra sozinha no fim -, se der o mesmo numero de linhas
+       (o otimizador do Chrome, score_line_breaker.cc). */
+    List<string> Quebrar(Fonte f, string texto, float largura, bool bonito)
+    {
+        var linhas = new List<string>();
+        foreach (string paragrafo in texto.Replace("\r", "").Split('\n')) linhas.AddRange(QuebrarParagrafo(f, paragrafo, largura, bonito));
+        return linhas;
+    }
+
+    List<string> QuebrarParagrafo(Fonte f, string texto, float largura, bool bonito)
+    {
+        float max = F(largura) + .01f;
+        // Os pedacos entre as oportunidades de quebra: o espaco, e depois do hifen que nao vem antes de numero.
+        var pedacos = new List<string>();
+        var juntas = new List<string>();   // o que vai entre um pedaco e o seguinte quando ficam na mesma linha
+        int ini = 0;
+        for (int i = 0; i < texto.Length; i++)
+        {
+            if (texto[i] == ' ') { pedacos.Add(texto.Substring(ini, i - ini)); juntas.Add(" "); ini = i + 1; }
+            else if (texto[i] == '-' && i > ini && i + 1 < texto.Length && texto[i + 1] != ' ' && !char.IsDigit(texto[i + 1]))
+            { pedacos.Add(texto.Substring(ini, i + 1 - ini)); juntas.Add(""); ini = i + 1; }
+        }
+        pedacos.Add(texto.Substring(ini));
+        juntas.Add("");
+
+        Func<int, int, string> juntar = delegate (int a, int z)
+        {
+            var sb = new StringBuilder();
+            for (int i = a; i < z; i++) { sb.Append(pedacos[i]); if (i + 1 < z) sb.Append(juntas[i]); }
+            return sb.ToString();
+        };
+
+        // A gulosa.
+        var quebras = new List<int>();   // onde comeca cada linha
+        int c0 = 0;
+        while (c0 < pedacos.Count)
+        {
+            string p = pedacos[c0];
+            if (p.Length > 1 && Largura(f, p) > max)
+            {
+                int n = p.Length - 1;
+                while (n > 1 && Largura(f, p.Substring(0, n)) > max) n--;
+                pedacos[c0] = p.Substring(0, n);
+                pedacos.Insert(c0 + 1, p.Substring(n));
+                juntas.Insert(c0, "");
+                quebras.Add(c0);
+                c0++;
+                continue;
+            }
+            int z = c0 + 1;
+            while (z < pedacos.Count && Largura(f, juntar(c0, z + 1)) <= max) z++;
+            quebras.Add(c0);
+            c0 = z;
+        }
+        quebras.Add(pedacos.Count);
+
+        int nLinhas = quebras.Count - 1, m = pedacos.Count;
+        if (bonito && nLinhas >= 2 && nLinhas <= 4 && m >= 4 && quebras[nLinhas] - quebras[nLinhas - 1] == 1
+            && Largura(f, pedacos[m - 1]) < max / 3)
+        {
+            float tam = f.Px / k;
+            double multaLinha = 4.0 * largura * tam, orfa = 10000, cheia = 1e12;
+            var custo = new double[m + 1];
+            var antes = new int[m + 1];
+            var conta = new int[m + 1];
+            for (int z = 1; z <= m; z++)
+            {
+                double melhor = double.MaxValue;
+                for (int a = 0; a < z; a++)
+                {
+                    double sobra = (max - Largura(f, juntar(a, z))) / k, nota;   // a mesma folga da gulosa
+                    if (sobra < 0) nota = cheia;
+                    else if (z == m) nota = a == m - 1 ? 4 * orfa : 0;
+                    else nota = sobra * sobra;
+                    if (custo[a] + nota <= melhor) { melhor = custo[a] + nota; antes[z] = a; }
+                }
+                custo[z] = melhor + (z == m - 1 ? orfa : 0) + multaLinha;
+                conta[z] = conta[antes[z]] + 1;
+            }
+            if (conta[m] == nLinhas)
+            {
+                quebras.Clear();
+                for (int z = m; z > 0; z = antes[z]) quebras.Insert(0, z);
+                quebras.Insert(0, 0);
+            }
+        }
+
+        var linhas = new List<string>();
+        for (int i = 0; i + 1 < quebras.Count; i++) linhas.Add(juntar(quebras[i], quebras[i + 1]));
+        return linhas;
+    }
+
+    /* Texto que quebra na largura; devolve onde terminou (pixels do desenho). */
+    float Paragrafo(Graphics g, string texto, Fonte f, Color c, float x, float y, float largura, float entrelinha, bool bonito)
+    {
+        foreach (string l in Quebrar(f, texto, largura, bonito))
+        {
+            Escrever(g, l, f, c, x, Base(f, y, entrelinha), 0);
+            y += entrelinha;
+        }
+        return y;
     }
 
     Alvo NovoAlvo(RectangleF r, string id, Action fazer)
@@ -1599,224 +2049,274 @@ class Janela : Form
         return a;
     }
 
-    /* O botao do site (.btn-duplo): um trilho com fio fino e, dentro, a
-       pastilha. O primario (cheio) e o secundario (contorno) tem o mesmo
-       desenho; o secundario so nao tem o trilho. Devolve a esquerda dele. */
-    float Botao(Graphics g, string rotulo, float direita, float y, string id, Action fazer, bool cheio, bool contorno)
+    /* O texto com ClearType quando o Windows usa ClearType (como o navegador do desenho). */
+    static bool ClearType()
     {
-        using (Font f = Fontes.Texto(F(13.5f), 500))
-        {
-            bool em = sobre == id;
-            float moldura = cheio ? F(3) : 0;
-            float wp = Largura(g, rotulo, f) + F(cheio || contorno ? 44 : 28), hp = F(34);
-            float w = wp + moldura * 2, h = hp + moldura * 2;
-            var r = new RectangleF(direita - w, y - moldura, w, h);
-            var pastilha = new RectangleF(r.X + moldura, r.Y + moldura, wp, hp);
-            if (cheio)
-                using (GraphicsPath p = Arredondado(r, F(10)))
-                {
-                    using (var b = new SolidBrush(t.Trilho)) g.FillPath(b, p);
-                    using (var pen = new Pen(t.Fio, 1)) g.DrawPath(pen, p);
-                }
-            if (cheio || contorno)
-                using (GraphicsPath p = Arredondado(pastilha, F(8)))
-                {
-                    using (var b = new SolidBrush(em ? t.PastilhaEm : t.Pastilha)) g.FillPath(b, p);
-                    if (contorno) using (var pen = new Pen(t.Fio, 1)) g.DrawPath(pen, p);
-                }
-            Color tinta = cheio || contorno ? t.Tinta : (em ? t.Tinta : t.Tinta2);
-            using (var b = new SolidBrush(tinta))
-                g.DrawString(rotulo, f, b, pastilha.X + (wp - Largura(g, rotulo, f)) / 2, pastilha.Y + (hp - f.GetHeight(g)) / 2, Tipo);
-            NovoAlvo(r, id, fazer);
-            return r.X;
-        }
-    }
-
-    float Caixa(Graphics g, string rotulo, bool marcada, float x, float y, float largura, string id, Action fazer)
-    {
-        float lado = F(16);
-        var caixa = new RectangleF(x, y + F(1.5f), lado, lado);
-        using (GraphicsPath p = Arredondado(caixa, F(4)))
-        {
-            if (marcada)
-            {
-                using (var b = new SolidBrush(t.Tinta)) g.FillPath(b, p);
-                using (var pen = new Pen(t.Bg, F(1.8f)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
-                    g.DrawLines(pen, new[] { new PointF(caixa.X + F(4), caixa.Y + F(8.2f)), new PointF(caixa.X + F(6.8f), caixa.Y + F(11)), new PointF(caixa.X + F(12), caixa.Y + F(5.2f)) });
-            }
-            else using (var pen = new Pen(sobre == id ? t.Tinta2 : t.Tinta3, F(1.5f))) g.DrawPath(pen, p);
-        }
-        float fim;
-        using (Font f = Fontes.Texto(F(13), 400))
-            fim = Paragrafo(g, rotulo, f, t.Tinta, x + lado + F(10), y, largura - lado - F(10), F(19.5f));
-        NovoAlvo(new RectangleF(x, y, largura, fim - y), id, fazer);
-        return fim;
+        try { return SystemInformation.IsFontSmoothingEnabled && SystemInformation.FontSmoothingType == 2; }
+        catch (Exception) { return false; }
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        bool ct = ClearType();
+        g.TextRenderingHint = ct ? TextRenderingHint.ClearTypeGridFit : TextRenderingHint.AntiAliasGridFit;
+        // O contraste que deixa a letra com o mesmo peso da do desenho, em cada tema.
+        g.TextContrast = t.Claro ? 2 : (ct ? 8 : 0);
         alvos.Clear();
         principal = null;
         voltar = null;
-        float W = ClientSize.Width, H = ClientSize.Height;
         g.Clear(t.Bg);
 
-        // A lateral: PAVLVS e as etapas, no mesmo fundo do conteudo, so com o fio
-        // separando (uma cor so na janela).
-        float lat = F(188);
-        using (var b = new SolidBrush(t.Lateral)) g.FillRectangle(b, 0, 0, lat, H);
-        using (var p = new Pen(t.Fio, 1)) g.DrawLine(p, lat - .5f, 0, lat - .5f, H);
-        using (Font marca = Fontes.Serifa(F(20), false)) Espacado(g, "PAVLVS", marca, t.Tinta, F(20), F(40), F(20 * .12f));
-        bool remocao = modoDesinstalar || tela == Tela.Desinstalar || tela == Tela.Desinstalando || tela == Tela.Desinstalado;
-        string[] etapas = remocao ? new[] { "Desinstalar", "Remoção", "Concluído" } : new[] { "Boas-vindas", "Local", "Instalação", "Concluído" };
-        int atual = IndiceDaEtapa();
-        float ye = F(40 + 26 + 28);
-        for (int i = 0; i < etapas.Length; i++)
-        {
-            Color cor = i == atual ? t.Tinta : (i < atual ? t.Tinta2 : t.Tinta3);
-            Color ponto = i == atual ? t.Tinta : (i < atual ? t.Tinta2 : Misturar(t.Lateral, t.Tinta, .12f));
-            using (var b = new SolidBrush(ponto)) g.FillEllipse(b, F(20), ye + F(7.5f), F(6), F(6));
-            using (Font f = Fontes.Texto(F(13.5f), i == atual ? 600 : 500))
-            using (var b = new SolidBrush(cor)) g.DrawString(etapas[i], f, b, F(36), ye + F(1), Tipo);
-            ye += F(31);
-        }
-
-        // Minimizar e fechar, soltos no canto.
-        DesenharBotoesDaJanela(g, W);
-
-        // O conteudo.
-        float x = lat + F(28), largura = W - x - F(28), y = F(44);
-        float rodape = H - F(62);
+        Lateral(g);
+        DesenharBotoesDaJanela(g);
         switch (tela)
         {
-            case Tela.BoasVindas: TelaBoasVindas(g, x, y, largura, rodape); break;
-            case Tela.JaInstalado: TelaJaInstalado(g, x, y, largura, rodape); break;
-            case Tela.Local: TelaLocal(g, x, y, largura, rodape); break;
-            case Tela.Instalando: TelaAndamento(g, x, y, largura, rodape, "PASSO 2 — INSTALAÇÃO", "Instalando…", "Aguarde enquanto o PAULUS é instalado."); break;
-            case Tela.Pronto: TelaPronto(g, x, y, largura, rodape); break;
-            case Tela.Erro: TelaErro(g, x, y, largura, rodape); break;
-            case Tela.Desinstalar: TelaDesinstalar(g, x, y, largura, rodape); break;
-            case Tela.Desinstalando: TelaAndamento(g, x, y, largura, rodape, "REMOÇÃO", "Desinstalando…", "Aguarde enquanto o PAULUS é removido deste computador."); break;
-            case Tela.Desinstalado: TelaDesinstalado(g, x, y, largura, rodape); break;
+            case Tela.BoasVindas: TelaBoasVindas(g); break;
+            case Tela.JaInstalado: TelaJaInstalado(g); break;
+            case Tela.Local: TelaLocal(g); break;
+            case Tela.Instalando: TelaAndamento(g, "PASSO 2 — INSTALAÇÃO", "Instalando…", "Aguarde enquanto o Paulus está sendo instalado."); break;
+            case Tela.Pronto: TelaPronto(g); break;
+            case Tela.Erro: TelaErro(g); break;
+            case Tela.Desinstalar: TelaDesinstalar(g); break;
+            case Tela.Desinstalando: TelaAndamento(g, "REMOÇÃO", "Desinstalando…", "Aguarde enquanto o Paulus está sendo removido deste computador."); break;
+            case Tela.Desinstalado: TelaDesinstalado(g); break;
         }
-        using (var p = new Pen(t.Fio, 1)) g.DrawLine(p, x, rodape, W - F(28), rodape);
+        Preencher(g, t.Fio, new RectangleF(P(COLUNA), P(FIO), P(DIREITA) - P(COLUNA), Fino()));
 
-        if (dialogo != Dialogo.Nenhum) DesenharDialogo(g, W, H);
-        using (var p = new Pen(t.Fio, 1)) g.DrawRectangle(p, 0, 0, W - 1, H - 1);
+        if (dialogo != Dialogo.Nenhum) DesenharDialogo(g);
+        // O fio em volta da janela, por cima de tudo (o escuro do dialogo nao o cobre).
+        Contorno(g, t.Fio, new RectangleF(0, 0, ClientSize.Width, ClientSize.Height), 0, Fino());
     }
 
-    int IndiceDaEtapa()
+    bool Remocao()
+    {
+        return modoDesinstalar || removendo || tela == Tela.Desinstalar || tela == Tela.Desinstalando || tela == Tela.Desinstalado;
+    }
+
+    int IndiceDaEtapa(int etapas)
     {
         switch (tela)
         {
             case Tela.BoasVindas: case Tela.JaInstalado: case Tela.Desinstalar: return 0;
             case Tela.Local: case Tela.Desinstalando: return 1;
-            case Tela.Instalando: return 2;
-            case Tela.Desinstalado: return 2;
-            default: return 3;
+            case Tela.Instalando: case Tela.Desinstalado: return 2;
+            default: return etapas - 1;   // Concluido (e o erro, que termina ali)
         }
     }
 
-    void DesenharBotoesDaJanela(Graphics g, float W)
+    /* A lateral: PAVLVS e as etapas, no mesmo fundo do conteudo, so com o fio na direita. */
+    void Lateral(Graphics g)
     {
-        var fechar = new RectangleF(W - F(44), 0, F(44), F(32));
-        var minimizar = new RectangleF(W - F(88), 0, F(44), F(32));
-        if (sobre == "minimizar") using (var b = new SolidBrush(t.Preenche)) g.FillRectangle(b, minimizar);
-        if (sobre == "fechar") using (var b = new SolidBrush(ColorTranslator.FromHtml("#c42b1c"))) g.FillRectangle(b, fechar);
-        using (var p = new Pen(sobre == "minimizar" ? t.Tinta : t.Tinta2, 1))
-            g.DrawLine(p, minimizar.X + F(17), minimizar.Y + F(16), minimizar.X + F(27), minimizar.Y + F(16));
-        using (var p = new Pen(sobre == "fechar" ? Color.White : t.Tinta2, 1))
+        Preencher(g, t.Lateral, R(1, 1, 204, ALTURA - 2));
+        Preencher(g, t.Fio, new RectangleF(P(204), P(1), Fino(), P(ALTURA - 1) - P(1)));
+        using (Fonte marca = Fontes.Serifa(F(20))) Escrever(g, "PAVLVS", marca, t.Tinta, 25, Base(marca, 45, 20), F(2.4f));
+        string[] etapas = Remocao() ? new[] { "Desinstalar", "Remoção", "Concluído" } : new[] { "Boas-vindas", "Local", "Instalação", "Concluído" };
+        int atual = IndiceDaEtapa(etapas.Length);
+        for (int i = 0; i < etapas.Length; i++)
         {
-            float cx = fechar.X + F(22), cy = fechar.Y + F(16), r = F(5);
-            g.DrawLine(p, cx - r, cy - r, cx + r, cy + r);
-            g.DrawLine(p, cx - r, cy + r, cx + r, cy - r);
+            float y = 103 + 31 * i;
+            Color cor = i == atual ? t.Tinta : (i < atual ? t.Tinta2 : t.Tinta3);
+            Color ponto = i == atual ? t.Tinta : (i < atual ? t.Tinta2 : t.PontoFuturo);
+            Preencher(g, ponto, R(25, y + 7.5f, 6, 6), F(3));
+            using (Fonte f = Fontes.Texto(F(13), i == atual ? 600 : 500)) Escrever(g, etapas[i], f, cor, 41, Base(f, y + 1, 18), 0);
         }
+    }
+
+    /* Minimizar e fechar, soltos no canto (44 x 32). */
+    void DesenharBotoesDaJanela(Graphics g)
+    {
+        RectangleF minimizar = R(631, 1, 44, 32), fechar = R(675, 1, 44, 32);
+        if (sobre == "minimizar") Preencher(g, t.Preenche, minimizar);
+        if (sobre == "fechar") Preencher(g, ColorTranslator.FromHtml("#c42b1c"), fechar);
+        Preencher(g, sobre == "minimizar" ? t.Tinta : t.Tinta2, new RectangleF(P(648), P(16.5f), P(658) - P(648), Fino()));
+        // O X: dois tracos de 14 x 1 girados em volta de (699, 17.5), um por cima do outro.
+        foreach (float angulo in new[] { 45f, -45f })
+            using (var traco = new GraphicsPath())
+            using (var giro = new Matrix())
+            {
+                traco.AddRectangle(new RectangleF(-F(7), -F(.5f), F(14), F(1)));
+                giro.Translate(F(699), F(17.5f));
+                giro.Rotate(angulo);
+                traco.Transform(giro);
+                Cobrir(g, sobre == "fechar" ? Color.White : t.Tinta2, Area(traco), 4, traco);
+            }
         NovoAlvo(minimizar, "minimizar", delegate { WindowState = FormWindowState.Minimized; });
         NovoAlvo(fechar, "fechar", PedirParaFechar);
     }
 
-    float Rotulo(Graphics g, string texto, float x, float y)
+    /* O rotulo em cima do titulo; devolve onde o titulo comeca. */
+    float Rotulo(Graphics g, string texto, float y)
     {
-        using (Font f = Fontes.Texto(F(10.5f), 500)) Espacado(g, texto, f, t.Tinta3, x, y, F(10.5f * .16f));
-        return y + F(16) + F(14);
+        using (Fonte f = Fontes.Texto(F(12), 500)) Escrever(g, texto, f, t.Tinta3, COLUNA, Base(f, y, 16), F(1.68f));
+        return y + 16 + 14;
     }
 
-    float Titulo(Graphics g, string texto, float x, float y, float largura)
+    float Titulo(Graphics g, string texto, float y)
     {
-        using (Font f = Fontes.Serifa(F(30), false)) return Paragrafo(g, texto, f, t.Tinta, x, y, largura, F(33)) + F(12);
+        using (Fonte f = Fontes.Serifa(F(32))) return Paragrafo(g, texto, f, t.Tinta, COLUNA, y, LINHA, 33, true) + 12;
     }
 
-    float Texto(Graphics g, string texto, float x, float y, float largura, Color cor)
+    float Texto(Graphics g, string texto, float y, Color cor)
     {
-        using (Font f = Fontes.Texto(F(13), 400)) return Paragrafo(g, texto, f, cor, x, y, largura, F(19.5f)) + F(12);
+        using (Fonte f = Fontes.Texto(F(13), 400)) return Paragrafo(g, texto, f, cor, COLUNA, y, LINHA, 19.5f, true) + 12;
     }
 
-    void Rodape(Graphics g, float x, float rodape, bool podeVoltar, Action aoVoltar, bool podeCancelar, string rotulo, Action aoAvancar)
+    /* A nota miuda (12 px, a cor mais apagada). */
+    float Nota(Graphics g, string texto, float y)
     {
-        float W = ClientSize.Width, y = rodape + F(15);
-        float dir = W - F(28);
-        if (rotulo != null) { dir = Botao(g, rotulo, dir, y, "principal", aoAvancar, true, false) - F(8); principal = aoAvancar; }
-        if (podeCancelar) dir = Botao(g, "Cancelar", dir, y, "cancelar", PedirParaFechar, false, false) - F(8);
-        if (podeVoltar)
+        using (Fonte f = Fontes.Texto(F(12), 400)) return Paragrafo(g, texto, f, t.Tinta3, COLUNA, y, LINHA, 16, true);
+    }
+
+    /* Uma caixa de marcar com o rotulo ao lado; devolve onde a linha termina. */
+    float Caixa(Graphics g, string rotulo, bool marcada, float y, string id, Action fazer)
+    {
+        RectangleF caixa = R(COLUNA, y + 1.5f, 16, 16);
+        if (marcada)
         {
-            using (Font f = Fontes.Texto(F(12.5f), 500))
+            Preencher(g, t.Tinta, caixa, F(4));
+            using (GraphicsPath visto = Traco(F(1.8f), new PointF(caixa.X + F(4), caixa.Y + F(8.2f)), new PointF(caixa.X + F(6.8f), caixa.Y + F(11)),
+                                              new PointF(caixa.X + F(12), caixa.Y + F(5.2f))))
+                Cobrir(g, t.Bg, Rectangle.Round(caixa), 16, visto);
+        }
+        else Contorno(g, sobre == id ? t.Tinta2 : t.Tinta3, caixa, F(4), Math.Max(1f, (float)Math.Floor(1.5f * k)));
+        float fim;
+        using (Fonte f = Fontes.Texto(F(13), 400)) fim = Paragrafo(g, rotulo, f, t.Tinta, COLUNA + 26, y, LINHA - 26, 19.5f, true);
+        NovoAlvo(new RectangleF(F(COLUNA), F(y), F(LINHA), F(fim - y)), id, fazer);
+        return fim;
+    }
+
+    /* Um botao, da direita para a esquerda; devolve a esquerda dele (pixels do desenho).
+       - principal: a pastilha (28 px, raio 8) com 1 px de trilho e 1 px de fio em volta, 32 px no total (o padrao de 07/10);
+       - contorno: a pastilha com o fio na borda, 28 px;
+       - texto: so o rotulo, discreto, na mesma altura. */
+    float Botao(Graphics g, string rotulo, float direita, float meio, string id, Action fazer, Jeito jeito, bool noDialogo)
+    {
+        bool em = sobre == id;
+        using (Fonte f = Fontes.Texto(F(12), 500))
+        {
+            float espaco = noDialogo && jeito == Jeito.Principal ? 0 : .12f;
+            // A folga de cada lado do rotulo dentro da pastilha (na fileira de baixo, com 1 px de borda).
+            float lado = noDialogo ? 12 : (jeito == Jeito.Texto ? 10 : 12) + 1;
+            float pastilha = Largura(f, rotulo, F(espaco)) / k + 2 * lado;
+            float largura = pastilha + (jeito == Jeito.Principal ? 4 : noDialogo ? 0 : 2);
+            float x = direita - largura;
+            float xp = x + (jeito == Jeito.Principal ? 2 : noDialogo ? 0 : 1);
+            RectangleF alvo;
+            if (jeito == Jeito.Principal)
             {
-                Color c = sobre == "voltar" ? t.Tinta : t.Tinta2;
-                float ay = y + F(16);
-                using (var p = new Pen(c, F(1.2f)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-                {
-                    g.DrawLine(p, x, ay, x + F(10), ay);
-                    g.DrawLine(p, x, ay, x + F(4), ay - F(4));
-                    g.DrawLine(p, x, ay, x + F(4), ay + F(4));
-                }
-                using (var b = new SolidBrush(c)) g.DrawString("Voltar", f, b, x + F(15), y + F(16) - f.GetHeight(g) / 2 - F(1), Tipo);
-                NovoAlvo(new RectangleF(x - F(4), y, F(70), F(32)), "voltar", aoVoltar);
-                voltar = aoVoltar;
+                alvo = R(x, meio - 16, largura, 32);
+                Preencher(g, t.Trilho, alvo, F(10));
+                Contorno(g, t.Fio, alvo, F(10), Fino());
+                Preencher(g, em ? t.PastilhaEm : t.Pastilha, R(xp, meio - 14, pastilha, 28), F(8));
             }
+            else
+            {
+                alvo = R(xp, meio - 14, pastilha, 28);
+                if (jeito == Jeito.Contorno)
+                {
+                    Preencher(g, em ? t.PastilhaEm : t.Pastilha, alvo, F(8));
+                    Contorno(g, t.Fio, alvo, F(8), Fino());
+                }
+            }
+            Escrever(g, rotulo, f, jeito == Jeito.Texto && !em ? t.Tinta2 : t.Tinta, xp + lado, BaseNoMeio(f, meio), F(espaco));
+            NovoAlvo(alvo, id, fazer);
+            return x;
         }
     }
 
-    float LinhaDeFicha(Graphics g, string chave, string valor, float x, float y, float largura)
+    /* "Voltar", a esquerda na fileira de baixo. */
+    void Voltar(Graphics g, Action aoVoltar)
     {
-        using (Font f = Fontes.Texto(F(12), 400))
-        using (Font m = Fontes.Texto(F(12), 500))
+        Color c = sobre == "voltar" ? t.Tinta : t.Tinta2;
+        // A seta do desenho (M1 5h10 M1 5l4-4 M1 5l4 4, traco de 1,2): tres tracos, pintados como um so.
+        PointF ponta = new PointF(F(238), F(BOTOES));
+        using (GraphicsPath haste = Traco(F(1.2f), ponta, new PointF(F(248), F(BOTOES))))
+        using (GraphicsPath cima = Traco(F(1.2f), ponta, new PointF(F(242), F(BOTOES - 4))))
+        using (GraphicsPath baixo = Traco(F(1.2f), ponta, new PointF(F(242), F(BOTOES + 4))))
+            Cobrir(g, c, Rectangle.Union(Area(haste), Rectangle.Union(Area(cima), Area(baixo))), 4, haste, cima, baixo);
+        using (Fonte f = Fontes.Texto(F(12), 500)) Escrever(g, "Voltar", f, c, 254, BaseNoMeio(f, BOTOES), 0);
+        NovoAlvo(new RectangleF(F(COLUNA), F(BOTOES - 16), F(50), F(32)), "voltar", aoVoltar);
+        voltar = aoVoltar;
+    }
+
+    /* A fileira de baixo: Voltar a esquerda (quando ha para onde) e, a direita, Cancelar e o botao principal. */
+    void Rodape(Graphics g, Action aoVoltar, bool podeCancelar, string rotulo, Action aoAvancar)
+    {
+        float dir = DIREITA;
+        if (rotulo != null)
         {
-            using (var b = new SolidBrush(t.Tinta2)) g.DrawString(chave, f, b, x, y, Tipo);
-            using (var b = new SolidBrush(t.Tinta)) g.DrawString(valor, m, b, x + largura - Largura(g, valor, m), y, Tipo);
+            dir = Botao(g, rotulo, dir, BOTOES, "principal", aoAvancar, Jeito.Principal, false) - 8;
+            principal = aoAvancar;
         }
-        return y + F(24);
+        if (podeCancelar) Botao(g, "Cancelar", dir, BOTOES, "cancelar", PedirParaFechar, Jeito.Texto, false);
+        if (aoVoltar != null) Voltar(g, aoVoltar);
+    }
+
+    void LinhaDeFicha(Graphics g, string chave, string valor, float y)
+    {
+        using (Fonte f = Fontes.Texto(F(12), 400))
+        using (Fonte m = Fontes.Texto(F(12), 500))
+        {
+            Escrever(g, chave, f, t.Tinta2, COLUNA, Base(f, y, 16), 0);
+            Escrever(g, valor, m, t.Tinta, COLUNA + LINHA - Largura(m, valor) / k, Base(m, y, 16), 0);
+        }
+    }
+
+    /* O caminho da pasta (36 px, raio 12) e, quando da para escolher, o Procurar da mesma altura. */
+    float CampoDaPasta(Graphics g, float y, bool comProcurar)
+    {
+        float wb = 0;
+        if (comProcurar)
+            using (Fonte fb = Fontes.Texto(F(13), 500))
+            {
+                wb = Largura(fb, "Procurar…") / k + 30;
+                RectangleF rb = R(COLUNA + LINHA - wb, y, wb, 36);
+                Preencher(g, t.Pastilha, rb, F(8));
+                Contorno(g, sobre == "procurar" ? t.Tinta : t.Fio, rb, F(8), Fino());
+                Escrever(g, "Procurar…", fb, t.Tinta, COLUNA + LINHA - wb + 15, BaseNoMeio(fb, y + 18), 0);
+                NovoAlvo(rb, "procurar", Procurar);
+            }
+        float largura = LINHA - (wb > 0 ? wb + 8 : 0);
+        RectangleF campo = R(COLUNA, y, largura, 36);
+        Preencher(g, t.Campo, campo, F(12));
+        Contorno(g, t.Fio, campo, F(12), Fino());
+        using (Fonte m = Fontes.Texto(F(12), 400))
+        {
+            string caminho = o.Pasta;
+            while (caminho.Length > 4 && Largura(m, caminho) / k > largura - 26) caminho = "…" + caminho.Substring(2);
+            Escrever(g, caminho, m, t.Tinta, COLUNA + 13, BaseNoMeio(m, y + 18), 0);
+        }
+        return y + 36;
     }
 
     // --------------------------------------------------------------- telas
 
-    void TelaBoasVindas(Graphics g, float x, float y, float largura, float rodape)
+    void TelaBoasVindas(Graphics g)
     {
-        y = Rotulo(g, "BEM-VINDO", x, y);
-        y = Titulo(g, "Instalar o PAULUS neste computador.", x, y, largura);
-        y = Texto(g, "Isto instala o PAULUS " + Versao.Numero + " e o motor de IA local. A escolha do modelo, do escritório e dos seus dados acontece depois, no assistente de configuração.", x, y, largura, t.Tinta2);
-        Texto(g, "Feche os outros aplicativos antes de continuar.", x, y, largura, t.Tinta2);
-        float yb = rodape - F(16) - F(48);
-        yb = LinhaDeFicha(g, "Versão", Versao.Numero + " · Windows 64 bits", x, yb, largura);
-        LinhaDeFicha(g, "Espaço necessário", MB(Pacote.TamanhoInstalado()), x, yb, largura);
-        Rodape(g, x, rodape, false, null, true, "Avançar", delegate { tela = Tela.Local; Invalidate(); });
+        float y = Rotulo(g, "BEM-VINDO", TOPO);
+        y = Titulo(g, "Instalar o Paulus neste computador.", y);
+        y = Texto(g, "O Paulus " + Versao.Numero + " será instalado neste computador. Escritório, dados e preferências você define depois, no assistente de configuração.", y, t.Tinta2);
+        Texto(g, "Feche os outros aplicativos antes de continuar.", y, t.Tinta2);
+        LinhaDeFicha(g, "Versão", Versao.Numero + " · Windows 64 bits", 411);
+        LinhaDeFicha(g, "Espaço necessário", MB(Pacote.TamanhoInstalado()), 435);
+        Rodape(g, null, true, "Avançar", delegate { tela = Tela.Local; Invalidate(); });
     }
 
-    void TelaJaInstalado(Graphics g, float x, float y, float largura, float rodape)
+    void TelaJaInstalado(Graphics g)
     {
-        y = Rotulo(g, "JÁ INSTALADO", x, y);
-        y = Titulo(g, "O PAULUS já está neste computador.", x, y, largura);
+        float y = Rotulo(g, "JÁ INSTALADO", TOPO);
+        y = Titulo(g, "O Paulus já está neste computador.", y);
         string versao = instalado.Versao != "" ? "a versão " + instalado.Versao : "uma versão anterior";
-        y = Texto(g, "Está instalada " + versao + ", em " + instalado.Pasta + ". Atualizar troca o programa pela " + Versao.Numero + " e mantém os dados do escritório.", x, y, largura, t.Tinta2);
-        Texto(g, "Desinstalar remove o programa e pergunta se apaga também os modelos de IA local e os dados.", x, y, largura, t.Tinta2);
-        float W = ClientSize.Width, yb = rodape + F(15);
-        float dir = Botao(g, "Atualizar", W - F(28), yb, "principal", delegate { tela = Tela.Local; Invalidate(); }, true, false) - F(8);
-        principal = delegate { tela = Tela.Local; Invalidate(); };
-        dir = Botao(g, "Desinstalar", dir, yb, "desinstalar", IrParaDesinstalar, false, true) - F(8);
-        Botao(g, "Cancelar", dir, yb, "cancelar", PedirParaFechar, false, false);
+        y = Texto(g, "Está instalada " + versao + ", em " + instalado.Pasta + ". Atualizar troca o programa pela " + Versao.Numero + " e mantém os dados do escritório.", y, t.Tinta2);
+        Texto(g, "Desinstalar remove o programa e pergunta se apaga também os dados.", y, t.Tinta2);
+        Action atualizar = delegate { tela = Tela.Local; Invalidate(); };
+        float dir = Botao(g, "Atualizar", DIREITA, BOTOES, "principal", atualizar, Jeito.Principal, false) - 8;
+        principal = atualizar;
+        dir = Botao(g, "Desinstalar", dir, BOTOES, "desinstalar", IrParaDesinstalar, Jeito.Contorno, false) - 8;
+        Botao(g, "Cancelar", dir, BOTOES, "cancelar", PedirParaFechar, Jeito.Texto, false);
     }
 
     void IrParaDesinstalar()
@@ -1826,143 +2326,134 @@ class Janela : Form
         Invalidate();
     }
 
-    void TelaLocal(Graphics g, float x, float y, float largura, float rodape)
+    void TelaLocal(Graphics g)
     {
         bool atualizacao = instalado != null && string.Equals(instalado.Pasta, o.Pasta, StringComparison.OrdinalIgnoreCase);
-        y = Rotulo(g, "PASSO 1 — LOCAL", x, y);
-        y = Titulo(g, atualizacao ? "Atualizar aqui." : "Onde instalar?", x, y, largura);
-        y = Texto(g, atualizacao ? "O PAULUS instalado nesta pasta é trocado pela versão " + Versao.Numero + ". Os dados do escritório ficam como estão."
-                                : "A pasta abaixo é a recomendada e não exige permissão de administrador.", x, y, largura, t.Tinta2) - F(4);
-        // O caminho e o Procurar.
-        using (Font m = Fontes.Texto(F(12.5f), 400))
-        using (Font fb = Fontes.Texto(F(12.5f), 600))
-        {
-            float wb = atualizacao ? 0 : Largura(g, "Procurar…", fb) + F(24);
-            var campo = new RectangleF(x, y, largura - (wb > 0 ? wb + F(8) : 0), F(33));
-            using (GraphicsPath p = Arredondado(campo, F(6)))
-            {
-                using (var b = new SolidBrush(t.Campo)) g.FillPath(b, p);
-                using (var pen = new Pen(t.Fio, 1)) g.DrawPath(pen, p);
-            }
-            string caminho = o.Pasta;
-            while (caminho.Length > 4 && Largura(g, caminho, m) > campo.Width - F(20)) caminho = "…" + caminho.Substring(2);
-            using (var b = new SolidBrush(t.Tinta)) g.DrawString(caminho, m, b, campo.X + F(10), campo.Y + (campo.Height - m.GetHeight(g)) / 2, Tipo);
-            if (!atualizacao)
-            {
-                var rb = new RectangleF(x + largura - wb, y, wb, F(33));
-                using (GraphicsPath p = Arredondado(rb, F(6)))
-                {
-                    using (var b = new SolidBrush(t.Botao2)) g.FillPath(b, p);
-                    using (var pen = new Pen(sobre == "procurar" ? t.Tinta : t.Fio, 1)) g.DrawPath(pen, p);
-                }
-                using (var b = new SolidBrush(t.Tinta)) g.DrawString("Procurar…", fb, b, rb.X + F(12), rb.Y + (rb.Height - fb.GetHeight(g)) / 2, Tipo);
-                NovoAlvo(rb, "procurar", Procurar);
-            }
-        }
-        y += F(33) + F(10);
+        float y = Rotulo(g, "PASSO 1 — LOCAL", TOPO);
+        y = Titulo(g, atualizacao ? "Atualizar aqui." : "Onde instalar?", y);
+        y = Texto(g, atualizacao ? "O Paulus instalado nesta pasta será trocado pela versão " + Versao.Numero + ". Os dados do escritório ficam como estão."
+                                 : "A pasta abaixo é a recomendada e não exige permissão de administrador.", y, t.Tinta2);
+        y = CampoDaPasta(g, y, !atualizacao) + 10;
         // O espaco em disco soma o cloudflared quando ele vem junto.
         long emDisco = Pacote.TamanhoInstalado() + (o.Tunel && !temCloudflared ? Math.Max(tamanhoCloudflared, 60L << 20) : 0);
-        using (Font f = Fontes.Texto(F(12), 400))
-            y = Paragrafo(g, "Pelo menos " + MB(emDisco) + " livres em disco.", f, t.Tinta3, x, y, largura, F(18)) + F(14);
-        y = Caixa(g, "Criar um atalho na área de trabalho", o.AtalhoMesa, x, y, largura, "mesa", delegate { o.AtalhoMesa = !o.AtalhoMesa; Invalidate(); }) + F(8);
-        y = Caixa(g, "Adicionar ao menu Iniciar", o.MenuIniciar, x, y, largura, "iniciar", delegate { o.MenuIniciar = !o.MenuIniciar; Invalidate(); }) + F(8);
-        y = Caixa(g, "“Perguntar ao PAULUS” no botão direito do Explorer", o.Explorer, x, y, largura, "explorer", delegate { o.Explorer = !o.Explorer; Invalidate(); }) + F(8);
+        using (Fonte f = Fontes.Texto(F(12), 400))
+            y = Paragrafo(g, "Pelo menos " + MB(emDisco) + " livres em disco.", f, t.Tinta3, COLUNA, y, LINHA, 18, false) + 20;
+        float fim = Caixa(g, "Criar um atalho na área de trabalho", o.AtalhoMesa, y, "mesa", delegate { o.AtalhoMesa = !o.AtalhoMesa; Invalidate(); });
+        fim = Caixa(g, "Adicionar ao menu Iniciar", o.MenuIniciar, fim + 11, "iniciar", delegate { o.MenuIniciar = !o.MenuIniciar; Invalidate(); });
+        fim = Caixa(g, "“Perguntar ao Paulus” no botão direito do Explorer", o.Explorer, fim + 11, "explorer", delegate { o.Explorer = !o.Explorer; Invalidate(); });
         if (!temOllama)
-            y = Caixa(g, "Instalar o motor de IA local (Ollama · baixa " + (tamanhoOllama > 0 ? MB(tamanhoOllama) : "mais de 1 GB") + " de ollama.com)",
-                      o.Ollama, x, y, largura, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); }) + F(8);
+            fim = Caixa(g, "Instalar componentes opcionais (baixa " + (tamanhoOllama > 0 ? MB(tamanhoOllama) : "mais de 1 GB") + ")",
+                        o.Ollama, fim + 11, "ollama", delegate { o.Ollama = !o.Ollama; Invalidate(); });
         // O cloudflared nao e escolha: vem junto, e a tela diz quanto e de onde.
         if (!temCloudflared)
-            using (Font f = Fontes.Texto(F(11.5f), 400))
-                Paragrafo(g, "Vem junto: o cloudflared, programa da Cloudflare para o acesso à distância (baixa " +
-                          (tamanhoCloudflared > 0 ? MB(tamanhoCloudflared) : "uns 55 MB") + " de github.com). Fica desligado até você ligar no PAULUS.",
-                          f, t.Tinta3, x, y, largura, F(16));
-        Rodape(g, x, rodape, true, delegate { tela = instalado != null ? Tela.JaInstalado : Tela.BoasVindas; Invalidate(); },
+            Nota(g, "Vem junto: o cloudflared, programa da Cloudflare para o acesso à distância (baixa " +
+                    (tamanhoCloudflared > 0 ? MB(tamanhoCloudflared) : "uns 55 MB") + " de github.com). Fica desligado até você ligar no Paulus.", fim + 14);
+        Rodape(g, delegate { tela = instalado != null ? Tela.JaInstalado : Tela.BoasVindas; Invalidate(); },
                true, atualizacao ? "Atualizar" : "Instalar", PedirParaInstalar);
     }
 
-    void TelaAndamento(Graphics g, float x, float y, float largura, float rodape, string rotulo, string titulo, string texto)
+    void TelaAndamento(Graphics g, string rotulo, string titulo, string texto)
     {
-        y = Rotulo(g, rotulo, x, y);
-        y = Titulo(g, titulo, x, y, largura);
-        y = Texto(g, texto, x, y, largura, t.Tinta2) + F(8);
-        var trilho = new RectangleF(x, y, largura, F(3));
-        using (var b = new SolidBrush(t.Preenche)) g.FillRectangle(b, trilho);
-        using (var b = new SolidBrush(t.Barra)) g.FillRectangle(b, x, y, (float)(largura * Math.Max(0, Math.Min(100, progresso)) / 100), F(3));
-        y += F(3) + F(8);
-        using (Font m = Fontes.Texto(F(12), 400))
+        float y = Rotulo(g, rotulo, TOPO);
+        y = Titulo(g, titulo, y);
+        y = Texto(g, texto, y, t.Tinta2);
+        Preencher(g, t.Preenche, R(COLUNA, y, LINHA, 3));
+        float feito = (float)(LINHA * Math.Max(0, Math.Min(100, progresso)) / 100);
+        if (feito > 0) Preencher(g, t.Barra, R(COLUNA, y, feito, 3));
+        y += 3 + 8;
+        using (Fonte m = Fontes.Texto(F(12), 400))
         {
             string pct = Math.Round(progresso) + "%";
+            float wp = Largura(m, pct) / k, cabe = LINHA - wp - 16;
             string a = acao;
-            while (a.Length > 4 && Largura(g, a, m) > largura - Largura(g, pct, m) - F(16)) a = a.Substring(0, a.Length - 2) + "…";
-            using (var b = new SolidBrush(t.Tinta2))
+            if (Largura(m, a) / k > cabe)
             {
-                g.DrawString(a, m, b, x, y, Tipo);
-                g.DrawString(pct, m, b, x + largura - Largura(g, pct, m), y, Tipo);
+                while (a.Length > 1 && Largura(m, a + "…") / k > cabe) a = a.Substring(0, a.Length - 1);
+                a = a.TrimEnd() + "…";
             }
+            float b = Base(m, y, 16);
+            Escrever(g, a, m, t.Tinta2, COLUNA, b, 0);
+            Escrever(g, pct, m, t.Tinta2, COLUNA + LINHA - wp, b, 0);
         }
-        Rodape(g, x, rodape, false, null, tela == Tela.Instalando, null, null);
+        Rodape(g, null, tela == Tela.Instalando, null, null);
     }
 
-    void TelaPronto(Graphics g, float x, float y, float largura, float rodape)
+    void TelaPronto(Graphics g)
     {
-        y = Rotulo(g, "CONCLUÍDO", x, y);
-        y = Titulo(g, "O PAULUS está instalado.", x, y, largura);
-        y = Texto(g, "Ao abrir, o assistente de configuração faz um teste rápido desta máquina, recomenda o modelo de IA e ajuda a criar ou entrar no seu escritório.", x, y, largura, t.Tinta2);
-        if (aviso != "") y = Texto(g, aviso.Trim() + " A tela inicial do PAULUS mostra como seguir.", x, y, largura, t.Tinta);
+        float y = Rotulo(g, "CONCLUÍDO", TOPO);
+        y = Titulo(g, "O Paulus está instalado.", y);
+        y = Texto(g, "Ao abrir, o assistente de configuração fará um teste rápido desta máquina e ajudará a criar ou entrar no seu escritório.", y, t.Tinta2);
+        if (aviso != "") y = Texto(g, TextoDoAviso(), y, t.Tinta);
         // O acesso a distancia e um passo do assistente de configuracao, no
         // app: o instalador nao pergunta nada sobre ele.
-        Caixa(g, "Abrir o PAULUS agora", abrirNoFim, x, y + F(2), largura, "abrir", delegate { abrirNoFim = !abrirNoFim; Invalidate(); });
-        Rodape(g, x, rodape, false, null, false, "Concluir", Concluir);
+        Caixa(g, "Abrir o Paulus agora", abrirNoFim, y, "abrir", delegate { abrirNoFim = !abrirNoFim; Invalidate(); });
+        Rodape(g, null, false, "Concluir", Concluir);
     }
 
-    void TelaErro(Graphics g, float x, float y, float largura, float rodape)
+    /* O aviso do fim. O motor de IA local e o cloudflared sao opcionais: a tela
+       inicial do Paulus mostra como completar. Sem a janela do programa
+       (WebView2) o Paulus nao abre, e o aviso diz isso. */
+    string TextoDoAviso()
     {
-        y = Rotulo(g, "NÃO INSTALOU", x, y);
-        y = Titulo(g, modoDesinstalar ? "Não deu para desinstalar." : "Não deu para instalar.", x, y, largura);
-        y = Texto(g, erro, x, y, largura, t.Tinta2);
-        Texto(g, "O registro do que aconteceu está em " + Registro.Arquivo + ".", x, y, largura, t.Tinta3);
-        Rodape(g, x, rodape, false, null, false, "Fechar", Close);
+        if (aviso.IndexOf("WebView2", StringComparison.Ordinal) >= 0)
+            return "A janela do programa (WebView2, da Microsoft) não pôde ser instalada, e o Paulus precisa dela para abrir. Instale o WebView2 pelo site da Microsoft e abra o Paulus de novo.";
+        return "Um componente opcional não pôde ser instalado. O Paulus funciona normalmente; a tela inicial mostra como completar a instalação.";
     }
 
-    void TelaDesinstalar(Graphics g, float x, float y, float largura, float rodape)
+    void TelaErro(Graphics g)
     {
-        y = Rotulo(g, "DESINSTALAR", x, y);
-        y = Titulo(g, "Desinstalar o PAULUS?", x, y, largura);
-        y = Texto(g, "Remove o programa de " + o.Pasta + ". Os documentos das pastas que o Acervo vigia nunca são tocados.", x, y, largura, t.Tinta2);
-        List<string> doOllama = Motor.ModelosDoPaulus();
-        string modelos = "Tirar também os modelos de IA local: os de voz e tradução do PAULUS" +
-            (doOllama.Count > 0 ? " e, no Ollama, os que ele baixou (" + string.Join(", ", doOllama.ToArray()) + ")" : "") +
-            ". O Ollama e o que você baixou por fora ficam.";
-        y = Caixa(g, modelos, apagarModelos, x, y, largura, "modelos", delegate { apagarModelos = !apagarModelos; Invalidate(); }) + F(10);
-        y = Caixa(g, "Apagar também os dados do escritório (conversas, Agenda, Financeiro, cadastros e os documentos da pasta do programa).",
-                  apagarDados, x, y, largura, "dados", delegate { apagarDados = !apagarDados; Invalidate(); }) + F(6);
-        using (Font f = Fontes.Texto(F(12), 400))
-            Paragrafo(g, "Se for reinstalar, deixe as duas desmarcadas: os dados e os modelos voltam na próxima instalação.", f, t.Tinta3, x, y, largura, F(18));
-        Rodape(g, x, rodape, instalado != null && !Programa.Tem("/relancado"), delegate { tela = Tela.JaInstalado; Invalidate(); }, true, "Desinstalar", PedirParaDesinstalar);
+        float y = Rotulo(g, "NÃO DEU CERTO", TOPO);
+        y = Titulo(g, Remocao() ? "Não foi possível desinstalar." : "Não foi possível instalar.", y);
+        y = Texto(g, Frase(erro), y, t.Tinta2);
+        y = Texto(g, "Você pode tentar novamente em instantes. Se o problema persistir, entre em contato com o nosso time de suporte pelo site.", y, t.Tinta2);
+        Texto(g, "O registro do que aconteceu está em " + Registro.Arquivo + ".", y, t.Tinta3);
+        Rodape(g, null, false, "Fechar", Close);
     }
 
-    void TelaDesinstalado(Graphics g, float x, float y, float largura, float rodape)
+    /* A mensagem do erro como frase: maiuscula no comeco e ponto no fim. */
+    static string Frase(string s)
     {
-        y = Rotulo(g, "CONCLUÍDO", x, y);
-        y = Titulo(g, "O PAULUS foi desinstalado.", x, y, largura);
-        var ficou = new List<string>();
-        if (!apagarDados && Directory.Exists(Path.Combine(Motor.Casa, "dados"))) ficou.Add("os dados do escritório");
-        if (!apagarModelos && Directory.Exists(Path.Combine(Motor.Casa, "modelos"))) ficou.Add("os modelos de IA local");
-        y = Texto(g, ficou.Count > 0 ? "Ficaram " + string.Join(" e ", ficou.ToArray()) + ", em " + Motor.Casa + ": reinstalar traz tudo de volta."
-                                  : "O programa, os dados e os modelos do PAULUS saíram deste computador.", x, y, largura, t.Tinta2);
-        if (Motor.OllamaPresente())
-            Texto(g, "O Ollama, o motor da IA local, continua instalado. Se não for mais usar, ele sai em Configurações › Aplicativos do Windows.", x, y, largura, t.Tinta2);
-        Rodape(g, x, rodape, false, null, false, "Concluir", Close);
+        s = (s ?? "").Trim();
+        if (s == "") return "Aconteceu um erro inesperado.";
+        s = char.ToUpper(s[0]) + s.Substring(1);
+        return ".!?…".IndexOf(s[s.Length - 1]) >= 0 ? s : s + ".";
+    }
+
+    void TelaDesinstalar(Graphics g)
+    {
+        float y = Rotulo(g, "DESINSTALAR", TOPO);
+        y = Titulo(g, "Desinstalar o Paulus?", y);
+        y = Texto(g, "Ao prosseguir, você removerá o programa de " + o.Pasta + ". Os documentos das pastas que o Acervo vigia nunca são tocados.", y, t.Tinta2);
+        float fim = Caixa(g, "Remover também os componentes baixados pelo Paulus (voz, tradução e modelos).",
+                          apagarModelos, y, "modelos", delegate { apagarModelos = !apagarModelos; Invalidate(); });
+        fim = Caixa(g, "Apagar também os dados do escritório (conversas, Agenda, Financeiro, cadastros e os documentos da pasta do programa).",
+                    apagarDados, fim + 11, "dados", delegate { apagarDados = !apagarDados; Invalidate(); });
+        Nota(g, "Se for reinstalar, deixe as duas desmarcadas: os dados e os modelos voltam na próxima instalação.", fim + 14);
+        Rodape(g, instalado != null && !Programa.Tem("/relancado") ? (Action)delegate { tela = Tela.JaInstalado; Invalidate(); } : null,
+               true, "Desinstalar", PedirParaDesinstalar);
+    }
+
+    void TelaDesinstalado(Graphics g)
+    {
+        float y = Rotulo(g, "CONCLUÍDO", TOPO);
+        y = Titulo(g, "O Paulus foi desinstalado.", y);
+        string ficou = ficaramDados && ficaramModelos ? "os dados do escritório e os componentes baixados"
+                     : ficaramDados ? "os dados do escritório" : ficaramModelos ? "os componentes baixados" : null;
+        y = Texto(g, ficou != null ? "Ficaram " + ficou + ", em " + Motor.Casa + ": reinstalar traz tudo de volta."
+                                   : "O programa, os dados e os componentes baixados pelo Paulus saíram deste computador.", y, t.Tinta2);
+        if (ficouOllama)
+            Texto(g, "O Ollama, o motor da IA local, continua instalado. Se não for mais usar, ele sai em Configurações › Aplicativos do Windows.", y, t.Tinta2);
+        Rodape(g, null, false, "Concluir", Close);
     }
 
     // ------------------------------------------------------------- dialogo
 
-    void DesenharDialogo(Graphics g, float W, float H)
+    void DesenharDialogo(Graphics g)
     {
         alvos.Clear();
         principal = null;
         voltar = null;
-        using (var b = new SolidBrush(Color.FromArgb(115, 0, 0, 0))) g.FillRectangle(b, 0, 0, W, H);
+        Preencher(g, Color.FromArgb(115, 0, 0, 0), R(1, 1, LARGURA - 2, ALTURA - 2));
         string titulo, texto, caminho = null, sim, nao;
         Action aoSim;
         if (dialogo == Dialogo.PastaExiste)
@@ -1972,43 +2463,39 @@ class Janela : Form
         }
         else if (dialogo == Dialogo.FecharPaulus)
         {
-            titulo = "O PAULUS está aberto"; texto = "Para continuar, o PAULUS precisa fechar. O que não foi salvo nele se perde.";
-            sim = "Fechar o PAULUS"; nao = "Voltar"; aoSim = delegate { dialogo = Dialogo.Nenhum; Motor.Fechar(o.Pasta); if (tela == Tela.Desinstalar) ComecarDesinstalacao(); else ComecarInstalacao(); };
+            titulo = "O Paulus está aberto"; texto = "Para continuar, o Paulus precisa fechar. O que não foi salvo nele se perde.";
+            sim = "Fechar o Paulus"; nao = "Voltar"; aoSim = delegate { dialogo = Dialogo.Nenhum; Motor.Fechar(o.Pasta); if (tela == Tela.Desinstalar) ComecarDesinstalacao(); else ComecarInstalacao(); };
         }
         else
         {
             titulo = "Cancelar a instalação?";
             texto = andamento != null && andamento.ProgramaPronto
-                ? "O PAULUS já está instalado; cancelar para só o download que falta."
+                ? "O Paulus já está instalado; cancelar para só o download que falta."
                 : "O que já foi copiado sai, e o que havia antes volta.";
             sim = "Cancelar a instalação"; nao = "Continuar"; aoSim = delegate { dialogo = Dialogo.Nenhum; if (andamento != null) andamento.Cancelar = true; Invalidate(); };
         }
-        float w = F(420), x = (W - w) / 2;
-        using (Font f = Fontes.Texto(F(13), 400))
-        using (Font m = Fontes.Texto(F(12), 400))
+        // A caixa: 440 de largura, raio 16; a barra do titulo (30 px e o fio), e o corpo com 20 px de folga dos lados.
+        using (Fonte f = Fontes.Texto(F(13), 400))
+        using (Fonte m = Fontes.Texto(F(12), 400))
+        using (Fonte ft = Fontes.Texto(F(12), 400))
         {
-            List<string> linhas = Quebrar(g, texto, f, w - F(40));
-            List<string> linhasC = caminho != null ? QuebrarCaminho(g, caminho, m, w - F(40)) : new List<string>();
-            float h = F(30) + F(18) + linhas.Count * F(19.5f) + (caminho != null ? linhasC.Count * F(17) + F(8) : 0) + F(18) + F(32) + F(16);
-            float y = (H - h) / 2;
-            var caixa = new RectangleF(x, y, w, h);
-            using (GraphicsPath pc = Arredondado(caixa, F(10)))
-            {
-                using (var b = new SolidBrush(t.Campo)) g.FillPath(b, pc);
-                using (var p = new Pen(t.Fio, 1)) { g.DrawPath(p, pc); g.DrawLine(p, x, y + F(30), x + w, y + F(30)); }
-            }
-            using (Font ft = Fontes.Texto(F(12), 400))
-            using (var b = new SolidBrush(t.Tinta2)) g.DrawString(titulo, ft, b, x + F(12), y + (F(30) - ft.GetHeight(g)) / 2, Tipo);
-            float yy = y + F(30) + F(18);
-            if (caminho != null)
-            {
-                using (var b = new SolidBrush(t.Tinta2)) foreach (string l in linhasC) { g.DrawString(l, m, b, x + F(20), yy, Tipo); yy += F(17); }
-                yy += F(8);
-            }
-            yy = Paragrafo(g, texto, f, t.Tinta, x + F(20), yy, w - F(40), F(19.5f)) + F(18);
-            float dir = Botao(g, sim, x + w - F(20), yy, "principal", aoSim, true, false) - F(8);
+            List<string> linhas = Quebrar(f, texto, 398, true);
+            List<string> linhasC = caminho != null ? Quebrar(m, caminho, 398, false) : new List<string>();
+            float h = 1 + 31 + 18 + (caminho != null ? linhasC.Count * 17 + 8 : 0) + linhas.Count * 19.5f + 18 + 32 + 16 + 1;
+            float x = 140, y = 1 + (ALTURA - 2 - h) / 2;
+            RectangleF caixa = R(x, y, 440, h);
+            Preencher(g, t.Campo, caixa, F(16));
+            Contorno(g, t.Fio, caixa, F(16), Fino());
+            Preencher(g, t.Fio, new RectangleF(P(x + 1), P(y + 31), P(x + 439) - P(x + 1), Fino()));
+            Escrever(g, titulo, ft, t.Tinta2, x + 13, BaseNoMeio(ft, y + 16), 0);
+            float yy = y + 50;
+            foreach (string l in linhasC) { Escrever(g, l, m, t.Tinta2, x + 21, Base(m, yy, 17), 0); yy += 17; }
+            if (caminho != null) yy += 8;
+            foreach (string l in linhas) { Escrever(g, l, f, t.Tinta, x + 21, Base(f, yy, 19.5f), 0); yy += 19.5f; }
+            float meio = yy + 18 + 16;
+            float dir = Botao(g, sim, x + 419, meio, "principal", aoSim, Jeito.Principal, true) - 8;
             principal = aoSim;
-            Botao(g, nao, dir, yy, "nao", delegate { dialogo = Dialogo.Nenhum; Invalidate(); }, false, true);
+            Botao(g, nao, dir, meio, "nao", delegate { dialogo = Dialogo.Nenhum; Invalidate(); }, Jeito.Texto, true);
             voltar = delegate { dialogo = Dialogo.Nenhum; Invalidate(); };
         }
     }
@@ -2028,7 +2515,7 @@ class Janela : Form
     void PedirParaInstalar()
     {
         string problema = Motor.PodeEscrever(o.Pasta);
-        if (problema != null) { MessageBox.Show(this, problema, "PAULUS", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (problema != null) { MessageBox.Show(this, problema, "Paulus", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
         bool atualizacao = instalado != null && string.Equals(instalado.Pasta, o.Pasta, StringComparison.OrdinalIgnoreCase);
         bool temAlgo = Directory.Exists(o.Pasta) && Directory.GetFileSystemEntries(o.Pasta).Length > 0;
         if (temAlgo && !atualizacao) { dialogo = Dialogo.PastaExiste; Invalidate(); return; }
@@ -2092,6 +2579,7 @@ class Janela : Form
     void ComecarDesinstalacao()
     {
         tela = Tela.Desinstalando;
+        removendo = true;
         progresso = 0;
         acao = "Preparando…";
         andamento = new Andamento();
@@ -2102,7 +2590,11 @@ class Janela : Form
             try
             {
                 Motor.Desinstalar(o.Pasta, apagarModelos, apagarDados, andamento);
-                BeginInvoke((Action)delegate { tela = Tela.Desinstalado; Invalidate(); });
+                // O que ficou, lido uma vez aqui (e nao a cada pintura da tela).
+                bool dados = !apagarDados && Directory.Exists(Path.Combine(Motor.Casa, "dados"));
+                bool modelos = !apagarModelos && Directory.Exists(Path.Combine(Motor.Casa, "modelos"));
+                bool ollama = Motor.OllamaPresente();
+                BeginInvoke((Action)delegate { ficaramDados = dados; ficaramModelos = modelos; ficouOllama = ollama; tela = Tela.Desinstalado; Invalidate(); });
             }
             catch (Exception e)
             {
@@ -2250,7 +2742,7 @@ static class SeletorDePasta
         {
             var d = (IFileDialog)new FileOpenDialogRCW();
             d.SetOptions(0x20 | 0x40);   // FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM
-            d.SetTitle("Onde instalar o PAULUS");
+            d.SetTitle("Onde instalar o Paulus");
             d.SetOkButtonLabel("Instalar aqui");
             if (inicial != null && Directory.Exists(inicial))
             {
@@ -2270,7 +2762,7 @@ static class SeletorDePasta
         {
             using (var f = new FolderBrowserDialog())
             {
-                f.Description = "Onde instalar o PAULUS";
+                f.Description = "Onde instalar o Paulus";
                 if (inicial != null && Directory.Exists(inicial)) f.SelectedPath = inicial;
                 return f.ShowDialog() == DialogResult.OK ? f.SelectedPath : null;
             }
