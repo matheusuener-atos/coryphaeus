@@ -53,7 +53,7 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
   if (p === "/api/conta/entrar" && m === "POST") return entrar(request, env, deps);
   if (p === "/api/conta/sair" && m === "POST") return sair(request, env);
   const s = await sessaoDe(request, env);
-  if (!s) return json({ erro: "entre com o Google", entrar: true }, 401, { "set-cookie": cookie("", 0) });
+  if (!s) return json({ erro: "entre na sua conta", entrar: true }, 401, { "set-cookie": cookie("", 0) });
   if (s.papel !== "titular") {
     // O financeiro: o titular pode ter tirado o acesso desde que a sessao abriu.
     const r = await medidor(env, s.conta).pedir("pessoa_papel", { email: s.email });
@@ -150,7 +150,7 @@ async function entrar(request, env, deps) {
   const d = (await lerJSON(request)) || {};
   const credencial = String(d.credential || d.id_token || "");
   const dono = await (deps.donoDoToken || donoDoToken)(env, credencial);
-  if (!dono) return json({ erro: "a confirmação do Google venceu: entre com o Google de novo" }, 401);
+  if (!dono) return json({ erro: "a sua entrada venceu: entre de novo" }, 401);
   const nome = nomeDoToken(credencial);
   let alvo = null;
   // O convite (link de 7 dias, mandado pelo titular): o e-mail do Google tem de ser o convidado.
@@ -160,7 +160,7 @@ async function entrar(request, env, deps) {
     const h = await sha256(convite);
     const c = await kvJSON(env, "conta:convite:" + h);
     if (!c) return json({ erro: "este convite venceu ou já foi usado: peça outro ao titular" }, 410);
-    if (c.email !== dono.email) return json({ erro: "este convite é para " + mascarar(c.email) + ": entre com essa conta Google" }, 403);
+    if (c.email !== dono.email) return json({ erro: "este convite é para " + mascarar(c.email) + ": entre com esse e-mail" }, 403);
     const r = await medidor(env, c.conta).pedir("pessoa_aceitar", { email: dono.email, hash: h, nome });
     if (!r.ok) return json({ erro: r.erro }, r.status || 410);
     await env.APOIOS.delete("conta:convite:" + h);
@@ -180,7 +180,7 @@ async function entrar(request, env, deps) {
     }
   }
   if (!alvo) {
-    return json({ erro: "esta conta Google não tem assinatura do Paulus: assine em paulus.ia.br/assinatura, ou peça um convite ao titular", sem_conta: true }, 404);
+    return json({ erro: "esta conta não tem assinatura do Paulus: assine em paulus.ia.br/assinatura, ou peça um convite ao titular", sem_conta: true }, 404);
   }
   const token = aleatorio(32);
   const ate = new Date(Date.now() + SESSAO_S * 1000).toISOString();
@@ -435,7 +435,7 @@ async function convidar(request, env, s, deps) {
   const e = await (deps.enviarEmail || enviarEmail)(env, {
     para: email, assunto: "Convite para a Minha conta do Paulus", titulo: "Você foi convidado para a conta de " + escritorio,
     texto: s.email + " convidou você para acompanhar a assinatura do Paulus de " + escritorio + " como financeiro: o resumo, o consumo, as faturas e a forma de pagamento." +
-      "\n\nEntre com a conta Google deste e-mail. O link vale por 7 dias.",
+      "\n\nEntre com este e-mail, pelo Google ou com e-mail e senha. O link vale por 7 dias.",
     botao: "Abrir a Minha conta", link: SITE + "/minha-conta/#convite=" + token,
   });
   if (!e.ok) {

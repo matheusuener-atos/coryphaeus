@@ -37,6 +37,7 @@ import { atenderIA, avisoDaIA, cronDaConta, ehRotaDaIA } from "./ia.js";
 import { atenderConta, ehRotaDaConta } from "./conta.js";
 import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas, enviarEmail } from "./admin.js";
 import { depoisPendentes } from "./nfse/api.js";
+import { atenderIdentidade, ehRotaDaIdentidade } from "./identidade.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
@@ -78,6 +79,14 @@ export default {
         return await atenderIA(request, env, url, ctx, { dentroDoLimite, chamarMP });
       } catch (erro) {
         return json({ erro: "falha no servidor da nuvem" }, 500);
+      }
+    }
+    // A conta PAVLVS por e-mail e senha (worker/identidade.js): a alternativa ao Google.
+    if (ehRotaDaIdentidade(url)) {
+      try {
+        return await atenderIdentidade(request, env, url, { dentroDoLimite, enviarEmail });
+      } catch (erro) {
+        return json({ erro: "falha no servidor da conta" }, 500);
       }
     }
     // A Minha conta (worker/conta.js): a sessao do site, o plano, o pagamento e o escritorio.

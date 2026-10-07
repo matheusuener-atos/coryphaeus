@@ -156,7 +156,7 @@
       window.location.assign(r.link);
     } catch (e) {
       b.disabled = false;
-      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
+      if (e.status === 401) { voltarAoCadastro("a sua entrada venceu (vale uma hora): volte e entre de novo"); return; }
       erro(e.message);
     }
   }
@@ -208,10 +208,10 @@
       $("pg-pronto-titulo").textContent = mes ? "Mês pago" : "Ano pago";
       $("pg-pronto-texto").textContent = "Plano " + nome + (mes ? ", pago no Pix" : " anual") + (ate ? ", até " + ate : "") + "." +
         (mes ? " Não renova sozinho: para continuar, pague outro mês em paulus.ia.br/assinatura ou assine no cartão." : "") +
-        " Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta Google") + ".";
+        " Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta") + ".";
     } else {
       $("pg-pronto-titulo").textContent = "Assinatura ativa";
-      $("pg-pronto-texto").textContent = "Plano " + nome + ", cobrado todo mês no cartão. Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta Google") + ".";
+      $("pg-pronto-texto").textContent = "Plano " + nome + ", cobrado todo mês no cartão. Agora é só baixar o PAVLVS e entrar com " + (c.email || "a sua conta") + ".";
     }
     $("pg-pronto").hidden = false;
     $("pg-voltar").hidden = true;
@@ -378,11 +378,11 @@
   async function iniciar() {
     try { token = sessionStorage.getItem(CHAVE) || ""; } catch (e) { token = ""; }
     if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de planos"); return; }
-    if (!token) { voltarAoCadastro("entre com o Google no cadastro antes de pagar"); return; }
+    if (!token) { voltarAoCadastro("entre no cadastro antes de pagar"); return; }
     try {
       oferta = await pedir("/api/ia/site/oferta", { id_token: token, plano: pedido.plano, periodo: pedido.periodo });
     } catch (e) {
-      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte e entre com o Google de novo"); return; }
+      if (e.status === 401) { voltarAoCadastro("a sua entrada venceu (vale uma hora): volte e entre de novo"); return; }
       estado("");
       erro(e.message);
       return;
@@ -454,7 +454,7 @@
       vigia = setTimeout(conferirPix, 4000);
     } catch (e) {
       b.disabled = false;
-      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte, entre com o Google de novo e pague"); return; }
+      if (e.status === 401) { voltarAoCadastro("a sua entrada venceu (vale uma hora): volte, entre de novo e pague"); return; }
       erro(e.message);
     }
   }
@@ -467,7 +467,7 @@
       if (r.pago) { pronto({ periodo: pedido.periodo, conta: r.conta }); return; }
       if (r.situacao === "cancelled" || r.situacao === "rejected" || Date.now() > pix.vence + 60000) { pixVenceu(); return; }
     } catch (e) {
-      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: se você já pagou, o plano entra sozinho; entre de novo para conferir"); return; }
+      if (e.status === 401) { voltarAoCadastro("a sua entrada venceu: se você já pagou, o plano entra sozinho; entre de novo para conferir"); return; }
       // Rede: tenta de novo na proxima volta.
     }
     vigia = setTimeout(conferirPix, 4000);
@@ -526,7 +526,7 @@
       pronto(r);
     } catch (e) {
       estado("");
-      if (e.status === 401) { voltarAoCadastro("a confirmação do Google venceu: volte, entre com o Google de novo e pague"); return; }
+      if (e.status === 401) { voltarAoCadastro("a sua entrada venceu (vale uma hora): volte, entre de novo e pague"); return; }
       // Recusado (cartao, banco, risco): a proxima tentativa e outra compra,
       // com outro token - o CardForm gera um novo a cada envio.
       if (e.status === 402 || e.status === 400) idempotencia = novaChave();

@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=add,check,close,credit_card,dark_mode,download,expand_more,light_mode,lock,menu&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&icon_names=add,check,close,credit_card,dark_mode,download,expand_more,light_mode,lock,menu,visibility,visibility_off&display=block">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="stylesheet" href="../assets/paginas.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -41,7 +41,7 @@
   <div class="entrada-col cd-col">
     <div class="entrada-marca">
       <h1 class="logo">Queremos te conhecer melhor.</h1>
-      <p>Entre com o Google e preencha os dados do escritório.</p>
+      <p>Entre com o Google ou com e-mail e senha, e preencha os dados do escritório.</p>
     </div>
 
     <!-- O plano escolhido em /assinatura (?plano=&periodo=), com o link para trocar. -->
@@ -57,8 +57,10 @@
     <div class="campos" id="cd-passos">
       <!-- 1. a conta: entrar com o Google -->
       <div class="campo" id="cd-passo-conta">
-        <p class="conta-linha" id="cd-conta-texto">A conta do PAVLVS é a sua conta Google: é com ela que você entra no programa depois. Nenhuma senha a mais.</p>
+        <p class="conta-linha" id="cd-conta-texto">A conta do PAVLVS pode ser a sua conta Google ou um e-mail com senha: é com ela que você entra no programa depois.</p>
         <div class="google-btn" id="cd-google"></div>
+        <p class="cs-ou" id="cd-ou">ou com e-mail e senha</p>
+        <div id="cd-senha"></div>
         <p class="erro-campo" id="cd-conta-erro" hidden></p>
       </div>
 
@@ -149,6 +151,7 @@
 
 <script src="../assets/site.js" defer></script>
 <script src="../assets/cnpj.js" defer></script>
+<script src="../assets/conta-senha.js" defer></script>
 <script src="../assets/cadastro.js" defer></script>
 </body>
 </html>

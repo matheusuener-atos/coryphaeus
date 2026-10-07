@@ -276,3 +276,14 @@
   .entrada-marca .logo { margin: 0; font-size: 40px; }
   .voltar-site { left: 16px; top: 16px; }
 }
+
+/* A conta PAVLVS por e-mail e senha (assets/conta-senha.js), ao lado do botão do Google. */
+.cs-ou { display: flex; align-items: center; gap: 12px; width: 100%; font: 400 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+.cs-ou::before, .cs-ou::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.cs-form { width: 100%; text-align: left; }
+.cs-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cs-olho { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin-right: -6px; border: 0; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer; }
+.cs-olho:hover { color: var(--ink); background: var(--pill); }
+.cs-olho .icon { font-size: 18px; }
+.cs-aviso { margin: 0; }
+.caixa-campo input::-ms-reveal, .caixa-campo input::-ms-clear { display: none; }

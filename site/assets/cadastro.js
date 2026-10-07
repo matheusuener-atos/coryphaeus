@@ -1,4 +1,5 @@
-/* A pagina de cadastro (paulus.ia.br/cadastro): entrar com o Google e os dados
+/* A pagina de cadastro (paulus.ia.br/cadastro): entrar (Google, ou e-mail e senha pela
+   conta PAVLVS de assets/conta-senha.js, com um token do Worker no lugar do id_token) e os dados
    do escritorio, com o plano escolhido em /assinatura (?plano=&periodo=), pelo Worker (worker/ia.js, /api/ia/planos e
    /api/ia/site/*). O pagamento e a pagina seguinte, /cadastro/pagamento
    (assets/pagamento.js), com o cartao nos campos seguros do Mercado Pago. O id_token do
@@ -84,14 +85,14 @@
 
   async function trocarPlano() {
     mostrarErro("cd-troca-erro", "");
-    if (!estado.token) { mostrarErro("cd-troca-erro", "Entre com o Google de novo para trocar."); return; }
+    if (!estado.token) { mostrarErro("cd-troca-erro", "Entre de novo para trocar."); return; }
     var botao = $("cd-trocar-plano");
     botao.disabled = true;
     try {
       var conta = await pedir("/api/ia/site/plano", { id_token: estado.token, plano: estado.escolhido });
       mostrarConta(conta);
     } catch (e) {
-      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo para trocar."); return; }
+      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A sua entrada venceu (vale uma hora). Entre de novo para trocar."); return; }
       mostrarErro("cd-troca-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
     } finally {
       botao.disabled = false;
@@ -131,6 +132,8 @@
       '<button type="button" class="trocar" id="cd-trocar">Usar outra conta</button>';
     $("cd-trocar").onclick = sair;
     $("cd-google").hidden = true;
+    $("cd-ou").hidden = true;
+    $("cd-senha").hidden = true;
     var c = conta.cadastro || {};
     if (c.nome_escritorio && !$("cd-nome").value) $("cd-nome").value = c.nome_escritorio;
     if (c.documento && !$("cd-documento").value) $("cd-documento").value = mascararDocumento(c.documento);
@@ -182,7 +185,7 @@
 
   async function desistir() {
     mostrarErro("cd-desistir-erro", "");
-    if (!estado.token) { mostrarErro("cd-desistir-erro", "Entre com o Google de novo para desistir."); return; }
+    if (!estado.token) { mostrarErro("cd-desistir-erro", "Entre de novo para desistir."); return; }
     var botao = $("cd-desistir-botao");
     // Duas vezes: a primeira pede a confirmacao.
     if (!confirmandoDesistencia) {
@@ -201,7 +204,7 @@
       $("cd-pronto-texto").textContent = brl(r.valor) + " a caminho de volta, no cartão ou no Pix em que você pagou (o banco leva alguns dias para mostrar). O plano acabou." +
         ((r.avisos || []).length ? " " + r.avisos[0].charAt(0).toUpperCase() + r.avisos[0].slice(1) + "." : "");
     } catch (e) {
-      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo para desistir."); return; }
+      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A sua entrada venceu (vale uma hora). Entre de novo para desistir."); return; }
       mostrarErro("cd-desistir-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
     } finally {
       botao.disabled = false;
@@ -237,7 +240,7 @@
         try { sessionStorage.removeItem(CHAVE); } catch (x) { /* nada guardado */ }
         estado.token = "";
       }
-      mostrarErro("cd-conta-erro", e.status === 401 ? "A confirmação do Google venceu. Entre de novo." : "Não consegui entrar: " + e.message);
+      mostrarErro("cd-conta-erro", e.status === 401 ? "A sua entrada venceu (vale uma hora). Entre de novo." : "Não consegui entrar: " + e.message);
       return null;
     }
   }
@@ -250,7 +253,9 @@
     $("cd-pronto").hidden = true;
     $("cd-troca").hidden = true;
     $("cd-google").hidden = false;
-    $("cd-conta-texto").textContent = "A conta do PAVLVS é a sua conta Google: é com ela que você entra no programa depois. Nenhuma senha a mais.";
+    $("cd-ou").hidden = false;
+    $("cd-senha").hidden = false;
+    $("cd-conta-texto").textContent = "A conta do PAVLVS pode ser a sua conta Google ou um e-mail com senha: é com ela que você entra no programa depois.";
     if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
   }
 
@@ -363,7 +368,7 @@
   async function pagar(ev) {
     ev.preventDefault();
     mostrarErro("cd-form-erro", "");
-    if (!estado.token) { mostrarErro("cd-form-erro", "Entre com o Google primeiro."); return; }
+    if (!estado.token) { mostrarErro("cd-form-erro", "Entre primeiro (Google, ou e-mail e senha)."); return; }
     if (!$("cd-aceite").checked) { mostrarErro("cd-form-erro", "Para assinar, aceite os Termos de uso e a Política de privacidade."); return; }
     var botao = $("cd-pagar");
     botao.disabled = true;
@@ -378,7 +383,7 @@
       window.location.assign(ida.pathname + ida.search);
     } catch (e) {
       botao.disabled = false;
-      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A confirmação do Google venceu. Entre de novo e confira os dados."); return; }
+      if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A sua entrada venceu (vale uma hora). Entre de novo e confira os dados."); return; }
       mostrarErro("cd-form-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
     }
   }
@@ -402,6 +407,8 @@
   document.addEventListener("DOMContentLoaded", function () {
     vigiarResumo();
     iniciarGoogle();
+    // A conta por e-mail e senha: o token do Worker segue o mesmo caminho do id_token.
+    if (window.PavlvsSenha) PavlvsSenha.montar($("cd-senha"), { aoEntrar: function (token) { entrar(token); } });
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
     $("cd-desistir-botao").addEventListener("click", desistir);

@@ -51,6 +51,7 @@
 // Caminhos da API conferidos na documentacao da Cloudflare em 28/09/2026
 // (docs/PROGRESSO-IMPLEMENTACAO.md, R5).
 
+import { anotarGoogle, donoDoTokenProprio, ehTokenProprio } from "./identidade.js";
 import { enviarEmail } from "./admin.js";
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -353,8 +354,27 @@ async function chaveDoGoogle(kid, agora) {
 }
 
 // { sub, email } de um id_token valido para um dos clientes do PAULUS; ou null.
+// Vale tambem o token da conta PAVLVS por e-mail e senha (worker/identidade.js),
+// assinado pelo proprio Worker. O sub do Google fica anotado pelo e-mail, para
+// a conta por senha com o mesmo e-mail cair na mesma conta da nuvem.
 export async function donoDoToken(env, token, agora = () => Date.now()) {
   const t = String(token || "");
+  if (ehTokenProprio(t)) {
+    const d = await donoDoTokenProprio(env, t, agora());
+    return d ? { sub: d.sub, email: d.email } : null;
+  }
+  const dono = await donoDoGoogle(env, t, agora);
+  if (dono) {
+    try {
+      await anotarGoogle(env, dono);
+    } catch {
+      // o indice e so uma ajuda: sem ele, a conta por senha nasce com um sub proprio
+    }
+  }
+  return dono;
+}
+
+async function donoDoGoogle(env, t, agora) {
   const partes = t.split(".");
   if (partes.length !== 3 || t.length > 4096) return null;
   try {

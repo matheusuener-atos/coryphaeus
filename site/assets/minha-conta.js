@@ -1,5 +1,6 @@
 /* Minha conta (paulus.ia.br/minha-conta/): o titular da assinatura - e quem ele autorizar - cuida do plano,
-   do consumo, das faturas, da forma de pagamento, do cadastro e do escritorio. Entra com a conta Google.
+   do consumo, das faturas, da forma de pagamento, do cadastro e do escritorio. Entra com a conta Google ou com
+   e-mail e senha (a conta PAVLVS, assets/conta-senha.js: o token do Worker vai no lugar do id_token).
    Desenho: a topbar do site, o titulo centrado e as abas na pilula (como a pagina da conta no Admin).
    O servidor e o worker/conta.js: GET /api/conta traz tudo, cada acao e um POST da propria origem e o
    papel (titular ou financeiro) e conferido la. O cartao vai pelos campos seguros do Mercado Pago; o
@@ -435,7 +436,7 @@
   // O tema mudou com a pagina do cartao aberta: os quadros do Mercado Pago sao montados de novo com as cores novas.
   new MutationObserver(function () {
     if (S.sub === "cartao" && S.cartao && S.cartao.campos) { desmontarCartao(); montarCampos(); cartaoOk(); }
-    if (S.d && S.d.entrar) botaoGoogle();
+    if (S.d && S.d.entrar) { botaoGoogle(); montarSenha(); }
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   /* ------------------------------------------------------------ os pop-ups (o dialogo do Paulus) */
@@ -526,7 +527,7 @@
     if (M.tipo === "convidar") {
       var okE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(M.email || "");
       return dialogo("Convidar para Minha conta", "Pessoas",
-        '<label class="campo-site"><span>E-mail Google da pessoa</span><span class="caixa-campo"><input id="mc-conv" type="email" data-a-in="convEmail" value="' + esc(M.email || "") + '" placeholder="nome@escritorio.com.br" autocomplete="off"></span></label>' +
+        '<label class="campo-site"><span>E-mail da pessoa</span><span class="caixa-campo"><input id="mc-conv" type="email" data-a-in="convEmail" value="' + esc(M.email || "") + '" placeholder="nome@escritorio.com.br" autocomplete="off"></span></label>' +
         "<p>Entra como <b>financeiro</b>: vê o resumo, o consumo, as faturas e a forma de pagamento. Ela recebe um e-mail com o link, válido por 7 dias.</p>",
         cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarConvite"' + (okE ? "" : " disabled") + "><span>Enviar convite</span></button>");
     }
@@ -539,7 +540,7 @@
   function render() {
     var r = $("mc-raiz"); if (!r) return;
     if (!S.d) { r.innerHTML = '<div class="mc-carregando">Carregando…</div>'; return; }
-    if (S.d.entrar) { r.innerHTML = entrarHtml(); botaoGoogle(); renderModal(); return; }
+    if (S.d.entrar) { r.innerHTML = entrarHtml(); botaoGoogle(); montarSenha(); renderModal(); return; }
     if (S.sub === "cartao") { r.innerHTML = cartaoHtml(S.d); renderModal(); montarCartao(); return; }
     var lista = abas(); if (!lista.some(function (a) { return a[0] === S.aba; })) S.aba = "resumo";
     var a = S.d.assinatura;
@@ -561,11 +562,17 @@
   // id_token, e o Worker abre a sessao da Minha conta (um cookie HttpOnly). Nenhuma senha a mais.
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   function entrarHtml() {
-    return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com a conta Google do e-mail que recebeu o convite." :
-      "Entre com a conta Google da assinatura, ou com a que o titular autorizou. Nenhuma senha a mais.") + "</p>" +
+    return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com o e-mail que recebeu o convite, pelo Google ou com senha." :
+      "Entre com a conta da assinatura, ou com a que o titular autorizou: pelo Google ou com e-mail e senha.") + "</p>" +
       '<div class="mc-google" id="mc-google" aria-live="polite"></div>' +
+      '<p class="cs-ou">' + L("ou com e-mail e senha", "or with email and password") + '</p><div class="mc-senha" id="mc-senha"></div>' +
       (S.erroEntrar ? '<p class="mc-nota centro mc-erro" role="alert">' + esc(cap(S.erroEntrar)) + "</p>" : "") +
       '<p class="mc-nota centro">Ainda não assina? <a href="' + (MP_IMG === "../../assets/" ? "../../assinatura/" : MP_IMG === "../assets/" ? "../assinatura/" : "Site - Assinatura.dc.html") + '">Conheça os planos</a>.</p></div>';
+  }
+  // A conta por e-mail e senha (assets/conta-senha.js): o token do Worker abre a mesma sessao que o do Google.
+  function montarSenha() {
+    var l = $("mc-senha"); if (!l || !window.PavlvsSenha) return;
+    PavlvsSenha.montar(l, { ingles: L(false, true), aoEntrar: function (token) { A.entrarComToken(token); } });
   }
   function botaoGoogle() {
     var lugar = $("mc-google"); if (!lugar) return;
@@ -681,7 +688,7 @@
     },
     removerInstalacao: function (el) {
       var i = S.d.instalacoes.filter(function (x) { return x.id === el.dataset.id; })[0];
-      S.modal = { tipo: "confirmar", titulo: "Tirar este computador?", ctx: "Instalações", texto: esc(i.nome) + " deixa de usar a assinatura: a IA e os serviços da nuvem param nele até alguém entrar de novo com a conta Google no programa.", botao: "Tirar",
+      S.modal = { tipo: "confirmar", titulo: "Tirar este computador?", ctx: "Instalações", texto: esc(i.nome) + " deixa de usar a assinatura: a IA e os serviços da nuvem param nele até alguém entrar de novo com a conta PAVLVS no programa.", botao: "Tirar",
         fazer: function () { return api("POST", "/api/conta/instalacoes/" + encodeURIComponent(i.id) + "/remover", {}).then(function () { S.d.instalacoes = S.d.instalacoes.filter(function (x) { return x !== i; }); toast("Computador tirado"); }); } };
       renderModal();
     },
