@@ -267,12 +267,13 @@ body.pcl-corpo .pcl-barra-site + .pcl-pagina { min-height: calc(100vh - 57px); m
 .pcl-barra-site { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--pcl-fio-fino); background: var(--pcl-topo); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .pcl-barra-dentro { padding: 0 28px; }
 @media (max-width: 900px) { .pcl-barra-dentro { padding: 0 16px; } }
-/* Campo e botao no tamanho do site: .caixa-campo (40 px, raio 10, fio --line, fundo --panel) e .btn-duplo (pastilha 34 px num trilho de 3 px, 13,5 px). */
-.pcl-campo input { min-height: 40px; height: 36px; padding: 0 12px; border-radius: 12px; border-color: var(--pcl-fio); background: var(--pcl-surf); font-size: 14px; }
+/* Campo e botao no padrao de 07/10: campo de 36 px (raio 12, fio, fundo do painel) e a moldura dupla com 32 px no total
+   (pastilha de 28, 1 px de fundo e 1 px de fio, pelo box-shadow). */
+.pcl-campo input { min-height: 36px; height: 36px; padding: 0 12px; border-radius: 12px; border-color: var(--pcl-fio); background: var(--pcl-surf); font-size: 14px; }
 .pcl-campo input:focus { outline: none; border-color: var(--pcl-fio2); }
 .pcl-campo input.pcl-codigo { height: 48px; font-size: 20px; }
-.pcl-form .pcl-botao, .pcl-botao { min-height: 34px; padding: 0 22px; font-size: 13px; }
-.pcl-botao.primario { margin: 3px; box-shadow: 0 0 0 3px var(--pcl-trilho), 0 0 0 4px var(--pcl-fio); }
+.pcl-form .pcl-botao, .pcl-botao { min-height: 28px; padding: 0 22px; font-size: 13px; }
+.pcl-botao.primario { margin: 2px; box-shadow: 0 0 0 1px var(--pcl-trilho), 0 0 0 2px var(--pcl-fio); }
 @media (max-width: 640px) { .pcl-campo input { font-size: 16px; } }
 /* As acoes de apoio do entrar: texto discreto do sistema (.btn-texto-mudo), sem sublinhado nem negrito, centradas. */
 .pcl-form .pcl-acoes { justify-content: center; gap: 20px; margin-top: 2px; }
@@ -316,10 +317,10 @@ body.pcl-corpo .pcl-barra-site + .pcl-pagina { min-height: calc(100vh - 57px); m
 .pcl-pagina .pcl-link:not(.pcl-form .pcl-link):hover { background: var(--pcl-fill); color: var(--pcl-ink); border-color: var(--pcl-fio2); }
 .pcl-pagina .pcl-link:not(.pcl-form .pcl-link) span:not(.ic) { text-decoration: none; }
 .pcl-pagina .pcl-link:not(.pcl-form .pcl-link) .ic { font-size: 15px; vertical-align: 0; color: var(--pcl-ink3); }
-/* Botoes dentro dos paineis no tamanho de linha do Admin: 28 px (a moldura dupla vira a .pequeno: trilho de 2 px). O 34 px fica so no entrar. */
+/* Botoes dentro dos paineis no tamanho de linha do Admin: 28 px; a moldura dupla, como em toda parte, com 32 px no total. */
 .pcl-painel .pcl-botao { min-height: 28px; height: 28px; padding: 0 12px; gap: 6px; border-radius: 8px; font-size: 12px; }
 .pcl-painel .pcl-botao .ic { font-size: 15px; vertical-align: 0; }
-.pcl-painel .pcl-botao.primario { margin: 2px; border-radius: 8px; box-shadow: 0 0 0 2px var(--pcl-trilho), 0 0 0 3px var(--pcl-fio); }
+.pcl-painel .pcl-botao.primario { margin: 2px; border-radius: 8px; box-shadow: 0 0 0 1px var(--pcl-trilho), 0 0 0 2px var(--pcl-fio); }
 .pcl-painel .pcl-acoes { gap: 8px; align-items: center; }
 .pcl-pasta-tela .pcl-aviso-registro { justify-content: center; text-align: center; }
 /* Quem cuida: ao passar o mouse (ou focar), o balaozinho com o avatar de iniciais, o nome e o escritorio. */

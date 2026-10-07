@@ -245,7 +245,7 @@ button.mini.perigo { background: var(--errofill); border-color: transparent; col
 button.mini.h32 { height: 28px; }
 button.mini:disabled, .btn-duplo:disabled { opacity: .45; cursor: default; pointer-events: none; }
 /* O mesmo botao de moldura dupla do site (.btn-duplo), num elemento so: a pastilha e o botao; o trilho vem por box-shadow. */
-.btn-acao { height: 32px; padding: 0 22px; margin: 4px; border-radius: 8px; border: 1px solid transparent; font: 500 13px var(--sans); letter-spacing: .01em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 0 3px var(--panel), 0 0 0 4px var(--line); background: var(--pill); color: var(--ink); }
+.btn-acao { height: 28px; padding: 0 22px; margin: 2px; border-radius: 8px; border: 1px solid transparent; font: 500 13px var(--sans); letter-spacing: .01em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 0 1px var(--panel), 0 0 0 2px var(--line); background: var(--pill); color: var(--ink); }
 .btn-acao:hover { background: var(--pill-h); }
 .btn-acao .icon { font-size: 14px; }
 .btn-acao:disabled { background: var(--panel); color: var(--ink3); cursor: default; border-color: var(--line); }
@@ -825,7 +825,7 @@ button.interruptor-min:not(.on) { background: none; }
 .modal.embutido.tipo-contaExtrato > .modal-pe { display: none; }
 /* Nos rodapes das abas, o botao no tamanho pequeno do site (.btn-duplo.pequeno: 28 px). */
 /* Todos os rodapes de dialogo do Admin com o botao pequeno (28 px). */
-.modal-pe .btn-acao { height: 32px; padding: 0 14px; margin: 2px; border-radius: 8px; font-size: 12px; }
+.modal-pe .btn-acao { height: 28px; padding: 0 14px; margin: 2px; border-radius: 8px; font-size: 12px; }
 .modal-pe .btn-texto-mudo { font-size: 12px; }
 .modal-pe { padding: 10px 16px; }
 /* Na pagina da conta, todos os botoes no tamanho pequeno (28 px). */
@@ -1187,11 +1187,11 @@ body.adm .caixa-campo input, body.adm .caixa-campo select { background: transpar
 .link-combo .nf-combo-lista { top: auto !important; bottom: calc(100% + 4px) !important; margin: 0 !important; }
 #tela > .passos { justify-content: center; }
 .camp-pe .mini { height: 28px; }
-/* Moldura dupla no /admin: uma medida so, a do .btn-duplo.pequeno do site (pastilha de 28 px num trilho de 2 px = 32 px no total). */
-body.adm .btn-duplo { padding: 2px; border-radius: 8px; }
+/* Moldura dupla no /admin: uma medida so, a do .btn-duplo.pequeno do site (pastilha de 28 px, 1 px de fundo e 1 px de fio = 32 px no total). */
+body.adm .btn-duplo { padding: 1px; border-radius: 12px; }
 body.adm .btn-duplo > span { height: 28px; padding: 0 14px; border-radius: 8px; font-size: 12px; }
 body.adm .btn-duplo .icon { font-size: 14px; }
-body.adm .btn-acao { height: 32px; padding: 0 14px; font-size: 12px; border-radius: 8px; }
+body.adm .btn-acao { height: 28px; padding: 0 14px; font-size: 12px; border-radius: 8px; }
 /* Quando: "Agora" ou o agendamento, com o calendario e o relogio do Paulus num popover. */
 .camp-quando { position: relative; }
 .quando-dir { display: flex; align-items: center; gap: 8px; position: relative; }

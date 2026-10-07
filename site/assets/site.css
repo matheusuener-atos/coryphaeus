@@ -108,9 +108,10 @@ p { margin: 0; }
 }
 
 /* ---------- o botao de moldura dupla ---------- */
-/* Trilho escuro com fio fino e, dentro, a pastilha: o botao principal. */
+/* Trilho escuro com fio fino e, dentro, a pastilha: o botao principal. Padrao de
+   07/10: 32 px no total (1 px de fundo, 1 px de fio e a pastilha de 28), um tamanho so. */
 .btn-duplo {
-  display: inline-flex; padding: 3px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
+  display: inline-flex; padding: 1px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
   color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; cursor: pointer; text-decoration: none;
 }
 .btn-duplo > span {
@@ -121,7 +122,7 @@ p { margin: 0; }
 .btn-duplo:hover > span { background: var(--pill-h); }
 .btn-duplo:active > span { background: var(--pill-a); }
 .btn-duplo.largo { display: flex; width: 100%; }
-.btn-duplo.pequeno { padding: 2px; border-radius: 8px; }
+.btn-duplo.pequeno { padding: 1px; border-radius: 12px; }
 .btn-duplo.pequeno > span { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; }
 .btn-duplo:disabled, .btn-duplo[aria-disabled="true"] { opacity: .5; pointer-events: none; }
 button.btn-duplo { font: 500 13px var(--sans); }
