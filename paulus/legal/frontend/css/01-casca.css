@@ -28,7 +28,7 @@
      colado a esquerda do minimizar - mesma altura, mesma largura, mesmo
      fundo ao passar o mouse. No navegador, fica onde a tela o pos. */
   html.com-janela :is(.trava-tema, .bv-tema) {
-    position: fixed; top: 0; right: calc(3 * 46px); z-index: 140; width: 46px; height: 32px; margin: 0;
+    position: fixed; top: 0; right: calc(3 * 46px); z-index: 140; width: 46px; height: 28px; margin: 0;
     border: none; border-radius: 0; background: none; color: var(--ink2);
   }
   html.com-janela :is(.trava-tema, .bv-tema):hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }

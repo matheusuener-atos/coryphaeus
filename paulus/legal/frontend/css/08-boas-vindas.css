@@ -271,5 +271,6 @@
     .bv-etapas { gap: 14px; }
   }
 
-  /* Dentro do programa, os tres botoes da janela ficam no canto: o cabecalho do assistente abre espaco para eles. */
-  html.com-janela .bv-cabeca { padding-right: 158px; }
+  /* Dentro do programa, os quatro botoes do canto (tema, minimizar, maximizar, fechar; 46 px cada) ficam
+     por cima: o cabecalho do assistente para antes deles, com folga. */
+  html.com-janela .bv-cabeca { padding-right: calc(4 * 46px + 24px); }
