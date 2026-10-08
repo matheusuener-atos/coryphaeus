@@ -376,6 +376,17 @@
   }
 
   async function iniciar() {
+    // Previa da confirmacao (?previa=aprovado|analise|mes|ano): so a tela final, com dados de exemplo;
+    // nada e cobrado nem pedido ao servidor.
+    var previa = new URLSearchParams(location.search).get("previa");
+    if (previa) {
+      var exemplo = { conta: { plano: { nome: "Escritório" }, email: "voce@escritorio.adv.br", pago_ate: new Date(Date.now() + (previa === "ano" ? 365 : 30) * 864e5).toISOString() } };
+      if (previa === "analise") exemplo.situacao = "in_process";
+      if (previa === "mes") exemplo.conta.periodo = "avulso";
+      if (previa === "ano") exemplo.periodo = "anual";
+      pronto(exemplo);
+      return;
+    }
     try { token = sessionStorage.getItem(CHAVE) || ""; } catch (e) { token = ""; }
     if (!pedido.plano) { voltarAoCadastro("escolha o plano na página de planos"); return; }
     if (!token) { voltarAoCadastro("entre no cadastro antes de pagar"); return; }
