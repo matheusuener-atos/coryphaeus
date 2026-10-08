@@ -1,22 +1,16 @@
 {
-  "versao": "0.9.31",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.31/PAULUS-0.9.31-instalador.exe",
-  "sha256": "3d4fcb4b4b5bf67a19751cfd1abb405c56ecb43c5f1afd9b3a5a9b9dfcb810ad",
-  "tamanho": 102066741,
+  "versao": "0.9.32",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.32/PAULUS-0.9.32-instalador.exe",
+  "sha256": "c3a229b01af1e5649b175d7369b40ddcf99e48813b1b2c5d0dbd886cdae38496",
+  "tamanho": 102077386,
   "publicada": "2026-10-07",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.31",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.32",
   "novidades": [
-    "Telas revisadas (etapa 7): a Área do cliente volta a escrever os meses curtos — o calendário de remarcar da entrega redeclarava \"var MESES\" por extenso no mesmo escopo e trocava os meses da página inteira (\"16 outubro\", e o OUTUBRO sem caber no quadrinho das próximas datas)",
-    "Telas revisadas (etapa 7): o assistente de configuração novo fala com o servidor — a assinatura da conta Google que entrou, o consentimento do passo Conexões e o \"Trocar de conta\"",
-    "Telas revisadas (etapa 7): o que a bateria achou na entrega — o botão principal não pula mais ao passar o mouse (o :hover tirava o margin-left: auto das linhas de ações e o clique caía fora dele: \"Tentar de novo\", aprovações, Agenda, Documentos, assinatura), a Biblioteca no celular não passa da bord",
-    "Telas revisadas (etapa 7): a volta do Google de um login só (vínculo, destravar) fica como o desenho \"Login recebido\", sem a linha da conta — a frase da falha continua aparecendo se o Paulus não terminar",
-    "Telas revisadas (etapa 7): o que o servidor escreve segue o padrão de texto das telas — \"Paulus\" na prosa e \"Acesso externo\" no nome do recurso",
-    "Telas revisadas (etapa 6): a Área do cliente entende o pedido de remarcar da tela nova (\"dd/mm/aaaa · período · observação\") — o dia tem de existir e não ter passado, e a trilha da pasta guarda dia, período e observação separados; texto livre continua valendo",
-    "Telas revisadas (etapa 6): a ordem do Google da Minha conta e do painel chega ao Paulus do escritório — POST /api/ia/google, desligar é parar de usar, desvincular revoga no Google",
-    "Telas revisadas (etapa 6): a Minha conta ligada ao servidor — entrar com o botão do Google, cartão nos campos seguros do Mercado Pago, Pix com o QR de verdade, troca de plano com o orçamento antes, cancelamento com a oferta do servidor e a versão de cada computador",
-    "Telas revisadas (etapa 5): a moldura dupla com 32 px também no assistente de configuração",
-    "Telas revisadas (etapa 5): Materiais, Desenvolvimento e a Comunidade saem de vez — as rotas e o código que sobraram no Worker, no programa e no publicar",
-    "Telas revisadas (etapa 5): a moldura dupla com 32 px no total no site, no /admin, na Minha conta e na Área do cliente",
-    "Telas revisadas (etapa 3): as telas de acesso no desenho de 07/10 — entrar de fora, convite, volta do Google, trava do programa e a página recusada"
+    "O ícone do Google Authenticator volta a aparecer (\"Ler o QR no celular\"): a rota dos logos de marca só servia .svg e o dele é .webp; agora serve .svg, .webp e .png, cada um com o tipo certo",
+    "\"Edite no site\" e \"Fazer upgrade\" do pós-instalador abrem a Minha conta já com a sessão (link de uso único, 2 minutos, pedido à nuvem pelo segredo da instalação: POST /api/ia/minha-conta/link; a Minha conta entra com ?entrar=), na aba Cadastro ou Plano; e o pulso de volta: o Paulus relê a assinatura",
+    "Pós-instalador com transição: a cada troca de passo o texto e o cartão entram juntos em 280 ms (para a frente, da direita; ao voltar, da esquerda); redesenhar o mesmo passo fica parado, e quem pediu animações reduzidas vê a troca seca",
+    "Pós-instalador: as etapas do alto param antes dos quatro botões do canto da janela (tema, minimizar, maximizar, fechar) — a folga antiga contava três e \"Atualizações\" passava por baixo do tema — e o botão de tema tem a altura dos outros três (28 px)",
+    "Primeira abertura sem piscar: o fundo do assistente de configuração cobre a janela desde a primeira pintura (index.html marca bv-cedo quando o assistente ainda não foi concluído) e sai no mesmo instante em que ele se desenha, ou quando ele não é preciso — antes, a tela Assistente aparecia enquanto o",
+    "Conta por e-mail e senha no Paulus: vincular, destravar a janela e confirmar a conta pela senha (rotas /api/vinculo/senha/*, que chamam /api/id/* do Worker e seguem o mesmo caminho do Google, com o código do celular quando a conta de titular tem autenticador); o passo \"Sua conta\" do assistente e a t"
   ]
 }
