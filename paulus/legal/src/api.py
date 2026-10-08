@@ -1319,12 +1319,13 @@ def imagem(arquivo: str) -> FileResponse:
 
 @app.get("/img/marcas/{arquivo}")
 def imagem_de_marca(arquivo: str) -> FileResponse:
-    """Os logos dos fabricantes de modelo (assistente de configuracao), so .svg."""
+    """Os logos das marcas (modelos, Google, Cloudflare, o Authenticator): .svg, .webp ou .png, com o tipo certo."""
+    tipos = {".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png"}
     pasta = (FRONTEND_DIR / "img" / "marcas").resolve()
     alvo = (pasta / Path(arquivo).name).resolve()
-    if alvo.parent != pasta or alvo.suffix != ".svg" or not alvo.exists():
+    if alvo.parent != pasta or alvo.suffix not in tipos or not alvo.exists():
         raise HTTPException(status_code=404, detail="imagem nao encontrada")
-    return FileResponse(alvo, media_type="image/svg+xml")
+    return FileResponse(alvo, media_type=tipos[alvo.suffix])
 
 
 # ------------------------------------------------------------------- cache
