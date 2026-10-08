@@ -138,3 +138,6 @@ data/word/
 # maquina) e os anexos trazidos da caixa para encaminhar: dados de quem usa.
 data/editor_no_acervo.json
 data/encaminhar/
+
+# Copias de reserva dos dados (tools/recomecar.ps1 e afins): nunca vao ao GitHub.
+data-reserva-*/
