@@ -176,6 +176,7 @@ async function mostrarBoasVindas() {
   bv.atualizacoes = { verificar: a.verificar !== false, avisar_antes: a.avisar_antes !== false };
   MODULOS_BV.forEach(([id]) => { if (bv.modulos[id] === undefined) bv.modulos[id] = true; });
   bv.passo = 0;
+  bv.passoDesenhado = undefined;
   const pendente = lerVinculo();
   bv.caminho = pendente ? "entrar" : "criar";
   bv.vinculo = pendente ? Object.assign({}, pendente) : { apelido: "", cargo: "", codigoResponsavel: "", meuCodigo: "" };
@@ -220,7 +221,12 @@ function desenharBoasVindas() {
   };
   const [texto, lado] = telas[passo]();
   const rotulo = bv.passo === 0 ? "BEM-VINDO" : "PASSO " + bv.passo + " — " + NOMES_BV[passo].toUpperCase();
-  const corpo = '<div class="bv-corpo"><div class="bv-texto"><span class="bv-rotulo">' + rotulo + "</span>" + texto + "</div>" +
+  // A transicao so quando o passo muda (redesenhar o mesmo passo, ao digitar ou trocar o tema, fica parado):
+  // para a frente entra da direita; ao voltar, da esquerda.
+  const anterior = bv.passoDesenhado;
+  const entra = anterior === undefined ? " bv-entra" : anterior < bv.passo ? " bv-entra" : anterior > bv.passo ? " bv-entra bv-volta" : "";
+  bv.passoDesenhado = bv.passo;
+  const corpo = '<div class="bv-corpo' + entra + '"><div class="bv-texto"><span class="bv-rotulo">' + rotulo + "</span>" + texto + "</div>" +
     '<div class="bv-lado">' + lado + "</div></div>";
 
   const ultimo = bv.passo === ordem.length - 1;

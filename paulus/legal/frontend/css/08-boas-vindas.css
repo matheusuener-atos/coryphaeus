@@ -274,3 +274,13 @@
   /* Dentro do programa, os quatro botoes do canto (tema, minimizar, maximizar, fechar; 46 px cada) ficam
      por cima: o cabecalho do assistente para antes deles, com folga. */
   html.com-janela .bv-cabeca { padding-right: calc(4 * 46px + 24px); }
+
+  /* A troca de passo: o texto e o cartao entram juntos, em 280 ms (para a frente, da direita; ao voltar, da esquerda).
+     Quem pediu tela parada (sem-animacao, ou o sistema) ve a troca seca. */
+  @keyframes bv-entrar { from { opacity: 0; transform: translateX(var(--bv-de, 18px)); } to { opacity: 1; transform: none; } }
+  .bv-corpo.bv-entra { animation: bv-entrar .28s cubic-bezier(.2, .7, .2, 1) both; }
+  .bv-corpo.bv-volta { --bv-de: -18px; }
+  .bv-corpo.bv-entra .bv-lado { animation: bv-entrar .34s cubic-bezier(.2, .7, .2, 1) .04s both; }
+  .bv-etapa { transition: color .2s ease; }
+  html.sem-animacao .bv-corpo.bv-entra, html.sem-animacao .bv-corpo.bv-entra .bv-lado { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .bv-corpo.bv-entra, .bv-corpo.bv-entra .bv-lado { animation: none; } }
