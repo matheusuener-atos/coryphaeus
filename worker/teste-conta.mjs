@@ -418,7 +418,22 @@ console.log("\nescritório, instalações, Google e notas");
   env.CF_ZONE_ID = "zona";
   env.CF_API_TOKEN = "cf";
   env.TUNEL_ATIVO = "1";
-  await ia("/api/ia/ativar", { id_token: "tk-helena", instalacao_id: "inst-0001-abcd" });
+  const ativa = await (await ia("/api/ia/ativar", { id_token: "tk-helena", instalacao_id: "inst-0001-abcd" })).json();
+  // O link de entrada que o Paulus pede ("edite no site", "Fazer upgrade"): abre a Minha conta ja com a sessao.
+  const pedirLink = async (corpo, segredo) => {
+    const req = new Request("https://paulus.ia.br/api/ia/minha-conta/link", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + segredo }, body: JSON.stringify(corpo) });
+    const r = await atenderIA(req, env, new URL(req.url), { waitUntil: () => null }, deps);
+    return { status: r.status, d: await r.json() };
+  };
+  const lk = await pedirLink({ aba: "cadastro" }, ativa.segredo);
+  const codigoLink = ((lk.d.url || "").match(/\?entrar=([0-9a-f]{64})#cadastro$/) || [])[1];
+  checar(lk.status === 200 && lk.d.url.startsWith("https://paulus.ia.br/minha-conta/?entrar=") && codigoLink, "o Paulus pede o link da Minha conta, na aba Cadastro", lk.d);
+  checar((await pedirLink({ aba: "plano" }, "pia_" + "0".repeat(24) + "_" + "0".repeat(64))).status === 401, "sem o segredo da instalação: 401");
+  const porLink = await conta("POST", "/api/conta/entrar", { link: codigoLink });
+  const ckLink = cookieDe(porLink.r);
+  const dLink = ckLink && (await conta("GET", "/api/conta", null, ckLink)).d;
+  checar(porLink.status === 200 && porLink.d.papel === "titular" && dLink && !dLink.entrar, "o link abre a sessão do titular, sem pedir login", [porLink.status, porLink.d, dLink && Object.keys(dLink)]);
+  checar((await conta("POST", "/api/conta/entrar", { link: codigoLink })).status === 410, "o link vale uma vez");
   // O relogio andou semanas no Pix mensal: a sessao de 12 horas venceu.
   ck = cookieDe((await conta("POST", "/api/conta/entrar", { credential: "tk-helena" })).r);
   const d = (await conta("GET", "/api/conta", null, ck)).d;

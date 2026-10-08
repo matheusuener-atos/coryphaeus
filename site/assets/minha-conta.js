@@ -826,6 +826,14 @@
     if (/^convite=[0-9a-f]{48}$/.test(h)) { S.convite = h.slice(8); h = ""; try { history.replaceState(null, "", location.pathname); } catch (e) {} }
     if (op.aba) S.aba = op.aba; else if (h) S.aba = h;
     if (S.aba === "cartao") { S.aba = "pagamento"; S.sub = "cartao"; }
+    // ?entrar=<codigo>: o link que o Paulus abriu ("edite no site", "Fazer upgrade") ja traz a sessao.
+    var q = new URLSearchParams(location.search).get("entrar") || "";
+    if (/^[0-9a-f]{64}$/.test(q)) {
+      try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+      render();
+      api("POST", "/api/conta/entrar", { link: q }).catch(function (e) { S.erroEntrar = e.message; }).then(carregar);
+      return;
+    }
     render(); carregar();
   }
   window.MinhaConta = { iniciar: iniciar };

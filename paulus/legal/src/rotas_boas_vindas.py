@@ -74,6 +74,32 @@ _ativada_aqui: dict = {"email": ""}
 _consentimento: dict = {"entrada": None}
 
 
+class LinkDaConta(BaseModel):
+    aba: str = "cadastro"
+
+
+MINHA_CONTA = "https://paulus.ia.br/minha-conta/"
+
+
+def link_da_minha_conta(estado, aba: str) -> dict:
+    """
+    A Minha conta do site já com a sessão do titular: o Worker dá um link que
+    vale uma vez, por 2 minutos (POST /api/ia/minha-conta/link, com o segredo
+    desta instalação). Sem a nuvem ativada aqui, ou sem rede, o endereço comum:
+    a pessoa entra lá com a conta dela. `motivo` diz por que veio o comum.
+    """
+    aba = aba if aba in ("cadastro", "plano", "resumo", "pagamento", "escritorio") else "resumo"
+    comum = MINHA_CONTA + "#" + aba
+    if not nuvem.chave(estado, "paulus"):
+        return {"url": comum, "motivo": "a nuvem ainda não foi ativada neste computador"}
+    try:
+        r = nuvem._paulus(estado, "POST", "/api/ia/minha-conta/link", {"aba": aba}, timeout=TEMPO_REDE) or {}
+    except nuvem.ErroNuvem as exc:
+        return {"url": comum, "motivo": str(exc)}
+    url = str(r.get("url") or "")
+    return {"url": url} if url.startswith(MINHA_CONTA) else {"url": comum, "motivo": "a nuvem não deu o link"}
+
+
 class Autorizar(BaseModel):
     servicos: list[str] = []
     tema: str = ""
@@ -354,3 +380,8 @@ def montar(estado, app, *, credenciais, ao_voltar=None, ao_ligar_agenda=None) ->
     @app.post("/api/conexoes/cancelar")
     def conexoes_cancelar() -> dict:
         return cancelar()
+
+    @app.post("/api/assinatura/link")
+    def assinatura_link(payload: LinkDaConta) -> dict:
+        """O endereço da Minha conta já com a sessão (o "edite no site" e o "Fazer upgrade"): {url}."""
+        return link_da_minha_conta(estado, payload.aba)

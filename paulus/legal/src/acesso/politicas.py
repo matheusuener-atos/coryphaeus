@@ -496,7 +496,7 @@ _declarar(BLOQUEADO, "GET /api/nfse-recebidas", "GET /api/nfse-recebidas/{id_}/p
 # O assistente de configuracao (src/rotas_boas_vindas.py): a assinatura da conta
 # Google que entrou, com o cadastro do site, e o consentimento do Google do
 # passo Conexoes - so na janela do escritorio, como a conta da nuvem e o e-mail.
-_declarar(BLOQUEADO, "GET /api/assinatura", "POST /api/conexoes/autorizar", "POST /api/conexoes/cancelar")
+_declarar(BLOQUEADO, "GET /api/assinatura", "POST /api/assinatura/link", "POST /api/conexoes/autorizar", "POST /api/conexoes/cancelar")
 # A IA faz parte da assinatura (src/plano.py): se ela esta liberada, e a frase
 # de onde assinar - sem nada da conta. A tela de fora tambem precisa saber.
 _declarar(PERMITIDO, "GET /api/plano")

@@ -148,6 +148,18 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
 async function entrar(request, env, deps) {
   if (deps.dentroDoLimite && !(await deps.dentroDoLimite(request, env))) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
   const d = (await lerJSON(request)) || {};
+  // O link de entrada que o Paulus pediu (POST /api/ia/minha-conta/link): uma vez, 2 minutos.
+  if (d.link) {
+    if (!/^[0-9a-f]{64}$/.test(String(d.link))) return json({ erro: "este link não abre: abra de novo pelo Paulus" }, 400);
+    const chave = "conta:link:" + (await sha256(d.link));
+    const l = await kvJSON(env, chave);
+    if (!l) return json({ erro: "este link já foi usado ou venceu: abra de novo pelo Paulus, ou entre aqui", entrar: true }, 410);
+    await env.APOIOS.delete(chave);
+    const token = aleatorio(32);
+    const ate = new Date(Date.now() + SESSAO_S * 1000).toISOString();
+    await env.APOIOS.put("conta:sessao:" + (await sha256(token)), JSON.stringify({ conta: l.conta, papel: l.papel, email: l.email, sub: l.sub, nome: l.nome, ate }), { expirationTtl: SESSAO_S });
+    return json({ ok: true, papel: l.papel }, 200, { "set-cookie": cookie(token, SESSAO_S) });
+  }
   const credencial = String(d.credential || d.id_token || "");
   const dono = await (deps.donoDoToken || donoDoToken)(env, credencial);
   if (!dono) return json({ erro: "a sua entrada venceu: entre de novo" }, 401);

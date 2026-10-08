@@ -115,9 +115,39 @@ async function lerAssinatura(soLer) {
   return a;
 }
 
+/* Depois de abrir a Minha conta ("edite no site", "Fazer upgrade"): o "pulso" de volta. A tela confere a
+   assinatura a cada 5 s e logo que a janela do Paulus volta ao primeiro plano; quando o cadastro ou o
+   plano mudar no site, redesenha com os dados novos. Compara com o que o site tinha quando a pessoa
+   saiu (a ultima resposta de GET /api/assinatura), e nao com os dados daqui. */
+function esperarVoltaDoSite() {
+  const marca = (a) => JSON.stringify([(a && a.pessoa) || {}, (a && a.escritorio) || "", (a && a.plano) || "", (a && a.renova_em) || "", (a && a.situacao) || ""]);
+  const antes = marca(bv.assinatura || {});
+  pararEsperaDados();
+  bv.dadosEsperando = true;
+  let conferindo = false;
+  const conferir = async () => {
+    if (conferindo || !bv.dadosEsperando) return;
+    conferindo = true;
+    try {
+      const r = await lerAssinatura(true);
+      if (r && r.ativa && marca(r) !== antes) {
+        bv.assinatura = r;
+        if (r.pessoa) Object.assign(bv.pessoa, r.pessoa);
+        if (r.escritorio) bv.escritorio = r.escritorio;
+        pararEsperaDados(); desenharBoasVindas(); avisoCert("dados atualizados pelo site");
+      }
+    } finally { conferindo = false; }
+  };
+  bv.relogioDados = setInterval(conferir, 5000);
+  bv.aoFocar = conferir;
+  window.addEventListener("focus", conferir);
+  desenharBoasVindas();
+}
+
 function pararEsperaDados() {
   bv.dadosEsperando = false;
   if (bv.relogioDados) { clearInterval(bv.relogioDados); bv.relogioDados = null; }
+  if (bv.aoFocar) { window.removeEventListener("focus", bv.aoFocar); bv.aoFocar = null; }
 }
 
 function pararEsperaAssinatura() {
@@ -476,7 +506,7 @@ function passoDados() {
   const campo = (rotulo, valor, mono, tam) => '<div class="bv-campo-ro' + (tam ? " " + tam : "") + '"><span>' + rotulo + "</span><b" + (mono ? ' class="mono"' : "") + ">" + (valor ? esc(valor) : "<i>não informado</i>") + "</b></div>";
   if (bv.dadosEsperando) {
     const lado = '<div class="bv-entrada"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
-      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando a edição no site…</b><small>quando salvar, os dados aparecem aqui</small></span>' +
+      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o site…</b><small>quando salvar na Minha conta, os dados e o plano aparecem aqui</small></span>' +
       '<button type="button" class="bv-ligacao apagada" data-bv="dados-cancelar">Cancelar</button></div>' +
       '<button type="button" class="bv-continuar bv-largo" data-bv="dados-conferir"><span>Já editei, conferir agora</span></button></div>';
     return [texto, lado];
@@ -1031,36 +1061,28 @@ async function acaoBoasVindas(qual) {
     if (JSON.stringify([bv.pessoa, bv.escritorio]) === antes) avisoCert("nenhuma alteração encontrada — se já salvou no site, aguarde um instante");
     pararEsperaDados(); desenharBoasVindas(); return;
   }
-  if (qual === "upgrade") { window.open("https://paulus.ia.br/assinatura?trocar=1", "_blank", "noopener"); return; }
-  if (qual === "assinar" || qual === "editar-site") {
+  if (qual === "upgrade" || qual === "editar-site") {
+    // A Minha conta do site ja com a sessao (um link de uso unico que a nuvem da), na aba certa:
+    // Cadastro para editar os dados, Plano para o upgrade. Sem a nuvem, o endereco comum.
+    const aba = qual === "upgrade" ? "plano" : "cadastro";
+    let url = "https://paulus.ia.br/minha-conta/#" + aba;
+    try {
+      const r = await fetch("/api/assinatura/link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aba }) });
+      if (r.ok) url = (await r.json()).url || url;
+    } catch (err) { /* fica o endereco comum */ }
+    window.open(url, "_blank", "noopener");
+    esperarVoltaDoSite();
+    return;
+  }
+  if (qual === "assinar") {
     const e = (typeof vinc !== "undefined" && vinc.estado) || null;
     const email = (e && e.email) || bv.google || "";
-    const pagina = qual === "assinar" ? (bv.assinatura && bv.assinatura.situacao === "vencida" ? "/assinatura" : "/cadastro") : "/assinatura";
+    const pagina = bv.assinatura && bv.assinatura.situacao === "vencida" ? "/assinatura" : "/cadastro";
     window.open("https://paulus.ia.br" + pagina + (email ? "?email=" + encodeURIComponent(email) : ""), "_blank", "noopener");
-    if (qual === "editar-site") {
-      // Espera a volta: consulta a assinatura e, quando algum dado mudar, mostra o formulario de novo.
-      // Compara com o que o site tinha quando a pessoa saiu (a ultima resposta de GET /api/assinatura),
-      // e nao com os dados daqui: uma diferenca antiga entre os dois nao e edicao.
-      const base = bv.assinatura || {};
-      const antes = JSON.stringify([base.pessoa || {}, base.escritorio || ""]);
-      bv.dadosEsperando = true; pararEsperaDados();
-      bv.relogioDados = setInterval(async () => {
-        const r = await lerAssinatura(true);
-        if (r && r.ativa && JSON.stringify([r.pessoa || {}, r.escritorio || ""]) !== antes) {
-          bv.assinatura = r;
-          if (r.pessoa) Object.assign(bv.pessoa, r.pessoa);
-          if (r.escritorio) bv.escritorio = r.escritorio;
-          pararEsperaDados(); desenharBoasVindas();
-        }
-      }, 5000);
-      desenharBoasVindas(); return;
-    }
-    if (qual === "assinar") {
-      bv.assinaturaEsperando = true;
-      pararEsperaAssinatura();
-      bv.relogioAssinatura = setInterval(async () => { await lerAssinatura(); if (bv.assinatura && bv.assinatura.ativa) desenharBoasVindas(); }, 5000);
-      desenharBoasVindas();
-    }
+    bv.assinaturaEsperando = true;
+    pararEsperaAssinatura();
+    bv.relogioAssinatura = setInterval(async () => { await lerAssinatura(); if (bv.assinatura && bv.assinatura.ativa) desenharBoasVindas(); }, 5000);
+    desenharBoasVindas();
     return;
   }
   if (qual === "assinatura-conferir") {

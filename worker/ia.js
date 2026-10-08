@@ -244,6 +244,19 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   if (p === "/api/ia/google" && m === "POST") return relatarGoogle(request, conta);
   // O cadastro e da conta dona deste segredo, e so dela: sem o segredo dela, nao se chega aqui.
   if (p === "/api/ia/cadastro" && m === "GET") return json(cadastroDaConta(await conta.pedir("ler_cadastro")));
+  // O link que abre a Minha conta ja com a sessao (o "edite no site" e o "Fazer upgrade" do Paulus):
+  // vale uma vez, por 2 minutos; quem o pede e a instalacao da conta, e a sessao e a do titular dela.
+  if (p === "/api/ia/minha-conta/link" && m === "POST") {
+    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
+    const d = (await lerJSON(request)) || {};
+    const aba = ["cadastro", "plano", "resumo", "pagamento", "escritorio"].includes(d.aba) ? d.aba : "resumo";
+    const r = await conta.pedir("minha_conta");
+    const dono = r && r.dono;
+    if (!dono || !dono.email) return json({ erro: "esta conta ainda não tem dono na nuvem" }, 409);
+    const codigo = aleatorio(32);
+    await env.APOIOS.put("conta:link:" + (await sha256(codigo)), JSON.stringify({ conta: quem.id, papel: "titular", email: dono.email, sub: dono.sub || "", nome: r.nome || "" }), { expirationTtl: 120 });
+    return json({ url: "https://paulus.ia.br/minha-conta/?entrar=" + codigo + "#" + aba });
+  }
   const mp = deps.chamarMP;
   if (p === "/api/ia/assinar" && m === "POST") {
     if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);

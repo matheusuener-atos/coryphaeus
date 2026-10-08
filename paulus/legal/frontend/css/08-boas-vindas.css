@@ -20,7 +20,7 @@
   }
   .bv-marca { display: flex; align-items: center; height: 56px; font: 400 20px/1 var(--serif); letter-spacing: .12em; flex: none; }
   .bv-etapas { margin-left: auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 24px; overflow: hidden; }
-  .bv-etapa { font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .bv-etapa { font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; transition: color .2s ease; }
   .bv-etapa.atual { color: var(--ink); }
   /* O numero de passo tem uma medida so (20). O .bv-num-passo dos codigos
      (20-vinculo) e o mesmo circulo, sempre cheio. */
@@ -281,6 +281,5 @@
   .bv-corpo.bv-entra { animation: bv-entrar .28s cubic-bezier(.2, .7, .2, 1) both; }
   .bv-corpo.bv-volta { --bv-de: -18px; }
   .bv-corpo.bv-entra .bv-lado { animation: bv-entrar .34s cubic-bezier(.2, .7, .2, 1) .04s both; }
-  .bv-etapa { transition: color .2s ease; }
   html.sem-animacao .bv-corpo.bv-entra, html.sem-animacao .bv-corpo.bv-entra .bv-lado { animation: none; }
   @media (prefers-reduced-motion: reduce) { .bv-corpo.bv-entra, .bv-corpo.bv-entra .bv-lado { animation: none; } }
