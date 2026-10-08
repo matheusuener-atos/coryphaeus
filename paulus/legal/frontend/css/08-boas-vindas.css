@@ -244,7 +244,6 @@
 
 
   .bv-rodape { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--ink-a1); padding-top: 18px; }
-  .bv-versao { font-size: 13px; }
   .bv-rodape .bv-ligacao { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; }
   .bv-ligacao.apagada { color: var(--ink2); }
   /* O .btn-duplo do site: trilho com fio fino e, dentro, a pastilha - 32 px no total (padrao de 07/10). */

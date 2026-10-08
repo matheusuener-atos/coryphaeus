@@ -268,11 +268,8 @@ function desenharBoasVindas() {
   else if (passo === "conexoes" && SERVICOS_BV.some((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id])) botao = "Autorizar no Google";
   else botao = "Continuar";
   const esperando = (passo === "ia" && !bv.maquina) || (passo === "assinatura" && !(bv.assinatura && (bv.assinatura.ativa || bv.assinatura.situacao === "vencida"))) || (passo === "dados" && bv.dadosEsperando) || (passo === "conexoes" && bv.consentEsperando);
-  const versao = (bv.status && bv.status.versao) || "";
   const rodape = '<div class="bv-rodape">' +
-    (bv.passo === 0
-      ? '<span class="bv-versao">Paulus' + (versao ? " · versão " + esc(versao) : "") + " · Windows</span>"
-      : '<button class="bv-ligacao" data-bv="voltar">' + ic("arrow_back", 16) + "Voltar</button>") +
+    (bv.passo === 0 ? "" : '<button class="bv-ligacao" data-bv="voltar">' + ic("arrow_back", 16) + "Voltar</button>") +
     '<span class="cresce"></span>' +
     (["modulos", "conexoes", "acesso", "google"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar"><span>' + botao + "</span></button>") + "</div>";

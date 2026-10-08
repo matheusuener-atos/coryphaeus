@@ -17,10 +17,11 @@
      forte (tinta cheia) e tipo (destaque). .pilula-estado e .fin-status sao
      a mesma peca com os nomes que o JS monta a partir dos dados (pago,
      atrasado, vence...), por isso ficam na lista em vez de trocar de nome. */
+  /* Sem negrito, sempre (pedido do dono, 08/10/2026): o selo e cor e fundo, nao peso. */
   .etiqueta, .pilula-estado, .fin-status {
     justify-self: start; display: inline-flex; align-items: center; gap: 6px;
     padding: 2px 8px; border-radius: 5px; background: var(--fill); color: var(--ink2);
-    font: 600 12px var(--sans); white-space: nowrap;
+    font: 400 12px var(--sans); white-space: nowrap;
   }
   .etiqueta i, .pilula-estado i, .fin-status i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); flex: none; }
   .etiqueta.ok, .pilula-estado.ok, .fin-status.pago, .fin-status.sv-status-concluido { background: var(--okbg); color: var(--okt); }
