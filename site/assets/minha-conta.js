@@ -259,13 +259,39 @@
   };
 
   var UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+  // As mascaras do cadastro (as mesmas da pagina de cadastro, assets/cadastro.js): o servidor fica so com os digitos.
+  function digitos(t) { return String(t || "").replace(/\D/g, ""); }
+  function mascararDocumento(t) {
+    var d = digitos(t).slice(0, 14);
+    if (d.length <= 11) return d.replace(/^(\d{3})(\d)/, "$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d{1,2})$/, ".$1-$2");
+    return d.replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+  }
+  function mascararTelefone(t) {
+    var d = digitos(t).slice(0, 11);
+    if (d.length < 3) return d;
+    return "(" + d.slice(0, 2) + ") " + (d.length > 10 ? d.slice(2, 7) + "-" + d.slice(7) : d.slice(2, 6) + (d.length > 6 ? "-" + d.slice(6) : ""));
+  }
+  function mascararCep(t) { var d = digitos(t).slice(0, 8); return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d; }
+  var MASCARAS = { documento: mascararDocumento, telefone: mascararTelefone, cep: mascararCep };
+  // O que veio do servidor so ganha a mascara se couber nela: um valor fora do tamanho fica como esta, sem perder digito.
+  var MAXIMO = { documento: 14, telefone: 11, cep: 8 };
+  function comMascara(k, v) { v = v || ""; return MASCARAS[k] && digitos(v).length <= MAXIMO[k] ? MASCARAS[k](v) : v; }
+  /* Aplica a mascara enquanto digita, sem jogar o cursor para o fim no meio do campo. */
+  function mascarar(el) {
+    var f = MASCARAS[el.dataset.cad]; if (!f) return;
+    var antes = el.value, pos = el.selectionStart, digAntes = digitos(antes.slice(0, pos)).length;
+    var novo = f(antes); if (novo === antes) return;
+    el.value = novo;
+    var i = 0, n = 0; while (i < novo.length && n < digAntes) { if (/\d/.test(novo[i])) n++; i++; }
+    try { el.setSelectionRange(i, i); } catch (e) { /* campo sem cursor */ }
+  }
   TELAS.cadastro = function (d) {
     var c = d.cadastro;
-    var campo = function (k, rot, extra, cls) { return '<label class="campo-site' + (cls ? " " + cls : "") + '"><span>' + rot + '</span><span class="caixa-campo"><input id="mc-cad-' + k + '" data-cad="' + k + '" value="' + esc(c[k] || "") + '"' + (extra || "") + "></span></label>"; };
+    var campo = function (k, rot, extra, cls) { return '<label class="campo-site' + (cls ? " " + cls : "") + '"><span>' + rot + '</span><span class="caixa-campo"><input id="mc-cad-' + k + '" data-cad="' + k + '" value="' + esc(comMascara(k, c[k])) + '"' + (extra || "") + "></span></label>"; };
     var corpo = '<div class="mc-corpo mc-form">' +
-      '<div class="mc-form-grade">' + campo("nome", "Nome ou razão social", "", "largo") + campo("documento", "CPF ou CNPJ", ' inputmode="numeric"') + campo("oab", "OAB") + campo("telefone", "Telefone", ' inputmode="tel"') + campo("email_cobranca", "E-mail das faturas", ' type="email"') + "</div>" +
+      '<div class="mc-form-grade">' + campo("nome", "Nome ou razão social", "", "largo") + campo("documento", "CPF ou CNPJ", ' inputmode="numeric" maxlength="18" data-a-in="mascarar" placeholder="000.000.000-00"') + campo("oab", "OAB") + campo("telefone", "Telefone", ' inputmode="tel" maxlength="15" data-a-in="mascarar" placeholder="(91) 90000-0000"') + campo("email_cobranca", "E-mail das faturas", ' type="email"') + "</div>" +
       '<span class="rotulo mc-sub">Endereço</span>' +
-      '<div class="mc-form-grade">' + campo("cep", "CEP", ' inputmode="numeric" data-a-in="cep"') + campo("logradouro", "Logradouro", "", "largo") + campo("numero", "Número") + campo("complemento", "Complemento") + campo("bairro", "Bairro") + campo("cidade", "Cidade", ' data-a-in="semCmun"') +
+      '<div class="mc-form-grade">' + campo("cep", "CEP", ' inputmode="numeric" maxlength="9" data-a-in="cep" placeholder="00000-000"') + campo("logradouro", "Logradouro", "", "largo") + campo("numero", "Número") + campo("complemento", "Complemento") + campo("bairro", "Bairro") + campo("cidade", "Cidade", ' data-a-in="semCmun"') +
       '<label class="campo-site"><span>UF</span><span class="caixa-campo"><select id="mc-cad-uf" data-cad="uf" data-a-in="semCmun">' + (c.uf ? "" : '<option value="" selected>—</option>') + UFS.map(function (u) { return "<option" + (u === c.uf ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select>" + ic("expand_more") + "</span></label></div>" +
       '<p class="mc-nota" id="mc-cep-nota" hidden></p></div>' +
       '<div class="mc-pe"><span class="mc-nota">As próximas NFS-e saem com estes dados.</span><button type="button" class="btn-duplo pequeno" data-a="salvarCadastro"><span>Salvar</span></button></div>';
@@ -773,7 +799,8 @@
   }
   var ENTRADAS = {
     kCampo: function () { cartaoOk(); },
-    cep: buscarCep,
+    cep: function (el) { mascarar(el); buscarCep(el); },
+    mascarar: mascarar,
     semCmun: function () { S.cmun = ""; },
     motivoTexto: function (el) { S.modal.texto = el.value; },
     slug: function (el) {
