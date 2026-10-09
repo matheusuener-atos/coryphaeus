@@ -5,15 +5,15 @@
    mesmo nome, para o claro tambem. */
 :root {
   --site-panel: #efeee9;
-  --site-pill: #e2e1db;
-  --site-pill-h: #dad9d2;
+  --site-pill: var(--primario-fundo);
+  --site-pill-h: var(--primario-sobre);
   --site-line: rgba(28, 28, 26, .12);
   --site-line3: rgba(28, 28, 26, .25);
 }
 [data-tema="escuro"] {
   --site-panel: #1a1a18;
-  --site-pill: #2a2a27;
-  --site-pill-h: #303030;
+  --site-pill: var(--primario-fundo);
+  --site-pill-h: var(--primario-sobre);
   --site-line: rgba(242, 241, 236, .1);
   --site-line3: rgba(242, 241, 236, .2);
 }

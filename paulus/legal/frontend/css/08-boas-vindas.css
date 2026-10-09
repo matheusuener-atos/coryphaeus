@@ -62,9 +62,9 @@
   .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); }
   .bv-linha:hover { background: var(--surf); border-color: var(--ink-a2); }
   .bv-g-trilho { display: flex; width: 100%; padding: 1px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink); cursor: pointer; }
-  .bv-g-pastilha { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--fill2); font: 500 13px var(--sans); letter-spacing: .01em; }
+  .bv-g-pastilha { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--primario-fundo); font: 500 13px var(--sans); letter-spacing: .01em; }
   .bv-g-pastilha svg { width: 16px; height: 16px; flex: none; }
-  .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--pastilha-sobre); }
+  .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--primario-sobre); }
   .bv-g-trilho:active:not(:disabled) .bv-g-pastilha { background: var(--pastilha-ativa); }
   .bv-g-trilho:disabled { opacity: .5; pointer-events: none; }
   .bv-continuar.bv-largo { width: 100%; }
@@ -222,9 +222,9 @@
     display: inline-flex; padding: 1px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf);
     font: 500 13px var(--sans); letter-spacing: .01em; color: var(--ink); white-space: nowrap; cursor: pointer;
   }
-  .bv-continuar > span { display: flex; align-items: center; justify-content: center; gap: 8px; height: 28px; padding: 0 22px; border-radius: 8px; background: var(--fill2); color: var(--ink); transition: background .12s; }
+  .bv-continuar > span { display: flex; align-items: center; justify-content: center; gap: 8px; height: 28px; padding: 0 22px; border-radius: 8px; background: var(--primario-fundo); color: var(--ink); transition: background .12s; }
   .bv-continuar:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); color: var(--ink); }
-  .bv-continuar:hover:not(:disabled) > span { background: var(--pastilha-sobre); }
+  .bv-continuar:hover:not(:disabled) > span { background: var(--primario-sobre); }
   .bv-continuar:disabled { opacity: .5; }
   /* O tema: no fim da linha de cima, so o icone - sem fundo, sem fio. */
   .bv-tema {
@@ -257,13 +257,13 @@
   /* Sua conta (desenho de 08/10/2026): um cartao so - rotulo, Google, "OU COM E-MAIL",
      o formulario da conta PAVLVS e, depois de um fio, a nota. Os modos Criar conta,
      codigo e Esqueci a senha ficam na mesma moldura. */
-  .bv-cartao-conta { display: grid; gap: 16px; padding: 24px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); }
+  .bv-cartao-conta { display: grid; gap: 16px; padding: 24px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); }
   .bv-cartao-conta .cs-rotulo-linha { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .bv-cartao-conta .cs-rotulo-linha .bv-ligacao { padding: 0; font-size: 12px; }
   .bv-cartao-conta .cs-pergunta { margin: 0; font-size: 13px; color: var(--ink3); text-align: center; }
   .bv-cartao-conta .cs-link-forte { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
   .bv-cartao-conta .cs-link-forte:hover:not(:disabled) { background: none; border: 0; text-decoration: underline; text-underline-offset: 2px; }
-  .bv-cartao-conta .cs-campo { background: var(--bg); }
+  .bv-cartao-conta .cs-campo { background: var(--campo-fundo); }
   /* O aviso do codigo, a esquerda como os rotulos; so a nota do rodape fica centralizada. */
   .bv-cartao-conta .cs-form > .bv-ajuda { text-align: left; }
   .bv-cartao-conta #cs-codigo { font-family: var(--mono); letter-spacing: .3em; }

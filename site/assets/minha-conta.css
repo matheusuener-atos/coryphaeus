@@ -138,7 +138,7 @@
 /* campos */
 .campo-site { display: grid; gap: 6px; min-width: 0; }
 .campo-site > span:first-child { font: 500 12px var(--sans); color: var(--ink2); }
-.mc-col .caixa-campo, .mc-dialogo .caixa-campo { background: var(--bg); }
+.mc-col .caixa-campo, .mc-dialogo .caixa-campo { background: var(--campo-fundo); }
 .caixa-campo select { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: var(--ink); font: 400 14px var(--sans); appearance: none; cursor: pointer; }
 .caixa-campo select option { background: var(--panel); color: var(--ink); }
 .caixa-campo .icon { font-size: 18px; color: var(--ink3); pointer-events: none; }

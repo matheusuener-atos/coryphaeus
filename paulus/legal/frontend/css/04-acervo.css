@@ -408,7 +408,7 @@
      sombra. Senha, e-mail e numero sao o mesmo campo. */
   input[type=text], input[type=password], input[type=email], input[type=number], select, .escolha-botao {
     font: 400 14px var(--sans); color: var(--ink); height: 36px; padding: 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf);
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--campo-fundo);
     flex: 1; min-width: 200px; max-width: var(--campo); transition: border-color .15s ease;
   }
   input[type=text]:focus, input[type=password]:focus, input[type=email]:focus, input[type=number]:focus, select:focus, .escolha-botao:focus, textarea:focus { border-color: var(--ink); outline: none; box-shadow: none; }

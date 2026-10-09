@@ -814,7 +814,7 @@ button.mini.ficha-acao:disabled { opacity: .45; cursor: default; }
 .modal.embutido.tipo-contaCadastro { border: 0; background: none; border-radius: 0; }
 .modal.embutido.tipo-contaCadastro .modal-corpo { padding: 0; }
 .modal.embutido.tipo-contaCadastro > .modal-pe { padding: 16px 0 0; border-top: 0; }
-.modal.embutido.tipo-contaCadastro .caixa-campo { background: var(--panel); border-color: var(--line); }
+.modal.embutido.tipo-contaCadastro .caixa-campo { background: var(--campo-fundo); border-color: var(--line); }
 .modal.embutido.tipo-contaCadastro .caixa-campo:focus-within { border-color: var(--line3); }
 .res-acoes { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--line2); }
 .res-acoes button.mini { height: 28px; }
@@ -1149,7 +1149,7 @@ label.mini { cursor: pointer; }
 .painel.camp-card { display: flex !important; flex-direction: column; gap: 14px; }
 .camp-pe { flex-direction: row-reverse; justify-content: flex-end; }
 /* Padrao unico dos campos no /admin: no fundo da pagina, --panel; dentro de card, pop-up ou aba, --bg (o poco mais escuro). */
-body.adm .caixa-campo, body.adm textarea.area, body.adm .rd-msg { background: var(--panel) !important; border-color: var(--line) !important; }
+body.adm .caixa-campo, body.adm textarea.area, body.adm .rd-msg { background: var(--campo-fundo) !important; border-color: var(--line) !important; }
 body.adm .painel .caixa-campo, body.adm .modal .caixa-campo, body.adm .painel textarea.area, body.adm .modal textarea.area, body.adm .painel .rd-msg, body.adm .tunel-det .caixa-campo, body.adm .tunel-det textarea { background: var(--bg) !important; }
 body.adm .caixa-campo:focus-within, body.adm textarea.area:focus, body.adm .rd-msg:focus { border-color: var(--line3) !important; }
 body.adm .caixa-campo input, body.adm .caixa-campo select { background: transparent !important; }

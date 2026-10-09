@@ -15,10 +15,10 @@
     politica de acesso deixa) trazem uma copia destas regras no proprio <style>.
   */
   .linha-botao {
-    --lb-fundo: var(--surf);
+    --lb-fundo: var(--botao-fundo);
     --lb-fio: var(--ink-a12);
     --lb-tinta: var(--ink);
-    --lb-sobre: var(--fill);
+    --lb-sobre: var(--botao-sobre);
     --lb-fio-sobre: var(--ink-a2);
     display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; height: 56px; padding: 0 14px; margin: 0;
     border: 1px solid var(--lb-fio); border-radius: 12px; background: var(--lb-fundo); color: var(--lb-tinta);
@@ -58,9 +58,6 @@
   [data-tema="escuro"] .lb-ic img.lb-branca-no-escuro { filter: invert(1); }
 
   /* Os tons de marca: iguais nos dois temas. */
-  /* Dentro de um cartao (o de login, o de permissoes), o fundo do cartao e o do botao eram o mesmo e o botao
-     sumia: ele desce para o fundo dos campos, um tom mais escuro (pedido do dono, 08/10/2026). */
-  :is(.bv-cartao-conta, .cartao-permissoes) .linha-botao { --lb-fundo: var(--bg); }
   .linha-botao.tom-mp { --lb-fundo: #ffe600; --lb-fio: #ffe600; --lb-tinta: #1b1b1b; --lb-sobre: #ffeb33; --lb-fio-sobre: #ffeb33; }
   .linha-botao.tom-cf { --lb-fundo: #f38020; --lb-fio: #f38020; --lb-tinta: #fff; --lb-sobre: #f58d35; --lb-fio-sobre: #f58d35; }
   .linha-botao.tom-cf .lb-ic img { filter: brightness(0) invert(1); }
@@ -68,7 +65,7 @@
 
   /* CONTA + PERMISSOES: a conta no topo, o rotulo e os escopos, cada linha um interruptor. */
   .cartao-permissoes { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 520px; padding: 8px;
-    border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--lado-fundo); }
+    border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); }
   .cartao-permissoes > .linha-botao { border-radius: 10px; }
   .lb-rotulo { padding: 10px 14px 2px; font: 400 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
   .lb-escopos { display: flex; flex-direction: column; }
