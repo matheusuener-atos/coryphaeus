@@ -110,8 +110,11 @@ function formContaSenha(o) {
     miolo = '<p class="' + v.ajuda + '">Enviamos um código de 6 números para ' + para + ". Ele vale 15 minutos.</p>" + codigo + erro + botao("Confirmar e entrar");
     links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
   } else if (c.modo === "criar") {
-    miolo = campo("nome", "NOME", "text", c.nome, ' autocomplete="name" maxlength="80"') + email + senha("senha", "SENHA", true) +
-      senha("repetir", "CONFIRMAR A SENHA", true) + erro + botao("Criar conta");
+    // No cartao do assistente (mockup de 08/10/2026), so e-mail e senha: o nome vem depois, em Seus dados.
+    // O mockup do Criar conta nao traz exemplo nas senhas; o do Trocar a senha traz.
+    const semExemplo = (h) => (o.cartao ? h.replace(/ placeholder="[^"]*"/, "") : h);
+    miolo = (o.cartao ? "" : campo("nome", "NOME", "text", c.nome, ' autocomplete="name" maxlength="80"')) + email + semExemplo(senha("senha", "SENHA", true)) +
+      semExemplo(senha("repetir", "CONFIRMAR A SENHA", true)) + erro + botao("Criar conta");
     links = o.cartao ? pergunta("Já tem conta?", "entrar", "Entrar") : link("entrar", "Já tenho conta");
   } else if (c.modo === "esqueci" && c.etapa === "codigo") {
     miolo = '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" +
@@ -178,7 +181,8 @@ function ligarContaSenha(raiz, o) {
       if (!/^\d{6}$/.test(valor("codigo").replace(/\D/g, ""))) falta = "o código tem 6 números";
       url = "/api/vinculo/senha/confirmar"; corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), finalidade: o.finalidade };
     } else if (c.modo === "criar") {
-      c.nome = valor("nome");
+      // Sem o campo (o cartao do assistente), o nome que ja houver em Seus dados.
+      c.nome = valor("nome") || (typeof bv !== "undefined" && bv.pessoa && bv.pessoa.nome) || "";
       falta = problemaDaSenha(valor("senha")) || (valor("senha") !== valor("repetir") ? "as duas senhas não são iguais" : "");
       url = "/api/vinculo/senha/cadastrar"; corpo = { email: c.email, senha: valor("senha"), nome: c.nome.trim() };
     } else if (c.modo === "esqueci" && c.etapa === "codigo") {

@@ -100,8 +100,9 @@
   */
   .cs-form { display: grid; gap: 14px; margin: 0; }
   .cs-grupo { display: grid; gap: 6px; }
-  .cs-campo { width: 100%; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a12);
-    outline: none; color: var(--ink); font: 400 14px var(--sans); }
+  /* .cs-form na frente: a regra geral de input[type=...] (04-acervo) pesa mais que so a classe. */
+  .cs-form .cs-campo { width: 100%; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a12);
+    outline: none; color: var(--ink); font: 400 15px var(--sans); }
   .cs-campo:focus { border-color: var(--ink3); }
   .cs-campo::placeholder { color: var(--ink3); }
   .cs-links { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }

@@ -55,13 +55,14 @@
   .bv-cartao-pe { font: 400 13px/1.55 var(--sans); color: var(--ink); border-top: 1px solid var(--ink-a1); padding-top: 12px; margin: 0; }
   /* A coluna de /entrar (entrar.html), para os passos que sao um login: sem cartao, 440 px, rotulo mono,
      a linha com fio (40 px, raio 10) e o botao Google como trilho + pastilha de largura inteira. */
-  .bv-entrada { width: 100%; max-width: 440px; justify-self: center; display: grid; gap: 14px; }
+  /* 560 px: a largura do cartao de login (mockup de 08/10/2026), a mesma para todo formulario do assistente. */
+  .bv-entrada { width: 100%; max-width: 560px; justify-self: center; display: grid; gap: 14px; }
   .bv-entrada:has(.bv-dados) { max-width: none; }
   .bv-entrada .bv-rotulo { color: var(--ink3); }
   .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); }
   .bv-linha:hover { background: var(--surf); border-color: var(--ink-a2); }
   .bv-g-trilho { display: flex; width: 100%; padding: 1px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink); cursor: pointer; }
-  .bv-g-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--fill2); font: 500 13px var(--sans); letter-spacing: .01em; }
+  .bv-g-pastilha { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--fill2); font: 500 13px var(--sans); letter-spacing: .01em; }
   .bv-g-pastilha svg { width: 16px; height: 16px; flex: none; }
   .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--pastilha-sobre); }
   .bv-g-trilho:active:not(:disabled) .bv-g-pastilha { background: var(--pastilha-ativa); }
@@ -263,4 +264,7 @@
   .bv-cartao-conta .cs-link-forte { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
   .bv-cartao-conta .cs-link-forte:hover:not(:disabled) { background: none; border: 0; text-decoration: underline; text-underline-offset: 2px; }
   .bv-cartao-conta .cs-campo { background: var(--bg); }
+  /* O aviso do codigo, a esquerda como os rotulos; so a nota do rodape fica centralizada. */
+  .bv-cartao-conta .cs-form > .bv-ajuda { text-align: left; }
+  .bv-cartao-conta #cs-codigo { font-family: var(--mono); letter-spacing: .3em; }
   .bv-cartao-nota { margin: 0; padding-top: 16px; border-top: 1px solid var(--ink-a08); font-size: 12px; }
