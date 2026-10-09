@@ -24,6 +24,7 @@ from acesso.remoto import COOKIE_SESSAO
 from acesso import permissoes
 from acesso.convites import ErroConvite
 from acesso.google_login import COOKIE as COOKIE_GOOGLE, ErroGoogle
+from acesso.atos_login import COOKIE as COOKIE_ATOS, ErroAtos
 
 # O navegador confiado por 30 dias (contas.confiar).
 COOKIE_CONFIA = "paulus_confia"
@@ -89,6 +90,14 @@ class IrAoGoogle(BaseModel):
     turnstile: str = ""
     # O e-mail que entrou da ultima vez neste aparelho (login_hint): com ele,
     # o Google segue direto, sem a tela de escolher a conta.
+    dica: str = ""
+
+
+class IrAAtos(BaseModel):
+    finalidade: str = "entrar"
+    convite: str = ""
+    turnstile: str = ""
+    # O e-mail que entrou da ultima vez neste aparelho (login_hint).
     dica: str = ""
 
 
@@ -549,6 +558,16 @@ def montar(servico, r) -> None:
                 return voltar("/#google-erro=" + quote(str(exc)))
             servico.anotar(acao="google", alvo=quem["email"], ip=ip)
             return voltar("/#google=" + quote(quem["email"]))
+        return _entrou(quem, "Google", voltar, request, ip)
+
+    def _entrou(quem: dict, rotulo: str, voltar, request: Request, ip: str):
+        """
+        A volta do Google ou da Atos, depois de conferida: o convite volta a
+        pagina dele com o QR; entrar vai ao codigo do celular (ou direto, no
+        navegador confiado e na seguranca simples).
+        """
+        from urllib.parse import quote
+
         if quem["finalidade"] == "convite":
             try:
                 token = servico.convites.aceitar_google(quem["convite"], quem["email"])
@@ -569,17 +588,58 @@ def montar(servico, r) -> None:
         try:
             pendente = servico.contas.entrar_com_google(quem["email"], ip=ip)
         except ErroEntrada as exc:
-            servico.anotar(acao="login_falho", alvo="Google", ip=ip, pessoa=quem["email"])
+            servico.anotar(acao="login_falho", alvo=rotulo, ip=ip, pessoa=quem["email"])
             return voltar("/#erro=" + quote(str(exc)))
-        # Conta de seguranca "simples": o Google basta.
+        # Conta de seguranca "simples": a conta basta.
         direto = servico.contas.concluir_sem_codigo(pendente, ip=ip)
         if direto:
-            servico.anotar(acao="entrada", alvo="Google (segurança simples)", pessoa=direto["conta"]["nome"],
+            servico.anotar(acao="entrada", alvo=rotulo + " (segurança simples)", pessoa=direto["conta"]["nome"],
                            email=direto["conta"]["email"], ip=ip)
             resp = voltar("/#entrou")
             resp.set_cookie(COOKIE_SESSAO, direto["sessao"], httponly=True, secure=True, samesite="strict", path="/")
             return resp
         return voltar("/#g=" + quote(pendente) + "&e=" + quote(quem["email"]))
+
+    # --------------------------------------- entrar com Atos, de fora (09/10)
+
+    @r.post("/api/acesso/atos/iniciar")
+    def atos_iniciar(dados: IrAAtos, request: Request):
+        """O endereco da Atos, e o cookie que amarra a volta a este navegador."""
+        _anti_robo(request, dados.turnstile)
+        if dados.finalidade == "convite":
+            try:
+                servico.convites.ver(dados.convite)
+            except ErroConvite as exc:
+                raise HTTPException(status_code=410, detail=str(exc)) from exc
+        try:
+            url, amarra = servico.atos.iniciar(dados.finalidade, dados.convite, dica=dados.dica)
+        except ErroAtos as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        resp = JSONResponse({"url": url})
+        resp.set_cookie(COOKIE_ATOS, amarra, max_age=600, httponly=True, secure=True, samesite="lax",
+                        path="/api/acesso/atos")
+        return resp
+
+    @r.get("/api/acesso/atos/retorno")
+    def atos_retorno(request: Request, code: str = "", state: str = "", error: str = "", iss: str = ""):
+        """A volta da Atos, direto a este escritorio. O que a pagina precisa vai depois do #."""
+        from urllib.parse import quote
+
+        remoto = request.scope.get("state", {}).get("paulus_remoto") or {}
+        ip = remoto.get("ip", "")
+
+        def voltar(destino: str) -> RedirectResponse:
+            resp = RedirectResponse(destino, status_code=303)
+            resp.delete_cookie(COOKIE_ATOS, path="/api/acesso/atos")
+            return resp
+
+        if error or not code:
+            return voltar("/#erro=" + quote("a entrada pela Atos foi cancelada"))
+        try:
+            quem = servico.atos.retorno(code, state, request.cookies.get(COOKIE_ATOS, ""), iss)
+        except ErroAtos as exc:
+            return voltar("/#erro=" + quote(str(exc)))
+        return _entrou(quem, "Atos", voltar, request, ip)
 
     @r.get("/api/acesso/convite/{codigo}/google")
     def convite_do_google(codigo: str, t: str = "") -> dict:

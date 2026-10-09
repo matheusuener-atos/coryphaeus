@@ -87,6 +87,8 @@ _declarar(PUBLICO,
           "POST /api/acesso/convite/{codigo}/confirmar", "GET /api/acesso/convite/{codigo}/google",
           # entrar com o Google (E3a)
           "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno",
+          # entrar com Atos (09/10/2026): ir a atos.dev.br e voltar dela
+          "POST /api/acesso/atos/iniciar", "GET /api/acesso/atos/retorno",
           # "Esqueci a senha" (07/10/2026): o codigo vai ao e-mail da conta; a
           # senha nova nao dispensa o codigo do autenticador na entrada
           "POST /api/acesso/senha/esqueci", "POST /api/acesso/senha/redefinir",
@@ -102,6 +104,8 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               ("POST", "/api/acesso/entrar/codigo"),
               # entrar com o Google (E3a): ir ao Google e voltar dele
               ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno"),
+              # entrar com Atos (09/10/2026)
+              ("POST", "/api/acesso/atos/iniciar"), ("GET", "/api/acesso/atos/retorno"),
               # "Esqueci a senha": quem esqueceu ainda nao tem sessao
               ("POST", "/api/acesso/senha/esqueci"), ("POST", "/api/acesso/senha/redefinir"),
               # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)

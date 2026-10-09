@@ -70,6 +70,10 @@ class AcessoDeFora:
         from acesso.google_login import LoginGoogle
 
         self.google = LoginGoogle(self)
+        # Entrar com Atos, de fora (09/10/2026): a Conta Atos prova o e-mail.
+        from acesso.atos_login import LoginAtos
+
+        self.atos = LoginAtos(self)
         # A conversa com o Worker de paulus.ia.br (conexao.py); o api.py cria.
         # E por ela que o Turnstile de cada login e conferido.
         self.conexao = None
