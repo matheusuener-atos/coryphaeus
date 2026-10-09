@@ -366,9 +366,10 @@ function passoGoogle() {
     // O e-mail de Seus dados (se ja houver) vem no campo; a pessoa troca se quiser.
     if (typeof contaSenha !== "undefined" && !contaSenha.email && bv.pessoa.email) contaSenha.email = bv.pessoa.email;
     // Uma linha so no topo do cartao: onde o primeiro campo e o e-mail, o rotulo do cartao ja diz o que digitar.
-    const soEmail = !noComeco && !contaSenha.etapa && contaSenha.modo === "esqueci";
-    const rotulo = noComeco ? "SUA CONTA" : contaSenha.modo === "site" ? "CRIE A SUA CONTA NO SITE" : soEmail ? "DIGITE O E-MAIL PARA TROCAR A SENHA"
-      : contaSenha.etapa === "codigo" ? "DIGITE O CÓDIGO QUE ENVIAMOS" : "TROCAR A SENHA";
+    const soEmail = !noComeco && !contaSenha.etapa && (contaSenha.modo === "criar" || contaSenha.modo === "esqueci");
+    const rotulo = noComeco ? "SUA CONTA" : soEmail ? (contaSenha.modo === "criar" ? "DIGITE UM E-MAIL PARA CRIAR SUA CONTA" : "DIGITE O E-MAIL PARA TROCAR A SENHA")
+      : contaSenha.etapa === "codigo" ? "DIGITE O CÓDIGO QUE ENVIAMOS"
+      : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
     const comGoogle = noComeco && !(e && !e.google);
     // Um cartao so (desenho de 08/10/2026): o rotulo, o Google, "OU COM E-MAIL", o formulario e, depois de um fio, a nota.
     const nota = comGoogle ? "Com o Google, o seu navegador abre a página de login; quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho. Com e-mail e senha, tudo acontece aqui."
@@ -387,6 +388,21 @@ function passoGoogle() {
 /* Depois de vincular (pelo Google ou pela senha): o e-mail entra em Seus
    dados, Conexoes sabe se o Gmail ja esta autorizado aqui e a assinatura e a
    desta conta (GET /api/assinatura, com o login recente). */
+/* O site da assinatura, ja conectado com a conta deste Paulus (o token vai no #t=, que nao sai do navegador),
+   e a espera: o assistente confere a assinatura desta conta a cada 5 s e segue quando o pagamento confirmar. */
+async function abrirSiteParaAssinar() {
+  const e = (typeof vinc !== "undefined" && vinc.estado) || null;
+  const email = (e && e.email) || bv.google || "";
+  const pagina = bv.assinatura && bv.assinatura.situacao === "vencida" ? "/assinatura" : "/cadastro";
+  let token = "";
+  try { token = ((await (await fetch("/api/vinculo/token-do-site")).json()) || {}).token || ""; } catch (err) { /* sem token, o site pede a entrada */ }
+  window.open("https://paulus.ia.br" + pagina + "/" + (email ? "?email=" + encodeURIComponent(email) : "") + (token ? "#t=" + encodeURIComponent(token) : ""), "_blank", "noopener");
+  bv.assinaturaEsperando = true;
+  pararEsperaAssinatura();
+  bv.relogioAssinatura = setInterval(async () => { await lerAssinatura(); if (bv.assinatura && bv.assinatura.ativa) desenharBoasVindas(); }, 5000);
+  desenharBoasVindas();
+}
+
 async function aoVincularBv() {
   const e = vinc.estado || {};
   if (e.vinculado) {
@@ -395,6 +411,15 @@ async function aoVincularBv() {
     await conferirContasBv();
     if (bv.google) bv.autorizados.gmail = true;
     await lerAssinatura();
+    // Conta criada agora, aqui no assistente: sem plano, vai direto ao passo Assinatura e abre o site para assinar.
+    if (typeof contaSenha !== "undefined" && contaSenha.criouAgora) {
+      contaSenha.criouAgora = false;
+      if (!(bv.assinatura && bv.assinatura.ativa) && ordemBv().includes("assinatura")) {
+        bv.passo = ordemBv().indexOf("assinatura");
+        await abrirSiteParaAssinar();
+        return;
+      }
+    }
   }
   if (passoBv() === "google") desenharBoasVindas();
 }
@@ -1080,14 +1105,7 @@ async function acaoBoasVindas(qual) {
     return;
   }
   if (qual === "assinar") {
-    const e = (typeof vinc !== "undefined" && vinc.estado) || null;
-    const email = (e && e.email) || bv.google || "";
-    const pagina = bv.assinatura && bv.assinatura.situacao === "vencida" ? "/assinatura" : "/cadastro";
-    window.open("https://paulus.ia.br" + pagina + (email ? "?email=" + encodeURIComponent(email) : ""), "_blank", "noopener");
-    bv.assinaturaEsperando = true;
-    pararEsperaAssinatura();
-    bv.relogioAssinatura = setInterval(async () => { await lerAssinatura(); if (bv.assinatura && bv.assinatura.ativa) desenharBoasVindas(); }, 5000);
-    desenharBoasVindas();
+    await abrirSiteParaAssinar();
     return;
   }
   if (qual === "assinatura-conferir") {

@@ -94,7 +94,7 @@ function formContaSenha(o) {
     '<input class="cs-campo" id="cs-' + id + '" type="' + tipo + '" value="' + esc(valor || "") + '"' + (extra || "") + "></label>";
   // No cartao do assistente, em Criar conta e no 1o passo de Trocar a senha, o rotulo do cartao ja diz "digite um e-mail":
   // o campo vem sem o rotulo proprio (fica o aria-label).
-  const semRotulo = o.cartao && !c.etapa && c.modo === "esqueci";
+  const semRotulo = o.cartao && !c.etapa && (c.modo === "criar" || c.modo === "esqueci");
   const email = o.emailFixo ? "" : semRotulo
     ? '<label class="cs-grupo"><input class="cs-campo" id="cs-email" type="email" value="' + esc(c.email || "") + '" aria-label="E-mail" autocomplete="username" spellcheck="false" autocapitalize="off" placeholder="voce@empresa.com"></label>'
     : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' + (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
@@ -113,13 +113,16 @@ function formContaSenha(o) {
   const para = "<b>" + esc(c.email) + "</b>";
   let miolo;
   let links;
-  if (c.modo === "site") {
-    // Criar conta e no site: o cartao espera a pessoa voltar. Sem login, o Paulus nao sabe de quem e a conta,
-    // entao a espera nao termina sozinha: ela volta e entra com a conta que criou.
-    miolo = '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a sua conta no site…</b>' +
-      "<small>crie a conta e assine em paulus.ia.br; depois, entre aqui com ela</small></span></div>" + erro +
-      '<button type="button" class="' + v.trilho + '" data-cs="entrar"><span class="' + v.pastilha + '">Já criei, entrar</span></button>';
-    links = link("criar-no-site", "Abrir o site de novo");
+  if (c.modo === "criar" && c.etapa === "codigo") {
+    miolo = '<p class="' + v.ajuda + '">Enviamos um código de 6 números para ' + para + ". Ele vale 15 minutos.</p>" + codigo + erro + botao("Confirmar e entrar");
+    links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
+  } else if (c.modo === "criar") {
+    // No cartao do assistente (mockup de 08/10/2026), so e-mail e senha: o nome vem depois, em Seus dados.
+    // O mockup do Criar conta nao traz exemplo nas senhas; o do Trocar a senha traz.
+    const semExemplo = (h) => (o.cartao ? h.replace(/ placeholder="[^"]*"/, "") : h);
+    miolo = (o.cartao ? "" : campo("nome", "NOME", "text", c.nome, ' autocomplete="name" maxlength="80"')) + email + semExemplo(senha("senha", "SENHA", true)) +
+      semExemplo(senha("repetir", "CONFIRMAR A SENHA", true)) + erro + botao("Criar conta");
+    links = o.cartao ? pergunta("Já tem conta?", "entrar", "Entrar") : link("entrar", "Já tenho conta");
   } else if (c.modo === "esqueci" && c.etapa === "codigo") {
     miolo = '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" +
       codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
@@ -131,11 +134,11 @@ function formContaSenha(o) {
     // O cartao do passo Sua conta: "Esqueci a senha" na linha do rotulo SENHA, a direita.
     miolo = email + '<div class="cs-grupo"><div class="cs-rotulo-linha"><label class="' + v.rotulo + '" for="cs-senha">SENHA</label>' + link("esqueci", "Esqueci a senha") + "</div>" +
       '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro + botao("Entrar");
-    // Criar conta e no site (09/10/2026): la a pessoa escolhe o plano, cria a conta e assina; depois volta e entra aqui.
-    links = pergunta("Não tem conta?", "criar-no-site", "Criar conta");
+    links = pergunta("Não tem conta?", "criar", "Criar conta");
   } else {
     miolo = email + senha("senha", "SENHA", false) + erro + botao("Entrar");
-    links = link("esqueci", "Esqueci a senha") + link("criar-no-site", "Criar conta");
+    // Na trava a conta ja existe: so "Esqueci a senha".
+    links = link("esqueci", "Esqueci a senha");
   }
   return '<form class="cs-form" id="cs-form" novalidate>' + miolo + '<div class="cs-links">' + links + "</div></form>";
 }
@@ -177,7 +180,7 @@ function ligarContaSenha(raiz, o) {
   });
   // A regra de cada campo, conferida ao vivo (js/00-base.js). Entrar so pede a
   // senha preenchida: quem diz se confere e paulus.ia.br.
-  const senhaNova = c.modo === "esqueci" && c.etapa === "codigo";
+  const senhaNova = (c.modo === "criar" && !c.etapa) || (c.modo === "esqueci" && c.etapa === "codigo");
   vigiarCampo(campo("email"), REGRA_CAMPO.email, { vazio: "confira o e-mail" });
   vigiarCampo(campo("codigo"), (v) => REGRA_CAMPO.codigo6(v.replace(/\D/g, "")), { vazio: "o código tem 6 números" });
   vigiarCampo(campo("senha"), senhaNova ? problemaDaSenha : () => "", { vazio: senhaNova ? problemaDaSenha("") : "digite a senha" });
@@ -191,14 +194,13 @@ function ligarContaSenha(raiz, o) {
       const acao = b.dataset.cs;
       if (acao === "reenviar") {
         try {
-          await postSenha("/api/vinculo/senha/esqueci", { email: c.email });
+          if (c.modo === "criar") await postSenha("/api/vinculo/senha/cadastrar", { email: c.email, senha: c.senha, nome: c.nome });
+          else await postSenha("/api/vinculo/senha/esqueci", { email: c.email });
           avisoCert("código enviado de novo para " + c.email);
         } catch (err) { doServidor(err.message); }
         return;
       }
       if (acao === "voltar") { c.senha = ""; ir(c.modo, ""); return; }
-      // Sem conta: o site, na escolha do plano (de la vai ao cadastro, com a conta e a assinatura).
-      if (acao === "criar-no-site") { window.open("https://paulus.ia.br/assinatura/", "_blank", "noopener"); c.senha = ""; ir("site", ""); return; }
       c.senha = "";
       ir(acao === "entrar" ? "entrar" : acao, "");
     };
@@ -209,7 +211,6 @@ function ligarContaSenha(raiz, o) {
   };
   form.onsubmit = async (ev) => {
     ev.preventDefault();
-    if (c.modo === "site") return;
     erro("");
     // Na trava o e-mail e fixo (o da conta deste servidor): sem campo, vale o guardado.
     if (campo("email")) c.email = valor("email").trim();
@@ -217,7 +218,13 @@ function ligarContaSenha(raiz, o) {
     if (!conferirCampos(["email", "codigo", "senha", "repetir"].map(campo))) return;
     let url = "";
     let corpo = {};
-    if (c.modo === "esqueci" && c.etapa === "codigo") {
+    if (c.modo === "criar" && c.etapa === "codigo") {
+      url = "/api/vinculo/senha/confirmar"; corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), finalidade: o.finalidade };
+    } else if (c.modo === "criar") {
+      // Sem o campo (o cartao do assistente), o nome que ja houver em Seus dados.
+      c.nome = valor("nome") || (typeof bv !== "undefined" && bv.pessoa && bv.pessoa.nome) || "";
+      url = "/api/vinculo/senha/cadastrar"; corpo = { email: c.email, senha: valor("senha"), nome: c.nome.trim() };
+    } else if (c.modo === "esqueci" && c.etapa === "codigo") {
       url = "/api/vinculo/senha/redefinir";
       corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), senha: valor("senha"), finalidade: o.finalidade };
     } else if (c.modo === "esqueci") {
@@ -231,7 +238,10 @@ function ligarContaSenha(raiz, o) {
     try {
       const d = await postSenha(url, corpo);
       c.ocupado = false;
+      if (c.modo === "criar" && !c.etapa) { c.senha = corpo.senha; ir("criar", "codigo"); return; }
       if (c.modo === "esqueci" && !c.etapa) { ir("esqueci", "codigo"); return; }
+      // Conta criada agora (o codigo confirmou): o assistente leva ao site para escolher o plano e pagar.
+      if (c.modo === "criar" && c.etapa === "codigo") c.criouAgora = true;
       await entrou(d);
     } catch (err) {
       c.ocupado = false;

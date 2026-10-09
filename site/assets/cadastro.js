@@ -446,6 +446,13 @@
     $("cd-uf").addEventListener("input", function () { this.value = this.value.replace(/[^A-Za-z]/g, "").toUpperCase(); $("cd-cmun").value = ""; });
     var guardado = "";
     try { guardado = sessionStorage.getItem(CHAVE) || ""; } catch (e) { guardado = ""; }
+    // Vindo do Paulus instalado logo depois de criar a conta (#t=<token>): entra com ela, sem pedir de novo.
+    // O fragmento nao vai a servidor nenhum; sai do endereco aqui mesmo.
+    var doPaulus = (location.hash.match(/^#t=([A-Za-z0-9._%-]+)$/) || [])[1];
+    if (doPaulus) {
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* fica no endereco */ }
+      guardado = decodeURIComponent(doPaulus);
+    }
     // Vindo de /assinatura ou do Paulus instalado (?plano=&periodo=): o plano
     // e o periodo ja escolhidos. Sem eles, vale o da conta (ou o recomendado).
     var pedido = new URLSearchParams(location.search);
