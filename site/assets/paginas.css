@@ -69,7 +69,7 @@
 .cd-cartao { position: relative; display: grid; align-content: start; overflow: hidden; border-radius: 12px; background: var(--panel);
   border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
 .cd-cartao:hover { border-color: var(--line3); }
-.cd-cartao.on { background: var(--panel2); border-color: var(--line3); box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .55); }
+.cd-cartao.on { background: var(--botao-sobre); border-color: var(--line3); box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .55); }
 .cd-cartao.travado { cursor: default; }
 .cd-faixa { position: absolute; top: 0; right: 20px; height: 20px; padding: 0 8px; display: flex; align-items: center; border-radius: 0 0 8px 8px;
   background: var(--okfill); color: #fff; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
@@ -77,7 +77,7 @@
 /* O detalhe do preco num balao, ao passar o mouse sobre o valor. */
 .cd-preco { position: relative; justify-self: start; outline: none; }
 .cd-dica { position: absolute; left: 0; top: calc(100% + 8px); z-index: 3; width: max-content; max-width: 280px; display: grid; gap: 2px; padding: 10px 12px;
-  border-radius: 8px; background: var(--bg); border: 1px solid var(--line3); box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  border-radius: 8px; background: var(--panel); border: 1px solid var(--line3); box-shadow: 0 8px 24px rgba(0,0,0,.28);
   opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .15s, transform .15s; }
 .cd-dica small { font-size: 12px; line-height: 1.5; color: var(--ink2); }
 .cd-preco:hover .cd-dica, .cd-preco:focus-visible .cd-dica { opacity: 1; transform: none; }
@@ -85,7 +85,7 @@
 .cd-nome { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cd-nome b { font: 600 16px var(--sans); color: var(--ink); }
 .cd-nome em { margin-left: 8px; font: 400 12px var(--mono); font-style: normal; color: var(--ok); }
-.cd-radio { width: 16px; height: 16px; flex: none; box-sizing: border-box; border-radius: 50%; background: var(--pill); border: 1px solid var(--line3); }
+.cd-radio { width: 16px; height: 16px; flex: none; box-sizing: border-box; border-radius: 50%; background: var(--campo-fundo); border: 1px solid var(--line3); }
 .cd-cartao.on .cd-radio { border: 5px solid var(--ink); }
 .cd-preco { display: grid; gap: 6px; }
 .cd-valor { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -158,7 +158,7 @@
    Pago (CardForm); a caixa, o icone e o rotulo sao do site. */
 .pg-form { padding: 18px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
 .pg-titulo-cartao { font: 500 16px var(--sans); color: var(--ink); }
-.pg-form .caixa-campo { background: var(--bg); }
+.pg-form .caixa-campo { background: var(--campo-fundo); }
 .pg-form .caixa-campo > .icon { font-size: 18px; color: var(--ink3); flex: none; }
 .pg-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .pg-seguro { position: relative; flex: 1; min-width: 0; height: 22px; }
@@ -184,7 +184,7 @@
 .pg-doc .pg-combo-botao { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
 .pg-combo-menu {
   position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; max-height: 300px; overflow-y: auto;
-  margin: 0; padding: 6px; list-style: none; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line);
+  margin: 0; padding: 6px; list-style: none; border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
   box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
 }
 /* A barra de rolagem do menu e a do sistema (frontend/css/00-tokens.css):
@@ -195,15 +195,15 @@
 .pg-combo-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 .pg-combo-menu::-webkit-scrollbar-thumb:hover { background: var(--line3); }
 .pg-combo-menu li { padding: 8px 10px; border-radius: 8px; font: 400 13px var(--sans); color: var(--ink2); cursor: pointer; white-space: nowrap; }
-.pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--pill); color: var(--ink); outline: none; }
+.pg-combo-menu li:hover, .pg-combo-menu li:focus { background: var(--botao-sobre); color: var(--ink); outline: none; }
 .pg-combo-menu li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
 /* O preenchimento automatico do navegador nos campos do site: o fundo e a
    letra do tema, no lugar do azul (nos quadros do Mercado Pago, nao da). */
 .pg-form input:-webkit-autofill, .pg-form input:-webkit-autofill:hover, .pg-form input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--ink); caret-color: var(--ink);
-  -webkit-box-shadow: 0 0 0 40px var(--bg) inset; box-shadow: 0 0 0 40px var(--bg) inset;
+  -webkit-box-shadow: 0 0 0 40px var(--campo-fundo) inset; box-shadow: 0 0 0 40px var(--campo-fundo) inset;
 }
-.pg-form input:autofill { background: var(--bg); color: var(--ink); }
+.pg-form input:autofill { background: var(--campo-fundo); color: var(--ink); }
 .pg-bandeira { width: 28px; height: 18px; object-fit: contain; flex: none; border-radius: 3px; }
 .pg-pagar .icon { font-size: 16px; }
 @media (max-width: 420px) { .pg-dupla { grid-template-columns: 1fr; } }
@@ -259,7 +259,7 @@
 .cs-form { width: 100%; text-align: left; }
 .cs-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .cs-olho { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin-right: -6px; border: 0; border-radius: 6px; background: none; color: var(--ink3); cursor: pointer; }
-.cs-olho:hover { color: var(--ink); background: var(--pill); }
+.cs-olho:hover { color: var(--ink); background: var(--botao-sobre); }
 .cs-olho .icon { font-size: 18px; }
 .cs-aviso { margin: 0; }
 .caixa-campo input::-ms-reveal, .caixa-campo input::-ms-clear { display: none; }
