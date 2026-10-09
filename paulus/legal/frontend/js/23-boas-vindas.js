@@ -277,11 +277,15 @@ function desenharBoasVindas() {
   else botao = "Continuar";
   const esperando = (passo === "ia" && !bv.maquina) || (passo === "assinatura" && !(bv.assinatura && (bv.assinatura.ativa || bv.assinatura.situacao === "vencida"))) || (passo === "dados" && bv.dadosEsperando) || (passo === "conexoes" && bv.consentEsperando)
     // Entrar e obrigatorio: o Continuar do passo Sua conta so aparece com a conta vinculada.
-    || (passo === "google" && !(typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado));
+    || (passo === "google" && !(typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado))
+    // Acesso a distancia: ou "Nao quero acessar a distancia", ou conectado ate o fim (os tres passos feitos).
+    || (passo === "acesso" && !acessoResolvidoBv());
+  const nota = passo === "acesso" && esperando
+    ? '<span class="bv-rodape-nota">Conclua os três passos ou marque “Não quero acessar à distância” para continuar</span>' : "";
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0 ? "" : '<button class="bv-ligacao" data-bv="voltar">' + ic("arrow_back", 16) + "Voltar</button>") +
     '<span class="cresce"></span>' +
-    (["modulos", "conexoes", "acesso"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    nota + (["modulos", "conexoes"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar"><span>' + botao + "</span></button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
@@ -442,6 +446,13 @@ async function aoVincularBv() {
 }
 
 /* ------------------------------------------------- acesso a distancia */
+
+function acessoResolvidoBv() {
+  if (!bv.acesso) return true;
+  const d = tunelCfg.dados || {};
+  const pedido = (d.conexao || {}).pedido;
+  return Boolean((d.situacao || {}).conectado_ao_worker || (pedido && pedido.estado === "concluido"));
+}
 
 function passoAcesso() {
   const texto = "<h1>O Paulus vai com você: de casa, do celular, do fórum.</h1>" +
@@ -1228,12 +1239,6 @@ async function acaoBoasVindas(qual) {
   if (passo === "conexoes") {
     const pedidos = SERVICOS_BV.filter((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]).map((sv) => sv.id);
     if (pedidos.length) { await pedirConsentimentoBv(pedidos); return; }
-  }
-  if (passo === "acesso" && bv.acesso) {
-    const d = tunelCfg.dados || {};
-    const pedido = (d.conexao || {}).pedido;
-    if (pedido && pedido.estado === "esperando") avisoCert("a confirmação continua no navegador; o endereço aparece em Configurações › Acesso externo quando terminar", { dura: 7000 });
-    else if (!(d.situacao || {}).conectado_ao_worker) avisoCert("o acesso à distância ficou desligado; dá para ligar em Configurações › Acesso externo");
   }
   if (ultimo) {
     if (bv.caminho === "entrar") {
