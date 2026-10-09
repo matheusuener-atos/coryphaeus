@@ -301,3 +301,13 @@
   .bv-cartao-atu .bv-grupos { gap: 0; }
   .bv-cartao-atu .bv-modulo { padding: 12px; border-radius: 0; }
   .bv-cartao-atu .bv-modulo + .bv-modulo { border-top: 1px solid var(--ink-a08); }
+
+  /* O plano em destaque em "Seus dados": nome e "plano atual", o valor, e o pe com a data e o upgrade. */
+  .bv-plano-tile { display: grid; gap: 14px; padding: 18px 18px 16px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--botao-fundo); }
+  .bv-plano-topo, .bv-plano-pe { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .bv-plano-topo > b { font: 600 16px var(--sans); color: var(--ink); }
+  .bv-plano-preco { display: flex; align-items: baseline; gap: 10px; }
+  .bv-plano-preco > b { font: 700 28px/1 var(--sans); color: var(--ink); letter-spacing: -.01em; }
+  .bv-plano-preco > span { font-size: 14px; color: var(--ink3); }
+  .bv-plano-pe > span { font-size: 13px; color: var(--ink3); }
+  .bv-plano-pe .bv-ligacao { font-size: 13px; }

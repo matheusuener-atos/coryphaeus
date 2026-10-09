@@ -565,9 +565,20 @@ function passoDados() {
   // fio entre as linhas; o endereco na linha inteira) e a nota com "edite no site"; outro cartao com o plano.
   const dado = (rotulo, valor, largo) => '<div class="bv-dado' + (largo ? " largo" : "") + '"><span>' + rotulo + "</span>" +
     (valor ? "<b>" + esc(valor) + "</b>" : "<i>não informado</i>") + "</div>";
+  // O plano em destaque (desenho de 09/10/2026): nome e "plano atual", o valor do periodo contratado, e embaixo
+  // quando renova (ou ate quando esta pago) com o "Fazer upgrade".
+  const dataCurta = (iso) => { const [y, m, d] = String(iso || "").split("-"); return d ? d + "/" + m + "/" + y : ""; };
+  const preco = a.valor
+    ? '<b>R$ ' + Number(a.valor).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + "</b><span>" + (a.periodo === "anual" ? "por ano" : "por mês") + "</span>"
+    : (a.cortesia ? "<b>Cortesia</b><span>sem cobrança</span>" : "");
+  const quando = a.cortesia ? "plano de cortesia"
+    : a.renova_em ? "renova em " + dataCurta(a.renova_em)
+    : a.pago_ate ? "pago até " + dataCurta(a.pago_ate)
+    : "é o que você tem hoje";
   const plano = a.plano
-    ? linhaBotao({ tag: "div", titulo: esc(a.plano) + ' <span class="lb-status bv-plano-ativa">ativa</span>',
-        fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="upgrade">Fazer upgrade ↗</button>' } })
+    ? '<div class="bv-plano-tile"><div class="bv-plano-topo"><b>' + esc(a.plano) + '</b><span class="lb-status">plano atual</span></div>' +
+      (preco ? '<div class="bv-plano-preco">' + preco + "</div>" : "") +
+      '<div class="bv-plano-pe"><span>' + esc(maiuscula(quando)) + '</span><button type="button" class="bv-ligacao" data-bv="upgrade">Fazer upgrade ↗</button></div></div>'
     // Sem plano ativo (a assinatura venceu ou foi cancelada): o Paulus abre com o basico; o link leva a assinar no site.
     : linhaBotao({ tag: "div", classe: "duas", titulo: "Sem plano ativo",
         sub: (a.situacao === "vencida" ? "a assinatura venceu" : "esta conta ainda não tem assinatura") + " — sem IA, NFS-e e os demais serviços até assinar",

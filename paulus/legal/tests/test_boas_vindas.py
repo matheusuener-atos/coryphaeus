@@ -96,7 +96,7 @@ class Resposta:
 
 def resumo(email: str, *, vigente: bool, periodo: str = "mensal", ciclo: bool = True, cortesia: bool = False) -> dict:
     return {"ok": True, "email": email, "plano_vigente": vigente, "cortesia": cortesia, "periodo": periodo,
-            "plano": {"id": "escritorio", "nome": "Escritório"},
+            "plano": {"id": "escritorio", "nome": "Escritório", "valor": 1290, "valor_anual": 11490},
             "assinatura": {"id": "pre1", "situacao": "authorized" if vigente else "cancelled", "periodo": periodo} if ciclo else None,
             "ciclo": {"inicio": "2026-10-07T15:00:00.000Z", "fim": "2026-11-07T15:00:00.000Z"} if ciclo else None,
             "pago_ate": "2027-10-07T15:00:00.000Z" if periodo == "anual" else None}
@@ -260,6 +260,7 @@ def test_assinatura() -> None:
            "sem a nuvem aqui: ativa com o login recente da conta que entrou, e guarda o segredo", ativar)
     checar(a["ativa"] is True and a["situacao"] == "ativa" and a["plano"] == "Escritório" and a["renova_em"] == "2026-11-07"
            and a["email"] == "helena@moura.adv.br", "a assinatura ativa, com o plano e quando renova", a)
+    checar(a["valor"] == 1290 and a["periodo"] == "mensal" and a["pago_ate"] == "", "o valor do mês, para o cartão Plano", a)
     p = a["pessoa"]
     checar(a["escritorio"] == "Moura Advogados" and p.get("nome") == "Helena Moura" and p.get("cpf") == "529.982.247-25"
            and p.get("oab") == "PA 12345" and p.get("telefone") == "(91) 98888-7777" and p.get("email") == "helena@moura.adv.br",
@@ -280,6 +281,7 @@ def test_assinatura() -> None:
     rbv.esquecer()
     a = local.get("/api/assinatura").json()
     checar(a["ativa"] and a["renova_em"] == "", "o ano pago de uma vez não diz \"renova em\" (não renova sozinho)", a)
+    checar(a["valor"] == 11490 and a["periodo"] == "anual" and a["pago_ate"] == "2027-10-07", "no anual: o valor do ano e até quando está pago", a)
     fake.contas["helena@moura.adv.br"]["resumo"] = resumo("helena@moura.adv.br", vigente=False)
     rbv.esquecer()
     a = local.get("/api/assinatura").json()

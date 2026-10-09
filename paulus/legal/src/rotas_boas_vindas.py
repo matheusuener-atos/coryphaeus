@@ -222,6 +222,7 @@ def _montar(estado, email: str, r: dict, cadastro) -> dict:
     if vigente and not r.get("cortesia") and a.get("situacao") == "authorized" and (r.get("periodo") or "mensal") == "mensal":
         renova = str((r.get("ciclo") or {}).get("fim") or "")[:10]
     cad = cadastro if isinstance(cadastro, dict) else {}
+    periodo = "anual" if r.get("periodo") == "anual" else "mensal"
     return {
         "ativa": vigente,
         "situacao": "ativa" if vigente else ("vencida" if teve else "nenhuma"),
@@ -231,7 +232,19 @@ def _montar(estado, email: str, r: dict, cadastro) -> dict:
         "plano": str((r.get("plano") or {}).get("nome") or "") if vigente else "",
         "renova_em": renova,
         "cortesia": bool(r.get("cortesia")),
+        # O cartao Plano de "Seus dados": o valor do periodo contratado e, no anual, ate quando esta pago.
+        "periodo": periodo if vigente else "",
+        "valor": _valor_do_plano(r.get("plano"), periodo) if vigente and not r.get("cortesia") else 0,
+        "pago_ate": str(r.get("pago_ate") or "")[:10] if vigente and periodo == "anual" else "",
     }
+
+
+def _valor_do_plano(plano, periodo: str) -> float:
+    plano = plano if isinstance(plano, dict) else {}
+    try:
+        return float(plano.get("valor_anual" if periodo == "anual" else "valor") or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _pessoa(estado, email: str, cad: dict) -> dict:
