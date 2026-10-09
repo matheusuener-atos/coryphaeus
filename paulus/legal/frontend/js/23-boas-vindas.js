@@ -364,7 +364,9 @@ function passoGoogle() {
     // O G do Google ao lado da logo so na conta Google; a conta PAVLVS e so a logo.
     const marcaDaConta = e.por === "senha" ? "" : (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "");
     lado = '<div class="bv-entrada"><span class="bv-rotulo">' + (e.por === "senha" ? "CONTA PAVLVS" : "CONTA GOOGLE") + "</span>" +
-      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: [{ html: '<img src="/img/paulus-icone.svg" alt="PAVLVS" width="32" height="32">', classe: "lb-marca-pavlvs" }, marcaDaConta], titulo: "Vinculado", sub: esc(e.email) }) +
+      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: [{ html: '<img src="/img/paulus-icone.svg" alt="PAVLVS" width="32" height="32">', classe: "lb-marca-pavlvs" }, marcaDaConta], titulo: "Vinculado", sub: esc(e.email),
+        // Trocar de conta (09/10/2026): desvincula e o passo volta a pedir a conta (o mesmo do passo Assinatura).
+        fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="outra-conta">Trocar de conta</button>' } }) +
       '<div class="bv-modulo bv-linha" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
       '<span class="duas-linhas"><b>Manter aberto neste computador</b></span>' +
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
@@ -864,7 +866,8 @@ function passoConexoes() {
       '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o consentimento no Google…</b><small>' + esc(pedidos.map((p) => p.nome).join(", ")) + " · quando autorizar, a janela segue sozinha</small></span>" +
       '<button type="button" class="bv-ligacao apagada" data-bv="consent-cancelar">Cancelar</button></div>' +
       '<button type="button" class="bv-continuar bv-largo" data-bv="consent-conferir"><span>Já autorizei, conferir agora</span></button>' +
-      '<p class="bv-ajuda">O Google abriu no seu navegador com esta conta. Se a aba não apareceu, confira as janelas abertas.</p></div>';
+      '<p class="bv-ajuda">' + (conta ? "O Google abriu no seu navegador com esta conta." : "O Google abriu no seu navegador: escolha a conta Google que vai usar.") +
+      " Se a aba não apareceu, confira as janelas abertas.</p></div>";
     return [texto, lado];
   }
   // O Meet vem com a Agenda (mesma permissao, calendar.events): a linha mostra o estado, sem interruptor proprio.
@@ -916,6 +919,19 @@ async function conferirConsentBv() {
   const faltam = SERVICOS_BV.some((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]);
   // Autorizado: a conta Google escolhida no consentimento passa a ser a do topo do cartao.
   if (!faltam) { pararEsperaConsent(); await conferirContasBv(); desenharBoasVindas(); return true; }
+  // O retorno do Google deu errado (permissao nao marcada, conta recusada, limite do plano): a espera para e a
+  // tela diz por que - antes ela seguia "aguardando" para sempre. Terminou sem os servicos: tambem para.
+  const c = (st && st.consentimento) || {};
+  if (bv.consentEsperando && ["erro", "cancelado", "pronto"].includes(c.fase)) {
+    pararEsperaConsent();
+    if (c.fase === "pronto") await conferirContasBv();
+    const motivo = c.fase === "pronto"
+      ? "o Google voltou sem algumas permissões: na tela do Google, marque as caixas dos serviços e autorize de novo"
+      : (c.mensagem || "a autorização do Google não terminou");
+    if (c.fase !== "cancelado") avisoCert(maiuscula(motivo), { tom: "erro", dura: 12000 });
+    desenharBoasVindas();
+    return true;
+  }
   if (JSON.stringify(bv.autorizados) !== antes) desenharBoasVindas();
   return false;
 }
@@ -1197,7 +1213,7 @@ async function acaoBoasVindas(qual) {
     // Trocar de conta e desvincular (src/vinculo.py): o passo Sua conta volta a pedir a conta,
     // e a assinatura e conferida de novo para a conta que entrar.
     try { await postVinculo("/api/vinculo/desvincular", {}); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
-    bv.assinatura = null;
+    bv.assinatura = null; bv.semConferirDados = false;
     bv.passo = Math.max(0, ordemBv().indexOf("google")); desenharBoasVindas(); return;
   }
   if (qual === "pular") { bv.passo += 1; desenharBoasVindas(); return; }
