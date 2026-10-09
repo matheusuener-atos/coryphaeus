@@ -281,7 +281,7 @@ function desenharBoasVindas() {
     // Acesso a distancia: ou "Nao quero acessar a distancia", ou conectado ate o fim (os tres passos feitos).
     || (passo === "acesso" && !acessoResolvidoBv());
   const nota = passo === "acesso" && esperando
-    ? '<span class="bv-rodape-nota">Conclua os três passos ou marque “Não quero acessar à distância” para continuar</span>' : "";
+    ? '<span class="bv-rodape-nota">Conclua os três passos ou desligue o acesso à distância para continuar</span>' : "";
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0 ? "" : '<button class="bv-ligacao" data-bv="voltar">' + ic("arrow_back", 16) + "Voltar</button>") +
     '<span class="cresce"></span>' +
@@ -463,26 +463,24 @@ function passoAcesso() {
       "O serviço é o Zero Trust, protegido pela Cloudflare, e fica disponível enquanto o seu computador estiver ligado.",
       "Havendo equipe, cada pessoa acessa com a própria conta — Google ou e-mail e senha —, depois da verificação de segurança.",
     ]);
-  // A tela afirma; quem nao quer, liga o interruptor do cartao de baixo - e o cartao das etapas some.
-  const chave = "";
-  const recusa = '<div class="bv-linha bv-modulo bv-recusa' + (bv.acesso ? "" : " on") + '" data-bv-acesso="1" role="switch" tabindex="0" aria-checked="' + !bv.acesso + '">' +
-    '<span class="bv-modulo-ic">' + ic("wifi_off", 19) + "</span>" +
-    '<span class="duas-linhas"><b>Não quero acessar à distância</b><small>' + (bv.acesso ? "o Paulus abre só neste computador" : "só neste computador · dá para ligar depois em Configurações › Acesso externo") + "</small></span>" +
-    '<span class="interruptor-min' + (bv.acesso ? "" : " on") + '"></span></div>';
-  if (!bv.acesso) return [texto, '<div class="bv-acesso">' + recusa + "</div>"];
+  // Desenho de 09/10/2026: "ACESSAR À DISTÂNCIA" fora e, no primeiro cartao, o interruptor - ligado por padrao.
+  // Desligado, os passos somem; ligado, cada passo e um cartao e, conectado, o endereco fecha a lista.
+  const interruptor = '<div class="bv-linha bv-modulo bv-acesso-chave' + (bv.acesso ? " on" : "") + '" data-bv-acesso="1" role="switch" tabindex="0" aria-checked="' + bv.acesso + '">' +
+    '<span class="bv-modulo-ic">' + ic(bv.acesso ? "wifi" : "wifi_off", 19) + "</span>" +
+    '<span class="duas-linhas"><b>' + (bv.acesso ? "Ligado" : "Desligado") + "</b><small>" + (bv.acesso ? "de casa, do celular, do fórum, pelo seu endereço"
+      : "o Paulus abre só neste computador; dá para ligar depois em Configurações › Acesso externo") + "</small></span>" +
+    '<span class="interruptor-min' + (bv.acesso ? " on" : "") + '"></span></div>';
+  const secao = (miolo) => '<div class="bv-entrada bv-acesso"><span class="bv-rotulo">ACESSAR À DISTÂNCIA</span>' + interruptor + miolo + "</div>";
+  if (!bv.acesso) return [texto, secao("")];
   if (!tunelCfg.dados) {
     carregarTunel().then(() => { if (passoBv() === "acesso") desenharBoasVindas(); });
-    return [texto, '<div class="bv-cartao"><p class="cfg-explica">Conferindo este computador…</p></div>'];
+    return [texto, secao('<p class="bv-ajuda bv-nota-fora esquerda">Conferindo este computador…</p>')];
   }
   const s = tunelCfg.dados.situacao || {};
   const pedido = (tunelCfg.dados.conexao || {}).pedido;
   if (s.conectado_ao_worker && !(pedido && pedido.estado === "concluido")) {
     // Ja conectado (o passeio revisto por #boasvindas): so o endereco.
-    const e = "https://" + (s.hostname || "");
-    return [texto, '<div class="bv-acesso">' +
-      '<div class="bv-cartao"><div class="acesso-endereco"><code>' + esc(e) + "</code>" +
-      '<button class="com-icone" data-tunel-copiar="' + esc(e) + '">' + ic("content_copy", 16) + "Copiar</button></div>" +
-      '<span class="bv-cartao-pe">Desligar, remover e as contas da equipe ficam em Configurações › Acesso externo.</span></div></div>'];
+    return [texto, secao(cartaoDoEnderecoBv(s.hostname))];
   }
   conexaoUI.onde = "bv";
   conexaoUI.redesenhar = desenharBoasVindas;
@@ -493,7 +491,13 @@ function passoAcesso() {
   if (!v.nome && bv.pessoa.nome) v.nome = bv.pessoa.nome;
   if (!v.email && bv.pessoa.email) v.email = bv.pessoa.email;
   if (!v.secundario && bv.pessoa.email_secundario) v.secundario = bv.pessoa.email_secundario;
-  return [texto, '<div class="bv-acesso">' + blocoConexao() + recusa + "</div>"];
+  return [texto, secao(blocoConexao() + (pedido && pedido.estado === "concluido" ? cartaoDoEnderecoBv(s.hostname || pedido.endereco) : ""))];
+}
+
+/* O endereco que atende este Paulus, no fim da lista dos passos. */
+function cartaoDoEnderecoBv(hostname) {
+  return linhaBotao({ tag: "div", classe: "duas", icones: [marca("cloudflare", 22)], titulo: '<span class="mono">' + esc(hostname || "") + "</span>",
+    sub: "atende este Paulus", fim: { tipo: "status", texto: "conectado" } });
 }
 
 /* `modo` e o teclado (inputmode) ou, para CPF e telefone, o tipo do campo
@@ -532,14 +536,14 @@ function passoAssinatura() {
   const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">ASSINATURA</span>' +
     // A conta com que se assina ("Continuar como…"): o monograma, o nome e o e-mail; o clique troca de conta (desvincula e volta a Sua conta).
     linhaBotao({ classe: "duas", attrs: ' data-bv="outra-conta" title="Trocar de conta"', icones: [monogramaLb(iniciaisBv(nome))],
-      titulo: "Continuar como " + esc(nome), sub: esc(email), fim: { tipo: "acao", texto: "Trocar" } }) + "</div>" +
-    '<div class="bv-bloco">' + (esperando
+      titulo: "Continuar como " + esc(nome), sub: esc(email), fim: { tipo: "acao", texto: "Trocar" } }) +
+    (esperando ? "" : '<div class="bv-bloco">') + (esperando
       ? '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a confirmação do site…</b><small>a janela segue sozinha quando o pagamento confirmar</small></span></div>' +
-        '<button type="button" class="bv-continuar bv-largo" data-bv="assinatura-conferir"><span>Já assinei, conferir agora</span></button>'
+        '<button type="button" class="bv-g-trilho" data-bv="assinatura-conferir"><span class="bv-g-pastilha">Já assinei, conferir agora</span></button>'
       : '<button type="button" class="bv-continuar bv-largo" data-bv="assinar"><span>' + ic("open_in_new", 16) + (vencida ? "Regularizar no site" : "Assinar no site") + "</span></button>") +
-    '<p class="bv-ajuda bv-bloco-nota">' + (vencida
+    '<p class="bv-ajuda ' + (esperando ? "bv-nota-fora" : "bv-bloco-nota") + '">' + (vencida
       ? "Sem assinatura válida, o Paulus abre só com os seus arquivos: documentos, pastas e anotações seguem acessíveis. Ficam suspensos as respostas de IA, a emissão de NFS-e e os demais serviços. Ao regularizar no site, tudo volta na hora."
-      : "O site abre no seu navegador com esta conta já preenchida. O pagamento é feito lá, com o Mercado Pago; nada de cartão passa por aqui.") + "</p></div></div>";
+      : "O site abre no seu navegador com esta conta já preenchida. O pagamento é feito lá, com o Mercado Pago; nada de cartão passa por aqui.") + "</p>" + (esperando ? "" : "</div>") + "</div></div>";
   return [texto, lado];
 }
 
@@ -556,9 +560,10 @@ function passoDados() {
   const campo = (rotulo, valor, mono, tam) => '<div class="bv-campo-ro' + (tam ? " " + tam : "") + '"><span>' + rotulo + "</span><b" + (mono ? ' class="mono"' : "") + ">" + (valor ? esc(valor) : "<i>não informado</i>") + "</b></div>";
   if (bv.dadosEsperando) {
     // A espera no mesmo cartao da espera do login: o giro, o que acontece, e a acao de conferir.
-    const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">DADOS DA ASSINATURA</span><div class="bv-bloco">' +
+    // A espera sem cartao em volta (09/10/2026): a linha, o botao e, embaixo, o Cancelar.
+    const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
       '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o site…</b><small>quando salvar na Minha conta, os dados e o plano aparecem aqui</small></span></div>' +
-      '<button type="button" class="bv-g-trilho" data-bv="dados-conferir"><span class="bv-g-pastilha">Já editei, conferir agora</span></button></div>' +
+      '<button type="button" class="bv-g-trilho" data-bv="dados-conferir"><span class="bv-g-pastilha">Já editei, conferir agora</span></button>' +
       '<div class="cs-links bv-fora"><button type="button" class="bv-ligacao" data-bv="dados-cancelar">Cancelar</button></div></div></div>';
     return [texto, lado];
   }
@@ -860,11 +865,11 @@ function passoConexoes() {
   if (bv.google) bv.autorizados.gmail = true;
   const pedidos = SERVICOS_BV.filter((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]);
   if (bv.consentEsperando) {
-    const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">CONEXÕES</span><div class="bv-bloco">' +
+    const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">CONEXÕES</span>' +
       '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o consentimento no Google…</b><small>' + esc(pedidos.map((p) => p.nome).join(", ")) + " · quando autorizar, a janela segue sozinha</small></span></div>" +
       '<button type="button" class="bv-g-trilho" data-bv="consent-conferir"><span class="bv-g-pastilha">Já autorizei, conferir agora</span></button>' +
-      '<p class="bv-ajuda bv-bloco-nota">' + (conta ? "O Google abriu no seu navegador com esta conta." : "O Google abriu no seu navegador: escolha a conta Google que vai usar.") +
-      " Se a aba não apareceu, confira as janelas abertas.</p></div>" +
+      '<p class="bv-ajuda bv-nota-fora">' + (conta ? "O Google abriu no seu navegador com esta conta." : "O Google abriu no seu navegador: escolha a conta Google que vai usar.") +
+      " Se a aba não apareceu, confira as janelas abertas.</p>" +
       '<div class="cs-links bv-fora"><button type="button" class="bv-ligacao" data-bv="consent-cancelar">Cancelar</button></div></div></div>';
     return [texto, lado];
   }

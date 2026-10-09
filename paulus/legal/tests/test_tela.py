@@ -531,13 +531,13 @@ def main() -> int:
                     "depois de Conexoes, 'Acesso a distancia', sem 'Pular por agora'",
                     pagina.evaluate(etapa),
                 )
-                # O acesso vem ligado (o caminho normal); o interruptor e o da
-                # recusa, "Nao quero acessar a distancia": aria-checked = !acesso.
+                # O acesso vem ligado (o caminho normal); o interruptor e o do
+                # proprio acesso ("Ligado"/"Desligado"): aria-checked = acesso.
                 ja_tem = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("hostname"))
                 recusado = bool((api.estado.prefs.dados.get("acesso_remoto") or {}).get("recusado"))
                 checar(
-                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == str(recusado).lower(),
-                    "o interruptor da recusa vem como os dados dizem (de fabrica, desligado: o acesso vem ligado)",
+                    pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == str(not recusado).lower(),
+                    "o interruptor do acesso vem como os dados dizem (de fabrica, ligado)",
                 )
                 # Ligado, com o Worker de mentira: so a disponibilidade.
                 from types import SimpleNamespace
@@ -564,6 +564,20 @@ def main() -> int:
                             pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
                             "as tres etapas: endereco, conta do titular, confirmar no navegador",
                         )
+                        # So o passo da vez fica aberto: "Usar este endereco" encolhe o 1 (com o endereco) e abre o 2.
+                        checar(
+                            pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa.fechada').length") == 2,
+                            "no comeco, so o passo do endereco fica aberto; os outros dois, apagados",
+                        )
+                        pagina.evaluate("() => document.querySelector('[data-cx-usar-endereco]').click()")
+                        pagina.wait_for_timeout(500)
+                        checar(
+                            pagina.evaluate("() => (document.querySelector('#boas-vindas .acesso-etapa.feita .acesso-resumo') || {}).textContent") == "escritorio-da-tela.paulus.ia.br"
+                            and not pagina.evaluate("() => !!document.getElementById('cx-slug')")
+                            and pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa.fechada').length") == 1,
+                            "'Usar este endereco' encolhe o passo 1 com o endereco e abre o passo 2",
+                            pagina.evaluate("() => [...document.querySelectorAll('#boas-vindas .acesso-etapa')].map(e => e.className).join(' | ')"),
+                        )
                         checar(
                             pagina.evaluate("() => !document.querySelector('[data-bv=continuar]') && !!document.querySelector('.bv-rodape-nota')"),
                             "sem o tunel conectado ate o fim, nao ha Continuar: o rodape diz o que falta",
@@ -571,10 +585,10 @@ def main() -> int:
                         pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
                         pagina.wait_for_timeout(400)
                         checar(
-                            pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == "true"
+                            pagina.evaluate("() => document.querySelector('[data-bv-acesso]').getAttribute('aria-checked')") == "false"
                             and not pagina.evaluate("() => !!document.getElementById('cx-slug')")
                             and any('"recusado": true' in g or '"recusado":true' in g for g in gravados),
-                            "recusar tira o endereco da tela e grava a recusa",
+                            "desligar tira o endereco da tela e grava a recusa",
                         )
                         checar(
                             pagina.evaluate("() => !!document.querySelector('[data-bv=continuar]')"),

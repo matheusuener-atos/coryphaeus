@@ -365,3 +365,23 @@
   .bv-secao-atu .bv-modulo:hover:not(.fixo) { background: var(--botao-sobre); }
   .bv-secao-plano .lb-titulo { display: inline-flex; align-items: center; gap: 10px; }
   .bv-secao > .cartao-permissoes { max-width: none; }
+
+  /* Acesso a distancia (desenho de 09/10/2026): o interruptor num cartao e cada passo num cartao; o feito encolhe com
+     o resumo, o que ainda nao chegou fica apagado; conectado, o endereco fecha a lista. */
+  .bv-entrada.bv-acesso { gap: 12px; max-width: 760px; }
+  .bv-entrada.bv-acesso > .bv-rotulo { padding-left: 4px; }
+  .bv-acesso-chave { padding: 14px 20px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); }
+  .bv-entrada.bv-acesso .acesso-etapas { gap: 12px; border: 0; border-radius: 0; background: none; overflow: visible; }
+  .bv-entrada.bv-acesso .acesso-etapa, .bv-entrada.bv-acesso .acesso-etapa:first-child { border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); padding: 20px 24px; }
+  .bv-entrada.bv-acesso .acesso-etapa.feita, .bv-entrada.bv-acesso .acesso-etapa.fechada { padding: 14px 24px; background: var(--cartao-fundo); }
+  .bv-acesso .acesso-etapa.fechada .acesso-etapa-cabeca { opacity: .5; }
+  .bv-acesso .acesso-resumo { flex: 1; min-width: 0; padding-left: 24px; font: 500 13px var(--mono); letter-spacing: 0; text-transform: none; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bv-acesso .acesso-resumo.trocar { cursor: pointer; }
+  .bv-acesso .acesso-resumo.trocar:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .bv-acesso .acesso-pe { display: flex; align-items: center; gap: 16px; }
+  .bv-g-trilho.bv-curto { width: auto; justify-self: start; }
+  .bv-g-trilho.bv-curto .bv-g-pastilha { padding: 0 18px; }
+  .acesso-codigo-linha { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .bv-acesso > .linha-botao .mono { font-family: var(--mono); }
+  .bv-secao > .bv-linha.bv-espera + .bv-g-trilho { margin-top: 4px; }
+  .bv-acesso-chave .bv-modulo-ic { background: none; border: 0; width: auto; color: var(--ink2); }

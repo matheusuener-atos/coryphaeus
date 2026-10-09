@@ -69,12 +69,19 @@ function cartaoTunel() {
 
 /* ------------------------------------------------ o bloco de conexao */
 
-function etapaConexao(n, titulo, corpo, feita) {
+function etapaConexao(n, titulo, corpo, feita, o) {
   // No assistente, so texto ("PASSO 1 — ENDEREÇO"), como o rotulo de passo da tela; em Configuracoes, o circulo numerado.
-  const cabeca = conexaoUI.onde === "bv"
-    ? "<b>Passo " + n + " — " + titulo + "</b>" + (feita ? '<span class="acesso-feita">' + ic("check", 13) + "feito</span>" : "")
+  // No assistente (desenho de 09/10/2026), cada passo e um cartao e so o da vez fica aberto: o feito encolhe com o
+  // resumo (o endereco do passo 1) e o "feito"; o que ainda nao chegou fica so com o rotulo, apagado.
+  o = o || {};
+  const bv = conexaoUI.onde === "bv";
+  const cabeca = bv
+    ? "<b>Passo " + n + " — " + titulo + "</b>" + (feita && o.resumo ? '<code class="acesso-resumo">' + esc(o.resumo) + "</code>" : "") +
+      (feita ? '<span class="acesso-feita">' + ic("check", 13) + "feito</span>" : "")
     : '<span class="bv-num-passo">' + (feita ? ic("check", 13) : n) + "</span><b>" + titulo + "</b>";
-  return '<div class="acesso-etapa' + (feita ? " feita" : "") + '"><div class="acesso-etapa-cabeca">' + cabeca + "</div>" + corpo + "</div>";
+  const fechada = bv && (feita || o.fechada);
+  return '<div class="acesso-etapa' + (feita ? " feita" : "") + (bv && o.fechada && !feita ? " fechada" : "") + '"><div class="acesso-etapa-cabeca">' + cabeca + "</div>" +
+    (fechada ? "" : corpo) + "</div>";
 }
 
 function slugOk() {
@@ -114,6 +121,12 @@ function blocoConexao() {
   const titulares = d.titulares || [];
   const esperando = pedido && pedido.estado === "esperando";
 
+  // No assistente, a ordem dos passos: o endereco escolhido ("Usar este endereco"), a conta pronta, a confirmacao.
+  const concluido = Boolean(pedido && pedido.estado === "concluido");
+  const contaFeita = titulares.length > 0 && conexaoUI.fase !== "codigos";
+  const bvPassos = { e1: Boolean(esperando || concluido || (conexaoUI.enderecoUsado && slugOk())) };
+  bvPassos.e2 = bvPassos.e1 && contaFeita;
+
   // 1. O endereco. Durante a espera, fica o que foi pedido.
   const slug = esperando ? pedido.slug : conexaoUI.slug;
   const [disp, tom] = textoDisponibilidade();
@@ -122,7 +135,9 @@ function blocoConexao() {
     ' autocapitalize="off" aria-label="Nome do endereço"' + (esperando ? " disabled" : "") + '><span class="acesso-dominio">.paulus.ia.br</span></div>' +
     '<p class="acesso-disp" data-tom="' + tom + '" id="cx-disp" role="status">' + (esperando ? "" : disp) + "</p>" +
     '<div class="acesso-final"' + (conexaoUI.onde === "bv" ? ' hidden="hidden"' : "") + '><code id="cx-final">' + esc((slug || "…") + ".paulus.ia.br") + "</code>" +
-    "<small>você e a sua equipe entram por aqui</small></div>" + blocoMeus(d, esperando), false);
+    "<small>você e a sua equipe entram por aqui</small></div>" + blocoMeus(d, esperando) +
+    (conexaoUI.onde === "bv" ? '<div class="acesso-pe"><button type="button" class="bv-g-trilho bv-curto" data-cx-usar-endereco="1"><span class="bv-g-pastilha">Usar este endereço</span></button></div>' : ""),
+    bvPassos.e1, { resumo: (slug || "") + ".paulus.ia.br" });
 
   // 2. A conta do titular, com o autenticador.
   let conta;
@@ -193,7 +208,8 @@ function blocoConexao() {
         : "Sem ela, ninguém entra de fora. Senha e código ficam só neste computador.") + "</p></div>";
   }
   const contaPronta = titulares.length > 0 && conexaoUI.fase !== "codigos";
-  const etapaConta = etapaConexao(2, conexaoUI.onde === "bv" ? "Autenticação" : "Sua conta de titular", conta, contaPronta);
+  const etapaConta = etapaConexao(2, conexaoUI.onde === "bv" ? "Autenticação" : "Sua conta de titular", conta, contaPronta && (conexaoUI.onde !== "bv" || bvPassos.e1),
+    { fechada: !bvPassos.e1 });
 
   // 3. Confirmar no navegador.
   const faltas = [];
@@ -205,7 +221,16 @@ function blocoConexao() {
   }
   const erro = (d.conexao || {}).erro;
   let confirmar;
-  if (esperando) {
+  if (esperando && conexaoUI.onde === "bv") {
+    // No assistente (desenho de 09/10/2026): o codigo, a validade ao lado e o botao que reabre a confirmacao.
+    confirmar = '<p class="cfg-texto">Confira se o navegador mostra este mesmo código.' +
+      (pedido.retomar ? " O endereço é da sua conta: confirmando, ele passa para este Paulus e o de antes deixa de atender." : "") + "</p>" +
+      '<div class="acesso-codigo-linha"><div class="acesso-codigo-usuario" aria-label="código">' + esc(pedido.codigo_usuario) + "</div>" +
+      '<span class="cfg-explica">Vale até ' + esc(new Date(pedido.expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })) + ".</span></div>" +
+      (erro ? '<p class="acesso-erro">' + esc(erro) + "</p>" : "") +
+      '<div class="acesso-pe"><button type="button" class="bv-g-trilho bv-curto" data-tunel-abrir="' + esc(pedido.url) + '"><span class="bv-g-pastilha">Confirmar no navegador</span></button>' +
+      '<button type="button" class="bv-ligacao" data-tunel-cancelar="1">Cancelar</button></div>';
+  } else if (esperando) {
     confirmar = '<p class="cfg-texto">Abri <b>paulus.ia.br/conectar</b> no navegador. Confira se o navegador mostra este mesmo código e clique em Confirmar.' +
       (pedido.retomar ? " O endereço é da sua conta Google: confirmando, ele passa para este Paulus e o de antes deixa de atender." : "") + "</p>" +
       '<div class="acesso-codigo-usuario" aria-label="código">' + esc(pedido.codigo_usuario) + "</div>" +
@@ -236,7 +261,7 @@ function blocoConexao() {
         ": o endereço fica dela, e você o retoma se reinstalar.") + "</p></div>";
   }
   return '<div class="acesso-etapas">' + endereco + etapaConta +
-    etapaConexao(3, "Confirmar no navegador", confirmar, pedido && pedido.estado === "concluido") + "</div>";
+    etapaConexao(3, "Confirmar no navegador", confirmar, concluido, { fechada: !bvPassos.e2 }) + "</div>";
 }
 
 /* Os enderecos que ja sao desta conta (reinstalou, trocou de computador):
@@ -370,6 +395,22 @@ function ligarBlocoConexao(raiz) {
     if (conexaoUI.slug && conexaoUI.perguntado !== conexaoUI.slug && !slug.disabled) conferirSlug();
   }
   clique("[data-cx-sugestao]", (b) => usarSlug(b.dataset.cxSugestao));
+  clique("[data-cx-usar-endereco]", () => {
+    if (!slugOk()) {
+      const campo = raiz.querySelector("#cx-slug");
+      if (campo) { marcarCampo(campo, "erro", "escolha um endereço disponível", raiz.querySelector(".acesso-slug")); campo.focus(); }
+      return;
+    }
+    conexaoUI.enderecoUsado = true;
+    redesenhar();
+  });
+  raiz.querySelectorAll(".acesso-etapa.feita .acesso-resumo").forEach((r) => {
+    const pedido = ((tunelCfg.dados || {}).conexao || {}).pedido;
+    if (pedido && ["esperando", "concluido"].includes(pedido.estado)) return;
+    r.title = "Trocar o endereço";
+    r.classList.add("trocar");
+    r.onclick = () => { conexaoUI.enderecoUsado = false; redesenhar(); };
+  });
   clique("[data-cx-meu]", () => confirmarComGoogle(() => { redesenhar(); }));
   raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { i.oninput = () => { conexaoUI.conta[i.dataset.cxConta] = i.value; }; });
   // Cada campo da conta com a sua regra (js/00-base.js): a borda diz se fecha.
