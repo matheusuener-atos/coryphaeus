@@ -58,8 +58,12 @@
        telas de 01/10/2026 pede o botao claro sobre o escuro. */
     --primario: #26251f;
     /* Cartao, campo, botao e botao principal (moldura dupla): o padrao do sistema (08/10/2026). */
-    --cartao-fundo: #ffffff; --campo-fundo: #faf9f6; --botao-fundo: #f6f5f1; --botao-sobre: #efeee9;
-    --primario-fundo: #e8e2d8; --primario-sobre: #e0dad0;
+    --cartao-fundo: #ffffff;
+    --campo-fundo: #faf9f6;
+    --botao-fundo: #f6f5f1;
+    --botao-sobre: #efeee9;
+    --primario-fundo: #e8e2d8;
+    --primario-sobre: #e0dad0;
     --primario-hover: #35332b;
     --primario-ink: #f2f1ec;
     /* A coluna da direita da conversa: um tom abaixo da superficie, entre ela
@@ -201,8 +205,12 @@
     --primario: #f2f1ec;
     /* As cores do dono (08/10/2026): cartao #161616, campo #111111, botao #1a1a1a (destaque #212121),
        botao principal de moldura dupla #262626 (destaque #2e2e2e). */
-    --cartao-fundo: #161616; --campo-fundo: #111111; --botao-fundo: #1a1a1a; --botao-sobre: #212121;
-    --primario-fundo: #262626; --primario-sobre: #2e2e2e;
+    --cartao-fundo: #161616;
+    --campo-fundo: #111111;
+    --botao-fundo: #1a1a1a;
+    --botao-sobre: #212121;
+    --primario-fundo: #262626;
+    --primario-sobre: #2e2e2e;
     --primario-hover: #dcdad3;
     --primario-ink: #161615;
     --lado-fundo: #161615;
