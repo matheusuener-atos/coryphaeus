@@ -116,6 +116,10 @@
     // (MP_ACCESS_TOKEN) continua so como segredo do Worker. As duas precisam ser
     // da mesma aba, ou o cartao lido nao serve para cobrar.
     "MP_PUBLIC_KEY": "APP_USR-a8fb9ba1-3a56-4388-a1de-de353a72a01f",
+    // A chave publica da conta Atos (atos.dev.br, "Entrar com Atos"): o
+    // donoDoToken confere o id_token ES256 da Atos com ela (worker/identidade.js).
+    // Nao e segredo. Trocar a chave la = acrescentar a nova aqui antes.
+    "ATOS_JWKS": "[{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"de_6JI9TCEXk78hRFEzffNeJiuHC9cm7gHiXtUol6sQ\",\"y\":\"Gwu29O1smT_j9HCn6fYXdjReM-Pi76jGH5wKYN8OSRE\",\"kid\":\"atos-2026-10-09\",\"alg\":\"ES256\",\"use\":\"sig\"}]",
     "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "d64e139883ea6f7246380d9c3c9c35a5bdef62163e768d103527cc4c003fd04f" },
   // O medidor da nuvem: um Durable Object por conta (worker/ia.js, ContaIA).
   // SQLite, o tipo que o plano gratis da Cloudflare aceita.

@@ -337,6 +337,6 @@
   .mc-periodo .calendario-adm { left: 0; right: auto; }
 }
 
-/* A conta por e-mail e senha (assets/conta-senha.js), na largura do botão do Google. */
+/* O botão da Conta Atos (assets/entrar-atos.js), na largura do botão do Google. */
 .mc-senha { width: 100%; max-width: 320px; }
 .mc-entrar .cs-ou { max-width: 320px; }

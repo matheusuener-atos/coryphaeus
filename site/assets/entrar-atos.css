@@ -1,0 +1,19 @@
+/* "Entrar com Atos": o botao (cadastro e Minha conta) e a pagina de volta.
+   A marca da Atos e Times New Roman, claro sobre o quase preto #131312. */
+.atos-botao {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 320px; min-height: 40px;
+  padding: 0 16px; border: 1px solid #131312; border-radius: 4px; background: #131312; color: #d8d8d8;
+  font: 500 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; cursor: pointer;
+}
+.atos-botao:hover { background: #000; }
+.atos-botao:focus-visible { outline: 2px solid #d8d8d8; outline-offset: 2px; }
+.atos-botao[disabled] { opacity: .65; cursor: progress; }
+.atos-a { font: 400 22px/1 "Times New Roman", Times, "Liberation Serif", serif; }
+:root[data-theme="dark"] .atos-botao { border-color: rgba(216, 216, 216, .35); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .atos-botao { border-color: rgba(216, 216, 216, .35); } }
+
+body.atos-volta {
+  margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: #131312; color: #d8d8d8; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; text-align: center;
+}
+.atos-marca { font: 400 48px/1 "Times New Roman", Times, "Liberation Serif", serif; margin: 0; }

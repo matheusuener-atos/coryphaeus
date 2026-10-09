@@ -1,6 +1,6 @@
 /* Minha conta (paulus.ia.br/minha-conta/): o titular da assinatura - e quem ele autorizar - cuida do plano,
    do consumo, das faturas, da forma de pagamento, do cadastro e do escritorio. Entra com a conta Google ou com
-   e-mail e senha (a conta PAVLVS, assets/conta-senha.js: o token do Worker vai no lugar do id_token).
+   a Conta Atos (assets/entrar-atos.js: o id_token da Atos vai no lugar do do Google).
    Desenho: a topbar do site, o titulo centrado e as abas na pilula (como a pagina da conta no Admin).
    O servidor e o worker/conta.js: GET /api/conta traz tudo, cada acao e um POST da propria origem e o
    papel (titular ou financeiro) e conferido la. O cartao vai pelos campos seguros do Mercado Pago; o
@@ -647,10 +647,10 @@
       (S.erroEntrar ? '<p class="mc-nota centro mc-erro" role="alert">' + esc(cap(S.erroEntrar)) + "</p>" : "") +
       '<p class="mc-nota centro">Ainda não assina? <a href="' + (MP_IMG === "../../assets/" ? "../../assinatura/" : MP_IMG === "../assets/" ? "../assinatura/" : "Site - Assinatura.dc.html") + '">Conheça os planos</a>.</p></div>';
   }
-  // A conta por e-mail e senha (assets/conta-senha.js): o token do Worker abre a mesma sessao que o do Google.
+  // A Conta Atos (assets/entrar-atos.js): o id_token da Atos abre a mesma sessao que o do Google.
   function montarSenha() {
-    var l = $("mc-senha"); if (!l || !window.PavlvsSenha) return;
-    PavlvsSenha.montar(l, { ingles: L(false, true), aoEntrar: function (token) { A.entrarComToken(token); } });
+    var l = $("mc-senha"); if (!l || !window.EntrarAtos) return;
+    EntrarAtos.montar(l, { ingles: L(false, true), aoEntrar: function (token) { A.entrarComToken(token); } });
   }
   function botaoGoogle() {
     var lugar = $("mc-google"); if (!lugar) return;

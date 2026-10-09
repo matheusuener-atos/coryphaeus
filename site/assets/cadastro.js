@@ -1,5 +1,5 @@
-/* A pagina de cadastro (paulus.ia.br/cadastro): entrar (Google, ou e-mail e senha pela
-   conta PAVLVS de assets/conta-senha.js, com um token do Worker no lugar do id_token) e os dados
+/* A pagina de cadastro (paulus.ia.br/cadastro): entrar (Google, ou a Conta Atos por
+   assets/entrar-atos.js, com o id_token da Atos no lugar do do Google) e os dados
    do escritorio, com o plano escolhido em /assinatura (?plano=&periodo=), pelo Worker (worker/ia.js, /api/ia/planos e
    /api/ia/site/*). O pagamento e a pagina seguinte, /cadastro/pagamento
    (assets/pagamento.js), com o cartao nos campos seguros do Mercado Pago. O id_token do
@@ -433,8 +433,8 @@
   document.addEventListener("DOMContentLoaded", function () {
     vigiarResumo();
     iniciarGoogle();
-    // A conta por e-mail e senha: o token do Worker segue o mesmo caminho do id_token.
-    if (window.PavlvsSenha) PavlvsSenha.montar($("cd-senha"), { aoEntrar: function (token) { entrar(token); } });
+    // A Conta Atos (assets/entrar-atos.js): o id_token da Atos segue o mesmo caminho do do Google.
+    if (window.EntrarAtos) EntrarAtos.montar($("cd-senha"), { aoEntrar: function (token) { entrar(token); } });
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);
     $("cd-desistir-botao").addEventListener("click", desistir);

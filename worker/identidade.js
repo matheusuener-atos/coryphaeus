@@ -138,6 +138,48 @@ export function ehTokenProprio(token) {
   }
 }
 
+// ------------------------------------------------ o id_token da conta Atos
+//
+// Desde 09/10/2026 a conta por e-mail e senha e a conta Atos: o site e o Paulus
+// entram por "Entrar com Atos" (OpenID Connect em https://atos.dev.br, repo
+// matheusuener-atos/matheusuener.com.br, worker/oidc.js) e recebem um id_token
+// ES256. As contas sao as mesmas chaves "id:conta:<email>" deste KV, entao o
+// sub e o mesmo que o token HS256 acima dava. A chave publica fica na var
+// ATOS_JWKS (a lista de JWK que o tools/gerar-chave.mjs de la imprime): conferir
+// nao pede nada a atos.dev.br.
+
+export const ATOS_EMISSOR = "https://atos.dev.br";
+export const ATOS_CLIENTES = ["pavlvs-site", "pavlvs-app"];
+
+/* O token e da Atos (ES256 com kid)? Sem conferir a assinatura: so para escolher o caminho. */
+export function ehTokenDaAtos(token) {
+  try {
+    const cab = JSON.parse(new TextDecoder().decode(deB64url(String(token).split(".")[0])));
+    return cab.alg === "ES256" && typeof cab.kid === "string";
+  } catch {
+    return false;
+  }
+}
+
+/* {sub, email, nome} de um id_token da Atos valido para o PAVLVS; ou null. */
+export async function donoDoTokenDaAtos(env, token, agora = Date.now()) {
+  const partes = String(token || "").split(".");
+  if (partes.length !== 3 || String(token).length > 4096) return null;
+  try {
+    const cab = JSON.parse(new TextDecoder().decode(deB64url(partes[0])));
+    const jwk = JSON.parse(env.ATOS_JWKS || "[]").find((k) => k && k.kid === cab.kid);
+    if (cab.alg !== "ES256" || !jwk) return null;
+    const chave = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x: jwk.x, y: jwk.y, ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    if (!(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, chave, deB64url(partes[2]), te.encode(partes[0] + "." + partes[1])))) return null;
+    const info = JSON.parse(new TextDecoder().decode(deB64url(partes[1])));
+    if (info.iss !== ATOS_EMISSOR || !ATOS_CLIENTES.includes(info.aud) || !(Number(info.exp) * 1000 > agora)) return null;
+    if (info.email_verified !== true || !info.sub || !info.email) return null;
+    return { sub: String(info.sub), email: normal(info.email), nome: String(info.name || "") };
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------- as tentativas
 
 async function bloqueado(env, email) {

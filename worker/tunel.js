@@ -51,7 +51,7 @@
 // Caminhos da API conferidos na documentacao da Cloudflare em 28/09/2026
 // (docs/PROGRESSO-IMPLEMENTACAO.md, R5).
 
-import { anotarGoogle, donoDoTokenProprio, ehTokenProprio } from "./identidade.js";
+import { anotarGoogle, donoDoTokenDaAtos, donoDoTokenProprio, ehTokenDaAtos, ehTokenProprio } from "./identidade.js";
 import { enviarEmail } from "./admin.js";
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -361,6 +361,10 @@ export async function donoDoToken(env, token, agora = () => Date.now()) {
   const t = String(token || "");
   if (ehTokenProprio(t)) {
     const d = await donoDoTokenProprio(env, t, agora());
+    return d ? { sub: d.sub, email: d.email } : null;
+  }
+  if (ehTokenDaAtos(t)) {
+    const d = await donoDoTokenDaAtos(env, t, agora());
     return d ? { sub: d.sub, email: d.email } : null;
   }
   const dono = await donoDoGoogle(env, t, agora);

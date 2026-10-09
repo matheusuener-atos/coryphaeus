@@ -109,6 +109,31 @@ const mexido = a + "." + Buffer.from(JSON.stringify({ iss: "https://paulus.ia.br
 checar((await donoDoToken(env, mexido)) === null, "token com o corpo trocado: recusado");
 checar((await donoDoToken({ ...env, ID_SEGREDO: "" }, r.d.token)) === null, "sem ID_SEGREDO, nenhum token próprio vale");
 
+console.log("o id_token da conta Atos");
+{
+  const par = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pub = await crypto.subtle.exportKey("jwk", par.publicKey);
+  const envAtos = { ...env, ATOS_JWKS: JSON.stringify([{ kty: "EC", crv: "P-256", x: pub.x, y: pub.y, kid: "atos-t" }]) };
+  const s = Math.floor(Date.now() / 1000);
+  async function atos(corpo, chave = par.privateKey, kid = "atos-t") {
+    const enc = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+    const ini = enc({ alg: "ES256", typ: "JWT", kid }) + "." + enc(corpo);
+    const ass = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, chave, new TextEncoder().encode(ini));
+    return ini + "." + Buffer.from(ass).toString("base64url");
+  }
+  const bom = { iss: "https://atos.dev.br", aud: "pavlvs-site", sub: subAna, email: "Ana@Escritorio.adv.br", email_verified: true, name: "Ana", iat: s, exp: s + 3600 };
+  dono = await donoDoToken(envAtos, await atos(bom));
+  checar(dono && dono.sub === subAna && dono.email === "ana@escritorio.adv.br", "o donoDoToken aceita o id_token da Atos (o mesmo sub da conta)", dono);
+  checar((await donoDoToken(envAtos, await atos({ ...bom, aud: "pavlvs-app" }))) !== null, "do programa instalado (pavlvs-app) também");
+  checar((await donoDoToken(envAtos, await atos({ ...bom, aud: "outro-app" }))) === null, "para outro aplicativo: recusado");
+  checar((await donoDoToken(envAtos, await atos({ ...bom, iss: "https://golpe.example" }))) === null, "de outro emissor: recusado");
+  checar((await donoDoToken(envAtos, await atos({ ...bom, exp: s - 10 }))) === null, "vencido: recusado");
+  const outra = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  checar((await donoDoToken(envAtos, await atos(bom, outra.privateKey))) === null, "assinado com outra chave: recusado");
+  checar((await donoDoToken(envAtos, await atos(bom, par.privateKey, "desconhecida"))) === null, "kid desconhecido: recusado");
+  checar((await donoDoToken(env, await atos(bom))) === null, "sem ATOS_JWKS: recusado");
+}
+
 console.log("as portas");
 r = await pedir("entrar", { email: "ana@escritorio.adv.br", senha: "novasenha2026" }, { envUsado: { APOIOS } });
 checar(r.status === 503, "sem ID_SEGREDO: desligado (503)");
