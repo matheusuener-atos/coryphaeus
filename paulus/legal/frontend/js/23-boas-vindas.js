@@ -373,6 +373,7 @@ function passoGoogle() {
     // Uma linha so no topo do cartao: onde o primeiro campo e o e-mail, o rotulo do cartao ja diz o que digitar.
     const soEmail = !noComeco && !contaSenha.etapa && (contaSenha.modo === "criar" || contaSenha.modo === "esqueci");
     const rotulo = noComeco ? "SUA CONTA" : soEmail ? (contaSenha.modo === "criar" ? "DIGITE UM E-MAIL PARA CRIAR SUA CONTA" : "DIGITE O E-MAIL PARA TROCAR A SENHA")
+      : contaSenha.etapa === "codigo" ? "DIGITE O CÓDIGO QUE ENVIAMOS"
       : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
     const comGoogle = noComeco && !(e && !e.google);
     // Um cartao so (desenho de 08/10/2026): o rotulo, o Google, "OU COM E-MAIL", o formulario e, depois de um fio, a nota.

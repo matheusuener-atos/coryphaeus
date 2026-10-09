@@ -100,7 +100,10 @@ function formContaSenha(o) {
     : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' + (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
   const senha = (id, rotulo, nova) => campo(id, rotulo, "password", "", ' autocomplete="' + (nova ? "new-password" : "current-password") + '"' +
     (nova ? ' placeholder="10 ou mais caracteres, com letras e números"' : "") + ' maxlength="200"');
-  const codigo = campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
+  // No cartao do assistente, o rotulo do cartao ja e "Digite o codigo que enviamos": o campo vem sem rotulo proprio.
+  const codigo = o.cartao
+    ? '<label class="cs-grupo"><input class="cs-campo" id="cs-codigo" type="text" value="" aria-label="Código do e-mail" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></label>'
+    : campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
   const erro = '<p class="' + v.erro + '" id="cs-erro" role="alert"></p>';
   const botao = (texto) => '<button type="submit" class="' + v.trilho + '" id="cs-enviar"' + (c.ocupado ? " disabled" : "") + '><span class="' + v.pastilha + '">' +
     esc(texto) + "</span></button>";
