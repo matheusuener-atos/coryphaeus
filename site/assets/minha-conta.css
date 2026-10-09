@@ -153,7 +153,7 @@
 .mc-plano { display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
 .mc-plano.atual { border-color: var(--ink3); }
 .mc-plano-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.mc-plano-topo b { font: 500 16px var(--sans); }
+.mc-plano-topo b { font: 400 22px/1.1 var(--serif); }
 .mc-preco { display: flex; align-items: baseline; gap: 8px; }
 .mc-preco span { font: 600 32px/1 var(--sans); color: var(--ink); }
 .mc-preco small { font-size: 12px; color: var(--ink3); }
@@ -219,12 +219,12 @@
 :root { --mc-atencao: var(--atencao, #d4b36a); }
 .mc-tag.atencao { color: var(--mc-atencao); }
 .mc-sit.atencao .mc-bolinha { background: var(--mc-atencao); }
-/* Serifa so no titulo da pagina; numeros e nomes dentro dos paineis em sans, como no Admin. */
-.mc-plano-nome h2 { font: 500 20px/1.2 var(--sans); }
+/* Serifa nos titulos de texto (o da pagina, o nome do plano, o titulo do dialogo), como no app; os numeros em sans. */
+.mc-plano-nome h2 { font: 400 26px/1.15 var(--serif); }
 .mc-uso-num b { font: 500 20px/1.2 var(--sans); }
 .mc-pacote b { font: 500 16px/1.2 var(--sans); }
 .mc-preco span { font: 500 20px/1.1 var(--sans); }
-.mc-dlg-titulos h2 { font-family: var(--sans); }
+.mc-dlg-titulos h2 { font: 400 22px/1.2 var(--serif); }
 .mc-periodo { justify-content: flex-start; }
 .mc-ciclo-sel { height: 38px; width: 200px; background: var(--campo-fundo) !important; }
 /* O grafico explicado: legenda em cima e a linha do ritmo da cota. */
