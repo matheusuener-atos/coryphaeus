@@ -849,7 +849,16 @@
     entrarComToken: function (credencial) {
       S.erroEntrar = "";
       api("POST", "/api/conta/entrar", { credential: credencial, convite: S.convite || "" }).then(function () { S.convite = ""; S.d = null; render(); carregar(); })
-        .catch(function (e) { S.erroEntrar = e.message; render(); });
+        .catch(function (e) {
+          // Entrou, mas a conta ainda nao assina (e nao veio por convite): vai escolher o plano. O token fica
+          // na aba (a mesma chave do assets/cadastro.js), e o cadastro ja abre com a conta, sem pedir de novo.
+          if (e.dados && e.dados.sem_conta && !S.convite) {
+            try { sessionStorage.setItem("pv-cadastro-token", credencial); } catch (x) { /* o cadastro pede para entrar de novo */ }
+            location.assign("/assinatura/");
+            return;
+          }
+          S.erroEntrar = e.message; render();
+        });
     },
     sair: function () {
       api("POST", "/api/conta/sair", {}).catch(function () { /* o cookie some de qualquer jeito */ }).then(function () {
