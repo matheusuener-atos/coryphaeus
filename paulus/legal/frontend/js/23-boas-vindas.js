@@ -98,6 +98,9 @@ function ordemBv() {
   let o = ordem;
   // Assinatura ativa: o passo nao aparece. Sem ela (ou vencida), ele segura os seguintes.
   if (bv.assinatura && bv.assinatura.ativa) o = o.filter((p) => p !== "assinatura");
+  // "Seus dados" so para quem entrou ja com assinatura ativa (09/10/2026): quem criou a conta agora ou
+  // assinou no site durante o assistente acabou de preencher tudo la. Os dados sao gravados sem a tela.
+  if (bv.semConferirDados) o = o.filter((p) => p !== "dados");
   return o;
 }
 
@@ -112,7 +115,10 @@ async function lerAssinatura(soLer) {
   if (a && a.ativa) {
     if (a.pessoa) for (const k of Object.keys(a.pessoa)) if (!bv.pessoa[k]) bv.pessoa[k] = a.pessoa[k];
     if (a.escritorio && !bv.escritorio) bv.escritorio = a.escritorio;
-    if (bv.assinaturaEsperando) { bv.assinaturaEsperando = false; pararEsperaAssinatura(); avisoCert("assinatura confirmada"); }
+    if (bv.assinaturaEsperando) {
+      bv.assinaturaEsperando = false; pararEsperaAssinatura(); avisoCert("assinatura confirmada");
+      if (bv.semConferirDados) gravarDadosDaAssinaturaBv();
+    }
   }
   return a;
 }
@@ -403,6 +409,16 @@ async function abrirSiteParaAssinar() {
   desenharBoasVindas();
 }
 
+/* Os dados que vieram da assinatura vao para Meus dados e o escritorio. O documento do cadastro do site pode
+   ser o CNPJ do escritorio: ele vai para o escritorio, e o CPF de Meus dados fica como estava. */
+async function gravarDadosDaAssinaturaBv() {
+  const pessoa = Object.assign({}, bv.pessoa);
+  const escritorio = {};
+  if (bv.caminho === "criar" && String(bv.escritorio || "").trim()) escritorio.nome = String(bv.escritorio).trim();
+  if (pessoa.cpf && (String(pessoa.cpf).replace(/\D/g, "").length > 11 || /[A-Za-z]/.test(pessoa.cpf))) { escritorio.cnpj = pessoa.cpf; delete pessoa.cpf; }
+  await gravarBoasVindas(Object.keys(escritorio).length ? { pessoa, escritorio } : { pessoa });
+}
+
 async function aoVincularBv() {
   const e = vinc.estado || {};
   if (e.vinculado) {
@@ -411,6 +427,7 @@ async function aoVincularBv() {
     await conferirContasBv();
     if (bv.google) bv.autorizados.gmail = true;
     await lerAssinatura();
+    if ((typeof contaSenha !== "undefined" && contaSenha.criouAgora) || !(bv.assinatura && bv.assinatura.ativa)) bv.semConferirDados = true;
     // Conta criada agora, aqui no assistente: sem plano, vai direto ao passo Assinatura e abre o site para assinar.
     if (typeof contaSenha !== "undefined" && contaSenha.criouAgora) {
       contaSenha.criouAgora = false;
@@ -1160,13 +1177,7 @@ async function acaoBoasVindas(qual) {
     // O campo que nao fecha ja esta vermelho (js/39-campos.js): so o foco nele.
     if (errado) { errado.focus(); return; }
     $("boas-vindas").querySelectorAll("[data-bv-pessoa]").forEach((i) => { bv.pessoa[i.dataset.bvPessoa] = i.value; });
-    // O documento do cadastro do site pode ser o CNPJ do escritorio: ele vai para o escritorio, e o CPF de
-    // Meus dados fica como estava. O nome do escritorio vem da assinatura (este caminho nao tem o passo Escritorio).
-    const pessoa = Object.assign({}, bv.pessoa);
-    const escritorio = {};
-    if (bv.caminho === "criar" && String(bv.escritorio || "").trim()) escritorio.nome = String(bv.escritorio).trim();
-    if (pessoa.cpf && (String(pessoa.cpf).replace(/\D/g, "").length > 11 || /[A-Za-z]/.test(pessoa.cpf))) { escritorio.cnpj = pessoa.cpf; delete pessoa.cpf; }
-    await gravarBoasVindas(Object.keys(escritorio).length ? { pessoa, escritorio } : { pessoa });
+    await gravarDadosDaAssinaturaBv();
   }
   if (passo === "escritorio" && bv.caminho === "criar") {
     const campo = $("boas-vindas").querySelector("[data-bv-escritorio]");
