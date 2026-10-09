@@ -384,7 +384,7 @@ def main() -> int:
 
             print("\nprimeira abertura")
             # A ordem do assistente novo (07/10/2026, js/23-boas-vindas.js):
-            # Boas-vindas, Conta Google, Assinatura, Seus dados, Conexoes,
+            # Boas-vindas, Sua conta, Assinatura, Seus dados, Conexoes,
             # Acesso a distancia e Atualizacoes. A assinatura e a do site
             # (src/rotas_boas_vindas.py): aqui ela e de mentira, para o passeio
             # nao depender da conta da nuvem - primeiro sem assinatura (o passo
@@ -417,21 +417,32 @@ def main() -> int:
                     pagina.evaluate("() => !document.getElementById('boas-vindas').hidden"),
                     "#boasvindas abre o passeio de boas-vindas",
                 )
+                etapas = "() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent).join('|')"
                 checar(
-                    pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent).join('|')")
-                    == "Boas-vindas|Conta Google|Assinatura|Seus dados|Conexões|Acesso à distância|Atualizações",
+                    pagina.evaluate(etapas) == "Boas-vindas|Sua conta|Assinatura|Seus dados|Conexões|Acesso à distância|Atualizações",
                     "as etapas na ordem nova, so com o nome",
-                    pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent).join('|')"),
+                    pagina.evaluate(etapas),
                 )
                 pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
                 pagina.wait_for_timeout(600)
-                # O PAULUS do servidor vinculado a conta Google (E5): o passo vem
-                # logo depois das boas-vindas, e da para pular.
+                # Entrar e obrigatorio (08/10/2026): o passo Sua conta tem o login e nao tem
+                # "Pular por agora" nem Continuar enquanto a conta nao esta vinculada.
                 checar(
-                    pagina.evaluate(etapa) == "Conta Google"
-                    and pagina.evaluate("() => !!document.querySelector('[data-bv-google]') || !!document.querySelector('[data-bv-manter]')")
-                    and pagina.evaluate("() => !!document.querySelector('[data-bv=pular]')"),
-                    "Comecar leva ao passo Conta Google, com o botao do Google e 'Pular por agora'",
+                    pagina.evaluate(etapa) == "Sua conta"
+                    and pagina.evaluate("() => !!document.querySelector('[data-bv-google], .cs-form')")
+                    and pagina.evaluate("() => !document.querySelector('[data-bv=pular]') && !document.querySelector('[data-bv=continuar]')"),
+                    "Comecar leva ao passo Sua conta: o login, sem pular e sem Continuar antes de entrar",
+                    pagina.evaluate(etapa),
+                )
+                # Entrou (como o formulario deixa), ainda sem assinatura: o Continuar aparece.
+                pagina.evaluate("""async () => {
+                  vinc.estado = {vinculado: true, por: 'senha', email: 'teste@exemplo.com.br', nome: 'Helena Teste', manter_aberto: false, google: false, fase: ''};
+                  await aoVincularBv(); desenharBoasVindas();
+                }""")
+                pagina.wait_for_timeout(400)
+                checar(
+                    pagina.evaluate(etapa) == "Sua conta" and pagina.evaluate("() => !!document.querySelector('[data-bv=continuar]')"),
+                    "com a conta vinculada, o passo Sua conta mostra o Continuar",
                     pagina.evaluate(etapa),
                 )
                 pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
@@ -444,37 +455,43 @@ def main() -> int:
                     "sem assinatura, o passo Assinatura segura: so 'Assinar no site' e a troca de conta",
                     pagina.evaluate(etapa),
                 )
-                # O site confirmou: a proxima conferencia tira o passo, e o assistente segue para Seus dados.
+                # O site confirmou durante a espera: quem assinou agora acabou de preencher tudo la, entao
+                # "Seus dados" nao aparece; os dados do cadastro sao gravados sem a tela.
                 documento_antes = str((api.estado.prefs.dados.get("pessoa") or {}).get("cpf") or "")
                 situacao["a"] = {"ativa": True, "situacao": "ativa", "email": "teste@exemplo.com.br", "escritorio": "Escritório da Tela",
-                                 "plano": "Escritório", "renova_em": "2026-11-07",
+                                 "plano": "Escritório", "renova_em": "2026-11-07", "valor": 1290, "periodo": "mensal", "pago_ate": "",
                                  "pessoa": {"nome": "Helena Teste", "oab": "PA 12345", "cpf": "11.222.333/0001-81",
                                             "telefone": "(91) 98888-7777", "endereco": "Rua A, 1 - Centro, Belém - PA, CEP 66010-000"}}
-                pagina.evaluate("async () => { await lerAssinatura(); desenharBoasVindas(); }")
-                pagina.wait_for_timeout(400)
+                pagina.evaluate("async () => { bv.assinaturaEsperando = true; await lerAssinatura(); desenharBoasVindas(); }")
+                pagina.wait_for_timeout(800)
                 checar(
-                    pagina.evaluate(etapa) == "Seus dados"
-                    and pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].every(e => e.textContent !== 'Assinatura')"),
-                    "com a assinatura confirmada, o passo some e o assistente segue para Seus dados",
-                    pagina.evaluate(etapa),
+                    pagina.evaluate(etapa) == "Conexões"
+                    and pagina.evaluate(etapas) == "Boas-vindas|Sua conta|Conexões|Acesso à distância|Atualizações",
+                    "assinou durante o assistente: Assinatura e Seus dados saem, e o assistente segue para Conexoes",
+                    pagina.evaluate(etapas),
                 )
-                dados = pagina.evaluate("() => document.querySelector('.bv-dados').textContent")
-                checar(
-                    pagina.evaluate("() => document.querySelectorAll('.bv-campo-ro').length") == 7
-                    and "Escritório da Tela" in dados and "renova em 07/11/2026" in pagina.evaluate("() => document.querySelector('.bv-entrada').textContent"),
-                    "Seus dados mostra o cadastro da assinatura, so para ler, com o plano e quando renova",
-                    dados,
-                )
-                pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
-                pagina.wait_for_timeout(500)
                 salvo = json.loads(gravados[-1]) if gravados else {}
                 checar(
                     (salvo.get("escritorio") or {}).get("nome") == "Escritório da Tela"
                     and (documento_antes or ((salvo.get("escritorio") or {}).get("cnpj") == "11.222.333/0001-81"
                                              and "cpf" not in (salvo.get("pessoa") or {}))),
-                    "Continuar grava o nome do escritorio e leva o CNPJ para o escritorio, e nao para o CPF de Meus dados",
+                    "os dados da assinatura sao gravados: o nome do escritorio, e o CNPJ vai para o escritorio, nao para o CPF",
                     salvo,
                 )
+                # Quem entrou ja com assinatura ativa confere em "Seus dados": o cadastro so para ler e o plano.
+                pagina.evaluate("() => { bv.semConferirDados = false; bv.passo = ordemBv().indexOf('dados'); desenharBoasVindas(); }")
+                pagina.wait_for_timeout(400)
+                checar(
+                    pagina.evaluate(etapa) == "Seus dados"
+                    and pagina.evaluate("() => document.querySelectorAll('.bv-dados-grade .bv-dado').length") == 7
+                    and "Escritório da Tela" in pagina.evaluate("() => document.querySelector('.bv-dados-grade').textContent")
+                    and "Renova em 07/11/2026" in pagina.evaluate("() => document.querySelector('.bv-cartao-plano').textContent")
+                    and "R$ 1.290" in pagina.evaluate("() => document.querySelector('.bv-cartao-plano').textContent"),
+                    "Seus dados mostra o cadastro da assinatura, so para ler, com o plano, o valor e quando renova",
+                    pagina.evaluate("() => (document.querySelector('.bv-entrada') || {}).textContent"),
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
+                pagina.wait_for_timeout(500)
                 checar(
                     pagina.evaluate(etapa) == "Conexões"
                     and pagina.evaluate("() => document.querySelectorAll('.cartao-permissoes .lb-escopo').length") == 5
@@ -482,11 +499,33 @@ def main() -> int:
                     "depois de Seus dados, Conexoes: os cinco servicos e 'Pular por agora'",
                     pagina.evaluate(etapa),
                 )
+                # Entrou com e-mail e senha, sem conta Google: o cartao diz que os servicos pedem uma.
+                checar(
+                    "Precisa de uma conta Google" in pagina.evaluate("() => document.querySelector('.cartao-permissoes').textContent"),
+                    "sem conta Google, Conexoes avisa que os servicos pedem uma conta Google",
+                )
+                # A Agenda usa a autorizacao do Gmail: marcar a Agenda marca o Gmail junto.
+                pagina.evaluate("() => document.querySelector('[data-bv-servico=agenda]').click()")
+                pagina.wait_for_timeout(300)
+                checar(
+                    pagina.evaluate("() => Boolean(bv.servicos.agenda && bv.servicos.gmail)")
+                    and "Autorizar no Google" in pagina.evaluate("() => document.querySelector('[data-bv=continuar]').textContent"),
+                    "marcar a Agenda marca o Gmail junto, e o botao vira 'Autorizar no Google'",
+                    pagina.evaluate("() => JSON.stringify(bv.servicos)"),
+                )
+                pagina.evaluate("() => document.querySelector('[data-bv-servico=gmail]').click()")
+                pagina.wait_for_timeout(300)
+                checar(
+                    pagina.evaluate("() => !bv.servicos.agenda && !bv.servicos.gmail"),
+                    "desmarcar o Gmail desmarca a Agenda",
+                    pagina.evaluate("() => JSON.stringify(bv.servicos)"),
+                )
                 pagina.evaluate("() => document.querySelector('[data-bv=pular]').click()")
                 pagina.wait_for_timeout(700)
                 checar(
-                    pagina.evaluate(etapa) == "Acesso à distância",
-                    "depois de Conexoes, 'Acesso a distancia'",
+                    pagina.evaluate(etapa) == "Acesso à distância"
+                    and pagina.evaluate("() => !document.querySelector('[data-bv=pular]')"),
+                    "depois de Conexoes, 'Acesso a distancia', sem 'Pular por agora'",
                     pagina.evaluate(etapa),
                 )
                 # O acesso vem ligado (o caminho normal); o interruptor e o da
@@ -522,6 +561,10 @@ def main() -> int:
                             pagina.evaluate("() => document.querySelectorAll('#boas-vindas .acesso-etapa').length") == 3,
                             "as tres etapas: endereco, conta do titular, confirmar no navegador",
                         )
+                        checar(
+                            pagina.evaluate("() => !document.querySelector('[data-bv=continuar]') && !!document.querySelector('.bv-rodape-nota')"),
+                            "sem o tunel conectado ate o fim, nao ha Continuar: o rodape diz o que falta",
+                        )
                         pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
                         pagina.wait_for_timeout(400)
                         checar(
@@ -529,6 +572,10 @@ def main() -> int:
                             and not pagina.evaluate("() => !!document.getElementById('cx-slug')")
                             and any('"recusado": true' in g or '"recusado":true' in g for g in gravados),
                             "recusar tira o endereco da tela e grava a recusa",
+                        )
+                        checar(
+                            pagina.evaluate("() => !!document.querySelector('[data-bv=continuar]')"),
+                            "recusado, o Continuar aparece",
                         )
                         pagina.evaluate("() => document.querySelector('[data-bv-acesso]').click()")
                         pagina.wait_for_timeout(300)
