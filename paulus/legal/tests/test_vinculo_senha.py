@@ -150,25 +150,20 @@ def test_vinculo() -> None:
         local = TestClient(api.app, headers=api.cabecalho_local())
         prefs.setdefault("pessoa", {}).update(nome="", email="contato@antigo.com.br", email_secundario="")
 
-        print("  criar a conta")
-        r = local.post("/api/vinculo/senha/cadastrar", json={"email": "Dona@Escritorio.Adv.br", "senha": "curta1", "nome": "Dona"})
-        checar(r.status_code == 400 and "10" in r.json().get("detail", "") and not worker.chamadas,
-               "senha curta: recusada aqui, sem ir ao Worker", r.text[:160])
-        r = local.post("/api/vinculo/senha/cadastrar", json={"email": "dona@escritorio.adv.br", "senha": "sosoletrasaqui", "nome": "Dona"})
-        checar(r.status_code == 400 and "letras e números" in r.json().get("detail", ""), "sem numero: recusada", r.text[:160])
-        r = local.post("/api/vinculo/senha/cadastrar", json={"email": "dona@escritorio.adv.br", "senha": "senha-da-dona-1", "nome": "Dona Moura"})
-        checar(r.status_code == 200 and r.json() == {"enviado": True, "email": "dona@escritorio.adv.br"}, "cadastrar: o codigo foi pedido",
-               r.text[:160])
+        print("  a conta e criada no site; aqui so se entra")
+        for rota in ("cadastrar", "confirmar"):
+            r = local.post("/api/vinculo/senha/" + rota, json={"email": "dona@escritorio.adv.br", "senha": "senha-da-dona-1", "codigo": "123456"})
+            checar(r.status_code in (404, 405), "criar conta nao existe mais no Paulus: /api/vinculo/senha/" + rota, r.status_code)
+        worker.contas["dona@escritorio.adv.br"] = {"senha": "senha-da-dona-1", "nome": "Dona Moura"}
+        checar(not local.get("/api/vinculo").json()["vinculado"], "antes de entrar, nada vinculado")
+        r = local.post("/api/vinculo/senha/entrar", json={"email": "dona@escritorio.adv.br", "senha": "errada-123456", "finalidade": "vincular"})
+        checar(r.status_code == 400 and "não conferem" in r.json().get("detail", ""), "senha errada: a frase do Worker", r.text[:160])
+        r = local.post("/api/vinculo/senha/entrar", json={"email": "Dona@Escritorio.Adv.br", "senha": "senha-da-dona-1", "finalidade": "vincular"})
         url, cab, corpo = worker.chamadas[-1]
-        checar(url == nuvem.SITE + "/api/id/cadastrar" and cab.get("X-PAULUS-Versao") and corpo["nome"] == "Dona Moura",
-               "vai a paulus.ia.br/api/id/cadastrar, com a versao no cabecalho", (url, cab))
-        checar(not local.get("/api/vinculo").json()["vinculado"], "antes do codigo, nada vinculado")
-        r = local.post("/api/vinculo/senha/confirmar", json={"email": "dona@escritorio.adv.br", "codigo": "000000", "finalidade": "vincular"})
-        checar(r.status_code == 400 and "não confere" in r.json().get("detail", ""), "codigo errado: a frase do Worker", r.text[:160])
-        r = local.post("/api/vinculo/senha/confirmar", json={"email": "dona@escritorio.adv.br", "codigo": "123456", "finalidade": "vincular"})
+        checar(url == nuvem.SITE + "/api/id/entrar" and cab.get("X-PAULUS-Versao"), "vai a paulus.ia.br/api/id/entrar, com a versao no cabecalho", (url, cab))
         e = r.json()
         checar(r.status_code == 200 and e["vinculado"] and e["email"] == "dona@escritorio.adv.br" and e["por"] == "senha"
-               and not e["travado"], "codigo certo: vinculado por senha, e aberto", e)
+               and not e["travado"], "senha certa: vinculado por senha, e aberto", e)
         checar(bool(v.id_token_valido()) and e["google_recente"], "o token do Worker fica como o id_token (1 h)")
         checar(prefs["pessoa"].get("email") == "dona@escritorio.adv.br" and prefs["pessoa"].get("nome") == "Dona Moura"
                and prefs["pessoa"].get("email_secundario") == "contato@antigo.com.br",

@@ -286,7 +286,7 @@ _declarar(BLOQUEADO,
           "POST /api/vinculo/sem-internet", "POST /api/vinculo/sem-internet/ligar",
           "POST /api/vinculo/sem-internet/confirmar", "POST /api/vinculo/sem-internet/desligar",
           # e-mail e senha (07/10/2026): a conta PAVLVS do Worker, tambem so na janela do servidor
-          "POST /api/vinculo/senha/entrar", "POST /api/vinculo/senha/cadastrar", "POST /api/vinculo/senha/confirmar",
+          "POST /api/vinculo/senha/entrar",
           "POST /api/vinculo/senha/esqueci", "POST /api/vinculo/senha/redefinir",
           "GET /api/acesso/convites", "POST /api/acesso/convites", "DELETE /api/acesso/convites/{id_}",
           "GET /api/acesso/tunel", "POST /api/acesso/tunel/conectar", "POST /api/acesso/tunel/cancelar",

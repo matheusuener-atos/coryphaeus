@@ -362,22 +362,6 @@ class Vinculo:
             raise ErroVinculo("digite a senha")
         return self._com_o_token(identidade("entrar", {"email": email, "senha": str(senha)}))
 
-    def cadastrar(self, email: str, senha: str, nome: str = "") -> dict:
-        """Criar a conta PAVLVS: o Worker manda o codigo ao e-mail; a conta nasce no confirmar."""
-        email = _email_valido(email)
-        problema = problema_da_senha(senha)
-        if problema:
-            raise ErroVinculo(problema)
-        identidade("cadastrar", {"email": email, "senha": str(senha), "nome": " ".join(str(nome or "").split())[:80]})
-        return {"enviado": True, "email": email}
-
-    def confirmar_cadastro(self, email: str, codigo: str, finalidade: str = "vincular") -> dict:
-        email = self._comecar_por_senha(finalidade, email)
-        codigo = "".join(ch for ch in str(codigo or "") if ch.isdigit())
-        if len(codigo) != 6:
-            raise ErroVinculo("o código tem 6 números")
-        return self._com_o_token(identidade("confirmar", {"email": email, "codigo": codigo}))
-
     def esqueci(self, email: str) -> dict:
         """
         O codigo para trocar a senha. O Worker responde igual exista a conta ou
@@ -652,30 +636,13 @@ def montar(app, vinculo: Vinculo) -> None:
 
     # E-mail e senha (07/10/2026): a conta PAVLVS do Worker (worker/identidade.js).
     # Entrar, confirmar o cadastro e redefinir devolvem o estado, como a volta do
-    # Google; cadastrar e esqueci so dizem que o codigo foi pedido.
+    # Google; esqueci so diz que o codigo foi pedido.
 
     @app.post("/api/vinculo/senha/entrar")
     def vinculo_senha_entrar(dados: PorSenha, request: Request) -> dict:
         so_local(request)
         try:
             vinculo.entrar_com_senha(dados.email, dados.senha, dados.finalidade)
-        except ErroVinculo as exc:
-            falhar(exc)
-        return vinculo.estado()
-
-    @app.post("/api/vinculo/senha/cadastrar")
-    def vinculo_senha_cadastrar(dados: PorSenha, request: Request) -> dict:
-        so_local(request)
-        try:
-            return vinculo.cadastrar(dados.email, dados.senha, dados.nome)
-        except ErroVinculo as exc:
-            falhar(exc)
-
-    @app.post("/api/vinculo/senha/confirmar")
-    def vinculo_senha_confirmar(dados: PorSenha, request: Request) -> dict:
-        so_local(request)
-        try:
-            vinculo.confirmar_cadastro(dados.email, dados.codigo, dados.finalidade)
         except ErroVinculo as exc:
             falhar(exc)
         return vinculo.estado()
