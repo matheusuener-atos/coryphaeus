@@ -92,8 +92,12 @@ function formContaSenha(o) {
   if (o.emailFixo) c.email = o.emailFixo;
   const campo = (id, rotulo, tipo, valor, extra) => '<label class="cs-grupo"><span class="' + v.rotulo + '">' + rotulo + "</span>" +
     '<input class="cs-campo" id="cs-' + id + '" type="' + tipo + '" value="' + esc(valor || "") + '"' + (extra || "") + "></label>";
-  const email = o.emailFixo ? "" : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' +
-    (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
+  // No cartao do assistente, em Criar conta e no 1o passo de Trocar a senha, o rotulo do cartao ja diz "digite um e-mail":
+  // o campo vem sem o rotulo proprio (fica o aria-label).
+  const semRotulo = o.cartao && !c.etapa && (c.modo === "criar" || c.modo === "esqueci");
+  const email = o.emailFixo ? "" : semRotulo
+    ? '<label class="cs-grupo"><input class="cs-campo" id="cs-email" type="email" value="' + esc(c.email || "") + '" aria-label="E-mail" autocomplete="username" spellcheck="false" autocapitalize="off" placeholder="voce@empresa.com"></label>'
+    : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' + (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
   const senha = (id, rotulo, nova) => campo(id, rotulo, "password", "", ' autocomplete="' + (nova ? "new-password" : "current-password") + '"' +
     (nova ? ' placeholder="10 ou mais caracteres, com letras e números"' : "") + ' maxlength="200"');
   const codigo = campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
