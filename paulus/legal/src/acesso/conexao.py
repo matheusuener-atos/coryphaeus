@@ -209,7 +209,7 @@ class ConexaoDoTunel:
 
     # ----------------------------------------------------------- conectar
 
-    def iniciar(self, nome_escritorio: str, slug: str) -> dict:
+    def iniciar(self, nome_escritorio: str, slug: str, abrir: bool = True) -> dict:
         nome = " ".join(str(nome_escritorio or "").split())
         slug = str(slug or "").strip().lower()
         if not self.servico.contas.disponivel():
@@ -246,10 +246,11 @@ class ConexaoDoTunel:
                             "endereco": f"{slug}.paulus.ia.br"}
             self._segredo_do_pedido = r["codigo_dispositivo"]
             self.erro = ""
-        try:
-            self.abrir_navegador(r["url"])
-        except Exception:  # noqa: BLE001 - sem navegador, a tela mostra o endereco para abrir a mao
-            pass
+        if abrir:
+            try:
+                self.abrir_navegador(r["url"])
+            except Exception:  # noqa: BLE001 - sem navegador, a tela mostra o endereco para abrir a mao
+                pass
         self._fio = threading.Thread(target=self._acompanhar, name="acesso-conexao", daemon=True)
         self._fio.start()
         return self.andamento()

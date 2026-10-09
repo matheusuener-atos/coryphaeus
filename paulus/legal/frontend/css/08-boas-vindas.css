@@ -230,3 +230,8 @@
   .bv-acesso > .linha-botao .mono { font-family: var(--mono); }
   .bv-secao > .bv-linha.bv-espera + .bv-g-trilho { margin-top: 4px; }
   .bv-acesso-chave .bv-modulo-ic { background: none; border: 0; width: auto; color: var(--ink2); }
+  /* O que autorizar: o cartao no padrao dos outros, sem o fio em cima do primeiro servico. */
+  .bv-secao > .cartao-permissoes { padding: 8px 12px; gap: 0; }
+  .bv-secao > .cartao-permissoes .lb-escopo:first-child { border-top: 0; }
+  /* Os codigos de recuperacao: um botao em cada ponta. */
+  .bv-acesso .acesso-pe.acesso-pe-pontas { justify-content: space-between; }

@@ -255,8 +255,10 @@ def test_assistente() -> None:
 
     print("  codigo expirado")
     worker.expira = True
-    r = local.post("/api/acesso/tunel/conectar", json={"nome": "Moura & Associados Advocacia", "slug": "moura-associados"})
+    # O assistente pede o codigo sem abrir o navegador (o "Confirmar no navegador" abre depois).
+    r = local.post("/api/acesso/tunel/conectar", json={"nome": "Moura & Associados Advocacia", "slug": "moura-associados", "abrir": False})
     checar(r.status_code == 200 and r.json()["pedido"]["estado"] == "esperando", "iniciar: esperando", r.text[:160])
+    checar(abertos == [] and r.json()["pedido"]["codigo_usuario"], "com abrir: false, o codigo vem e o navegador nao abre", abertos)
     checar(esperar(lambda: (conexao.andamento()["pedido"] or {}).get("estado") == "expirado", 10), "venceu: expirado",
            conexao.andamento())
     pedido = local.get("/api/acesso/tunel").json()["conexao"]["pedido"]

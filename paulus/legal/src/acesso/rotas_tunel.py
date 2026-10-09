@@ -17,6 +17,8 @@ from acesso.rotas import so_local
 class PedidoDeConexao(BaseModel):
     nome: str
     slug: str
+    # O assistente pede o codigo sem abrir o navegador: o "Confirmar no navegador" abre depois.
+    abrir: bool = True
 
 
 class Ligar(BaseModel):
@@ -73,7 +75,7 @@ def montar(servico, conexao, r) -> None:
     def tunel_conectar(dados: PedidoDeConexao, request: Request) -> dict:
         so_local(request)
         try:
-            return conexao.iniciar(dados.nome, dados.slug)
+            return conexao.iniciar(dados.nome, dados.slug, abrir=dados.abrir)
         except ErroConexao as exc:
             if "confirme a sua conta" in str(exc):
                 raise HTTPException(status_code=428, detail=str(exc)) from exc

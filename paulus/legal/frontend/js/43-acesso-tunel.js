@@ -133,11 +133,11 @@ function blocoConexao() {
   const endereco = etapaConexao(1, conexaoUI.onde === "bv" ? "Endereço URL" : "Endereço",
     '<div class="acesso-slug" data-tom="' + tom + '">' + (conexaoUI.onde === "bv" ? '<span class="acesso-cf-ic" title="Túnel da Cloudflare, com Zero Trust">' + marca("cloudflare", 22) + "</span>" : "") + '<input type="text" id="cx-slug" value="' + esc(slug) + '" maxlength="24" spellcheck="false" autocomplete="off"' +
     ' autocapitalize="off" aria-label="Nome do endereço"' + (esperando ? " disabled" : "") + '><span class="acesso-dominio">.paulus.ia.br</span></div>' +
-    '<p class="acesso-disp" data-tom="' + tom + '" id="cx-disp" role="status">' + (esperando ? "" : disp) + "</p>" +
+    '<p class="acesso-disp' + (conexaoUI.onde === "bv" ? " so-leitor" : "") + '" data-tom="' + tom + '" id="cx-disp" role="status">' + (esperando ? "" : disp) + "</p>" +
     '<div class="acesso-final"' + (conexaoUI.onde === "bv" ? ' hidden="hidden"' : "") + '><code id="cx-final">' + esc((slug || "…") + ".paulus.ia.br") + "</code>" +
     "<small>você e a sua equipe entram por aqui</small></div>" + blocoMeus(d, esperando) +
     (conexaoUI.onde === "bv" ? '<div class="acesso-pe"><button type="button" class="bv-g-trilho bv-curto" data-cx-usar-endereco="1"><span class="bv-g-pastilha">Usar este endereço</span></button></div>' : ""),
-    bvPassos.e1, { resumo: (slug || "") + ".paulus.ia.br" });
+    bvPassos.e1, { resumo: concluido ? (s.hostname || pedido.endereco || "") : esperando ? (pedido.endereco || pedido.slug + ".paulus.ia.br") : (slug || "") + ".paulus.ia.br" });
 
   // 2. A conta do titular, com o autenticador.
   let conta;
@@ -154,8 +154,11 @@ function blocoConexao() {
   } else if (conexaoUI.fase === "codigos" && conexaoUI.criada) {
     conta = '<p class="cfg-texto">Guarde estes códigos fora do celular. Cada um entra uma vez no lugar do código do autenticador — para o dia em que o celular sumir. Eles não aparecem de novo.</p>' +
       '<div class="acesso-codigos">' + (conexaoUI.criada.codigos_recuperacao || []).map((x) => "<code>" + esc(x) + "</code>").join("") + "</div>" +
-      '<div class="acesso-pe"><button class="com-icone" data-cx-baixar-codigos="1">' + ic("download", 16) + "Baixar .txt</button>" +
-      '<button class="primario" data-cx-guardei="1">Guardei os códigos</button></div>';
+      (conexaoUI.onde === "bv"
+        ? '<div class="acesso-pe acesso-pe-pontas"><button type="button" class="bv-g-trilho bv-curto" data-cx-guardei="1"><span class="bv-g-pastilha">Guardei os códigos</span></button>' +
+          '<button class="com-icone" data-cx-baixar-codigos="1">' + ic("download", 16) + "Baixar .txt</button></div>"
+        : '<div class="acesso-pe"><button class="com-icone" data-cx-baixar-codigos="1">' + ic("download", 16) + "Baixar .txt</button>" +
+          '<button class="primario" data-cx-guardei="1">Guardei os códigos</button></div>');
   } else if (titulares.length) {
     const t = titulares[0];
     conta = (conexaoUI.onde === "bv"
@@ -250,6 +253,14 @@ function blocoConexao() {
       '<button class="com-icone" data-tunel-copiar="' + esc(e) + '">' + ic("content_copy", 16) + "Copiar</button></div>" +
       '<p class="cfg-texto">Pronto: o túnel está ligado. Mande este endereço para quem vai entrar de fora — cada pessoa com a própria conta.</p>' +
       (typeof blocoEnergia === "function" ? blocoEnergia(d.energia || {}) : "");
+  } else if (conexaoUI.onde === "bv") {
+    const sozinho = bvPassos.e2 && !faltas.length && d.google_recente && !conexaoUI.autoPedido;
+    confirmar = (faltas.length ? '<ul class="acesso-faltas">' + faltas.map((f) => "<li>" + esc(f) + "</li>").join("") + "</ul>" : "") +
+      (erro ? '<p class="acesso-erro">' + esc(erro) + "</p>" : "") +
+      (sozinho
+        ? '<p class="cfg-texto" data-cx-auto="1">Gerando o código de confirmação…</p>'
+        : '<div class="acesso-pe"><button type="button" class="bv-g-trilho bv-curto" data-cx-conectar="1"' + (bvPassos.e2 && !faltas.length ? "" : " disabled") +
+          '><span class="bv-g-pastilha">Confirmar no navegador</span></button></div>');
   } else {
     const pronto = slugOk() && contaPronta && !faltas.length;
     confirmar = (faltas.length ? '<ul class="acesso-faltas">' + faltas.map((f) => "<li>" + esc(f) + "</li>").join("") + "</ul>" : "") +
@@ -358,17 +369,17 @@ function usarSlug(slug) {
   conferirSlug();
 }
 
-async function conectarTunel(deNovo) {
+async function conectarTunel(deNovo, abrir) {
   const d = tunelCfg.dados || {};
   const pedido = (d.conexao || {}).pedido;
   const slug = deNovo && pedido ? pedido.slug : conexaoUI.slug;
   const nome = deNovo && pedido ? pedido.nome : (d.escritorio || (typeof bv !== "undefined" && bv.escritorio) || "");
   // O endereco nasce da conta vinculada: sem login recente, confirmar antes.
-  if (!d.google_recente) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
+  if (!d.google_recente) { await confirmarComGoogle(() => conectarTunel(deNovo, abrir)); return; }
   try {
-    await acessoPost("/api/acesso/tunel/conectar", { nome: nome || slug, slug: slug });
+    await acessoPost("/api/acesso/tunel/conectar", { nome: nome || slug, slug: slug, abrir: abrir !== false });
   } catch (err) {
-    if (/confirme a sua conta/.test(err.message)) { await confirmarComGoogle(() => conectarTunel(deNovo)); return; }
+    if (/confirme a sua conta/.test(err.message)) { await confirmarComGoogle(() => conectarTunel(deNovo, abrir)); return; }
     avisoCert(err.message, { tom: "erro" });
   }
   await carregarTunel();
@@ -493,6 +504,11 @@ function ligarBlocoConexao(raiz) {
     redesenhar();
   });
   clique("[data-cx-conectar]", (b) => { b.disabled = true; conectarTunel(Boolean(b.dataset.cxDeNovo)); });
+  // No assistente, o passo 3 pede o codigo sozinho uma vez (sem abrir o navegador): o botao abre a confirmacao.
+  if (raiz.querySelector("[data-cx-auto]") && !conexaoUI.autoPedido) {
+    conexaoUI.autoPedido = true;
+    conectarTunel(false, false);
+  }
   clique("[data-tunel-abrir]", (b) => window.open(b.dataset.tunelAbrir, "_blank"));
   clique("[data-tunel-cancelar]", async () => { await acessoPost("/api/acesso/tunel/cancelar"); await carregarTunel(); redesenhar(); });
   clique("[data-tunel-copiar]", (b) => copiarTexto(b.dataset.tunelCopiar, "endereço copiado"));
