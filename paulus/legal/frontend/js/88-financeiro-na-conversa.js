@@ -359,7 +359,12 @@ function ligarColunaDoRelatorio(raiz) {
 async function enviarRelatorioPelaConversa(botao) {
   const x = fnc.rel || {};
   const r = x.relatorio;
-  if (!fnc.para.length) { avisoCert("falta para quem vai", { tom: "erro" }); return; }
+  if (!fnc.para.length) {
+    // Sem destinatario: a caixa Para fica vermelha (js/00-base.js), sem texto.
+    const p = document.querySelector("[data-fnc-add]");
+    if (p) { campoErradoPeloServidor(p, "falta para quem vai"); p.focus(); } else avisoCert("falta para quem vai", { tom: "erro" });
+    return;
+  }
   if (!x.pdf || !x.xlsx) { await carregarRelatorioDaConversa(true); }
   const pdf = (fnc.rel || {}).pdf;
   const xlsx = (fnc.rel || {}).xlsx;

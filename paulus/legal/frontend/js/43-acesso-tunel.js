@@ -87,11 +87,24 @@ function textoDisponibilidade() {
   if (!x || conexaoUI.perguntado !== conexaoUI.slug) return ["conferindo…", ""];
   if (x.disponivel === true && x.retomar) return [ic("check_circle", 16) + "é seu — da sua conta; conectar o traz para este Paulus", "ok"];
   if (x.disponivel === true) return [conexaoUI.onde === "bv" ? "" : ic("check_circle", 16) + "disponível", "ok"];
+  // Sem conferir (sem conexao, servidor): nao e o campo, e o aviso fica em texto.
   if (x.disponivel === null) return [ic("error", 16) + esc(x.motivo || "não consegui conferir agora"), "nao"];
-  const motivo = conexaoUI.onde === "bv" && !x.motivo ? "" : ic("close", 16) + esc(x.motivo || "indisponível");
-  return [motivo +
-    (x.confirmar_google ? (motivo ? " · " : "") + '<button type="button" class="em-ligacao" data-cx-meu="1">é meu: confirmar a minha conta</button>' : "") +
-    (x.sugestao ? (motivo || x.confirmar_google ? " · " : "") + '<button type="button" class="em-ligacao" data-cx-sugestao="' + esc(x.sugestao) + '">usar ' + esc(x.sugestao) + "</button>" : ""), "nao"];
+  // Ocupado ou fora da regra: e o campo - a borda fica vermelha e o motivo vai
+  // so para o leitor de tela (pintarSlug). Ficam as saidas: e meu, usar outro.
+  return [(x.confirmar_google ? '<button type="button" class="em-ligacao" data-cx-meu="1">é meu: confirmar a minha conta</button>' : "") +
+    (x.sugestao ? (x.confirmar_google ? " · " : "") + '<button type="button" class="em-ligacao" data-cx-sugestao="' + esc(x.sugestao) + '">usar ' + esc(x.sugestao) + "</button>" : ""), "nao"];
+}
+
+/* A borda do endereco (js/00-base.js): verde livre, vermelho ocupado, neutro
+   enquanto confere ou quando nao deu para conferir. */
+function pintarSlug() {
+  const campo = $("cx-slug");
+  if (!campo || campo.disabled) return;
+  const x = conexaoUI.disp;
+  const pronto = x && conexaoUI.slug && conexaoUI.perguntado === conexaoUI.slug;
+  if (pronto && x.disponivel === true) marcarCampo(campo, "ok");
+  else if (pronto && x.disponivel === false) marcarCampo(campo, "erro", x.motivo || "esse endereço não está disponível");
+  else marcarCampo(campo, "");
 }
 
 function blocoConexao() {
@@ -298,6 +311,7 @@ function atualizarSlugNaTela() {
     disp.dataset.tom = tom;
     const caixa = disp.previousElementSibling;
     if (caixa && caixa.classList.contains("acesso-slug")) caixa.dataset.tom = tom;
+    pintarSlug();
     const b = disp.querySelector("[data-cx-sugestao]");
     if (b) b.onclick = () => usarSlug(b.dataset.cxSugestao);
     const meu = disp.querySelector("[data-cx-meu]");
@@ -351,12 +365,21 @@ function ligarBlocoConexao(raiz) {
       atualizarSlugNaTela();
       conferirSlug();
     };
+    pintarSlug();
     // Primeira vez com o endereco na tela: confere sem esperar tecla.
     if (conexaoUI.slug && conexaoUI.perguntado !== conexaoUI.slug && !slug.disabled) conferirSlug();
   }
   clique("[data-cx-sugestao]", (b) => usarSlug(b.dataset.cxSugestao));
   clique("[data-cx-meu]", () => confirmarComGoogle(() => { redesenhar(); }));
   raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { i.oninput = () => { conexaoUI.conta[i.dataset.cxConta] = i.value; }; });
+  // Cada campo da conta com a sua regra (js/00-base.js): a borda diz se fecha.
+  const cxCampo = (chave) => raiz.querySelector('[data-cx-conta="' + chave + '"]');
+  vigiarCampo(cxCampo("nome"), REGRA_CAMPO.preenchido, { vazio: "diga o nome" });
+  vigiarCampo(cxCampo("email"), REGRA_CAMPO.email, { vazio: "diga o e-mail" });
+  vigiarCampo(cxCampo("secundario"), REGRA_CAMPO.email);
+  vigiarCampo(cxCampo("senha"), (s) => (s.length < 10 ? "a senha precisa de pelo menos 10 caracteres" : ""), { vazio: "a senha precisa de pelo menos 10 caracteres" });
+  vigiarCampo(cxCampo("repetir"), (s) => (s === ((cxCampo("senha") || {}).value || "") ? "" : "as duas senhas não são iguais"), { vazio: "repita a senha" });
+  if (cxCampo("senha") && cxCampo("repetir")) cxCampo("senha").addEventListener("input", () => { if (cxCampo("repetir").dataset.campoTocado) pintarCampo(cxCampo("repetir")); });
   clique("[data-cx-criar-conta]", async (b) => {
     const v = conexaoUI.conta;
     raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { v[i.dataset.cxConta] = i.value; });
@@ -366,9 +389,10 @@ function ligarBlocoConexao(raiz) {
     const noBv = conexaoUI.onde === "bv";
     const porSenha = (((tunelCfg.dados || {}).vinculo) || {}).por === "senha";
     const soGoogle = noBv ? !porSenha : Boolean((tunelCfg.dados || {}).so_google);
+    const naTela = ["nome", "email", "secundario", "senha", "repetir"].map(cxCampo);
+    if (!conferirCampos(naTela)) return;
+    // No assistente nome e e-mail nao tem campo: sem eles, o passo Sua conta nao terminou (nao e campo daqui).
     if (!v.nome.trim() || !v.email.trim()) conexaoUI.erroConta = noBv ? "a sua conta ainda não foi reconhecida; volte ao passo Sua conta" : "diga o nome e o e-mail";
-    else if (!soGoogle && (v.senha || "").length < 10) conexaoUI.erroConta = "a senha precisa de pelo menos 10 caracteres";
-    else if (!soGoogle && v.senha !== v.repetir) conexaoUI.erroConta = "as duas senhas não são iguais";
     if (!conexaoUI.erroConta) {
       b.disabled = true;
       try {
@@ -376,18 +400,30 @@ function ligarBlocoConexao(raiz) {
           email_secundario: v.secundario || "", papel: "titular" });
         conexaoUI.fase = "autenticador";
         v.senha = ""; v.repetir = "";
-      } catch (err) { conexaoUI.erroConta = err.message; }
+      } catch (err) {
+        // O erro que e de um campo (e-mail, senha) pinta o campo; o resto fica no aviso.
+        const m = String(err.message || "");
+        const alvo = /senha/i.test(m) ? cxCampo("senha") : /e-mail/i.test(m) && !/secund/i.test(m) ? cxCampo("email") : /secund/i.test(m) ? cxCampo("secundario") : null;
+        if (alvo) { b.disabled = false; campoErradoPeloServidor(alvo, m); alvo.focus(); return; }
+        conexaoUI.erroConta = m;
+      }
     }
     redesenhar();
   });
   const codigo = raiz.querySelector("#cx-codigo");
+  vigiarCampo(codigo, (v) => REGRA_CAMPO.codigo6(v.replace(/\D/g, "")), { vazio: "o código tem 6 números" });
   const confirmarCodigo = async () => {
     conexaoUI.erroCodigo = "";
+    if (!conferirCampos([codigo])) return;
     try {
       await acessoPost("/api/acesso/contas/" + conexaoUI.criada.conta.id + "/autenticador/confirmar", { codigo: codigo.value });
       conexaoUI.fase = "codigos";
       await carregarTunel();
-    } catch (err) { conexaoUI.erroCodigo = err.message; }
+    } catch (err) {
+      // O codigo que nao confere e o campo: borda vermelha, sem texto.
+      if (/código/i.test(err.message)) { campoErradoPeloServidor(codigo, err.message); codigo.select(); return; }
+      conexaoUI.erroCodigo = err.message;
+    }
     redesenhar();
   };
   if (codigo) {

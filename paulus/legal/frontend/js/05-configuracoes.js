@@ -306,8 +306,8 @@ function secaoPerfil() {
     // contato vai no secundario.
     (vinculoGoogle.email
       ? campoCfg("pessoa.email", "E-mail Google (a conta vinculada)", vinculoGoogle.email, "", ' readonly title="muda em Escritório e equipe › Conta Google"') + "</div>" +
-        campoCfg("pessoa.email_secundario", "E-mail secundário (opcional)", p.email_secundario, "outro e-mail de contato")
-      : campoCfg("pessoa.email", "E-mail", p.email) + "</div>") +
+        campoCfg("pessoa.email_secundario", "E-mail secundário (opcional)", p.email_secundario, "outro e-mail de contato", atributosDoCampo("email"))
+      : campoCfg("pessoa.email", "E-mail", p.email, "", atributosDoCampo("email")) + "</div>") +
     campoCfg("pessoa.endereco", "Endereço profissional", p.endereco) + "</div>";
 
   const timbre = '<div class="cfg-sub">' + ligaCfg("timbre_no_pdf", "Papel timbrado nos PDFs", "nome, OAB, endereço e contato no alto de cada PDF gerado aqui", r.timbre_no_pdf) +
@@ -871,7 +871,9 @@ async function formMensagemWhatsapp() {
       // O telefone confere antes de sair (js/39-campos.js): numero torto
       // abriria uma conversa em branco no WhatsApp.
       const errado = camposInvalidos($("cx-telefone").closest(".dialogo-form"));
-      if (errado) { $("cx-aviso").textContent = "confira o telefone: DDD e número"; errado.focus(); return; }
+      $("cx-aviso").textContent = "";
+      if (errado) { errado.focus(); return; }
+      if (!$("cx-telefone").value.trim()) { campoErradoPeloServidor($("cx-telefone"), "falta o telefone"); $("cx-telefone").focus(); return; }
       const escolhido = $("cx-contato").selectedOptions[0];
       const r = await fetch("/api/conexoes/mensagem", {
         method: "POST", headers: CFG_JSON,
@@ -910,8 +912,8 @@ async function formMensagemWhatsapp() {
     contato.onchange = () => {
       const campoTel = $("cx-telefone");
       campoTel.value = contato.value;
-      // Tira o aviso de um numero anterior, se este fecha.
-      if (campoTel.classList.contains("campo-invalido")) mostrarProblemaDoCampo(campoTel);
+      // A borda acompanha o numero escolhido.
+      mostrarProblemaDoCampo(campoTel);
     };
   } catch (err) { /* sem cadastro com telefone, o campo fica manual */ }
 }
@@ -1449,7 +1451,8 @@ async function salvarConfig() {
   const r = cfg.rascunho;
   if (!r) return;
   const errado = $("cfg-tela") ? camposInvalidos($("cfg-tela")) : null;
-  if (errado) { errado.focus(); avisoCert("confira o campo marcado antes de salvar"); return; }
+  // O campo que nao fecha ja esta vermelho (js/39-campos.js): so o foco nele, sem texto.
+  if (errado) { errado.focus(); return; }
   const resposta = await fetch("/api/preferencias", {
     method: "POST", headers: CFG_JSON,
     body: JSON.stringify({

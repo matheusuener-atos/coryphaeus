@@ -97,13 +97,13 @@ function ligarBackupCfg() {
       titulo: "Senha do backup", contexto: "Configurações › Backup",
       texto: "Com ela o backup é cifrado: sem a senha, ninguém abre o arquivo — nem você. Guarde fora deste computador.",
       campos: [
-        { chave: "senha", rotulo: "Senha", tipo: "password", obrigatorio: true, placeholder: "pelo menos " + ((cfg.backup || {}).senha_minima || 10) + " caracteres" },
-        { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true },
+        { chave: "senha", rotulo: "Senha", tipo: "password", obrigatorio: true, placeholder: "pelo menos " + ((cfg.backup || {}).senha_minima || 10) + " caracteres",
+          conferir: (x) => (x.length < ((cfg.backup || {}).senha_minima || 10) ? "a senha precisa de pelo menos " + ((cfg.backup || {}).senha_minima || 10) + " caracteres" : "") },
+        { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true, igualA: "senha", frase: "as duas senhas não são iguais" },
       ],
       confirmar: "Guardar a senha",
     });
     if (!r || !r.ok) return;
-    if (r.valores.senha !== r.valores.repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
     try { cfg.backup = await post("/api/backup/configurar", { senha: r.valores.senha }); avisoCert("senha do backup guardada", { tom: "ok" }); }
     catch (err) { avisoCert(err.message, { tom: "erro" }); }
     desenharConfig();

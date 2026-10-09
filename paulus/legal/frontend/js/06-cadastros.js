@@ -666,10 +666,10 @@ function camposDaNotaCad(v) {
   const algum = ["end_logradouro", "end_cep", "end_cmun", "inscricao_municipal", "email_nota"].some((k) => v[k]);
   return '<details class="cad-nota"' + (algum ? " open" : "") + "><summary>Para a nota fiscal</summary>" +
     '<p class="cfg-explica">A NFS-e pede o endereço em partes, com o município do IBGE. O que faltar, o cartão da nota pede na hora.</p>' +
-    duasCad(campoCad("end_cep", "CEP", "00000000"), campoCad("end_cmun", "Município (código IBGE)", "ex.: 5208707 · Goiânia")) +
+    duasCad(campoCad("end_cep", "CEP", "00000000", "cep"), campoCad("end_cmun", "Município (código IBGE)", "ex.: 5208707 · Goiânia")) +
     duasCad(campoCad("end_logradouro", "Logradouro"), campoCad("end_numero", "Número")) +
     duasCad(campoCad("end_complemento", "Complemento"), campoCad("end_bairro", "Bairro")) +
-    duasCad(campoCad("inscricao_municipal", "Inscrição municipal (se tiver)"), campoCad("email_nota", "E-mail para a nota")) +
+    duasCad(campoCad("inscricao_municipal", "Inscrição municipal (se tiver)"), campoCad("email_nota", "E-mail para a nota", "", "email")) +
     "</details>";
 }
 
@@ -751,12 +751,12 @@ function partesDoFormCad(v) {
     corpo += campoCad("nome", "Descrição", "aluguel, contabilidade, sistema…") +
       duasCad(campoCad("honorario", "Valor mensal", "R$ 0,00"), seletorDeDia()) +
       campoCad("documento", "CNPJ / CPF do fornecedor", "", "cpf-cnpj") +
-      duasCad(campoCad("email", "E-mail do fornecedor"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
+      duasCad(campoCad("email", "E-mail do fornecedor", "", "email"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
       campoCad("observacao", "Anotação", "fornecedor, contrato, reajuste…") + seletorDeAviso();
   } else if (equipe) {
     corpo += campoCad("nome", "Nome completo") +
       duasCad(campoCad("documento", "CPF", "000.000.000-00", "cpf"), campoCad("observacao", "Função", "advogada · OAB/GO 00000")) +
-      duasCad(campoCad("email", "E-mail"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
+      duasCad(campoCad("email", "E-mail", "", "email"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
       duasCad(listaCad("tipo", "Papel", [["socio", "Sócio · edita e aprova tudo"], ["colaborador", "Colaborador"]]),
         listaCad("vinculo", "Vínculo", CAD_VINCULOS)) +
       (v.vinculo ? duasCad(campoCad("salario", v.vinculo === "estagio" ? "Bolsa" : "Salário ou retirada", "R$ 0,00"), campoCad("encargos", "Encargos e INSS", "R$ 0,00")) : "") +
@@ -764,7 +764,7 @@ function partesDoFormCad(v) {
   } else {
     corpo += campoCad("nome", "Razão social ou nome") +
       duasCad(campoCad("documento", "CNPJ / CPF", "", "cpf-cnpj"), campoCad("telefone", "Telefone", "(62) 99999-8888", "telefone")) +
-      campoCad("email", "E-mail para cobrança") +
+      campoCad("email", "E-mail para cobrança", "", "email") +
       campoCad("endereco", "Endereço") +
       duasCad(campoCad("honorario", "Honorário padrão", "R$ 0,00"), seletorDeDia()) +
       seletorDeAviso() + camposDaNotaCad(v);
@@ -839,18 +839,18 @@ function avisoDoFormCad(texto) {
 async function salvarFicha() {
   const v = cad.form;
   if (!v) return;
+  // Erro de campo e a borda do campo (js/00-base.js), sem texto: o nome vazio
+  // fica vermelho; CPF/CNPJ, telefone, e-mail e CEP que nao fecham tambem (js/39-campos.js).
+  avisoDoFormCad("");
+  const campoNome = document.querySelector('#cad-form-pop [data-cc="nome"]');
+  vigiarCampo(campoNome, REGRA_CAMPO.preenchido, { vazio: "o cadastro precisa de um nome" });
   if (!String(v.nome || "").trim()) {
-    avisoDoFormCad("o cadastro precisa de um nome");
-    const campo = document.querySelector('#cad-form-pop [data-cc="nome"]');
-    if (campo) campo.focus();
+    if (campoNome) conferirCampos([campoNome]);
+    else avisoDoFormCad("o cadastro precisa de um nome");
     return;
   }
   const errado = $("cad-form-pop") ? camposInvalidos($("cad-form-pop")) : null;
-  if (errado) {
-    avisoDoFormCad("confira o campo marcado — ou deixe em branco");
-    errado.focus();
-    return;
-  }
+  if (errado) { errado.focus(); return; }
   const dados = {
     tipo: v.tipo, nome: v.nome, documento: v.documento, telefone: v.telefone, email: v.email, endereco: v.endereco,
     honorario: v.honorario, dia_vencimento: Number(v.dia_vencimento) || 0, avisar_dias: Number(v.avisar_dias) || 0,
@@ -862,7 +862,20 @@ async function salvarFicha() {
       .forEach((k) => { dados[k] = v[k] || ""; });
   }
   const r = await fetch("/api/cadastros", { method: "POST", headers: CAD_JSON, body: JSON.stringify({ id: v.id || null, dados: dados }) });
-  if (!r.ok) { avisoDoFormCad(await erroDe(r)); return; }
+  if (!r.ok) {
+    // O erro do servidor que e de um campo pinta o campo; o resto fica no aviso.
+    const msg = await erroDe(r);
+    const chave = /CEP/.test(msg) ? "end_cep" : /município/.test(msg) ? "end_cmun" : /e-mail para a nota/.test(msg) ? "email_nota"
+      : /precisa de um nome/.test(msg) ? "nome" : /CPF|CNPJ/.test(msg) && /confere|inválid/.test(msg) ? "documento" : "";
+    const campo = chave && document.querySelector('#cad-form-pop [data-cc="' + chave + '"]');
+    if (campo) {
+      const parte = campo.closest("details");
+      if (parte) parte.open = true;
+      campoErradoPeloServidor(campo, msg);
+      campo.focus();
+    } else avisoDoFormCad(msg);
+    return;
+  }
   const ficha = await r.json();
   // L3: o cliente que já é parte contrária em outro Serviço (js/65-clientes.js).
   if (typeof avisarConflitosDoCliente === "function") setTimeout(() => avisarConflitosDoCliente(ficha), 300);

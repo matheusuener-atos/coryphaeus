@@ -810,7 +810,12 @@ async function enviarRespostaDaConversa() {
   resp.corpo = texto.value;
   resp.corpo_html = texto.html;
   const para = resp.para.map((x) => x.email);
-  if (!para.length) { avisoCert("falta para quem vai", { tom: "erro" }); const p = document.querySelector('[data-emc-add="para"]'); if (p) p.focus(); return; }
+  if (!para.length) {
+    // Sem destinatario: o campo Para fica vermelho (js/00-base.js), sem texto.
+    const p = document.querySelector('[data-emc-add="para"]');
+    if (p) { campoErradoPeloServidor(p, "falta para quem vai"); p.focus(); } else avisoCert("falta para quem vai", { tom: "erro" });
+    return;
+  }
   if (!resp.corpo.trim()) { avisoCert(resp.novo_email ? "o e-mail está vazio" : "a resposta está vazia", { tom: "erro" }); texto.focus(); return; }
   await salvarRascunhoDoEmail();
   const fila = (resp.conferencias || []).some((x) => /Aprovações/.test(x.texto));

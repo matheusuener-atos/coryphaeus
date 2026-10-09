@@ -364,18 +364,22 @@ function acessoAutenticador(conta, dados) {
       titulo: "Cadastrar no autenticador",
       contexto: "Acesso externo › " + conta.nome,
       html: html,
-      campo: { rotulo: "Código de 6 números que aparece no aplicativo", placeholder: "000000", max: 6 },
+      campo: { rotulo: "Código de 6 números que aparece no aplicativo", placeholder: "000000", max: 6, conferir: (x) => REGRA_CAMPO.codigo6(x) },
       confirmar: "Confirmar",
       classe: "acesso-dialogo",
       aoConfirmar: async () => {
         const entrada = document.querySelector("#dialogo-campo");
         const erro = document.querySelector("#acesso-erro-codigo");
+        if (erro) erro.textContent = "";
+        if (!conferirCampos([entrada])) return;
         try {
           await acessoPost("/api/acesso/contas/" + conta.id + "/autenticador/confirmar", { codigo: entrada.value });
           if (dialogoAberto) dialogoAberto.fechar({ ok: true });
           resolve(true);
         } catch (err) {
-          if (erro) erro.textContent = err.message;
+          // O codigo que nao confere e o campo: borda vermelha, sem texto.
+          if (/código/i.test(err.message)) campoErradoPeloServidor(entrada, err.message);
+          else if (erro) erro.textContent = err.message;
           entrada.select();
         }
       },
@@ -411,11 +415,13 @@ async function acessoNovaConta() {
         valor: primeira ? ((acessoCfg.vinculo || {}).nome || "") : "" },
       { chave: "email", rotulo: acessoCfg.soGoogle ? "E-mail Google" : "E-mail", tipo: "email",
         valor: primeira ? ((acessoCfg.vinculo || {}).email || "") : "",
-        placeholder: acessoCfg.soGoogle ? "Gmail ou do Google Workspace — com ele a pessoa entra" : "com ele a pessoa entra de fora", obrigatorio: true },
-      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
+        placeholder: acessoCfg.soGoogle ? "Gmail ou do Google Workspace — com ele a pessoa entra" : "com ele a pessoa entra de fora", obrigatorio: true,
+        conferir: (x) => REGRA_CAMPO.email(x) },
+      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false,
+        conferir: (x) => REGRA_CAMPO.email(x) },
     ].concat(acessoCfg.soGoogle ? [] : [
-      { chave: "senha", rotulo: "Senha", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true },
-      { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true },
+      { chave: "senha", rotulo: "Senha", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true, conferir: (x) => REGRA_CAMPO.senha10(x) },
+      { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true, igualA: "senha", frase: "as duas senhas não são iguais" },
     ]),
     marcar: primeira ? null : { rotulo: "Titular (pode aprovar de fora e cuidar das contas)", marcada: false },
     confirmar: "Criar a conta",
@@ -424,7 +430,6 @@ async function acessoNovaConta() {
   const r = await pedido;
   if (!r || !r.ok) return;
   const v = r.valores || {};
-  if (!acessoCfg.soGoogle && v.senha !== v.repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
   let criada;
   try {
     criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: v.senha || "",
@@ -570,12 +575,11 @@ function ligarAcesso() {
     const r = await dialogo({
       titulo: "Trocar a senha", contexto: "Acesso externo › " + c.nome,
       texto: "Quem estiver de fora com esta conta sai e entra de novo com a senha nova.",
-      campos: [{ chave: "senha", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres" },
-        { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true }],
+      campos: [{ chave: "senha", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres", conferir: (x) => REGRA_CAMPO.senha10(x) },
+        { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true, igualA: "senha", frase: "as duas senhas não são iguais" }],
       confirmar: "Trocar a senha",
     });
     if (!r || !r.ok) return;
-    if (r.valores.senha !== r.valores.repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
     try {
       const d = await acessoPost("/api/acesso/contas/" + c.id + "/senha", { senha: r.valores.senha });
       avisoCert("senha trocada" + (d.sessoes_encerradas ? " · " + plural(d.sessoes_encerradas, "sessão encerrada", "sessões encerradas") : ""), { tom: "ok" });

@@ -360,9 +360,15 @@ async function marcarPelaConversa(botao) {
   const v = ag.form;
   const d = agc.proposta || {};
   const aviso = document.querySelector("#lado-ferramenta [data-ag-aviso]");
-  if (!(v.titulo || "").trim()) { if (aviso) aviso.textContent = "dê um título"; return; }
+  // Erro de campo e a borda do campo, sem texto (js/00-base.js).
+  const errado = (chave, frase) => {
+    const el = document.querySelector('#lado-ferramenta [data-c="' + chave + '"]');
+    if (el) { if (aviso) aviso.textContent = ""; campoErradoPeloServidor(el, frase); el.focus(); } else if (aviso) aviso.textContent = frase;
+  };
+  if (!(v.titulo || "").trim()) { errado("titulo", "dê um título"); return; }
   const tarefa = v.tipo === "tarefa";
-  if (!tarefa && !v.data) { if (aviso) aviso.textContent = "escolha a data"; return; }
+  if (!tarefa && !v.data) { errado("data", "escolha a data"); return; }
+  if (aviso) aviso.textContent = "";
   const campos = tarefa
     ? { titulo: v.titulo.trim(), prazo: v.prazo || "", hora: v.prazo ? (v.hora || "") : "", lista: (v.lista || "").trim(),
         cadastro_id: v.cadastro_id || null, anotacao: v.anotacao || "", repetir: v.repetir || "", importante: Boolean(v.importante),

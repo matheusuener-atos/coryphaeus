@@ -142,18 +142,51 @@ function formContaSenha(o) {
   return '<form class="cs-form" id="cs-form" novalidate>' + miolo + '<div class="cs-links">' + links + "</div></form>";
 }
 
+/* O erro do servidor que e de um campo do formulario da conta: quais campos
+   ficam vermelhos (sem texto na tela, regra de 08/10/2026). Lista vazia: o
+   erro nao e de campo (limite de tentativas, e-mail que nao saiu, servidor) e
+   continua no aviso de texto. */
+function camposDoErroDaConta(msg) {
+  const m = String(msg || "").toLowerCase();
+  if (/e-mail ou senha não conferem/.test(m)) return ["email", "senha"];
+  if (/confira o e-mail|não é a conta deste/.test(m)) return ["email"];
+  if (/código/.test(m) && /não confere|venceu|tem 6/.test(m)) return ["codigo"];
+  if (/digite a senha|a senha precisa|a senha pode ter|letras e números na senha/.test(m)) return ["senha"];
+  if (/senhas não são iguais/.test(m)) return ["repetir"];
+  return [];
+}
+
 /* `o.finalidade`: vincular ou destravar; `o.aoEntrar(estado)` segue depois de
    entrar; `o.redesenhar()` refaz a tela quando o modo muda. */
 function ligarContaSenha(raiz, o) {
   const form = raiz.querySelector("#cs-form");
   if (!form) return;
   const c = contaSenha;
-  const valor = (id) => { const el = form.querySelector("#cs-" + id); return el ? el.value : ""; };
+  const campo = (id) => form.querySelector("#cs-" + id);
+  const valor = (id) => { const el = campo(id); return el ? el.value : ""; };
+  // #cs-erro fica so para o erro que nao e de campo; o de campo e a borda.
   const erro = (msg) => { const p = form.querySelector("#cs-erro"); if (p) p.textContent = msg ? maiuscula(msg) : ""; };
+  const doServidor = (msg) => {
+    const campos = camposDoErroDaConta(msg).map(campo).filter(Boolean);
+    if (!campos.length) { erro(msg); return; }
+    erro("");
+    campos.forEach((el) => campoErradoPeloServidor(el, msg));
+    campos[0].focus();
+  };
   const ir = (modo, etapa) => { c.modo = modo; c.etapa = etapa || ""; c.ocupado = false; o.redesenhar(); };
   form.querySelectorAll("input").forEach((i) => {
     i.oninput = () => { if (i.id === "cs-email") c.email = i.value.trim(); if (i.id === "cs-nome") c.nome = i.value; };
   });
+  // A regra de cada campo, conferida ao vivo (js/00-base.js). Entrar so pede a
+  // senha preenchida: quem diz se confere e paulus.ia.br.
+  const senhaNova = (c.modo === "criar" && !c.etapa) || (c.modo === "esqueci" && c.etapa === "codigo");
+  vigiarCampo(campo("email"), REGRA_CAMPO.email, { vazio: "confira o e-mail" });
+  vigiarCampo(campo("codigo"), (v) => REGRA_CAMPO.codigo6(v.replace(/\D/g, "")), { vazio: "o código tem 6 números" });
+  vigiarCampo(campo("senha"), senhaNova ? problemaDaSenha : () => "", { vazio: senhaNova ? problemaDaSenha("") : "digite a senha" });
+  vigiarCampo(campo("repetir"), (v) => (v === valor("senha") ? "" : "as duas senhas não são iguais"), { vazio: "repita a senha" });
+  // A confirmacao acompanha a senha: mudou a senha, a confirmacao ja tocada se refaz.
+  const rep = campo("repetir");
+  if (campo("senha") && rep) campo("senha").addEventListener("input", () => { if (rep.dataset.campoTocado) pintarCampo(rep); });
   form.querySelectorAll("[data-cs]").forEach((b) => {
     b.onclick = async (ev) => {
       ev.preventDefault();
@@ -163,7 +196,7 @@ function ligarContaSenha(raiz, o) {
           if (c.modo === "criar") await postSenha("/api/vinculo/senha/cadastrar", { email: c.email, senha: c.senha, nome: c.nome });
           else await postSenha("/api/vinculo/senha/esqueci", { email: c.email });
           avisoCert("código enviado de novo para " + c.email);
-        } catch (err) { erro(err.message); }
+        } catch (err) { doServidor(err.message); }
         return;
       }
       if (acao === "voltar") { c.senha = ""; ir(c.modo, ""); return; }
@@ -179,31 +212,25 @@ function ligarContaSenha(raiz, o) {
     ev.preventDefault();
     erro("");
     // Na trava o e-mail e fixo (o da conta deste servidor): sem campo, vale o guardado.
-    if (form.querySelector("#cs-email")) c.email = valor("email").trim();
-    let falta = "";
+    if (campo("email")) c.email = valor("email").trim();
+    // Todos os campos que estao na tela: os que nao fecham ficam vermelhos e o primeiro ganha o foco.
+    if (!conferirCampos(["email", "codigo", "senha", "repetir"].map(campo))) return;
     let url = "";
     let corpo = {};
-    if (!emailParece(c.email)) falta = "confira o e-mail";
-    else if (c.modo === "criar" && c.etapa === "codigo") {
-      if (!/^\d{6}$/.test(valor("codigo").replace(/\D/g, ""))) falta = "o código tem 6 números";
+    if (c.modo === "criar" && c.etapa === "codigo") {
       url = "/api/vinculo/senha/confirmar"; corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), finalidade: o.finalidade };
     } else if (c.modo === "criar") {
       // Sem o campo (o cartao do assistente), o nome que ja houver em Seus dados.
       c.nome = valor("nome") || (typeof bv !== "undefined" && bv.pessoa && bv.pessoa.nome) || "";
-      falta = problemaDaSenha(valor("senha")) || (valor("senha") !== valor("repetir") ? "as duas senhas não são iguais" : "");
       url = "/api/vinculo/senha/cadastrar"; corpo = { email: c.email, senha: valor("senha"), nome: c.nome.trim() };
     } else if (c.modo === "esqueci" && c.etapa === "codigo") {
-      if (!/^\d{6}$/.test(valor("codigo").replace(/\D/g, ""))) falta = "o código tem 6 números";
-      else falta = problemaDaSenha(valor("senha")) || (valor("senha") !== valor("repetir") ? "as duas senhas não são iguais" : "");
       url = "/api/vinculo/senha/redefinir";
       corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), senha: valor("senha"), finalidade: o.finalidade };
     } else if (c.modo === "esqueci") {
       url = "/api/vinculo/senha/esqueci"; corpo = { email: c.email };
     } else {
-      if (!valor("senha")) falta = "digite a senha";
       url = "/api/vinculo/senha/entrar"; corpo = { email: c.email, senha: valor("senha"), finalidade: o.finalidade };
     }
-    if (falta) { erro(falta); return; }
     const b = form.querySelector("#cs-enviar");
     if (b) b.disabled = true;
     c.ocupado = true;
@@ -216,7 +243,7 @@ function ligarContaSenha(raiz, o) {
     } catch (err) {
       c.ocupado = false;
       if (b) b.disabled = false;
-      erro(err.message);
+      doServidor(err.message);
     }
   };
   // O foco no primeiro campo vazio: quem chega ao passo do codigo ja digita.
@@ -425,8 +452,15 @@ function ligarTrava() {
     vinc.renova = setInterval(renova, 1000);
     campo.focus();
     desenhar();
+    // O codigo (6 numeros) ou a chave de recuperacao: a borda diz se fecha; o
+    // erro do servidor que e do codigo tambem so pinta (regra de 08/10/2026).
+    const pEr = document.getElementById("trava-erro");
+    vigiarCampo(campo, vinc.porRecuperacao ? REGRA_CAMPO.preenchido : (v) => REGRA_CAMPO.codigo6(v.replace(/\D/g, "")),
+      { vazio: vinc.porRecuperacao ? "digite a chave de recuperação" : "o código tem 6 números" });
     f.onsubmit = async (ev) => {
       ev.preventDefault();
+      if (pEr) pEr.textContent = "";
+      if (!conferirCampos([campo])) return;
       try {
         const semNet = vinc.semInternet && !(vinc.estado || {}).precisa_codigo;
         const confiar = document.getElementById("trava-confiar");
@@ -434,7 +468,11 @@ function ligarTrava() {
           semNet ? { codigo: campo.value.trim() } : { codigo: campo.value.trim(), confiar: Boolean(confiar && confiar.checked) });
         vinc.semInternet = false;
         await aoDestravar();
-      } catch (err) { document.getElementById("trava-erro").textContent = err.message; campo.select(); }
+      } catch (err) {
+        if (/código|chave/i.test(err.message) && /não confere|tem 6|inválid/i.test(err.message)) campoErradoPeloServidor(campo, err.message);
+        else if (pEr) pEr.textContent = err.message;
+        campo.select();
+      }
     };
   }
 }

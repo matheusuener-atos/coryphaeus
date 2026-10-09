@@ -673,7 +673,12 @@ async function marcarLembreteFeito(id) {
 }
 
 async function guardarLembrete(dados, id) {
-  if (!String(dados.titulo || "").trim()) { avisoCert("o lembrete precisa de um nome"); return; }
+  if (!String(dados.titulo || "").trim()) {
+    // Sem nome: o campo fica vermelho (js/00-base.js), sem texto.
+    const campo = document.querySelector('[data-be-campo="titulo"]');
+    if (campo) { campoErradoPeloServidor(campo, "o lembrete precisa de um nome"); campo.focus(); } else avisoCert("o lembrete precisa de um nome");
+    return;
+  }
   const r = await fetch("/api/bemestar/lembretes", { method: "POST", headers: BE_JSON, body: JSON.stringify({ id: id || null, dados: dados }) });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   be.form = null;

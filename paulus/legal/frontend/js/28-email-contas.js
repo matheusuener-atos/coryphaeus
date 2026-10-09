@@ -75,6 +75,17 @@ function ecErro(e) {
   return e.erro ? '<p class="ec-erro">' + ic("error", 16) + "<span>" + esc(e.erro) + "</span></p>" : "";
 }
 
+/* Erro de campo e a borda do campo, sem texto (js/00-base.js): `e.campos`
+   guarda {id: frase} para o redesenho repintar; o primeiro ganha o foco. */
+function ecCampoErrado(e, ids, frase) {
+  e.erro = "";
+  e.campos = {};
+  ids.forEach((id) => { e.campos[id] = frase; });
+  ecRedesenhar();
+  const primeiro = $(ids[0]);
+  if (primeiro) primeiro.focus();
+}
+
 function ecEmailValido(v) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
 }
@@ -259,12 +270,14 @@ async function ecEntrar() {
   const e = ecEstado();
   if (e.ocupado) return;
   if (e.reconectar) {
-    if (!e.senha) { e.erro = "Digite a senha."; return ecRedesenhar(); }
+    e.campos = {};
+    if (!e.senha) return ecCampoErrado(e, ["ee-senha"], "digite a senha");
     return ecReconectar();
   }
+  e.campos = {};
   const v = e.email.trim();
-  if (!ecEmailValido(v)) { e.erro = "Digite o endereço completo, como nome@dominio.com.br."; return ecRedesenhar(); }
-  if (mail.contas.contas.some((c) => c.email.toLowerCase() === v.toLowerCase())) { e.erro = "Esta conta já está na lista."; return ecRedesenhar(); }
+  if (!ecEmailValido(v)) return ecCampoErrado(e, ["ee-email"], "digite o endereço completo, como nome@dominio.com.br");
+  if (mail.contas.contas.some((c) => c.email.toLowerCase() === v.toLowerCase())) return ecCampoErrado(e, ["ee-email"], "esta conta já está na lista");
   e.erro = "";
   if (e.deteccaoDe !== v) {
     e.ocupado = true;
@@ -273,8 +286,11 @@ async function ecEntrar() {
     e.ocupado = false;
     if (!ecNaTela()) return;
   }
-  if (!e.senha) { e.erro = "Digite a senha."; return ecRedesenhar(); }
-  if (!e.imap.trim() || !e.smtp.trim()) { e.erro = "Preencha os servidores IMAP e SMTP."; e.manual = true; return ecRedesenhar(); }
+  if (!e.senha) return ecCampoErrado(e, ["ee-senha"], "digite a senha");
+  if (!e.imap.trim() || !e.smtp.trim()) {
+    e.manual = true;
+    return ecCampoErrado(e, [!e.imap.trim() ? "ee-imap" : "", !e.smtp.trim() ? "ee-smtp" : ""].filter(Boolean), "preencha o servidor");
+  }
   e.ocupado = true; e.prova = null;
   desenharEmail();
   let r;
@@ -392,6 +408,17 @@ function ecLigarContas() {
   };
   const guarda = (id, chave) => { const el = $(id); if (el) el.oninput = () => { e[chave] = el.value; }; return el; };
   [["ee-email", "email"], ["ee-senha", "senha"], ["ee-imap", "imap"], ["ee-imap-porta", "imapPorta"], ["ee-smtp", "smtp"], ["ee-smtp-porta", "smtpPorta"], ["ee-nome", "nome"], ["ee-assinatura", "assinatura"]].forEach(([id, k]) => guarda(id, k));
+  // A borda de cada campo (js/00-base.js) e o erro de campo guardado para o redesenho.
+  vigiarCampo($("ee-email"), REGRA_CAMPO.email, { vazio: "digite o endereço completo, como nome@dominio.com.br" });
+  ["ee-senha", "ee-imap", "ee-smtp"].forEach((id) => vigiarCampo($(id), REGRA_CAMPO.preenchido, { vazio: id === "ee-senha" ? "digite a senha" : "preencha o servidor" }));
+  vigiarCampo($("ee-imap-porta"), (v) => (/^\d{1,5}$/.test(v.trim()) && Number(v) > 0 && Number(v) <= 65535 ? "" : "a porta é um número de 1 a 65535"));
+  vigiarCampo($("ee-smtp-porta"), (v) => (/^\d{1,5}$/.test(v.trim()) && Number(v) > 0 && Number(v) <= 65535 ? "" : "a porta é um número de 1 a 65535"));
+  Object.keys(e.campos || {}).forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    campoErradoPeloServidor(el, e.campos[id]);
+    el.addEventListener("input", () => { delete e.campos[id]; });
+  });
   /* Endereco novo: sai a prova antiga e procura o servidor dele. */
   const email = $("ee-email");
   if (email) {

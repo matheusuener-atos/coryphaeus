@@ -87,7 +87,8 @@ async function enviarParaImpressora() {
   const erro = $("imp-erro");
   const botao = document.querySelector('.dialogo-imprimir [data-dialogo="confirmar"]');
   erro.hidden = true;
-  if (quais === "intervalo" && !paginas) { erro.textContent = "Diga quais páginas — ex. 1-3, 5."; erro.hidden = false; $("imp-intervalo").focus(); return; }
+  // Sem o intervalo: o campo fica vermelho (js/00-base.js), sem texto.
+  if (quais === "intervalo" && !paginas) { campoErradoPeloServidor($("imp-intervalo"), "diga quais páginas — ex. 1-3, 5"); $("imp-intervalo").focus(); return; }
   botao.disabled = true;
   botao.textContent = "Enviando…";
   try {

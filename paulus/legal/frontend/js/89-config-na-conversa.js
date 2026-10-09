@@ -603,7 +603,8 @@ async function salvarConfigDoLado() {
   if (!pend.length) return;
   const lado = $("lado-ferramenta");
   const errado = camposInvalidos(lado);
-  if (errado) { errado.focus(); avisoCert("confira o campo marcado antes de salvar"); return; }
+  // O campo que nao fecha ja esta vermelho (js/39-campos.js): so o foco nele, sem texto.
+  if (errado) { errado.focus(); return; }
   const botao = lado.querySelector("[data-cfn-salvar]");
   if (botao) botao.disabled = true;
   // O que nao e preferencia: o tema (desta maquina) e quem faz cada tarefa (rota propria).
@@ -797,6 +798,14 @@ function blocoDoBackupNoLado() {
 function ligarBackupNoLado(lado) {
   const pasta = lado.querySelector('[data-cfn-bkp="pasta"]');
   if (pasta) pasta.oninput = () => { cfn.backupPasta = pasta.value; };
+  // A borda de cada campo (js/00-base.js); a frase so para o leitor de tela.
+  const minima = (cfg.backup || {}).senha_minima || 12;
+  const senha = lado.querySelector('[data-cfn-bkp="senha"]');
+  const repetir = lado.querySelector('[data-cfn-bkp="repetir"]');
+  vigiarCampo(pasta, REGRA_CAMPO.preenchido, { vazio: "escolha a pasta do backup" });
+  vigiarCampo(senha, (v) => (v.length < minima ? "a senha precisa de pelo menos " + minima + " caracteres" : ""), { vazio: "a senha precisa de pelo menos " + minima + " caracteres" });
+  vigiarCampo(repetir, (v) => (v === ((senha || {}).value || "") ? "" : "as duas senhas não são iguais"), { vazio: "repita a senha" });
+  if (senha && repetir) senha.addEventListener("input", () => { if (repetir.dataset.campoTocado) pintarCampo(repetir); });
 }
 
 async function salvarBackupDoLado(botao) {
@@ -805,11 +814,10 @@ async function salvarBackupDoLado(botao) {
   const pasta = ((lado.querySelector('[data-cfn-bkp="pasta"]') || {}).value || b.pasta || "").trim();
   const senha = (lado.querySelector('[data-cfn-bkp="senha"]') || {}).value || "";
   const repetir = (lado.querySelector('[data-cfn-bkp="repetir"]') || {}).value || "";
-  if (!pasta) { avisoCert("escolha a pasta do backup", { tom: "erro" }); return; }
-  if (!b.tem_senha) {
-    if (senha.length < (b.senha_minima || 12)) { avisoCert("a senha precisa de pelo menos " + (b.senha_minima || 12) + " caracteres", { tom: "erro" }); return; }
-    if (senha !== repetir) { avisoCert("as duas senhas não são iguais", { tom: "erro" }); return; }
-  }
+  const pastaEl = lado.querySelector('[data-cfn-bkp="pasta"]');
+  if (!pasta && !pastaEl) { avisoCert("escolha a pasta do backup", { tom: "erro" }); return; }
+  if (!conferirCampos([pasta === b.pasta && b.pasta ? null : pastaEl,
+    lado.querySelector('[data-cfn-bkp="senha"]'), lado.querySelector('[data-cfn-bkp="repetir"]')])) return;
   botao.disabled = true;
   const post = async (url, corpo) => {
     const r = await fetch(url, { method: "POST", headers: CFG_JSON, body: JSON.stringify(corpo || {}) });

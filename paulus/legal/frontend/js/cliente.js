@@ -360,6 +360,51 @@ window.AreaCliente = (function () {
     });
   }
 
+  /* Erro de campo e a borda do campo, sem texto na tela (regra de 08/10/2026):
+     campo-erro / campo-ok no input, aria-invalid e a frase num .pcl-so-leitor
+     apontado por aria-describedby. Este arquivo vive sozinho na pagina do
+     cliente: o mesmo que marcarCampo do Paulus (js/00-base.js), aqui dentro. */
+  function marcar(campo, estado, frase) {
+    if (!campo) return;
+    campo.classList.toggle("campo-erro", estado === "erro");
+    campo.classList.toggle("campo-ok", estado === "ok");
+    var id = campo.id + "-sr";
+    var sr = document.getElementById(id);
+    if (estado === "erro") {
+      campo.setAttribute("aria-invalid", "true");
+      if (!sr) {
+        sr = document.createElement("span");
+        sr.id = id;
+        sr.className = "pcl-so-leitor";
+        sr.setAttribute("aria-live", "polite");
+        campo.insertAdjacentElement("afterend", sr);
+      }
+      sr.textContent = frase ? frase.charAt(0).toUpperCase() + frase.slice(1) : "";
+      campo.setAttribute("aria-describedby", id);
+    } else {
+      campo.removeAttribute("aria-invalid");
+      campo.removeAttribute("aria-describedby");
+      if (sr) sr.remove();
+    }
+  }
+
+  /* `regra(valor)`: "" certo, frase errado. Mostra estado depois de tocado
+     (saiu do campo com algo escrito, ou tentou enviar); vermelho atualiza ao vivo. */
+  function vigiar(campo, regra) {
+    var tocado = false;
+    var pintar = function () { var p = regra(campo.value); marcar(campo, p ? "erro" : "ok", p); return p; };
+    campo.addEventListener("blur", function () { if (campo.value.trim() || tocado) { tocado = true; pintar(); } });
+    campo.addEventListener("input", function () {
+      if (!tocado) return;
+      if (regra(campo.value) && !campo.classList.contains("campo-erro")) marcar(campo, "");
+      else pintar();
+    });
+    return function () { tocado = true; return pintar(); };
+  }
+
+  var regraEmail = function (v) { return /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(String(v).trim()) ? "" : "confira o e-mail"; };
+  var regraCodigo = function (v) { return /^\d{6}$/.test(v) ? "" : "o código tem 6 números"; };
+
   function telaDeEntrar(aviso) {
     pararRelogio();
     var r = raiz();
@@ -372,11 +417,15 @@ window.AreaCliente = (function () {
       '<p class="pcl-aviso-registro">' + ic("visibility") + "<span>O escritório vê quando você entra, abre, baixa ou imprime um documento.</span></p></div>";
     var form = r.querySelector("[data-pcl-form-email]");
     var campo = r.querySelector("#pcl-email");
+    var conferir = vigiar(campo, regraEmail);
+    form.noValidate = true;
     campo.focus();
     form.onsubmit = function (e) {
       e.preventDefault();
       var botao = form.querySelector("button");
       var erro = form.querySelector("[data-pcl-erro]");
+      erro.hidden = true;
+      if (conferir()) { campo.focus(); return; }
       botao.disabled = true;
       botao.textContent = "mandando…";
       api("/api/cliente/entrar", { method: "POST", json: { token: st.token, email: campo.value.trim() } }).then(function (d) {
@@ -384,6 +433,8 @@ window.AreaCliente = (function () {
       }).catch(function (err) {
         botao.disabled = false;
         botao.textContent = "Mandar o código";
+        // O e-mail recusado e o campo (borda vermelha, sem texto); o resto (limite, link, envio) fica no aviso.
+        if (/e-mail/i.test(err.message) && !/mandar|mandamos/i.test(err.message)) { marcar(campo, "erro", err.message); campo.focus(); return; }
         erro.hidden = false;
         erro.textContent = err.message;
       });
@@ -404,6 +455,8 @@ window.AreaCliente = (function () {
     var form = r.querySelector("[data-pcl-form-codigo]");
     var campo = r.querySelector("#pcl-codigo");
     var erro = form.querySelector("[data-pcl-erro]");
+    var conferir = vigiar(campo, regraCodigo);
+    form.noValidate = true;
     campo.focus();
     campo.oninput = function () {
       campo.value = campo.value.replace(/\D/g, "").slice(0, 6);
@@ -412,12 +465,16 @@ window.AreaCliente = (function () {
     form.onsubmit = function (e) {
       e.preventDefault();
       var botao = form.querySelector('button[type="submit"]');
+      erro.hidden = true;
+      if (conferir()) { campo.focus(); return; }
       botao.disabled = true;
       api("/api/cliente/codigo", { method: "POST", json: { token: st.token, codigo: campo.value, lembrar: r.querySelector("#pcl-lembrar").checked } }).then(function (d) {
         st.csrf = d.csrf;
         return carregarEu();
       }).catch(function (err) {
         botao.disabled = false;
+        // Codigo errado ou vencido e o campo: borda vermelha, sem texto. "Muitas vezes" e o limite ficam no aviso.
+        if (/código (errado|venceu)/.test(err.message)) { marcar(campo, "erro", err.message); campo.select(); return; }
         erro.hidden = false;
         erro.textContent = err.message;
         campo.select();

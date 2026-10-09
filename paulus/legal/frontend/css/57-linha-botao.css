@@ -83,3 +83,7 @@
   .lb-escopo[aria-checked="true"] .lb-toggle::after { left: 18px; background: var(--bg); }
   /* O Meet vem com a Agenda: mostra o estado dela, sem interruptor proprio. */
   .lb-escopo.junto .lb-toggle { opacity: .6; }
+
+  /* O icone oficial do PAVLVS (img/paulus-icone.svg) no lugar do monograma: o quadrado inteiro de 32 px, com o canto da marca. */
+  .lb-ic.lb-marca-pavlvs img { width: 32px; height: 32px; border-radius: 8px; display: block; }
+  [data-tema="escuro"] .lb-ic.lb-marca-pavlvs img { box-shadow: inset 0 0 0 1px var(--ink-a15); outline: 1px solid var(--ink-a12); outline-offset: -1px; }

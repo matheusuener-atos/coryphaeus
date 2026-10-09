@@ -210,12 +210,11 @@ function quemCriou(nome, conta) {
         titulo: "Trocar minha senha", contexto: "Minha conta",
         texto: "Trocar a senha encerra as suas sessões; você entra de novo com a senha nova.",
         campos: [{ chave: "atual", rotulo: "Senha atual", tipo: "password" },
-          { chave: "nova", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true },
-          { chave: "repetir", rotulo: "Repita a senha nova", tipo: "password", obrigatorio: true }, codigo],
+          { chave: "nova", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true, conferir: (v) => REGRA_CAMPO.senha10(v) },
+          { chave: "repetir", rotulo: "Repita a senha nova", tipo: "password", obrigatorio: true, igualA: "nova", frase: "as duas senhas novas não são iguais" }, codigo],
         confirmar: "Trocar a senha",
       });
       if (!r || !r.ok) return;
-      if (r.valores.nova !== r.valores.repetir) { avisoCert("as duas senhas novas não são iguais", { tom: "erro" }); return; }
       url = "/api/acesso/minha-senha";
       corpo = { atual: r.valores.atual, nova: r.valores.nova, codigo: r.valores.codigo };
     }

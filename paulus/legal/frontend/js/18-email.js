@@ -879,7 +879,9 @@ async function verPrevia() {
 async function enviarEmail() {
   const botao = $("nm-enviar");
   const pedido = pedidoDoEnvio();
-  if (!enderecosDe(pedido.para).length) { avisoCert("informe para quem vai o e-mail"); $("nm-para").focus(); return; }
+  // Sem destinatario: o campo Para fica vermelho (js/00-base.js), sem texto.
+  if (!enderecosDe(pedido.para).length) { campoErradoPeloServidor($("nm-para"), "informe para quem vai o e-mail"); $("nm-para").focus(); return; }
+  marcarCampo($("nm-para"), "");
   botao.disabled = true;
   const antes = botao.innerHTML;
   botao.textContent = "enviando…";

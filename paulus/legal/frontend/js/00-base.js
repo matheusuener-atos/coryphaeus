@@ -67,6 +67,136 @@ function linhaBotao(o) {
     fim + "</" + tag + ">";
 }
 
+/* ------------------------------------- erro de campo e borda, nao texto */
+/*
+   Regra do dono (08/10/2026; css/58-campo-estado.css): o campo que nao fecha
+   ganha a borda vinho; o que fecha, a verde. A frase do erro nao aparece na
+   tela: fica num .so-leitor apontado por aria-describedby, com
+   aria-invalid="true" no campo.
+
+   marcarCampo(el, "erro" | "ok" | "", frase, caixa) marca um campo. A borda
+   vai na `caixa` (ou na caixa em volta do input: .dialogo-caixa, .acesso-slug,
+   .trava-casas), o aria no proprio input.
+
+   vigiarCampo(el, conferir, o) liga a conferencia ao vivo. `conferir(valor)`
+   devolve "" quando esta certo, a frase quando nao, ou null quando nao ha o
+   que conferir (o campo fica neutro, sem verde). O campo so mostra estado
+   depois de tocado: digitou e saiu, ou tentou enviar (conferirCampos). Ja
+   vermelho, atualiza enquanto digita; verde que deixa de fechar no meio da
+   digitacao volta a neutro, e so acusa ao sair. o.vazio: o que dizer do campo
+   vazio (sem isso, vazio e neutro).
+
+   conferirCampos(lista) marca todos como tocados, pinta e foca o primeiro
+   que nao fecha; devolve true quando todos fecham. O botao de enviar nao
+   trava por causa de campo vermelho: quem tenta ve a marca.
+*/
+function caixaDoCampo(el) {
+  return (el && el.closest && el.closest(".dialogo-caixa, .acesso-slug, .trava-casas:not(.campo), .ec-senha, .fnc-para, .cert-senha-caixa")) || el;
+}
+
+let campoSrConta = 0;
+
+function marcarCampo(el, estadoCampo, frase, caixa) {
+  if (!el) return;
+  const alvo = caixa || el._caixaCampo || caixaDoCampo(el);
+  alvo.classList.toggle("campo-erro", estadoCampo === "erro");
+  alvo.classList.toggle("campo-ok", estadoCampo === "ok");
+  if (estadoCampo === "erro") el.setAttribute("aria-invalid", "true");
+  else el.removeAttribute("aria-invalid");
+  if (!el.dataset.srErro) {
+    campoSrConta += 1;
+    el.dataset.srErro = (el.id || "campo") + "-sr-" + campoSrConta;
+  }
+  const id = el.dataset.srErro;
+  let sr = document.getElementById(id);
+  const ligados = (el.getAttribute("aria-describedby") || "").split(/\s+/).filter((x) => x && x !== id);
+  if (estadoCampo === "erro" && frase) {
+    if (!sr) {
+      sr = document.createElement("span");
+      sr.id = id;
+      sr.className = "so-leitor";
+      sr.setAttribute("aria-live", "polite");
+      alvo.insertAdjacentElement("afterend", sr);
+    }
+    sr.textContent = maiusculaCampo(frase);
+    ligados.push(id);
+  } else if (sr) {
+    sr.remove();
+  }
+  if (ligados.length) el.setAttribute("aria-describedby", ligados.join(" "));
+  else el.removeAttribute("aria-describedby");
+}
+
+function maiusculaCampo(t) {
+  const s = String(t || "");
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+/* O resultado da regra do campo, sem pintar: "" certo, frase, ou null (sem regra). */
+function resultadoDoCampo(el) {
+  const v = el.type === "checkbox" ? (el.checked ? "1" : "") : String(el.value || "");
+  if (!v.trim() && el._campoVazio) return el._campoVazio;
+  if (!v.trim()) return null;
+  return el._conferirCampo ? el._conferirCampo(v) : null;
+}
+
+function pintarCampo(el) {
+  const r = resultadoDoCampo(el);
+  if (r === null || r === undefined) marcarCampo(el, "");
+  else if (r) marcarCampo(el, "erro", r);
+  else marcarCampo(el, "ok");
+  return r || "";
+}
+
+function vigiarCampo(el, conferir, o) {
+  if (!el) return el;
+  const op = o || {};
+  el._conferirCampo = conferir;
+  el._campoVazio = op.vazio || "";
+  if (op.caixa) el._caixaCampo = op.caixa;
+  if (el._campoVigiado) return el;
+  el._campoVigiado = true;
+  el.addEventListener("blur", () => {
+    if (String(el.value || "").trim() || el.dataset.campoTocado) { el.dataset.campoTocado = "1"; pintarCampo(el); }
+  });
+  el.addEventListener("input", () => {
+    if (!el.dataset.campoTocado) return;
+    const alvo = el._caixaCampo || caixaDoCampo(el);
+    const r = resultadoDoCampo(el);
+    // Vermelho atualiza ao vivo; o que nao era vermelho nao acusa no meio.
+    if (r && !alvo.classList.contains("campo-erro")) marcarCampo(el, "");
+    else pintarCampo(el);
+  });
+  return el;
+}
+
+/* Erro que veio do servidor e e de um campo: pinta de vermelho, sem texto. */
+function campoErradoPeloServidor(el, frase) {
+  if (!el) return;
+  el.dataset.campoTocado = "1";
+  marcarCampo(el, "erro", frase);
+  // Campo sem regra vigiada: o vermelho sai quando a pessoa mexe nele.
+  if (!el._campoVigiado) el.addEventListener("input", () => marcarCampo(el, ""), { once: true });
+}
+
+function conferirCampos(lista) {
+  let primeiro = null;
+  (lista || []).filter(Boolean).forEach((el) => {
+    el.dataset.campoTocado = "1";
+    if (pintarCampo(el) && !primeiro) primeiro = el;
+  });
+  if (primeiro) primeiro.focus();
+  return !primeiro;
+}
+
+/* Regras de sempre, para quem vigia. */
+const REGRA_CAMPO = {
+  email: (v) => (/^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(String(v).trim()) ? "" : "confira o e-mail"),
+  codigo6: (v) => (/^\d{6}$/.test(String(v).replace(/\s/g, "")) ? "" : "o código tem 6 números"),
+  preenchido: (v) => (String(v).trim() ? "" : "preencha este campo"),
+  senha10: (v) => (String(v).length < 10 ? "a senha precisa de pelo menos 10 caracteres" : ""),
+};
+
 /* O monograma de uma ou duas letras (16 px e 12 px). */
 function monogramaLb(letras) {
   const l = String(letras || "").toUpperCase();

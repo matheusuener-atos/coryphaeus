@@ -1,0 +1,34 @@
+  /*
+    ERRO DE CAMPO E BORDA, NAO TEXTO (regra do dono, 08/10/2026). O campo que
+    nao fecha ganha a borda vinho (--acc); o que fecha, a verde (--okt) - so
+    depois de tocado e so quando ha regra para conferir. A frase do erro nao
+    aparece: vai para o leitor de tela num .so-leitor (aria-describedby).
+    Quem marca e marcarCampo/vigiarCampo (js/00-base.js). As classes moram no
+    elemento que desenha a borda: o input, ou a caixa em volta dele
+    (.dialogo-caixa, .acesso-slug, .trava-casas). O foco continua visivel:
+    um anel por cima, sem apagar a cor do estado.
+  */
+  .campo-erro, .campo-erro:focus, .campo-erro:focus-within { border-color: var(--acc) !important; }
+  .campo-ok, .campo-ok:focus, .campo-ok:focus-within { border-color: var(--okt) !important; }
+  .campo-erro, .campo-ok { transition: border-color .15s ease, box-shadow .15s ease; }
+  input.campo-erro:focus, textarea.campo-erro:focus, select.campo-erro:focus, .campo-erro:focus-within { box-shadow: 0 0 0 2px var(--accln); }
+  input.campo-ok:focus, textarea.campo-ok:focus, select.campo-ok:focus, .campo-ok:focus-within { box-shadow: 0 0 0 2px var(--okbg); }
+  /* As seis casas do codigo (a trava): a borda e de cada casa. */
+  .trava-casas.campo-erro span { border-color: var(--acc); }
+  .trava-casas.campo-ok span { border-color: var(--okt); }
+  .bv-casas.campo-erro span { border-color: var(--acc); }
+  .bv-casas.campo-ok span { border-color: var(--okt); }
+  /* Os campos de linha do e-mail (Para, sem caixa): o estado e o fio de baixo. */
+  .em-chips input[type=text].campo-erro, input[type=text].emc-add.campo-erro { box-shadow: inset 0 -1px 0 var(--acc); }
+  .em-chips input[type=text].campo-ok, input[type=text].emc-add.campo-ok { box-shadow: inset 0 -1px 0 var(--okt); }
+  html.sem-animacao .campo-erro, html.sem-animacao .campo-ok { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .campo-erro, .campo-ok { transition: none; } }
+
+  /* So para o leitor de tela: fora da vista, dentro da arvore de acessibilidade. */
+  .so-leitor {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    overflow: hidden; white-space: nowrap;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+  }

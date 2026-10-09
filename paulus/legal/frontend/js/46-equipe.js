@@ -77,8 +77,10 @@ async function convidarPessoa(ficha, depois, inicial) {
       (ficha ? "" : " Ela também entra em Cadastros › Equipe."),
     campos: [
       { chave: "nome", rotulo: "Nome", valor: ficha ? ficha.nome : (ja.nome || ""), obrigatorio: true },
-      { chave: "email", rotulo: eqp.soGoogle ? "E-mail Google" : "E-mail", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true },
-      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false },
+      { chave: "email", rotulo: eqp.soGoogle ? "E-mail Google" : "E-mail", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true,
+        conferir: (x) => REGRA_CAMPO.email(x) },
+      { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false,
+        conferir: (x) => REGRA_CAMPO.email(x) },
     ],
     depois: (ficha ? "" : '<div class="dialogo-duas"><div class="dialogo-campo"><label for="eqp-tipo">Vínculo</label><div class="dialogo-caixa">' +
       '<select id="eqp-tipo" data-dialogo-chave="tipo"><option value="colaborador">Colaborador</option><option value="socio">Sócio</option></select></div></div>' +

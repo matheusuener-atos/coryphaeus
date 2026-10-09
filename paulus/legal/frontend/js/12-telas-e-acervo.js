@@ -1278,7 +1278,7 @@ const FERRAMENTAS_DA_CONVERSA = {
     // O quarto item marca o campo formatado e conferido (js/39-campos.js); o
     // quinto, o dado da Receita que o CNPJ digitado preenche (o mesmo arquivo).
     campos: [["nome", "nome completo ou razão social", "text", "", "razao_social"], ["documento", "CPF ou CNPJ", "text", "cpf-cnpj"],
-      ["telefone", "telefone com DDD", "text", "telefone", "telefone"], ["email", "e-mail", "text", "", "email"],
+      ["telefone", "telefone com DDD", "text", "telefone", "telefone"], ["email", "e-mail", "text", "email", "email"],
       ["endereco", "endereço", "text", "", "endereco"], ["observacao", "anotação (opcional)"]],
   },
   nota: {

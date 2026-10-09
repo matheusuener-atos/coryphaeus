@@ -362,10 +362,6 @@
   .cartao-erro pre { margin: 6px 0 0; white-space: pre-wrap; font: 400 12px/1.5 var(--mono); color: var(--ink2); }
   .aviso-motor { margin-bottom: 16px; }
 
-  /* CPF, CNPJ e telefone (js/39-campos.js): o campo que nao fecha ganha o fio
-     do vinculo e a frase do que esta errado logo abaixo. */
-  input.campo-invalido, input.campo-invalido:focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
-  .campo-aviso { display: block; margin-top: 4px; font: 500 12px/1.4 var(--sans); color: var(--acc); }
   /* O que o CNPJ trouxe da Receita (js/39-campos.js); em alerta, o que nao veio ou a situacao que nao e ativa. */
   .campo-nota { display: block; margin-top: 4px; font: 500 12px/1.4 var(--sans); color: var(--mute); }
   .campo-nota.alerta { color: var(--acc); }

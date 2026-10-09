@@ -32,6 +32,51 @@ function campoNota(caminho, rotulo, valor, extra) {
     '" value="' + esc(valor == null ? "" : String(valor)) + '"' + (extra || "") + "></div></div>";
 }
 
+/* O erro da conferencia (src/nfse/conferencia.py) que e de um campo do
+   cartao: os caminhos dos campos que ficam vermelhos, sem texto na tela
+   (regra de 08/10/2026). Lista vazia: o erro nao e de campo (certificado,
+   configuracao, municipio que nao emite) e fica na lista "falta resolver". */
+function camposDoErroDaNota(erro, t) {
+  const e = String(erro || "");
+  if (/descrição do serviço/.test(e)) return ["descricao"];
+  if (/competência/.test(e) && !/IBS\/CBS|Simples/.test(e)) return ["competencia"];
+  if (/(CPF|CNPJ|documento) do tomador|CPF ou CNPJ do tomador/.test(e)) return ["tomador.documento"];
+  if (/nome do tomador/.test(e)) return ["tomador.nome"];
+  if (/endereço completo do tomador/.test(e)) {
+    return ["logradouro", "bairro", "cep", "cmun"].filter((k) => !String((t || {})[k] || "").trim()).map((k) => "tomador." + k);
+  }
+  if (/CEP do tomador/.test(e)) return ["tomador.cep"];
+  if (/município do tomador/.test(e)) return ["tomador.cmun"];
+  if (/e-mail do tomador/.test(e)) return ["tomador.email"];
+  if (/município da prestação/.test(e)) return ["municipio_incidencia"];
+  return [];
+}
+
+/* Os erros da nota separados: os de campo (pintados) e o resto (texto). */
+function errosDaNota(n) {
+  const t = ((n.rascunho || {}).tomador) || {};
+  const deCampo = [];
+  const outros = [];
+  (n.erros || []).forEach((e) => {
+    const campos = n.editavel ? camposDoErroDaNota(e, t) : [];
+    if (campos.length) deCampo.push([campos, e]); else outros.push(e);
+  });
+  return { deCampo, outros };
+}
+
+function pintarErrosDaNota(n) {
+  const cartao = document.querySelector(".nota-cartao");
+  if (!cartao) return;
+  let primeiro = null;
+  errosDaNota(n).deCampo.forEach(([campos, frase]) => campos.forEach((c) => {
+    const el = cartao.querySelector('[data-nota-campo="' + c + '"]');
+    if (!el) return;
+    campoErradoPeloServidor(el, frase);
+    if (!primeiro) primeiro = el;
+  }));
+  if (primeiro) primeiro.focus();
+}
+
 function htmlDoCartaoNota(n) {
   const r = n.rascunho || {};
   const t = r.tomador || {};
@@ -43,7 +88,8 @@ function htmlDoCartaoNota(n) {
   const linhas = ((n.conta && n.conta.linhas) || []).map((l) => '<tr class="nota-' + esc(l.tipo) + '"><td>' + esc(l.rotulo) + "</td><td>" +
     (l.tipo === "info" ? "" : esc(centavosTexto(l.centavos))) + '</td><td class="nota-regra">' + esc(l.regra) + "</td></tr>").join("");
   const lista = (itens) => (itens || []).map((e) => "<li>" + esc(e) + "</li>").join("");
-  const erros = lista(n.erros);
+  // Os erros de campo viram a borda do campo (pintarErrosDaNota); a lista fica com o resto.
+  const erros = lista(errosDaNota(n).outros);
   const avisos = lista(n.avisos);
   const passos = (n.passos || []).map((p) => "<li>" + esc((p.quando || "").slice(0, 16).replace("T", " ")) + " · " +
     esc(p.para || "") + (p.detalhe ? " — " + esc(p.detalhe) : "") + "</li>").join("");
@@ -97,6 +143,7 @@ async function abrirCartaoNota(nota) {
     n = novo;
     const alvo = document.querySelector(".nota-cartao");
     if (alvo) alvo.outerHTML = htmlDoCartaoNota(n);
+    pintarErrosDaNota(n);
     const falta = n.erros && n.erros.length;
     avisoCert(falta ? "conferido: ainda há o que resolver" : "conferido: a nota está pronta para pedir aprovação", { tom: falta ? "info" : "ok" });
   };
@@ -108,7 +155,7 @@ async function abrirCartaoNota(nota) {
   if (n.editavel) segundo = { rotulo: "Pedir aprovação" };
   else if (mandar) segundo = { rotulo: n.estado === "aprovada" ? "Mandar agora" : "Consultar e mandar" };
   else if (n.estado === "emitida") segundo = { rotulo: "Atualizar situação" };
-  const escolha = await dialogo({
+  const pedido = dialogo({
     titulo: "Nota fiscal" + (nome ? " — " + nome : "") + (n.centavos ? " — " + n.valor : ""),
     contexto: "NFS-e · " + (n.estado_rotulo || ""), larga: true, classe: "dialogo-nota",
     html: htmlDoCartaoNota(n),
@@ -116,6 +163,8 @@ async function abrirCartaoNota(nota) {
     segundo: segundo,
     rodape: n.editavel ? '<button type="button" class="perigo" data-nota-descartar="' + n.id + '">Descartar</button>' : "",
   });
+  pintarErrosDaNota(n);
+  const escolha = await pedido;
   if (escolha && escolha.segundo) {
     if (n.editavel) {
       // O que foi editado e não conferido vai junto: grava antes de pedir.
@@ -166,7 +215,9 @@ document.addEventListener("click", async (e) => {
 
 async function pedirAprovacaoDaNota(nota) {
   if (nota.erros && nota.erros.length) {
-    avisoCert("antes de pedir a aprovação, falta: " + nota.erros.slice(0, 2).join("; "), { tom: "erro" });
+    // O que e de campo volta pintado no cartao; so o que nao e de campo vai no aviso.
+    const outros = errosDaNota(nota).outros;
+    if (outros.length) avisoCert("antes de pedir a aprovação, falta: " + outros.slice(0, 2).join("; "), { tom: "erro" });
     return abrirCartaoNota(nota);
   }
   let r = await fetch("/api/nfse/notas/" + nota.id + "/pedir-aprovacao", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });

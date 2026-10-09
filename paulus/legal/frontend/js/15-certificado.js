@@ -124,6 +124,7 @@ async function abrirCertificadosDoWindows() {
     if (!r.ok) avisoCert(await erroDe(r));
   };
   $("cw-senha-campo").oninput = conferirCertificadoDoWindows;
+  vigiarCampo($("cw-senha-campo"), (v) => (v.length < 4 ? "a senha precisa de pelo menos 4 caracteres" : ""));
   conferirCertificadoDoWindows();
   try {
     cw.lista = (await (await fetch("/api/certificado/windows")).json()).certificados || [];
@@ -199,8 +200,10 @@ async function usarCertificadoDoWindows() {
   if (!r.ok) {
     // O pop-up fica aberto, com o motivo (certificado sem chave, vencido,
     // que saiu do Windows), sem perder a escolha nem a senha digitada.
-    erro.textContent = await erroDe(r);
-    erro.hidden = false;
+    const msg = await erroDe(r);
+    // A senha recusada e o campo (borda vermelha, sem texto); o resto e do certificado e fica no aviso.
+    if (/senha/i.test(msg) && !/Windows/.test(msg)) { campoErradoPeloServidor(senha, msg); senha.focus(); }
+    else { erro.textContent = msg; erro.hidden = false; }
     conferirCertificadoDoWindows();
     return;
   }
@@ -473,8 +476,9 @@ function ligarCertificado() {
     };
     const guardar = $("cert-guardar");
     if (guardar) guardar.onclick = () => { cert.guardar = !cert.guardar; guardar.classList.toggle("on", cert.guardar); };
+    vigiarCampo(senha, () => "", { vazio: "digite a senha" });
     const abrir = async () => {
-      if (!senha.value) { senha.focus(); return; }
+      if (!conferirCampos([senha])) return;
       const botao = $("cert-abrir");
       botao.disabled = true;
       const r = await fetch("/api/certificado/senha", {
@@ -482,7 +486,12 @@ function ligarCertificado() {
         body: JSON.stringify({ senha: senha.value, guardar: cert.guardar }),
       });
       botao.disabled = false;
-      if (!r.ok) { avisoCert(await erroDe(r)); return; }
+      if (!r.ok) {
+        // A senha que nao abre o certificado e o campo: borda vermelha, sem texto.
+        const msg = await erroDe(r);
+        if (/senha/i.test(msg)) { campoErradoPeloServidor(senha, msg); senha.focus(); senha.select(); } else avisoCert(msg);
+        return;
+      }
       cert.dados = await r.json();
       desenharAssinatura();
       avisoCert(cert.dados.aviso || "certificado aberto");

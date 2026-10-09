@@ -255,17 +255,76 @@ function dadosDoFormNfse() {
   return dados;
 }
 
+/* Erro de campo e a borda do campo, sem texto (js/00-base.js). A regra de
+   cada campo da configuracao que da para conferir aqui; o resto o servidor
+   confere (e o erro dele, quando e de um campo, tambem so pinta). */
+function regraNfse(caminho) {
+  const pct = (v) => {
+    const n = Number(String(v).replace(",", "."));
+    return /^\d{1,3}([.,]\d{1,4})?$/.test(String(v).trim()) && n >= 0 && n <= 100 ? "" : "um número de 0 a 100";
+  };
+  if (caminho === "documento") return (v) => problemaDoCampo("cpf-cnpj", v);
+  if (caminho === "endereco.cep") return (v) => problemaDoCampo("cep", v);
+  if (caminho === "telefone") return (v) => problemaDoCampo("telefone", v);
+  if (caminho === "email" || caminho === "contador.email") return REGRA_CAMPO.email;
+  if (/_pct$/.test(caminho)) return pct;
+  if (caminho === "ibscbs.cst") return (v) => (/^\d{3}$/.test(v.trim()) ? "" : "o CST tem 3 dígitos");
+  if (caminho === "ibscbs.cclasstrib") return (v) => (/^\d{6}$/.test(v.trim()) ? "" : "o cClassTrib tem 6 dígitos");
+  return null;
+}
+
+function campoNfseEl(caminho) {
+  return document.querySelector('[data-nfse-campo="' + caminho + '"]');
+}
+
+/* O campo que o erro do servidor aponta, pela frase; null quando nao e de campo. */
+function campoDoErroNfse(msg) {
+  const m = String(msg || "");
+  if (/e-mail do contador/i.test(m)) return campoNfseEl("contador.email");
+  if (/e-mail/i.test(m)) return campoNfseEl("email");
+  if (/CEP/.test(m)) return campoNfseEl("endereco.cep");
+  if (/CNPJ|CPF/.test(m)) return campoNfseEl("documento");
+  if (/telefone/i.test(m)) return campoNfseEl("telefone");
+  if (/inscrição municipal/i.test(m)) return campoNfseEl("inscricao_municipal");
+  if (/munic[ií]pio|cidade/i.test(m) && !/conveniad|Sistema Nacional/i.test(m)) return campoNfseEl("municipio");
+  return null;
+}
+
+function vigiarCampoNfse(el) {
+  const regra = regraNfse(el.dataset.nfseCampo);
+  if (regra) vigiarCampo(el, regra);
+  return regra ? el : null;
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (el && el.matches && el.matches("[data-nfse-campo]")) vigiarCampoNfse(el);
+  });
+}
+
 async function acaoNfse(acao) {
-  const json = async (url, corpo) => {
+  // O erro do servidor que e de um campo pinta o campo (abrindo a parte recolhida); o resto fica no aviso.
+  const avisar = (msg, campo) => {
+    // So o salvar da configuracao aponta campo pela frase: as outras acoes falam do cliente, do certificado, do Sistema Nacional.
+    const el = campo || (acao === "salvar" ? campoDoErroNfse(msg) : null);
+    if (el) {
+      const parte = el.closest("details");
+      if (parte) parte.open = true;
+      campoErradoPeloServidor(el, msg);
+      el.focus();
+    } else avisoCert(msg, { tom: "erro" });
+  };
+  const json = async (url, corpo, campo) => {
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: corpo ? JSON.stringify(corpo) : undefined });
-    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return null; }
+    if (!r.ok) { avisar(await erroDe(r), campo); return null; }
     return r.json();
   };
-  const arquivo = async (url, campos) => {
+  const arquivo = async (url, campos, campo) => {
     const fd = new FormData();
     Object.entries(campos).forEach(([k, v]) => fd.append(k, v));
     const r = await fetch(url, { method: "POST", body: fd });
-    if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return null; }
+    if (!r.ok) { const msg = await erroDe(r); avisar(msg, campo && /senha/i.test(msg) ? campo : null); return null; }
     return r.json();
   };
   let d = null;
@@ -281,7 +340,7 @@ async function acaoNfse(acao) {
   if (acao === "teste") {
     const sel = document.getElementById("nfse-teste-cliente");
     const id = sel ? Number(sel.value || 0) : 0;
-    if (!id) { avisoCert("escolha o cliente da nota de teste", { tom: "erro" }); return; }
+    if (!id) { if (sel) { campoErradoPeloServidor(sel, "escolha o cliente da nota de teste"); sel.focus(); } else avisoCert("escolha o cliente da nota de teste", { tom: "erro" }); return; }
     const b = document.querySelector('[data-nfse-acao="teste"]');
     if (b) { b.disabled = true; b.textContent = "Testando com o Sistema Nacional…"; }
     const x = await json("/api/nfse/teste", { cadastro_id: id });
@@ -311,6 +370,11 @@ async function acaoNfse(acao) {
     if (b) b.classList.toggle("on");
     return;
   } else if (acao === "salvar") {
+    // Os campos que nao fecham ficam vermelhos (abrindo a parte recolhida) e o primeiro ganha o foco.
+    const comRegra = Array.from(document.querySelectorAll("[data-nfse-campo]")).map(vigiarCampoNfse).filter(Boolean);
+    const errados = comRegra.filter((el) => resultadoDoCampo(el));
+    errados.forEach((el) => { const parte = el.closest("details"); if (parte) parte.open = true; });
+    if (!conferirCampos(comRegra)) return;
     d = await json("/api/nfse/prestador", { dados: dadosDoFormNfse() });
     if (d) {
       avisoCert("configuração gravada", { tom: "ok" });
@@ -324,12 +388,13 @@ async function acaoNfse(acao) {
     }
   } else if (acao === "certificado") {
     const f = document.getElementById("nfse-pfx");
-    if (!f || !f.files || !f.files[0]) { avisoCert("escolha o arquivo .pfx ou .p12", { tom: "erro" }); return; }
+    if (!f || !f.files || !f.files[0]) { if (f) { campoErradoPeloServidor(f, "escolha o arquivo .pfx ou .p12"); f.focus(); } else avisoCert("escolha o arquivo .pfx ou .p12", { tom: "erro" }); return; }
     d = await arquivo("/api/nfse/certificado", { arquivo: f.files[0], senha: (document.getElementById("nfse-pfx-senha") || {}).value || "",
-      guardar: (document.getElementById("nfse-pfx-guardar") || {}).checked ? "1" : "" });
+      guardar: (document.getElementById("nfse-pfx-guardar") || {}).checked ? "1" : "" }, document.getElementById("nfse-pfx-senha"));
     if (d) { avisoCert("certificado instalado", { tom: "ok" }); await carregarNfse(); desenharConfig(); return; }
   } else if (acao === "desbloquear") {
-    d = await json("/api/nfse/certificado/senha", { senha: (document.getElementById("nfse-senha-desbloquear") || {}).value || "" });
+    const campoSenha = document.getElementById("nfse-senha-desbloquear");
+    d = await json("/api/nfse/certificado/senha", { senha: (campoSenha || {}).value || "" }, campoSenha);
   } else if (acao === "remover-certificado") {
     const ok = await dialogo({ titulo: "Tirar o certificado da nota?", contexto: "Configurações › Nota fiscal",
       texto: "A cópia do .pfx e a senha guardada saem deste computador. Para emitir de novo, instale outra vez.", confirmar: "Tirar", perigo: true });
@@ -340,7 +405,7 @@ async function acaoNfse(acao) {
     d = await json("/api/nfse/municipio/consultar");
   } else if (acao === "planilha") {
     const f = document.getElementById("nfse-planilha");
-    if (!f || !f.files || !f.files[0]) { avisoCert("escolha a planilha .xlsx do portal", { tom: "erro" }); return; }
+    if (!f || !f.files || !f.files[0]) { if (f) { campoErradoPeloServidor(f, "escolha a planilha .xlsx do portal"); f.focus(); } else avisoCert("escolha a planilha .xlsx do portal", { tom: "erro" }); return; }
     const r = await arquivo("/api/nfse/tabelas/importar", { arquivo: f.files[0] });
     if (r) { avisoCert("tabela importada", { tom: "ok" }); await carregarNfse(); desenharConfig(); }
     return;

@@ -359,7 +359,7 @@ function passoGoogle() {
     // O G do Google ao lado da logo so na conta Google; a conta PAVLVS e so a logo.
     const marcaDaConta = e.por === "senha" ? "" : (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "");
     lado = '<div class="bv-entrada"><span class="bv-rotulo">' + (e.por === "senha" ? "CONTA PAVLVS" : "CONTA GOOGLE") + "</span>" +
-      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: [monogramaLb("P"), marcaDaConta], titulo: "Vinculado", sub: esc(e.email) }) +
+      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: [{ html: '<img src="/img/paulus-icone.svg" alt="PAVLVS" width="32" height="32">', classe: "lb-marca-pavlvs" }, marcaDaConta], titulo: "Vinculado", sub: esc(e.email) }) +
       '<div class="bv-modulo bv-linha" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
       '<span class="duas-linhas"><b>Manter aberto neste computador</b></span>' +
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
@@ -451,7 +451,7 @@ function passoAcesso() {
 /* `modo` e o teclado (inputmode) ou, para CPF e telefone, o tipo do campo
    formatado (js/39-campos.js), que ja traz o teclado certo. */
 function campoBv(chave, rotulo, valor, atributo, modo, dica) {
-  const formatado = modo === "cpf" || modo === "telefone";
+  const formatado = modo === "cpf" || modo === "telefone" || modo === "email";
   return '<div class="campo-painel"><label for="bv-' + chave + '">' + rotulo + '</label><input type="text" id="bv-' + chave +
     '" ' + atributo + '="' + chave + '" value="' + esc(formatado ? formatarCampo(modo, valor || "") : (valor || "")) + '"' +
     (formatado ? atributosDoCampo(modo) : (modo ? ' inputmode="' + modo + '"' : "")) +
@@ -1028,6 +1028,9 @@ function ligarBoasVindas() {
   }
   const codigo = $("bv-codigo");
   if (codigo) {
+    // As seis casas sao a borda do campo (js/00-base.js): vermelhas quando nao fecha, verdes quando fecha.
+    vigiarCampo(codigo, (x) => (/^[A-Z0-9]{6}$/i.test(x) ? "" : "digite os 6 caracteres do código do responsável"),
+      { vazio: "digite os 6 caracteres do código do responsável", caixa: caixa.querySelector("[data-bv-focar]") || undefined });
     codigo.oninput = () => {
       codigo.value = codigo.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
       bv.vinculo.codigoResponsavel = codigo.value;
@@ -1137,7 +1140,8 @@ async function acaoBoasVindas(qual) {
   // nao fecha para aqui, com o aviso no campo (Pular por agora segue).
   if (passo === "dados") {
     const errado = camposInvalidos($("boas-vindas"));
-    if (errado) { errado.focus(); avisoCert("confira o campo marcado — ou deixe em branco e preencha depois"); return; }
+    // O campo que nao fecha ja esta vermelho (js/39-campos.js): so o foco nele.
+    if (errado) { errado.focus(); return; }
     $("boas-vindas").querySelectorAll("[data-bv-pessoa]").forEach((i) => { bv.pessoa[i.dataset.bvPessoa] = i.value; });
     // O documento do cadastro do site pode ser o CNPJ do escritorio: ele vai para o escritorio, e o CPF de
     // Meus dados fica como estava. O nome do escritorio vem da assinatura (este caminho nao tem o passo Escritorio).
@@ -1168,7 +1172,7 @@ async function acaoBoasVindas(qual) {
   }
   if (ultimo) {
     if (bv.caminho === "entrar") {
-      if ((bv.vinculo.codigoResponsavel || "").length !== 6) { avisoCert("digite os 6 caracteres do código do responsável"); $("bv-codigo").focus(); return; }
+      if ($("bv-codigo") ? !conferirCampos([$("bv-codigo")]) : (bv.vinculo.codigoResponsavel || "").length !== 6) return;
       guardarVinculo({
         meuCodigo: bv.vinculo.meuCodigo, codigoResponsavel: bv.vinculo.codigoResponsavel, apelido: bv.vinculo.apelido || "",
         cargo: bv.vinculo.cargo || "", nome: bv.pessoa.nome || "", pedido_em: new Date().toISOString(), estado: "aguardando",

@@ -1582,7 +1582,12 @@ async function carregarLivres(p) {
 async function salvarFormAgenda() {
   const v = ag.form;
   const aviso = document.querySelector("[data-ag-aviso]");
-  if (!(v.titulo || "").trim()) { aviso.textContent = "dê um título"; return; }
+  // Sem titulo: o campo fica vermelho (js/00-base.js), sem texto.
+  const tituloEl = document.querySelector('[data-c="titulo"]');
+  if (!(v.titulo || "").trim()) {
+    if (tituloEl) { aviso.textContent = ""; campoErradoPeloServidor(tituloEl, "dê um título"); tituloEl.focus(); } else aviso.textContent = "dê um título";
+    return;
+  }
   try {
     if (v.tipo === "tarefa") {
       const r = await fetch("/api/tarefas", {

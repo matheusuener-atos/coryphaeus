@@ -124,6 +124,9 @@ function problemaDoCampo(tipo, valor) {
     return problemaDoCampo("cpf", v);
   }
   if (tipo === "telefone") return telefoneValido(v) ? "" : "telefone incompleto: DDD e número, como (62) 99999-8888";
+  // So no cliente (o servidor confere do jeito dele): o formato do e-mail e o CEP de 8 numeros.
+  if (tipo === "email") return /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(v) ? "" : "confira o e-mail";
+  if (tipo === "cep") return soDigitos(v).length === 8 && !/[^\d.\s-]/.test(v) ? "" : "o CEP tem 8 números";
   return "";
 }
 
@@ -156,24 +159,12 @@ function reformatarNoLugar(el) {
   return true;
 }
 
-/* O aviso fica logo abaixo do campo, no mesmo bloco (label + input). */
+/* Erro de campo e borda, nao texto (js/00-base.js): o que nao fecha fica
+   vermelho, o preenchido que fecha fica verde, o vazio fica neutro. A frase
+   vai so para o leitor de tela. */
 function mostrarProblemaDoCampo(el) {
   const problema = problemaDoCampo(el.dataset.campo, el.value);
-  el.classList.toggle("campo-invalido", Boolean(problema));
-  el.setAttribute("aria-invalid", problema ? "true" : "false");
-  const bloco = el.closest(".campo-painel, .ag-campo, .dialogo-campo, .campo") || el.parentElement;
-  let aviso = bloco ? bloco.querySelector(".campo-aviso") : null;
-  if (problema && bloco) {
-    if (!aviso) {
-      aviso = document.createElement("span");
-      aviso.className = "campo-aviso";
-      aviso.setAttribute("role", "alert");
-      bloco.appendChild(aviso);
-    }
-    aviso.textContent = problema;
-  } else if (aviso) {
-    aviso.remove();
-  }
+  if (typeof marcarCampo === "function") marcarCampo(el, problema ? "erro" : (String(el.value || "").trim() ? "ok" : ""), problema);
   return problema;
 }
 
@@ -202,8 +193,8 @@ function exibirCampo(tipo, valor) {
 
 /* Para quem desenha o campo: o modo do teclado e o tamanho maximo. */
 function atributosDoCampo(tipo) {
-  const modo = tipo === "telefone" ? "tel" : (tipo === "cpf" ? "numeric" : "text");
-  const maximo = { cpf: 14, cnpj: 18, "cpf-cnpj": 18, telefone: 20 }[tipo] || 40;
+  const modo = { telefone: "tel", cpf: "numeric", cep: "numeric", email: "email" }[tipo] || "text";
+  const maximo = { cpf: 14, cnpj: 18, "cpf-cnpj": 18, telefone: 20, cep: 9, email: 200 }[tipo] || 40;
   return ' data-campo="' + tipo + '" inputmode="' + modo + '" maxlength="' + maximo + '" autocomplete="off" spellcheck="false"';
 }
 
@@ -281,7 +272,7 @@ async function preencherPeloCnpj(el, cnpj) {
     if (atual && atual !== alvo.dataset.cnpjPos) return;
     alvo.value = alvo.dataset.campo ? formatarCampo(alvo.dataset.campo, v) : v;
     alvo.dataset.cnpjPos = alvo.value;
-    alvo.classList.remove("campo-invalido");
+    if (typeof marcarCampo === "function") marcarCampo(alvo, "");
     // Campo dentro de uma parte recolhida (a nota fiscal da ficha): abre.
     const parte = alvo.closest("details");
     if (parte) parte.open = true;
@@ -309,8 +300,8 @@ document.addEventListener("input", (e) => {
   }
   if (!el.dataset.campo) return;
   reformatarNoLugar(el);
-  // Enquanto digita, so tira o aviso quando ficar certo; nao acusa no meio.
-  if (el.classList.contains("campo-invalido") && !problemaDoCampo(el.dataset.campo, el.value)) mostrarProblemaDoCampo(el);
+  // Enquanto digita, o vermelho some quando ficar certo; nao acusa no meio.
+  if (el.getAttribute("aria-invalid") === "true" && !problemaDoCampo(el.dataset.campo, el.value)) mostrarProblemaDoCampo(el);
 }, true);
 
 document.addEventListener("focusout", (e) => {

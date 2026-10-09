@@ -65,9 +65,7 @@
   .acesso-slug input { flex: 1 1 auto; min-width: 0; max-width: 100%; border: 0; border-radius: 0; padding: 9px 12px; font: 500 14px/1.4 var(--mono); background: transparent; color: var(--ink); }
   .acesso-slug input:focus { outline: none; }
   .acesso-slug:focus-within { border-color: var(--ink); }
-  /* A disponibilidade do endereco e a cor do fio do campo: verde livre, laranja ocupado. */
-  .acesso-slug[data-tom="ok"], .acesso-slug[data-tom="ok"]:focus-within { border-color: var(--okt); }
-  .acesso-slug[data-tom="nao"], .acesso-slug[data-tom="nao"]:focus-within { border-color: var(--acc); }
+  /* A disponibilidade do endereco e a borda do campo (.campo-ok/.campo-erro, css/58-campo-estado.css). */
   .acesso-disp:empty { display: none; }
   .acesso-dominio { display: flex; align-items: center; padding: 0 12px; font: 500 14px/1.4 var(--mono); color: var(--ink3); background: var(--sub); border-left: 1px solid var(--ink-a1); }
   .acesso-disp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 1.4em; margin: 0; font-size: 13px; color: var(--ink3); }

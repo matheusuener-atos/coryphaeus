@@ -269,10 +269,7 @@ function fcnNota(chave) {
   const v = fcn.v;
   const origem = ((fcn.d || {}).campos || {}).origem || {};
   if (fcn.novos.has(chave)) return '<em class="fcn-novo">novo</em>';
-  if (chave === "documento" && v.documento) {
-    const aviso = fcnAvisoDoDocumento();
-    if (aviso) return '<em class="fcn-confira">' + esc(aviso) + "</em>";
-  }
+  // O documento que nao fecha e a borda do campo (ligarFormularioDaFicha), nao texto.
   if (origem[chave] && v.tipo === "cliente") return '<em class="fcn-lido">lido em ' + plural(origem[chave], "documento") + "</em>";
   if (origem[chave] && v.tipo === "despesa") return '<em class="fcn-lido">lido no contrato</em>';
   return "";
@@ -439,9 +436,18 @@ function ligarFormularioDaFicha(raiz) {
     x.addEventListener("input", ler);
     x.addEventListener("change", () => {
       ler();
+      if (chave === "documento") fcn.docTocado = true;
       if (chave === "documento" || chave === "dia") redesenharFichaNoLado();
     });
   });
+  // O CPF/CNPJ que nao fecha fica vermelho; o que fecha, verde depois de mexido (js/00-base.js).
+  const doc = raiz.querySelector('[data-fcn="documento"]');
+  if (doc && String(fcn.v.documento || "").trim()) {
+    const aviso = fcnAvisoDoDocumento();
+    if (aviso) marcarCampo(doc, "erro", aviso);
+    else if (fcn.docTocado) marcarCampo(doc, "ok");
+  }
+  vigiarCampo(raiz.querySelector('[data-fcn="nome"]'), REGRA_CAMPO.preenchido, { vazio: "falta o nome" });
   raiz.querySelectorAll("[data-fcn-pessoa]").forEach((b) => { b.onclick = () => { fcn.v.pessoa = b.dataset.fcnPessoa; redesenharFichaNoLado(); }; });
   raiz.querySelectorAll("[data-fcn-papel]").forEach((b) => { b.onclick = () => { fcn.v.tipo = b.dataset.fcnPapel; redesenharFichaNoLado(); desenharCartaoDaFicha(); }; });
   raiz.querySelectorAll("[data-fcn-liga]").forEach((b) => {
@@ -489,11 +495,17 @@ async function salvarFichaDaConversa(botao) {
   const v = fcn.v;
   const aviso = document.querySelector("#lado-ferramenta [data-fcn-aviso]");
   const diz = (t) => { if (aviso) aviso.textContent = t; };
-  if (!String(v.nome || "").trim()) { diz("falta o nome"); return; }
-  if (v.tipo === "despesa" && !fcnCentavos(v.valor)) { diz("falta o valor"); return; }
+  // Erro de campo e a borda do campo, sem texto (js/00-base.js); sem o campo na tela, o aviso de antes.
+  const errado = (chave, frase) => {
+    const el = document.querySelector('#lado-ferramenta [data-fcn="' + chave + '"]');
+    if (el) { diz(""); campoErradoPeloServidor(el, frase); el.focus(); } else diz(frase);
+  };
+  if (!String(v.nome || "").trim()) { errado("nome", "falta o nome"); return; }
+  if (v.tipo === "despesa" && !fcnCentavos(v.valor)) { errado("valor", "falta o valor"); return; }
   const local = (fcn.modulos || []).length > 0;
   const convidar = (v.tipo === "socio" || v.tipo === "colaborador") && v.convidar && local;
-  if (convidar && !/@/.test(v.email || "")) { diz("o convite precisa do e-mail Google"); return; }
+  if (convidar && !/@/.test(v.email || "")) { errado("email", "o convite precisa do e-mail Google"); return; }
+  diz("");
   botao.disabled = true;
   const r = await fetch("/api/cadastros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dados: dadosDaFicha() }) }).catch(() => null);
   if (!r || !r.ok) { botao.disabled = false; diz("não salvei: " + (r ? await erroDe(r) : "sem resposta")); return; }

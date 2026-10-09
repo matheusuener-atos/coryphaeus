@@ -270,8 +270,14 @@ async function lancarPelaConversa(botao) {
   const v = lcn.v;
   const aviso = document.querySelector("#lado-ferramenta [data-lcn-aviso]");
   const diz = (t) => { if (aviso) aviso.textContent = t; };
-  if (!v.centavos) { diz("falta o valor"); return; }
-  if (!String(v.descricao || "").trim()) { diz("falta a descrição"); return; }
+  // Erro de campo e a borda do campo, sem texto (js/00-base.js).
+  const errado = (chave, frase) => {
+    const el = document.querySelector('#lado-ferramenta [data-lcn="' + chave + '"]');
+    if (el) { diz(""); campoErradoPeloServidor(el, frase); el.focus(); } else diz(frase);
+  };
+  if (!v.centavos) { errado("valor", "falta o valor"); return; }
+  if (!String(v.descricao || "").trim()) { errado("descricao", "falta a descrição"); return; }
+  diz("");
   botao.disabled = true;
   const r = await fetch("/api/financeiro/lancar-pela-conversa", {
     method: "POST", headers: { "Content-Type": "application/json" },

@@ -178,8 +178,10 @@ async function calcularPrazo() {
   const r = await dialogo({
     titulo: "Calcular prazo", contexto: "Tarefas",
     campos: [
-      { chave: "data", rotulo: "Data (disponibilização ou intimação)", valor: hoje.toLocaleDateString("pt-BR"), obrigatorio: true },
-      { chave: "dias", rotulo: "Prazo (dias)", valor: "15", obrigatorio: true },
+      { chave: "data", rotulo: "Data (disponibilização ou intimação)", valor: hoje.toLocaleDateString("pt-BR"), obrigatorio: true,
+        conferir: (x) => (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(x.trim()) ? "" : "escreva a data como dd/mm/aaaa") },
+      { chave: "dias", rotulo: "Prazo (dias)", valor: "15", obrigatorio: true,
+        conferir: (x) => (/^\d{1,4}$/.test(x.trim()) && Number(x) > 0 ? "" : "o prazo é um número de dias") },
     ],
     depois: '<div class="dialogo-duas"><div class="dialogo-campo"><label for="cp-origem">A data é da (no DJE)</label><div class="dialogo-caixa"><select id="cp-origem" data-dialogo-chave="origem">' +
       '<option value="disponibilizacao">Disponibilização</option><option value="intimacao">Intimação (ciência)</option></select></div></div>' +

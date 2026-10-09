@@ -12,7 +12,8 @@
    o.titulo, o.contexto (onde estou), o.texto (paragrafos), o.html (extra),
    o.campo { rotulo, valor, placeholder, sufixo, icone, tipo, dica,
              sugestoes, obrigatorio (padrao sim), selecionar (padrao sim),
-             max (limite de caracteres) },
+             max (limite de caracteres), conferir(valor, valores) -> "" | frase |
+             null, igualA (chave do campo que este repete), frase },
    o.marcar { rotulo, marcada }, o.confirmar, o.cancelar, o.perigo, o.sucesso (botao verde: aprovar), o.larga,
    o.classe (uma classe a mais no cartao, para dialogos com miolo proprio),
    o.depois (HTML depois dos campos: listas, texto longo, botoes - o que
@@ -94,9 +95,36 @@ function dialogo(o) {
       if (origem && origem.focus && document.contains(origem)) origem.focus();
       resolve(resultado);
     };
+    // A regra de cada campo (c.conferir(valor, valores) ou c.igualA: "chave"):
+    // a borda diz se fecha, sem texto (js/00-base.js). O obrigatorio vazio
+    // fica vermelho ao tentar confirmar.
+    const porChave = (k) => veu.querySelector('[data-dialogo-chave="' + k + '"]');
+    const valoresAgora = () => {
+      const v = {};
+      veu.querySelectorAll("[data-dialogo-chave]").forEach((el) => { v[el.dataset.dialogoChave] = el.value.trim(); });
+      return v;
+    };
+    const comRegra = [];
+    campos.forEach((c, i) => {
+      const el = veu.querySelector("#" + (i ? "dialogo-campo-" + i : "dialogo-campo"));
+      if (!el) return;
+      // O primeiro campo obrigatorio ja trava o Confirmar enquanto vazio: sem borda so por isso.
+      const exigido = i ? Boolean(c.obrigatorio) : false;
+      if (!c.conferir && !c.igualA && !exigido) return;
+      const regra = (v) => {
+        if (c.igualA && v !== ((porChave(c.igualA) || {}).value || "")) return c.frase || "os dois campos não são iguais";
+        return c.conferir ? c.conferir(v, valoresAgora()) : "";
+      };
+      vigiarCampo(el, regra, { vazio: exigido ? "preencha este campo" : "" });
+      comRegra.push(el);
+      // A confirmacao acompanha o campo que ela repete.
+      const par = c.igualA && porChave(c.igualA);
+      if (par) par.addEventListener("input", () => { if (el.dataset.campoTocado) pintarCampo(el); });
+    });
     const confirmarAgora = () => {
       if (o.aoConfirmar) { o.aoConfirmar(); return; }
       if (entrada && obrigatorio && !entrada.value.trim()) { entrada.focus(); return; }
+      if (!conferirCampos(comRegra)) return;
       const valores = {};
       let falta = null;
       veu.querySelectorAll("[data-dialogo-chave]").forEach((el, i) => {

@@ -311,6 +311,7 @@ async function dialogoCompartilhar() {
     campos: [
       { rotulo: "Nome", chave: "nome", valor: ja ? "" : sug.nome, icone: "person", max: 80, placeholder: "João da Silva" },
       { rotulo: "E-mail", chave: "email", valor: ja ? "" : sug.email, icone: "mail", tipo: "email", max: 200, obrigatorio: true, placeholder: "cliente@exemplo.com",
+        conferir: (x) => REGRA_CAMPO.email(x),
         dica: "É para ele que vai o link e, depois, o código de cada entrada." },
     ],
     depois: '<p class="dialogo-dica">O cliente passa a ver o status, as etapas e os compromissos desta pasta — o que estiver com o olhinho fechado, não. Documento, só os que você compartilhar. Anotações, horas e a trilha nunca.</p>',

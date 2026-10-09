@@ -38,10 +38,10 @@
 <style>
 [data-tema="escuro"] { --bg:#131312; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio3:rgba(242,241,236,.08); --fio-forte:rgba(242,241,236,.4);
-    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; --fill:#222220; --fio-sobre:rgba(242,241,236,.2); --cartao-fundo:#161616; --campo-fundo:#111111; --botao-fundo:#1a1a1a; --botao-sobre:#212121; --primario-fundo:#262626; --primario-sobre:#2e2e2e; color-scheme:dark; }
+    --erro:#f0a08e; --ok:#8fc9a0; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; --fill:#222220; --fio-sobre:rgba(242,241,236,.2); --cartao-fundo:#161616; --campo-fundo:#111111; --botao-fundo:#1a1a1a; --botao-sobre:#212121; --primario-fundo:#262626; --primario-sobre:#2e2e2e; color-scheme:dark; }
   [data-tema="claro"] { --bg:#f6f5f1; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
     --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio3:rgba(28,28,26,.08); --fio-forte:rgba(28,28,26,.4);
-    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#dad9d2; --pastilha-ativa:#d3d2ca; --fill:#e8e7e1; --fio-sobre:rgba(28,28,26,.2); --cartao-fundo:#efeee9; --campo-fundo:#faf9f6; --botao-fundo:#f6f5f1; --botao-sobre:#ecebe6; --primario-fundo:#e2e1db; --primario-sobre:#dad9d2; color-scheme:light; }
+    --erro:#a3331f; --ok:#2f6b45; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#dad9d2; --pastilha-ativa:#d3d2ca; --fill:#e8e7e1; --fio-sobre:rgba(28,28,26,.2); --cartao-fundo:#efeee9; --campo-fundo:#faf9f6; --botao-fundo:#f6f5f1; --botao-sobre:#ecebe6; --primario-fundo:#e2e1db; --primario-sobre:#dad9d2; color-scheme:light; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
@@ -80,6 +80,15 @@
   .ajuda b { font-weight: 500; color: var(--ink3); }
   .ajuda.centro { text-align: center; }
   .erro { margin: 0; font-size: 13px; line-height: 1.5; color: var(--erro); text-align: center; }
+  /* Erro de campo e borda, nao texto (regra de 08/10/2026): vermelho o que nao fecha, verde o que fecha. */
+  .campo.campo-erro, .campo.campo-erro:focus { border-color: var(--erro); }
+  .campo.campo-ok, .campo.campo-ok:focus { border-color: var(--ok); }
+  .campo.campo-erro:focus { box-shadow: 0 0 0 2px var(--fio); }
+  .casas:has(input.campo-erro) span { border-color: var(--erro); }
+  .casas:has(input.campo-ok) span { border-color: var(--ok); }
+  .campo, .casas span { transition: border-color .15s ease; }
+  @media (prefers-reduced-motion: reduce) { .campo, .casas span { transition: none; } }
+  .so-leitor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; white-space: nowrap; clip: rect(0 0 0 0); clip-path: inset(50%); }
   .erro:empty { display: none; }
 
   /* A linha-botao (padronizacao de 08/10/2026): a mesma de css/57-linha-botao.css, copiada aqui
@@ -219,7 +228,7 @@
 
     <!-- 1. Google ou senha -->
     <section id="passo-senha" hidden>
-      <form id="form-senha" autocomplete="on">
+      <form id="form-senha" autocomplete="on" novalidate>
         <div class="grupo">
           <div class="rotulo-linha"><span class="rotulo">CONTA</span><span class="lado" id="passo-de">passo 1 de 3</span></div>
           <div class="linha-botao"><span class="lb-icones"><span class="lb-ic" id="marca-conta"></span></span><span class="lb-texto"><b class="lb-titulo" id="email"></b></span></div>
@@ -254,7 +263,7 @@
 
     <!-- 2. O autenticador: o QR (ou o botao, no celular) e o primeiro codigo -->
     <section id="passo-app" hidden>
-      <form id="form-codigo" autocomplete="off">
+      <form id="form-codigo" autocomplete="off" novalidate>
         <div class="so-celular">
           <a class="linha-botao centro" id="otpauth" href="#"><span class="lb-icones"><span class="lb-ic lb-22"><svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(60 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#FBBC04" transform="rotate(120 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#EA4335" transform="rotate(180 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(240 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(300 24 24)"/><circle cx="24" cy="24" r="5" fill="#5F6368"/></svg></span></span><span class="lb-texto"><b class="lb-titulo">Adicionar ao Google Authenticator</b></span></a>
           <p class="ajuda">Abre o app com a conta do PAVLVS pronta. Se não abrir, no app toque em <b>+</b> › <b>Inserir chave de configuração</b> e use a chave abaixo.</p>
@@ -398,6 +407,60 @@
   }
   ["input", "focus", "blur"].forEach((ev) => $("codigo").addEventListener(ev, desenharCasas));
   desenharCasas();
+
+  /* Erro de campo e borda, nao texto (regra de 08/10/2026, a mesma do Paulus,
+     js/00-base.js): vermelho o que nao fecha, verde o que fecha - so depois de
+     tocado -, aria-invalid e a frase num .so-leitor (aria-describedby). O erro
+     que nao e de campo (robo, convite vencido, servidor) continua no texto. */
+  function marcar(campo, estado, frase) {
+    campo.classList.toggle("campo-erro", estado === "erro");
+    campo.classList.toggle("campo-ok", estado === "ok");
+    const id = campo.id + "-sr";
+    let sr = document.getElementById(id);
+    if (estado === "erro") {
+      campo.setAttribute("aria-invalid", "true");
+      if (!sr) {
+        sr = document.createElement("span");
+        sr.id = id;
+        sr.className = "so-leitor";
+        sr.setAttribute("aria-live", "polite");
+        (campo.closest(".casas") || campo).insertAdjacentElement("afterend", sr);
+      }
+      sr.textContent = frase ? frase.charAt(0).toUpperCase() + frase.slice(1) : "";
+      campo.setAttribute("aria-describedby", id);
+    } else {
+      campo.removeAttribute("aria-invalid");
+      campo.removeAttribute("aria-describedby");
+      if (sr) sr.remove();
+    }
+  }
+  const regras = new Map();
+  const tocados = new Set();
+  function pintar(campo) {
+    const p = regras.get(campo)(campo.value);
+    marcar(campo, p ? "erro" : "ok", p);
+    return p;
+  }
+  function vigiar(campo, regra) {
+    regras.set(campo, regra);
+    campo.addEventListener("blur", () => { if (campo.value || tocados.has(campo)) { tocados.add(campo); pintar(campo); } });
+    campo.addEventListener("input", () => {
+      if (!tocados.has(campo)) return;
+      if (regra(campo.value) && !campo.classList.contains("campo-erro")) marcar(campo, "");
+      else pintar(campo);
+    });
+  }
+  function conferir(ids) {
+    let primeiro = null;
+    ids.map($).forEach((c) => { tocados.add(c); if (pintar(c) && !primeiro) primeiro = c; });
+    if (primeiro) primeiro.focus();
+    return !primeiro;
+  }
+  vigiar($("senha"), (v) => (v.length < 10 ? "a senha precisa ter pelo menos 10 caracteres" : v.length > 200 ? "a senha pode ter no máximo 200 caracteres" : ""));
+  vigiar($("repetir"), (v) => (v && v === $("senha").value ? "" : "as duas senhas não são iguais"));
+  $("senha").addEventListener("input", () => { if (tocados.has($("repetir"))) pintar($("repetir")); });
+  vigiar($("codigo"), (v) => (/^\d{6}$/.test(v.replace(/\D/g, "")) ? "" : "o código tem 6 números"));
+
   // "Renova em 00:18": o codigo do autenticador vale 30 s.
   function relogio() { $("segundos").textContent = "00:" + String(30 - (Math.floor(Date.now() / 1000) % 30)).padStart(2, "0"); }
   relogio();
@@ -484,15 +547,20 @@
   $("form-senha").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (convite.so_google) return;
-    ocupado = true; travar(); $("erro-senha").textContent = "";
+    $("erro-senha").textContent = "";
+    // A senha e a confirmacao conferidas aqui tambem, antes de gastar a verificacao contra robos:
+    // o campo que nao fecha fica vermelho, sem texto.
+    if (!conferir(["senha", "repetir"])) return;
+    ocupado = true; travar();
     try {
-      // A senha e a confirmacao conferidas aqui tambem, antes de gastar a verificacao contra robos.
-      if ($("senha").value.length < 10) throw new Error("a senha precisa ter pelo menos 10 caracteres");
-      if ($("senha").value !== $("repetir").value) throw new Error("as duas senhas não são iguais");
       const d = await enviar(api + "/aceitar", { senha: $("senha").value, turnstile: tokenDoRobo() });
       $("senha").value = ""; $("repetir").value = "";
       mostrarQr(d, true);
-    } catch (err) { $("erro-senha").textContent = err.message; }
+    } catch (err) {
+      // A senha recusada pelo servidor e o campo; o resto (robo, convite) fica no texto.
+      if (/senha/.test(err.message) && !/escolha a senha/.test(err.message)) { tocados.add($("senha")); marcar($("senha"), "erro", err.message); $("senha").focus(); }
+      else $("erro-senha").textContent = err.message;
+    }
     ocupado = false;
     novoRobo();
     travar();
@@ -501,7 +569,9 @@
   $("form-codigo").addEventListener("submit", async (e) => {
     e.preventDefault();
     const b = $("confirmar");
-    b.disabled = true; $("erro-codigo").textContent = "";
+    $("erro-codigo").textContent = "";
+    if (!conferir(["codigo"])) return;
+    b.disabled = true;
     try {
       const d = await enviar(api + "/confirmar", { codigo: $("codigo").value.replace(/\D/g, "") });
       const lista = $("codigos");
@@ -516,7 +586,12 @@
       };
       frase("convite_pronto");
       mostrar("passo-fim");
-    } catch (err) { $("erro-codigo").textContent = err.message; b.disabled = false; $("codigo").select(); }
+    } catch (err) {
+      // O codigo que nao confere e o campo (as casas ficam vermelhas, sem texto); o resto fica no aviso.
+      if (/código/.test(err.message) && /não confere|venceu/.test(err.message)) { tocados.add($("codigo")); marcar($("codigo"), "erro", err.message); }
+      else $("erro-codigo").textContent = err.message;
+      b.disabled = false; $("codigo").select();
+    }
   });
 })();
 </script>

@@ -272,6 +272,14 @@ body.pcl-corpo .pcl-barra-site + .pcl-pagina { min-height: calc(100vh - 57px); m
 .pcl-campo input { min-height: 36px; height: 36px; padding: 0 12px; border-radius: 12px; border-color: var(--pcl-fio); background: var(--pcl-surf); font-size: 14px; }
 .pcl-campo input:focus { outline: none; border-color: var(--pcl-fio2); }
 .pcl-campo input.pcl-codigo { height: 48px; font-size: 20px; }
+/* Erro de campo e borda, nao texto (regra de 08/10/2026, a mesma do Paulus e do site): vermelho o que nao fecha,
+   verde o que fecha, so depois de tocado; a frase vai so para o leitor de tela (.pcl-so-leitor). */
+.pcl-campo input.campo-erro, .pcl-campo input.campo-erro:focus { border-color: var(--pcl-erro); }
+.pcl-campo input.campo-ok, .pcl-campo input.campo-ok:focus { border-color: var(--pcl-ok); }
+.pcl-campo input.campo-erro:focus { box-shadow: 0 0 0 2px var(--pcl-fio); }
+.pcl-campo input { transition: border-color .15s ease; }
+@media (prefers-reduced-motion: reduce) { .pcl-campo input { transition: none; } }
+.pcl-so-leitor { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; white-space: nowrap; clip: rect(0 0 0 0); clip-path: inset(50%); }
 .pcl-form .pcl-botao, .pcl-botao { min-height: 28px; padding: 0 22px; font-size: 13px; }
 .pcl-botao.primario { margin: 2px; box-shadow: 0 0 0 1px var(--pcl-trilho), 0 0 0 2px var(--pcl-fio); }
 @media (max-width: 640px) { .pcl-campo input { font-size: 16px; } }
