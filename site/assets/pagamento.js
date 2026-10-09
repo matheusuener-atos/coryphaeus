@@ -229,6 +229,60 @@
   // A fonte do site carregada dentro dos quadros (eles sao outra pagina, do Mercado Pago).
   var FONTES = [{ src: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500&display=swap" }];
 
+  /* O estado de cada campo (regra do dono, 08/10/2026): errado = borda vermelha, certo = verde, sem texto
+     (PvCampos, em site.js). Os tres quadros do Mercado Pago sao iframes: a validade vem do
+     onValidityChange do CardForm e so aparece depois que a pessoa sai do quadro (o foco sai do iframe)
+     ou tenta pagar. */
+  var P = window.PvCampos;
+  var QUADROS = { cardNumber: "pg-numero", expirationDate: "pg-validade", securityCode: "pg-codigo" };
+  var FRASE_QUADRO = { "pg-numero": "confira o número do cartão", "pg-validade": "confira a validade do cartão (MM/AA)", "pg-codigo": "confira o código de segurança do cartão" };
+  var quadro = {};  // id -> { valido: true|false|undefined, tocado }
+  function caixaDe(id) { var el = $(id); return el && el.closest(".caixa-campo"); }
+  function pintarQuadro(id, forcar) {
+    var q = quadro[id] = quadro[id] || {}, cx = caixaDe(id);
+    if (forcar) q.tocado = true;
+    if (!cx || !P) return q.valido === true;
+    // Sem aviso do Mercado Pago ainda (quadro vazio), fica neutro.
+    if (!q.tocado || q.valido === undefined) { P.marcar(cx, "", ""); return q.valido !== false; }
+    P.marcar(cx, q.valido ? "ok" : "erro", q.valido ? "" : FRASE_QUADRO[id]);
+    return q.valido;
+  }
+  function zerarQuadros() { Object.keys(FRASE_QUADRO).forEach(function (id) { quadro[id] = {}; pintarQuadro(id); }); }
+  function campoDoErro(x) {
+    var t = typeof x === "string" ? x : JSON.stringify(x || {});
+    if (/cardNumber|card_number/i.test(t)) return "pg-numero";
+    if (/expiration/i.test(t)) return "pg-validade";
+    if (/securityCode|security_code/i.test(t)) return "pg-codigo";
+    if (/cardholder/i.test(t)) return "pg-titular";
+    if (/identification/i.test(t)) return "pg-doc";
+    return "";
+  }
+  // Os erros do Mercado Pago ao gerar o token: cada um que aponta um campo pinta esse campo. true = achou algum.
+  function errosDoToken(lista) {
+    var achou = false;
+    [].concat(lista || []).forEach(function (x) {
+      var id = campoDoErro(x); if (!id) return;
+      achou = true;
+      if (FRASE_QUADRO[id]) { quadro[id] = { valido: false, tocado: true }; pintarQuadro(id); }
+      else if (P) P.servidor(id, id === "pg-doc" ? "o CPF ou CNPJ do titular do cartão não confere" : "diga o nome impresso no cartão");
+    });
+    return achou;
+  }
+  if (P) P.regras({
+    "pg-titular": P.regra(function (v) { return v.length >= 2; }, "diga o nome impresso no cartão"),
+    "pg-doc": P.regra(function (v) {
+      var tipo = ($("pg-doc-tipo") || {}).value || "";
+      return /^CNPJ$/i.test(tipo) ? P.checa.cnpj(v) : /^CPF$/i.test(tipo) ? P.checa.cpf(v) : P.checa.cpfCnpj(v);
+    }, "o CPF ou CNPJ do titular do cartão não confere"),
+  });
+  // Saiu do quadro do Mercado Pago (o foco deixa o iframe): passa a mostrar o estado dele.
+  document.addEventListener("focusout", function (ev) {
+    var cx = ev.target && ev.target.closest && ev.target.closest(".pg-seguro-caixa"), seg = cx && cx.querySelector(".pg-seguro");
+    if (seg && FRASE_QUADRO[seg.id]) setTimeout(function () { if (!cx.contains(document.activeElement)) pintarQuadro(seg.id, true); }, 0);
+  });
+  // Trocou o tipo do documento (CPF ou CNPJ): o numero e conferido de novo.
+  document.addEventListener("change", function (ev) { if (ev.target && ev.target.id === "pg-doc-tipo" && P) P.reaplicar(); });
+
   var montado = null;  // a chave e a oferta, para remontar quando o tema muda
   var montouEm = 0;    // quando os quadros seguros ficaram prontos
   // As parcelas que o Mercado Pago ofereceu para o cartao digitado (payer_costs
@@ -348,6 +402,14 @@
             ev.preventDefault();
             pagar();
           },
+          // A validade de cada quadro seguro, conforme a pessoa digita (so pinta depois de tocado).
+          onValidityChange: function (e, campo) {
+            var id = QUADROS[campo]; if (!id) return;
+            quadro[id] = quadro[id] || {};
+            quadro[id].valido = !(e && (!Array.isArray(e) || e.length));
+            pintarQuadro(id);
+          },
+          onCardTokenReceived: function (e) { if (e) errosDoToken(e); },
           onInstallmentsReceived: function (e, dados) {
             var teto = montado.oferta.parcelas_max;
             // A resposta e a de getInstallments: uma lista, com as payer_costs no primeiro item.
@@ -519,6 +581,15 @@
     } catch (e) {
       d = null;
     }
+    // Os campos do cartao: os quadros tocados agora, mais o nome e o documento. O primeiro errado recebe o foco.
+    // Com o token gerado, o Mercado Pago aceitou os tres quadros.
+    if (d && d.token) Object.keys(FRASE_QUADRO).forEach(function (id) { quadro[id] = quadro[id] || {}; quadro[id].valido = true; });
+    var quadrosOk = Object.keys(FRASE_QUADRO).map(function (id) { return pintarQuadro(id, true); }).every(Boolean);
+    var proprios = P ? P.conferir(["pg-titular", "pg-doc"], { semFoco: !quadrosOk }) : true;
+    if (!quadrosOk || !proprios) {
+      if (!quadrosOk) { var cx = Object.keys(FRASE_QUADRO).map(caixaDe).filter(function (c) { return c && c.classList.contains("campo-erro"); })[0]; if (cx) cx.scrollIntoView({ block: "center" }); }
+      return;
+    }
     if (!d || !d.token) { erro("confira os dados do cartão: algum campo está incompleto"); return; }
     var anual = montado && montado.oferta.periodo === "anual";
     var cartao = {
@@ -541,6 +612,8 @@
       // Recusado (cartao, banco, risco): a proxima tentativa e outra compra,
       // com outro token - o CardForm gera um novo a cada envio.
       if (e.status === 402 || e.status === 400) idempotencia = novaChave();
+      // O documento do titular que o servidor recusou: a borda dele, sem o texto.
+      if (e.status === 400 && P && P.porFrase(e.message, [[/CPF ou CNPJ do titular/, "pg-doc"]])) return;
       erro(e.message);
     } finally {
       enviando = false;
@@ -555,6 +628,7 @@
     try { controle.unmount(); } catch (e) { /* ja saiu */ }
     controle = null;
     custos = [];
+    zerarQuadros();
     montar(montado.publicKey, montado.oferta);
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 

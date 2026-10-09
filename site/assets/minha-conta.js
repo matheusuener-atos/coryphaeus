@@ -285,6 +285,32 @@
     var i = 0, n = 0; while (i < novo.length && n < digAntes) { if (/\d/.test(novo[i])) n++; i++; }
     try { el.setSelectionRange(i, i); } catch (e) { /* campo sem cursor */ }
   }
+  /* O estado de cada campo (regra do dono, 08/10/2026): errado = borda vermelha, certo = verde, sem texto na
+     tela (PvCampos, em site.js). As regras sao as do servidor (worker/ia.js, conferirCadastro, e worker/conta.js). */
+  var P = window.PvCampos;
+  var CAD = ["nome", "documento", "oab", "telefone", "email_cobranca", "cep", "logradouro", "numero", "bairro", "cidade", "uf"].map(function (k) { return "mc-cad-" + k; });
+  if (P) P.regras({
+    "mc-cad-nome": P.regra(function (v) { return v.length >= 2 && v.length <= 80; }, L("diga o nome do escritório (ou o seu, se trabalha sozinho)", "type the office name (or yours, if you work alone)")),
+    "mc-cad-documento": P.regra("cpfCnpj", L("o CPF ou CNPJ não confere", "the CPF or CNPJ doesn't check out")),
+    "mc-cad-oab": P.regra("preenchido", L("falta o número da OAB, do RG ou da CNH", "the OAB, ID or driver's license number is missing")),
+    "mc-cad-telefone": P.regra("telefone", L("o telefone precisa do DDD", "the phone needs the area code")),
+    "mc-cad-email_cobranca": P.regra("email", L("o e-mail das faturas não confere", "the invoice email doesn't check out"), true),
+    "mc-cad-cep": P.regra("cep", L("o CEP tem 8 dígitos", "the postal code has 8 digits")),
+    "mc-cad-logradouro": P.regra(function (v) { return v.length >= 2; }, L("diga a rua do endereço", "type the street")),
+    "mc-cad-numero": P.regra("preenchido", L("diga o número do endereço (ou S/N)", "type the street number (or S/N)")),
+    "mc-cad-bairro": P.regra("preenchido", L("diga o bairro do endereço", "type the district")),
+    "mc-cad-cidade": P.regra(function (v) { return v.length >= 2; }, L("diga a cidade do endereço", "type the city")),
+    "mc-cad-uf": P.regra("uf", L("a UF tem 2 letras (ex.: PA)", "pick the state")),
+    "mc-conv": P.regra("email", L("o e-mail não confere", "the email doesn't check out")),
+    "mc-k-nome": P.regra(function (v) { return v.length >= 3; }, L("diga o nome impresso no cartão", "type the name printed on the card")),
+    "mc-k-doc": P.regra("cpfCnpj", L("o CPF ou CNPJ do titular do cartão não confere", "the cardholder's CPF or CNPJ doesn't check out")),
+  });
+  // A frase do servidor que aponta um campo: ele fica vermelho e o aviso nao aparece.
+  var CAD_DO_CAMPO = [[/CPF ou CNPJ/, "mc-cad-documento"], [/nome do escritório/, "mc-cad-nome"], [/telefone/, "mc-cad-telefone"], [/OAB, do RG ou da CNH/, "mc-cad-oab"],
+    [/e-mail das faturas/, "mc-cad-email_cobranca"], [/^o CEP/, "mc-cad-cep"], [/rua do endereço/, "mc-cad-logradouro"], [/número do endereço/, "mc-cad-numero"],
+    [/bairro do endereço/, "mc-cad-bairro"], [/cidade do endereço|código do município/, "mc-cad-cidade"], [/^a UF/, "mc-cad-uf"],
+    [/^preencha o endereço/, ["mc-cad-cep", "mc-cad-logradouro", "mc-cad-numero", "mc-cad-bairro", "mc-cad-cidade", "mc-cad-uf"]]];
+  function erroDeCampo(e, pares) { return Boolean(P && e && (e.status === 400 || e.status === 409) && P.porFrase(e.message, pares, { frase: L(e.message, e.message) })); }
   TELAS.cadastro = function (d) {
     var c = d.cadastro;
     var campo = function (k, rot, extra, cls) { return '<label class="campo-site' + (cls ? " " + cls : "") + '"><span>' + rot + '</span><span class="caixa-campo"><input id="mc-cad-' + k + '" data-cad="' + k + '" value="' + esc(comMascara(k, c[k])) + '"' + (extra || "") + "></span></label>"; };
@@ -383,7 +409,7 @@
       '<label class="campo-site"><span>Nome impresso no cartão</span><span class="caixa-campo"><input id="mc-k-nome" data-a-in="kCampo" autocomplete="cc-name" spellcheck="false"></span></label>' +
       '<label class="campo-site"><span>CPF ou CNPJ do titular do cartão</span><span class="caixa-campo"><input id="mc-k-doc" data-a-in="kCampo" inputmode="numeric" autocomplete="off" value="' + esc(d.cadastro.documento || "") + '"></span></label>' +
       '<p class="mc-nota mc-erro" id="mc-k-erro" role="alert"' + (S.erroCartao ? "" : " hidden") + ">" + esc(S.erroCartao || "") + "</p></div>" +
-      '<div class="mc-pe"><button type="button" class="mc-texto" data-a="cartaoVoltar">Cancelar</button><button type="button" class="btn-duplo pequeno" id="mc-cartao-salvar" data-a="cartaoSalvar" disabled><span>' + ic("lock") + "Salvar cartão</span></button></div>";
+      '<div class="mc-pe"><button type="button" class="mc-texto" data-a="cartaoVoltar">Cancelar</button><button type="button" class="btn-duplo pequeno" id="mc-cartao-salvar" data-a="cartaoSalvar"><span>' + ic("lock") + "Salvar cartão</span></button></div>";
     return '<div class="mc-col mc-col-estreita"><button type="button" class="mc-voltar" data-a="cartaoVoltar">← Voltar</button>' +
       '<header class="mc-cab"><h1>Trocar o cartão</h1><p class="texto-lead">' + (c && c.final ? "Hoje as cobranças saem no " + forma(c) + ". " : "") + "A próxima, em " + dt(d.assinatura.proxima) + ", já sai no cartão novo.</p></header>" +
       painel("Cartão novo", "", form) +
@@ -401,7 +427,20 @@
     var semErro = ["cardNumber", "expirationDate", "securityCode"].every(function (k) { return K.validos[k] !== false; });
     return Boolean(K.metodo) && semErro && nome.length >= 3 && (doc.length === 11 || doc.length === 14);
   }
-  function cartaoOk() { var b = $("mc-cartao-salvar"); if (b && !(S.cartao && S.cartao.salvando)) b.disabled = !cartaoValido(); }
+  // O botao so fica parado enquanto salva: com campo errado, ele marca os errados (cartaoSalvar).
+  function cartaoOk() { var b = $("mc-cartao-salvar"); if (b) b.disabled = Boolean(S.cartao && S.cartao.salvando); }
+  // Os tres quadros do Mercado Pago (iframes): a validade vem do validityChange e aparece depois que a pessoa sai
+  // do quadro, ou tenta salvar. Sem bandeira lida, o numero conta como errado.
+  var K_FRASE = { cardNumber: L("confira o número do cartão", "check the card number"), expirationDate: L("confira a validade do cartão", "check the card expiry"), securityCode: L("confira o código de segurança", "check the security code") };
+  var K_ID = { cardNumber: "mc-k-num", expirationDate: "mc-k-val", securityCode: "mc-k-cvv" };
+  function kPintar(tipo, forcar) {
+    var K = S.cartao, cx = $(K_ID[tipo] + "-caixa"); if (!K || !cx || !P) return true;
+    K.tocados = K.tocados || {}; if (forcar) K.tocados[tipo] = true;
+    var v = K.validos[tipo];
+    if (!K.tocados[tipo] || v === undefined) { P.marcar(cx, "", ""); return v !== false; }
+    P.marcar(cx, v ? "ok" : "erro", v ? "" : K_FRASE[tipo]);
+    return Boolean(v);
+  }
   function mostrarBandeira(m) {
     var b = $("mc-k-band"); if (!b) return;
     if (!m) { b.innerHTML = ic("credit_card"); return; }
@@ -421,9 +460,10 @@
       try {
         f.on("validityChange", function (ev) {
           K.validos[tipo] = !(ev && ev.errorMessages && ev.errorMessages.length);
-          var cx = $(id + "-caixa"); if (cx) cx.classList.toggle("erro", K.validos[tipo] === false);
+          kPintar(tipo);
           cartaoOk();
         });
+        f.on("blur", function () { kPintar(tipo, true); });
       } catch (e) { /* sem o aviso de validade, o createCardToken confere na hora de salvar */ }
       return f;
     };
@@ -443,8 +483,9 @@
         if (K.bin !== bin || !K.campos) return;
         if (!m) { K.metodo = ""; mostrarBandeira(null); cartaoOk(); return; }
         mostrarBandeira(m);
-        if (m.payment_type_id !== "credit_card") { K.metodo = ""; erroCartao("use um cartão de crédito: a assinatura não aceita cartão de débito nem pré-pago"); cartaoOk(); return; }
-        K.metodo = m.id; erroCartao("");
+        // Debito ou pre-pago: a borda do numero fica vermelha e o porque continua escrito (nao e erro de digitacao).
+        if (m.payment_type_id !== "credit_card") { K.metodo = ""; K.validos.cardNumber = false; kPintar("cardNumber", true); erroCartao("use um cartão de crédito: a assinatura não aceita cartão de débito nem pré-pago"); cartaoOk(); return; }
+        K.metodo = m.id; erroCartao(""); kPintar("cardNumber");
         var s = m.settings && m.settings[0];
         if (s) { try { K.campos.num.update({ settings: s.card_number }); K.campos.cvv.update({ settings: s.security_code }); } catch (e) { /* o SDK valida do jeito dele */ } }
         cartaoOk();
@@ -486,12 +527,20 @@
     if (C.estado === "usado") return f("erro", "já em uso");
     return f("erro", "não consegui conferir agora");
   }
+  /* O endereco novo segue a regra dos campos: a borda vermelha (errado, ou ja em uso) ou verde (livre) aparece
+     depois de tocado (digitou e saiu, ou tentou Alterar); a frase fica so para o leitor de tela. "conferindo…"
+     continua a vista: e a espera pelo servidor, nao um erro. */
+  function endPintar(M, st) {
+    var cx = $("mc-slug-caixa"), msg = $("mc-slug-msg"); if (!cx) return;
+    var mostra = M.tocado && (st.cls === "erro" || st.cls === "ok");
+    if (P) P.marcar(cx, mostra ? st.cls : "", mostra && st.cls === "erro" ? (msg ? msg.textContent : "") : "");
+    if (msg) msg.classList.toggle("so-leitor", st.cls === "erro" || st.cls === "ok");
+  }
   function endAtualizar() {
     var M = S.modal; if (!M || M.tipo !== "endereco") return; var st = endStatus(M);
-    var cx = $("mc-slug-caixa"), msg = $("mc-slug-msg"), b = $("mc-end-ok");
-    if (cx) cx.className = "caixa-campo mono mc-slug-caixa" + (st.cls ? " " + st.cls : "");
+    var msg = $("mc-slug-msg");
     if (msg) { msg.className = "mc-slug-msg " + st.cls; msg.innerHTML = st.msg; }
-    if (b) b.disabled = !st.ok;
+    endPintar(M, st);
   }
   function fatos(l) { return '<dl class="mc-fatos">' + l.map(function (x) { return "<div><dt>" + x[0] + "</dt><dd>" + x[1] + "</dd></div>"; }).join("") + "</dl>"; }
   function dialogoTroca(M, d) {
@@ -545,18 +594,17 @@
     if (M.tipo === "endereco") {
       var st = endStatus(M);
       return dialogo("Alterar o endereço", "Escritório",
-        '<div class="campo-site"><label for="mc-slug">Endereço novo</label><span class="caixa-campo mono mc-slug-caixa' + (st.cls ? " " + st.cls : "") + '" id="mc-slug-caixa"><input id="mc-slug" data-a-in="slug" value="' + esc(M.v || "") + '" spellcheck="false" autocomplete="off" aria-describedby="mc-slug-msg"><span class="mudo">.paulus.ia.br</span></span>' +
+        '<div class="campo-site"><label for="mc-slug">Endereço novo</label><span class="caixa-campo mono mc-slug-caixa" id="mc-slug-caixa"><input id="mc-slug" data-a-in="slug" value="' + esc(M.v || "") + '" spellcheck="false" autocomplete="off" aria-describedby="mc-slug-msg"><span class="mudo">.paulus.ia.br</span></span>' +
         '<p class="mc-slug-msg ' + st.cls + '" id="mc-slug-msg" role="status" aria-live="polite">' + st.msg + "</p></div>" +
         '<div class="linha-botao tom-cf"><span class="lb-icones"><span class="lb-ic lb-cf"><img src="' + MP_IMG + 'cloudflare-completo.svg" alt="" width="26" height="26"></span></span><span class="lb-texto"><b class="lb-titulo">Túnel do Cloudflare</b></span><span class="lb-fim lb-meta">conexão protegida</span></div>' +
         '<p class="mc-nota">O endereço atual, ' + esc(d.escritorio.slug) + ".paulus.ia.br, deixa de funcionar na hora. Avise a equipe e os clientes.</p>",
-        cancel + '<button type="button" class="btn-duplo pequeno" id="mc-end-ok" data-a="confirmarEndereco"' + (st.ok ? "" : " disabled") + "><span>Alterar</span></button>");
+        cancel + '<button type="button" class="btn-duplo pequeno" id="mc-end-ok" data-a="confirmarEndereco"><span>Alterar</span></button>');
     }
     if (M.tipo === "convidar") {
-      var okE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(M.email || "");
       return dialogo("Convidar para Minha conta", "Pessoas",
         '<label class="campo-site"><span>E-mail da pessoa</span><span class="caixa-campo"><input id="mc-conv" type="email" data-a-in="convEmail" value="' + esc(M.email || "") + '" placeholder="nome@escritorio.com.br" autocomplete="off"></span></label>' +
         "<p>Entra como <b>financeiro</b>: vê o resumo, o consumo, as faturas e a forma de pagamento. Ela recebe um e-mail com o link, válido por 7 dias.</p>",
-        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarConvite"' + (okE ? "" : " disabled") + "><span>Enviar convite</span></button>");
+        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarConvite"><span>Enviar convite</span></button>');
     }
     if (M.tipo === "aviso") return dialogo(M.titulo, M.ctx, "<p>" + esc(M.texto) + "</p>", cancel + '<a class="btn-duplo pequeno" href="' + esc(M.link) + '"><span>' + esc(M.botao) + "</span></a>");
     if (M.tipo === "confirmar") return dialogo(M.titulo, M.ctx, "<p>" + M.texto + "</p>", cancel + '<button type="button" class="' + (M.leve ? "btn-duplo pequeno" : "mc-perigo") + '" data-a="confirmarSim">' + (M.leve ? "<span>" + esc(M.botao) + "</span>" : esc(M.botao)) + "</button>");
@@ -584,6 +632,9 @@
   function renderModal() {
     var c = $("mc-camada"); if (!c) { c = document.createElement("div"); c.id = "mc-camada"; document.body.appendChild(c); }
     c.innerHTML = modalHtml();
+    // O redesenho troca os campos: a borda de cada um volta pelo estado guardado (PvCampos).
+    if (P) P.reaplicar();
+    if (S.modal && S.modal.tipo === "endereco") endAtualizar();
   }
   // O botao do Google e o oficial (Google Identity Services), o mesmo cliente web do cadastro: ele entrega o
   // id_token, e o Worker abre a sessao da Minha conta (um cookie HttpOnly). Nenhuma senha a mais.
@@ -648,10 +699,18 @@
         toast(e.message, true);
       });
     },
-    trocarCartao: function () { S.sub = "cartao"; S.cartao = null; S.erroCartao = ""; S.modal = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#cartao"); } catch (e) {} render(); },
+    trocarCartao: function () { if (P) P.esquecer("mc-k-"); S.sub = "cartao"; S.cartao = null; S.erroCartao = ""; S.modal = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#cartao"); } catch (e) {} render(); },
     cartaoVoltar: function () { desmontarCartao(); S.sub = null; S.cartao = null; S.erroCartao = ""; S.aba = "pagamento"; window.scrollTo(0, 0); try { history.replaceState(null, "", "#pagamento"); } catch (e) {} render(); },
     cartaoSalvar: function (el) {
-      var K = S.cartao; if (!K || !K.mp || !cartaoValido()) return;
+      var K = S.cartao; if (!K || !K.mp) return;
+      if (!cartaoValido()) {
+        // Marca todos os errados: os quadros do Mercado Pago, o nome e o documento; o foco vai ao primeiro campo nosso errado.
+        // Sem a bandeira lida (numero vazio ou incompleto), o numero conta como errado.
+        if (!K.metodo) K.validos.cardNumber = false;
+        var quadrosOk = ["cardNumber", "expirationDate", "securityCode"].map(function (t) { return kPintar(t, true); }).every(Boolean);
+        if (P) P.conferir(["mc-k-nome", "mc-k-doc"], { semFoco: !quadrosOk });
+        return;
+      }
       var nome = $("mc-k-nome").value.trim(), doc = $("mc-k-doc").value.replace(/\D/g, "");
       K.salvando = true; el.disabled = true; erroCartao("");
       K.mp.fields.createCardToken({ cardholderName: nome, identificationType: doc.length === 14 ? "CNPJ" : "CPF", identificationNumber: doc })
@@ -663,7 +722,18 @@
           S.d.pagamento.cartao = j.cartao; S.d.pagamento.tipo = "cartao";
           var fim = j.cartao && j.cartao.final; A.cartaoVoltar(); toast(fim ? "Cartão trocado. As próximas cobranças saem no final " + fim : "Cartão trocado");
         })
-        .catch(function (e) { K.salvando = false; cartaoOk(); erroCartao(e && e.status ? e.message : "confira o número, a validade e o código do cartão"); });
+        .catch(function (e) {
+          K.salvando = false; cartaoOk();
+          if (e && e.status) { if (!erroDeCampo(e, [[/CPF ou CNPJ do titular/, "mc-k-doc"]])) erroCartao(e.message); return; }
+          // O Mercado Pago nao gerou o token: cada erro que aponta um quadro pinta esse quadro; sem apontar, o aviso geral.
+          var achou = false, txt = JSON.stringify(e || {});
+          [["cardNumber", /cardNumber|card_number/i], ["expirationDate", /expiration/i], ["securityCode", /securityCode|security_code/i]].forEach(function (x) {
+            if (x[1].test(txt)) { K.validos[x[0]] = false; kPintar(x[0], true); achou = true; }
+          });
+          if (/identification/i.test(txt) && P) { P.servidor("mc-k-doc", L("o CPF ou CNPJ do titular do cartão não confere", "the cardholder's CPF or CNPJ doesn't check out")); achou = true; }
+          if (/cardholder/i.test(txt) && P) { P.servidor("mc-k-nome", L("diga o nome impresso no cartão", "type the name printed on the card")); achou = true; }
+          if (!achou) erroCartao("confira o número, a validade e o código do cartão");
+        });
     },
     trocarPlano: function (el) {
       var M = S.modal = { tipo: "trocarPlano", id: el.dataset.id, periodo: S.anual ? "anual" : "mensal" }; renderModal();
@@ -703,15 +773,23 @@
     salvarCadastro: function (el) {
       var v = {}; document.querySelectorAll("[data-cad]").forEach(function (i) { v[i.dataset.cad] = i.value.trim(); });
       if (S.cmun) v.cmun = S.cmun;
+      if (P && !P.conferir(CAD)) return;
       el.disabled = true;
-      api("POST", "/api/conta/cadastro", v).then(function (j) { el.disabled = false; S.d.cadastro = j.cadastro || S.d.cadastro; S.cmun = ""; render(); toast("Cadastro salvo"); })
-        .catch(function (e) { el.disabled = false; toast(e.message, true); });
+      api("POST", "/api/conta/cadastro", v).then(function (j) { el.disabled = false; S.d.cadastro = j.cadastro || S.d.cadastro; S.cmun = ""; if (P) P.esquecer("mc-cad-"); render(); toast("Cadastro salvo"); })
+        .catch(function (e) { el.disabled = false; if (!erroDeCampo(e, CAD_DO_CAMPO)) toast(e.message, true); });
     },
-    alterarEndereco: function () { S.modal = { tipo: "endereco", v: "" }; renderModal(); setTimeout(function () { var i = $("mc-slug"); if (i) i.focus(); }, 30); },
+    alterarEndereco: function () { S.modal = { tipo: "endereco", v: "", tocado: false }; renderModal(); setTimeout(function () { var i = $("mc-slug"); if (i) i.focus(); }, 30); },
     confirmarEndereco: function (el) {
-      if (!endStatus(S.modal).ok) return; var v = S.modal.v; el.disabled = true;
+      var M = S.modal; M.tocado = true; endAtualizar();
+      if (!endStatus(M).ok) { var i = $("mc-slug"); if (i) i.focus(); return; }
+      var v = M.v; el.disabled = true;
       api("POST", "/api/conta/endereco", { slug: v }).then(function (j) { S.d.escritorio.slug = j.slug || v; S.modal = null; render(); toast("Endereço alterado para " + (j.slug || v) + ".paulus.ia.br"); })
-        .catch(function (e) { el.disabled = false; toast(e.message, true); });
+        .catch(function (e) {
+          el.disabled = false;
+          // Ocupado ou ja desta conta: a borda vermelha no endereco, sem o aviso.
+          if (e.status === 409 && S.modal === M && /endereço (já|não está livre)/.test(e.message)) { M.check = { slug: v, estado: "usado" }; endAtualizar(); var i2 = $("mc-slug"); if (i2) i2.focus(); return; }
+          toast(e.message, true);
+        });
     },
     removerInstalacao: function (el) {
       var i = S.d.instalacoes.filter(function (x) { return x.id === el.dataset.id; })[0];
@@ -733,11 +811,13 @@
         fazer: function () { return api("POST", "/api/conta/google/desvincular", {}).then(function () { toast("Ordem de desvincular enviada"); return recarregar(); }); } };
       renderModal();
     },
-    convidar: function () { S.modal = { tipo: "convidar", email: "" }; renderModal(); setTimeout(function () { var i = $("mc-conv"); if (i) i.focus(); }, 30); },
+    convidar: function () { if (P) P.esquecer("mc-conv"); S.modal = { tipo: "convidar", email: "" }; renderModal(); setTimeout(function () { var i = $("mc-conv"); if (i) i.focus(); }, 30); },
     confirmarConvite: function (el) {
-      var em = S.modal.email.trim().toLowerCase(); el.disabled = true;
+      var em = S.modal.email.trim().toLowerCase();
+      if (P && !P.conferir(["mc-conv"])) return;
+      el.disabled = true;
       api("POST", "/api/conta/pessoas", { email: em, papel: "financeiro" }).then(function () { S.modal = null; toast("Convite enviado para " + em); return recarregar(); })
-        .catch(function (e) { el.disabled = false; toast(e.message, true); });
+        .catch(function (e) { el.disabled = false; if (!erroDeCampo(e, [[/^o e-mail não confere|^esse é o e-mail do titular/, "mc-conv"]])) toast(e.message, true); });
     },
     removerPessoa: function (el) {
       var p = S.d.pessoas.filter(function (x) { return x.email === el.dataset.id; })[0];
@@ -793,6 +873,7 @@
       var uf = $("mc-cad-uf"); if (uf && d.uf) uf.value = d.uf;
       S.cmun = /^\d{7}$/.test(String(d.ibge || "")) ? d.ibge : "";
       if (nota) nota.hidden = true;
+      if (P) P.reaplicar();
       var foco = $(d.logradouro ? "mc-cad-numero" : "mc-cad-logradouro"); if (foco) foco.focus();
     }).catch(function () {
       if (nota) { nota.textContent = "Não achei esse CEP agora. Confira o número ou preencha o endereço à mão."; nota.hidden = false; }
@@ -817,7 +898,7 @@
       }
       endAtualizar();
     },
-    convEmail: function (el) { S.modal.email = el.value; var b = document.querySelector('[data-a="confirmarConvite"]'); if (b) b.disabled = !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(el.value); },
+    convEmail: function (el) { S.modal.email = el.value; },
   };
   var SEGS = {
     aba: function (v) { S.aba = v; S.pix = null; S.calAberto = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#" + v); } catch (e) {} },
@@ -835,6 +916,11 @@
     var a = ev.target.closest("[data-a]"); if (a && A[a.dataset.a] && !a.disabled) { ev.preventDefault(); A[a.dataset.a](a); }
   });
   document.addEventListener("input", function (ev) { var k = ev.target.dataset && ev.target.dataset.aIn; if (k && ENTRADAS[k]) ENTRADAS[k](ev.target); });
+  // O endereco novo passa a mostrar o estado depois que a pessoa digitou e saiu do campo.
+  document.addEventListener("focusout", function (ev) {
+    if (ev.target.id !== "mc-slug" || !S.modal || S.modal.tipo !== "endereco" || !S.modal.v) return;
+    var M = S.modal; setTimeout(function () { if (S.modal === M && document.activeElement !== $("mc-slug")) { M.tocado = true; endAtualizar(); } }, 0);
+  });
   document.addEventListener("change", function (ev) { if (ev.target.tagName === "SELECT") { var k = ev.target.dataset && ev.target.dataset.aIn; if (k && ENTRADAS[k]) ENTRADAS[k](ev.target); } });
   document.addEventListener("keydown", function (ev) { var sw = ev.target.closest && ev.target.closest('[role="switch"][data-a]'); if (sw && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); sw.click(); } });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") { if (S.modal) A.fechar(); else if (S.calAberto) { S.calAberto = null; render(); } } });

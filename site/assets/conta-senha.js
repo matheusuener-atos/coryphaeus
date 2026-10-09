@@ -19,7 +19,7 @@
     "use letras e números na senha": "use letters and numbers in the password", "confira o e-mail": "check the email", "digite o código de 6 dígitos": "type the 6-digit code",
     "e-mail ou senha não conferem": "email or password don't match", "o código não confere": "the code doesn't match", "o código venceu: peça outro": "the code expired: ask for another",
     "muitas tentativas erradas com este e-mail: espere 15 minutos e tente de novo": "too many wrong attempts with this email: wait 15 minutes and try again",
-    "sem conexão com o servidor": "no connection to the server", "Código reenviado.": "Code sent again.",
+    "sem conexão com o servidor": "no connection to the server", "digite a senha": "type the password", "Código reenviado.": "Code sent again.",
   };
   function montar(raiz, op) {
     op = op || {};
@@ -64,7 +64,33 @@
         h = campo("email", "E-mail", "email", 'autocomplete="email" maxlength="200" required value="' + esc(S.email) + '"') + botao("Enviar o código") +
           '<div class="cs-links">' + link("entrar", "Voltar") + "</div>";
       }
+      // .cs-erro fica so para o que nao e de um campo (sem conexao, limite de tentativas, e-mail que nao saiu):
+      // o erro de um campo e a borda vermelha dele (PvCampos, em site.js).
       return '<form class="campos cs-form" novalidate>' + h + '<p class="erro-campo cs-erro" role="alert" hidden></p><p class="nota-campo cs-nota" role="status" hidden></p></form>';
+    }
+    var P = window.PvCampos;
+    function cid(n) { return id + "-" + n; }
+    // Os campos de cada passo, na ordem em que aparecem (o primeiro errado recebe o foco).
+    var CAMPOS = { entrar: ["email", "senha"], criar: ["email", "senha", "senha2"], codigo: ["codigo"], redefinir: ["codigo", "senha", "senha2"], esqueci: ["email"] };
+    function regraSenha(s) {
+      if (String(s).length < 10) return t("a senha precisa ter pelo menos 10 caracteres");
+      if (!/[a-zA-ZÀ-ÿ]/.test(s) || !/[0-9]/.test(s)) return t("use letras e números na senha");
+      return String(s).length > 200 ? t("a senha precisa ter pelo menos 10 caracteres") : true;
+    }
+    if (P) {
+      var R = {};
+      R[cid("email")] = P.regra("email", t("confira o e-mail"));
+      R[cid("senha")] = function (v) { return S.modo === "entrar" ? (v ? true : t("digite a senha")) : regraSenha(v); };
+      R[cid("senha2")] = function (v) { return v && v === valor("senha") ? true : t("as duas senhas não são iguais"); };
+      R[cid("codigo")] = P.regra("codigo", t("digite o código de 6 dígitos"));
+      P.regras(R);
+    }
+    // Erro do servidor que e de um campo: a borda vermelha no lugar do texto.
+    var DO_CAMPO = [[/e-mail ou senha não conferem/, ["email", "senha"]], [/^confira o e-mail/, ["email"]], [/o código (não confere|venceu)/, ["codigo"]],
+      [/^(a senha precisa|use letras e números)/, ["senha"]]];
+    function erroDeCampo(msg) {
+      if (!P) return false;
+      return P.porFrase(msg, DO_CAMPO.map(function (p) { return [p[0], p[1].map(cid)]; }), { frase: t(String(msg || "")) });
     }
     // So a mensagem e o botao mudam: o que a pessoa digitou (as senhas) fica.
     function avisar() {
@@ -74,6 +100,7 @@
       if (b) b.disabled = S.ocupado;
     }
     function pintar(foco) {
+      if (P) P.esquecer(id + "-");
       raiz.innerHTML = html();
       avisar();
       var f = raiz.querySelector("input" + (foco ? '[name="' + foco + '"]' : ""));
@@ -106,12 +133,14 @@
       if (S.modo === "entrar") { rota = "entrar"; corpo = { email: S.email, senha: valor("senha") }; }
       else if (S.modo === "criar") { falha = falha || regra(valor("senha"), valor("senha2")); rota = "cadastrar"; corpo = { email: S.email, senha: valor("senha"), nome: S.nome }; }
       else if (S.modo === "esqueci") { rota = "esqueci"; corpo = { email: S.email }; }
-      else if (S.modo === "codigo") { rota = "confirmar"; corpo = { email: S.email, codigo: valor("codigo").trim() }; if (!/^\d{6}$/.test(corpo.codigo)) falha = "digite o código de 6 dígitos"; }
+      else if (S.modo === "codigo") { rota = "confirmar"; corpo = { email: S.email, codigo: valor("codigo").trim() }; falha = /^\d{6}$/.test(corpo.codigo) ? "" : "digite o código de 6 dígitos"; }
       else if (S.modo === "redefinir") {
         rota = "redefinir"; corpo = { email: S.email, codigo: valor("codigo").trim(), senha: valor("senha") };
         falha = !/^\d{6}$/.test(corpo.codigo) ? "digite o código de 6 dígitos" : regra(valor("senha"), valor("senha2"));
       }
-      if (falha) { S.erro = cap(falha); avisar(); return; }
+      // Os campos errados ficam vermelhos (e o primeiro recebe o foco); o texto so aparece sem o PvCampos.
+      if (P && !P.conferir(CAMPOS[S.modo].map(cid))) { avisar(); return; }
+      if (falha) { if (!P || !erroDeCampo(falha)) S.erro = cap(falha); avisar(); return; }
       S.ocupado = true; avisar();
       try {
         var d = await pedir(rota, corpo);
@@ -121,10 +150,14 @@
         avisar();
         if (d.token && op.aoEntrar) op.aoEntrar(d.token, { email: d.email || S.email, nome: d.nome || "" });
       } catch (e) {
-        S.ocupado = false; S.erro = cap(e.message); avisar();
+        S.ocupado = false;
+        if (!erroDeCampo(e.message)) S.erro = cap(e.message);
+        avisar();
       }
     }
     raiz.addEventListener("submit", function (ev) { ev.preventDefault(); enviar(); });
+    // A confirmacao da senha acompanha a senha: mudou uma, a outra (se ja foi tocada) e conferida de novo.
+    raiz.addEventListener("input", function () { if (P) P.reaplicar(raiz); });
     raiz.addEventListener("click", function (ev) {
       var b = ev.target.closest("[data-cs]"); if (!b) return;
       var a = b.getAttribute("data-cs");

@@ -19,7 +19,7 @@
 .campo > .rotulo { display: block; }
 .caixa-campo {
   display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 12px;
-  background: var(--campo-fundo); border: 1px solid var(--line); transition: border-color .12s;
+  background: var(--campo-fundo); border: 1px solid var(--line); transition: border-color .15s, box-shadow .15s;
 }
 .caixa-campo:focus-within { border-color: var(--line3); }
 .caixa-campo input {

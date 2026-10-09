@@ -191,6 +191,8 @@
       var n = document.getElementById(id);
       if (n && el.contains(n)) { n.focus({ preventScroll: true }); if (s != null) { try { n.setSelectionRange(s, f); } catch (x) { /* nada */ } } }
     }
+    // A borda de estado de cada campo (vermelha/verde) volta pelo que o PvCampos guardou (site.js).
+    if (window.PvCampos) PvCampos.reaplicar(el);
   }
 
   function render() {
@@ -857,8 +859,8 @@
     } else if (podeE && pe) {
       var ed = planoEd(pe), v = ed.v, filaE = naFila("plano.editar", pe.id);
       var vv = numDec(v.valor), tt = numDec(v.tokens) * 1e6, cc2 = tt ? custoCheio(tt, pe.custo_modelo) : null, mg2 = cc2 != null && vv ? 1 - cc2 / vv : null;
-      var cE = function (k, rot, pre, suf) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo mono fundo">' + (pre ? '<span class="pre">' + pre + "</span>" : "") + '<input data-in="planoEd" data-k="' + k + '" value="' + esc(v[k]) + '" inputmode="decimal" style="width:0">' + (suf ? '<span class="sufixo">' + suf + "</span>" : "") + "</span></label>"; };
-      var cT = function (k, rot, ph) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input data-in="planoEd" data-k="' + k + '" value="' + esc(v[k]) + '" placeholder="' + esc(ph || "") + '"></span></label>'; };
+      var cE = function (k, rot, pre, suf) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo mono fundo">' + (pre ? '<span class="pre">' + pre + "</span>" : "") + '<input id="pe-' + k + '" data-in="planoEd" data-k="' + k + '" value="' + esc(v[k]) + '" inputmode="decimal" style="width:0">' + (suf ? '<span class="sufixo">' + suf + "</span>" : "") + "</span></label>"; };
+      var cT = function (k, rot, ph) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input id="pe-' + k + '" data-in="planoEd" data-k="' + k + '" value="' + esc(v[k]) + '" placeholder="' + esc(ph || "") + '"></span></label>'; };
       var tp = pe.textos_padrao || {};
       dir = '<div class="painel res-card"><div class="painel-cab secao-cab"><span class="rotulo">Editar ' + esc(pe.nome) + '</span></div><div class="ed-corpo">' +
         cT("para", "Frase do plano", tp.para || "Vazio: o cartão sai sem frase") +
@@ -1165,6 +1167,7 @@
     if (E.busca.aberta) h += buscaHtml();
     pintar(el, h);
     if (E.modal && E.modal.embutido && !renderCamada.dentro) { renderCamada.dentro = true; try { render(); } finally { renderCamada.dentro = false; } }
+    if (E.modal && E.modal.tipo === "endereco") slugBorda();
     g = el.querySelector(".ficha-corpo"); if (g) g.scrollTop = gs;
     b = el.querySelector(".busca-res"); if (b) b.scrollTop = bs;
     document.body.style.overflow = h ? "hidden" : "";
@@ -1330,15 +1333,14 @@
     if (/^nf/.test(M.tipo)) {
       h += nfModalHtml(M);
     } else if (M.tipo === "membro") {
-      var okM = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(M.v.email || "") && (M.v.nome || "").trim();
       h += modalCab(M.novo ? "Convidar para a equipe" : "Editar pessoa") + '<div class="modal-corpo pilha" style="gap:14px">' +
         '<label class="campo-adm"><span class="rot">Nome</span><span class="caixa-campo"><input id="mb-nome" data-in="membroCampo" data-k="nome" value="' + esc(M.v.nome || "") + '" autocomplete="off"></span></label>' +
-        '<label class="campo-adm"><span class="rot">E-mail</span><span class="caixa-campo"><input data-in="membroCampo" data-k="email" value="' + esc(M.v.email || "") + '" placeholder="nome@paulus.ia.br" autocomplete="off" spellcheck="false"></span></label>' +
+        '<label class="campo-adm"><span class="rot">E-mail</span><span class="caixa-campo"><input id="mb-email" type="email" data-in="membroCampo" data-k="email" value="' + esc(M.v.email || "") + '" placeholder="nome@paulus.ia.br" autocomplete="off" spellcheck="false"></span></label>' +
         '<div class="campo-adm"><span class="rot">Papel</span>' + seg("membro.papel", [["dono", "Dono"], ["financeiro", "Financeiro"], ["suporte", "Suporte"]], M.v.papel) + "</div>" +
         '<p class="nota-campo">' + (desligado(cfg("equipe"))
           ? (M.novo ? "Ela recebe um e-mail com o link do convite, válido por 7 dias. A liberação no Cloudflare Access ainda é à mão: quando ela aceitar, inclua o e-mail na política do Access do painel." : "Mudar o e-mail troca quem entra: o novo recebe um convite e o antigo sai da equipe. No Cloudflare Access, a troca ainda é à mão.")
           : (M.novo ? "Ela recebe um e-mail com o link para entrar, válido por 7 dias. No primeiro acesso, o Cloudflare Access manda um código para esse mesmo e-mail, e o painel libera o endereço sozinho." : "Mudar o e-mail troca quem entra: o endereço antigo sai do Cloudflare Access e o novo recebe um convite.")) + "</p></div>" +
-        modalPe('<button type="button" class="btn-acao" data-a="membroSalvar"' + (okM ? "" : " disabled") + ">" + (M.novo ? ic("send") + "Enviar convite" : "Salvar") + "</button>");
+        modalPe('<button type="button" class="btn-acao" data-a="membroSalvar">' + (M.novo ? ic("send") + "Enviar convite" : "Salvar") + "</button>");
     } else if (M.tipo === "membroExcluir") {
       h += modalCab(M.convite ? "Cancelar convite" : "Excluir da equipe") + '<div class="modal-corpo"><p class="t135">' + (M.convite ? "O link enviado para " + esc(M.email) + " deixa de funcionar." : esc(M.nome || M.email) + " (" + esc(M.email) + ") perde o acesso a este painel" + (desligado(cfg("equipe")) ? ". O endereço continua na política do Cloudflare Access até você tirar à mão." : ", e o endereço sai do Cloudflare Access.")) + "</p></div>" +
         modalPe('<button type="button" class="btn-acao perigo-cheio" data-a="membroExcluirOk">' + (M.convite ? "Cancelar convite" : "Excluir") + "</button>");
@@ -1392,17 +1394,18 @@
       h += modalCab("Alterar endereço") + '<div class="modal-corpo">' +
         '<div class="end-atual"><span>Endereço atual</span><b>' + esc(M.slug) + "<span>.paulus.ia.br</span></b></div>" +
         '<label class="campo-adm"><span class="rot">Endereço novo</span><span class="caixa-campo mono fundo"><input id="modal-slug" data-in="slugNovo" value="' + esc(M.novo) + '" placeholder="nome-do-escritorio" spellcheck="false" autocapitalize="none" maxlength="24" aria-describedby="modal-slug-msg"><span class="sufixo">.paulus.ia.br</span></span>' +
-        '<span class="msg-slug" id="modal-slug-msg" aria-live="polite" style="color:' + ch.cor + '">' + (ch.msg ? "<i></i>" + esc(ch.msg) : "") + "</span></label>" +
+        // A frase "conferindo…" fica a vista (e a espera); errado/livre e a borda do campo, com a frase so para o leitor de tela.
+        '<span class="msg-slug' + (ch.cor === "var(--ink3)" ? "" : " so-leitor") + '" id="modal-slug-msg" aria-live="polite" style="color:' + ch.cor + '">' + (ch.msg ? "<i></i>" + esc(ch.msg) : "") + "</span></label>" +
         (livres.length ? '<div class="end-livres"><span class="rot-livres">Livres</span>' + livres.map(function (l) { return '<button type="button" class="chip" data-a="usarLivre" data-v="' + esc(l) + '">' + esc(l) + "</button>"; }).join("") + "</div>" : "") +
         '<ul class="end-passos"><li>' + ic("link_off") + "O endereço antigo sai do ar e fica livre para outro escritório.</li><li>" + ic("dns") + "O novo é criado no mesmo túnel, sem reinstalar nada.</li><li>" + ic("sync") + "O Paulus do escritório passa a usar o novo na próxima conexão.</li></ul></div>" +
-        modalPe('<button type="button" class="btn-acao" data-a="enderecoConfirmar" id="modal-ok"' + (ch.ok ? "" : " disabled") + ">Trocar endereço</button>");
+        modalPe('<button type="button" class="btn-acao" data-a="enderecoConfirmar" id="modal-ok">Trocar endereço</button>');
     } else if (M.tipo === "plano") {
       var v = numDec(M.valor), va = numDec(M.anual), t = numDec(M.tokens) * 1e6, cc = t ? custoCheio(t, M.usd) : null;
       h += modalCab("Editar plano") + '<div class="modal-corpo"><b style="font:500 15px var(--sans)">' + esc(M.nome) + ' <span class="num s11 c-ink3">' + esc(M.id) + "</span></b>" +
         '<div class="grade-campos">' + campoModal("modal-valor", "Valor por mês", M.valor, "planoValor", "R$") + campoModal("modal-anual", "Valor por ano", M.anual, "planoAnual", "R$") + campoModal("modal-tokens", "Créditos por mês", M.tokens, "planoTokens", "", "M") + "</div>" +
         '<span class="t125">' + (t ? esc(brl(v / (t / 1e6))) + " por milhão" + (cc != null ? " · se o assinante usar tudo, custa " + esc(brl(cc)) + " no " + esc(M.modelo || "modelo do plano") : "") + (va && v ? " · o anual sai " + Math.round((1 - va / (v * 12)) * 100) + "% abaixo de 12 meses" : "") : "Preencha valor e créditos.") + "</span>" +
         '<p class="nota-campo">Quem já assina continua pagando o valor de agora até a próxima renovação; o PUT no preapproval do Mercado Pago sai na publicação.</p></div>' +
-        modalPe('<button type="button" class="btn-acao" data-a="planoSalvar" id="modal-ok"' + (v > 0 && va > 0 && t > 0 ? "" : " disabled") + ">Salvar</button>");
+        modalPe('<button type="button" class="btn-acao" data-a="planoSalvar" id="modal-ok">Salvar</button>');
     } else if (M.tipo === "contaPlano") {
       h += modalCab("Alterar plano") + '<div class="modal-corpo"><div class="quem"><b>' + esc(M.nome) + "</b><span>" + esc(M.email) + "</span></div>" +
         (M.planos ? '<div class="caixa-escura">' + M.planos.map(function (p) {
@@ -1498,7 +1501,7 @@
         '<p class="nota-campo">O que já saiu para fora não volta: e-mails enviados, cobranças feitas no Mercado Pago e notas emitidas continuam valendo.</p>' +
         '<label class="campo-adm"><span class="rot">Digite <code class="cod">retroagir</code> para confirmar</span><span class="caixa-campo mono fundo"><input id="modal-retro" data-in="retroTexto" value="' + esc(M.texto) + '" placeholder="retroagir" spellcheck="false" autocomplete="off" autocapitalize="none"></span></label>' +
         (M.erro ? '<p class="erro-campo">' + esc(M.erro) + "</p>" : "") + "</div>" +
-        modalPe('<button type="button" class="btn-acao' + (okR ? " perigo-cheio" : "") + '" data-a="retroagir" id="modal-ok"' + (okR && !M.enviando ? "" : " disabled") + ">" + ic("undo") + (M.enviando ? "Retroagindo…" : "Retroagir") + "</button>");
+        modalPe('<button type="button" class="btn-acao' + (okR ? " perigo-cheio" : "") + '" data-a="retroagir" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + ic("undo") + (M.enviando ? "Retroagindo…" : "Retroagir") + "</button>");
     } else if (M.tipo === "commit") {
       h += modalCab("Commitar e pushar");
       if (M.resultado) {
@@ -1515,7 +1518,7 @@
           '<div class="lista-commit">' + ps.slice(0, 4).map(function (a) { return "<span><span>—</span>" + esc(a.texto) + "</span>"; }).join("") + (ps.length > 4 ? '<span class="mais">+ ' + (ps.length - 4) + " alterações</span>" : "") + "</div>" +
           '<label class="campo-adm"><span class="rot">Digite <code class="cod">comitar e pushar</code> para confirmar</span><span class="caixa-campo mono fundo"><input id="modal-commit" data-in="commitTexto" value="' + esc(M.texto) + '" placeholder="comitar e pushar" spellcheck="false" autocomplete="off" autocapitalize="none"></span></label>' +
           (M.erro ? '<p class="erro-campo">' + esc(M.erro) + "</p>" : "") + "</div>" +
-          modalPe('<button type="button" class="btn-acao' + (okTxt ? " verde" : "") + '" data-a="publicar" id="modal-ok"' + (okTxt && !M.enviando ? "" : " disabled") + ">" + ic("publish") + (M.enviando ? "Publicando…" : "Commitar e pushar") + "</button>");
+          modalPe('<button type="button" class="btn-acao' + (okTxt ? " verde" : "") + '" data-a="publicar" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + ic("publish") + (M.enviando ? "Publicando…" : "Commitar e pushar") + "</button>");
       }
     }
     return h + "</div>";
@@ -1722,6 +1725,75 @@
     return h + "</div>";
   }
   function nfErro(M) { return M.erro ? '<p class="erro-campo" role="alert">' + esc(M.erro) + "</p>" : ""; }
+  /* O estado de cada campo das notas (regra do dono, 08/10/2026): errado = borda vermelha, certo = verde, sem
+     texto (PvCampos, em site.js). As regras sao as do servidor (worker/nfse/prestador.js e worker/nfse-casa.js);
+     vazio so e erro onde o servidor exige. Os ids sao nfId(chave): "endereco.cep" -> "nf-c-endereco-cep". */
+  function nfRegraPorChave(k) {
+    var R = PC, o = true;
+    var fim = k.replace(/^(ajustes\.)?tomador\./, "");
+    if (/^(ajustes\.)?tomador\./.test(k)) {
+      if (fim === "documento") return R.regra("cpfCnpj", "o CPF ou CNPJ do tomador não confere", o);
+      if (fim === "email") return R.regra("email", "o e-mail do tomador não confere", o);
+      if (fim === "telefone") return R.regra(function (v) { var n = v.replace(/\D/g, "").length; return n >= 10 && n <= 13; }, "o telefone precisa do DDD", o);
+      if (fim === "cep") return R.regra("cep", "o CEP tem 8 dígitos", o);
+      if (fim === "uf") return R.regra("uf", "a UF tem 2 letras (ex.: PA)", o);
+      if (fim === "cmun") return nfRegraMun(k, o);
+      return null;
+    }
+    var mapa = {
+      documento: R.regra("cpfCnpj", "o CNPJ do prestador não confere (dígito verificador)"),
+      municipio: nfRegraMun("municipio", false),
+      "endereco.cep": R.regra("cep", "o CEP do prestador precisa de 8 dígitos", o),
+      email: R.regra("email", "o e-mail não parece um e-mail", o),
+      telefone: R.regra(function (v) { var n = v.replace(/\D/g, "").length; return n >= 10 && n <= 13; }, "o telefone precisa do DDD", o),
+      serie: R.faixa(1, 49999, "a série da DPS de aplicativo próprio vai de 1 a 49999"),
+      "servico.ctribnac": R.regra(function (v) { return /^\d{6}$/.test(v.replace(/\D/g, "")); }, "o código de tributação nacional tem 6 dígitos", o),
+      "servico.ctribmun": R.regra(function (v) { return /^\d{3}$/.test(v); }, "o código de tributação municipal tem 3 dígitos", o),
+      "servico.aliquota_iss_pct": R.faixa(0, 100, "a alíquota é um percentual (ex.: 2,00)", o),
+      "ibscbs.cst": R.regra(function (v) { return v.replace(/\D/g, "").length === 3; }, "IBS/CBS: o cst tem 3 dígitos", o),
+      "ibscbs.cclasstrib": R.regra(function (v) { return v.replace(/\D/g, "").length === 6; }, "IBS/CBS: o cclasstrib tem 6 dígitos", o),
+      "ibscbs.cindop": R.regra(function (v) { return v.replace(/\D/g, "").length === 6; }, "IBS/CBS: o cindop tem 6 dígitos", o),
+      "total_tributos.federal_pct": R.faixa(0, 100, "o percentual vai de 0 a 100", o),
+      "total_tributos.estadual_pct": R.faixa(0, 100, "o percentual vai de 0 a 100", o),
+      "total_tributos.municipal_pct": R.faixa(0, 100, "o percentual vai de 0 a 100", o),
+      "contador.email": R.regra("email", "o e-mail do contador não parece um e-mail", o),
+      valor: function (v) { v = v.trim(); if (!v) return E.modal && E.modal.v && E.modal.v.pagamento ? null : "diga o valor da nota"; var n = R.numero(v); return n > 0 ? true : "o valor é um número em reais"; },
+      "ajustes.valor": R.faixa(0.01, 1e9, "o valor é um número em reais", o),
+      texto: function (v) { v = v.trim(); var M = E.modal || {}, exige = M.tipo === "nfCancelar" || (M.v && M.v.motivo === "99"); if (!v) return exige ? "descreva o motivo (15 a 255 caracteres)" : null; return v.length >= 15 && v.length <= 255 ? true : "descreva o motivo (15 a 255 caracteres)"; },
+    };
+    if (/_pct$/.test(k) && !mapa[k]) return R.faixa(0, 100, "o percentual vai de 0 a 100", o);
+    return mapa[k] || null;
+  }
+  // O municipio: o campo mostra o nome, o codigo IBGE escolhido fica em M.v[k].
+  function nfRegraMun(k, opcional) {
+    return function (v) { var M = E.modal || {}, cod = String((M.v || {})[k] || ""); if (!v.trim() && !cod) return opcional ? null : "escolha o município na lista"; return /^\d{7}$/.test(cod) ? true : "escolha o município na lista"; };
+  }
+  // Registra as regras dos campos do pop-up aberto e devolve os ids (na ordem do formulario) que casam com o filtro.
+  function nfIds(M, filtro) {
+    if (!PC) return [];
+    var ids = [], R = {};
+    [].slice.call(document.querySelectorAll('[data-in="nf"][data-k], [data-in="nfMun"][data-k], [data-in="nfMunCod"][data-k]')).forEach(function (el) {
+      var k = el.dataset.k; if (!filtro.test(k) || el.disabled || el.type === "checkbox") return;
+      var f = el.dataset.in === "nfMunCod" ? PC.regra(function (v) { return /^\d{7}$/.test(v); }, "o código do município (IBGE) tem 7 dígitos", true) : nfRegraPorChave(k);
+      if (!f) return;
+      R[el.id] = f; ids.push(el.id);
+    });
+    PC.regras(R);
+    return ids;
+  }
+  // A frase do servidor que aponta um campo das notas: ele fica vermelho e a frase sai da tela.
+  function nfErroDeCampo(e, prefixo) {
+    if (!PC || !e || e.status === 401) return false;
+    var id = function (k) { return nfId(prefixo + k); };
+    var pares = prefixo ? [[/CPF ou CNPJ do tomador|documento do tomador/, id("documento")], [/e-mail do tomador/, id("email")], [/telefone/, id("telefone")],
+      [/^o CEP/, id("cep")], [/código do município/, id("cmun")]]
+      : [[/(CNPJ|CPF|documento) do prestador/, nfId("documento")], [/município do prestador/, nfId("municipio")], [/CEP do prestador/, nfId("endereco.cep")],
+        [/tributação nacional/, nfId("servico.ctribnac")], [/^a NBS/, nfId("servico.nbs")], [/tributação municipal/, nfId("servico.ctribmun")],
+        [/CST do PIS/, nfId("pis_cofins.cst")], [/IBS\/CBS: o cst /, nfId("ibscbs.cst")], [/IBS\/CBS: o cclasstrib/, nfId("ibscbs.cclasstrib")],
+        [/IBS\/CBS: o cindop|indicador da operação/, nfId("ibscbs.cindop")], [/e-mail do contador/, nfId("contador.email")], [/série da DPS/, nfId("serie")]];
+    // O pop-up e redesenhado depois (sem a frase); a marca do servidor fica guardada por id e volta no redesenho.
+    return PC.porFrase(e.message, pares);
+  }
   // "a.b.c" -> {a: {b: {c}}}
   function nfAninhar(v, prefixo) {
     var saida = {};
@@ -2185,7 +2257,8 @@
   A.modalEndereco = function (el) { abrirModal({ tipo: "endereco", slug: el.dataset.slug, novo: "", check: null, seq: 0 }); };
   A.usarLivre = function (el) { E.modal.novo = el.dataset.v; conferirSlug(); renderCamada(); var i = $("modal-slug"); if (i) i.focus(); };
   A.enderecoConfirmar = function () {
-    var M = E.modal; if (!M.check || !M.check.ok) return;
+    var M = E.modal;
+    if (!M.check || !M.check.ok) { M.tocado = true; renderCamada(); var i = $("modal-slug"); if (i) i.focus(); return; }
     var novo = M.novo.trim().toLowerCase(), slug = M.slug;
     fecharModal();
     enfileirar("tuneis", "tunel.endereco", slug, { slug: slug, novo: novo }, "Alterei o endereço " + slug + " → " + novo + ".paulus.ia.br");
@@ -2226,32 +2299,36 @@
   // O detalhe aberto da nao renovacao: uma mensagem do proprio punho e uma oferta para a pessoa voltar.
   function renovDetHtml(r, emailOff, email) {
     var id = String(r.id), msg = U.renovacoes.msg[id] || "", of = U.renovacoes.oferta[id] || (U.renovacoes.oferta[id] = { tipo: "creditos", tokens: "10", valor: "", plano: r.plano ? r.plano.id : "" });
+    regrasRenovacao(id);
     var ps = (dadosDe("planos") || {}).planos; if (!ps && !renovDetHtml.pediu) { renovDetHtml.pediu = true; ler("planos"); }
     ps = ps || (r.plano ? [r.plano] : []);
     var h = '<div class="tunel-det renov-det"><div class="td-esq rd-col"><span class="td-tit">Mensagem para ' + esc(primeiro(r.nome)) + "</span>" +
-      '<textarea class="area rd-msg" rows="4" data-in="renovMsg" data-id="' + esc(id) + '" placeholder="Escreva do seu jeito. Sai do e-mail do Paulus, com o seu nome.">' + esc(msg) + "</textarea>" +
+      '<textarea class="area rd-msg" rows="4" id="rd-msg-' + esc(id) + '" data-in="renovMsg" data-id="' + esc(id) + '" placeholder="Escreva do seu jeito. Sai do e-mail do Paulus, com o seu nome.">' + esc(msg) + "</textarea>" +
       '<div class="res-acoes rd-pe"><span class="nota-campo">Vai para ' + esc(r.email) + "</span>" +
-      '<button type="button" class="mini cheia" data-a="renovMsgEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff || !msg.trim(), emailOff ? email.falta : "escreva a mensagem") + ">" + ic("send") + "Enviar mensagem</button></div></div>" +
+      '<button type="button" class="mini cheia" data-a="renovMsgEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff, email.falta) + ">" + ic("send") + "Enviar mensagem</button></div></div>" +
       '<div class="td-dir rd-col"><span class="td-tit">Oferta para voltar</span>' + seg("renovOferta:" + id, [["creditos", "Créditos extras"], ["preco", "Preço especial"]], of.tipo, "pequeno") +
       (of.tipo === "creditos"
-        ? '<div class="rd-linha"><label class="campo-adm"><span class="rot">Créditos</span><span class="caixa-campo fundo"><input inputmode="numeric" data-in="renovOf" data-id="' + esc(id) + '" data-k="tokens" value="' + esc(of.tokens) + '" style="width:0"><span class="sufixo">M tokens</span></span></label>' +
+        ? '<div class="rd-linha"><label class="campo-adm"><span class="rot">Créditos</span><span class="caixa-campo fundo"><input inputmode="numeric" id="rd-tokens-' + esc(id) + '" data-in="renovOf" data-id="' + esc(id) + '" data-k="tokens" value="' + esc(of.tokens) + '" style="width:0"><span class="sufixo">M tokens</span></span></label>' +
           '<label class="campo-adm"><span class="rot">Vale por</span><span class="caixa-campo fundo"><input readonly value="60 dias" style="width:0"></span></label></div>' +
           '<p class="nota-campo">Os créditos entram na conta quando a pessoa voltar a pagar, com o próximo pagamento confirmado. Ela recebe a oferta por e-mail.</p>'
-        : '<div class="rd-linha"><label class="campo-adm"><span class="rot">Só este mês por</span><span class="caixa-campo fundo"><span class="pre">R$</span><input inputmode="decimal" data-in="renovOf" data-id="' + esc(id) + '" data-k="valor" value="' + esc(of.valor) + '" placeholder="' + esc(r.plano ? String(Math.round(r.plano.valor * 0.6)) : "") + '" style="width:0"></span></label>' +
+        : '<div class="rd-linha"><label class="campo-adm"><span class="rot">Só este mês por</span><span class="caixa-campo fundo"><span class="pre">R$</span><input inputmode="decimal" id="rd-valor-' + esc(id) + '" data-in="renovOf" data-id="' + esc(id) + '" data-k="valor" value="' + esc(of.valor) + '" placeholder="' + esc(r.plano ? String(Math.round(r.plano.valor * 0.6)) : "") + '" style="width:0"></span></label>' +
           '<label class="campo-adm"><span class="rot">No plano</span><span class="caixa-campo fundo"><select data-in="renovOf" data-id="' + esc(id) + '" data-k="plano">' + ps.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === of.plano ? " selected" : "") + ">" + esc(p.nome) + " · " + esc(brl(p.valor)) + "</option>"; }).join("") + "</select></span></label></div>" +
           '<p class="nota-campo">Vale só para o próximo pagamento; depois volta ao preço do plano.</p>') +
-      '<div class="res-acoes rd-pe"><span></span><button type="button" class="mini cheia" data-a="renovOfertaEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff || (of.tipo === "creditos" ? !(Number(of.tokens) > 0) : !(numDec(of.valor) > 0)), emailOff ? email.falta : "preencha a oferta") + ">" + ic("local_offer") + "Enviar oferta</button></div></div></div>";
+      '<div class="res-acoes rd-pe"><span></span><button type="button" class="mini cheia" data-a="renovOfertaEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff, email.falta) + ">" + ic("local_offer") + "Enviar oferta</button></div></div></div>";
     return h;
   }
   A.renovAbrir = function (el) { if (U.renovacoes.sel) return; var id = el.dataset.id; U.renovacoes.aberto = String(U.renovacoes.aberto) === String(id) ? null : id; render(); };
   A.renovMsgEnviar = async function (el) {
-    var id = el.dataset.id, t = (U.renovacoes.msg[id] || "").trim(); if (!t) return;
+    var id = el.dataset.id, t = (U.renovacoes.msg[id] || "").trim();
+    if (PC && !PC.conferir(["rd-msg-" + id])) return;
+    if (!t) return;
     el.disabled = true;
     var ok = await naHora("POST", "/api/admin/renovacoes/" + encodeURIComponent(id) + "/mensagem", { texto: t }, "Mensagem enviada");
     if (ok) { U.renovacoes.msg[id] = ""; render(); } else el.disabled = false;
   };
   A.renovOfertaEnviar = function (el) {
     var id = el.dataset.id, of = U.renovacoes.oferta[id], r = (((dadosDe("renovacoes") || {}).abertas) || []).filter(function (x) { return String(x.id) === String(id); })[0]; if (!of || !r) return;
+    if (PC && !PC.conferir([(of.tipo === "creditos" ? "rd-tokens-" : "rd-valor-") + id])) return;
     var dados = of.tipo === "creditos" ? { id: id, tipo: "creditos", tokens: Number(of.tokens) * 1e6 } : { id: id, tipo: "preco", valor: numDec(of.valor), plano: of.plano };
     var txt = of.tipo === "creditos" ? "Ofereci " + of.tokens + "M tokens para " + r.nome + " voltar (entram quando voltar a pagar)" : "Ofereci a " + r.nome + " o próximo mês por " + brl(numDec(of.valor)) + " no plano " + of.plano;
     enfileirar("renovacoes", "renov.oferta", id, dados, txt);
@@ -2353,7 +2430,8 @@
   }
   A.pedirDisparo = async function () {
     var c = U.emails.camp, pub = publicoAtual();
-    if (!c.assunto.trim() || !c.texto.trim()) { toast("Preencha o assunto e o texto antes de pedir o disparo", true); U.emails.passo = 2; render(); return; }
+    // Sem assunto ou texto: volta ao Conteudo com os dois campos vazios em vermelho (sem aviso).
+    if (!c.assunto.trim() || !c.texto.trim()) { U.emails.passo = 2; render(); if (PC) PC.conferir(["camp-assunto", "camp-texto"]); return; }
     var dd = dadosCampanha(), n = pub ? pub.n || 0 : 0;
     var q = c.quando === "agendado" ? ddmm(c.de) + " às " + c.hora : { agora: "agora", amanha: "amanhã, 9h", segunda: "segunda, 9h" }[c.quando];
     var ok = await enfileirar("emails", "campanha.disparar", dd.nome, dd, 'Pedi o disparo "' + dd.nome + '" para ' + n + (n === 1 ? " conta" : " contas") + " (" + q + ")");
@@ -2396,6 +2474,7 @@
     var dados = { id: e.id, nome: v.nome.trim(), para: v.para.trim(), heranca: v.heranca.trim() || null, valor: numDec(v.valor), valor_anual: numDec(v.anual), tokens: Math.round(numDec(v.tokens) * 1e6), pessoas: Math.round(numDec(v.pessoas)) || 1,
       recarga: numDec(v.rv) > 0 ? { valor: numDec(v.rv), tokens: Math.round(numDec(v.rt) * 1e6) } : null,
       itens: e.itens.filter(function (x) { return x.titulo.trim(); }).map(function (x) { return { titulo: x.titulo.trim(), descricao: x.descricao.trim() }; }) };
+    if (PC && !PC.conferir(["pe-valor", "pe-anual", "pe-tokens", "pe-pessoas", "pe-rv", "pe-rt"])) return;
     if (!dados.nome || !(dados.valor > 0) || !(dados.valor_anual > 0) || !(dados.tokens > 0)) { toast("Preencha nome, valores e créditos", true); return; }
     enfileirar("planos", "plano.editar", e.id, dados, "Editei o plano " + dados.nome + " (" + brl(dados.valor) + "/mês, " + dados.itens.length + " itens)").then(function () { U.planos.ed = null; render(); });
   };
@@ -2415,6 +2494,7 @@
   };
   A.planoSalvar = function () {
     var M = E.modal, nv = numDec(M.valor), na = numDec(M.anual), nt = Math.round(numDec(M.tokens) * 1e6);
+    if (PC && !PC.conferir(["modal-valor", "modal-anual", "modal-tokens"])) return;
     if (!(nv > 0) || !(na > 0) || !(nt > 0)) return;
     if (nv === M.va && na === M.aa && nt === M.ta) { fecharModal(); toast("Nada mudou no plano " + M.nome); return; }
     var partes = [];
@@ -2462,6 +2542,7 @@
   A.contaCadastroSalvar = function () {
     var M = E.modal, mud = Object.keys(M.v).filter(function (k) { return M.v[k].trim() !== M.antes[k]; });
     if (!mud.length) { fecharModal(); toast("Nada mudou no cadastro de " + M.nome); return; }
+    if (PC && !PC.conferir(mud.map(function (k) { return "cad-" + k; }))) return;
     var dados = { id: M.id }; mud.forEach(function (k) { dados[k] = M.v[k].trim(); });
     fecharModal();
     enfileirar("contas", "conta.cadastro", M.id, dados, "Editei o cadastro de " + M.nome + " (" + mud.length + (mud.length === 1 ? " campo)" : " campos)"));
@@ -2546,7 +2627,9 @@
   A.membroNovo = function () { abrirModal({ tipo: "membro", novo: true, v: { nome: "", email: "", papel: "suporte" } }); setTimeout(function () { var i = $("mb-nome"); if (i) i.focus(); }, 30); };
   A.membroEditar = function (el) { var m = membroDe(el.dataset.id); if (!m) return; abrirModal({ tipo: "membro", novo: false, de: m.email, v: { nome: m.nome || "", email: m.email, papel: m.papel } }); };
   A.membroSalvar = function () {
-    var M = E.modal, v = M.v; fecharModal();
+    var M = E.modal, v = M.v;
+    if (PC && !PC.conferir(["mb-nome", "mb-email"])) return;
+    fecharModal();
     enfileirar("equipe", "equipe.membro", M.novo ? v.email : M.de, { acao: M.novo ? "criar" : "editar", de: M.de || null, nome: v.nome.trim(), email: v.email.trim(), papel: v.papel },
       M.novo ? "Convidei " + v.nome.trim() + " (" + v.email.trim() + ") como " + v.papel : "Editei " + v.nome.trim() + " na equipe");
   };
@@ -2910,7 +2993,8 @@
     if (v.conta) corpo.conta = v.conta;
     if (v.pagamento) corpo.pagamento = v.pagamento;
     if (String(v.valor || "").trim()) corpo.valor = String(v.valor).trim();
-    else if (!v.pagamento) { M.erro = "diga o valor da nota"; renderCamada(); return; }
+    else if (!v.pagamento) { M.erro = ""; renderCamada(); if (PC) PC.conferir(["nf-c-valor"]); return; }
+    if (PC && !PC.conferir(nfIds(M, /^(tomador\.|valor$)/))) return;
     M.enviando = true; M.erro = ""; renderCamada();
     try {
       var n = await api("POST", NF + "notas", corpo);
@@ -2922,7 +3006,7 @@
       if (E.modal !== M) return;
       M.enviando = false;
       var lista = e.dados && e.dados.erros && e.dados.erros.length ? e.dados.erros : null;
-      M.erro = e.status === 401 ? "" : lista ? "A nota não passou na conferência: " + lista.join("; ") : e.message;
+      M.erro = e.status === 401 ? "" : lista ? "A nota não passou na conferência: " + lista.join("; ") : nfErroDeCampo(e, "tomador.") ? "" : e.message;
       renderCamada();
     }
   };
@@ -2951,12 +3035,13 @@
   };
   A.nfCliSalvar = async function (el) {
     var M = E.modal, id = el.dataset.id; if (!M || M.enviando) return;
+    if (PC && !PC.conferir(nfIds(M, /^tomador\./))) return;
     M.enviando = true; M.erro = ""; renderCamada();
     try {
       var c = await api("POST", NF + "clientes/" + encodeURIComponent(id), { tomador: nfAninhar(M.v, "tomador.") });
       M.clientes = (M.clientes || []).map(function (x) { return String(x.id) === String(id) ? c : x; });
       M.editando = null; M.ok = "Dados fiscais de " + c.nome + " salvos" + (c.faltas && c.faltas.length ? "; ainda falta " + c.faltas.join(", ") : "") + ".";
-    } catch (e) { if (e.status !== 401) M.erro = e.message; }
+    } catch (e) { if (e.status !== 401) M.erro = nfErroDeCampo(e, "tomador.") ? "" : e.message; }
     M.enviando = false; renderCamada();
   };
 
@@ -2979,6 +3064,7 @@
       if (/_pct$/.test(k)) v[k.replace(/_pct$/, "_bp")] = nfBp(M.v[k]);
       else v[k] = M.v[k];
     });
+    if (PC && !PC.conferir(nfIds(M, /./))) return;
     M.enviando = true; M.erro = ""; renderCamada();
     try {
       var r = await api("POST", NF + "prestador", { prestador: nfAninhar(v, "") });
@@ -2987,11 +3073,12 @@
       ler("nfse");
     } catch (e) {
       if (E.modal !== M) return;
-      M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada();
+      M.enviando = false; M.erro = e.status === 401 ? "" : nfErroDeCampo(e, "") ? "" : e.message; renderCamada();
     }
   };
   A.nfToken = async function () {
     var M = E.modal; if (!M || M.gravandoToken) return;
+    if (PC && !PC.conferir(["nf-token"])) { M.tokenMsg = ""; renderCamada(); return; }
     if (!String(M.token || "").trim()) { M.tokenMsg = "Cole o token antes de gravar."; M.tokenOk = false; renderCamada(); return; }
     M.gravandoToken = true; M.tokenMsg = ""; renderCamada();
     try {
@@ -3001,7 +3088,10 @@
       var d = dadosDe("nfse"); if (d) d.cloudflare = r.cloudflare;
       if (r.conexao && r.conexao.ok) U.nfse.aviso = null;
       ler("nfse");
-    } catch (e) { if (e.status !== 401) { M.tokenMsg = e.message; M.tokenOk = false; } }
+    } catch (e) {
+      // O token recusado pelo formato e erro do campo: a borda vermelha, sem a frase.
+      if (e.status !== 401) { if (e.status === 400 && /token/.test(e.message) && PC) { M.tokenMsg = ""; M.gravandoToken = false; renderCamada(); PC.servidor("nf-token", e.message); return; } M.tokenMsg = e.message; M.tokenOk = false; }
+    }
     M.gravandoToken = false; renderCamada();
   };
   A.nfProducao = async function (el) {
@@ -3020,6 +3110,7 @@
   A.nfCancelar = function (el) { abrirModal({ tipo: "nfCancelar", id: el.dataset.id, v: { motivo: "1", texto: "" }, erro: "", enviando: false }); };
   A.nfCancelarConfirmar = async function () {
     var M = E.modal; if (!M || M.enviando) return;
+    if (PC && !PC.conferir(["nf-c-texto"])) return;
     M.enviando = true; M.erro = ""; renderCamada();
     try {
       var r = await api("POST", NF + "notas/" + encodeURIComponent(M.id) + "/cancelar", { motivo: M.v.motivo, texto: M.v.texto });
@@ -3039,6 +3130,7 @@
   A.nfSubstituirConfirmar = async function () {
     var M = E.modal; if (!M || M.enviando) return;
     var corpo = nfAninhar(M.v, "");
+    if (PC && !PC.conferir(nfIds(M, /./))) return;
     M.enviando = true; M.erro = ""; renderCamada();
     try {
       var r = await api("POST", NF + "notas/" + encodeURIComponent(M.id) + "/substituir", corpo);
@@ -3050,7 +3142,7 @@
     } catch (e) {
       if (E.modal !== M) return;
       var lista = e.dados && e.dados.erros && e.dados.erros.length ? e.dados.erros : null;
-      M.enviando = false; M.erro = e.status === 401 ? "" : lista ? "A nota não passou na conferência: " + lista.join("; ") : e.message; renderCamada();
+      M.enviando = false; M.erro = e.status === 401 ? "" : lista ? "A nota não passou na conferência: " + lista.join("; ") : nfErroDeCampo(e, "ajustes.tomador.") ? "" : e.message; renderCamada();
     }
   };
 
@@ -3075,7 +3167,8 @@
     setTimeout(function () { var i = $("modal-retro"); if (i) i.focus(); }, 30);
   };
   A.retroagir = async function () {
-    var M = E.modal; if (!M || M.texto.trim() !== "retroagir" || M.enviando) return;
+    var M = E.modal; if (!M || M.enviando) return;
+    if (M.texto.trim() !== "retroagir") { if (PC) PC.conferir(["modal-retro"]); return; }
     M.enviando = true; M.erro = ""; renderCamada();
     try {
       var r = await api("POST", "/api/admin/retroagir", { commit: M.pub.commit, confirmacao: "retroagir" });
@@ -3085,7 +3178,8 @@
     } catch (e) { if (E.modal !== M) return; if (pedeGitHub(e)) { A.github(); return; } M.enviando = false; M.erro = e.status === 401 ? "" : e.message; renderCamada(); }
   };
   A.publicar = async function () {
-    var M = E.modal; if (M.texto.trim() !== "comitar e pushar" || M.enviando) return;
+    var M = E.modal; if (M.enviando) return;
+    if (M.texto.trim() !== "comitar e pushar") { if (PC) PC.conferir(["modal-commit"]); return; }
     M.enviando = true; M.erro = ""; M.itens = E.pendentes.slice(); renderCamada();
     try {
       var r = await api("POST", "/api/admin/publicar", { confirmacao: "comitar e pushar" });
@@ -3111,10 +3205,12 @@
   var ABA_DO_MODAL = { contaExtrato: "extrato", contaCadastro: "cadastro", contaPlano: "plano", google: "google" };
   var NF_ABA = { nfEmitir: "emitir", nfClientes: "clientes", nfParametros: "parametros" };
   function abrirModal(m) {
+    if (PC && /^nf/.test(m.tipo)) { PC.esquecer("nf-c-"); PC.esquecer("nf-token"); }
     if (E.tela === "nfse" && !E.gaveta && NF_ABA[m.tipo]) { m.embutido = true; U.nfse.aba = NF_ABA[m.tipo]; E.modal = m; render(); return; }
     // Na pagina da conta, esses pop-ups abrem como aba, dentro da pagina.
     if (E.gaveta && E.gaveta.pagina && ABA_DO_MODAL[m.tipo]) { m.embutido = true; E.gaveta.aba = ABA_DO_MODAL[m.tipo]; E.modal = m; render(); return; }
     if (!E.modal) focoAntes = document.activeElement;
+    if (PC) ["mb-", "modal-", "cad-", "nf-c-", "nf-token"].forEach(function (x) { PC.esquecer(x); });
     E.modal = m; renderCamada();
     var alvo = document.querySelector(".modal input") || $("modal-ok") || document.querySelector(".modal button");
     if (alvo) alvo.focus();
@@ -3123,6 +3219,71 @@
     if (E.modal && E.modal.embutido) { E.modal = null; if (E.gaveta) E.gaveta.aba = "resumo"; if (E.tela === "nfse") U.nfse.aba = "notas"; render(); return; }
     E.modal = null; renderCamada(); devolverFoco();
   }
+
+  /* ---------- o estado dos campos (regra do dono, 08/10/2026) ----------
+     Errado = borda vermelha, certo = verde, sem texto na tela (PvCampos, em site.js). As regras sao as
+     mesmas que o painel e o servidor ja conferiam; a frase vai so para o leitor de tela. */
+  var PC = window.PvCampos;
+  if (PC) {
+    var maior0 = function (frase) { return PC.regra(function (v) { return numDec(v) > 0; }, frase); };
+    var cadR = {
+      "cad-escritorio": PC.regra(function (v) { return v.length >= 2 && v.length <= 80; }, "diga o nome do escritório"),
+      "cad-documento": PC.regra("cpfCnpj", "o CPF ou CNPJ não confere"),
+      "cad-telefone": PC.regra("telefone", "o telefone precisa do DDD"),
+      "cad-oab": PC.regra("preenchido", "falta o número da OAB, do RG ou da CNH"),
+      "cad-cep": PC.regra("cep", "o CEP tem 8 dígitos"),
+      "cad-logradouro": PC.regra(function (v) { return v.length >= 2; }, "diga a rua do endereço"),
+      "cad-numero": PC.regra("preenchido", "diga o número do endereço (ou S/N)"),
+      "cad-bairro": PC.regra("preenchido", "diga o bairro do endereço"),
+      "cad-cidade": PC.regra(function (v) { return v.length >= 2; }, "diga a cidade do endereço"),
+      "cad-uf": PC.regra("uf", "a UF tem 2 letras (ex.: PA)"),
+    };
+    PC.regras(cadR);
+    PC.regras({
+      "mb-nome": PC.regra("preenchido", "diga o nome da pessoa"),
+      "mb-email": PC.regra("email", "confira o e-mail"),
+      "modal-valor": maior0("o valor por mês precisa ser maior que zero"),
+      "modal-anual": maior0("o valor por ano precisa ser maior que zero"),
+      "modal-tokens": maior0("os créditos por mês precisam ser maiores que zero"),
+      "modal-retro": function (v) { return v.trim() === "retroagir" ? true : "digite retroagir para confirmar"; },
+      "modal-commit": function (v) { return v.trim() === "comitar e pushar" ? true : "digite comitar e pushar para confirmar"; },
+      "camp-assunto": PC.regra("preenchido", "escreva o assunto"),
+      "camp-texto": PC.regra("preenchido", "escreva o texto"),
+      "camp-link": PC.regra(function (v) { return /^https?:\/\/[^\s]+\.[^\s]+$/.test(v); }, "o link começa com https://", true),
+      "pe-valor": maior0("o valor por mês precisa ser maior que zero"),
+      "pe-anual": maior0("o valor por ano precisa ser maior que zero"),
+      "pe-tokens": maior0("os créditos por mês precisam ser maiores que zero"),
+      "pe-pessoas": PC.regra(function (v) { var n = numDec(v); return n >= 1 && n === Math.round(n); }, "pessoas é um número inteiro, 1 ou mais", true),
+      "pe-rv": PC.regra(function (v) { return numDec(v) >= 0 && /\d/.test(v); }, "a recarga é um valor em reais", true),
+      "pe-rt": PC.regra(function (v) { return numDec(v) > 0; }, "os tokens da recarga precisam ser maiores que zero", true),
+      "planos-json": function (v) { var e = validaPlanos(v); return e ? e : true; },
+      "nf-token": PC.regra(function (v) { return /^[A-Za-z0-9_-]{30,120}$/.test(v); }, "isso não parece um token de API da Cloudflare (letras, números, _ e -, sem espaços)"),
+    });
+  }
+  // As regras que dependem de um id com a conta (renovacoes) entram quando o campo aparece.
+  function regrasRenovacao(id) {
+    if (!PC) return;
+    var R = {};
+    R["rd-msg-" + id] = PC.regra("preenchido", "escreva a mensagem");
+    R["rd-tokens-" + id] = PC.regra(function (v) { return Number(v) > 0; }, "os créditos precisam ser maiores que zero");
+    R["rd-valor-" + id] = PC.regra(function (v) { return numDec(v) > 0; }, "o valor precisa ser maior que zero");
+    PC.regras(R);
+  }
+  // O endereco do tunel: a borda segue o M.check, depois que a pessoa digitou e saiu (ou tentou trocar).
+  document.addEventListener("focusout", function (ev) {
+    if (ev.target.id !== "modal-slug" || !E.modal || E.modal.tipo !== "endereco") return;
+    var M = E.modal; setTimeout(function () { if (E.modal === M && document.activeElement !== $("modal-slug") && M.novo) { M.tocado = true; slugBorda(); } }, 0);
+  });
+  function slugBorda() {
+    var M = E.modal, i = $("modal-slug"); if (!PC || !i || !M || M.tipo !== "endereco") return;
+    var ch = M.check, st = !M.tocado || !ch || ch.cor === "var(--ink3)" ? "" : ch.ok ? "ok" : "erro";
+    PC.marcar(i, st, st === "erro" ? ch.msg : "");
+  }
+  // Os campos de texto livres das notas ganham as regras quando o pop-up desenha (nfIds registra).
+  document.addEventListener("focusin", function (ev) {
+    var el = ev.target; if (!PC || !el || !el.dataset || !/^(nf|nfMun|nfMunCod)$/.test(el.dataset.in || "") || !el.id || !E.modal) return;
+    nfIds(E.modal, /./);
+  });
 
   /* ---------- entradas de texto ---------- */
   var IN = {
@@ -3139,11 +3300,8 @@
       el.style.setProperty("--andado", (v / Number(el.max) * 100) + "%");
       var b = el.closest(".relogio-adm").querySelector(k === "h" ? "[data-rel-h]" : "[data-rel-m]"); if (b) b.textContent = pad(v);
     },
-    membroCampo: function (el) {
-      E.modal.v[el.dataset.k] = el.value;
-      var ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(E.modal.v.email || "") && (E.modal.v.nome || "").trim(), b = document.querySelector('[data-a="membroSalvar"]'); if (b) b.disabled = !ok;
-    },
-    retroTexto: function (el) { E.modal.texto = el.value; var b = $("modal-ok"); if (b) { var ok = el.value.trim() === "retroagir"; b.disabled = !ok || E.modal.enviando; b.classList.toggle("perigo-cheio", ok); } },
+    membroCampo: function (el) { E.modal.v[el.dataset.k] = el.value; },
+    retroTexto: function (el) { E.modal.texto = el.value; var b = $("modal-ok"); if (b) { var ok = el.value.trim() === "retroagir"; b.classList.toggle("perigo-cheio", ok); } },
     escmQ: function (el) { E.modal.q = el.value; var pos = el.selectionStart; renderCamada(); var i = $("escm-q"); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (e) {} } },
     escQ: function (el) { U.emails.escQ = el.value; U.emails.escAberto = true; var pos = el.selectionStart; render(); var i = $("esc-q"); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (e) {} } },
     cadCampo: function (el) { E.modal.v[el.dataset.k] = el.value; },
@@ -3155,7 +3313,7 @@
       var f = el.files && el.files[0]; if (!f) return;
       f.text().then(function (t) { try { t = JSON.stringify(JSON.parse(t), null, 2); } catch (e) { /* mostra como veio; o aviso diz o erro */ } U.planos.json = t; render(); toast("Arquivo carregado: confira e salve"); });
     },
-    renovMsg: function (el) { U.renovacoes.msg[el.dataset.id] = el.value; var b = document.querySelector('[data-a="renovMsgEnviar"][data-id="' + el.dataset.id + '"]'); if (b) b.disabled = !el.value.trim(); },
+    renovMsg: function (el) { U.renovacoes.msg[el.dataset.id] = el.value; },
     renovOf: function (el) { var o = U.renovacoes.oferta[el.dataset.id]; if (!o) return; o[el.dataset.k] = el.value; if (el.tagName !== "SELECT") { var pos = el.selectionStart, k = el.dataset.k, id = el.dataset.id; render(); var n = document.querySelector('[data-in="renovOf"][data-id="' + id + '"][data-k="' + k + '"]'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } } else render(); },
     regQ: function (el) { U.tuneis.regQ = el.value; var pos = el.selectionStart; render(); var i = $("reg-q"); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (e) {} } },
     cadUf: function (el) { E.modal.v.uf = el.value; },

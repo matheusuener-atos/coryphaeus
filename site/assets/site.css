@@ -346,6 +346,8 @@ button.linha-botao:hover, a.linha-botao:hover { background: var(--botao-sobre); 
 .lb-meta { font: 400 13px var(--sans); opacity: .85; }
 /* Tons de marca, iguais nos dois temas. */
 .linha-botao.tom-mp { background: #ffe600; border-color: #ffe600; color: #1b1b1b; }
+/* As faixas de parceiro quebram o titulo em duas linhas em vez de cortar (a coluna do cadastro e estreita). */
+.linha-botao.tom-mp .lb-titulo, .linha-botao.tom-cf .lb-titulo { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
 button.linha-botao.tom-mp:hover, a.linha-botao.tom-mp:hover { background: #ffeb33; border-color: #ffeb33; color: #1b1b1b; }
 .linha-botao.tom-cf { background: #f38020; border-color: #f38020; color: #fff; }
 button.linha-botao.tom-cf:hover, a.linha-botao.tom-cf:hover { background: #f58d35; border-color: #f58d35; color: #fff; }
@@ -388,6 +390,20 @@ button.linha-botao.tom-cf:hover, a.linha-botao.tom-cf:hover { background: #f58d3
 }
 /* No celular, a faixa de parceiro quebra o titulo em duas linhas em vez de cortar. */
 @media (max-width: 480px) {
-  .linha-botao.tom-mp .lb-titulo, .linha-botao.tom-cf .lb-titulo { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
   .linha-botao.tom-mp .lb-meta, .linha-botao.tom-cf .lb-meta { font-size: 12px; }
 }
+
+/* ---------- estado do campo (regra do dono, 08/10/2026): erro de campo = borda vermelha, certo = borda
+   verde, sem texto na tela. As classes vao no elemento que desenha a borda (o invólucro .caixa-campo, ou o
+   input/textarea/select solto do painel); a frase fica para o leitor de tela, num .so-leitor ligado por
+   aria-describedby (site.js, PvCampos). Os seletores repetem a classe para passar por cima do
+   "body.adm .caixa-campo { border-color ... !important }" do painel. O foco continua visivel: um anel da
+   cor do estado por cima da borda. ---------- */
+.caixa-campo, textarea.area, .rd-msg { transition: border-color .15s, box-shadow .15s; }
+:root .campo-erro.campo-erro, :root .campo-erro.campo-erro:focus-within, :root .campo-erro.campo-erro:focus { border-color: var(--erro) !important; }
+:root .campo-ok.campo-ok, :root .campo-ok.campo-ok:focus-within, :root .campo-ok.campo-ok:focus { border-color: var(--ok) !important; }
+.campo-erro:focus-within, .campo-erro:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--erro) 28%, transparent); }
+.campo-ok:focus-within, .campo-ok:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 28%, transparent); }
+@media (prefers-reduced-motion: reduce) { .caixa-campo, textarea.area, .rd-msg, .campo-erro, .campo-ok { transition: none; } }
+/* So para o leitor de tela: fora da vista, mas lido. */
+.so-leitor { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }

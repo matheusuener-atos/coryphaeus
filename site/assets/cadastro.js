@@ -59,7 +59,7 @@
     $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "em até 12×" : "";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
       ? "Na próxima página, você paga o ano de uma vez: à vista no Pix ou em até 12 vezes no cartão (os juros do parcelamento ficam por conta de quem parcela). A cota de IA continua sendo liberada mês a mês, e o plano anual não renova sozinho."
-      : "Na próxima página, você escolhe como pagar. No Pix, paga um mês por vez, sem renovação automática. No cartão, a assinatura renova todo mês, e você cancela quando quiser no Paulus, em Configurações › Modelos.";
+      : "Na próxima página, você escolhe como pagar. No Pix, paga um mês por vez, sem renovação automática. No cartão, a assinatura renova todo mês, e você cancela quando quiser na Minha conta.";
   }
 
   /* A troca de plano, com a assinatura paga ativa: o plano escolhido em
@@ -315,6 +315,7 @@
       if (d.uf) $("cd-uf").value = d.uf;
       $("cd-cmun").value = /^\d{7}$/.test(String(d.ibge || "")) ? d.ibge : "";
       nota.hidden = true;
+      if (P) P.reaplicar();
       (d.logradouro ? $("cd-numero") : $("cd-logradouro")).focus();
     } catch (e) {
       if (digitos($("cd-cep").value) !== cep) return;
@@ -352,6 +353,7 @@
         n += vals.filter(Boolean).length;
       }
       nota.textContent = PavlvsCnpj.frase(d).replace(" (Receita", (n ? " · " + n + (n === 1 ? " campo preenchido" : " campos preenchidos") : "") + " (Receita");
+      if (P) P.reaplicar();
     } catch (e) {
       if (PavlvsCnpj.paraConsultar($("cd-documento").value) !== cnpj) return;
       nota.textContent = "Não preenchi pela Receita: " + e.message + ".";
@@ -365,10 +367,33 @@
     };
   }
 
+  /* Cada campo com a sua regra (as mesmas do servidor, worker/ia.js): errado fica com a borda vermelha,
+     certo com a verde, sem texto (PvCampos, em site.js). O complemento e opcional e livre: sem estado. */
+  var P = window.PvCampos;
+  var CAMPOS = ["cd-nome", "cd-documento", "cd-telefone", "cd-oab", "cd-cep", "cd-logradouro", "cd-numero", "cd-bairro", "cd-cidade", "cd-uf"];
+  var ENDERECO = ["cd-cep", "cd-logradouro", "cd-numero", "cd-bairro", "cd-cidade", "cd-uf"];
+  if (P) P.regras({
+    "cd-nome": P.regra(function (v) { return v.length >= 2 && v.length <= 80; }, "diga o nome do escritório (ou o seu, se trabalha sozinho)"),
+    "cd-documento": P.regra("cpfCnpj", "o CPF ou CNPJ não confere"),
+    "cd-telefone": P.regra("telefone", "o telefone precisa do DDD"),
+    "cd-oab": P.regra("preenchido", "falta o número da OAB, do RG ou da CNH"),
+    "cd-cep": P.regra("cep", "o CEP tem 8 dígitos"),
+    "cd-logradouro": P.regra(function (v) { return v.length >= 2; }, "diga a rua do endereço"),
+    "cd-numero": P.regra("preenchido", "diga o número do endereço (ou S/N)"),
+    "cd-bairro": P.regra("preenchido", "diga o bairro do endereço"),
+    "cd-cidade": P.regra(function (v) { return v.length >= 2; }, "diga a cidade do endereço"),
+    "cd-uf": P.regra("uf", "a UF tem 2 letras (ex.: PA)"),
+  });
+  // A frase do servidor (worker/ia.js, conferirCadastro) que aponta um campo: ele fica vermelho, sem o texto.
+  var DO_CAMPO = [[/CPF ou CNPJ/, "cd-documento"], [/nome do escritório/, "cd-nome"], [/telefone/, "cd-telefone"], [/OAB, do RG ou da CNH/, "cd-oab"],
+    [/^o CEP/, "cd-cep"], [/rua do endereço/, "cd-logradouro"], [/número do endereço/, "cd-numero"], [/bairro do endereço/, "cd-bairro"],
+    [/cidade do endereço|código do município/, "cd-cidade"], [/^a UF/, "cd-uf"], [/^preencha o endereço/, ENDERECO]];
+
   async function pagar(ev) {
     ev.preventDefault();
     mostrarErro("cd-form-erro", "");
     if (!estado.token) { mostrarErro("cd-form-erro", "Entre primeiro (Google, ou e-mail e senha)."); return; }
+    if (P && !P.conferir(CAMPOS)) return;
     if (!$("cd-aceite").checked) { mostrarErro("cd-form-erro", "Para assinar, aceite os Termos de uso e a Política de privacidade."); return; }
     var botao = $("cd-pagar");
     botao.disabled = true;
@@ -384,6 +409,7 @@
     } catch (e) {
       botao.disabled = false;
       if (e.status === 401) { sair(); mostrarErro("cd-conta-erro", "A sua entrada venceu (vale uma hora). Entre de novo e confira os dados."); return; }
+      if (e.status === 400 && P && P.porFrase(e.message, DO_CAMPO)) return;
       mostrarErro("cd-form-erro", e.message.charAt(0).toUpperCase() + e.message.slice(1) + ".");
     }
   }

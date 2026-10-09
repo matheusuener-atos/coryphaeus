@@ -297,8 +297,6 @@
 .mc-cf { width: 24px; height: 24px; flex: none; display: block; margin-right: 2px; }
 /* Endereco novo: o estado da verificacao dentro do campo e a frase logo abaixo. */
 .mc-slug-caixa { transition: border-color .15s; }
-.mc-slug-caixa.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); }
-.mc-slug-caixa.erro { border-color: color-mix(in srgb, var(--erro) 60%, transparent); }
 .mc-slug-st { width: 18px; flex: none; display: inline-flex; justify-content: center; margin-left: 6px; }
 .mc-slug-st .icon { font-size: 17px; }
 .mc-slug-caixa.ok .mc-slug-st .icon { color: var(--ok); }
@@ -324,7 +322,6 @@
 .mc-col .mini:disabled { opacity: .45; cursor: default; }
 .mc-k-seguro { position: relative; flex: 1; min-width: 0; height: 22px; }
 .mc-k-seguro iframe { display: block; width: 100%; height: 100%; border: 0; }
-.mc-k-caixa.erro { border-color: color-mix(in srgb, var(--erro) 60%, transparent); }
 .mc-k-thumb { display: block; height: 20px; width: auto; }
 .mc-pendente { color: var(--mc-atencao); }
 /* No celular, as abas rolam dentro da pilula (a pagina nao rola para o lado). */
