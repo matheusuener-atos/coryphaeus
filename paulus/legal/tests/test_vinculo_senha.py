@@ -209,6 +209,40 @@ def test_vinculo() -> None:
         r = local.post("/api/vinculo/codigo", json={"codigo": codigo_totp(t["segredo"], int(time.time() // 30))})
         checar(r.status_code == 200 and not r.json()["travado"], "codigo certo: abre", r.text[:160])
 
+        print("  trocar de conta e o tunel pela trava (o codigo da titular)")
+        worker.contas["socio@outro.com"] = {"senha": "senha-do-socio-1", "nome": "Sócio"}
+        local.post("/api/vinculo/travar")
+        e = local.get("/api/vinculo").json()
+        checar(e["autenticador"] and [c["email"] for c in e["conhecidas"]] == ["dona@escritorio.adv.br"] and e["conhecidas"][0]["atual"],
+               "a trava sabe do autenticador e lista a conta deste servidor", e["conhecidas"])
+        r = local.post("/api/vinculo/senha/entrar", json={"email": "socio@outro.com", "senha": "senha-do-socio-1", "finalidade": "trocar"})
+        checar(r.status_code == 400 and "Authenticator" in r.json().get("detail", ""), "trocar sem o codigo: recusado", r.text[:160])
+        for _ in range(5):
+            local.post("/api/vinculo/trocar/autorizar", json={"codigo": "000000"})
+        r = local.post("/api/vinculo/trocar/autorizar", json={"codigo": codigo_totp(t["segredo"], int(time.time() // 30) + 1)})
+        checar(r.status_code == 400 and "demais" in r.json().get("detail", ""), "cinco codigos errados param as tentativas", r.text[:160])
+        v._erros_titular = []
+        r = local.post("/api/vinculo/trocar/autorizar", json={"codigo": t["codigos_recuperacao"][1]})
+        checar(r.status_code == 200 and r.json()["troca_autorizada"], "uma chave de recuperacao autoriza a troca", r.text[:160])
+        r = local.post("/api/vinculo/senha/entrar", json={"email": "socio@outro.com", "senha": "senha-do-socio-1", "finalidade": "trocar"})
+        e = r.json()
+        checar(r.status_code == 200 and e["email"] == "socio@outro.com" and not e["travado"] and not e["troca_autorizada"],
+               "autorizado, a outra conta passa a ser a deste servidor e abre", e)
+        checar([c["email"] for c in e["conhecidas"]] == ["socio@outro.com", "dona@escritorio.adv.br"],
+               "as duas ficam em 'contas neste servidor', a atual primeiro", e["conhecidas"])
+        ligados: list[bool] = []
+        v.ligar_tunel, antes = ligados.append, v.ligar_tunel
+        local.post("/api/vinculo/travar")
+        r = local.post("/api/vinculo/tunel", json={"ligado": False, "codigo": "000000"})
+        checar(r.status_code == 400 and ligados == [], "o tunel com o codigo errado: nada muda", r.text[:160])
+        r = local.post("/api/vinculo/tunel", json={"ligado": False, "codigo": codigo_totp(t["segredo"], int(time.time() // 30) + 1)})
+        checar(r.status_code == 200 and ligados == [False], "com o codigo da titular, a trava desliga o tunel", r.text[:160])
+        v.ligar_tunel = antes
+        # De volta a conta da dona, para o resto do teste.
+        local.post("/api/vinculo/trocar/autorizar", json={"codigo": t["codigos_recuperacao"][2]})
+        local.post("/api/vinculo/senha/entrar", json={"email": "dona@escritorio.adv.br", "senha": "senha-da-dona-1", "finalidade": "trocar"})
+        checar(local.get("/api/vinculo").json()["email"] == "dona@escritorio.adv.br", "e volta para a conta da dona")
+
         print("  esqueci a senha")
         local.post("/api/vinculo/travar")
         r = local.post("/api/vinculo/senha/esqueci", json={"email": "dona@escritorio.adv.br"})
