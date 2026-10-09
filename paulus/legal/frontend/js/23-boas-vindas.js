@@ -543,10 +543,11 @@ function passoDados() {
   // tam: "" = um terco, "meio" = metade, "largo" = linha inteira.
   const campo = (rotulo, valor, mono, tam) => '<div class="bv-campo-ro' + (tam ? " " + tam : "") + '"><span>' + rotulo + "</span><b" + (mono ? ' class="mono"' : "") + ">" + (valor ? esc(valor) : "<i>não informado</i>") + "</b></div>";
   if (bv.dadosEsperando) {
-    const lado = '<div class="bv-entrada"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
-      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o site…</b><small>quando salvar na Minha conta, os dados e o plano aparecem aqui</small></span>' +
-      '<button type="button" class="bv-ligacao apagada" data-bv="dados-cancelar">Cancelar</button></div>' +
-      '<button type="button" class="bv-continuar bv-largo" data-bv="dados-conferir"><span>Já editei, conferir agora</span></button></div>';
+    // A espera no mesmo cartao da espera do login: o giro, o que acontece, e a acao de conferir.
+    const lado = '<div class="bv-entrada"><div class="bv-cartao-conta"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
+      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o site…</b><small>quando salvar na Minha conta, os dados e o plano aparecem aqui</small></span></div>' +
+      '<button type="button" class="bv-g-trilho" data-bv="dados-conferir"><span class="bv-g-pastilha">Já editei, conferir agora</span></button>' +
+      '<div class="cs-links"><button type="button" class="bv-ligacao" data-bv="dados-cancelar">Cancelar</button></div></div></div>';
     return [texto, lado];
   }
   // O desenho de 09/10/2026: um cartao com os dados em grade de tres colunas (rotulo em cima, valor embaixo,
@@ -1111,11 +1112,19 @@ async function acaoBoasVindas(qual) {
     return;
   }
   if (qual === "dados-conferir") {
-    const antes = JSON.stringify([bv.pessoa, bv.escritorio]);
+    // Voltou do site: se nada mudou (dados e plano), um ok e o assistente segue; se mudou, os dados novos
+    // aparecem para conferir antes de continuar.
+    const marca = () => JSON.stringify([bv.pessoa, bv.escritorio, (bv.assinatura || {}).plano || ""]);
+    const antes = marca();
     const r = await lerAssinatura(true);
-    if (r && r.ativa) { if (r.pessoa) Object.assign(bv.pessoa, r.pessoa); if (r.escritorio) bv.escritorio = r.escritorio; }
-    if (JSON.stringify([bv.pessoa, bv.escritorio]) === antes) avisoCert("nenhuma alteração encontrada — se já salvou no site, aguarde um instante");
-    pararEsperaDados(); desenharBoasVindas(); return;
+    if (r && r.ativa) { bv.assinatura = r; if (r.pessoa) Object.assign(bv.pessoa, r.pessoa); if (r.escritorio) bv.escritorio = r.escritorio; }
+    pararEsperaDados();
+    if (marca() === antes) {
+      avisoCert("tudo certo: os dados continuam os mesmos");
+      await gravarDadosDaAssinaturaBv();
+      bv.passo += 1;
+    } else avisoCert("dados atualizados pelo site: confira e continue");
+    desenharBoasVindas(); return;
   }
   if (qual === "upgrade" || qual === "editar-site") {
     // A Minha conta do site ja com a sessao (um link de uso unico que a nuvem da), na aba certa:
