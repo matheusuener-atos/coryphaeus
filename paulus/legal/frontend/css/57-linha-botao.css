@@ -68,6 +68,8 @@
     border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); }
   .cartao-permissoes > .linha-botao { border-radius: 10px; }
   .lb-rotulo { padding: 10px 14px 2px; font: 400 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+  /* Entrou por e-mail e senha, sem conta Google: o aviso de que os servicos pedem uma conta Google. */
+  .lb-nota { margin: 0; padding: 4px 14px 6px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .lb-escopos { display: flex; flex-direction: column; }
   .lb-escopo { display: flex; align-items: center; gap: 12px; width: 100%; height: 52px; padding: 0 14px; margin: 0;
     border: 0; border-top: 1px solid var(--ink-a08); border-radius: 8px; background: transparent; color: var(--ink);

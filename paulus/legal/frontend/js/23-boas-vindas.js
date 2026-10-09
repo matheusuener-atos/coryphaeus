@@ -856,9 +856,15 @@ function passoConexoes() {
       '<span class="lb-toggle" aria-hidden="true"></span></button>';
   }).join("");
   // O cartao de conta + permissoes (css/57-linha-botao.css): a conta no topo, "conectado" quando o Gmail ja esta autorizado nela.
+  // Entrou com a conta PAVLVS de e-mail e senha e ainda sem conta Google: o topo diz, sem rodeio, que esses
+  // servicos so funcionam com uma conta Google, escolhida no consentimento (src/rotas_boas_vindas.py, autorizar).
+  const semGoogle = linhaBotao({ tag: "div", classe: "duas lb-sem-google", icones: [eoMarca("google")],
+    titulo: "Precisa de uma conta Google",
+    sub: "você entrou com " + esc((e && e.email) || "e-mail e senha") }) +
+    '<p class="lb-nota">Gmail, Agenda, Meet e Drive são serviços do Google e só funcionam com uma conta Google. Ao autorizar, o Google pede para escolher a conta, que pode ser diferente do e-mail com que você entrou.</p>';
   const lado = '<div class="bv-entrada"><div class="cartao-permissoes">' +
     (conta ? linhaBotao({ tag: "div", icones: [eoMarca("google")], titulo: esc(conta),
-      fim: bv.autorizados.gmail ? { tipo: "status", texto: "conectado" } : null }) : "") +
+      fim: bv.autorizados.gmail ? { tipo: "status", texto: "conectado" } : null }) : (porSenha ? semGoogle : "")) +
     '<span class="lb-rotulo">O que autorizar</span><div class="lb-escopos">' + linhas + "</div></div></div>";
   return [texto, lado];
 }
@@ -886,7 +892,8 @@ async function conferirConsentBv() {
   const antes = JSON.stringify(bv.autorizados);
   for (const sv of SERVICOS_BV) if (st && st[sv.id]) bv.autorizados[sv.id] = true;
   const faltam = SERVICOS_BV.some((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]);
-  if (!faltam) { pararEsperaConsent(); desenharBoasVindas(); return true; }
+  // Autorizado: a conta Google escolhida no consentimento passa a ser a do topo do cartao.
+  if (!faltam) { pararEsperaConsent(); await conferirContasBv(); desenharBoasVindas(); return true; }
   if (JSON.stringify(bv.autorizados) !== antes) desenharBoasVindas();
   return false;
 }
