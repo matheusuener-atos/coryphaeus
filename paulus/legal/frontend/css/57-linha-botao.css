@@ -58,6 +58,9 @@
   [data-tema="escuro"] .lb-ic img.lb-branca-no-escuro { filter: invert(1); }
 
   /* Os tons de marca: iguais nos dois temas. */
+  /* Dentro de um cartao (o de login, o de permissoes), o fundo do cartao e o do botao eram o mesmo e o botao
+     sumia: ele desce para o fundo dos campos, um tom mais escuro (pedido do dono, 08/10/2026). */
+  :is(.bv-cartao-conta, .cartao-permissoes) .linha-botao { --lb-fundo: var(--bg); }
   .linha-botao.tom-mp { --lb-fundo: #ffe600; --lb-fio: #ffe600; --lb-tinta: #1b1b1b; --lb-sobre: #ffeb33; --lb-fio-sobre: #ffeb33; }
   .linha-botao.tom-cf { --lb-fundo: #f38020; --lb-fio: #f38020; --lb-tinta: #fff; --lb-sobre: #f58d35; --lb-fio-sobre: #f58d35; }
   .linha-botao.tom-cf .lb-ic img { filter: brightness(0) invert(1); }

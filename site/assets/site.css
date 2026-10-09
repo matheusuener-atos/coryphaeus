@@ -312,6 +312,8 @@ h2, h3 { font-family: var(--sans); font-weight: 600; }
 .linha-botao.duas { display: flex; grid-template-columns: none; gap: 12px; height: 64px; align-items: center; }
 button.linha-botao, a.linha-botao { cursor: pointer; }
 button.linha-botao:hover, a.linha-botao:hover { background: var(--panel2); border-color: var(--line3); color: var(--ink); }
+/* Dentro de um cartao, o fundo da pagina: o botao nao some no fundo do cartao. */
+.cartao-permissoes .linha-botao:not(.tom-mp):not(.tom-cf), .linha-botao-g { background: var(--bg); }
 .linha-botao:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .linha-botao:disabled, .linha-botao[aria-disabled="true"] { opacity: .5; cursor: default; pointer-events: none; }
 .linha-botao.centro { justify-content: center; }
