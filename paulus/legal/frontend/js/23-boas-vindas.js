@@ -309,15 +309,15 @@ function passoBoasVindas() {
     "<b>" + titulo + "</b><span>" + detalhe + "</span></li>";
   const texto = "<h1>Olá. Vamos deixar o Paulus do seu jeito.</h1>" +
     "<p>Poucos passos: a sua conta, os seus dados, o que conectar e o acesso à distância. Tudo pode ser mudado depois em Configurações.</p>";
-  const lado = '<div class="bv-entrada"><div class="bv-cartao-conta bv-cartao-instalacao"><span class="bv-rotulo">INSTALAÇÃO CONCLUÍDA</span>' +
+  const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">INSTALAÇÃO CONCLUÍDA</span>' +
     linhaBotao({ tag: "div", classe: "duas", icones: [{ html: '<img src="/img/paulus-icone.svg" alt="PAVLVS" width="32" height="32">', classe: "lb-marca-pavlvs" }],
       titulo: "Instalação concluída", sub: "Paulus" + (s.versao ? " " + esc(s.versao) : "") + ' · <span class="mono" title="' + esc(pasta) + '">' + esc(pasta) + "</span>",
-      fim: { tipo: "status", texto: "pronto" } }) +
-    '<ul class="bv-itens">' +
+      fim: { tipo: "status", texto: "pronto" } }) + "</div>" +
+    '<div class="bv-bloco"><ul class="bv-itens">' +
     linha(Boolean(s.contratos), "Pasta de documentos", s.contratos ? plural(s.contratos, "documento") + " no Acervo" : "ainda não apontada") +
     linha(false, "Certificado digital", "opcional, para assinar") + "</ul>" +
     // Nada de "sem conta obrigatoria": desde 09/10/2026 o Paulus pede a conta para abrir.
-    '<p class="bv-ajuda bv-cartao-nota">Os seus documentos e o que você preencher ficam nesta máquina. A conta serve para entrar e conferir a assinatura.</p>' +
+    '<p class="bv-ajuda bv-bloco-nota com-fio">Os seus documentos e o que você preencher ficam nesta máquina. A conta serve para entrar e conferir a assinatura.</p>' +
     "</div></div>";
   return [texto, lado];
 }
@@ -377,22 +377,21 @@ function passoGoogle() {
     const noComeco = typeof contaSenha === "undefined" || (contaSenha.modo === "entrar" && !contaSenha.etapa);
     // O e-mail de Seus dados (se ja houver) vem no campo; a pessoa troca se quiser.
     if (typeof contaSenha !== "undefined" && !contaSenha.email && bv.pessoa.email) contaSenha.email = bv.pessoa.email;
-    // Uma linha so no topo do cartao: onde o primeiro campo e o e-mail, o rotulo do cartao ja diz o que digitar.
-    const soEmail = !noComeco && !contaSenha.etapa && (contaSenha.modo === "criar" || contaSenha.modo === "esqueci");
-    const rotulo = noComeco ? "SUA CONTA" : soEmail ? (contaSenha.modo === "criar" ? "DIGITE UM E-MAIL PARA CRIAR SUA CONTA" : "DIGITE O E-MAIL PARA TROCAR A SENHA")
-      : contaSenha.etapa === "codigo" ? "DIGITE O CÓDIGO QUE ENVIAMOS"
-      : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
     const comGoogle = noComeco && !(e && !e.google);
-    // Um cartao so (desenho de 08/10/2026): o rotulo, o Google, "OU COM E-MAIL", o formulario e, depois de um fio, a nota.
-    const nota = comGoogle ? "Com o Google, o seu navegador abre a página de login; quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho. Com e-mail e senha, tudo acontece aqui."
-      : noComeco && e && !e.google ? "Esta versão do Paulus não traz o login do Google: entre com e-mail e senha." : "";
-    lado = '<div class="bv-entrada"><div class="bv-cartao-conta"><span class="bv-rotulo">' + rotulo + "</span>" +
-      (comGoogle ? linhaBotao({ classe: "centro", attrs: ' data-bv-google="1"' + (esperando ? " disabled" : ""),
-        icones: [typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : ""], titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
-        (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
-        '<div class="cs-ou">OU COM E-MAIL</div>' : "") +
-      (typeof formContaSenha === "function" ? formContaSenha({ v: VISUAL_BV, cartao: true }) : "") +
-      (nota ? '<p class="bv-ajuda bv-cartao-nota">' + nota + "</p>" : "") + "</div></div>";
+    // Desenho de 09/10/2026: cada parte e uma secao - o rotulo fora, o cartao embaixo. No comeco, "SUA CONTA" com o
+    // Google e "OU COM E-MAIL E SENHA" com o formulario; Criar conta e Trocar a senha tem a secao propria.
+    const rotulo = noComeco ? (comGoogle ? "OU COM E-MAIL E SENHA" : "SUA CONTA")
+      : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
+    const nota = !noComeco ? ""
+      : comGoogle ? "A conta do PAVLVS pode ser a sua conta Google ou um e-mail com senha: é com ela que você entra no programa depois."
+      : "Esta versão do Paulus não traz o login do Google: entre com e-mail e senha.";
+    lado = '<div class="bv-entrada bv-secoes-conta">' +
+      (comGoogle ? '<div class="bv-secao"><span class="bv-rotulo">SUA CONTA</span><div class="bv-bloco">' +
+        linhaBotao({ classe: "centro", attrs: ' data-bv-google="1"' + (esperando ? " disabled" : ""),
+          icones: [typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : ""], titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
+        (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") + "</div></div>" : "") +
+      (typeof formContaSenha === "function" ? formContaSenha({ v: VISUAL_BV, cartao: true, rotulo }) : "") +
+      (nota ? '<p class="bv-ajuda bv-nota-fora">' + nota + "</p>" : "") + "</div>";
   }
   return [texto, lado];
 }
@@ -530,17 +529,17 @@ function passoAssinatura() {
     infosBv(vencida
       ? ["Os dados e os documentos continuam seus, no seu computador, com ou sem assinatura.", "Ao regularizar, tudo volta na hora, sem reinstalar."]
       : ["O cadastro no site já pede nome, OAB, CPF ou CNPJ e endereço: aqui você só confere.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
-  const lado = '<div class="bv-entrada"><span class="bv-rotulo">ASSINATURA</span>' +
+  const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">ASSINATURA</span>' +
     // A conta com que se assina ("Continuar como…"): o monograma, o nome e o e-mail; o clique troca de conta (desvincula e volta a Sua conta).
     linhaBotao({ classe: "duas", attrs: ' data-bv="outra-conta" title="Trocar de conta"', icones: [monogramaLb(iniciaisBv(nome))],
-      titulo: "Continuar como " + esc(nome), sub: esc(email), fim: { tipo: "acao", texto: "Trocar" } }) +
-    (esperando
+      titulo: "Continuar como " + esc(nome), sub: esc(email), fim: { tipo: "acao", texto: "Trocar" } }) + "</div>" +
+    '<div class="bv-bloco">' + (esperando
       ? '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a confirmação do site…</b><small>a janela segue sozinha quando o pagamento confirmar</small></span></div>' +
         '<button type="button" class="bv-continuar bv-largo" data-bv="assinatura-conferir"><span>Já assinei, conferir agora</span></button>'
       : '<button type="button" class="bv-continuar bv-largo" data-bv="assinar"><span>' + ic("open_in_new", 16) + (vencida ? "Regularizar no site" : "Assinar no site") + "</span></button>") +
-    '<p class="bv-ajuda">' + (vencida
+    '<p class="bv-ajuda bv-bloco-nota">' + (vencida
       ? "Sem assinatura válida, o Paulus abre só com os seus arquivos: documentos, pastas e anotações seguem acessíveis. Ficam suspensos as respostas de IA, a emissão de NFS-e e os demais serviços. Ao regularizar no site, tudo volta na hora."
-      : "O site abre no seu navegador com esta conta já preenchida. O pagamento é feito lá, com o Mercado Pago; nada de cartão passa por aqui.") + "</p></div>";
+      : "O site abre no seu navegador com esta conta já preenchida. O pagamento é feito lá, com o Mercado Pago; nada de cartão passa por aqui.") + "</p></div></div>";
   return [texto, lado];
 }
 
@@ -557,43 +556,42 @@ function passoDados() {
   const campo = (rotulo, valor, mono, tam) => '<div class="bv-campo-ro' + (tam ? " " + tam : "") + '"><span>' + rotulo + "</span><b" + (mono ? ' class="mono"' : "") + ">" + (valor ? esc(valor) : "<i>não informado</i>") + "</b></div>";
   if (bv.dadosEsperando) {
     // A espera no mesmo cartao da espera do login: o giro, o que acontece, e a acao de conferir.
-    const lado = '<div class="bv-entrada"><div class="bv-cartao-conta"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
+    const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">DADOS DA ASSINATURA</span><div class="bv-bloco">' +
       '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o site…</b><small>quando salvar na Minha conta, os dados e o plano aparecem aqui</small></span></div>' +
-      '<button type="button" class="bv-g-trilho" data-bv="dados-conferir"><span class="bv-g-pastilha">Já editei, conferir agora</span></button>' +
-      '<div class="cs-links"><button type="button" class="bv-ligacao" data-bv="dados-cancelar">Cancelar</button></div></div></div>';
+      '<button type="button" class="bv-g-trilho" data-bv="dados-conferir"><span class="bv-g-pastilha">Já editei, conferir agora</span></button></div>' +
+      '<div class="cs-links bv-fora"><button type="button" class="bv-ligacao" data-bv="dados-cancelar">Cancelar</button></div></div></div>';
     return [texto, lado];
   }
-  // O desenho de 09/10/2026: um cartao com os dados em grade de tres colunas (rotulo em cima, valor embaixo,
-  // fio entre as linhas; o endereco na linha inteira) e a nota com "edite no site"; outro cartao com o plano.
+  // O desenho de 09/10/2026 (o segundo): "DADOS DA ASSINATURA" fora, o cartao com os dados em grade de quatro
+  // colunas (fio entre as linhas, o endereco na linha inteira) e, fora, a nota com "edite no site". Depois,
+  // "PLANO" com a linha do plano e, embaixo, como a cota funciona.
   const dado = (rotulo, valor, largo) => '<div class="bv-dado' + (largo ? " largo" : "") + '"><span>' + rotulo + "</span>" +
     (valor ? "<b>" + esc(valor) + "</b>" : "<i>não informado</i>") + "</div>";
-  // O plano em destaque (desenho de 09/10/2026): nome e "plano atual", o valor do periodo contratado, e embaixo
-  // quando renova (ou ate quando esta pago) com o "Fazer upgrade".
   const dataCurta = (iso) => { const [y, m, d] = String(iso || "").split("-"); return d ? d + "/" + m + "/" + y : ""; };
-  const preco = a.valor
-    ? '<b>R$ ' + Number(a.valor).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + "</b><span>" + (a.periodo === "anual" ? "por ano" : "por mês") + "</span>"
-    : (a.cortesia ? "<b>Cortesia</b><span>sem cobrança</span>" : "");
-  const quando = a.cortesia ? "plano de cortesia"
-    : a.renova_em ? "renova em " + dataCurta(a.renova_em)
-    : a.pago_ate ? "pago até " + dataCurta(a.pago_ate)
-    : "é o que você tem hoje";
+  const reais = (n) => "R$ " + Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  const anual = a.periodo === "anual";
+  const sub = a.cortesia ? "plano de cortesia, sem cobrança"
+    : a.valor ? reais(a.valor) + (anual ? " por ano" + (a.pago_ate ? ", pago até " + dataCurta(a.pago_ate) : "") : " por mês, no Pix ou no cartão")
+    : "";
   const plano = a.plano
-    ? '<div class="bv-plano-tile"><div class="bv-plano-topo"><b>' + esc(a.plano) + '</b><span class="lb-status">plano atual</span></div>' +
-      (preco ? '<div class="bv-plano-preco">' + preco + "</div>" : "") +
-      '<div class="bv-plano-pe"><span>' + esc(maiuscula(quando)) + '</span><button type="button" class="bv-ligacao" data-bv="upgrade">Fazer upgrade ↗</button></div></div>'
+    ? linhaBotao({ tag: "div", classe: sub ? "duas" : "", titulo: esc(a.plano) + (a.periodo && !a.cortesia ? " · " + (anual ? "anual" : "mensal") : "") +
+        ' <span class="lb-status bv-plano-ativa">ativa</span>', sub,
+        fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="upgrade">Fazer upgrade ↗</button>' } })
     // Sem plano ativo (a assinatura venceu ou foi cancelada): o Paulus abre com o basico; o link leva a assinar no site.
     : linhaBotao({ tag: "div", classe: "duas", titulo: "Sem plano ativo",
         sub: (a.situacao === "vencida" ? "a assinatura venceu" : "esta conta ainda não tem assinatura") + " — sem IA, NFS-e e os demais serviços até assinar",
         fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="assinar">Assinar no site ↗</button>' } });
   const lado = '<div class="bv-entrada">' +
-    '<div class="bv-cartao-conta bv-cartao-dados"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
-    '<div class="bv-dados-grade">' +
-    dado("Nome", p.nome) + dado("Escritório", bv.escritorio || a.escritorio) + dado("OAB", p.oab) +
-    dado("CPF ou CNPJ", p.cpf) + dado("Telefone", p.telefone) + dado("E-mail", p.email) +
-    dado("Endereço", p.endereco, true) + "</div>" +
-    '<p class="bv-ajuda bv-dados-nota">Estas são as informações do seu cadastro. Se algo estiver errado ou precisar mudar, ' +
+    '<div class="bv-secao"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
+    '<div class="bv-bloco bv-cartao-dados"><div class="bv-dados-grade">' +
+    dado("Nome", p.nome) + dado("Escritório", bv.escritorio || a.escritorio) + dado("OAB", p.oab) + dado("CPF ou CNPJ", p.cpf) +
+    dado("Telefone", p.telefone) + dado("E-mail", p.email) +
+    dado("Endereço", p.endereco, true) + "</div></div>" +
+    '<p class="bv-ajuda bv-nota-fora">Estas são as informações do seu cadastro. Se algo estiver errado ou precisar mudar, ' +
     '<button type="button" class="bv-ligacao bv-ligacao-forte" data-bv="editar-site">edite no site ↗</button></p></div>' +
-    '<div class="bv-cartao-conta bv-cartao-plano"><span class="bv-rotulo">PLANO</span>' + plano + "</div>" +
+    '<div class="bv-secao bv-secao-plano"><span class="bv-rotulo">PLANO</span>' + plano +
+    (a.plano && !a.cortesia ? '<p class="bv-ajuda bv-nota-fora esquerda">A cota é do mês, liberada por semana; uma vez por mês dá para adiantar a semana seguinte. ' +
+      "Se acabar, a recarga é no Pix, no preço do plano, e não vence na renovação.</p>" : "") + "</div>" +
     "</div>";
   return [texto, lado];
 }
@@ -862,12 +860,12 @@ function passoConexoes() {
   if (bv.google) bv.autorizados.gmail = true;
   const pedidos = SERVICOS_BV.filter((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id]);
   if (bv.consentEsperando) {
-    const lado = '<div class="bv-entrada"><span class="bv-rotulo">CONEXÕES</span>' +
-      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o consentimento no Google…</b><small>' + esc(pedidos.map((p) => p.nome).join(", ")) + " · quando autorizar, a janela segue sozinha</small></span>" +
-      '<button type="button" class="bv-ligacao apagada" data-bv="consent-cancelar">Cancelar</button></div>' +
-      '<button type="button" class="bv-continuar bv-largo" data-bv="consent-conferir"><span>Já autorizei, conferir agora</span></button>' +
-      '<p class="bv-ajuda">' + (conta ? "O Google abriu no seu navegador com esta conta." : "O Google abriu no seu navegador: escolha a conta Google que vai usar.") +
-      " Se a aba não apareceu, confira as janelas abertas.</p></div>";
+    const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">CONEXÕES</span><div class="bv-bloco">' +
+      '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Aguardando o consentimento no Google…</b><small>' + esc(pedidos.map((p) => p.nome).join(", ")) + " · quando autorizar, a janela segue sozinha</small></span></div>" +
+      '<button type="button" class="bv-g-trilho" data-bv="consent-conferir"><span class="bv-g-pastilha">Já autorizei, conferir agora</span></button>' +
+      '<p class="bv-ajuda bv-bloco-nota">' + (conta ? "O Google abriu no seu navegador com esta conta." : "O Google abriu no seu navegador: escolha a conta Google que vai usar.") +
+      " Se a aba não apareceu, confira as janelas abertas.</p></div>" +
+      '<div class="cs-links bv-fora"><button type="button" class="bv-ligacao" data-bv="consent-cancelar">Cancelar</button></div></div></div>';
     return [texto, lado];
   }
   // O Meet vem com a Agenda (mesma permissao, calendar.events): a linha mostra o estado, sem interruptor proprio.
@@ -886,11 +884,13 @@ function passoConexoes() {
   const semGoogle = linhaBotao({ tag: "div", classe: "duas lb-sem-google", icones: [eoMarca("google")],
     titulo: "Precisa de uma conta Google",
     sub: "você entrou com " + esc((e && e.email) || "e-mail e senha") }) +
-    '<p class="lb-nota">Gmail, Agenda, Meet e Drive são serviços do Google e só funcionam com uma conta Google. Ao autorizar, o Google pede para escolher a conta, que pode ser diferente do e-mail com que você entrou.</p>';
-  const lado = '<div class="bv-entrada"><div class="cartao-permissoes">' +
-    (conta ? linhaBotao({ tag: "div", icones: [eoMarca("google")], titulo: esc(conta),
-      fim: bv.autorizados.gmail ? { tipo: "status", texto: "conectado" } : null }) : (porSenha ? semGoogle : "")) +
-    '<span class="lb-rotulo">O que autorizar</span><div class="lb-escopos">' + linhas + "</div></div></div>";
+    '<p class="bv-ajuda bv-nota-fora esquerda">Gmail, Agenda, Meet e Drive são serviços do Google e só funcionam com uma conta Google. Ao autorizar, o Google pede para escolher a conta, que pode ser diferente do e-mail com que você entrou.</p>';
+  // Desenho de 09/10/2026: "SUA CONTA GOOGLE" com a linha da conta e "O QUE AUTORIZAR" com os servicos num cartao.
+  const topo = conta ? linhaBotao({ tag: "div", icones: [eoMarca("google")], titulo: esc(conta),
+      fim: bv.autorizados.gmail ? { tipo: "status", texto: "conectado" } : null }) : (porSenha ? semGoogle : "");
+  const lado = '<div class="bv-entrada">' +
+    (topo ? '<div class="bv-secao"><span class="bv-rotulo">SUA CONTA GOOGLE</span>' + topo + "</div>" : "") +
+    '<div class="bv-secao"><span class="bv-rotulo">O QUE AUTORIZAR</span><div class="cartao-permissoes"><div class="lb-escopos">' + linhas + "</div></div></div></div>";
   return [texto, lado];
 }
 
@@ -959,13 +959,14 @@ function passoAtualizacoes() {
     '<div class="bv-modulo' + (bloqueado ? " fixo" : "") + '"' + (bloqueado ? "" : ' data-bv-atu="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + ">" +
     '<span class="duas-linhas"><b>' + titulo + "</b><small>" + desc + "</small></span>" +
     '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
-  const lado = '<div class="bv-cartao bv-cartao-atu"><span class="bv-rotulo">ATUALIZAÇÕES</span><div class="bv-grupos">' +
+  // Desenho de 09/10/2026: o rotulo fora e cada opcao no seu cartao.
+  const lado = '<div class="bv-entrada bv-secao bv-secao-atu"><span class="bv-rotulo">ATUALIZAÇÕES</span>' +
     linha("verificar", "Verificar atualizações uma vez por dia", a.verificar
       ? "o Paulus procura versão nova todo dia"
       : "desligado, o Paulus não procura versão nova; dá para verificar em Configurações › Versão", a.verificar) +
     linha("avisar_antes", "Avisar antes de instalar", a.avisar_antes
       ? "a faixa do topo avisa; você instala quando quiser"
-      : "a versão nova baixa sozinha e se instala quando você fechar o Paulus", a.avisar_antes, !a.verificar) + "</div></div>";
+      : "a versão nova baixa sozinha e se instala quando você fechar o Paulus", a.avisar_antes, !a.verificar) + "</div>";
   return [texto, lado];
 }
 

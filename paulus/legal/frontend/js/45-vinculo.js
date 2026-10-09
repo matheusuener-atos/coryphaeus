@@ -92,18 +92,10 @@ function formContaSenha(o) {
   if (o.emailFixo) c.email = o.emailFixo;
   const campo = (id, rotulo, tipo, valor, extra) => '<label class="cs-grupo"><span class="' + v.rotulo + '">' + rotulo + "</span>" +
     '<input class="cs-campo" id="cs-' + id + '" type="' + tipo + '" value="' + esc(valor || "") + '"' + (extra || "") + "></label>";
-  // No cartao do assistente, em Criar conta e no 1o passo de Trocar a senha, o rotulo do cartao ja diz "digite um e-mail":
-  // o campo vem sem o rotulo proprio (fica o aria-label).
-  const semRotulo = o.cartao && !c.etapa && (c.modo === "criar" || c.modo === "esqueci");
-  const email = o.emailFixo ? "" : semRotulo
-    ? '<label class="cs-grupo"><input class="cs-campo" id="cs-email" type="email" value="' + esc(c.email || "") + '" aria-label="E-mail" autocomplete="username" spellcheck="false" autocapitalize="off" placeholder="voce@empresa.com"></label>'
-    : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' + (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
+  const email = o.emailFixo ? "" : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' + (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
   const senha = (id, rotulo, nova) => campo(id, rotulo, "password", "", ' autocomplete="' + (nova ? "new-password" : "current-password") + '"' +
     (nova ? ' placeholder="10 ou mais caracteres, com letras e números"' : "") + ' maxlength="200"');
-  // No cartao do assistente, o rotulo do cartao ja e "Digite o codigo que enviamos": o campo vem sem rotulo proprio.
-  const codigo = o.cartao
-    ? '<label class="cs-grupo"><input class="cs-campo" id="cs-codigo" type="text" value="" aria-label="Código do e-mail" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></label>'
-    : campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
+  const codigo = campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
   const erro = '<p class="' + v.erro + '" id="cs-erro" role="alert"></p>';
   const botao = (texto) => '<button type="submit" class="' + v.trilho + '" id="cs-enviar"' + (c.ocupado ? " disabled" : "") + '><span class="' + v.pastilha + '">' +
     esc(texto) + "</span></button>";
@@ -111,10 +103,14 @@ function formContaSenha(o) {
   // No cartao do assistente (o.cartao): a pergunta embaixo, com so a acao como link ("Nao tem conta? Criar conta").
   const pergunta = (texto, acao, rotulo) => '<p class="cs-pergunta">' + texto + ' <button type="button" class="cs-link-forte" data-cs="' + acao + '">' + rotulo + "</button></p>";
   const para = "<b>" + esc(c.email) + "</b>";
+  // No cartao do assistente (desenho de 09/10/2026): a nota fica dentro do cartao, embaixo do botao, centralizada.
+  const nota = (html) => '<p class="' + v.ajuda + ' bv-bloco-nota">' + html + "</p>";
   let miolo;
   let links;
   if (c.modo === "criar" && c.etapa === "codigo") {
-    miolo = '<p class="' + v.ajuda + '">Enviamos um código de 6 números para ' + para + ". Ele vale 15 minutos.</p>" + codigo + erro + botao("Confirmar e entrar");
+    const aviso = "Enviamos um código de 6 números para " + para + ". Ele vale 15 minutos.";
+    miolo = o.cartao ? codigo + erro + botao("Confirmar e entrar") + nota(aviso)
+      : '<p class="' + v.ajuda + '">' + aviso + "</p>" + codigo + erro + botao("Confirmar e entrar");
     links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
   } else if (c.modo === "criar") {
     // No cartao do assistente (mockup de 08/10/2026), so e-mail e senha: o nome vem depois, em Seus dados.
@@ -124,21 +120,31 @@ function formContaSenha(o) {
       semExemplo(senha("repetir", "CONFIRMAR A SENHA", true)) + erro + botao("Criar conta");
     links = o.cartao ? pergunta("Já tem conta?", "entrar", "Entrar") : link("entrar", "Já tenho conta");
   } else if (c.modo === "esqueci" && c.etapa === "codigo") {
-    miolo = '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" +
-      codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
+    const campos = codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
+    // O codigo so sai se houver conta com o e-mail (o servidor nao diz se ha): a nota nao afirma que saiu.
+    miolo = o.cartao ? campos + nota("Código enviado para " + para + ", se houver conta com ele. Vale 15 minutos.")
+      : '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" + campos;
     links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
   } else if (c.modo === "esqueci") {
-    miolo = (o.emailFixo ? '<p class="' + v.ajuda + '">O código para trocar a senha vai para ' + para + ".</p>" : email) + erro + botao("Enviar código");
+    miolo = (o.emailFixo ? '<p class="' + v.ajuda + '">O código para trocar a senha vai para ' + para + ".</p>" : email) + erro + botao("Enviar código") +
+      (o.cartao ? nota("Enviamos um código de 6 números para esse e-mail, se houver conta com ele.") : "");
     links = link("entrar", "Voltar");
   } else if (o.cartao) {
     // O cartao do passo Sua conta: "Esqueci a senha" na linha do rotulo SENHA, a direita.
     miolo = email + '<div class="cs-grupo"><div class="cs-rotulo-linha"><label class="' + v.rotulo + '" for="cs-senha">SENHA</label>' + link("esqueci", "Esqueci a senha") + "</div>" +
-      '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro + botao("Entrar");
-    links = pergunta("Não tem conta?", "criar", "Criar conta");
+      '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro + botao("Entrar") +
+      pergunta("Não tem conta?", "criar", "Criar conta");
+    links = "";
   } else {
     miolo = email + senha("senha", "SENHA", false) + erro + botao("Entrar");
     // Na trava a conta ja existe: so "Esqueci a senha".
     links = link("esqueci", "Esqueci a senha");
+  }
+  // No assistente (desenho de 09/10/2026): o rotulo fora, acima do cartao; os campos, o botao e a nota dentro;
+  // os links de ir e voltar fora, embaixo, centralizados.
+  if (o.cartao) {
+    return '<form class="cs-form bv-secao" id="cs-form" novalidate>' + (o.rotulo ? '<span class="bv-rotulo">' + o.rotulo + "</span>" : "") +
+      '<div class="bv-bloco">' + miolo + "</div>" + (links ? '<div class="cs-links bv-fora">' + links + "</div>" : "") + "</form>";
   }
   return '<form class="cs-form" id="cs-form" novalidate>' + miolo + '<div class="cs-links">' + links + "</div></form>";
 }

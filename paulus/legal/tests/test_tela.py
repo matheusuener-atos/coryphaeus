@@ -488,9 +488,9 @@ def main() -> int:
                     pagina.evaluate(etapa) == "Seus dados"
                     and pagina.evaluate("() => document.querySelectorAll('.bv-dados-grade .bv-dado').length") == 7
                     and "Escritório da Tela" in pagina.evaluate("() => document.querySelector('.bv-dados-grade').textContent")
-                    and "Renova em 07/11/2026" in pagina.evaluate("() => document.querySelector('.bv-cartao-plano').textContent")
-                    and "R$ 1.290" in pagina.evaluate("() => document.querySelector('.bv-cartao-plano').textContent"),
-                    "Seus dados mostra o cadastro da assinatura, so para ler, com o plano, o valor e quando renova",
+                    and "mensal" in pagina.evaluate("() => document.querySelector('.bv-secao-plano').textContent")
+                    and "R$ 1.290" in pagina.evaluate("() => document.querySelector('.bv-secao-plano').textContent"),
+                    "Seus dados mostra o cadastro da assinatura, so para ler, com o plano, o periodo e o valor",
                     pagina.evaluate("() => (document.querySelector('.bv-entrada') || {}).textContent"),
                 )
                 pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
@@ -504,7 +504,7 @@ def main() -> int:
                 )
                 # Entrou com e-mail e senha, sem conta Google: o cartao diz que os servicos pedem uma.
                 checar(
-                    "Precisa de uma conta Google" in pagina.evaluate("() => document.querySelector('.cartao-permissoes').textContent"),
+                    "Precisa de uma conta Google" in pagina.evaluate("() => document.querySelector('#boas-vindas .bv-entrada').textContent"),
                     "sem conta Google, Conexoes avisa que os servicos pedem uma conta Google",
                 )
                 # A Agenda usa a autorizacao do Gmail: marcar a Agenda marca o Gmail junto.
