@@ -57,7 +57,7 @@
      a linha com fio (40 px, raio 10) e o botao Google como trilho + pastilha de largura inteira. */
   /* 560 px: a largura do cartao de login (mockup de 08/10/2026), a mesma para todo formulario do assistente. */
   .bv-entrada { width: 100%; max-width: 560px; justify-self: center; display: grid; gap: 14px; }
-  .bv-entrada:has(.bv-dados) { max-width: none; }
+  .bv-entrada:has(.bv-dados), .bv-entrada:has(.bv-dados-grade) { max-width: 780px; }
   .bv-entrada .bv-rotulo { color: var(--ink3); }
   .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); }
   .bv-linha:hover { background: var(--cartao-fundo); border-color: var(--ink-a2); }
@@ -279,3 +279,17 @@
   .bv-item b { flex: 1; min-width: 0; font: 500 14px var(--sans); color: var(--ink); }
   .bv-item span { font-size: 13px; color: var(--ink3); text-align: right; }
   .bv-cartao-instalacao .lb-sub .mono { font-family: var(--mono); }
+
+  /* Seus dados (desenho de 09/10/2026): dois cartoes, os dados em grade de tres colunas e o plano. */
+  .bv-cartao-dados, .bv-cartao-plano { gap: 12px; padding: 20px 24px; }
+  .bv-dados-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bv-dado { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 12px 16px 12px 0; border-bottom: 1px solid var(--ink-a08); }
+  .bv-dado.largo { grid-column: 1 / -1; }
+  .bv-dado > span { font: 400 11px var(--plex); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+  .bv-dado > b { font: 500 15px var(--sans); color: var(--ink); overflow-wrap: break-word; }
+  .bv-dado > i { font: 400 15px var(--sans); font-style: normal; color: var(--ink3); }
+  .bv-dados-nota { margin: 0; font-size: 13px; color: var(--ink3); text-align: left; }
+  .bv-ligacao-forte { color: var(--ink); }
+  .bv-cartao-plano .lb-titulo { display: inline-flex; align-items: center; gap: 10px; }
+  .bv-plano-ativa { font-weight: 400; }
+  @media (max-width: 720px) { .bv-dados-grade { grid-template-columns: minmax(0, 1fr); } }

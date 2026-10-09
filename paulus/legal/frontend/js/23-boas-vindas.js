@@ -549,17 +549,26 @@ function passoDados() {
       '<button type="button" class="bv-continuar bv-largo" data-bv="dados-conferir"><span>Já editei, conferir agora</span></button></div>';
     return [texto, lado];
   }
-  const lado = '<div class="bv-entrada"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
-    '<div class="bv-dados">' +
-    campo("Nome", p.nome, false, "meio") + campo("Escritório", bv.escritorio || a.escritorio, false, "meio") +
-    campo("OAB", p.oab, true) + campo("CPF ou CNPJ", p.cpf, true) + campo("Telefone", p.telefone, true) +
-    campo("E-mail", p.email, true, "meio") + campo("Endereço", p.endereco, false, "meio") + "</div>" +
-    '<p class="bv-ajuda bv-ajuda-dados">Estas são as informações do seu cadastro. Se algo estiver errado ou precisar mudar, <button type="button" class="bv-ligacao" data-bv="editar-site">' + ic("open_in_new", 14) + "edite no site</button>.</p>" +
-    (a.plano ? '<span class="bv-rotulo">PLANO</span><div class="bv-linha bv-dado-plano"><span class="duas-linhas"><b class="bv-plano-nome">' + esc(a.plano) + ' <span class="etiqueta ok">ativa</span></b><small>' + (a.renova_em ? "renova em " + esc(dataBR(a.renova_em)) : "") + '</small></span><button type="button" class="bv-ligacao" data-bv="upgrade">' + ic("open_in_new", 14) + 'Fazer upgrade</button></div>' :
-      // Sem plano ativo (a assinatura venceu ou foi cancelada): o Paulus abre com o basico; o link leva a assinar no site.
-      '<span class="bv-rotulo">PLANO</span><div class="bv-linha bv-dado-plano"><span class="duas-linhas"><b class="bv-plano-nome">Sem plano ativo</b>' +
-      '<small>' + (a.situacao === "vencida" ? "a assinatura venceu" : "esta conta ainda não tem assinatura") + ' — sem IA, NFS-e e os demais serviços até assinar</small></span>' +
-      '<button type="button" class="bv-ligacao" data-bv="assinar">' + ic("open_in_new", 14) + 'Assinar no site</button></div>') +
+  // O desenho de 09/10/2026: um cartao com os dados em grade de tres colunas (rotulo em cima, valor embaixo,
+  // fio entre as linhas; o endereco na linha inteira) e a nota com "edite no site"; outro cartao com o plano.
+  const dado = (rotulo, valor, largo) => '<div class="bv-dado' + (largo ? " largo" : "") + '"><span>' + rotulo + "</span>" +
+    (valor ? "<b>" + esc(valor) + "</b>" : "<i>não informado</i>") + "</div>";
+  const plano = a.plano
+    ? linhaBotao({ tag: "div", titulo: esc(a.plano) + ' <span class="lb-status bv-plano-ativa">ativa</span>',
+        fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="upgrade">Fazer upgrade ↗</button>' } })
+    // Sem plano ativo (a assinatura venceu ou foi cancelada): o Paulus abre com o basico; o link leva a assinar no site.
+    : linhaBotao({ tag: "div", classe: "duas", titulo: "Sem plano ativo",
+        sub: (a.situacao === "vencida" ? "a assinatura venceu" : "esta conta ainda não tem assinatura") + " — sem IA, NFS-e e os demais serviços até assinar",
+        fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="assinar">Assinar no site ↗</button>' } });
+  const lado = '<div class="bv-entrada">' +
+    '<div class="bv-cartao-conta bv-cartao-dados"><span class="bv-rotulo">DADOS DA ASSINATURA</span>' +
+    '<div class="bv-dados-grade">' +
+    dado("Nome", p.nome) + dado("Escritório", bv.escritorio || a.escritorio) + dado("OAB", p.oab) +
+    dado("CPF ou CNPJ", p.cpf) + dado("Telefone", p.telefone) + dado("E-mail", p.email) +
+    dado("Endereço", p.endereco, true) + "</div>" +
+    '<p class="bv-ajuda bv-dados-nota">Estas são as informações do seu cadastro. Se algo estiver errado ou precisar mudar, ' +
+    '<button type="button" class="bv-ligacao bv-ligacao-forte" data-bv="editar-site">edite no site ↗</button></p></div>' +
+    '<div class="bv-cartao-conta bv-cartao-plano"><span class="bv-rotulo">PLANO</span>' + plano + "</div>" +
     "</div>";
   return [texto, lado];
 }
