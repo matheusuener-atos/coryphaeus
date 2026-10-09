@@ -477,7 +477,7 @@ def main() -> int:
                 )
                 checar(
                     pagina.evaluate(etapa) == "Conexões"
-                    and pagina.evaluate("() => document.querySelectorAll('.bv-servico').length") == 5
+                    and pagina.evaluate("() => document.querySelectorAll('.cartao-permissoes .lb-escopo').length") == 5
                     and pagina.evaluate("() => !!document.querySelector('[data-bv=pular]')"),
                     "depois de Seus dados, Conexoes: os cinco servicos e 'Pular por agora'",
                     pagina.evaluate(etapa),

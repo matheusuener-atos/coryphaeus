@@ -292,34 +292,9 @@
 .mc-pix-gerado .mc-pix-lado { justify-items: center; width: 100%; }
 .mc-pix-gerado .campo-site { width: 100%; text-align: left; }
 /* Permissoes do Google: o card do Admin (admin.css), copiado para o site. */
-.g-conta { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); margin-top: -8px; }
-.g-conta .mc-txt b { font: 500 13px var(--sans); }
-.g-conta .mc-txt small { font-size: 12px; color: var(--mute); }
-.etiqueta-ok { margin-left: auto; height: 22px; padding: 0 8px; display: inline-flex; align-items: center; flex: none; border-radius: 8px; background: color-mix(in srgb, var(--ok) 16%, transparent); font: 500 12px var(--sans); color: var(--ok); }
-.g-servicos { display: grid; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); overflow: hidden; margin-top: -8px; }
-.g-servico { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--line2); cursor: pointer; }
-.g-servico:last-child { border-bottom: 0; }
-.g-servico:hover { background: var(--pill); }
-.g-servico.junto { cursor: default; }
-.g-servico.junto:hover { background: none; }
-.g-servico.junto .interruptor-min { opacity: .55; }
-.g-marca { display: flex; flex: none; }
-.g-marca svg { width: 16px; height: 16px; }
-.g-conta .g-marca svg { width: 20px; height: 20px; }
-.g-nome { width: 56px; flex: none; font: 500 13px var(--sans); color: var(--ink); }
-.g-desc { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.interruptor-min { width: 34px; height: 20px; flex: none; margin-left: 4px; position: relative; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--line3); }
-.interruptor-min::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink3); transition: left .15s, background .15s; }
-.interruptor-min.on { background: var(--ink); border-color: var(--ink); }
-.interruptor-min.on::after { left: 16px; background: var(--bg); }
 .g-desv { justify-content: space-between; flex-wrap: nowrap; }
 .mc-perigo.mini-perigo { height: 28px; padding: 0 10px; border-radius: 8px; flex: none; }
 .mc-cf { width: 24px; height: 24px; flex: none; display: block; margin-right: 2px; }
-/* O selo do Cloudflare no laranja da marca (como a faixa .cf-faixa do Admin e o selo amarelo do Mercado Pago). */
-.selo.selo-cf { height: 44px; padding: 0 12px; background: #F38020; border-color: #F38020; }
-.selo-cf .selo-esq { gap: 8px; font-size: 12px; color: #fff; white-space: nowrap; }
-.selo-cf .selo-esq img { width: 22px; height: 22px; display: block; filter: brightness(0) invert(1); }
-.selo-cf .selo-dir span { font-size: 12px; color: #fff; opacity: .9; white-space: nowrap; }
 /* Endereco novo: o estado da verificacao dentro do campo e a frase logo abaixo. */
 .mc-slug-caixa { transition: border-color .15s; }
 .mc-slug-caixa.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); }
@@ -337,8 +312,7 @@
 .mc-slug-msg { display: flex; align-items: center; gap: 6px; font: 400 12px var(--mono); min-height: 18px; }
 .mc-slug-msg i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 /* Ligado ao servidor (07/10): entrar com o botao do Google, sair, os campos seguros do Mercado Pago, o QR do Pix e os estados novos. */
-.mc-google { width: 100%; max-width: 320px; min-height: 44px; display: flex; justify-content: center; }
-.mc-google iframe { color-scheme: normal; }
+.mc-google { width: 100%; max-width: 320px; }
 .mc-erro { color: var(--erro); }
 .mc-sair { border: 0; background: none; padding: 0 2px; margin-left: 4px; font: inherit; color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .mc-sair:hover { color: var(--ink); }
@@ -352,15 +326,12 @@
 .mc-k-seguro iframe { display: block; width: 100%; height: 100%; border: 0; }
 .mc-k-caixa.erro { border-color: color-mix(in srgb, var(--erro) 60%, transparent); }
 .mc-k-thumb { display: block; height: 20px; width: auto; }
-.g-servico.parado { cursor: default; }
-.g-servico.parado:hover { background: none; }
 .mc-pendente { color: var(--mc-atencao); }
 /* No celular, as abas rolam dentro da pilula (a pagina nao rola para o lado). */
 .mc-centro { min-width: 0; }
 .mc-centro > .segmentos { min-width: 0; max-width: 100%; }
 .mc-centro > .segmentos > div { min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .mc-centro > .segmentos > div::-webkit-scrollbar { display: none; }
-.g-servicos { grid-template-columns: minmax(0, 1fr); }
 /* No celular, o cabecalho dos cards com o seletor de periodo (Consumo, Faturas) vira duas linhas: o rotulo e, embaixo, as pilulas. */
 @media (max-width: 640px) {
   .mc-painel.mc-com-pop .painel-cab { height: auto; min-height: 44px; flex-wrap: wrap; padding: 8px 14px; }

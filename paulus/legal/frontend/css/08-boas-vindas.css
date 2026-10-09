@@ -66,12 +66,6 @@
   .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--pastilha-sobre); }
   .bv-g-trilho:active:not(:disabled) .bv-g-pastilha { background: var(--pastilha-ativa); }
   .bv-g-trilho:disabled { opacity: .5; pointer-events: none; }
-  .bv-conta-ok { display: flex; align-items: center; gap: 14px; }
-  /* O vinculo: a logo do Paulus, um tracinho e o G do Google. */
-  .bv-vinculo { display: flex; align-items: center; gap: 4px; flex: none; }
-  .bv-g { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--google-fundo); border: 1px solid var(--ink-a1); }
-  .bv-g svg { width: 16px; height: 16px; }
-  .bv-conta-ok .duas-linhas small { color: var(--ink2); }
   .bv-continuar.bv-largo { width: 100%; }
   .bv-continuar.bv-largo > span { flex: 1; }
   .bv-entrada > .bv-ligacao { justify-self: center; }
@@ -98,16 +92,6 @@
   .bv-dado-plano { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -4px; }
   .bv-plano-nome { display: inline-flex; align-items: center; gap: 8px; }
   .bv-dado-plano .bv-ligacao { flex: none; }
-  /* O seletor de conta do Google, como no site: fundo branco, compacto, G num quadro proprio a direita. */
-  .bv-conta-g { display: flex; align-items: stretch; width: 100%; height: 40px; padding: 0; border: 1px solid var(--google-fio); border-radius: 4px; background: var(--google-fundo); color: var(--google-tinta); text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
-  .bv-conta-g:hover { background: var(--google-sobre); }
-  .bv-conta-g .bv-avatar { width: 20px; height: 20px; flex: none; align-self: center; margin: 0 8px 0 12px; border-radius: 50%; background: var(--google-avatar); color: var(--google-tinta2); display: grid; place-items: center; font: 500 12px var(--sans); letter-spacing: .02em; }
-  .bv-conta-txt { display: flex; flex: 1; flex-direction: column; justify-content: center; min-width: 0; padding-right: 14px; line-height: 1.2; }
-  .bv-conta-txt b { font: 500 13px/1.25 var(--sans); color: var(--google-tinta); white-space: nowrap; }
-  .bv-conta-txt small { display: inline-flex; align-items: center; gap: 2px; font: 400 12px/1.25 var(--sans); color: var(--google-tinta2); white-space: nowrap; }
-  .bv-conta-txt small .ic { font-size: 14px; color: var(--google-tinta2); }
-  .bv-g-solto { display: grid; place-items: center; width: 40px; flex: none; background: var(--google-fundo); border-left: 1px solid var(--google-fio); }
-  .bv-g-solto svg { width: 18px; height: 18px; }
   .bv-ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-align: center; text-wrap: pretty; }
   .bv-checks { display: grid; gap: 9px; }
   /* A receita e a da lista de etapas (02-conversa.css); o estado muda so a cor. */
@@ -122,7 +106,6 @@
     display: flex; align-items: center; justify-content: center; font: 500 32px/1 var(--serif);
   }
   [data-tema="escuro"] .bv-logo { box-shadow: inset 0 0 0 1px var(--ink-a15); }
-  .bv-vinculo .bv-logo { width: 28px; height: 28px; font-size: 20px; border-radius: 8px; }
   .bv-instalacao { display: flex; align-items: center; gap: 14px; }
   .bv-instalacao .duas-linhas { flex: 1; min-width: 0; }
   .bv-instalacao .duas-linhas b { font-weight: 500; font-size: 14px; }
@@ -209,18 +192,6 @@
   .bv-modulo .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
   .bv-fixo { width: 34px; font-size: 12px; color: var(--ink3); text-align: center; flex: none; }
 
-  /* Conexoes, como a pagina de retorno do Google: lista com fio, 44 px por linha, marca + nome + o que faz, e o interruptor. */
-  .bv-servicos { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); overflow: hidden; }
-  .bv-servico { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--ink-a1); cursor: pointer; }
-  .bv-servico:last-child { border-bottom: 0; }
-  .bv-servico:hover { background: var(--fill); }
-  .bv-servico.junto .interruptor-min { opacity: .7; }
-  .bv-servico-marca { display: flex; flex: none; }
-  .bv-servico-marca svg { width: 16px; height: 16px; }
-  .bv-servico-nome { width: 56px; flex: none; font: 500 13px var(--sans); color: var(--ink); }
-  .bv-servico-d { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bv-servico .interruptor-min { flex: none; margin-left: 4px; }
-  .bv-conta-ok .etiqueta { margin-left: auto; }
   .bv-acesso { display: grid; gap: 12px; }
   .bv-acesso > .bv-cartao { width: 100%; }
   .bv-recusa { min-height: 56px; padding: 10px 14px; gap: 14px; }
@@ -238,7 +209,6 @@
   }
   .bv-entrar h2 { margin: 0; font: 600 32px/1 var(--sans); }
   .bv-entrar .eo-login, .bv-entrar .eo-botoes { display: grid; }
-  .bv-entrar .eo-botao { width: 100%; justify-content: center; }
   .bv-entrar > .bv-ligacao { justify-self: center; }
   .bv-entrar-notas { display: flex; gap: 20px; font-size: 12px; color: var(--veu-tinta); }
 
@@ -282,3 +252,15 @@
   .bv-corpo.bv-entra .bv-lado { animation: bv-entrar .34s cubic-bezier(.2, .7, .2, 1) .04s both; }
   html.sem-animacao .bv-corpo.bv-entra, html.sem-animacao .bv-corpo.bv-entra .bv-lado { animation: none; }
   @media (prefers-reduced-motion: reduce) { .bv-corpo.bv-entra, .bv-corpo.bv-entra .bv-lado { animation: none; } }
+
+  /* Sua conta (desenho de 08/10/2026): um cartao so - rotulo, Google, "OU COM E-MAIL",
+     o formulario da conta PAVLVS e, depois de um fio, a nota. Os modos Criar conta,
+     codigo e Esqueci a senha ficam na mesma moldura. */
+  .bv-cartao-conta { display: grid; gap: 16px; padding: 24px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); }
+  .bv-cartao-conta .cs-rotulo-linha { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .bv-cartao-conta .cs-rotulo-linha .bv-ligacao { padding: 0; font-size: 12px; }
+  .bv-cartao-conta .cs-pergunta { margin: 0; font-size: 13px; color: var(--ink3); text-align: center; }
+  .bv-cartao-conta .cs-link-forte { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
+  .bv-cartao-conta .cs-link-forte:hover:not(:disabled) { background: none; border: 0; text-decoration: underline; text-underline-offset: 2px; }
+  .bv-cartao-conta .cs-campo { background: var(--bg); }
+  .bv-cartao-nota { margin: 0; padding-top: 16px; border-top: 1px solid var(--ink-a08); font-size: 12px; }

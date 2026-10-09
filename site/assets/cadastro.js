@@ -56,7 +56,7 @@
   }
 
   function desenharPeriodo() {
-    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "Pagamento seguro pelo Mercado Pago, no PIX ou em até 12× no cartão" : "Pagamento seguro pelo Mercado Pago, no PIX ou cartão";
+    $("cd-selo-periodo").textContent = estado.periodo === "anual" ? "em até 12×" : "";
     $("cd-pagar-nota").textContent = estado.periodo === "anual"
       ? "Na próxima página, você paga o ano de uma vez: à vista no Pix ou em até 12 vezes no cartão (os juros do parcelamento ficam por conta de quem parcela). A cota de IA continua sendo liberada mês a mês, e o plano anual não renova sozinho."
       : "Na próxima página, você escolhe como pagar. No Pix, paga um mês por vez, sem renovação automática. No cartão, a assinatura renova todo mês, e você cancela quando quiser no Paulus, em Configurações › Modelos.";
@@ -269,7 +269,7 @@
     });
     // O botao e o do Google (so ele entrega a identidade), no tema escuro e na largura da coluna.
     var claro = document.documentElement.getAttribute("data-theme") === "light";
-    google.accounts.id.renderButton($("cd-google"), { theme: claro ? "outline" : "filled_black", size: "large", text: "continue_with", shape: "rectangular", width: Math.min(360, $("cd-google").clientWidth || 360), locale: "pt-BR" });
+    google.accounts.id.renderButton($("cd-google"), { theme: claro ? "outline" : "filled_black", size: "large", text: "continue_with", shape: "rectangular", width: Math.min(400, Math.max(200, ($("cd-google").clientWidth || 418) - 18)), locale: "pt-BR" });
   }
 
   /* ------------------------------------------------------- o formulario */

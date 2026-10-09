@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Assinar — PAVLVS</title>
-<meta name="description" content="Crie a conta do escritório no PAVLVS, escolha o plano da IA e assine. Depois, baixe o programa e entre com a mesma conta Google.">
+<meta name="description" content="Crie a conta do escritório no PAVLVS, escolha o plano da IA e assine. Depois, baixe o programa e entre com a mesma conta (Google ou e-mail e senha).">
 <link rel="canonical" href="https://paulus.ia.br/cadastro/">
 <meta name="theme-color" content="#131312">
 <link rel="icon" href="../favicon.ico" sizes="any">
@@ -58,7 +58,7 @@
       <!-- 1. a conta: entrar com o Google -->
       <div class="campo" id="cd-passo-conta">
         <p class="conta-linha" id="cd-conta-texto">A conta do PAVLVS pode ser a sua conta Google ou um e-mail com senha: é com ela que você entra no programa depois.</p>
-        <div class="google-btn" id="cd-google"></div>
+        <div class="google-btn linha-botao-g" id="cd-google"></div>
         <p class="cs-ou" id="cd-ou">ou com e-mail e senha</p>
         <div id="cd-senha"></div>
         <p class="erro-campo" id="cd-conta-erro" hidden></p>
@@ -108,7 +108,7 @@
         <div class="campos cd-form-fim" id="cd-form-fim">
         <label class="aceite"><input type="checkbox" id="cd-aceite"> <span>Li e aceito os <a href="../termos-de-uso/" target="_blank" rel="noopener">Termos de uso</a> e a <a href="../politica-de-privacidade/" target="_blank" rel="noopener">Política de privacidade</a>.</span></label>
         <button type="submit" class="btn-duplo largo" id="cd-pagar"><span><span class="icon" aria-hidden="true">lock</span><span id="cd-pagar-texto">Ir para o pagamento</span></span></button>
-        <div class="selo"><span class="selo-esq"><span class="selo-mp"><img class="mp-pluma" src="../assets/mercadopago-pluma.png" alt="" width="57" height="23"><img class="mp-cor" src="../assets/mercadopago-cor.png" alt="" width="57" height="23"></span><span id="cd-selo-periodo">Pagamento seguro pelo Mercado Pago, no PIX ou cartão</span></span></div>
+        <div class="linha-botao tom-mp"><span class="lb-icones"><span class="lb-ic lb-mp"><img src="../assets/mercadopago-cor.png" alt="" width="93" height="37"></span></span><span class="lb-texto"><b class="lb-titulo">Pagamento seguro pelo Mercado Pago, no PIX ou cartão</b></span><span class="lb-fim lb-meta" id="cd-selo-periodo"></span></div>
         <span class="nota-campo" id="cd-pagar-nota">Na próxima página, você escolhe como pagar. No Pix, paga um mês por vez, sem renovação automática. No cartão, a assinatura renova todo mês, e você cancela quando quiser no Paulus, em Configurações › Modelos.</span>
         <p class="erro-campo" id="cd-form-erro" hidden></p>
         </div>
@@ -119,7 +119,7 @@
         <h2><span class="selo-icone"><span class="icon" aria-hidden="true">check</span></span><span id="cd-pronto-titulo">Assinatura ativa</span></h2>
         <p id="cd-pronto-texto"></p>
         <a class="btn-duplo largo" href="https://github.com/matheusuener-atos/coryphaeus/releases/latest"><span><span class="icon" aria-hidden="true">download</span>Baixar o PAVLVS para Windows</span></a>
-        <p class="nota-campo">Instale, abra e entre com a mesma conta Google em Configurações › Modelos. Cancelar a assinatura também é por lá.</p>
+        <p class="nota-campo">Instale, abra e, no passo Sua conta do assistente, entre com a mesma conta (Google ou e-mail e senha). Cancelar a assinatura é na Minha conta.</p>
         <div class="troca" id="cd-troca" hidden>
           <p id="cd-troca-texto"></p>
           <button type="button" class="btn-texto" id="cd-trocar-plano"></button>

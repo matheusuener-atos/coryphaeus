@@ -1365,18 +1365,19 @@
       var n = SERV_G.filter(function (s) { return M.ligados[s[0]]; }).length;
       var linhaG = function (k, marca, nome, desc, junto) {
         var on = !!M.ligados[k];
-        return '<div class="g-servico' + (on ? " on" : "") + (junto ? " junto" : "") + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : ' role="switch" tabindex="0" aria-checked="' + on + '" data-a="googleServico" data-k="' + k + '"') + ">" +
-          '<span class="g-marca">' + SIMB_G[marca] + '</span><span class="g-nome">' + esc(nome) + '</span><span class="g-desc">' + esc(desc) + '</span><span class="interruptor-min' + (on ? " on" : "") + '"></span></div>';
+        var dentro = '<span class="lb-ic">' + SIMB_G[marca] + '</span><span class="lb-nome">' + esc(nome) + '</span><span class="lb-desc">' + esc(desc) + '</span><span class="lb-chave' + (on ? " on" : "") + '"></span>';
+        if (junto) return '<div class="lb-escopo junto" aria-disabled="true" title="Vem com a Agenda: a mesma permissão">' + dentro + "</div>";
+        return '<button type="button" class="lb-escopo" role="switch" aria-checked="' + on + '" aria-label="' + esc(nome + ", " + desc) + '" data-a="googleServico" data-k="' + k + '">' + dentro + "</button>";
       };
-      h += modalCab("Permissões do Google") + '<div class="modal-corpo">' +
-        '<span class="rotulo">Conta</span><div class="g-conta"><span class="g-marca">' + SIMB_G.google + '</span><span class="txt2"><b>' + esc(M.nome) + "</b><small>" + esc(M.email) + '</small></span><span class="etiqueta-ok">conectado</span></div>' +
-        '<span class="rotulo">O que autorizar</span><div class="g-servicos">' +
+      h += modalCab("Permissões do Google") + '<div class="modal-corpo"><div class="cartao-permissoes">' +
+        '<div class="linha-botao duas"><span class="lb-icones"><span class="lb-ic">' + SIMB_G.google + '</span></span><span class="lb-texto"><b class="lb-titulo">' + esc(M.nome) + '</b><small class="lb-sub">' + esc(M.email) + '</small></span><span class="lb-fim lb-status">conectado</span></div>' +
+        '<span class="cp-rotulo">O que autorizar</span><div class="cp-escopos">' +
         linhaG("mail.google.com", "gmail", "Gmail", "ler e enviar, com Aprovações") +
         linhaG("calendar.events", "agenda", "Agenda", "ler e criar eventos") +
         linhaG("calendar.events", "meet", "Meet", "criar reuniões nos eventos", true) +
         linhaG("drive.file", "drive", "Drive", "só os arquivos que o Paulus envia") +
         linhaG("drive.readonly", "drive", "Drive", "ler as pastas escolhidas") +
-        '</div><p class="nota-campo">Desligar um serviço faz o Paulus do escritório parar de usá-lo (quando ele estiver aberto e falar com paulus.ia.br); o Google não revoga um escopo sozinho, e a permissão continua concedida lá. Com todos desligados, o Paulus revoga a concessão inteira no Google e passa a pedir o consentimento de novo.</p>' +
+        '</div></div><p class="nota-campo">Desligar um serviço faz o Paulus do escritório parar de usá-lo (quando ele estiver aberto e falar com paulus.ia.br); o Google não revoga um escopo sozinho, e a permissão continua concedida lá. Com todos desligados, o Paulus revoga a concessão inteira no Google e passa a pedir o consentimento de novo.</p>' +
         (pode("google.desvincular") ? (function () {
           var fila = naFila("google.desvincular", M.id);
           return '<div class="painel g-desvincular"><div class="painel-cab secao-cab"><span class="rotulo">Desvincular conta Google</span></div><div class="linha"><span class="txt2"><b>Tira a conta Google da nuvem do Paulus</b><small>As instalações param de usar a nuvem e esta conta Google não ativa de novo (só falando com contato@paulus.ia.br). Não revoga nada no Google: para isso, desligue antes todos os serviços acima e espere o Paulus do escritório cumprir (a ordem sai de Pendente) - depois de desvincular, ele não recebe mais ordens.</small></span>' +
@@ -3310,11 +3311,14 @@
     if (E.erroVolta) h += '<p class="erro-campo" role="alert">' + esc(E.erroVolta) + "</p>";
     // passo 1
     h += '<div class="passo">' +
-      '<div class="selo"><span class="selo-esq">' + (acc ? '<span class="selo-icone">' + ic("check") + "</span>" : '<img class="selo-marca" src="' + ASSETS + 'cloudflare.svg" alt="" width="22" height="22">') + "<span>" + esc(acc ? s.access.email : "Cloudflare Access") + '</span></span><span class="selo-dir"><b>ZERO TRUST</b><span>só o e-mail da equipe</span></span></div>';
+      '<div class="linha-botao duas"><span class="lb-icones"><span class="lb-ic lb-26"><img src="' + ASSETS + 'cloudflare.svg" alt="" width="26" height="26"></span></span><span class="lb-texto"><b class="lb-titulo">' + esc(acc ? s.access.email : "Cloudflare Access") + '</b><small class="lb-sub">' + (acc ? "Cloudflare Access · " : "Zero Trust · ") + "só o e-mail da equipe</small></span>" + (acc ? '<span class="lb-fim lb-status">conectado</span>' : "") + "</div>";
     if (!acc) h += '<button type="button" class="btn-duplo largo" data-a="recarregar"' + attrDis(desligado(cA), cA.falta) + "><span>" + ic("shield") + "Entrar pelo Cloudflare Access</span></button>" + (desligado(cA) ? '<p class="erro-campo">' + esc(cA.falta) + "</p>" : "");
     h += '<span class="nota-campo">O Access confere o seu e-mail com um código de uso único antes de a página carregar. Só quem está na lista da equipe chega aqui.</span></div>';
     // O GitHub nao e porta de entrada: so e pedido para comitar e pushar ou retroagir.
-    if (acc) h += '<span class="nota-campo">' + (gh ? "GitHub " + esc(s.github.login) + " ligado nesta sessão, para comitar e pushar ou retroagir." : "Para comitar e pushar ou retroagir, o painel pede a sua conta do GitHub na hora.") + "</span>";
+    var ghIc = '<span class="lb-icones"><span class="lb-ic"><img class="lb-github" src="' + ASSETS + 'github.webp" alt="" width="20" height="20"></span></span>';
+    if (acc) h += '<div class="passo">' + (gh ? '<div class="linha-botao">' + ghIc + '<span class="lb-texto"><b class="lb-titulo">' + esc(s.github.login) + '</b></span><span class="lb-fim lb-status">conectado</span></div>'
+      : '<button type="button" class="linha-botao centro" data-a="github">' + ghIc + '<span class="lb-texto"><b class="lb-titulo">Login com GitHub</b></span></button>') +
+      '<span class="nota-campo">' + (gh ? "GitHub ligado nesta sessão, para comitar e pushar ou retroagir." : "Para comitar e pushar ou retroagir, o painel pede a sua conta do GitHub na hora; se quiser, ligue agora.") + "</span></div>";
     if (acc) {
       if (s.pronto) h += '<button type="button" class="btn-duplo largo" data-a="entrarPainel" id="entrar-painel"><span>Entrar no painel' + ic("arrow_forward", "s18") + "</span></button>";
       else h += '<p class="erro-campo">' + (s.papel ? "A sessão ainda não está pronta. Recarregue a página." : "O e-mail " + esc(s.access.email) + " não está na equipe do painel.") + "</p>";

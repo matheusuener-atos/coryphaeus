@@ -37,34 +37,10 @@
 .voltar-site { position: absolute; top: 18px; left: 28px; display: flex; align-items: center; gap: 6px; font: 500 13px var(--sans); color: var(--mute); }
 .voltar-site:hover { color: var(--ink); }
 
-/* a faixa de um terceiro (Mercado Pago, Cloudflare): estado a esquerda, marca a direita */
-.selo {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; padding: 0 14px;
-  border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
-}
-.selo-esq { display: flex; align-items: center; gap: 10px; font: 500 13px var(--sans); color: var(--ink); }
 .selo-icone { width: 22px; height: 22px; border-radius: 50%; background: var(--okfill); display: flex; align-items: center; justify-content: center; flex: none; }
 .selo-icone .icon { font-size: 15px; color: #fff; font-weight: 400; }
 .selo-icone.neutro { background: var(--pill); }
 .selo-icone.neutro .icon { color: var(--ink2); }
-.selo-marca { width: 22px; height: 22px; flex: none; }
-/* O logo do Mercado Pago (o arquivo oficial, só reduzido): branco no tema escuro, colorido no claro. */
-.selo-mp { display: flex; flex: none; }
-.selo:has(.selo-mp) { padding: 0 12px; }
-.selo:has(.selo-mp) .selo-esq { min-width: 0; gap: 8px; white-space: nowrap; font-size: 12px; }
-.selo:has(.selo-mp) .selo-esq #cd-selo-periodo { overflow: hidden; text-overflow: ellipsis; }
-.selo:has(.selo-mp) .selo-dir { white-space: nowrap; flex: none; }
-.selo-mp img { height: 24px; width: auto; display: block; margin: -2px 0 -1px; }
-/* O selo do Mercado Pago fica no amarelo da marca (#FFE600), com o logo colorido e o texto escuro, nos dois temas. */
-.selo-mp .mp-pluma { display: none; }
-.selo:has(.selo-mp) { background: #FFE600; border-color: #FFE600; }
-.selo:has(.selo-mp) .selo-esq { color: #1a1a1a; }
-.selo:has(.selo-mp) .selo-dir, .selo:has(.selo-mp) .selo-dir span { color: #3d3d3d; }
-.selo:has(.selo-mp) .selo-esq { flex: 1; }
-.selo:has(.selo-mp) .selo-dir span { font-size: 12px; }
-.selo-dir { display: grid; justify-items: end; gap: 2px; text-align: right; }
-.selo-dir b { font: 700 12px var(--sans); letter-spacing: .12em; color: var(--ink); }
-.selo-dir span { font: 400 12px var(--sans); color: var(--mute); }
 
 /* ---------- Assinar ---------- */
 /* Os planos: cards lado a lado (no celular, um embaixo do outro). */

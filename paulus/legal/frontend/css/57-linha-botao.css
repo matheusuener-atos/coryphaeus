@@ -1,0 +1,85 @@
+  /*
+    A LINHA-BOTAO (padronizacao de botoes, 08/10/2026): um componente so para
+    entrar com o Google, ler o QR no celular, a conta vinculada, o "Continuar
+    como...", o tunel da Cloudflare e o cartao de conta + permissoes. Medidas do
+    handoff "Row Button"; cores dos tokens do tema (os dois temas), fora os tons
+    de marca, que ficam com a cor da marca.
+
+    <button class="linha-botao [centro] [duas] [tom-mp|tom-cf]">
+      <span class="lb-icones"><span class="lb-ic">logo</span><span class="lb-ic lb-mono">P</span></span>
+      <span class="lb-texto"><b class="lb-titulo">...</b><small class="lb-sub">...</small></span>
+      <span class="lb-fim lb-status|lb-acao|lb-meta">...</span>
+    </button>
+
+    entrar.html e convite.html (paginas sem sessao, que so carregam o que a
+    politica de acesso deixa) trazem uma copia destas regras no proprio <style>.
+  */
+  .linha-botao {
+    --lb-fundo: var(--surf);
+    --lb-fio: var(--ink-a12);
+    --lb-tinta: var(--ink);
+    --lb-sobre: var(--fill);
+    --lb-fio-sobre: var(--ink-a2);
+    display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; height: 56px; padding: 0 14px; margin: 0;
+    border: 1px solid var(--lb-fio); border-radius: 12px; background: var(--lb-fundo); color: var(--lb-tinta);
+    font: 400 14px/1.3 var(--sans); text-align: left; text-decoration: none; cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  div.linha-botao { cursor: default; }
+  .linha-botao.duas { height: 64px; }
+  /* `.centro` sozinho e a coluna da conversa (02-conversa.css): aqui a linha volta a ser linha. */
+  .linha-botao.centro { flex-direction: row; gap: 12px; justify-content: center; }
+  .linha-botao.centro .lb-texto { flex: 0 1 auto; }
+  :is(button, a).linha-botao:hover:not(:disabled) { background: var(--lb-sobre); border-color: var(--lb-fio-sobre); color: var(--lb-tinta); }
+  .linha-botao:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
+  .linha-botao:disabled { opacity: .5; cursor: default; }
+
+  .lb-icones { display: flex; align-items: center; gap: 6px; flex: none; }
+  .lb-ic { display: grid; place-items: center; width: 32px; height: 32px; flex: none; }
+  .lb-ic > :is(img, svg) { display: block; width: 20px; height: 20px; object-fit: contain; }
+  .lb-ic.lb-22 > :is(img, svg) { width: 22px; height: 22px; }
+  .lb-ic.lb-26 > :is(img, svg) { width: 26px; height: 26px; }
+  .lb-mono { border-radius: 8px; background: var(--fill2); color: var(--ink); font: 700 16px/1 var(--sans); }
+  .lb-mono.lb-duas-letras { font-size: 12px; }
+
+  .lb-texto { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .lb-titulo { font: 500 14px/1.3 var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-sub { font: 400 12px/1.3 var(--sans); opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-sub a { color: inherit; }
+
+  .lb-fim { flex: none; white-space: nowrap; }
+  .lb-status { display: inline-flex; align-items: center; gap: 6px; font: 400 12px var(--mono); color: var(--okt); }
+  .lb-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .lb-status.desligado { color: var(--ink3); }
+  .lb-acao { font: 400 13px var(--sans); color: var(--ink2); }
+  .lb-meta { font: 400 13px var(--sans); opacity: .85; }
+
+  /* GitHub: a marca em branco no escuro, preta no claro. */
+  [data-tema="escuro"] .lb-ic img.lb-branca-no-escuro { filter: invert(1); }
+
+  /* Os tons de marca: iguais nos dois temas. */
+  .linha-botao.tom-mp { --lb-fundo: #ffe600; --lb-fio: #ffe600; --lb-tinta: #1b1b1b; --lb-sobre: #ffeb33; --lb-fio-sobre: #ffeb33; }
+  .linha-botao.tom-cf { --lb-fundo: #f38020; --lb-fio: #f38020; --lb-tinta: #fff; --lb-sobre: #f58d35; --lb-fio-sobre: #f58d35; }
+  .linha-botao.tom-cf .lb-ic img { filter: brightness(0) invert(1); }
+  .linha-botao.tom-cf .lb-sub { opacity: .85; }
+
+  /* CONTA + PERMISSOES: a conta no topo, o rotulo e os escopos, cada linha um interruptor. */
+  .cartao-permissoes { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 520px; padding: 8px;
+    border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--lado-fundo); }
+  .cartao-permissoes > .linha-botao { border-radius: 10px; }
+  .lb-rotulo { padding: 10px 14px 2px; font: 400 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+  .lb-escopos { display: flex; flex-direction: column; }
+  .lb-escopo { display: flex; align-items: center; gap: 12px; width: 100%; height: 52px; padding: 0 14px; margin: 0;
+    border: 0; border-top: 1px solid var(--ink-a08); border-radius: 8px; background: transparent; color: var(--ink);
+    font: 400 14px/1.3 var(--sans); text-align: left; cursor: pointer; transition: background .15s; }
+  .lb-escopo:hover:not(:disabled) { background: var(--ink-a06); border-color: var(--ink-a08); color: var(--ink); }
+  .lb-escopo:focus-visible { outline: 2px solid var(--ink3); outline-offset: -2px; }
+  .lb-escopo-nome { flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-escopo-d { flex: 0 1 auto; min-width: 0; font-size: 13px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-toggle { position: relative; width: 36px; height: 20px; flex: none; border-radius: 10px; background: var(--fill2); transition: background .15s; }
+  .lb-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--mute2); transition: left .15s, background .15s; }
+  .lb-escopo[aria-checked="true"] .lb-toggle { background: var(--ink); }
+  .lb-escopo[aria-checked="true"] .lb-toggle::after { left: 18px; background: var(--bg); }
+  /* O Meet vem com a Agenda: mostra o estado dela, sem interruptor proprio. */
+  .lb-escopo.junto .lb-toggle { opacity: .6; }

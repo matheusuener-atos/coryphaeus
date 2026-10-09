@@ -58,9 +58,9 @@ function eoMarca(p) {
   return EO_SIMBOLO[p] || "";
 }
 
-/* Os botoes de entrar sao todos contornados; `principal` ficou de antes. */
+/* Os botoes de entrar sao a linha-botao centrada (css/57-linha-botao.css); `principal` ficou de antes. */
 function eoBotao(p, desligado, principal) {
-  return '<button class="eo-botao" data-eo-entrar="' + p + '"' + (desligado ? " disabled" : "") + ">" + eoMarca(p) + "<span>Entrar com " + EO_ROTULO[p] + "</span></button>";
+  return linhaBotao({ classe: "centro", attrs: ' data-eo-entrar="' + p + '"' + (desligado ? " disabled" : ""), icones: [eoMarca(p)], titulo: "Entrar com " + EO_ROTULO[p] });
 }
 
 function botoesDeLoginOAuth(info) {

@@ -95,12 +95,11 @@
   .bv-acesso .cfg-explica { font-size: 12px; }
   .bv-acesso .acesso-pe { margin-top: 4px; gap: 10px 14px; }
   /* No assistente, os botoes sao o mesmo trilho com pastilha do "Continuar" (.bv-continuar), e o Cancelar e um link discreto. */
-  .bv-acesso .acesso-pe button { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 1px 23px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf); box-shadow: none; color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; white-space: nowrap; cursor: pointer; }
-  .bv-acesso .acesso-pe button::before { content: ""; position: absolute; inset: 1px; border-radius: 8px; background: var(--fill2); z-index: -1; transition: background .12s; }
-  .bv-acesso .acesso-pe button:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); box-shadow: none; }
-  .bv-acesso .acesso-pe button:hover:not(:disabled)::before { background: var(--pastilha-sobre); }
-  .bv-acesso .acesso-pe button:disabled { opacity: .5; cursor: default; background: var(--surf); box-shadow: none; border-color: var(--ink-a1); color: var(--ink); }
-  .bv-acesso .acesso-pe button img.marca-ic { width: 18px; height: 18px; }
+  .bv-acesso .acesso-pe button:not(.linha-botao) { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 1px 23px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf); box-shadow: none; color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; white-space: nowrap; cursor: pointer; }
+  .bv-acesso .acesso-pe button:not(.linha-botao)::before { content: ""; position: absolute; inset: 1px; border-radius: 8px; background: var(--fill2); z-index: -1; transition: background .12s; }
+  .bv-acesso .acesso-pe button:not(.linha-botao):hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); box-shadow: none; }
+  .bv-acesso .acesso-pe button:not(.linha-botao):hover:not(:disabled)::before { background: var(--pastilha-sobre); }
+  .bv-acesso .acesso-pe button:not(.linha-botao):disabled { opacity: .5; cursor: default; background: var(--surf); box-shadow: none; border-color: var(--ink-a1); color: var(--ink); }
   .bv-acesso .acesso-pe button[data-tunel-cancelar] { border: 0; background: transparent; color: var(--ink2); padding: 1px 10px; }
   .bv-acesso .acesso-pe button[data-tunel-cancelar]::before { display: none; }
   .bv-acesso .acesso-pe button[data-tunel-cancelar]:hover { color: var(--ink); border: 0; }

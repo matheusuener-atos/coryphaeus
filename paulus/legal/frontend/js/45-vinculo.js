@@ -92,7 +92,8 @@ function formContaSenha(o) {
   if (o.emailFixo) c.email = o.emailFixo;
   const campo = (id, rotulo, tipo, valor, extra) => '<label class="cs-grupo"><span class="' + v.rotulo + '">' + rotulo + "</span>" +
     '<input class="cs-campo" id="cs-' + id + '" type="' + tipo + '" value="' + esc(valor || "") + '"' + (extra || "") + "></label>";
-  const email = o.emailFixo ? "" : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"');
+  const email = o.emailFixo ? "" : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' +
+    (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
   const senha = (id, rotulo, nova) => campo(id, rotulo, "password", "", ' autocomplete="' + (nova ? "new-password" : "current-password") + '"' +
     (nova ? ' placeholder="10 ou mais caracteres, com letras e números"' : "") + ' maxlength="200"');
   const codigo = campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
@@ -100,6 +101,8 @@ function formContaSenha(o) {
   const botao = (texto) => '<button type="submit" class="' + v.trilho + '" id="cs-enviar"' + (c.ocupado ? " disabled" : "") + '><span class="' + v.pastilha + '">' +
     esc(texto) + "</span></button>";
   const link = (acao, texto) => '<button type="button" class="' + v.link + '" data-cs="' + acao + '">' + texto + "</button>";
+  // No cartao do assistente (o.cartao): a pergunta embaixo, com so a acao como link ("Nao tem conta? Criar conta").
+  const pergunta = (texto, acao, rotulo) => '<p class="cs-pergunta">' + texto + ' <button type="button" class="cs-link-forte" data-cs="' + acao + '">' + rotulo + "</button></p>";
   const para = "<b>" + esc(c.email) + "</b>";
   let miolo;
   let links;
@@ -109,7 +112,7 @@ function formContaSenha(o) {
   } else if (c.modo === "criar") {
     miolo = campo("nome", "NOME", "text", c.nome, ' autocomplete="name" maxlength="80"') + email + senha("senha", "SENHA", true) +
       senha("repetir", "CONFIRMAR A SENHA", true) + erro + botao("Criar conta");
-    links = link("entrar", "Já tenho conta");
+    links = o.cartao ? pergunta("Já tem conta?", "entrar", "Entrar") : link("entrar", "Já tenho conta");
   } else if (c.modo === "esqueci" && c.etapa === "codigo") {
     miolo = '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" +
       codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
@@ -117,6 +120,11 @@ function formContaSenha(o) {
   } else if (c.modo === "esqueci") {
     miolo = (o.emailFixo ? '<p class="' + v.ajuda + '">O código para trocar a senha vai para ' + para + ".</p>" : email) + erro + botao("Enviar código");
     links = link("entrar", "Voltar");
+  } else if (o.cartao) {
+    // O cartao do passo Sua conta: "Esqueci a senha" na linha do rotulo SENHA, a direita.
+    miolo = email + '<div class="cs-grupo"><div class="cs-rotulo-linha"><label class="' + v.rotulo + '" for="cs-senha">SENHA</label>' + link("esqueci", "Esqueci a senha") + "</div>" +
+      '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro + botao("Entrar");
+    links = pergunta("Não tem conta?", "criar", "Criar conta");
   } else {
     miolo = email + senha("senha", "SENHA", false) + erro + botao("Entrar");
     links = link("esqueci", "Esqueci a senha") + link("criar", "Criar conta");
@@ -262,8 +270,10 @@ function desenharTrava() {
   const conta = (rotulo, trocar) => '<div class="trava-grupo"><span class="trava-etiqueta">' + rotulo + "</span>" +
     '<div class="trava-caixa">' + (semNet ? ic("desktop_windows", 16) : e.por === "senha" ? ic("mail", 16) : G_DO_GOOGLE) + '<span class="trava-email">' + esc(e.email) + "</span>" +
     (trocar ? '<button type="button" class="trava-trocar" id="trava-trocar">' + esc(trocar) + "</button>" : "") + "</div></div>";
-  const trilho = (id, texto, google, desligado) => '<button type="' + (google ? "button" : "submit") + '" class="trava-trilho" id="' + id + '"' +
-    (desligado ? " disabled" : "") + '><span class="trava-pastilha">' + (google ? G_DO_GOOGLE : "") + esc(texto) + "</span></button>";
+  // O Google e a linha-botao (css/57-linha-botao.css); o enviar do formulario segue no trilho.
+  const trilho = (id, texto, google, desligado) => google
+    ? linhaBotao({ classe: "centro", attrs: ' id="' + id + '"' + (desligado ? " disabled" : ""), icones: [G_DO_GOOGLE], titulo: esc(texto) })
+    : '<button type="submit" class="trava-trilho" id="' + id + '"' + (desligado ? " disabled" : "") + '><span class="trava-pastilha">' + esc(texto) + "</span></button>";
   let frase, corpo, tela;
   if (codigo) {
     tela = recuperacao ? "chave" : semNet ? "trava_sem_internet" : "trava_codigo";
@@ -301,11 +311,12 @@ function desenharTrava() {
         '<div class="cs-ou">OU COM A SENHA</div>' : "") +
       formContaSenha({ emailFixo: e.email, v: VISUAL_TRAVA }) +
       '<div class="trava-grupo trava-enquanto"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
-      // A Cloudflare a esquerda; o estado em duas linhas (frase e, embaixo, o endereco); a bolinha a direita.
-      '<div class="trava-fora"><span class="trava-fora-marca">' + window.marca("cloudflare", 20) + "</span>" +
-      '<span class="trava-estado-txt"><b>' + (foraNoAr ? "Acesso externo funcionando corretamente" : "Acesso externo desligado") + "</b>" +
-      (foraNoAr ? '<a class="trava-mono" href="' + esc("https://" + fora.hostname) + '" target="_blank" rel="noopener">' + esc(fora.hostname) + "</a>" : "") + "</span>" +
-      '<span class="trava-estado' + (foraNoAr ? " ok" : "") + '" aria-label="' + (foraNoAr ? "no ar" : "desligado") + '"><i></i></span></div></div>' +
+      // O tunel da Cloudflare (linha-botao laranja): no ar, o endereco embaixo e "conexão protegida";
+      // desligado, a linha neutra com o estado "desligado".
+      linhaBotao({ tag: "div", classe: foraNoAr ? "duas tom-cf" : "", icones: [{ html: window.marca("cloudflare", 26), classe: "lb-26" }],
+        titulo: "Túnel do Cloudflare",
+        sub: foraNoAr ? "Acesso externo funcionando corretamente · " + '<a href="' + esc("https://" + fora.hostname) + '" target="_blank" rel="noopener">' + esc(fora.hostname) + "</a>" : "",
+        fim: foraNoAr ? { tipo: "meta", texto: "conexão protegida" } : { tipo: "status", classe: "desligado", texto: "desligado" } }) + "</div>" +
       (pronto ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>' : "") +
       "</div>";
   }

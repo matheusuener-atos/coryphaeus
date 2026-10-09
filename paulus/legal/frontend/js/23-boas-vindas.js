@@ -357,9 +357,9 @@ function passoGoogle() {
   if (e && e.vinculado) {
     // A mesma coluna do passo anterior: a conta vinculada no lugar do botao, e o interruptor como linha.
     // O G do Google ao lado da logo so na conta Google; a conta PAVLVS e so a logo.
-    const marcaDaConta = e.por === "senha" ? "" : '<span class="bv-g">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + "</span>";
+    const marcaDaConta = e.por === "senha" ? "" : (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "");
     lado = '<div class="bv-entrada"><span class="bv-rotulo">' + (e.por === "senha" ? "CONTA PAVLVS" : "CONTA GOOGLE") + "</span>" +
-      '<div class="bv-linha bv-conta-ok"><span class="bv-vinculo">' + logoBv() + marcaDaConta + '</span><span class="duas-linhas"><b>Vinculado</b><small>' + esc(e.email) + "</small></span></div>" +
+      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: [monogramaLb("P"), marcaDaConta], titulo: "Vinculado", sub: esc(e.email) }) +
       '<div class="bv-modulo bv-linha" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
       '<span class="duas-linhas"><b>Manter aberto neste computador</b></span>' +
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
@@ -372,14 +372,16 @@ function passoGoogle() {
     if (typeof contaSenha !== "undefined" && !contaSenha.email && bv.pessoa.email) contaSenha.email = bv.pessoa.email;
     const rotulo = noComeco ? "SUA CONTA" : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
     const comGoogle = noComeco && !(e && !e.google);
-    lado = '<div class="bv-entrada"><span class="bv-rotulo">' + rotulo + "</span>" +
-      (comGoogle ? '<button type="button" class="bv-g-trilho" data-bv-google="1"' + (esperando ? " disabled" : "") + '><span class="bv-g-pastilha">' +
-        (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + (esperando ? "Esperando o Google no navegador…" : "Entrar com Google") + "</span></button>" +
+    // Um cartao so (desenho de 08/10/2026): o rotulo, o Google, "OU COM E-MAIL", o formulario e, depois de um fio, a nota.
+    const nota = comGoogle ? "Com o Google, o seu navegador abre a página de login; quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho. Com e-mail e senha, tudo acontece aqui."
+      : noComeco && e && !e.google ? "Esta versão do Paulus não traz o login do Google: entre com e-mail e senha." : "";
+    lado = '<div class="bv-entrada"><div class="bv-cartao-conta"><span class="bv-rotulo">' + rotulo + "</span>" +
+      (comGoogle ? linhaBotao({ classe: "centro", attrs: ' data-bv-google="1"' + (esperando ? " disabled" : ""),
+        icones: [typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : ""], titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
         (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
-        '<div class="cs-ou">OU COM E-MAIL E SENHA</div>' : "") +
-      (typeof formContaSenha === "function" ? formContaSenha({ v: VISUAL_BV }) : "") +
-      (comGoogle ? '<p class="bv-ajuda">Com o Google, o seu navegador abre a página de login; quando o Google confirmar, volte para esta janela: o Paulus reconhece sozinho. Com e-mail e senha, tudo acontece aqui.</p>' : "") +
-      (noComeco && e && !e.google ? '<p class="bv-ajuda">Esta versão do Paulus não traz o login do Google: entre com e-mail e senha.</p>' : "") + "</div>";
+        '<div class="cs-ou">OU COM E-MAIL</div>' : "") +
+      (typeof formContaSenha === "function" ? formContaSenha({ v: VISUAL_BV, cartao: true }) : "") +
+      (nota ? '<p class="bv-ajuda bv-cartao-nota">' + nota + "</p>" : "") + "</div></div>";
   }
   return [texto, lado];
 }
@@ -476,10 +478,9 @@ function passoAssinatura() {
       ? ["Os dados e os documentos continuam seus, no seu computador, com ou sem assinatura.", "Ao regularizar, tudo volta na hora, sem reinstalar."]
       : ["O cadastro no site já pede nome, OAB, CPF ou CNPJ e endereço: aqui você só confere.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
   const lado = '<div class="bv-entrada"><span class="bv-rotulo">ASSINATURA</span>' +
-    // O seletor de conta ("Continuar como…"): avatar, nome, e-mail com a setinha e o G (so da conta Google).
-    '<button type="button" class="bv-conta-g" data-bv="outra-conta" title="Trocar de conta"><span class="bv-avatar">' + esc(iniciaisBv(nome)) + "</span>" +
-      '<span class="bv-conta-txt"><b>Continuar como ' + esc(nome) + "</b><small>" + esc(email) + ic("expand_more", 14) + "</small></span>" +
-      (e && e.por === "senha" ? "" : '<span class="bv-g-solto">' + (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "") + "</span>") + "</button>" +
+    // A conta com que se assina ("Continuar como…"): o monograma, o nome e o e-mail; o clique troca de conta (desvincula e volta a Sua conta).
+    linhaBotao({ classe: "duas", attrs: ' data-bv="outra-conta" title="Trocar de conta"', icones: [monogramaLb(iniciaisBv(nome))],
+      titulo: "Continuar como " + esc(nome), sub: esc(email), fim: { tipo: "acao", texto: "Trocar" } }) +
     (esperando
       ? '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a confirmação do site…</b><small>a janela segue sozinha quando o pagamento confirmar</small></span></div>' +
         '<button type="button" class="bv-continuar bv-largo" data-bv="assinatura-conferir"><span>Já assinei, conferir agora</span></button>'
@@ -794,15 +795,17 @@ function passoConexoes() {
   const linhas = SERVICOS_BV.map((sv) => {
     const on = Boolean(bv.autorizados[sv.com || sv.id] || bv.servicos[sv.com || sv.id]);
     const junto = Boolean(sv.com);
-    return '<div class="bv-servico' + (on ? " on" : "") + (junto ? " junto" : "") + '" data-bv-servico="' + (sv.com || sv.id) + '" role="switch" tabindex="0" aria-checked="' + on + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : "") + ">" +
-      '<span class="bv-servico-marca">' + eoMarca(sv.marca || sv.id) + "</span>" +
-      '<span class="bv-servico-nome">' + sv.nome + "</span>" +
-      '<span class="bv-servico-d">' + (bv.autorizados[sv.com || sv.id] ? "autorizado" : sv.desc) + "</span>" +
-      '<span class="interruptor-min' + (on ? " on" : "") + '"></span></div>';
+    return '<button type="button" class="lb-escopo' + (junto ? " junto" : "") + '" data-bv-servico="' + (sv.com || sv.id) + '" role="switch" aria-checked="' + on + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : "") + ">" +
+      '<span class="lb-ic">' + eoMarca(sv.marca || sv.id) + "</span>" +
+      '<span class="lb-escopo-nome">' + sv.nome + "</span>" +
+      '<span class="lb-escopo-d">' + (bv.autorizados[sv.com || sv.id] ? "autorizado" : sv.desc) + "</span>" +
+      '<span class="lb-toggle" aria-hidden="true"></span></button>';
   }).join("");
-  const lado = '<div class="bv-entrada">' +
-    (conta ? '<span class="bv-rotulo">CONTA</span><div class="bv-linha bv-conta-ok"><span class="bv-servico-marca">' + eoMarca("google") + '</span><span class="duas-linhas"><b>' + esc(conta) + '</b></span><span class="etiqueta ok">conectado</span></div>' : "") +
-    '<span class="bv-rotulo">O QUE AUTORIZAR</span><div class="bv-servicos">' + linhas + "</div></div>";
+  // O cartao de conta + permissoes (css/57-linha-botao.css): a conta no topo, "conectado" quando o Gmail ja esta autorizado nela.
+  const lado = '<div class="bv-entrada"><div class="cartao-permissoes">' +
+    (conta ? linhaBotao({ tag: "div", icones: [eoMarca("google")], titulo: esc(conta),
+      fim: bv.autorizados.gmail ? { tipo: "status", texto: "conectado" } : null }) : "") +
+    '<span class="lb-rotulo">O que autorizar</span><div class="lb-escopos">' + linhas + "</div></div></div>";
   return [texto, lado];
 }
 

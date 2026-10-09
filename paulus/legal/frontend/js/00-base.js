@@ -52,6 +52,27 @@ function marca(nome, px) {
   return '<img class="marca-ic" src="/img/marcas/' + nome + '.svg" alt="" width="' + t + '" height="' + t + '">';
 }
 
+/* A linha-botao (css/57-linha-botao.css). `icones`: HTML de cada icone, ou
+   {html, classe} (classe "lb-mono", "lb-22"...); `fim`: {tipo: status|acao|meta, texto};
+   `classe`: centro, duas, tom-cf...; `attrs`: o resto da tag (id, data-*, disabled).
+   Titulo, sub e fim chegam ja escapados. */
+function linhaBotao(o) {
+  const tag = o.tag || "button";
+  const icones = (o.icones || []).filter(Boolean).map((i) => typeof i === "string"
+    ? '<span class="lb-ic">' + i + "</span>" : '<span class="lb-ic ' + (i.classe || "") + '">' + i.html + "</span>").join("");
+  const fim = o.fim ? '<span class="lb-fim lb-' + o.fim.tipo + (o.fim.classe ? " " + o.fim.classe : "") + '">' + o.fim.texto + "</span>" : "";
+  return "<" + tag + (tag === "button" ? ' type="button"' : "") + ' class="linha-botao' + (o.classe ? " " + o.classe : "") + '"' + (o.attrs || "") + ">" +
+    (icones ? '<span class="lb-icones">' + icones + "</span>" : "") +
+    '<span class="lb-texto"><b class="lb-titulo">' + o.titulo + "</b>" + (o.sub ? '<small class="lb-sub">' + o.sub + "</small>" : "") + "</span>" +
+    fim + "</" + tag + ">";
+}
+
+/* O monograma de uma ou duas letras (16 px e 12 px). */
+function monogramaLb(letras) {
+  const l = String(letras || "").toUpperCase();
+  return { html: esc(l), classe: "lb-mono" + (l.length > 1 ? " lb-duas-letras" : "") };
+}
+
 const estado = {
   trabalhoId: null,
   trabalho: null,

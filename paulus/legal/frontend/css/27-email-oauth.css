@@ -1,14 +1,10 @@
   /* ------------------------------------------ e-mail: entrar com o provedor */
   /* Os botoes "Entrar com Google/Microsoft" e o andamento do login
-     (js/30-email-oauth.js). Prefixo eo-; os botoes sao os do sistema, largos,
+     (js/30-email-oauth.js). Prefixo eo-; os botoes sao a linha-botao (57-linha-botao.css),
      e o "entrar de novo" reaproveita ec-quem (26-email-contas.css). A ligacao
      eo-ligacao e o anel de espera (.indicador) vem de 05-paineis-e-botoes.css. */
   .eo-login { display: grid; gap: 10px; }
   .eo-botoes { display: grid; gap: 8px; }
-  .eo-botao {
-    display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; box-sizing: border-box;
-    transition: background-color .15s, border-color .15s;
-  }
   .eo-simbolo { width: 18px; height: 18px; flex: none; display: block; }
   .eo-explica { display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin: 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .eo-explica .ic { flex: none; margin-top: 1px; }

@@ -164,7 +164,7 @@ function blocoConexao() {
           campo("repetir", "Confirmar a senha", "password", "") + "</div>"
         : '<p class="cfg-texto">Para entrar de fora: a sua conta Google e o código de 6 dígitos do aplicativo autenticador do celular.</p>') +
         '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
-        '<div class="acesso-pe"><button class="primario com-icone" data-cx-criar-conta="1"><img class="marca-ic" src="/img/marcas/authenticator.webp" alt="" width="18" height="18">Ler o QR no celular</button>' +
+        '<div class="acesso-pe">' + linhaBotao({ classe: "centro", attrs: ' data-cx-criar-conta="1"', icones: [{ html: '<img src="/img/marcas/authenticator.webp" alt="" width="22" height="22">', classe: "lb-22" }], titulo: "Ler o QR no celular" }) +
         '<p class="cfg-explica">O código fica só neste computador. Sem ele, ninguém entra de fora.</p></div>';
     } else conta = '<div class="acesso-form">' + campo("nome", "Nome", "text", "como aparece no registro de acessos") +
       (d.so_google

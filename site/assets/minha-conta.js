@@ -325,16 +325,17 @@
     var mexe = titular() && (g.informado || pend);
     var linhaG = function (id, marca, nome, desc, junto) {
       var on = !!lig[id], ativo = mexe && !junto;
-      return '<div class="g-servico' + (on ? " on" : "") + (junto ? " junto" : "") + (ativo ? "" : " parado") + '"' + (junto ? ' title="Vem com a Agenda: a mesma permissão"' : ' role="switch" aria-checked="' + on + '" aria-label="' + esc(nome + ", " + desc) + '"' + (ativo ? ' tabindex="0" data-a="servico" data-id="' + id + '"' : ' aria-disabled="true"')) + ">" +
-        '<span class="g-marca">' + SIMB_G[marca] + '</span><span class="g-nome">' + esc(nome) + '</span><span class="g-desc">' + esc(desc) + '</span><span class="interruptor-min' + (on ? " on" : "") + '"></span></div>';
+      var dentro = '<span class="lb-ic">' + SIMB_G[marca] + '</span><span class="lb-nome">' + esc(nome) + '</span><span class="lb-desc">' + esc(desc) + '</span><span class="lb-chave' + (on ? " on" : "") + '"></span>';
+      if (junto) return '<div class="lb-escopo junto" aria-disabled="true" title="Vem com a Agenda: a mesma permissão">' + dentro + "</div>";
+      return '<button type="button" class="lb-escopo" role="switch" aria-checked="' + on + '" aria-label="' + esc(nome + ", " + desc) + '"' + (ativo ? ' data-a="servico" data-id="' + id + '"' : ' aria-disabled="true"') + ">" + dentro + "</button>";
     };
     var estado = pend ? '<p class="mc-nota mc-pendente">Ordem enviada em ' + dtHora(pend.quando) + ". O Paulus do escritório cumpre quando estiver aberto e ligado à internet.</p>"
       : !g.informado ? '<p class="mc-nota">Nenhum serviço do Google ligado — ou o Paulus do escritório ainda não contou. Ele conta quando está aberto e ligado à internet.</p>'
         : '<p class="mc-nota">Conferido pelo Paulus do escritório em ' + dtHora(g.conferido) + ".</p>";
-    return '<div class="mc-corpo"><span class="rotulo">Conta</span><div class="g-conta"><span class="g-marca">' + SIMB_G.google + '</span><span class="mc-txt"><b>' + esc(d.cadastro.nome) + "</b><small>" + esc(g.conta) + "</small></span>" + (g.informado ? '<span class="etiqueta-ok">conectado</span>' : "") + "</div>" +
-      '<span class="rotulo">O que autorizar</span><div class="g-servicos">' +
+    return '<div class="mc-corpo"><div class="cartao-permissoes"><div class="linha-botao duas"><span class="lb-icones"><span class="lb-ic">' + SIMB_G.google + '</span></span><span class="lb-texto"><b class="lb-titulo">' + esc(d.cadastro.nome) + '</b><small class="lb-sub">' + esc(g.conta) + "</small></span>" + (g.informado ? '<span class="lb-fim lb-status">conectado</span>' : "") + "</div>" +
+      '<span class="cp-rotulo">O que autorizar</span><div class="cp-escopos">' +
       linhaG("gmail", "gmail", "Gmail", "ler e enviar, com Aprovações") + linhaG("agenda", "agenda", "Agenda", "ler e criar eventos") + linhaG("agenda", "meet", "Meet", "criar reuniões nos eventos", true) +
-      linhaG("drive_enviar", "drive", "Drive", "só os arquivos que o Paulus envia") + linhaG("drive_ler", "drive", "Drive", "ler as pastas escolhidas") + "</div>" + estado +
+      linhaG("drive_enviar", "drive", "Drive", "só os arquivos que o Paulus envia") + linhaG("drive_ler", "drive", "Drive", "ler as pastas escolhidas") + "</div></div>" + estado +
       '<p class="mc-nota">Desligar um serviço faz o Paulus do escritório parar de usá-lo. O Google não tira uma permissão sozinha: para revogar tudo no Google, use Desvincular. Para ligar um serviço que nunca foi autorizado, entre com o Google no Paulus do escritório.</p></div>' +
       (titular() ? '<div class="mc-pe g-desv"><span class="mc-txt"><b>Desvincular a conta Google</b><small>Revoga todas as permissões de uma vez.</small></span><button type="button" class="mc-perigo mini-perigo" data-a="desvincular">Desvincular</button></div>' : "");
   }
@@ -386,7 +387,7 @@
     return '<div class="mc-col mc-col-estreita"><button type="button" class="mc-voltar" data-a="cartaoVoltar">← Voltar</button>' +
       '<header class="mc-cab"><h1>Trocar o cartão</h1><p class="texto-lead">' + (c && c.final ? "Hoje as cobranças saem no " + forma(c) + ". " : "") + "A próxima, em " + dt(d.assinatura.proxima) + ", já sai no cartão novo.</p></header>" +
       painel("Cartão novo", "", form) +
-      '<div class="selo"><span class="selo-esq"><span class="selo-mp"><img class="mp-pluma" src="' + MP_IMG + 'mercadopago-pluma.png" alt="" width="57" height="23"><img class="mp-cor" src="' + MP_IMG + 'mercadopago-cor.png" alt="" width="57" height="23"></span>Campos seguros do Mercado Pago</span><span class="selo-dir"><span>Cartão</span></span></div>' +
+      '<div class="linha-botao tom-mp"><span class="lb-icones"><span class="lb-ic lb-mp"><img src="' + MP_IMG + 'mercadopago-cor.png" alt="" width="93" height="37"></span></span><span class="lb-texto"><b class="lb-titulo">Campos seguros do Mercado Pago</b></span><span class="lb-fim lb-meta">Cartão</span></div>' +
       '<p class="mc-nota centro">O número, a validade e o código vão direto para o Mercado Pago. O PAVLVS guarda só a bandeira, os 4 últimos dígitos, a validade e o nome impresso.</p></div>';
   }
   function erroCartao(t) { S.erroCartao = t || ""; var e = $("mc-k-erro"); if (e) { e.textContent = cap(t || ""); e.hidden = !t; } }
@@ -546,7 +547,7 @@
       return dialogo("Alterar o endereço", "Escritório",
         '<div class="campo-site"><label for="mc-slug">Endereço novo</label><span class="caixa-campo mono mc-slug-caixa' + (st.cls ? " " + st.cls : "") + '" id="mc-slug-caixa"><input id="mc-slug" data-a-in="slug" value="' + esc(M.v || "") + '" spellcheck="false" autocomplete="off" aria-describedby="mc-slug-msg"><span class="mudo">.paulus.ia.br</span></span>' +
         '<p class="mc-slug-msg ' + st.cls + '" id="mc-slug-msg" role="status" aria-live="polite">' + st.msg + "</p></div>" +
-        '<div class="selo selo-cf"><span class="selo-esq"><img src="' + MP_IMG + 'cloudflare.svg" alt="" width="22" height="22">Túnel do Cloudflare</span><span class="selo-dir"><span>conexão protegida</span></span></div>' +
+        '<div class="linha-botao tom-cf"><span class="lb-icones"><span class="lb-ic lb-cf"><img src="' + MP_IMG + 'cloudflare-completo.svg" alt="" width="26" height="26"></span></span><span class="lb-texto"><b class="lb-titulo">Túnel do Cloudflare</b></span><span class="lb-fim lb-meta">conexão protegida</span></div>' +
         '<p class="mc-nota">O endereço atual, ' + esc(d.escritorio.slug) + ".paulus.ia.br, deixa de funcionar na hora. Avise a equipe e os clientes.</p>",
         cancel + '<button type="button" class="btn-duplo pequeno" id="mc-end-ok" data-a="confirmarEndereco"' + (st.ok ? "" : " disabled") + "><span>Alterar</span></button>");
     }
@@ -590,7 +591,7 @@
   function entrarHtml() {
     return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com o e-mail que recebeu o convite, pelo Google ou com senha." :
       "Entre com a conta da assinatura, ou com a que o titular autorizou: pelo Google ou com e-mail e senha.") + "</p>" +
-      '<div class="mc-google" id="mc-google" aria-live="polite"></div>' +
+      '<div class="linha-botao-g mc-google" id="mc-google" aria-live="polite"></div>' +
       '<p class="cs-ou">' + L("ou com e-mail e senha", "or with email and password") + '</p><div class="mc-senha" id="mc-senha"></div>' +
       (S.erroEntrar ? '<p class="mc-nota centro mc-erro" role="alert">' + esc(cap(S.erroEntrar)) + "</p>" : "") +
       '<p class="mc-nota centro">Ainda não assina? <a href="' + (MP_IMG === "../../assets/" ? "../../assinatura/" : MP_IMG === "../assets/" ? "../assinatura/" : "Site - Assinatura.dc.html") + '">Conheça os planos</a>.</p></div>';
@@ -610,9 +611,9 @@
         botaoGoogle.pronto = true;
       }
       l.innerHTML = "";
-      google.accounts.id.renderButton(l, { theme: claro ? "outline" : "filled_black", size: "large", text: "signin_with", shape: "rectangular", width: Math.min(320, l.clientWidth || 320), locale: L("pt-BR", "en") });
+      google.accounts.id.renderButton(l, { theme: claro ? "outline" : "filled_black", size: "large", text: "signin_with", shape: "rectangular", width: Math.min(400, Math.max(200, (l.clientWidth || 418) - 18)), locale: L("pt-BR", "en") });
     }).catch(function () {
-      var l = $("mc-google"); if (l) l.innerHTML = '<p class="mc-nota centro mc-erro">O botão do Google não carregou. Confira a internet ou o bloqueador de anúncios e recarregue a página.</p>';
+      var l = $("mc-google"); if (l) { l.classList.remove("linha-botao-g"); l.innerHTML = '<p class="mc-nota centro mc-erro">O botão do Google não carregou. Confira a internet ou o bloqueador de anúncios e recarregue a página.</p>'; }
     });
   }
 
@@ -720,7 +721,7 @@
     },
     servico: function (el) {
       var id = el.dataset.id, ligar = el.getAttribute("aria-checked") !== "true";
-      el.setAttribute("aria-checked", String(ligar)); el.classList.toggle("on", ligar); var sw = el.querySelector(".interruptor-min"); if (sw) sw.classList.toggle("on", ligar);
+      el.setAttribute("aria-checked", String(ligar)); var sw = el.querySelector(".lb-chave"); if (sw) sw.classList.toggle("on", ligar);
       api("POST", "/api/conta/google/servico", { id: id, ligado: ligar }).then(function () {
         var nome = { gmail: "Gmail", agenda: "Agenda", drive_enviar: "Drive · enviar", drive_ler: "Drive · ler" }[id] || id;
         toast(nome + (ligar ? ": ordem de ligar enviada" : ": ordem de desligar enviada")); return recarregar();

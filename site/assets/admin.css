@@ -40,11 +40,6 @@
 .entrada-adm .campos, .entrada-adm .entrada-col { grid-template-columns: minmax(0, 1fr); }
 .passo.depois { opacity: .45; }
 .passo-cab { display: flex; justify-content: space-between; }
-.selo .selo-esq { min-width: 0; }
-.selo .selo-esq > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.selo-dir { flex: none; }
-.selo-github { display: flex; color: var(--ink); }
-.selo-github svg { width: 22px; height: 22px; }
 
 /* ---------- trilho: o mesmo desenho do programa (01-casca.css). Fechado, 64 px de icones;
    passar o mouse abre para 260 px com os nomes. O icone fica parado: recuo + padding somam 12 px
@@ -689,27 +684,6 @@ button.mini.ficha-acao:disabled { opacity: .45; cursor: default; }
 .modal.extrato .grade-cab { position: sticky; top: 0; z-index: 2; background: var(--panel); }
 .modal.extrato .linha-total { position: sticky; bottom: 0; z-index: 2; }
 
-/* Permissoes do Google: o desenho das Conexoes do assistente. */
-.g-conta { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); }
-.g-conta .txt2 b { font: 500 13px var(--sans); }
-.g-conta .txt2 small { font-size: 12px; color: var(--mute); }
-.etiqueta-ok { margin-left: auto; height: 22px; padding: 0 8px; display: inline-flex; align-items: center; border-radius: 8px; background: color-mix(in srgb, var(--ok) 16%, transparent); font: 500 12px var(--sans); color: var(--ok); }
-.g-servicos { display: grid; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); overflow: hidden; margin-top: -6px; }
-.g-servico { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--line2); cursor: pointer; }
-.g-servico:last-child { border-bottom: 0; }
-.g-servico:hover { background: var(--pill); }
-.g-servico.junto { cursor: default; }
-.g-servico.junto:hover { background: none; }
-.g-servico.junto .interruptor-min { opacity: .55; }
-.g-marca { display: flex; flex: none; }
-.g-marca svg { width: 16px; height: 16px; }
-.g-conta .g-marca svg { width: 20px; height: 20px; }
-.g-nome { width: 56px; flex: none; font: 500 13px var(--sans); color: var(--ink); }
-.g-desc { flex: 1; min-width: 0; text-align: right; font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.interruptor-min { width: 34px; height: 20px; flex: none; margin-left: 4px; position: relative; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--line3); }
-.interruptor-min::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink3); transition: left .15s, background .15s; }
-.interruptor-min.on { background: var(--ink); border-color: var(--ink); }
-.interruptor-min.on::after { left: 16px; background: var(--bg); }
 .modal .modal-corpo > .rotulo { margin-bottom: -6px; }
 /* Mercado Pago e Pagamentos no mesmo card: os pagamentos entram abaixo dos dados da assinatura, com um subtitulo. */
 .sub-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 38px; padding: 0 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line2); background: color-mix(in srgb, var(--ink) 3%, transparent); font: 600 12px var(--sans); color: var(--ink); }
@@ -813,10 +787,6 @@ button.mini.ficha-acao:disabled { opacity: .45; cursor: default; }
 .res-perm.off { opacity: .4; }
 .conta-grade { gap: 16px; }
 .conta-grade .pilha.g20 { gap: 16px; }
-.res-switch { display: flex; align-items: center; gap: 8px; }
-.res-switch .interruptor-min { margin-left: 0; padding: 0; background-clip: padding-box; cursor: pointer; }
-button.interruptor-min:not(.on) { background: none; }
-.res-switch .interruptor-min:disabled, .res-switch span.interruptor-min { cursor: default; opacity: .6; }
 /* Na aba, o formulario do cadastro (e o do plano e o das permissoes) dentro de um card; o nome e o e-mail ja estao no topo da pagina. */
 .modal.embutido.tipo-contaCadastro { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .modal.embutido.tipo-contaCadastro .modal-corpo { padding: 20px; }

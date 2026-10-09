@@ -51,7 +51,7 @@
     "Entram agora no ciclo, sem custo, para você testar o que ainda não usou. O plano continua igual.": "They're added to this cycle now, at no cost, so you can try what you haven't used yet. The plan stays the same.",
     "Cancelar mesmo assim": "Cancel anyway", "Aceitar a oferta": "Accept the offer", "Cancelar a assinatura?": "Cancel the subscription?", "Voltar": "Back",
     ". Depois disso, o Paulus abre só com os arquivos: sem respostas da IA, sem NFS-e e sem os demais serviços. Ao assinar de novo, volta tudo, sem reinstalar.": ". After that, Paulus opens with your files only: no AI answers, no NFS-e and none of the other services. Subscribe again and everything comes back, no reinstall.",
-    "Alterar o endereço": "Change the address", "Endereço novo": "New address", "Túnel do Cloudflare": "Cloudflare tunnel", "conexão protegida": "protected connection", "Alterar": "Change",
+    "Alterar o endereço": "Change the address", "Endereço novo": "New address", "Túnel do Cloudflare": "Cloudflare Tunnel", "conexão protegida": "protected connection", "Alterar": "Change",
     "use pelo menos 3 letras": "use at least 3 letters", "não comece nem termine com hífen": "don't start or end with a hyphen", "só letras minúsculas, números e hífen": "only lowercase letters, numbers and hyphens",
     "é o endereço de agora": "that's the current address", "conferindo…": "checking…", "disponível": "available", "já em uso": "already in use", "não consegui conferir agora": "couldn't check right now",
     "Convidar para Minha conta": "Invite to My account", "E-mail da pessoa": "The person's email", "Entra como": "Joins as", "Enviar convite": "Send invite",
