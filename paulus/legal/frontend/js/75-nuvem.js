@@ -44,11 +44,11 @@ function dataNuvem(iso) {
 function painelDoPlano(d) {
   const prov = (d.provedores || []).find((p) => p.id === "paulus") || {};
   if (!prov.tem_chave) {
-    // A conta vinculada pode ser a do Google ou a conta PAVLVS de e-mail e senha (07/10).
-    const porSenha = typeof vincPorSenha === "function" && vincPorSenha();
+    // A conta vinculada pode ser a Conta Google ou a Conta Atos (09/10): ativar abre o navegador nela.
+    const porAtos = typeof vincPorAtos === "function" && vincPorAtos();
     return '<div class="cfg-servico"><span class="duas-linhas cresce"><b>Conta da nuvem</b><small>A conta é a conta vinculada a este Paulus. ' +
-      (porSenha ? "Ativar pede a senha dela para confirmar" : "Ativar abre o Google para confirmar") + "; nada sai antes do sim do titular.</small></span>" +
-      '<button class="primario com-icone" data-nuvem-ativar="1">' + ic("login", 16) + (porSenha ? "Ativar com a senha" : "Ativar com o Google") + "</button></div>";
+      (porAtos ? "Ativar abre a Atos para confirmar" : "Ativar abre o Google para confirmar") + "; nada sai antes do sim do titular.</small></span>" +
+      '<button class="primario com-icone" data-nuvem-ativar="1">' + ic("login", 16) + (porAtos ? "Ativar com a Atos" : "Ativar com o Google") + "</button></div>";
   }
   const c = nuvemTela.conta;
   if (!c) {
@@ -244,8 +244,7 @@ async function ativarNuvemPaulus(redesenhar) {
     return true;
   };
   if (await tentar()) return;
-  // A conta PAVLVS de e-mail e senha (07/10): a senha confirma, sem abrir o navegador.
-  if (typeof vincPorSenha === "function" && vincPorSenha()) { if (await confirmarComSenha()) await tentar(); return; }
+  const quem = typeof vincPorAtos === "function" && vincPorAtos() ? "a Atos" : "o Google";
   if (typeof entrarNoGoogleDoVinculo !== "function") { avisoCert("Vincule este Paulus a uma conta antes (Configurações › Conta).", { tom: "erro" }); return; }
   let feito = false;
   try {
@@ -253,9 +252,9 @@ async function ativarNuvemPaulus(redesenhar) {
       const e = (typeof vinc !== "undefined" && vinc.estado) || {};
       if (feito || e.finalidade !== "confirmar") return;
       if (e.fase === "pronto") { feito = true; await tentar(); }
-      else if (e.fase === "erro" || e.fase === "cancelado") { feito = true; avisoCert(e.mensagem || "não deu para entrar com o Google", { tom: "erro" }); }
+      else if (e.fase === "erro" || e.fase === "cancelado") { feito = true; avisoCert(e.mensagem || "não deu para entrar com " + quem, { tom: "erro" }); }
     });
-    avisoCert("Entre com o Google no navegador que abriu.");
+    avisoCert("Entre com " + quem + " no navegador que abriu.");
   } catch (err) { avisoCert(err.message, { tom: "erro" }); }
 }
 

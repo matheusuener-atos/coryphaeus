@@ -189,7 +189,7 @@ function blocoConexao() {
       v.secundario = daPessoa.secundario || "";
       // Vinculado pelo Google, a senha e a do Google: aqui so o autenticador. Pela conta PAVLVS
       // de e-mail e senha (07/10), a entrada de fora pede uma senha deste computador - pode ser a mesma.
-      conta = (vinculo.por === "senha"
+      conta = ((vinculo.por === "atos" || vinculo.por === "senha")
         ? '<p class="cfg-texto">Para entrar de fora: o seu e-mail, uma senha e o código de 6 dígitos do aplicativo autenticador do celular. A senha fica só neste computador; pode ser a mesma da sua Conta Atos.</p>' +
           '<div class="acesso-form">' + campo("senha", "Senha para entrar de fora", "password", "pelo menos 10 caracteres") +
           campo("repetir", "Confirmar a senha", "password", "") + "</div>"
@@ -268,7 +268,7 @@ function blocoConexao() {
       '<div class="acesso-pe"><button class="primario com-icone" data-cx-conectar="1"' + (pronto ? "" : " disabled") + ">" + ic("link", 16) +
       (conexaoUI.disp && conexaoUI.disp.retomar ? "Retomar o endereço" : "Conectar") + "</button>" +
       '<p class="cfg-explica">O Paulus abre o navegador em paulus.ia.br/conectar. Nada é criado antes de você confirmar lá.' +
-      (d.google_recente ? "" : ((d.vinculo || {}).por === "senha" ? " Antes, a senha da sua Conta Atos confirma que é você" : " Antes, o Google confirma a sua conta") +
+      (d.google_recente ? "" : (["atos", "senha"].includes((d.vinculo || {}).por) ? " Antes, a Atos confirma a sua conta" : " Antes, o Google confirma a sua conta") +
         ": o endereço fica dela, e você o retoma se reinstalar.") + "</p></div>";
   }
   return '<div class="acesso-etapas">' + endereco + etapaConta +
@@ -285,18 +285,10 @@ function blocoMeus(d, esperando) {
 }
 
 /* Entrar de novo com a conta vinculada so para provar ao Worker de quem e o
-   endereco; volta e segue com `depois`. Pelo Google, o navegador abre; pela
-   conta PAVLVS de e-mail e senha, um dialogo pede a senha. */
+   endereco; volta e segue com `depois`. O navegador abre no Google ou na Atos,
+   conforme a conta vinculada. */
 async function confirmarComGoogle(depois) {
-  if (typeof vincPorSenha === "function" && vincPorSenha()) {
-    if (!(await confirmarComSenha())) return;
-    await carregarTunel();
-    conexaoUI.disp = null;
-    conexaoUI.perguntado = "";
-    if (depois) await depois();
-    else conexaoUI.redesenhar && conexaoUI.redesenhar();
-    return;
-  }
+  const quem = typeof vincPorAtos === "function" && vincPorAtos() ? "a Atos" : "o Google";
   let feito = false;
   try {
     await entrarNoGoogleDoVinculo("confirmar", async () => {
@@ -311,10 +303,10 @@ async function confirmarComGoogle(depois) {
         else conexaoUI.redesenhar && conexaoUI.redesenhar();
       } else if (e.fase === "erro" || e.fase === "cancelado") {
         feito = true;
-        avisoCert(e.mensagem || "não deu para entrar com o Google", { tom: "erro" });
+        avisoCert(e.mensagem || "não deu para entrar com " + quem, { tom: "erro" });
       }
     });
-    avisoCert("Entre com o Google no navegador que abriu (" + ((tunelCfg.dados || {}).vinculo || {}).email + ").");
+    avisoCert("Entre com " + quem + " no navegador que abriu (" + ((tunelCfg.dados || {}).vinculo || {}).email + ").");
   } catch (err) { avisoCert(err.message, { tom: "erro" }); }
 }
 
@@ -437,9 +429,9 @@ function ligarBlocoConexao(raiz) {
     raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { v[i.dataset.cxConta] = i.value; });
     conexaoUI.erroConta = "";
     // No assistente, nome e e-mail ja vieram. Vinculado pelo Google, a conta entra pelo Google (sem senha
-    // daqui); pela conta PAVLVS de e-mail e senha, a senha de fora e pedida aqui.
+    // daqui); pela Conta Atos, a senha de fora (deste computador) e pedida aqui.
     const noBv = conexaoUI.onde === "bv";
-    const porSenha = (((tunelCfg.dados || {}).vinculo) || {}).por === "senha";
+    const porSenha = ["atos", "senha"].includes((((tunelCfg.dados || {}).vinculo) || {}).por);
     const soGoogle = noBv ? !porSenha : Boolean((tunelCfg.dados || {}).so_google);
     const naTela = ["nome", "email", "secundario", "senha", "repetir"].map(cxCampo);
     if (!conferirCampos(naTela)) return;

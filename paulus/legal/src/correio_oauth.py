@@ -82,7 +82,24 @@ PROVEDORES: dict[str, dict] = {
         "imap": ("outlook.office365.com", 993),
         "smtp": ("smtp.office365.com", 587),
     },
+    # A Conta Atos (09/10/2026, src/vinculo.py): so identidade, para vincular e
+    # destravar o PAULUS do servidor. OpenID Connect em atos.dev.br, cliente
+    # publico "pavlvs-app" (sem secret, PKCE S256), volta em 127.0.0.1 em
+    # qualquer porta. A senha so e digitada em atos.dev.br.
+    "atos": {
+        "rotulo": "Atos",
+        "autorizar": "https://atos.dev.br/entrar",
+        "token": "https://atos.dev.br/oauth/token",
+        "escopos": "openid email profile",
+        "extras": {},
+        "escopo_na_troca": False,
+        "precisa_secret": False,
+        "host_redirect": "127.0.0.1",
+    },
 }
+
+# O cliente do PAULUS na Atos: identificador publico, nao e segredo.
+CLIENTE_ATOS = {"client_id": "pavlvs-app"}
 
 
 class ErroOAuth(RuntimeError):
@@ -121,7 +138,8 @@ def desafio_s256(verificador: str) -> str:
 
 def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str,
                     desafio: str, *, login_hint: str = "", endpoint: str = "",
-                    escopos: str = "", incremental: bool = False, so_identidade: bool = False) -> str:
+                    escopos: str = "", incremental: bool = False, so_identidade: bool = False,
+                    prompt: str = "") -> str:
     """
     O endereco que o navegador abre.
 
@@ -146,6 +164,10 @@ def url_autorizacao(provedor: str, client_id: str, redirect_uri: str, state: str
     if so_identidade:
         parametros.pop("prompt", None)
         parametros.pop("access_type", None)
+    # `prompt` pedido por quem chama vale sobre o do provedor (a Atos, ao
+    # destravar: "login" pede a senha de novo mesmo com a sessao aberta no navegador).
+    if prompt:
+        parametros["prompt"] = prompt
     if login_hint:
         parametros["login_hint"] = login_hint
     if incremental:
@@ -532,7 +554,7 @@ class Entrada:
     def __init__(self, provedor: str, credenciais: dict, ao_concluir, *,
                  login_hint: str = "", abrir=None, prazo: float = PRAZO_LOGIN,
                  endpoints: dict | None = None, escopos: str = "", exigir: tuple[str, ...] = (),
-                 tema: str = "escuro", ao_voltar=None, so_identidade: bool = False) -> None:
+                 tema: str = "escuro", ao_voltar=None, so_identidade: bool = False, prompt: str = "") -> None:
         if provedor not in PROVEDORES:
             raise ErroOAuth("provedor desconhecido")
         if not credenciais.get("client_id"):
@@ -555,6 +577,7 @@ class Entrada:
         # So saber QUEM e (o vinculo do PAULUS a conta Google, src/vinculo.py):
         # sem o e-mail, sem a autorizacao duradoura.
         self.so_identidade = so_identidade
+        self.prompt = prompt
         self.email = ""
         self.id = secrets.token_hex(8)
         self.fase = "preparando"
@@ -579,6 +602,7 @@ class Entrada:
             self.provedor, self.credenciais["client_id"], self.redirect_uri, state, desafio,
             login_hint=self.login_hint, endpoint=self.endpoints.get("autorizar", ""),
             escopos=self.escopos, incremental=bool(self.escopos), so_identidade=self.so_identidade,
+            prompt=self.prompt,
         )
         self.fase = "aguardando"
         self._thread = threading.Thread(target=self._rodar, daemon=True)

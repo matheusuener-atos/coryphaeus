@@ -9844,7 +9844,8 @@ def email_oauth_entrar(payload: PedidoEntrada) -> dict:
     Um login por vez: comecar outro cancela o que estava esperando.
     """
     provedor = payload.provedor.strip().lower()
-    if provedor not in correio_oauth.PROVEDORES:
+    # So os que tem caixa de e-mail (a Atos e so identidade, do vinculo).
+    if "imap" not in correio_oauth.PROVEDORES.get(provedor, {}):
         raise HTTPException(status_code=400, detail="provedor desconhecido")
     anterior = estado.entrada_oauth
     if anterior and not anterior.terminou:

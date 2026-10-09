@@ -186,15 +186,7 @@
   .bv-fora { margin-top: 4px; }
   .bv-fora .bv-ligacao { font-size: 14px; color: var(--ink3); }
   .bv-fora .bv-ligacao:first-child { color: var(--ink); }
-  .bv-fora .cs-pergunta { margin: 0; font-size: 14px; color: var(--ink3); }
-  /* O formulario da conta dentro do cartao: os mesmos detalhes que valiam no cartao unico de antes. */
-  .bv-secoes-conta .cs-form.bv-secao { gap: 12px; }
-  .bv-secoes-conta .cs-rotulo-linha { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  .bv-secoes-conta .cs-rotulo-linha .bv-ligacao { padding: 0; font-size: 13px; }
-  .bv-secoes-conta .cs-pergunta { margin: 0; font-size: 13px; color: var(--ink3); text-align: center; }
-  .bv-secoes-conta .cs-link-forte { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
-  .bv-secoes-conta .cs-link-forte:hover:not(:disabled) { background: none; border: 0; text-decoration: underline; text-underline-offset: 2px; }
-  .bv-secoes-conta #cs-codigo { font-family: var(--mono); letter-spacing: .3em; }
+  /* O botao do Google e o da Atos dentro do cartao. */
   .bv-secoes-conta .bv-bloco > .linha-botao { height: 56px; }
   /* Seus dados: a grade de quatro colunas, cada dado na sua celula com fio embaixo; o endereco na linha inteira. */
   .bv-bloco.bv-cartao-dados { padding: 0; gap: 0; overflow: hidden; }

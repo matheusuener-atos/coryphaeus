@@ -277,8 +277,8 @@ function passoBoasVindas() {
 /* ------------------------------------------------------- sua conta */
 
 /* O Paulus do servidor vinculado a conta de quem o administra (src/vinculo.py,
-   E5): a conta Google ou, desde 07/10/2026, a conta PAVLVS por e-mail e senha
-   (o formulario de js/45-vinculo.js). Da para pular e vincular depois, em
+   E5): a Conta Google ou, desde 09/10/2026, a Conta Atos (atos.dev.br), que
+   entra do mesmo jeito, pelo navegador (js/45-vinculo.js). Da para pular e vincular depois, em
    Configuracoes; vinculado, ele abre travado e pede a conta a cada abertura -
    salvo "manter aberto neste computador". */
 function passoGoogle() {
@@ -287,7 +287,7 @@ function passoGoogle() {
   const texto = "<h1>Entre com a sua conta.</h1>" +
     "<p>Este computador passa a ser o servidor do escritório, e a sua conta é a chave de acesso: a Conta Google ou a Conta Atos, com e-mail e senha de qualquer provedor, inclusive do seu domínio ou da Microsoft. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
     infosBv([
-      "O Google, ou paulus.ia.br no caso da senha, só confirma quem é você. Nenhum documento vai junto.",
+      "O Google ou a Atos só confirmam quem é você. Nenhum documento vai junto.",
       "É com ela que o Paulus confere a assinatura e, depois, convida a equipe.",
       "O Gmail, a Agenda e o Drive são opcionais e se conectam depois, em Conexões, com uma conta Google.",
     ]);
@@ -305,26 +305,20 @@ function passoGoogle() {
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
       '<p class="bv-ajuda">' + (e.manter_aberto ? "O Paulus abre direto neste computador, sem pedir a conta de novo." : "O Paulus abre travado e pede a conta a cada abertura.") + "</p></div>";
   } else {
-    // A coluna de /entrar (entrar.html): sem cartao, rotulo mono, o trilho com a pastilha do Google e,
-    // embaixo, a conta PAVLVS por e-mail e senha. Criar conta e Esqueci a senha escondem o Google ate voltar.
-    const noComeco = typeof contaSenha === "undefined" || (contaSenha.modo === "entrar" && !contaSenha.etapa);
-    // O e-mail de Seus dados (se ja houver) vem no campo; a pessoa troca se quiser.
-    if (typeof contaSenha !== "undefined" && !contaSenha.email && bv.pessoa.email) contaSenha.email = bv.pessoa.email;
-    const comGoogle = noComeco && !(e && !e.google);
-    // Desenho de 09/10/2026: cada parte e uma secao - o rotulo fora, o cartao embaixo. No comeco, "SUA CONTA" com o
-    // Google e "OU COM E-MAIL E SENHA" com o formulario; Criar conta e Trocar a senha tem a secao propria.
-    const rotulo = noComeco ? (comGoogle ? "OU COM A CONTA ATOS" : "SUA CONTA")
-      : contaSenha.modo === "criar" ? "CRIAR CONTA ATOS" : "TROCAR A SENHA";
-    const nota = !noComeco ? ""
-      : comGoogle ? "Você entra com a Conta Google ou com a Conta Atos (e-mail e senha de qualquer provedor): é com ela que você entra no programa depois."
-      : "Esta versão do Paulus não traz o login do Google: entre com e-mail e senha.";
+    // Desenho de 09/10/2026: cada parte e uma secao - o rotulo fora, o cartao embaixo: "SUA CONTA" com o Google e
+    // "OU COM A CONTA ATOS" com o "Entrar com Atos". Criar a Conta Atos e trocar a senha ficam em atos.dev.br.
+    const comGoogle = !(e && !e.google);
+    const espera = esperando ? quemNoNavegador(e) : "";
     lado = '<div class="bv-entrada bv-secoes-conta">' +
       (comGoogle ? '<div class="bv-secao"><span class="bv-rotulo">SUA CONTA</span><div class="bv-bloco">' +
         linhaBotao({ classe: "centro", attrs: ' data-bv-google="1"' + (esperando ? " disabled" : ""),
-          icones: [typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : ""], titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
-        (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") + "</div></div>" : "") +
-      (typeof formContaSenha === "function" ? formContaSenha({ v: VISUAL_BV, cartao: true, rotulo }) : "") +
-      (nota ? '<p class="bv-ajuda bv-nota-fora">' + nota + "</p>" : "") + "</div>";
+          icones: [typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : ""], titulo: espera === "o Google" ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
+        "</div></div>" : "") +
+      '<div class="bv-secao"><span class="bv-rotulo">' + (comGoogle ? "OU COM A CONTA ATOS" : "SUA CONTA") + '</span><div class="bv-bloco">' +
+        (typeof botaoAtos === "function" ? botaoAtos(' data-bv-atos="1"' + (esperando && espera !== "a Atos" ? " disabled" : ""), espera === "a Atos") : "") +
+        "</div></div>" +
+      (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
+      '<p class="bv-ajuda bv-nota-fora">Você entra com a Conta Google ou com a Conta Atos (e-mail e senha de qualquer provedor): é com ela que você entra no programa depois. Sem Conta Atos? Ela se cria na página que abre.</p></div>';
   }
   return [texto, lado];
 }
@@ -365,16 +359,7 @@ async function aoVincularBv() {
     await conferirContasBv();
     if (bv.google) bv.autorizados.gmail = true;
     await lerAssinatura();
-    if ((typeof contaSenha !== "undefined" && contaSenha.criouAgora) || !(bv.assinatura && bv.assinatura.ativa)) bv.semConferirDados = true;
-    // Conta criada agora, aqui no assistente: sem plano, vai direto ao passo Assinatura e abre o site para assinar.
-    if (typeof contaSenha !== "undefined" && contaSenha.criouAgora) {
-      contaSenha.criouAgora = false;
-      if (!(bv.assinatura && bv.assinatura.ativa) && ordemBv().includes("assinatura")) {
-        bv.passo = ordemBv().indexOf("assinatura");
-        await abrirSiteParaAssinar();
-        return;
-      }
-    }
+    if (!(bv.assinatura && bv.assinatura.ativa)) bv.semConferirDados = true;
   }
   if (passoBv() === "google") desenharBoasVindas();
 }
@@ -545,8 +530,8 @@ const SERVICOS_BV = [
 
 function passoConexoes() {
   const e = (typeof vinc !== "undefined" && vinc.estado) || null;
-  // Com a conta PAVLVS de e-mail e senha, o e-mail pode nem ser do Google: a conta e a que a pessoa escolher no consentimento.
-  const porSenha = Boolean(e && e.vinculado && e.por === "senha");
+  // Com a Conta Atos, o e-mail pode nem ser do Google: a conta e a que a pessoa escolher no consentimento.
+  const porSenha = Boolean(e && e.vinculado && (e.por === "atos" || e.por === "senha"));
   const conta = bv.google || (e && e.vinculado && !porSenha ? e.email : "");
   const texto = "<h1>Conectar o Gmail, a Agenda e o Drive?</h1>" +
     (porSenha && !bv.google
@@ -578,7 +563,7 @@ function passoConexoes() {
       '<span class="lb-toggle" aria-hidden="true"></span></button>';
   }).join("");
   // O cartao de conta + permissoes (css/57-linha-botao.css): a conta no topo, "conectado" quando o Gmail ja esta autorizado nela.
-  // Entrou com a conta PAVLVS de e-mail e senha e ainda sem conta Google: o topo diz, sem rodeio, que esses
+  // Entrou com a Conta Atos e ainda sem conta Google: o topo diz, sem rodeio, que esses
   // servicos so funcionam com uma conta Google, escolhida no consentimento (src/rotas_boas_vindas.py, autorizar).
   const semGoogle = linhaBotao({ tag: "div", classe: "duas lb-sem-google", icones: [eoMarca("google")],
     titulo: "Precisa de uma conta Google",
@@ -680,10 +665,14 @@ function ligarBoasVindas() {
       } catch (err) { avisoCert(err.message, { tom: "erro" }); }
     };
   });
-  // A conta PAVLVS por e-mail e senha (js/45-vinculo.js): entrou, segue como a volta do Google.
-  if (passoBv() === "google" && typeof ligarContaSenha === "function") {
-    ligarContaSenha(caixa, { finalidade: "vincular", redesenhar: desenharBoasVindas, aoEntrar: aoVincularBv });
-  }
+  // A Conta Atos (js/45-vinculo.js): o navegador abre atos.dev.br e a volta segue como a do Google.
+  caixa.querySelectorAll("[data-bv-atos]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        await entrarNoGoogleDoVinculo("vincular", aoVincularBv, false, "atos");
+      } catch (err) { avisoCert(err.message, { tom: "erro" }); }
+    };
+  });
   caixa.querySelectorAll("[data-bv-servico]").forEach((m) => {
     teclaAtiva(m, () => {
       const id = m.getAttribute("data-bv-servico");

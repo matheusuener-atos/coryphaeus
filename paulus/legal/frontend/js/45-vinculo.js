@@ -1,8 +1,8 @@
 /* ----------------------------------------------------------- o vinculo */
 /*
    O Paulus do servidor vinculado a conta de quem o administra (src/vinculo.py,
-   E5) - a conta Google ou, desde 07/10/2026, a conta PAVLVS por e-mail e
-   senha. Vinculado, ele abre TRAVADO: esta tela cobre tudo e pede a conta (e
+   E5) - a Conta Google ou, desde 09/10/2026, a Conta Atos (atos.dev.br), que
+   entra do mesmo jeito: pelo navegador. Vinculado, ele abre TRAVADO: esta tela cobre tudo e pede a conta (e
    o codigo do celular, se a conta de titular dessa pessoa tem o
    autenticador). "Manter aberto neste computador" desliga a trava. A trava e
    do servidor: travado, toda outra rota responde 423 - por isso a tela
@@ -30,11 +30,12 @@ async function postVinculo(url, corpo) {
   return d;
 }
 
-/* Vai ao Google (o navegador abre) e acompanha ate voltar. `aoMudar` e quem
-   redesenha (a trava, o passo do assistente, o cartao de Configuracoes). */
-async function entrarNoGoogleDoVinculo(finalidade, aoMudar, servicos) {
+/* Vai ao Google ou a Atos (o navegador abre) e acompanha ate voltar. `aoMudar` e quem
+   redesenha (a trava, o passo do assistente, o cartao de Configuracoes). `provedor` so
+   conta ao vincular: destravar e confirmar vao a conta vinculada, do jeito dela. */
+async function entrarNoGoogleDoVinculo(finalidade, aoMudar, servicos, provedor) {
   vinc.aoMudar = aoMudar;
-  await postVinculo("/api/vinculo/entrar", { finalidade, servicos: Boolean(servicos) });
+  await postVinculo("/api/vinculo/entrar", { finalidade, servicos: Boolean(servicos), provedor: provedor || "google" });
   aoMudar && aoMudar();
   clearInterval(vinc.relogio);
   vinc.relogio = setInterval(async () => {
@@ -44,237 +45,31 @@ async function entrarNoGoogleDoVinculo(finalidade, aoMudar, servicos) {
   }, 1000);
 }
 
-/* ------------------------------ a conta PAVLVS por e-mail e senha (07/10) */
+/* ----------------------------------------------------- a Conta Atos (09/10) */
 /*
-   O Google deixa de ser obrigatorio: a conta PAVLVS por e-mail e senha
-   (src/vinculo.py, worker/identidade.js) faz o mesmo vinculo. O mesmo
-   formulario serve ao passo "Sua conta" do assistente (vincular), a trava
-   (destravar, com o e-mail fixo) e ao cartao de Configuracoes. Tres modos:
-   Entrar; Criar conta (o codigo chega no e-mail e cria a conta); Esqueci a
-   senha (outro codigo e a senha nova). Quem decide e paulus.ia.br: aqui so se
-   repete a regra da senha e a confirmacao, para avisar antes de enviar.
+   A Conta Atos (atos.dev.br) entra como o Google: o navegador abre a pagina da
+   Atos, a pessoa entra (ou cria a conta, ou troca a senha, tudo la) e permite; a
+   volta chega ao Paulus pela porta local (src/vinculo.py, provedor "atos"). Aqui
+   nao se digita senha nenhuma. O vinculo gravado como "senha" (07/10 a 09/10) e a
+   mesma Conta Atos.
 */
-const contaSenha = { modo: "entrar", etapa: "", email: "", nome: "", senha: "", ocupado: false };
-
-function problemaDaSenha(s) {
-  s = String(s || "");
-  if (s.length < 10) return "a senha precisa ter pelo menos 10 caracteres";
-  if (s.length > 200) return "a senha pode ter no máximo 200 caracteres";
-  if (!/[a-zA-ZÀ-ÿ]/.test(s) || !/[0-9]/.test(s)) return "use letras e números na senha";
-  return "";
+function ehContaAtos(por) {
+  return por === "atos" || por === "senha";
 }
 
-function emailParece(e) {
-  return /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(String(e || "").trim());
+function vincPorAtos() {
+  return Boolean(vinc.estado && vinc.estado.vinculado && ehContaAtos(vinc.estado.por));
 }
 
-function vincPorSenha() {
-  return Boolean(vinc.estado && vinc.estado.vinculado && vinc.estado.por === "senha");
+/* Quem o navegador esta esperando, para o texto: "a Atos" ou "o Google". */
+function quemNoNavegador(e) {
+  return (e || {}).provedor === "atos" ? "a Atos" : "o Google";
 }
 
-/* As rotas /api/vinculo/senha/*: as que entram devolvem o estado do vinculo. */
-async function postSenha(url, corpo) {
-  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo || {}) });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.detail || "não deu certo");
-  if (d && "vinculado" in d) vinc.estado = d;
-  return d;
-}
-
-/* O desenho e o de quem o usa: `o.v` diz as classes (o trilho com a pastilha,
-   o rotulo mono, a ajuda, o link e o erro) - o do assistente ou o da trava. */
-const VISUAL_BV = { trilho: "bv-g-trilho", pastilha: "bv-g-pastilha", rotulo: "bv-rotulo", ajuda: "bv-ajuda", link: "bv-ligacao", erro: "acesso-erro" };
-const VISUAL_TRAVA = { trilho: "trava-trilho", pastilha: "trava-pastilha", rotulo: "trava-etiqueta", ajuda: "trava-ajuda cs-centro", link: "trava-link", erro: "trava-erro" };
-
-function formContaSenha(o) {
-  const c = contaSenha;
-  const v = o.v || VISUAL_BV;
-  if (o.emailFixo) c.email = o.emailFixo;
-  const campo = (id, rotulo, tipo, valor, extra) => '<label class="cs-grupo"><span class="' + v.rotulo + '">' + rotulo + "</span>" +
-    '<input class="cs-campo" id="cs-' + id + '" type="' + tipo + '" value="' + esc(valor || "") + '"' + (extra || "") + "></label>";
-  const email = o.emailFixo ? "" : campo("email", "E-MAIL", "email", c.email, ' autocomplete="username" spellcheck="false" autocapitalize="off"' + (o.cartao ? ' placeholder="voce@empresa.com"' : ""));
-  const senha = (id, rotulo, nova) => campo(id, rotulo, "password", "", ' autocomplete="' + (nova ? "new-password" : "current-password") + '"' +
-    (nova ? ' placeholder="10 ou mais caracteres, com letras e números"' : "") + ' maxlength="200"');
-  const codigo = campo("codigo", "CÓDIGO DO E-MAIL", "text", "", ' inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"');
-  const erro = '<p class="' + v.erro + '" id="cs-erro" role="alert"></p>';
-  const botao = (texto) => '<button type="submit" class="' + v.trilho + '" id="cs-enviar"' + (c.ocupado ? " disabled" : "") + '><span class="' + v.pastilha + '">' +
-    esc(texto) + "</span></button>";
-  const link = (acao, texto) => '<button type="button" class="' + v.link + '" data-cs="' + acao + '">' + texto + "</button>";
-  // No cartao do assistente (o.cartao): a pergunta embaixo, com so a acao como link ("Nao tem conta? Criar conta").
-  const pergunta = (texto, acao, rotulo) => '<p class="cs-pergunta">' + texto + ' <button type="button" class="cs-link-forte" data-cs="' + acao + '">' + rotulo + "</button></p>";
-  const para = "<b>" + esc(c.email) + "</b>";
-  // No cartao do assistente (desenho de 09/10/2026): a nota fica dentro do cartao, embaixo do botao, centralizada.
-  const nota = (html) => '<p class="' + v.ajuda + ' bv-bloco-nota">' + html + "</p>";
-  let miolo;
-  let links;
-  if (c.modo === "criar" && c.etapa === "codigo") {
-    const aviso = "Enviamos um código de 6 números para " + para + ". Ele vale 15 minutos.";
-    miolo = o.cartao ? codigo + erro + botao("Confirmar e entrar") + nota(aviso)
-      : '<p class="' + v.ajuda + '">' + aviso + "</p>" + codigo + erro + botao("Confirmar e entrar");
-    links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
-  } else if (c.modo === "criar") {
-    // No cartao do assistente (mockup de 08/10/2026), so e-mail e senha: o nome vem depois, em Seus dados.
-    // O mockup do Criar conta nao traz exemplo nas senhas; o do Trocar a senha traz.
-    const semExemplo = (h) => (o.cartao ? h.replace(/ placeholder="[^"]*"/, "") : h);
-    miolo = (o.cartao ? "" : campo("nome", "NOME", "text", c.nome, ' autocomplete="name" maxlength="80"')) + email + semExemplo(senha("senha", "SENHA", true)) +
-      semExemplo(senha("repetir", "CONFIRMAR A SENHA", true)) + erro + botao("Criar conta");
-    links = o.cartao ? pergunta("Já tem conta?", "entrar", "Entrar") : link("entrar", "Já tenho conta");
-  } else if (c.modo === "esqueci" && c.etapa === "codigo") {
-    const campos = codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
-    // O codigo so sai se houver conta com o e-mail (o servidor nao diz se ha): a nota nao afirma que saiu.
-    miolo = o.cartao ? campos + nota("Código enviado para " + para + ", se houver conta com ele. Vale 15 minutos.")
-      : '<p class="' + v.ajuda + '">Se ' + para + " tem Conta Atos (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" + campos;
-    links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
-  } else if (c.modo === "esqueci") {
-    miolo = (o.emailFixo ? '<p class="' + v.ajuda + '">O código para trocar a senha vai para ' + para + ".</p>" : email) + erro + botao("Enviar código") +
-      (o.cartao ? nota("Enviamos um código de 6 números para esse e-mail, se houver conta com ele.") : "");
-    links = link("entrar", "Voltar");
-  } else if (o.cartao) {
-    // O cartao do passo Sua conta: "Esqueci a senha" na linha do rotulo SENHA, a direita.
-    miolo = email + '<div class="cs-grupo"><div class="cs-rotulo-linha"><label class="' + v.rotulo + '" for="cs-senha">SENHA</label>' + link("esqueci", "Esqueci a senha") + "</div>" +
-      '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro +
-      (o.antesDoBotao || "") + botao("Entrar") +
-      // Na trava, a conta e a deste servidor: nada de criar outra aqui.
-      (o.emailFixo ? "" : pergunta("Não tem conta?", "criar", "Criar conta Atos"));
-    links = "";
-  } else {
-    miolo = email + senha("senha", "SENHA", false) + erro + botao("Entrar");
-    // Na trava a conta ja existe: so "Esqueci a senha".
-    links = link("esqueci", "Esqueci a senha");
-  }
-  // No assistente (desenho de 09/10/2026): o rotulo fora, acima do cartao; os campos, o botao e a nota dentro;
-  // os links de ir e voltar fora, embaixo, centralizados.
-  if (o.cartao) {
-    return '<form class="cs-form bv-secao" id="cs-form" novalidate>' + (o.rotulo ? '<span class="bv-rotulo">' + o.rotulo + "</span>" : "") +
-      '<div class="bv-bloco">' + miolo + "</div>" + (links ? '<div class="cs-links bv-fora">' + links + "</div>" : "") + "</form>";
-  }
-  return '<form class="cs-form" id="cs-form" novalidate>' + miolo + '<div class="cs-links">' + links + "</div></form>";
-}
-
-/* O erro do servidor que e de um campo do formulario da conta: quais campos
-   ficam vermelhos (sem texto na tela, regra de 08/10/2026). Lista vazia: o
-   erro nao e de campo (limite de tentativas, e-mail que nao saiu, servidor) e
-   continua no aviso de texto. */
-function camposDoErroDaConta(msg) {
-  const m = String(msg || "").toLowerCase();
-  if (/e-mail ou senha não conferem/.test(m)) return ["email", "senha"];
-  if (/confira o e-mail|não é a conta deste/.test(m)) return ["email"];
-  if (/código/.test(m) && /não confere|venceu|tem 6/.test(m)) return ["codigo"];
-  if (/digite a senha|a senha precisa|a senha pode ter|letras e números na senha/.test(m)) return ["senha"];
-  if (/senhas não são iguais/.test(m)) return ["repetir"];
-  return [];
-}
-
-/* `o.finalidade`: vincular ou destravar; `o.aoEntrar(estado)` segue depois de
-   entrar; `o.redesenhar()` refaz a tela quando o modo muda. */
-function ligarContaSenha(raiz, o) {
-  const form = raiz.querySelector("#cs-form");
-  if (!form) return;
-  const c = contaSenha;
-  const campo = (id) => form.querySelector("#cs-" + id);
-  const valor = (id) => { const el = campo(id); return el ? el.value : ""; };
-  // #cs-erro fica so para o erro que nao e de campo; o de campo e a borda.
-  const erro = (msg) => { const p = form.querySelector("#cs-erro"); if (p) p.textContent = msg ? maiuscula(msg) : ""; };
-  const doServidor = (msg) => {
-    const campos = camposDoErroDaConta(msg).map(campo).filter(Boolean);
-    if (!campos.length) { erro(msg); return; }
-    erro("");
-    campos.forEach((el) => campoErradoPeloServidor(el, msg));
-    campos[0].focus();
-  };
-  const ir = (modo, etapa) => { c.modo = modo; c.etapa = etapa || ""; c.ocupado = false; o.redesenhar(); };
-  form.querySelectorAll("input").forEach((i) => {
-    i.oninput = () => { if (i.id === "cs-email") c.email = i.value.trim(); if (i.id === "cs-nome") c.nome = i.value; };
-  });
-  // A regra de cada campo, conferida ao vivo (js/00-base.js). Entrar so pede a
-  // senha preenchida: quem diz se confere e paulus.ia.br.
-  const senhaNova = (c.modo === "criar" && !c.etapa) || (c.modo === "esqueci" && c.etapa === "codigo");
-  vigiarCampo(campo("email"), REGRA_CAMPO.email, { vazio: "confira o e-mail" });
-  vigiarCampo(campo("codigo"), (v) => REGRA_CAMPO.codigo6(v.replace(/\D/g, "")), { vazio: "o código tem 6 números" });
-  vigiarCampo(campo("senha"), senhaNova ? problemaDaSenha : () => "", { vazio: senhaNova ? problemaDaSenha("") : "digite a senha" });
-  vigiarCampo(campo("repetir"), (v) => (v === valor("senha") ? "" : "as duas senhas não são iguais"), { vazio: "repita a senha" });
-  // A confirmacao acompanha a senha: mudou a senha, a confirmacao ja tocada se refaz.
-  const rep = campo("repetir");
-  if (campo("senha") && rep) campo("senha").addEventListener("input", () => { if (rep.dataset.campoTocado) pintarCampo(rep); });
-  form.querySelectorAll("[data-cs]").forEach((b) => {
-    b.onclick = async (ev) => {
-      ev.preventDefault();
-      const acao = b.dataset.cs;
-      if (acao === "reenviar") {
-        try {
-          if (c.modo === "criar") await postSenha("/api/vinculo/senha/cadastrar", { email: c.email, senha: c.senha, nome: c.nome });
-          else await postSenha("/api/vinculo/senha/esqueci", { email: c.email });
-          avisoCert("código enviado de novo para " + c.email);
-        } catch (err) { doServidor(err.message); }
-        return;
-      }
-      if (acao === "voltar") { c.senha = ""; ir(c.modo, ""); return; }
-      c.senha = "";
-      ir(acao === "entrar" ? "entrar" : acao, "");
-    };
-  });
-  const entrou = async (d) => {
-    c.modo = "entrar"; c.etapa = ""; c.senha = ""; c.ocupado = false;
-    if (o.aoEntrar) await o.aoEntrar(d);
-  };
-  form.onsubmit = async (ev) => {
-    ev.preventDefault();
-    erro("");
-    // Na trava o e-mail e fixo (o da conta deste servidor): sem campo, vale o guardado.
-    if (campo("email")) c.email = valor("email").trim();
-    // Todos os campos que estao na tela: os que nao fecham ficam vermelhos e o primeiro ganha o foco.
-    if (!conferirCampos(["email", "codigo", "senha", "repetir"].map(campo))) return;
-    let url = "";
-    let corpo = {};
-    if (c.modo === "criar" && c.etapa === "codigo") {
-      url = "/api/vinculo/senha/confirmar"; corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), finalidade: o.finalidade };
-    } else if (c.modo === "criar") {
-      // Sem o campo (o cartao do assistente), o nome que ja houver em Seus dados.
-      c.nome = valor("nome") || (typeof bv !== "undefined" && bv.pessoa && bv.pessoa.nome) || "";
-      url = "/api/vinculo/senha/cadastrar"; corpo = { email: c.email, senha: valor("senha"), nome: c.nome.trim() };
-    } else if (c.modo === "esqueci" && c.etapa === "codigo") {
-      url = "/api/vinculo/senha/redefinir";
-      corpo = { email: c.email, codigo: valor("codigo").replace(/\D/g, ""), senha: valor("senha"), finalidade: o.finalidade };
-    } else if (c.modo === "esqueci") {
-      url = "/api/vinculo/senha/esqueci"; corpo = { email: c.email };
-    } else {
-      url = "/api/vinculo/senha/entrar"; corpo = { email: c.email, senha: valor("senha"), finalidade: o.finalidade };
-    }
-    const b = form.querySelector("#cs-enviar");
-    if (b) b.disabled = true;
-    c.ocupado = true;
-    try {
-      const d = await postSenha(url, corpo);
-      c.ocupado = false;
-      if (c.modo === "criar" && !c.etapa) { c.senha = corpo.senha; ir("criar", "codigo"); return; }
-      if (c.modo === "esqueci" && !c.etapa) { ir("esqueci", "codigo"); return; }
-      // Conta criada agora (o codigo confirmou): o assistente leva ao site para escolher o plano e pagar.
-      if (c.modo === "criar" && c.etapa === "codigo") c.criouAgora = true;
-      await entrou(d);
-    } catch (err) {
-      c.ocupado = false;
-      if (b) b.disabled = false;
-      doServidor(err.message);
-    }
-  };
-  // O foco no primeiro campo vazio: quem chega ao passo do codigo ja digita.
-  const vazio = Array.from(form.querySelectorAll("input")).find((i) => !i.value);
-  if (vazio && o.focar !== false) vazio.focus();
-}
-
-/* Confirmar a conta vinculada pela senha (um token novo, 1 h): o acesso de
-   fora e a nuvem pedem, para paulus.ia.br saber de quem e. Pelo Google, quem
-   chama abre o navegador como sempre. true quando confirmou. */
-async function confirmarComSenha() {
-  const e = vinc.estado || (await lerVinculoGoogle()) || {};
-  const r = await dialogo({ titulo: "Confirme a sua conta", contexto: e.email || "",
-    texto: "Digite a senha da sua Conta Atos. Ela vai só a paulus.ia.br, para confirmar que é você.",
-    campo: { rotulo: "Senha", tipo: "password", selecionar: false }, confirmar: "Confirmar" });
-  if (!r || !r.ok) return false;
-  try {
-    await postSenha("/api/vinculo/senha/entrar", { finalidade: "confirmar", email: e.email, senha: r.valor });
-    return true;
-  } catch (err) { avisoCert(err.message, { tom: "erro" }); return false; }
+/* O "Entrar com Atos": a mesma linha-botao do Google, com o A da Atos. */
+function botaoAtos(attrs, esperando, titulo) {
+  return linhaBotao({ classe: "centro", attrs: (attrs || "") + (esperando ? " disabled" : ""), icones: [{ html: ICONE_ATOS, classe: "lb-22" }],
+    titulo: esperando ? "Esperando a Atos no navegador…" : (titulo || "Entrar com Atos") });
 }
 
 /* ------------------------------------------------------------ a trava */
@@ -287,11 +82,11 @@ const ICONE_ATOS = '<img class="atos-ic" src="/img/conta-atos.png" alt="" width=
 
 function iconesDaConta(por, comAtos) {
   const atos = { html: ICONE_ATOS, classe: "lb-22" };
-  return por === "senha" ? [atos] : comAtos ? [atos, G_DO_GOOGLE] : [G_DO_GOOGLE];
+  return ehContaAtos(por) ? [atos] : comAtos ? [atos, G_DO_GOOGLE] : [G_DO_GOOGLE];
 }
 
 function nomeDaConta(por, comAtos) {
-  return por === "senha" ? "Conta Atos" : comAtos ? "Atos + Google" : "Conta Google";
+  return ehContaAtos(por) ? "Conta Atos" : comAtos ? "Atos + Google" : "Conta Google";
 }
 
 function telaDaTrava() {
@@ -318,8 +113,7 @@ function desenharTrava() {
   }
   // O desenho "Servidor - Entrar" (02/10/2026): a coluna de 360 px no meio,
   // como a tela de entrar de fora (frontend/entrar.html) - a conta deste
-  // servidor, manter aberto, o Google no trilho, a senha da conta PAVLVS
-  // (07/10) e, embaixo, o que continua funcionando enquanto a janela esta
+  // servidor, manter aberto, o Google ou a Atos (09/10) no trilho e, embaixo, o que continua funcionando enquanto a janela esta
   // travada. O codigo e a chave seguem o mesmo desenho ("Codigo" e "Chave de
   // recuperacao").
   const esperando = e.fase === "aguardando" || e.fase === "trocando" || e.fase === "testando";
@@ -330,7 +124,7 @@ function desenharTrava() {
   const codigo = e.precisa_codigo || semNet;
   const pronto = Boolean((e.sem_internet || {}).pronto);
   const conta = (rotulo, trocar) => '<div class="trava-grupo"><span class="trava-etiqueta">' + rotulo + "</span>" +
-    '<div class="trava-caixa">' + (semNet ? ic("desktop_windows", 16) : e.por === "senha" ? ic("mail", 16) : G_DO_GOOGLE) + '<span class="trava-email">' + esc(e.email) + "</span>" +
+    '<div class="trava-caixa">' + (semNet ? ic("desktop_windows", 16) : ehContaAtos(e.por) ? ICONE_ATOS.replace(/22/g, "16") : G_DO_GOOGLE) + '<span class="trava-email">' + esc(e.email) + "</span>" +
     (trocar ? '<button type="button" class="trava-trocar" id="trava-trocar">' + esc(trocar) + "</button>" : "") + "</div></div>";
   // O Google e a linha-botao (css/57-linha-botao.css); o enviar do formulario segue no trilho.
   const trilho = (id, texto, google, desligado) => google
@@ -351,7 +145,7 @@ function desenharTrava() {
         : ' inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Código de 6 dígitos"') + "></div>" +
       (recuperacao ? '<span class="trava-ajuda">Cada chave vale uma vez.</span>' : "") + "</div>" +
       // "Nao pedir o codigo neste computador por 30 dias": so depois da conta
-      // (Google ou senha; o mesmo do "Confiar neste navegador" de quem entra de fora).
+      // (Google ou Atos; o mesmo do "Confiar neste navegador" de quem entra de fora).
       (!recuperacao && !semNet ? '<label class="trava-manter"><input type="checkbox" id="trava-confiar"' + (vinc.confiarCodigo ? " checked" : "") +
         '><i aria-hidden="true">' + ic("check", 13) + "</i><span>Não pedir o código neste computador por 30 dias</span></label>" : "") +
       '<p class="trava-erro" id="trava-erro"></p>' +
@@ -361,17 +155,13 @@ function desenharTrava() {
     tela = "trava";
     frase = "Entre com a sua conta para abrir o escritório.";
     // Desenho de 09/10/2026: a trava so protege o computador do servidor - entra de novo a conta dele, do jeito
-    // dela: a Conta Google pelo "Entrar com Google", a Conta Atos pela senha. Nada de trocar de conta aqui: quem
-    // precisa de fora entra pelo tunel, com o e-mail autorizado. Depois, "ENQUANTO ISSO": o tunel, que liga e
-    // desliga com o codigo do Google Authenticator.
-    const noComeco = contaSenha.modo === "entrar" && !contaSenha.etapa;
-    const google = e.por !== "senha";
-    const comGoogle = google && e.google;
+    // dela: a Conta Google pelo "Entrar com Google", a Conta Atos pelo "Entrar com Atos" (a senha e pedida de novo
+    // la, em atos.dev.br). Nada de trocar de conta aqui: quem precisa de fora entra pelo tunel, com o e-mail
+    // autorizado. Depois, "ENQUANTO ISSO": o tunel, que liga e desliga com o codigo do Google Authenticator.
+    const atos = ehContaAtos(e.por);
     const linhaConta = linhaBotao({ tag: "div", classe: "duas", icones: iconesDaConta(e.por), titulo: nomeDaConta(e.por), sub: esc(e.email) });
     const manter = '<label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") + '><i aria-hidden="true">' +
       ic("check", 13) + "</i><span>Manter aberto neste computador</span></label>";
-    const rotuloSenha = !noComeco ? "TROCAR A SENHA" : "";
-    const form = comGoogle ? "" : formContaSenha({ emailFixo: e.email, v: VISUAL_BV, cartao: true, rotulo: rotuloSenha, antesDoBotao: noComeco ? manter : "" });
     const ligado = Boolean(fora.ligado);
     const noAr = foraNoAr && fora.estado === "conectado";
     const enquanto = fora.hostname
@@ -384,14 +174,14 @@ function desenharTrava() {
       : "";
     corpo = '<div class="trava-secoes bv-secoes-conta">' +
       '<div class="bv-secao"><span class="bv-rotulo">CONTA DESTE SERVIDOR</span>' + linhaConta +
-      (comGoogle
-        ? linhaBotao({ classe: "centro", attrs: ' id="trava-google"' + (esperando ? " disabled" : ""), icones: [G_DO_GOOGLE],
-            titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
-          '<div class="trava-manter-fora">' + manter + "</div>" +
-          (esperando ? '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-cancelar">Cancelar</button></div>' : "") +
-          '<p class="acesso-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>"
-        : (rotuloSenha ? "" : form)) +
-      "</div>" + (rotuloSenha ? form : "") + enquanto +
+      (atos
+        ? botaoAtos(' id="trava-entrar"', esperando)
+        : linhaBotao({ classe: "centro", attrs: ' id="trava-entrar"' + (esperando ? " disabled" : ""), icones: [G_DO_GOOGLE],
+            titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" })) +
+      '<div class="trava-manter-fora">' + manter + "</div>" +
+      (esperando ? '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-cancelar">Cancelar</button></div>' : "") +
+      '<p class="acesso-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
+      "</div>" + enquanto +
       (pronto ? '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-sem-internet">Sem internet? Entre com o código do celular</button></div>' : "") +
       "</div>";
   }
@@ -476,7 +266,7 @@ function ligarTrava() {
   if (m) m.onchange = () => { vinc.manterAoEntrar = m.checked; };
   const cf = document.getElementById("trava-confiar");
   if (cf) cf.onchange = () => { vinc.confiarCodigo = cf.checked; };
-  const b = document.getElementById("trava-google");
+  const b = document.getElementById("trava-entrar");
   if (b) b.onclick = async () => {
     const manter = document.getElementById("trava-manter");
     vinc.manterAoEntrar = Boolean(manter && manter.checked);
@@ -497,14 +287,6 @@ function ligarTrava() {
     await postVinculo("/api/vinculo/cancelar").catch(() => {});
     desenharTrava();
   };
-  ligarContaSenha(telaDaTrava(), {
-    finalidade: "destravar", focar: false, redesenhar: desenharTrava,
-    aoEntrar: async () => {
-      const manter = document.getElementById("trava-manter");
-      vinc.manterAoEntrar = Boolean(manter && manter.checked);
-      await aoMudarNaTrava();
-    },
-  });
   const sn = document.getElementById("trava-sem-internet");
   if (sn) sn.onclick = () => { vinc.semInternet = true; vinc.porRecuperacao = false; desenharTrava(); };
   const rec = document.getElementById("trava-recuperacao");
@@ -619,7 +401,7 @@ async function sairDoServidor() {
   const e = (await lerVinculoGoogle()) || {};
   if (!e.vinculado) {
     const ir = await confirmar({ titulo: "Sair da conta", contexto: "servidor do escritório",
-      texto: "Para sair, este Paulus precisa estar vinculado a uma conta (Google ou e-mail e senha): é com ela que se entra de novo. Vincule em Configurações › Escritório e equipe.",
+      texto: "Para sair, este Paulus precisa estar vinculado a uma conta (Conta Google ou Conta Atos): é com ela que se entra de novo. Vincule em Configurações › Escritório e equipe.",
       confirmar: "Vincular agora" });
     if (ir) mostrarConfig("vinculos");
     return;
@@ -637,19 +419,20 @@ function cartaoDoVinculo() {
   if (!e) return "";
   const esperando = e.fase === "aguardando" || e.fase === "trocando" || e.fase === "testando";
   if (!e.vinculado) {
-    // Pelo Google ou pela conta PAVLVS de e-mail e senha (o formulario abre no proprio cartao).
+    // Pela Conta Google ou pela Conta Atos: as duas abrem o navegador.
+    const espera = esperando ? quemNoNavegador(e) : "";
     return cartaoCfg("Conta deste Paulus", metaCfg("não vinculado"),
-      '<p class="cfg-texto">Vincule este Paulus à sua conta — a Conta Google ou uma Conta Atos, com e-mail e senha: ele passa a abrir travado e pede a conta a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
+      '<p class="cfg-texto">Vincule este Paulus à sua conta — a Conta Google ou a Conta Atos, com e-mail e senha de qualquer provedor: ele passa a abrir travado e pede a conta a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
       (e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
       '<div class="acesso-pe">' + (e.google ? '<button class="primario com-icone" data-vinc-vincular="1"' + (esperando ? " disabled" : "") + ">" +
-      (esperando ? "Esperando o Google no navegador…" : "Vincular com Google") + "</button>" : "") +
-      (esperando ? '<button data-vinc-cancelar="1">Cancelar</button>' : "") +
-      '<button class="com-icone" data-vinc-senha="1">' + ic("mail", 16) + (vinc.cfgSenha ? "Fechar o e-mail e senha" : "Vincular com e-mail e senha") + "</button></div>" +
-      (vinc.cfgSenha ? '<div class="bv-entrada cs-no-cartao">' + formContaSenha({ v: VISUAL_BV }) + "</div>" : ""));
+      (espera === "o Google" ? "Esperando o Google no navegador…" : "Vincular com Google") + "</button>" : "") +
+      '<button class="com-icone" data-vinc-atos="1"' + (esperando ? " disabled" : "") + ">" + ICONE_ATOS.replace(/22/g, "16") +
+      (espera === "a Atos" ? "Esperando a Atos no navegador…" : "Vincular com Atos") + "</button>" +
+      (esperando ? '<button data-vinc-cancelar="1">Cancelar</button>' : "") + "</div>");
   }
   const quando = e.vinculado_em ? new Date(e.vinculado_em).toLocaleDateString("pt-BR") : "";
   return cartaoCfg("Conta deste Paulus", pontoCfg("vinculado", "ok"),
-    '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + chaveCfg("Entra com", e.por === "senha" ? "Conta Atos (e-mail e senha)" : "Conta Google") +
+    '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + chaveCfg("Entra com", ehContaAtos(e.por) ? "Conta Atos" : "Conta Google") +
     (e.nome ? chaveCfg("Nome", e.nome) : "") + (quando ? chaveCfg("Desde", quando) : "") + "</div>" +
     '<div class="acesso-energia">' +
     ligaCfg("", "Manter aberto neste computador", e.manter_aberto
@@ -703,10 +486,8 @@ function ligarVinculoCfg() {
     try { await entrarNoGoogleDoVinculo("vincular", redesenhar); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
   });
   clique("[data-vinc-cancelar]", async () => { await postVinculo("/api/vinculo/cancelar").catch(() => {}); redesenhar(); });
-  clique("[data-vinc-senha]", () => { vinc.cfgSenha = !vinc.cfgSenha; redesenhar(); });
-  ligarContaSenha(document, {
-    finalidade: "vincular", redesenhar, focar: false,
-    aoEntrar: async () => { vinc.cfgSenha = false; avisoCert("vinculado: " + ((vinc.estado || {}).email || ""), { tom: "ok" }); redesenhar(); },
+  clique("[data-vinc-atos]", async () => {
+    try { await entrarNoGoogleDoVinculo("vincular", redesenhar, false, "atos"); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
   });
   clique("[data-vinc-manter]", async (b) => {
     try { await postVinculo("/api/vinculo/manter-aberto", { ligado: !b.classList.contains("on") }); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
