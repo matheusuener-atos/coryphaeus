@@ -1032,6 +1032,18 @@ function ligarBoasVindas() {
       const id = m.getAttribute("data-bv-servico");
       if (bv.autorizados[id]) { avisoCert("para desconectar, use Configurações › Conexões depois de abrir o Paulus"); return; }
       bv.servicos[id] = !bv.servicos[id];
+      // A Agenda, o Meet e o Drive usam a autorizacao do Gmail (src/rotas_boas_vindas.py, autorizar): enquanto
+      // o Gmail nao esta autorizado, ligar um deles liga o Gmail junto, e desligar o Gmail desliga os outros.
+      if (!bv.autorizados.gmail) {
+        const dependentes = SERVICOS_BV.filter((sv) => !sv.com && sv.id !== "gmail" && !bv.autorizados[sv.id]).map((sv) => sv.id);
+        if (id !== "gmail" && bv.servicos[id] && !bv.servicos.gmail) {
+          bv.servicos.gmail = true;
+          avisoCert("o Gmail foi marcado junto: a Agenda e o Drive usam a mesma autorização dele");
+        } else if (id === "gmail" && !bv.servicos.gmail && dependentes.some((d) => bv.servicos[d])) {
+          dependentes.forEach((d) => { bv.servicos[d] = false; });
+          avisoCert("a Agenda e o Drive foram desmarcados: eles usam a autorização do Gmail");
+        }
+      }
       desenharBoasVindas();
     });
   });
