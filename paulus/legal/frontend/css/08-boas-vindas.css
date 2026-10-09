@@ -294,3 +294,10 @@
   .bv-cartao-plano .lb-titulo { display: inline-flex; align-items: center; gap: 10px; }
   .bv-plano-ativa { font-weight: 400; }
   @media (max-width: 720px) { .bv-dados-grade { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Atualizacoes: o titulo alinhado ao texto das linhas, e um fio entre elas. */
+  .bv-cartao-atu { max-width: 740px; width: 100%; justify-self: center; }
+  .bv-cartao-atu > .bv-rotulo { padding: 0 12px; }
+  .bv-cartao-atu .bv-grupos { gap: 0; }
+  .bv-cartao-atu .bv-modulo { padding: 12px; border-radius: 0; }
+  .bv-cartao-atu .bv-modulo + .bv-modulo { border-top: 1px solid var(--ink-a08); }

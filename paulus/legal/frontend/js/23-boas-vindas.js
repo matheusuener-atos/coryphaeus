@@ -932,8 +932,10 @@ function passoAtualizacoes() {
     '<div class="bv-modulo' + (bloqueado ? " fixo" : "") + '"' + (bloqueado ? "" : ' data-bv-atu="' + id + '" role="switch" tabindex="0" aria-checked="' + Boolean(ligado) + '"') + ">" +
     '<span class="duas-linhas"><b>' + titulo + "</b><small>" + desc + "</small></span>" +
     '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span></div>';
-  const lado = '<div class="bv-cartao"><div class="bv-grupos">' +
-    linha("verificar", "Verificar atualizações uma vez por dia", "desligado, o Paulus não procura versão nova; dá para verificar em Configurações › Versão", a.verificar) +
+  const lado = '<div class="bv-cartao bv-cartao-atu"><span class="bv-rotulo">ATUALIZAÇÕES</span><div class="bv-grupos">' +
+    linha("verificar", "Verificar atualizações uma vez por dia", a.verificar
+      ? "o Paulus procura versão nova todo dia"
+      : "desligado, o Paulus não procura versão nova; dá para verificar em Configurações › Versão", a.verificar) +
     linha("avisar_antes", "Avisar antes de instalar", a.avisar_antes
       ? "a faixa do topo avisa; você instala quando quiser"
       : "a versão nova baixa sozinha e se instala quando você fechar o Paulus", a.avisar_antes, !a.verificar) + "</div></div>";
