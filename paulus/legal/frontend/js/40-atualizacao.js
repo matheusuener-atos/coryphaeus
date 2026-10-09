@@ -20,7 +20,6 @@ async function carregarAtualizacao() {
 async function avisarAtualizacao() {
   const d = await carregarAtualizacao();
   if (!d || !d.anuncio || !d.anuncio.nova || !d.avisar_antes) return;
-  if (typeof vinculoPendente === "function" && vinculoPendente()) return;
   avisoFixoNaJanela("Paulus " + d.anuncio.versao + " disponível · você está na " + d.atual + ".", {
     icone: "download",
     acao: { rotulo: "Ver a atualização", fazer: () => { avisoFixoNaJanela(null); abrirAtualizacaoEmConfiguracoes(); } },

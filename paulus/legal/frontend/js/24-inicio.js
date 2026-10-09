@@ -9,7 +9,6 @@ carregarAbertos();
 carregarModelo();
 carregarUsuario();
 verificarPrimeiraAbertura();
-aplicarModoLimitado();
 $("nova").click();
 // A versao nova: o anuncio ja guardado aparece logo; o da verificacao do dia
 // (que o servidor faz 30 s depois de abrir) aparece em seguida.

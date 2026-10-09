@@ -1353,8 +1353,6 @@ function ligarConfig() {
   });
   if (cfg.secao === "vinculos" && typeof ligarEquipeCfg === "function") ligarEquipeCfg();
   if (cfg.secao === "backup" && typeof ligarBackupCfg === "function") ligarBackupCfg();
-  clique("[data-cfg-vinculo-copiar]", () => copiarTexto((lerVinculo() || {}).meuCodigo || "", "código copiado"));
-  clique("[data-cfg-vinculo-cancelar]", () => cancelarVinculo());
   clique("[data-cfg-equipe]", () => mostrarCadastros("equipe"));
   clique("[data-cfg-voz-usar]", async (b) => {
     const r = await fetch("/api/voz/modelo", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ modelo: b.dataset.cfgVozUsar }) });

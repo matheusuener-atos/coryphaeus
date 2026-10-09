@@ -22,17 +22,12 @@
   .bv-etapas { margin-left: auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 24px; overflow: hidden; }
   .bv-etapa { font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; transition: color .2s ease; }
   .bv-etapa.atual { color: var(--ink); }
-  /* O numero de passo tem uma medida so (20). O .bv-num-passo dos codigos
-     (20-vinculo) e o mesmo circulo, sempre cheio. */
-  .bv-num, .bv-num-passo {
+  /* O numero de passo (o circulo cheio de Configuracoes › Acesso externo, js/43-acesso-tunel.js). */
+  .bv-num-passo {
     width: 20px; height: 20px; border-radius: 50%; box-sizing: border-box; flex: none;
     display: flex; align-items: center; justify-content: center;
-    font: 700 12px var(--sans); border: 1px solid var(--ink-a1); color: var(--ink3);
+    font: 700 12px var(--sans); border: 1px solid var(--ink); background: var(--ink); color: var(--bg);
   }
-  .bv-etapa.atual .bv-num, .bv-num-passo { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-  .bv-etapa.feita .bv-num { background: var(--okbg); border-color: transparent; color: var(--okt); }
-  .bv-traco { display: block; width: 16px; height: 1px; background: var(--ink-a1); flex: none; }
-  .bv-selo { display: flex; align-items: center; gap: 8px; font: 400 12px var(--plex); letter-spacing: .14em; color: var(--ink2); white-space: nowrap; flex: none; }
 
   .bv-corpo { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); }
   .bv-texto { display: grid; gap: 18px; align-content: center; max-width: 580px; min-height: 0; }
@@ -49,15 +44,13 @@
   .bv-lado::-webkit-scrollbar { display: none; }
   /* Item de grid nao encolhe abaixo do conteudo sem isto: o nome longo de um
      modelo empurrava a coluna para fora da tela. */
-  .bv-lado > *, .bv-texto > *, .bv-modelos > *, .bv-grupos > * { min-width: 0; }
+  .bv-lado > *, .bv-texto > * { min-width: 0; }
 
-  .bv-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
-  .bv-cartao-pe { font: 400 13px/1.55 var(--sans); color: var(--ink); border-top: 1px solid var(--ink-a1); padding-top: 12px; margin: 0; }
   /* A coluna de /entrar (entrar.html), para os passos que sao um login: sem cartao, 440 px, rotulo mono,
      a linha com fio (40 px, raio 10) e o botao Google como trilho + pastilha de largura inteira. */
   /* 560 px: a largura do cartao de login (mockup de 08/10/2026), a mesma para todo formulario do assistente. */
   .bv-entrada { width: 100%; max-width: 560px; justify-self: center; display: grid; gap: 14px; }
-  .bv-entrada:has(.bv-dados), .bv-entrada:has(.bv-dados-grade) { max-width: 780px; }
+  .bv-entrada:has(.bv-dados-grade) { max-width: 780px; }
   .bv-entrada .bv-rotulo { color: var(--ink3); }
   .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); }
   .bv-linha:hover { background: var(--cartao-fundo); border-color: var(--ink-a2); }
@@ -77,8 +70,6 @@
   .bv-giro { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid var(--ink-a15); border-top-color: var(--ink); animation: bv-giro .9s linear infinite; }
   @keyframes bv-giro { to { transform: rotate(360deg); } }
   html.sem-animacao .bv-giro { animation: none; }
-  /* Os dados lidos da assinatura, com cara de formulario (rotulo em cima, valor na caixa), so leitura. */
-  .bv-dados { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 12px; padding: 18px 20px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); }
   .bv-campo-ro { display: grid; gap: 5px; min-width: 0; grid-column: span 2; }
   .bv-campo-ro.meio { grid-column: span 3; }
   .bv-campo-ro.largo { grid-column: 1 / -1; }
@@ -87,103 +78,15 @@
   .bv-campo-ro > b { display: block; min-height: 36px; padding: 8px 10px; border: 1px dashed var(--ink-a15); border-radius: 8px; background: transparent; font-weight: 500; font-size: 13px; line-height: 1.35; color: var(--ink2); overflow-wrap: anywhere; cursor: default; user-select: text; }
   .bv-campo-ro > b.mono { font: 400 13px/1.35 var(--mono); }
   .bv-campo-ro i { font-style: normal; color: var(--ink3); }
-  .bv-ajuda-dados { text-align: left; margin-top: -4px; }
-  .bv-ajuda-dados .bv-ligacao { display: inline-flex; vertical-align: baseline; padding: 0; font-size: inherit; }
-  @media (max-width: 560px) { .bv-dados > .bv-campo-ro { grid-column: 1 / -1; } }
-  .bv-dado-plano { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -4px; }
-  .bv-plano-nome { display: inline-flex; align-items: center; gap: 8px; }
-  .bv-dado-plano .bv-ligacao { flex: none; }
   .bv-ajuda { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink3); text-align: center; text-wrap: pretty; }
-  .bv-checks { display: grid; gap: 9px; }
-  /* A receita e a da lista de etapas (02-conversa.css); o estado muda so a cor. */
-  .bv-check { align-items: flex-start; font-size: 13px; }
-  .bv-check.parcial .ic { color: var(--ink2); }
-  .bv-check.falta .ic { color: var(--ink3); }
 
-  /* A logo oficial: sempre escura, nos dois temas; no escuro, um fio claro. */
-  .bv-logo {
-    width: 40px; height: 40px; border-radius: 8px; flex: none;
-    background: var(--logo-fundo); color: var(--logo-tinta); box-shadow: inset 0 0 0 1px var(--ink-a1);
-    display: flex; align-items: center; justify-content: center; font: 500 32px/1 var(--serif);
-  }
-  [data-tema="escuro"] .bv-logo { box-shadow: inset 0 0 0 1px var(--ink-a15); }
-  .bv-instalacao { display: flex; align-items: center; gap: 14px; }
-  .bv-instalacao .duas-linhas { flex: 1; min-width: 0; }
-  .bv-instalacao .duas-linhas b { font-weight: 500; font-size: 14px; }
-  .bv-instalacao small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  /* Fio, raio, fundo, hover e estado escolhido da opcao em cartao vem da regra
-     unificada em 17-configuracoes.css; aqui fica so o layout. */
-  .bv-opcoes { display: grid; gap: 12px; }
-  .bv-opcao { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: var(--cartao-fundo); }
-  .bv-radio { margin-top: 2px; }
-  .bv-opcao-titulo { display: flex; align-items: center; gap: 8px; font: 500 16px var(--sans); color: var(--ink); white-space: normal; }
-  .bv-opcao-titulo .etiqueta { margin-left: auto; white-space: nowrap; }
-  .bv-opcao .duas-linhas { flex: 1; min-width: 0; }
-  .bv-opcao .duas-linhas small { white-space: normal; font: 400 13px/1.55 var(--sans); color: var(--ink2); }
-
-  .bv-foto { display: flex; align-items: center; gap: 14px; }
-  .bv-iniciais { width: 52px; height: 52px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center; font: 500 16px var(--sans); color: var(--ink2); flex: none; }
-  .bv-foto .duas-linhas small { white-space: normal; }
-  .bv-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
-  .bv-grade input, .bv-grade select { background: var(--campo-fundo); }
-
-  /* Esta maquina e a lista de modelos, no estilo da biblioteca do Ollama. */
-  .bv-maquina { gap: 10px; padding: 16px 20px; }
-  .bv-maquina .bv-tabela > div { grid-template-columns: 110px minmax(0, 1fr); font-size: 13px; }
-  .bv-diag { display: grid; gap: 6px; border-top: 1px solid var(--ink-a1); padding-top: 10px; }
-  .bv-diag > span { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); }
-  .bv-diag .barra-fina { height: 3px; }
-  .bv-diag .pulso { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--ink); flex: none; animation: bv-pulso 1.4s ease-in-out infinite; }
   @keyframes bv-pulso { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-  .bv-modelos, .bv-grupos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .bv-lista-titulo { padding: 12px 12px 6px; }
-  .bv-modelo {
-    display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 0; border-radius: 12px;
-    background: transparent; color: var(--ink); text-align: left; font: inherit; cursor: pointer; width: 100%;
-  }
-  .bv-modelo:hover:not(:disabled) { background: var(--fill); border: 0; }
-  .bv-modelo.escolhido { background: var(--fill); }
-  .bv-modelo.escolhido .bv-radio { border: 5px solid var(--ink); }
-  .bv-modelo.bloqueado { opacity: .55; cursor: default; }
-  .bv-modelo .duas-linhas { flex: 1; min-width: 0; gap: 1px; }
-  .bv-modelo .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
-  .bv-modelo-nome { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; font: 500 14px var(--sans); }
-  .bv-modelo-nome > span:first-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bv-modelo-nome .etiqueta { font-size: 12px; padding: 1px 7px; }
-  .bv-fabricante {
-    width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--ink-a1); box-sizing: border-box;
-    display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2);
-  }
-  .bv-fabricante img, .bv-fabricante svg { width: 20px; height: 20px; }
-  .bv-modelo-medida { display: grid; gap: 2px; justify-items: end; flex: none; }
-  .bv-tamanho { font: 400 12px var(--plex); padding: 4px 9px; border-radius: 8px; background: var(--fill2); white-space: nowrap; }
-  .bv-modelo-medida small { font: 400 12px var(--plex); color: var(--ink2); white-space: nowrap; }
-  .bv-calibracao {
-    display: flex; align-items: center; gap: 14px; padding: 14px 12px; margin: 8px 0 4px;
-    border-top: 1px solid var(--ink-a1); border-bottom: 1px solid var(--ink-a1);
-  }
-  .bv-calibracao .duas-linhas { flex: 1; min-width: 0; }
-  .bv-calibracao .duas-linhas b { font-size: 13px; }
-  .bv-calibracao .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
 
-  /* Modulos: a linha inteira e a chave. */
-  .bv-contagem { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink2); border-top: 1px solid var(--ink-a1); padding-top: 14px; max-width: 420px; }
-  .bv-contagem span:last-child { font-family: var(--plex); color: var(--ink); }
-  .bv-grupos .bv-lista-titulo { padding: 8px 12px 6px; }
-  /* Modulos: um cartao largo em duas colunas (o nucleo e o Dia a dia a esquerda; Documentos e Escritorio a direita). */
-  .bv-lado:has(.bv-modulos) { align-content: start; }
-  .bv-modulos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; padding: 14px 16px; }
-  .bv-mod-grupo { display: grid; gap: 2px; align-content: start; min-width: 0; }
-  .bv-mod-grupo .bv-lista-titulo { padding: 8px 12px 6px; }
-  .bv-modulos .bv-modulo { padding: 7px 12px; gap: 12px; }
-  .bv-modulos .bv-modulo .duas-linhas small { font-size: 12px; }
   .bv-modulo.fora { cursor: default; opacity: .55; }
   .bv-modulo.fora:hover { background: transparent; }
   .bv-modulo.fora .interruptor-min { pointer-events: none; }
   .bv-modulo .duas-linhas b { display: inline-flex; align-items: center; gap: 8px; }
   .bv-modulo .etiqueta { font-size: 12px; padding: 1px 7px; opacity: 1; }
-  @media (max-width: 720px) { .bv-modulos { grid-template-columns: minmax(0, 1fr); } }
   .bv-modulo { display: flex; align-items: center; gap: 14px; padding: 9px 12px; border-radius: 12px; cursor: pointer; }
   .bv-modulo:hover { background: var(--fill); }
   .bv-modulo.fixo { cursor: default; }
@@ -191,28 +94,8 @@
   .bv-modulo .duas-linhas { flex: 1; min-width: 0; }
   .bv-modulo .duas-linhas b { font-size: 14px; }
   .bv-modulo .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
-  .bv-fixo { width: 34px; font-size: 12px; color: var(--ink3); text-align: center; flex: none; }
 
   .bv-acesso { display: grid; gap: 12px; }
-  .bv-acesso > .bv-cartao { width: 100%; }
-  .bv-recusa { min-height: 56px; padding: 10px 14px; gap: 14px; }
-  .bv-recusa .duas-linhas { flex: 1; min-width: 0; }
-  .bv-recusa .duas-linhas small { white-space: normal; }
-  .bv-conta { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--botao-fundo); cursor: pointer; }
-  .bv-conta .duas-linhas { flex: 1; min-width: 0; }
-  .bv-conta .duas-linhas b { font-weight: 500; }
-  .bv-conta .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
-  .bv-veu { position: fixed; inset: 0; z-index: 52; background: rgba(0, 0, 0, .5); display: flex; align-items: center; justify-content: center; }
-  .bv-entrar-coluna { display: grid; gap: 14px; justify-items: center; }
-  .bv-entrar {
-    width: 460px; max-width: calc(100vw - 32px); box-sizing: border-box; border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--cartao-fundo); padding: 36px 40px; display: grid; gap: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
-  }
-  .bv-entrar h2 { margin: 0; font: 400 36px/1 var(--serif); }
-  .bv-entrar .eo-login, .bv-entrar .eo-botoes { display: grid; }
-  .bv-entrar > .bv-ligacao { justify-self: center; }
-  .bv-entrar-notas { display: flex; gap: 20px; font-size: 12px; color: var(--veu-tinta); }
-
 
   .bv-rodape { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--ink-a1); padding-top: 18px; }
   .bv-rodape-nota { font-size: 13px; color: var(--ink3); text-align: right; }
@@ -255,76 +138,38 @@
   html.sem-animacao .bv-corpo.bv-entra, html.sem-animacao .bv-corpo.bv-entra .bv-lado { animation: none; }
   @media (prefers-reduced-motion: reduce) { .bv-corpo.bv-entra, .bv-corpo.bv-entra .bv-lado { animation: none; } }
 
-  /* Sua conta (desenho de 08/10/2026): um cartao so - rotulo, Google, "OU COM E-MAIL",
-     o formulario da conta PAVLVS e, depois de um fio, a nota. Os modos Criar conta,
-     codigo e Esqueci a senha ficam na mesma moldura. */
-  .bv-cartao-conta { display: grid; gap: 16px; padding: 24px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); }
-  .bv-cartao-conta .cs-rotulo-linha { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  .bv-cartao-conta .cs-rotulo-linha .bv-ligacao { padding: 0; font-size: 12px; }
-  .bv-cartao-conta .cs-pergunta { margin: 0; font-size: 13px; color: var(--ink3); text-align: center; }
-  .bv-cartao-conta .cs-link-forte { padding: 0; border: 0; background: none; font: 500 13px var(--sans); color: var(--ink); cursor: pointer; }
-  .bv-cartao-conta .cs-link-forte:hover:not(:disabled) { background: none; border: 0; text-decoration: underline; text-underline-offset: 2px; }
-  .bv-cartao-conta .cs-campo { background: var(--campo-fundo); }
-  /* O aviso do codigo, a esquerda como os rotulos; so a nota do rodape fica centralizada. */
-  .bv-cartao-conta .cs-form > .bv-ajuda { text-align: left; }
-  .bv-cartao-conta #cs-codigo { font-family: var(--mono); letter-spacing: .3em; }
-  .bv-cartao-nota { margin: 0; padding-top: 16px; border-top: 1px solid var(--ink-a08); font-size: 12px; }
-
   /* Boas-vindas: a lista do cartao da instalacao (desenho de 09/10/2026), linhas de 40 px com fio entre elas. */
   .bv-itens { list-style: none; margin: 0; padding: 0; display: grid; }
   .bv-item { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 14px; color: var(--ink2); }
   .bv-item + .bv-item { border-top: 1px solid var(--ink-a08); }
   .bv-item .ic { font-size: 20px; width: 20px; height: 20px; line-height: 1; color: var(--ink3); flex: none; }
   .bv-item.ok .ic { color: var(--okt); font-variation-settings: "FILL" 1; }
-  .bv-cartao-instalacao .bv-cartao-nota { text-align: left; }
   .bv-item b { flex: 1; min-width: 0; font: 500 14px var(--sans); color: var(--ink); }
   .bv-item span { font-size: 13px; color: var(--ink3); text-align: right; }
-  .bv-cartao-instalacao .lb-sub .mono { font-family: var(--mono); }
 
   /* Seus dados (desenho de 09/10/2026): dois cartoes, os dados em grade de tres colunas e o plano. */
-  .bv-cartao-dados, .bv-cartao-plano { gap: 12px; padding: 20px 24px; }
+  .bv-cartao-dados { gap: 12px; padding: 20px 24px; }
   .bv-dados-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .bv-dado { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 12px 16px 12px 0; border-bottom: 1px solid var(--ink-a08); }
   .bv-dado.largo { grid-column: 1 / -1; }
   .bv-dado > span { font: 400 11px var(--plex); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
   .bv-dado > b { font: 500 15px var(--sans); color: var(--ink); overflow-wrap: break-word; }
   .bv-dado > i { font: 400 15px var(--sans); font-style: normal; color: var(--ink3); }
-  .bv-dados-nota { margin: 0; font-size: 13px; color: var(--ink3); text-align: left; }
   .bv-ligacao-forte { color: var(--ink); }
-  .bv-cartao-plano .lb-titulo { display: inline-flex; align-items: center; gap: 10px; }
   .bv-plano-ativa { font-weight: 400; }
   @media (max-width: 720px) { .bv-dados-grade { grid-template-columns: minmax(0, 1fr); } }
-
-  /* Atualizacoes: o titulo alinhado ao texto das linhas, e um fio entre elas. */
-  .bv-cartao-atu { max-width: 740px; width: 100%; justify-self: center; }
-  .bv-cartao-atu > .bv-rotulo { padding: 0 12px; }
-  .bv-cartao-atu .bv-grupos { gap: 0; }
-  .bv-cartao-atu .bv-modulo { padding: 12px; border-radius: 0; }
-  .bv-cartao-atu .bv-modulo + .bv-modulo { border-top: 1px solid var(--ink-a08); }
-
-  /* O plano em destaque em "Seus dados": nome e "plano atual", o valor, e o pe com a data e o upgrade. */
-  .bv-plano-tile { display: grid; gap: 14px; padding: 18px 18px 16px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--botao-fundo); }
-  .bv-plano-topo, .bv-plano-pe { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .bv-plano-topo > b { font: 400 22px/1.1 var(--serif); color: var(--ink); }
-  .bv-plano-preco { display: flex; align-items: baseline; gap: 10px; }
-  .bv-plano-preco > b { font: 700 28px/1 var(--sans); color: var(--ink); letter-spacing: -.01em; }
-  .bv-plano-preco > span { font-size: 14px; color: var(--ink3); }
-  .bv-plano-pe > span { font-size: 13px; color: var(--ink3); }
-  .bv-plano-pe .bv-ligacao { font-size: 13px; }
 
   /* A tipografia do pos-instalador numa escala so (09/10/2026): os cartoes falam como o lado editorial.
      Rotulo de secao: mono 12px, .18em (o "PASSO 4 — ..." da esquerda, o titulo do cartao, "O que autorizar",
      os passos do acesso). Rotulo de campo: mono 11px, .14em. Titulo de linha: 14px 500. Subtitulo de linha:
      12px 400. Nota e ajuda: 13px 400, 1.5. Botao e link do rodape: 13px 500, como o Continuar e a barra do topo. */
-  #boas-vindas .lb-rotulo,
   #boas-vindas .acesso-etapa-cabeca > b { font: 400 12px var(--plex); letter-spacing: .18em; text-transform: uppercase; }
   #boas-vindas .bv-dado > span,
   #boas-vindas .bv-campo-ro > span { font: 400 11px var(--plex); letter-spacing: .14em; }
   #boas-vindas .bv-dado > b,
   #boas-vindas .bv-dado > i { font-size: 14px; }
   #boas-vindas .bv-lado .duas-linhas small { font-weight: 400; }
-  #boas-vindas .bv-lado .cfg-explica,
-  #boas-vindas .bv-cartao-nota { font: 400 13px/1.5 var(--sans); }
+  #boas-vindas .bv-lado .cfg-explica { font: 400 13px/1.5 var(--sans); }
   #boas-vindas .bv-rodape .bv-ligacao { font-size: 13px; }
 
   /* As secoes do pos-instalador (desenho de 09/10/2026): o rotulo fora, acima do cartao; no cartao, os campos, o

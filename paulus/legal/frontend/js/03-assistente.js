@@ -2731,12 +2731,10 @@ async function carregarAgora() {
   }
   sub.textContent = situacao ? base + " " + situacao : base;
 
-  const espera = vinculoPendente() ? [cartaoDeEsperaDoVinculo()] : [];
   const ditando = cartaoDoDitado();
-  $("agora").hidden = cartoes.length + espera.length === 0 && !ditando;
-  $("agora-cartoes").innerHTML = ditando + espera.concat(cartoes).join("");
+  $("agora").hidden = cartoes.length === 0 && !ditando;
+  $("agora-cartoes").innerHTML = ditando + cartoes.join("");
   ligarCartaoDoDitado();
-  ligarEsperaDoVinculo();
   if (typeof ligarGravacaoAgora === "function") ligarGravacaoAgora($("agora-cartoes"));
   $("agora-cartoes").querySelectorAll("[data-abre]").forEach((el) => {
     el.onclick = (e) => {

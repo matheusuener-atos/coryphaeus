@@ -1259,7 +1259,7 @@ def main() -> int:
             # assinatura) nem o caminho de quem entra num escritorio existente
             # (os Codigos): so o de quem cria.
             checar(
-                pagina.evaluate("() => bv.caminho === 'criar' && !document.querySelector('[data-caminho]')")
+                pagina.evaluate("() => !document.querySelector('[data-caminho]') && typeof passoCodigos === 'undefined' && typeof passoIA === 'undefined'")
                 and not any(n in pagina.evaluate("() => [...document.querySelectorAll('.bv-etapa')].map(e => e.textContent)")
                             for n in ("Escritório", "Códigos")),
                 "o assistente e so o de quem cria o escritorio, sem 'entrar num existente'",
