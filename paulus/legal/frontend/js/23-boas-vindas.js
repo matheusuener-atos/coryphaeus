@@ -45,6 +45,8 @@ const bv = {
   voz: null, vozEscolhida: "",
 };
 // "modulos" saiu do assistente: o plano libera, e esconder/mostrar fica em Configuracoes › Modulos.
+// O passo Assinatura so entra sem plano ativo (ordemBv): na pratica, quem entrou com o Google sem nunca ter
+// assinado. Quem cria a conta no site (09/10/2026) ja sai com o plano e passa direto.
 const ORDEM_CRIAR = ["boasvindas", "google", "assinatura", "dados", "conexoes", "acesso", "atualizacoes"];
 const ORDEM_ENTRAR = ["boasvindas", "escritorio", "dados", "ia", "codigos"];
 const NOMES_BV = {
@@ -267,11 +269,13 @@ function desenharBoasVindas() {
   else if (passo === "assinatura") botao = "Continuar sem assinatura";
   else if (passo === "conexoes" && SERVICOS_BV.some((sv) => !sv.com && bv.servicos[sv.id] && !bv.autorizados[sv.id])) botao = "Autorizar no Google";
   else botao = "Continuar";
-  const esperando = (passo === "ia" && !bv.maquina) || (passo === "assinatura" && !(bv.assinatura && (bv.assinatura.ativa || bv.assinatura.situacao === "vencida"))) || (passo === "dados" && bv.dadosEsperando) || (passo === "conexoes" && bv.consentEsperando);
+  const esperando = (passo === "ia" && !bv.maquina) || (passo === "assinatura" && !(bv.assinatura && (bv.assinatura.ativa || bv.assinatura.situacao === "vencida"))) || (passo === "dados" && bv.dadosEsperando) || (passo === "conexoes" && bv.consentEsperando)
+    // Entrar e obrigatorio: o Continuar do passo Sua conta so aparece com a conta vinculada.
+    || (passo === "google" && !(typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado));
   const rodape = '<div class="bv-rodape">' +
     (bv.passo === 0 ? "" : '<button class="bv-ligacao" data-bv="voltar">' + ic("arrow_back", 16) + "Voltar</button>") +
     '<span class="cresce"></span>' +
-    (["modulos", "conexoes", "acesso", "google"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
+    (["modulos", "conexoes", "acesso"].includes(passo) ? '<button class="bv-ligacao apagada" data-bv="pular">Pular por agora</button>' : "") +
     (esperando ? "" : '<button class="bv-continuar" data-bv="continuar"><span>' + botao + "</span></button>") + "</div>";
 
   caixa.innerHTML = '<div class="bv-tela">' + cabeca + corpo + rodape + "</div>" +
@@ -518,7 +522,11 @@ function passoDados() {
     campo("OAB", p.oab, true) + campo("CPF ou CNPJ", p.cpf, true) + campo("Telefone", p.telefone, true) +
     campo("E-mail", p.email, true, "meio") + campo("Endereço", p.endereco, false, "meio") + "</div>" +
     '<p class="bv-ajuda bv-ajuda-dados">Estas são as informações do seu cadastro. Se algo estiver errado ou precisar mudar, <button type="button" class="bv-ligacao" data-bv="editar-site">' + ic("open_in_new", 14) + "edite no site</button>.</p>" +
-    (a.plano ? '<span class="bv-rotulo">PLANO</span><div class="bv-linha bv-dado-plano"><span class="duas-linhas"><b class="bv-plano-nome">' + esc(a.plano) + ' <span class="etiqueta ok">ativa</span></b><small>' + (a.renova_em ? "renova em " + esc(dataBR(a.renova_em)) : "") + '</small></span><button type="button" class="bv-ligacao" data-bv="upgrade">' + ic("open_in_new", 14) + 'Fazer upgrade</button></div>' : "") +
+    (a.plano ? '<span class="bv-rotulo">PLANO</span><div class="bv-linha bv-dado-plano"><span class="duas-linhas"><b class="bv-plano-nome">' + esc(a.plano) + ' <span class="etiqueta ok">ativa</span></b><small>' + (a.renova_em ? "renova em " + esc(dataBR(a.renova_em)) : "") + '</small></span><button type="button" class="bv-ligacao" data-bv="upgrade">' + ic("open_in_new", 14) + 'Fazer upgrade</button></div>' :
+      // Sem plano ativo (a assinatura venceu ou foi cancelada): o Paulus abre com o basico; o link leva a assinar no site.
+      '<span class="bv-rotulo">PLANO</span><div class="bv-linha bv-dado-plano"><span class="duas-linhas"><b class="bv-plano-nome">Sem plano ativo</b>' +
+      '<small>' + (a.situacao === "vencida" ? "a assinatura venceu" : "esta conta ainda não tem assinatura") + ' — sem IA, NFS-e e os demais serviços até assinar</small></span>' +
+      '<button type="button" class="bv-ligacao" data-bv="assinar">' + ic("open_in_new", 14) + 'Assinar no site</button></div>') +
     "</div>";
   return [texto, lado];
 }
@@ -1137,6 +1145,7 @@ async function acaoBoasVindas(qual) {
   const ultimo = bv.passo === ordemBv().length - 1;
   // Continuar grava o que o passo tem, e so o que tem. CPF ou telefone que
   // nao fecha para aqui, com o aviso no campo (Pular por agora segue).
+  if (passo === "google" && !(typeof vinc !== "undefined" && vinc.estado && vinc.estado.vinculado)) return;
   if (passo === "dados") {
     const errado = camposInvalidos($("boas-vindas"));
     // O campo que nao fecha ja esta vermelho (js/39-campos.js): so o foco nele.
