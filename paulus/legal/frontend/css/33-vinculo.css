@@ -130,20 +130,20 @@
   .trava-secoes .acesso-erro:empty { display: none; }
   /* "Manter aberto neste computador" dentro do cartao da senha, sem caixa propria. */
   .trava-secoes .bv-bloco .trava-manter { height: auto; padding: 0; background: none; border: 0; border-radius: 0; }
-  /* A conta escolhida na troca: o fio aceso. */
-  .trava-secoes .linha-botao.escolhida { --lb-fio: var(--ink3); --lb-fio-sobre: var(--ink3); }
+  /* Na Conta Google, o "Manter aberto" fica solto embaixo do botao do Google. */
+  .trava-manter-fora { padding: 4px 4px 0; }
+  .trava-manter-fora .trava-manter { height: auto; padding: 0; background: none; border: 0; border-radius: 0; }
   /* O tunel desligado: a nuvem em cinza; o interruptor no fim da linha. */
   .trava-tunel:not(.tom-cf) .lb-ic img, .trava-tunel:not(.tom-cf) .lb-ic svg { filter: grayscale(1); opacity: .55; }
   .trava-tunel .lb-fim { display: flex; align-items: center; }
   .linha-botao.tom-cf .interruptor-min.on { background: var(--lb-tinta); border-color: var(--lb-tinta); }
   .linha-botao.tom-cf .interruptor-min.on::after { background: var(--lb-fundo); }
-  /* Trocar de conta: o titulo proprio, ja aceso (sem a saudacao que entra devagar). */
-  .trava-marca.troca > * { opacity: 1; }
+
   /* O icone da Conta Atos e branco: no tema claro, escuro. */
   [data-tema="claro"] .atos-ic { filter: invert(1); }
   .atos-ic { display: block; }
 
-  /* A janela do codigo do Google Authenticator (ligar e desligar o tunel, trocar de conta). */
+  /* A janela do codigo do Google Authenticator (ligar e desligar o tunel). */
   .trava-veu { position: fixed; inset: 0; z-index: 130; display: flex; align-items: center; justify-content: center; padding: 16px;
     background: rgba(0, 0, 0, .55); backdrop-filter: blur(6px); }
   .trava-dialogo { width: 100%; max-width: 450px; display: grid; gap: 16px; padding: 24px; border: 1px solid var(--ink-a12); border-radius: 12px;

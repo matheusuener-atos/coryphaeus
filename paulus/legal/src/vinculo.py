@@ -98,11 +98,9 @@ class ErroVinculo(RuntimeError):
 # e-mail antes de responder): (conexao, leitura) em segundos.
 TEMPO_ID = (10, 30)
 SENHA_MIN, SENHA_MAX = 10, 200
-FINALIDADES = ("vincular", "destravar", "confirmar", "trocar")
-# Trocar a conta deste servidor, ou ligar e desligar o tunel, com a janela travada (09/10/2026): o codigo do
-# Google Authenticator (ou uma chave de recuperacao) de quem configurou o acesso de fora. A troca autorizada
-# vale alguns minutos; erros demais seguidos param as tentativas por um tempo.
-TROCA_S = 10 * 60
+FINALIDADES = ("vincular", "destravar", "confirmar")
+# Ligar e desligar o tunel com a janela travada (09/10/2026): o codigo do Google Authenticator (ou uma chave de
+# recuperacao) de quem configurou o acesso de fora; erros demais seguidos param as tentativas por um tempo.
 TITULAR_MAX_ERROS = 5
 TITULAR_JANELA_S = 5 * 60
 
@@ -182,8 +180,7 @@ class Vinculo:
         # os erros recentes (instantes), para parar a tentativa em serie.
         self._offline_novo = ""
         self._erros_offline: list[float] = []
-        # Trocar de conta com a janela travada: ate quando o codigo do titular autoriza; e os erros recentes.
-        self._troca_ate = 0.0
+        # Os codigos do titular errados recentes (o tunel pela trava).
         self._erros_titular: list[float] = []
         # (ligado) -> None: liga ou desliga o tunel do acesso de fora (o api.py liga).
         self.ligar_tunel = None
@@ -220,11 +217,8 @@ class Vinculo:
             "codigo_confiado_ate": self._confiado_ate_iso(),
             "google_recente": bool(self.id_token_valido()),
             "saiu": bool(d.get("saiu")),
-            # As contas que ja entraram neste servidor (a de agora primeiro), para o "Trocar de conta" da trava;
-            # e se ha o autenticador do titular, que autoriza a troca e o liga/desliga do tunel.
-            "conhecidas": self.conhecidas(),
+            # Se ha o autenticador do titular: e ele que liga e desliga o tunel pela trava.
             "autenticador": self.tem_autenticador(),
-            "troca_autorizada": self._troca_ate > self.relogio(),
             "sem_internet": self.sem_internet(),
             # O acesso de fora, para a tela da trava dizer que ele continua.
             "acesso_de_fora": self.situacao_de_fora() if self.situacao_de_fora else {},
@@ -275,8 +269,6 @@ class Vinculo:
             raise ErroVinculo("este Paulus não está vinculado a uma conta")
         if finalidade == "destravar" and not self.vinculado():
             raise ErroVinculo("este Paulus não está vinculado a uma conta")
-        if finalidade == "trocar" and (not self.vinculado() or self._troca_ate <= self.relogio()):
-            raise ErroVinculo("confirme com o código do Google Authenticator antes de trocar a conta")
 
     def _voltar_ao_paulus(self) -> None:
         if self.ao_voltar:
@@ -299,14 +291,9 @@ class Vinculo:
         Quem entrou (pelo Google ou pela senha), conforme a finalidade de agora:
         vincular grava a conta; destravar e confirmar conferem que e a mesma.
         """
-        if self.finalidade in ("vincular", "trocar"):
+        if self.finalidade == "vincular":
             self.prefs.atualizar({"vinculo": {"email": email, "nome": nome, "por": por,
                                               "em": time.strftime("%Y-%m-%dT%H:%M:%S")}})
-            self._lembrar(email, nome, por)
-            if self.finalidade == "trocar":
-                # Trocou com a janela travada: a troca autorizada acaba aqui, e a janela abre com a conta nova.
-                self._troca_ate = 0.0
-                self.prefs.atualizar({"vinculo": {"saiu": False}})
             # Quem vincula ja e o dono: o nome e o e-mail entram em Meus dados
             # quando estao vazios.
             pessoa = dict(self.prefs.dados.get("pessoa") or {})
@@ -342,23 +329,7 @@ class Vinculo:
             self._abrir()
         return {"email": email, "nome": nome}
 
-    # ------------------------------------- trocar de conta e o tunel (09/10)
-
-    def conhecidas(self) -> list[dict]:
-        """As contas que ja entraram neste servidor, a de agora primeiro: [{email, nome, por, atual}]."""
-        d = self.dados()
-        atual = str(d.get("email") or "").lower()
-        lista = [c for c in (d.get("conhecidas") or []) if isinstance(c, dict) and c.get("email")]
-        if atual and not any(str(c["email"]).lower() == atual for c in lista):
-            lista.insert(0, {"email": atual, "nome": d.get("nome", ""), "por": d.get("por") or "google"})
-        lista.sort(key=lambda c: str(c["email"]).lower() != atual)
-        return [{"email": str(c["email"]).lower(), "nome": c.get("nome", ""), "por": c.get("por") or "google",
-                 "atual": str(c["email"]).lower() == atual} for c in lista]
-
-    def _lembrar(self, email: str, nome: str, por: str) -> None:
-        lista = [c for c in (self.dados().get("conhecidas") or []) if isinstance(c, dict) and str(c.get("email") or "").lower() != email]
-        lista.insert(0, {"email": email, "nome": nome, "por": por})
-        self.prefs.atualizar({"vinculo": {"conhecidas": lista[:6]}})
+    # ------------------------------------------------ o tunel pela trava (09/10)
 
     def _titulares(self) -> list[dict]:
         try:
@@ -386,13 +357,6 @@ class Vinculo:
         self._erros_titular.append(agora)
         raise ErroVinculo("o código não confere; digite o que aparece agora no Google Authenticator, ou uma chave de recuperação")
 
-    def autorizar_troca(self, codigo: str) -> None:
-        """O codigo do titular libera, por alguns minutos, entrar com outra conta e passar o vinculo para ela."""
-        if not self.vinculado():
-            raise ErroVinculo("este Paulus não está vinculado a uma conta")
-        self._conferir_titular(codigo)
-        self._troca_ate = self.relogio() + TROCA_S
-
     def tunel(self, ligado: bool, codigo: str) -> None:
         """Liga ou desliga o tunel do acesso de fora pela trava, com o codigo do titular."""
         if not self.ligar_tunel:
@@ -415,7 +379,7 @@ class Vinculo:
         """
         self._conferir_finalidade(finalidade)
         email = _email_valido(email)
-        if finalidade not in ("vincular", "trocar"):
+        if finalidade != "vincular":
             esperado = str(self.dados().get("email") or "").lower()
             if email != esperado:
                 raise ErroVinculo(f"esta não é a conta deste Paulus ({esperado}); entre com ela")
@@ -804,16 +768,6 @@ def montar(app, vinculo: Vinculo) -> None:
         so_local(request)
         try:
             vinculo.codigo(dados.codigo, dados.confiar)
-        except ErroVinculo as exc:
-            falhar(exc)
-        return vinculo.estado()
-
-    @app.post("/api/vinculo/trocar/autorizar")
-    def vinculo_trocar_autorizar(dados: Codigo, request: Request) -> dict:
-        """O codigo do Google Authenticator do titular libera trocar a conta deste servidor (com a janela travada)."""
-        so_local(request)
-        try:
-            vinculo.autorizar_troca(dados.codigo)
         except ErroVinculo as exc:
             falhar(exc)
         return vinculo.estado()

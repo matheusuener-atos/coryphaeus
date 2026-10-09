@@ -283,8 +283,8 @@ _declarar(BLOQUEADO,
           # o vinculo do PAULUS a conta Google (E5): so na janela do servidor
           "GET /api/vinculo", "GET /api/vinculo/token-do-site", "POST /api/vinculo/entrar", "POST /api/vinculo/cancelar", "POST /api/vinculo/codigo", "POST /api/vinculo/esquecer-codigo",
           "POST /api/vinculo/travar", "POST /api/vinculo/manter-aberto", "POST /api/vinculo/desvincular",
-          # trocar de conta e o tunel pela trava, com o codigo do titular (09/10/2026)
-          "POST /api/vinculo/trocar/autorizar", "POST /api/vinculo/tunel",
+          # o tunel pela trava, com o codigo do titular (09/10/2026)
+          "POST /api/vinculo/tunel",
           "POST /api/vinculo/sem-internet", "POST /api/vinculo/sem-internet/ligar",
           "POST /api/vinculo/sem-internet/confirmar", "POST /api/vinculo/sem-internet/desligar",
           # e-mail e senha (07/10/2026): a conta PAVLVS do Worker, tambem so na janela do servidor
