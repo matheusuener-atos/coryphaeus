@@ -292,32 +292,23 @@ function infosBv(itens, icone, tom) {
 
 function passoBoasVindas() {
   const s = bv.status || {};
-  const motor = s.motor || {};
-  const item = (estado, texto) => {
-    const icone = { ok: "check_circle", parcial: "radio_button_partial", falta: "radio_button_unchecked" }[estado];
-    return '<div class="bv-check ' + estado + '">' + ic(icone, 18) + "<span>" + texto + "</span></div>";
-  };
-  let ollama;
-  if (motor.rodando) ollama = item("ok", "Ollama instalado e rodando em 127.0.0.1");
-  else if (motor.instalado) ollama = item("parcial", "Ollama instalado, desligado · o Paulus liga quando precisar");
-  else ollama = item("falta", "Ollama não encontrado · instale pelo site ollama.com; a tela inicial mostra como");
-  let modelo;
-  if (bv.modelo && bv.modelo !== "nenhum") {
-    modelo = item("parcial", "Modelo de IA: " + esc(bv.modelo) + (modeloJaAqui(bv.modelo) ? " · já nesta máquina" : " · baixa ao abrir"));
-  } else {
-    modelo = item("parcial", "Modelo de IA: escolhido no passo " + ordemBv().indexOf("ia"));
-  }
-  const docs = s.contratos
-    ? item("ok", "Pasta de documentos: " + plural(s.contratos, "documento") + " no Acervo")
-    : item("falta", "Pasta de documentos: ainda não apontada");
+  // O cartao do desenho de 09/10/2026: a linha da instalacao no padrao da linha-botao, a lista em linhas de 40 px
+  // (o que ja esta pronto e o que e opcional) e a nota no rodape.
   const pasta = s.programa || s.pasta || "";
+  const linha = (ok, titulo, detalhe) => '<li class="bv-item' + (ok ? " ok" : "") + '">' + ic(ok ? "check_circle" : "radio_button_unchecked", 20) +
+    "<b>" + titulo + "</b><span>" + detalhe + "</span></li>";
   const texto = "<h1>Olá. Vamos deixar o Paulus do seu jeito.</h1>" +
-    "<p>Poucos passos: o escritório, o acesso à distância, seus dados e o que conectar. Tudo pode ser mudado depois em Configurações.</p>";
-  const lado = '<div class="bv-cartao"><div class="bv-instalacao">' + logoBv() +
-    '<span class="duas-linhas"><b>Instalação concluída</b><small title="' + esc(pasta) + '">Paulus' + (s.versao ? " " + esc(s.versao) : "") + " · " + esc(pasta) + "</small></span>" +
-    '<span class="etiqueta ok">pronto</span></div>' +
-    '<div class="bv-checks">' + docs + item("falta", "Certificado digital: opcional, para assinar") + "</div>" +
-    '<span class="bv-cartao-pe">Sem cadastro em servidor, sem conta obrigatória. O que você preencher fica nesta máquina.</span></div>';
+    "<p>Poucos passos: a sua conta, os seus dados, o que conectar e o acesso à distância. Tudo pode ser mudado depois em Configurações.</p>";
+  const lado = '<div class="bv-entrada"><div class="bv-cartao-conta bv-cartao-instalacao"><span class="bv-rotulo">INSTALAÇÃO CONCLUÍDA</span>' +
+    linhaBotao({ tag: "div", classe: "duas", icones: [{ html: '<img src="/img/paulus-icone.svg" alt="PAVLVS" width="32" height="32">', classe: "lb-marca-pavlvs" }],
+      titulo: "Instalação concluída", sub: "Paulus" + (s.versao ? " " + esc(s.versao) : "") + ' · <span class="mono" title="' + esc(pasta) + '">' + esc(pasta) + "</span>",
+      fim: { tipo: "status", texto: "pronto" } }) +
+    '<ul class="bv-itens">' +
+    linha(Boolean(s.contratos), "Pasta de documentos", s.contratos ? plural(s.contratos, "documento") + " no Acervo" : "ainda não apontada") +
+    linha(false, "Certificado digital", "opcional, para assinar") + "</ul>" +
+    // Nada de "sem conta obrigatoria": desde 09/10/2026 o Paulus pede a conta para abrir.
+    '<p class="bv-ajuda bv-cartao-nota">Os seus documentos e o que você preencher ficam nesta máquina. A conta serve para entrar e conferir a assinatura.</p>' +
+    "</div></div>";
   return [texto, lado];
 }
 

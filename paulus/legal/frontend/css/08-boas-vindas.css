@@ -268,3 +268,14 @@
   .bv-cartao-conta .cs-form > .bv-ajuda { text-align: left; }
   .bv-cartao-conta #cs-codigo { font-family: var(--mono); letter-spacing: .3em; }
   .bv-cartao-nota { margin: 0; padding-top: 16px; border-top: 1px solid var(--ink-a08); font-size: 12px; }
+
+  /* Boas-vindas: a lista do cartao da instalacao (desenho de 09/10/2026), linhas de 40 px com fio entre elas. */
+  .bv-itens { list-style: none; margin: 0; padding: 0; display: grid; }
+  .bv-item { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 14px; color: var(--ink2); }
+  .bv-item + .bv-item { border-top: 1px solid var(--ink-a08); }
+  .bv-item .ic { font-size: 20px; width: 20px; height: 20px; line-height: 1; color: var(--ink3); flex: none; }
+  .bv-item.ok .ic { color: var(--okt); font-variation-settings: "FILL" 1; }
+  .bv-cartao-instalacao .bv-cartao-nota { text-align: left; }
+  .bv-item b { flex: 1; min-width: 0; font: 500 14px var(--sans); color: var(--ink); }
+  .bv-item span { font-size: 13px; color: var(--ink3); text-align: right; }
+  .bv-cartao-instalacao .lb-sub .mono { font-family: var(--mono); }
