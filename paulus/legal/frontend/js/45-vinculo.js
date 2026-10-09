@@ -123,7 +123,7 @@ function formContaSenha(o) {
     const campos = codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
     // O codigo so sai se houver conta com o e-mail (o servidor nao diz se ha): a nota nao afirma que saiu.
     miolo = o.cartao ? campos + nota("Código enviado para " + para + ", se houver conta com ele. Vale 15 minutos.")
-      : '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" + campos;
+      : '<p class="' + v.ajuda + '">Se ' + para + " tem Conta Atos (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" + campos;
     links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
   } else if (c.modo === "esqueci") {
     miolo = (o.emailFixo ? '<p class="' + v.ajuda + '">O código para trocar a senha vai para ' + para + ".</p>" : email) + erro + botao("Enviar código") +
@@ -132,9 +132,11 @@ function formContaSenha(o) {
   } else if (o.cartao) {
     // O cartao do passo Sua conta: "Esqueci a senha" na linha do rotulo SENHA, a direita.
     miolo = email + '<div class="cs-grupo"><div class="cs-rotulo-linha"><label class="' + v.rotulo + '" for="cs-senha">SENHA</label>' + link("esqueci", "Esqueci a senha") + "</div>" +
-      '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro + botao("Entrar") +
-      pergunta("Não tem conta?", "criar", "Criar conta");
-    links = "";
+      '<input class="cs-campo" id="cs-senha" type="password" value="" autocomplete="current-password" maxlength="200"></div>' + erro +
+      (o.antesDoBotao || "") + botao("Entrar") +
+      // Na trava, a conta e a deste servidor: nada de criar outra aqui. Na troca de conta, os links vem de fora.
+      (o.emailFixo || o.linksEntrar ? "" : pergunta("Não tem conta?", "criar", "Criar conta Atos"));
+    links = o.linksEntrar || "";
   } else {
     miolo = email + senha("senha", "SENHA", false) + erro + botao("Entrar");
     // Na trava a conta ja existe: so "Esqueci a senha".
@@ -266,7 +268,7 @@ function ligarContaSenha(raiz, o) {
 async function confirmarComSenha() {
   const e = vinc.estado || (await lerVinculoGoogle()) || {};
   const r = await dialogo({ titulo: "Confirme a sua conta", contexto: e.email || "",
-    texto: "Digite a senha da sua conta PAVLVS. Ela vai só a paulus.ia.br, para confirmar que é você.",
+    texto: "Digite a senha da sua Conta Atos. Ela vai só a paulus.ia.br, para confirmar que é você.",
     campo: { rotulo: "Senha", tipo: "password", selecionar: false }, confirmar: "Confirmar" });
   if (!r || !r.ok) return false;
   try {
@@ -278,6 +280,19 @@ async function confirmarComSenha() {
 /* ------------------------------------------------------------ a trava */
 
 const G_DO_GOOGLE = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
+/* A Conta Atos (09/10/2026): o nome da conta de e-mail e senha, de qualquer provedor. Na trava, cada conta com
+   o proprio icone ("Conta Atos" ou "Conta Google"); no pos-instalador (`comAtos`), a Google vem como "Atos + Google". */
+const ICONE_ATOS = '<img class="atos-ic" src="/img/conta-atos.png" alt="" width="22" height="22">';
+
+function iconesDaConta(por, comAtos) {
+  const atos = { html: ICONE_ATOS, classe: "lb-22" };
+  return por === "senha" ? [atos] : comAtos ? [atos, G_DO_GOOGLE] : [G_DO_GOOGLE];
+}
+
+function nomeDaConta(por, comAtos) {
+  return por === "senha" ? "Conta Atos" : comAtos ? "Atos + Google" : "Conta Google";
+}
 
 function telaDaTrava() {
   let el = document.getElementById("trava");
@@ -342,46 +357,151 @@ function desenharTrava() {
       '<p class="trava-erro" id="trava-erro"></p>' +
       trilho("trava-abrir", "Abrir o PAVLVS", false, false) +
       '<button type="button" class="trava-link" id="trava-recuperacao">' + (recuperacao ? "Usar o Google Authenticator" : "Não tenho o celular") + "</button></form>";
+  } else if (vinc.trocando) {
+    tela = "trava";
+    frase = "Escolha com qual conta entrar neste Paulus";
+    corpo = blocoTrocaDeConta(e, esperando);
   } else {
     tela = "trava";
     frase = "Entre com a sua conta para abrir o escritório.";
-    // O Google (quando esta versao o traz) e a senha da conta PAVLVS, com o
-    // e-mail fixo: so a conta deste servidor abre. Criar conta e Esqueci a
-    // senha trocam o formulario e escondem o Google ate voltar.
+    // Desenho de 09/10/2026: "CONTA DESTE SERVIDOR" com a linha da conta (e "Trocar de conta", quando ha o
+    // Google Authenticator do titular para autorizar a troca); na conta Google, o "Entrar com Google" e,
+    // em outra secao, "OU COM A SENHA"; na Conta Atos, o cartao da senha logo embaixo. Depois, "ENQUANTO
+    // ISSO": o tunel, que liga e desliga com o codigo do Authenticator.
     const noComeco = contaSenha.modo === "entrar" && !contaSenha.etapa;
-    corpo = '<div class="trava-form">' + conta("CONTA DESTE SERVIDOR", "") +
-      '<label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") + '><i aria-hidden="true">' +
-      ic("check", 13) + "</i><span>Manter aberto neste computador</span></label>" +
-      (noComeco && e.google ? trilho("trava-google", esperando ? "Esperando o Google…" : "Entrar com Google", true, esperando) +
-        (esperando ? '<button type="button" class="trava-link" id="trava-cancelar">Cancelar</button>' : "") +
-        '<p class="trava-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
-        '<div class="cs-ou">OU COM A SENHA</div>' : "") +
-      formContaSenha({ emailFixo: e.email, v: VISUAL_TRAVA }) +
-      '<div class="trava-grupo trava-enquanto"><span class="trava-etiqueta">ENQUANTO ISSO</span>' +
-      // O tunel da Cloudflare (linha-botao laranja): no ar, o endereco embaixo e "conexão protegida";
-      // desligado, a linha neutra com o estado "desligado".
-      linhaBotao({ tag: "div", classe: foraNoAr ? "duas tom-cf" : "", icones: [{ html: window.marca("cloudflare", 26), classe: "lb-26" }],
-        titulo: "Túnel do Cloudflare",
-        sub: foraNoAr ? "Acesso externo funcionando corretamente · " + '<a href="' + esc("https://" + fora.hostname) + '" target="_blank" rel="noopener">' + esc(fora.hostname) + "</a>" : "",
-        fim: foraNoAr ? { tipo: "meta", texto: "conexão protegida" } : { tipo: "status", classe: "desligado", texto: "desligado" } }) + "</div>" +
-      (pronto ? '<button type="button" class="trava-link" id="trava-sem-internet">Sem internet? Entre com o código do celular</button>' : "") +
+    const google = e.por !== "senha";
+    const comGoogle = google && e.google && noComeco;
+    const linhaConta = linhaBotao({ tag: "div", classe: "duas", icones: iconesDaConta(e.por), titulo: nomeDaConta(e.por), sub: esc(e.email),
+      fim: e.autenticador ? { tipo: "acao", texto: '<button type="button" class="bv-ligacao" id="trava-trocar-conta">Trocar de conta</button>' } : null });
+    const manter = '<label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") + '><i aria-hidden="true">' +
+      ic("check", 13) + "</i><span>Manter aberto neste computador</span></label>";
+    const rotuloSenha = !noComeco ? "TROCAR A SENHA" : comGoogle ? "OU COM A SENHA" : "";
+    const form = formContaSenha({ emailFixo: e.email, v: VISUAL_BV, cartao: true, rotulo: rotuloSenha, antesDoBotao: noComeco ? manter : "" });
+    const ligado = Boolean(fora.ligado);
+    const noAr = foraNoAr && fora.estado === "conectado";
+    const enquanto = fora.hostname
+      ? '<div class="bv-secao"><span class="bv-rotulo">ENQUANTO ISSO</span>' +
+        linhaBotao({ tag: e.autenticador ? "button" : "div", classe: "duas trava-tunel" + (ligado ? " tom-cf" : ""),
+          attrs: e.autenticador ? ' id="trava-tunel" role="switch" aria-checked="' + ligado + '"' : "",
+          icones: [{ html: window.marca("cloudflare", 26), classe: "lb-26" }], titulo: "Túnel do Cloudflare",
+          sub: noAr ? "Acesso externo funcionando · conexão protegida" : ligado ? "Ligando o acesso externo…" : "Desligado · o Paulus atende só neste computador",
+          fim: e.autenticador ? { tipo: "acao", texto: '<span class="interruptor-min' + (ligado ? " on" : "") + '"></span>' } : null }) + "</div>"
+      : "";
+    corpo = '<div class="trava-secoes bv-secoes-conta">' +
+      '<div class="bv-secao"><span class="bv-rotulo">CONTA DESTE SERVIDOR</span>' + linhaConta +
+      (comGoogle
+        ? linhaBotao({ classe: "centro", attrs: ' id="trava-google"' + (esperando ? " disabled" : ""), icones: [G_DO_GOOGLE],
+            titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
+          (esperando ? '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-cancelar">Cancelar</button></div>' : "") +
+          '<p class="acesso-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>"
+        : (rotuloSenha ? "" : form)) +
+      "</div>" + (rotuloSenha ? form : "") + enquanto +
+      (pronto ? '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-sem-internet">Sem internet? Entre com o código do celular</button></div>' : "") +
       "</div>";
   }
   const escuro = document.documentElement.dataset.tema === "escuro";
   // O alto ("Paulus está te esperando." e a frase) sobrevive ao redesenho:
   // a tela e refeita a cada mudanca de estado, e a saudacao so troca quando
   // muda o passo (js/entrada-saudacao.js).
-  const antes = telaDaTrava().querySelector(".trava-marca");
+  const antes = vinc.trocando ? null : telaDaTrava().querySelector(".trava-marca:not(.troca)");
   telaDaTrava().innerHTML =
     '<header class="trava-topo pywebview-drag-region"><span class="trava-marca-nome">PAVLVS</span>' +
     '<button type="button" class="trava-tema" id="trava-tema" aria-label="Alternar tema">' + ic(escuro ? "light_mode" : "dark_mode", 16) + "</button></header>" +
     '<main class="trava-corpo">' + (codigo ? '<button type="button" class="trava-voltar" id="trava-voltar">' + ic("arrow_back", 18) + "Voltar</button>" : "") +
-    '<div class="trava-coluna"><div class="trava-marca abrindo"><h1 data-es-titulo>Paulus está te esperando.</h1><p data-es-frase>' + esc(frase) +
-    "</p></div>" + corpo + "</div></main>";
-  const marca = telaDaTrava().querySelector(".trava-marca");
-  if (antes) marca.replaceWith(antes);
-  saudarNaTrava(antes || marca, tela);
+    '<div class="trava-coluna">' + (vinc.trocando
+      ? '<div class="trava-marca troca"><h1>Trocar de conta</h1><p>' + esc(frase) + "</p></div>"
+      : '<div class="trava-marca abrindo"><h1 data-es-titulo>Paulus está te esperando.</h1><p data-es-frase>' + esc(frase) + "</p></div>") +
+    corpo + "</div></main>";
+  if (!vinc.trocando) {
+    const marca = telaDaTrava().querySelector(".trava-marca");
+    if (antes) marca.replaceWith(antes);
+    saudarNaTrava(antes || marca, tela);
+  }
   ligarTrava();
+}
+
+/* Trocar de conta (09/10/2026): as contas que ja entraram neste servidor e "outra conta" (Google ou Conta
+   Atos). Entrar com uma conta diferente da de agora passa o vinculo para ela, e para isso o codigo do Google
+   Authenticator de quem configurou o acesso de fora (ou uma chave de recuperacao) autoriza antes. */
+function blocoTrocaDeConta(e, esperando) {
+  const t = vinc.troca || (vinc.troca = { escolhida: e.email, form: false });
+  const contas = (e.conhecidas || []).map((c) => linhaBotao({ classe: "duas" + (t.escolhida === c.email ? " escolhida" : ""),
+    attrs: ' data-troca-conta="' + esc(c.email) + '" data-por="' + esc(c.por) + '" aria-pressed="' + (t.escolhida === c.email) + '"',
+    icones: iconesDaConta(c.por), titulo: nomeDaConta(c.por), sub: esc(c.email), fim: c.atual ? { tipo: "status", texto: "atual" } : null })).join("");
+  const lista = '<div class="bv-secao"><span class="bv-rotulo">CONTAS NESTE SERVIDOR</span>' + contas + "</div>";
+  if (t.form) {
+    return '<div class="trava-secoes bv-secoes-conta">' + lista +
+      formContaSenha({ v: VISUAL_BV, cartao: true, rotulo: "CONTA ATOS",
+        linksEntrar: '<button type="button" class="bv-ligacao" data-cs="criar">Criar conta Atos</button><button type="button" class="bv-ligacao" data-troca-voltar="1">Voltar</button>' }) +
+      "</div>";
+  }
+  const googleEsperando = esperando && e.finalidade === "trocar";
+  return '<div class="trava-secoes bv-secoes-conta">' + lista +
+    '<div class="bv-secao"><span class="bv-rotulo">OUTRA CONTA</span>' +
+    (e.google ? linhaBotao({ classe: "centro", attrs: ' data-troca-outra="google"' + (googleEsperando ? " disabled" : ""), icones: [G_DO_GOOGLE],
+      titulo: googleEsperando ? "Esperando o Google no navegador…" : "Entrar com Google" }) : "") +
+    linhaBotao({ classe: "centro", attrs: ' data-troca-outra="atos"', icones: [{ html: ICONE_ATOS, classe: "lb-22" }], titulo: "Entrar com Conta Atos" }) +
+    '<p class="acesso-erro" id="trava-erro">' + esc(e.fase === "erro" && e.finalidade === "trocar" ? e.mensagem : "") + "</p></div>" +
+    '<div class="bv-secao"><button type="button" class="bv-g-trilho" id="trava-troca-continuar"><span class="bv-g-pastilha">Continuar</span></button>' +
+    '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-troca-sair">Voltar</button></div></div></div>';
+}
+
+/* A janela do codigo do Google Authenticator: ligar ou desligar o tunel, e autorizar a troca de conta. Aceita
+   tambem uma chave de recuperacao (as do .txt guardado quando o autenticador foi configurado). `enviar(codigo)`
+   vai ao servidor e erra com a frase dele; `depois()` segue quando confere. */
+function janelaDoCodigo(o) {
+  const tela = telaDaTrava();
+  const velho = tela.querySelector(".trava-veu");
+  if (velho) velho.remove();
+  let chave = false;
+  const veu = document.createElement("div");
+  veu.className = "trava-veu";
+  const desenhar = () => {
+    veu.innerHTML = '<form class="trava-dialogo" novalidate><div class="trava-dlg-cab">' +
+      '<img src="/img/marcas/authenticator.webp" alt="" width="28" height="28"><span class="duas-linhas"><b>' + esc(o.titulo) + "</b><small>" +
+      (chave ? "Digite uma das chaves de recuperação do .txt que você guardou" : "Digite o código de 6 números do Google Authenticator") + "</small></span></div>" +
+      '<label class="cs-grupo"><span class="bv-rotulo">' + (chave ? "CHAVE DE RECUPERAÇÃO" : "CÓDIGO DO APLICATIVO") + "</span>" +
+      '<input class="cs-campo trava-dlg-campo" id="trava-dlg-codigo" ' + (chave ? 'maxlength="9" autocomplete="off" placeholder="XXXX-XXXX"'
+        : 'inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"') + "></label>" +
+      '<p class="acesso-erro" id="trava-dlg-erro"></p>' +
+      '<div class="trava-dlg-pe"><button type="button" class="bv-ligacao" id="trava-dlg-chave">' + (chave ? "Usar o Google Authenticator" : "Usar uma chave de recuperação") + "</button>" +
+      '<span class="cresce"></span><button type="button" class="bv-ligacao" id="trava-dlg-cancelar">Cancelar</button>' +
+      '<button type="submit" class="bv-g-trilho bv-curto"><span class="bv-g-pastilha">' + esc(o.botao) + "</span></button></div></form>";
+    const campo = veu.querySelector("#trava-dlg-codigo");
+    vigiarCampo(campo, chave ? REGRA_CAMPO.preenchido : (v) => REGRA_CAMPO.codigo6(v.replace(/\D/g, "")),
+      { vazio: chave ? "digite a chave de recuperação" : "o código tem 6 números" });
+    veu.querySelector("#trava-dlg-chave").onclick = () => { chave = !chave; desenhar(); };
+    veu.querySelector("#trava-dlg-cancelar").onclick = () => veu.remove();
+    veu.querySelector("form").onsubmit = async (ev) => {
+      ev.preventDefault();
+      if (!conferirCampos([campo])) return;
+      const pe = veu.querySelector("#trava-dlg-erro");
+      pe.textContent = "";
+      const b = veu.querySelector("button[type=submit]");
+      b.disabled = true;
+      try {
+        await o.enviar(campo.value.trim());
+        veu.remove();
+        if (o.depois) await o.depois();
+      } catch (err) {
+        b.disabled = false;
+        if (/não confere/.test(err.message)) campoErradoPeloServidor(campo, err.message);
+        else pe.textContent = maiuscula(err.message);
+        campo.select();
+      }
+    };
+    campo.focus();
+  };
+  veu.onclick = (ev) => { if (ev.target === veu) veu.remove(); };
+  desenhar();
+  tela.appendChild(veu);
+}
+
+/* A troca para outra conta: o codigo autoriza (uma vez a cada 10 min) e `seguir` faz o login. */
+function autorizarTroca(seguir) {
+  if ((vinc.estado || {}).troca_autorizada) { seguir(); return; }
+  janelaDoCodigo({ titulo: "Trocar de conta", botao: "Continuar",
+    enviar: (codigo) => postVinculo("/api/vinculo/trocar/autorizar", { codigo }), depois: seguir });
 }
 
 function saudarNaTrava(bloco, tela) {
@@ -404,6 +524,32 @@ function ligarTrava() {
     try { await entrarNoGoogleDoVinculo("destravar", aoMudarNaTrava); }
     catch (err) { const p = document.getElementById("trava-erro"); if (p) p.textContent = err.message; }
   };
+  // A troca de conta e o tunel (09/10/2026).
+  const tc = document.getElementById("trava-trocar-conta");
+  if (tc) tc.onclick = () => { vinc.trocando = true; vinc.troca = null; contaSenha.modo = "entrar"; contaSenha.etapa = ""; desenharTrava(); };
+  const tun = document.getElementById("trava-tunel");
+  if (tun) tun.onclick = () => {
+    const ligar = tun.getAttribute("aria-checked") !== "true";
+    janelaDoCodigo({ titulo: ligar ? "Ligar o túnel" : "Desligar o túnel", botao: ligar ? "Ligar" : "Desligar",
+      enviar: (codigo) => postVinculo("/api/vinculo/tunel", { ligado: ligar, codigo }), depois: () => desenharTrava() });
+  };
+  const sairTroca = () => { vinc.trocando = false; vinc.troca = null; contaSenha.modo = "entrar"; contaSenha.etapa = ""; contaSenha.email = ""; desenharTrava(); };
+  const ts = document.getElementById("trava-troca-sair");
+  if (ts) ts.onclick = sairTroca;
+  telaDaTrava().querySelectorAll("[data-troca-voltar]").forEach((b) => { b.onclick = () => { vinc.troca.form = false; desenharTrava(); }; });
+  telaDaTrava().querySelectorAll("[data-troca-conta]").forEach((b) => { b.onclick = () => { vinc.troca.escolhida = b.dataset.trocaConta; desenharTrava(); }; });
+  const comGoogle = () => entrarNoGoogleDoVinculo("trocar", aoMudarNaTrava).catch((err) => avisoCert(err.message, { tom: "erro" }));
+  const comAtos = (email) => { vinc.troca.form = true; contaSenha.modo = "entrar"; contaSenha.etapa = ""; contaSenha.email = email || ""; desenharTrava(); };
+  telaDaTrava().querySelectorAll("[data-troca-outra]").forEach((b) => {
+    b.onclick = () => autorizarTroca(b.dataset.trocaOutra === "google" ? comGoogle : () => comAtos(""));
+  });
+  const tcont = document.getElementById("trava-troca-continuar");
+  if (tcont) tcont.onclick = () => {
+    const e = vinc.estado || {};
+    const escolhida = (e.conhecidas || []).find((c) => c.email === vinc.troca.escolhida);
+    if (!escolhida || escolhida.atual) { sairTroca(); return; }
+    autorizarTroca(escolhida.por === "senha" ? () => comAtos(escolhida.email) : comGoogle);
+  };
   const tr = document.getElementById("trava-trocar");
   if (tr) tr.onclick = async () => {
     vinc.porRecuperacao = false;
@@ -412,7 +558,7 @@ function ligarTrava() {
     desenharTrava();
   };
   ligarContaSenha(telaDaTrava(), {
-    finalidade: "destravar", focar: false, redesenhar: desenharTrava,
+    finalidade: vinc.trocando ? "trocar" : "destravar", focar: Boolean(vinc.trocando), redesenhar: desenharTrava,
     aoEntrar: async () => {
       const manter = document.getElementById("trava-manter");
       vinc.manterAoEntrar = Boolean(manter && manter.checked);
@@ -553,7 +699,7 @@ function cartaoDoVinculo() {
   if (!e.vinculado) {
     // Pelo Google ou pela conta PAVLVS de e-mail e senha (o formulario abre no proprio cartao).
     return cartaoCfg("Conta deste Paulus", metaCfg("não vinculado"),
-      '<p class="cfg-texto">Vincule este Paulus à sua conta — a do Google ou uma conta PAVLVS com e-mail e senha: ele passa a abrir travado e pede a conta a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
+      '<p class="cfg-texto">Vincule este Paulus à sua conta — a Conta Google ou uma Conta Atos, com e-mail e senha: ele passa a abrir travado e pede a conta a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
       (e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
       '<div class="acesso-pe">' + (e.google ? '<button class="primario com-icone" data-vinc-vincular="1"' + (esperando ? " disabled" : "") + ">" +
       (esperando ? "Esperando o Google no navegador…" : "Vincular com Google") + "</button>" : "") +
@@ -563,7 +709,7 @@ function cartaoDoVinculo() {
   }
   const quando = e.vinculado_em ? new Date(e.vinculado_em).toLocaleDateString("pt-BR") : "";
   return cartaoCfg("Conta deste Paulus", pontoCfg("vinculado", "ok"),
-    '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + chaveCfg("Entra com", e.por === "senha" ? "e-mail e senha (conta PAVLVS)" : "Google") +
+    '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + chaveCfg("Entra com", e.por === "senha" ? "Conta Atos (e-mail e senha)" : "Conta Google") +
     (e.nome ? chaveCfg("Nome", e.nome) : "") + (quando ? chaveCfg("Desde", quando) : "") + "</div>" +
     '<div class="acesso-energia">' +
     ligaCfg("", "Manter aberto neste computador", e.manter_aberto

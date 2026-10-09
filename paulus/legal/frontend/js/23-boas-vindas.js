@@ -193,12 +193,6 @@ function iniciaisDe(nome) {
   return n ? n.split(/\s+/).map((x) => x[0] || "").filter(Boolean).slice(0, 2).join("").toUpperCase() : "?";
 }
 
-/* A logo oficial e sempre escura, nos dois temas (docs/ui/instalacao). */
-function iniciaisBv(nome) {
-  const partes = String(nome || "").trim().split(/\s+/).filter(Boolean);
-  return ((partes[0] || "")[0] || "" ) + ((partes.length > 1 ? partes[partes.length - 1][0] : "") || "");
-}
-
 function desenharBoasVindas() {
   const caixa = $("boas-vindas");
   const ordem = ordemBv();
@@ -291,7 +285,7 @@ function passoGoogle() {
   const e = (typeof vinc !== "undefined" && vinc.estado) || null;
   if (!e && typeof lerVinculoGoogle === "function") lerVinculoGoogle().then(() => { if (passoBv() === "google") desenharBoasVindas(); });
   const texto = "<h1>Entre com a sua conta.</h1>" +
-    "<p>Este computador passa a ser o servidor do escritório, e a sua conta é a chave de acesso: a do Google ou uma conta PAVLVS com e-mail e senha — serve e-mail de qualquer provedor, inclusive do seu domínio ou da Microsoft. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
+    "<p>Este computador passa a ser o servidor do escritório, e a sua conta é a chave de acesso: a Conta Google ou a Conta Atos, com e-mail e senha de qualquer provedor, inclusive do seu domínio ou da Microsoft. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
     infosBv([
       "O Google, ou paulus.ia.br no caso da senha, só confirma quem é você. Nenhum documento vai junto.",
       "É com ela que o Paulus confere a assinatura e, depois, convida a equipe.",
@@ -301,10 +295,9 @@ function passoGoogle() {
   let lado;
   if (e && e.vinculado) {
     // A mesma coluna do passo anterior: a conta vinculada no lugar do botao, e o interruptor como linha.
-    // O G do Google ao lado da logo so na conta Google; a conta PAVLVS e so a logo.
-    const marcaDaConta = e.por === "senha" ? "" : (typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : "");
-    lado = '<div class="bv-entrada"><span class="bv-rotulo">' + (e.por === "senha" ? "CONTA PAVLVS" : "CONTA GOOGLE") + "</span>" +
-      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: [{ html: '<img src="/img/paulus-icone.svg" alt="PAVLVS" width="32" height="32">', classe: "lb-marca-pavlvs" }, marcaDaConta], titulo: "Vinculado", sub: esc(e.email),
+    // A conta com o icone da Conta Atos (e o G, na conta Google), js/45-vinculo.js iconesDaConta.
+    lado = '<div class="bv-entrada"><span class="bv-rotulo">SUA CONTA</span>' +
+      linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: iconesDaConta(e.por, true), titulo: nomeDaConta(e.por, true), sub: esc(e.email),
         // Trocar de conta (09/10/2026): desvincula e o passo volta a pedir a conta (o mesmo do passo Assinatura).
         fim: { tipo: "acao", texto: '<button type="button" class="bv-ligacao" data-bv="outra-conta">Trocar de conta</button>' } }) +
       '<div class="bv-modulo bv-linha" data-bv-manter="1" role="switch" tabindex="0" aria-checked="' + Boolean(e.manter_aberto) + '">' +
@@ -320,10 +313,10 @@ function passoGoogle() {
     const comGoogle = noComeco && !(e && !e.google);
     // Desenho de 09/10/2026: cada parte e uma secao - o rotulo fora, o cartao embaixo. No comeco, "SUA CONTA" com o
     // Google e "OU COM E-MAIL E SENHA" com o formulario; Criar conta e Trocar a senha tem a secao propria.
-    const rotulo = noComeco ? (comGoogle ? "OU COM E-MAIL E SENHA" : "SUA CONTA")
-      : contaSenha.modo === "criar" ? "CRIAR CONTA PAVLVS" : "TROCAR A SENHA";
+    const rotulo = noComeco ? (comGoogle ? "OU COM A CONTA ATOS" : "SUA CONTA")
+      : contaSenha.modo === "criar" ? "CRIAR CONTA ATOS" : "TROCAR A SENHA";
     const nota = !noComeco ? ""
-      : comGoogle ? "A conta do PAVLVS pode ser a sua conta Google ou um e-mail com senha: é com ela que você entra no programa depois."
+      : comGoogle ? "Você entra com a Conta Google ou com a Conta Atos (e-mail e senha de qualquer provedor): é com ela que você entra no programa depois."
       : "Esta versão do Paulus não traz o login do Google: entre com e-mail e senha.";
     lado = '<div class="bv-entrada bv-secoes-conta">' +
       (comGoogle ? '<div class="bv-secao"><span class="bv-rotulo">SUA CONTA</span><div class="bv-bloco">' +
@@ -460,7 +453,7 @@ function passoAssinatura() {
       : ["O cadastro no site já pede nome, OAB, CPF ou CNPJ e endereço: aqui você só confere.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
   const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">ASSINATURA</span>' +
     // A conta com que se assina ("Continuar como…"): o monograma, o nome e o e-mail; o clique troca de conta (desvincula e volta a Sua conta).
-    linhaBotao({ classe: "duas", attrs: ' data-bv="outra-conta" title="Trocar de conta"', icones: [monogramaLb(iniciaisBv(nome))],
+    linhaBotao({ classe: "duas", attrs: ' data-bv="outra-conta" title="Trocar de conta"', icones: iconesDaConta(e && e.por, true),
       titulo: "Continuar como " + esc(nome), sub: esc(email), fim: { tipo: "acao", texto: "Trocar" } }) +
     (esperando ? "" : '<div class="bv-bloco">') + (esperando
       ? '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a confirmação do site…</b><small>a janela segue sozinha quando o pagamento confirmar</small></span></div>' +
@@ -589,7 +582,7 @@ function passoConexoes() {
   // servicos so funcionam com uma conta Google, escolhida no consentimento (src/rotas_boas_vindas.py, autorizar).
   const semGoogle = linhaBotao({ tag: "div", classe: "duas lb-sem-google", icones: [eoMarca("google")],
     titulo: "Precisa de uma conta Google",
-    sub: "você entrou com " + esc((e && e.email) || "e-mail e senha") }) +
+    sub: "você entrou com a Conta Atos " + esc((e && e.email) || "") }) +
     '<p class="bv-ajuda bv-nota-fora esquerda">Gmail, Agenda, Meet e Drive são serviços do Google e só funcionam com uma conta Google. Ao autorizar, o Google pede para escolher a conta, que pode ser diferente do e-mail com que você entrou.</p>';
   // Desenho de 09/10/2026: "SUA CONTA GOOGLE" com a linha da conta e "O QUE AUTORIZAR" com os servicos num cartao.
   const topo = conta ? linhaBotao({ tag: "div", icones: [eoMarca("google")], titulo: esc(conta),

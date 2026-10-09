@@ -190,7 +190,7 @@ function blocoConexao() {
       // Vinculado pelo Google, a senha e a do Google: aqui so o autenticador. Pela conta PAVLVS
       // de e-mail e senha (07/10), a entrada de fora pede uma senha deste computador - pode ser a mesma.
       conta = (vinculo.por === "senha"
-        ? '<p class="cfg-texto">Para entrar de fora: o seu e-mail, uma senha e o código de 6 dígitos do aplicativo autenticador do celular. A senha fica só neste computador; pode ser a mesma da sua conta PAVLVS.</p>' +
+        ? '<p class="cfg-texto">Para entrar de fora: o seu e-mail, uma senha e o código de 6 dígitos do aplicativo autenticador do celular. A senha fica só neste computador; pode ser a mesma da sua Conta Atos.</p>' +
           '<div class="acesso-form">' + campo("senha", "Senha para entrar de fora", "password", "pelo menos 10 caracteres") +
           campo("repetir", "Confirmar a senha", "password", "") + "</div>"
         : '<p class="cfg-texto">Para entrar de fora: a sua conta Google e o código de 6 dígitos do aplicativo autenticador do celular.</p>') +
@@ -268,7 +268,7 @@ function blocoConexao() {
       '<div class="acesso-pe"><button class="primario com-icone" data-cx-conectar="1"' + (pronto ? "" : " disabled") + ">" + ic("link", 16) +
       (conexaoUI.disp && conexaoUI.disp.retomar ? "Retomar o endereço" : "Conectar") + "</button>" +
       '<p class="cfg-explica">O Paulus abre o navegador em paulus.ia.br/conectar. Nada é criado antes de você confirmar lá.' +
-      (d.google_recente ? "" : ((d.vinculo || {}).por === "senha" ? " Antes, a senha da sua conta PAVLVS confirma que é você" : " Antes, o Google confirma a sua conta") +
+      (d.google_recente ? "" : ((d.vinculo || {}).por === "senha" ? " Antes, a senha da sua Conta Atos confirma que é você" : " Antes, o Google confirma a sua conta") +
         ": o endereço fica dela, e você o retoma se reinstalar.") + "</p></div>";
   }
   return '<div class="acesso-etapas">' + endereco + etapaConta +

@@ -1506,7 +1506,13 @@ def main() -> int:
             try:
                 pagina.evaluate("() => { $('nova').click(); alternarListaDeConversas(true); }")
                 pagina.wait_for_selector("#lista-conversas .lc-linha[data-sel]", timeout=20000)
-                caixa = pagina.locator("#lista-conversas .lc-linha[data-sel]").first.bounding_box()
+                # A lista se redesenha logo depois de abrir (a animacao e a recarga): mede so quando parou.
+                caixa = None
+                for _ in range(20):
+                    pagina.wait_for_timeout(150)
+                    caixa = pagina.locator("#lista-conversas .lc-linha[data-sel]").first.bounding_box()
+                    if caixa:
+                        break
                 pagina.mouse.move(caixa["x"] + caixa["width"] / 2, caixa["y"] + caixa["height"] / 2)
                 pagina.mouse.down()
                 pagina.wait_for_timeout(650)
