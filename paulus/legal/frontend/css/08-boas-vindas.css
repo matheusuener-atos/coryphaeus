@@ -51,7 +51,7 @@
      modelo empurrava a coluna para fora da tela. */
   .bv-lado > *, .bv-texto > *, .bv-modelos > *, .bv-grupos > * { min-width: 0; }
 
-  .bv-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
+  .bv-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
   .bv-cartao-pe { font: 400 13px/1.55 var(--sans); color: var(--ink); border-top: 1px solid var(--ink-a1); padding-top: 12px; margin: 0; }
   /* A coluna de /entrar (entrar.html), para os passos que sao um login: sem cartao, 440 px, rotulo mono,
      a linha com fio (40 px, raio 10) e o botao Google como trilho + pastilha de largura inteira. */
@@ -59,9 +59,9 @@
   .bv-entrada { width: 100%; max-width: 560px; justify-self: center; display: grid; gap: 14px; }
   .bv-entrada:has(.bv-dados) { max-width: none; }
   .bv-entrada .bv-rotulo { color: var(--ink3); }
-  .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); }
-  .bv-linha:hover { background: var(--surf); border-color: var(--ink-a2); }
-  .bv-g-trilho { display: flex; width: 100%; padding: 1px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink); cursor: pointer; }
+  .bv-linha { min-height: 40px; padding: 8px 12px; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); }
+  .bv-linha:hover { background: var(--cartao-fundo); border-color: var(--ink-a2); }
+  .bv-g-trilho { display: flex; width: 100%; padding: 1px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); color: var(--ink); cursor: pointer; }
   .bv-g-pastilha { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--primario-fundo); font: 500 13px var(--sans); letter-spacing: .01em; }
   .bv-g-pastilha svg { width: 16px; height: 16px; flex: none; }
   .bv-g-trilho:hover:not(:disabled) .bv-g-pastilha { background: var(--primario-sobre); }
@@ -78,7 +78,7 @@
   @keyframes bv-giro { to { transform: rotate(360deg); } }
   html.sem-animacao .bv-giro { animation: none; }
   /* Os dados lidos da assinatura, com cara de formulario (rotulo em cima, valor na caixa), so leitura. */
-  .bv-dados { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 12px; padding: 18px 20px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .bv-dados { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 12px; padding: 18px 20px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); }
   .bv-campo-ro { display: grid; gap: 5px; min-width: 0; grid-column: span 2; }
   .bv-campo-ro.meio { grid-column: span 3; }
   .bv-campo-ro.largo { grid-column: 1 / -1; }
@@ -115,7 +115,7 @@
   /* Fio, raio, fundo, hover e estado escolhido da opcao em cartao vem da regra
      unificada em 17-configuracoes.css; aqui fica so o layout. */
   .bv-opcoes { display: grid; gap: 12px; }
-  .bv-opcao { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: var(--surf); }
+  .bv-opcao { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 12px; background: var(--cartao-fundo); }
   .bv-radio { margin-top: 2px; }
   .bv-opcao-titulo { display: flex; align-items: center; gap: 8px; font: 500 16px var(--sans); color: var(--ink); white-space: normal; }
   .bv-opcao-titulo .etiqueta { margin-left: auto; white-space: nowrap; }
@@ -126,7 +126,7 @@
   .bv-iniciais { width: 52px; height: 52px; border-radius: 50%; background: var(--fill2); display: flex; align-items: center; justify-content: center; font: 500 16px var(--sans); color: var(--ink2); flex: none; }
   .bv-foto .duas-linhas small { white-space: normal; }
   .bv-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
-  .bv-grade input, .bv-grade select { background: var(--bg); }
+  .bv-grade input, .bv-grade select { background: var(--campo-fundo); }
 
   /* Esta maquina e a lista de modelos, no estilo da biblioteca do Ollama. */
   .bv-maquina { gap: 10px; padding: 16px 20px; }
@@ -198,7 +198,7 @@
   .bv-recusa { min-height: 56px; padding: 10px 14px; gap: 14px; }
   .bv-recusa .duas-linhas { flex: 1; min-width: 0; }
   .bv-recusa .duas-linhas small { white-space: normal; }
-  .bv-conta { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); cursor: pointer; }
+  .bv-conta { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--botao-fundo); cursor: pointer; }
   .bv-conta .duas-linhas { flex: 1; min-width: 0; }
   .bv-conta .duas-linhas b { font-weight: 500; }
   .bv-conta .duas-linhas small { white-space: normal; font-size: 12px; color: var(--ink2); }
@@ -206,7 +206,7 @@
   .bv-entrar-coluna { display: grid; gap: 14px; justify-items: center; }
   .bv-entrar {
     width: 460px; max-width: calc(100vw - 32px); box-sizing: border-box; border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--surf); padding: 36px 40px; display: grid; gap: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+    background: var(--cartao-fundo); padding: 36px 40px; display: grid; gap: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
   }
   .bv-entrar h2 { margin: 0; font: 600 32px/1 var(--sans); }
   .bv-entrar .eo-login, .bv-entrar .eo-botoes { display: grid; }
@@ -219,11 +219,11 @@
   .bv-ligacao.apagada { color: var(--ink2); }
   /* O .btn-duplo do site: trilho com fio fino e, dentro, a pastilha - 32 px no total (padrao de 07/10). */
   .bv-continuar {
-    display: inline-flex; padding: 1px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf);
+    display: inline-flex; padding: 1px; border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--cartao-fundo);
     font: 500 13px var(--sans); letter-spacing: .01em; color: var(--ink); white-space: nowrap; cursor: pointer;
   }
   .bv-continuar > span { display: flex; align-items: center; justify-content: center; gap: 8px; height: 28px; padding: 0 22px; border-radius: 8px; background: var(--primario-fundo); color: var(--ink); transition: background .12s; }
-  .bv-continuar:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--surf); color: var(--ink); }
+  .bv-continuar:hover:not(:disabled) { border-color: var(--ink-a2); background: var(--cartao-fundo); color: var(--ink); }
   .bv-continuar:hover:not(:disabled) > span { background: var(--primario-sobre); }
   .bv-continuar:disabled { opacity: .5; }
   /* O tema: no fim da linha de cima, so o icone - sem fundo, sem fio. */

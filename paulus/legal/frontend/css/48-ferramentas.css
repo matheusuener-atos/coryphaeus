@@ -27,7 +27,7 @@
 
 .fl-quadro {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
-  border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+  border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo);
 }
 .fl-barra {
   flex: none; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px 0 16px;
@@ -44,11 +44,11 @@
 .fl-pag { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .fl-barra .fl-pag input {
   flex: none; width: 32px; min-width: 0; max-width: 32px; height: 26px; padding: 0; text-align: center; font: 500 12px var(--mono); color: var(--ink);
-  border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg);
+  border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--campo-fundo);
 }
 .fl-busca {
   display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 2px 0 10px;
-  border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg); color: var(--ink3);
+  border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--campo-fundo); color: var(--ink3);
 }
 .fl-busca input { width: 220px; border: none; background: transparent; padding: 0; font: 400 13px var(--sans); color: var(--ink); }
 .fl-busca .botao-icone { width: 24px; height: 24px; }
@@ -56,7 +56,7 @@
 .fl-mesa { flex: 1; min-height: 0; display: flex; background: var(--bg); }
 .fl-miniaturas {
   flex: none; width: 148px; overflow-y: auto; padding: 20px 14px; display: flex; flex-direction: column; gap: 16px;
-  border-right: 1px solid var(--ink-a08); background: var(--surf);
+  border-right: 1px solid var(--ink-a08); background: var(--cartao-fundo);
 }
 .fl-mini { display: grid; justify-items: center; gap: 8px; padding: 0; border: none; background: none; }
 .fl-mini:hover:not(:disabled) { background: none; border: none; }
@@ -94,7 +94,7 @@
 }
 .proposta .linha-form button.feito:hover:not(:disabled) { background: var(--primario-hover); border-color: var(--primario-hover); color: var(--primario-ink); }
 .proposta .linha-form button.primario:not(.feito) ~ button.feito,
-.proposta .linha-form:has(button.feito) button.primario:not(.feito) { background: var(--surf); border-color: var(--ink-a1); color: var(--ink); }
+.proposta .linha-form:has(button.feito) button.primario:not(.feito) { background: var(--botao-fundo); border-color: var(--ink-a1); color: var(--ink); }
 .fl-pe-nota { color: var(--ink3); }
 .proposta .linha-form .ic-visto { margin-left: -2px; }
 
@@ -150,7 +150,7 @@
   flex: 1; min-width: 0; max-width: none; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 8px;
   background: transparent; font: 500 12px var(--mono); color: var(--ink);
 }
-.pa-formula input:not([readonly]):focus { border-color: var(--ink-a15); background: var(--bg); }
+.pa-formula input:not([readonly]):focus { border-color: var(--ink-a15); background: var(--campo-fundo); }
 .pa-mesa { flex: 1; min-height: 0; overflow: auto; background: var(--papel); }
 .pa-grade { min-width: 100%; width: max-content; }
 .pa-tabela {
@@ -220,7 +220,7 @@
 .asc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .asc-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px;
-  border: 1px solid var(--ink-a1); background: var(--surf); font: 500 13px var(--sans); color: var(--ink2);
+  border: 1px solid var(--ink-a1); background: var(--botao-fundo); font: 500 13px var(--sans); color: var(--ink2);
 }
 .asc-chip.on, .asc-chip.on:hover:not(:disabled) { background: var(--primario); border-color: var(--primario); color: var(--primario-ink); }
 .asc-intervalo { height: 34px; max-width: 260px; }
@@ -244,7 +244,7 @@
 .asc-marca input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
 .asc-senha { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--ink-a08); }
 .asc-senha .duas-linhas span { font: 500 13px var(--sans); color: var(--ink2); }
-.asc-pe { display: flex; align-items: center; gap: 8px; padding: 14px 18px; background: var(--surf); }
+.asc-pe { display: flex; align-items: center; gap: 8px; padding: 14px 18px; background: var(--cartao-fundo); }
 .asc-pe > span:first-child { font: 400 12px var(--sans); color: var(--ink3); }
 .asc-pe .primario { display: inline-flex; align-items: center; gap: 6px; }
 .asc-pagina {
@@ -262,7 +262,7 @@
 
 /* Agendar pela conversa (`Conversa - Agendar`): a semana no chat, com o
    horario proposto tracejado, e o formulario da Agenda na coluna de 420. */
-.agc-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; }
+.agc-cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); overflow: hidden; }
 .agc-topo { display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--ink-a08); }
 .agc-topo > b { font: 600 14px var(--sans); color: var(--ink); }
 .agc-topo > small { font: 400 12px var(--sans); color: var(--ink3); }
@@ -313,7 +313,7 @@
 .agc-mes-cabeca span { padding: 4px 6px; font: 500 12px var(--sans); color: var(--ink3); }
 .agc-mes-dia {
   height: 66px; padding: 6px 8px; display: grid; align-content: space-between; justify-items: start; text-align: left;
-  border: 1px solid var(--ink-a08); border-radius: 8px; background: var(--surf);
+  border: 1px solid var(--ink-a08); border-radius: 8px; background: var(--cartao-fundo);
 }
 .agc-mes-dia b { font: 600 13px var(--sans); color: var(--ink); }
 .agc-mes-dia small { font: 400 12px var(--sans); color: var(--ink3); }
@@ -343,7 +343,7 @@
 .agn-pergunta small, .agn-resposta small { font: 400 12px var(--sans); color: var(--ink3); }
 .agn-respondidas {
   display: grid; gap: 14px; margin-left: auto; max-width: 430px; padding: 16px 18px;
-  border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf);
+  border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo);
 }
 .agn-resposta { display: grid; gap: 2px; }
 .agn-resposta b { font: 600 13px var(--sans); color: var(--ink); }
@@ -368,7 +368,7 @@
 .agn-chip.fl-mono { color: var(--ink); }
 .agn-incluir { display: inline-flex; align-items: center; gap: 6px; height: 30px; }
 .agn-quadro .agn-abas button { height: 28px; padding: 0 12px; font-size: 13px; }
-.agn-folha-mesa { flex: 1; min-height: 0; overflow-y: auto; padding: 32px 40px 48px; background: var(--surf); }
+.agn-folha-mesa { flex: 1; min-height: 0; overflow-y: auto; padding: 32px 40px 48px; background: var(--cartao-fundo); }
 .agn-folha { max-width: 900px; outline: none; font: 400 14px/1.7 var(--sans); color: var(--ink); }
 .agn-folha h1 { margin: 0 0 10px; font: 400 32px/1.25 var(--serif); color: var(--ink); }
 .agn-folha h2 { margin: 26px 0 10px; font: 600 20px/1.3 var(--sans); color: var(--ink); }

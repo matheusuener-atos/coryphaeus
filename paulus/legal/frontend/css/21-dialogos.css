@@ -20,7 +20,7 @@
   .veu-dialogo.saindo { pointer-events: none; }
   .dialogo {
     width: 440px; max-width: 100%; max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); overflow: auto; display: flex; flex-direction: column;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 16px; box-shadow: var(--elev-float);
+    background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 16px; box-shadow: var(--elev-float);
     animation: dialogo-entra .26s cubic-bezier(.16,1,.3,1);
   }
   .dialogo.larga { width: 520px; }
@@ -38,7 +38,7 @@
      dentro dela, e o input fica nu. */
   .dialogo-caixa {
     display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf);
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--campo-fundo);
     transition: border-color .15s ease;
   }
   .dialogo-caixa:focus-within { border-color: var(--ink); }
@@ -167,7 +167,7 @@
   /* ------------------------------------------------ calendario popover */
   .calendario {
     position: fixed; z-index: 120; width: 272px; padding: 12px;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
+    background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
     font: 500 13px var(--sans); color: var(--ink);
   }
   .cal-topo { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
@@ -218,7 +218,7 @@
   .escolha-botao { display: inline-flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; }
   /* Passar o mouse: o fio escurece um pouco, como no seletor da barra de
      Documentos; sem o fundo --fill do hover generico de button. */
-  .escolha-botao:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a35); color: var(--ink); }
+  .escolha-botao:hover:not(:disabled) { background: var(--campo-fundo); border-color: var(--ink-a35); color: var(--ink); }
   .escolha-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .escolha-botao .ic { color: var(--ink3); flex: none; transition: transform .18s cubic-bezier(.16,1,.3,1); }
   .escolha-botao[aria-expanded="true"] .ic { transform: rotate(180deg); color: var(--ink); }
@@ -232,7 +232,7 @@
      claro e o relogio do Windows por cima do tema escuro. */
   .relogio-pop {
     position: fixed; z-index: 130; width: 268px; padding: 16px; display: grid; gap: 12px;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
+    background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
   }
   .relogio-mostrador { display: flex; align-items: baseline; justify-content: center; gap: 6px; color: var(--ink); }
   .relogio-mostrador b { font: 600 32px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
@@ -249,7 +249,7 @@
   }
   .relogio-regua input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
-    background: var(--ink); border: 2px solid var(--surf);
+    background: var(--ink); border: 2px solid var(--cartao-fundo);
   }
   .relogio-regua input[type=range]:focus-visible { outline: none; }
   .relogio-regua input[type=range]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--destaque); outline-offset: 2px; }
@@ -282,14 +282,14 @@
      revela o tecnico) e o arquivo conferido. O dialogo e o largo do sistema
      (larga: true na chamada). */
   .vr { display: grid; gap: 10px; }
-  .vr-veredito { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .vr-veredito { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); }
   .vr-veredito > span:not(.ic) { display: grid; gap: 2px; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
   .vr-veredito b { font: 600 14px var(--sans); color: var(--ink); }
   .vr-veredito .ic { flex: none; margin-top: 1px; color: var(--ink3); }
   .vr-veredito.ok .ic { color: var(--verde); }
   .vr-veredito.alerta .ic { color: var(--acc); }
   .vr-veredito.sem .ic { color: var(--ink3); }
-  .vr-cartao { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); overflow: hidden; }
+  .vr-cartao { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); overflow: hidden; }
   .vr-cartao-cabeca {
     width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none; border-radius: 0;
     background: none; text-align: left; cursor: pointer; color: var(--ink);
@@ -310,7 +310,7 @@
   .vr-linha span { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .vr-linha b { font: 400 14px/1.5 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
   .vr-hash { font-family: var(--mono) !important; font-size: 12px; }
-  .vr-arquivo { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); padding: 10px 12px; }
+  .vr-arquivo { border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); padding: 10px 12px; }
   .vr-arquivo summary { font: 600 12px var(--sans); color: var(--ink2); }
   .vr-arquivo[open] summary { margin-bottom: 4px; }
   .vr-nota { margin: 2px 0 0; font: 500 12px/1.5 var(--sans); color: var(--ink3); }

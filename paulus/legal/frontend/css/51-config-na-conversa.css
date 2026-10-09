@@ -6,7 +6,7 @@
     "N mudanças · Descartar · Salvar alterações".
   */
   .cfc { display: grid; gap: 12px; min-width: 0; }
-  .cfc-bloco { display: grid; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); overflow: hidden; box-shadow: var(--elev-card); }
+  .cfc-bloco { display: grid; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); overflow: hidden; box-shadow: var(--elev-card); }
   .cfc-linha { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 8px 16px; border-top: 1px solid var(--ink-a06); font-size: 13px; }
   .cfc-linha:first-child { border-top: none; }
   .cfc-linha.neutra .cfc-campo, .cfc-linha.info .cfc-campo { color: var(--ink2); }
@@ -67,7 +67,7 @@
   .cfn-corpo .cfg-secao { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   /* A abertura da secao (o titulo em serifa) e a da tela inteira: na coluna, o topo ja diz. */
   .cfn-corpo .sv-resumo-topo { display: none; }
-  .cfn-corpo .cfg-ficha { grid-auto-flow: column; grid-template-columns: none; padding: 12px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .cfn-corpo .cfg-ficha { grid-auto-flow: column; grid-template-columns: none; padding: 12px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); }
   .cfn-corpo .ag-duas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cfn-pe { flex: none; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 12px 16px 12px 20px; border-top: 1px solid var(--ink-a08); }
   .cfn-resumo { flex: 1; min-width: 0; font-size: 12px; color: var(--ink3); }
@@ -96,7 +96,7 @@
   .cfn-atencao-ic { position: absolute; right: 10px; bottom: 11px; display: inline-flex; color: var(--warnt); }
   .ag-toggle.cfn-destaque { border-radius: 12px; box-shadow: 0 0 0 1px var(--warnt); }
 
-  .cfn-busca { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); color: var(--ink3); }
+  .cfn-busca { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--campo-fundo); color: var(--ink3); }
   .cfn-busca input { flex: 1; min-width: 0; max-width: 100%; height: 100%; border: none; background: none; padding: 0; color: var(--ink); font: 500 13px var(--sans); }
   .cfn-busca input:focus { outline: none; }
   .cfn-busca small { flex: none; font-size: 12px; }
@@ -104,7 +104,7 @@
 
   .cfn-lembrete { display: grid; gap: 6px; }
   .cfn-lembrete label { font-size: 12px; color: var(--ink2); }
-  .cfn-lembrete textarea { width: 100%; min-height: 96px; resize: vertical; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 12px; background: var(--surf);
+  .cfn-lembrete textarea { width: 100%; min-height: 96px; resize: vertical; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 12px; background: var(--campo-fundo);
     color: var(--ink); font: 400 13px/1.55 var(--sans); }
   .cfn-lembrete-pe { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .cfn-lembrete-pe small { font-size: 12px; color: var(--ink3); }

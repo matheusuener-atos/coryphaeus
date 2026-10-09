@@ -4,7 +4,7 @@
 
   .fun-bloco { display: grid; gap: 8px; margin-top: 12px; }
   .fun-bloco h4 { margin: 0; font: 600 13px var(--sans); color: var(--ink); }
-  .fun-item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .fun-item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); }
   .fun-cab { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   .fun-cab small { color: var(--ink3); font-size: 12px; }
   .fun-texto { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }

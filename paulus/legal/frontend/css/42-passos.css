@@ -5,11 +5,11 @@
   #pas-corpo { display: grid; gap: 12px; padding: 16px 22px 22px; }
   .pas-receitas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
   .pas-receita { display: grid; gap: 4px; text-align: left; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--surf); cursor: pointer; height: auto; }
+    background: var(--cartao-fundo); cursor: pointer; height: auto; }
   .pas-receita:hover:not(:disabled) { border-color: var(--ink-a15); background: var(--fill); }
   .pas-receita small { color: var(--ink3); font-size: 12px; line-height: 1.4; white-space: normal; }
   .pas-lista { display: grid; gap: 10px; }
-  .pas-tarefa { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .pas-tarefa { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); }
   .pas-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .pas-cab small { color: var(--ink3); margin-left: auto; }
   .pas-passos { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; }

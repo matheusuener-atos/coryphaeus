@@ -9,7 +9,7 @@
 .dialogo-nota .dialogo-corpo { max-height: 70vh; overflow: auto; }
 .nota-cartao h3 { font-size: 13px; margin: 14px 0 6px; color: var(--ink2); }
 .nota-estado { font-size: 13px; margin: 0 0 8px; }
-.nota-erros, .nota-avisos { font-size: 13px; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; background: var(--surf); border: 1px solid var(--ink-a08); }
+.nota-erros, .nota-avisos { font-size: 13px; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; background: var(--cartao-fundo); border: 1px solid var(--ink-a08); }
 .nota-erros b { color: var(--warnt); }
 .nota-erros ul, .nota-avisos ul { margin: 4px 0 0; padding-left: 18px; }
 .nota-conta-rolagem { overflow-x: auto; }
@@ -35,7 +35,7 @@
 .nfse-mais { margin-top: 10px; border-top: 1px solid var(--ink-a08); padding-top: 8px; }
 .nfse-mais > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink2); padding: 4px 0; }
 .nfse-mais h4, .nfse-rec { font-size: 13px; margin: 14px 0 4px; }
-.nfse-resultado { font-size: 13px; padding: 10px 12px; border-radius: 12px; margin: 10px 0; border: 1px solid var(--ink-a08); background: var(--surf); }
+.nfse-resultado { font-size: 13px; padding: 10px 12px; border-radius: 12px; margin: 10px 0; border: 1px solid var(--ink-a08); background: var(--cartao-fundo); }
 .nfse-resultado p { margin: 0 0 6px; }
 .nfse-resultado.erro > p b { color: var(--warnt); }
 .nfse-depois { margin-top: 18px; }

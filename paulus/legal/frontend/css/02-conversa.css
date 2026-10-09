@@ -125,7 +125,7 @@
   .ir-ao-fim {
     position: absolute; left: 50%; top: -52px; z-index: 4;
     width: 34px; height: 34px; padding: 0; border-radius: 50%;
-    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink);
+    border: 1px solid var(--ink-a15); background: var(--botao-fundo); color: var(--ink);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     box-shadow: var(--elev-float);
     opacity: 0; transform: translate(-50%, 8px); pointer-events: none;
@@ -135,7 +135,7 @@
     opacity: 1; transform: translate(-50%, 0); pointer-events: auto;
     transition: opacity .32s cubic-bezier(.16,1,.3,1), transform .4s cubic-bezier(.16,1,.3,1);
   }
-  .ir-ao-fim:hover:not(:disabled) { background: var(--fill); border-color: var(--ink); color: var(--ink); }
+  .ir-ao-fim:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink); color: var(--ink); }
   .conversa-col.vazia .ir-ao-fim { display: none; }
   .conversa-rodape {
     position: relative;
@@ -223,9 +223,9 @@
      quantos trechos dele. Clicar mostra os trechos na coluna da direita. */
   .assinatura .ass-doc {
     gap: 6px; height: 26px; padding: 0 9px; max-width: 320px; border: 1px solid var(--ink-a1); border-radius: 8px;
-    background: var(--surf); font: 500 12px var(--sans); color: var(--ink2);
+    background: var(--botao-fundo); font: 500 12px var(--sans); color: var(--ink2);
   }
-  .assinatura .ass-doc:hover:not(:disabled) { border: 1px solid var(--ink-a25); background: var(--surf); color: var(--ink); }
+  .assinatura .ass-doc:hover:not(:disabled) { border: 1px solid var(--ink-a25); background: var(--botao-sobre); color: var(--ink); }
   .ass-doc .glifo { width: 15px; height: 15px; font-size: 12px; }
   .ass-doc small { font: 400 12px var(--mono); color: var(--ink3); }
   .ass-meta { padding: 0 4px; white-space: nowrap; }
@@ -239,7 +239,7 @@
   .ass-acao .ic { font-size: 16px; width: 16px; height: 16px; }
 
   /* o plano de execucao */
-  .cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); overflow: hidden; }
+  .cartao { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); overflow: hidden; }
   .cartao-topo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
   .cartao-topo .quem { font: 600 14px var(--sans); flex: 1; }
   .cartao-topo .tempo { font: 500 12px var(--sans); color: var(--ink3); }
@@ -332,9 +332,9 @@
   .lateral .lat-lista { gap: 8px; }
   .lat-trecho {
     display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--surf); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .16s ease;
+    background: var(--cartao-fundo); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .16s ease;
   }
-  .lat-trecho:hover:not(:disabled) { border-color: var(--ink-a25); background: var(--surf); color: var(--ink); }
+  .lat-trecho:hover:not(:disabled) { border-color: var(--ink-a25); background: var(--cartao-fundo); color: var(--ink); }
   .lat-trecho-cabeca { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .lat-trecho-cabeca .glifo { width: 16px; height: 16px; font-size: 12px; }
   .lat-trecho-cabeca b { flex: 1; min-width: 0; font: 600 12px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -459,7 +459,7 @@
   /* ----------------------- o documento aberto dentro da conversa */
   /* A página é o PDF rasterizado, não uma aproximação em HTML: o que está na
      tela é o arquivo. O papel fica claro nos dois temas — é papel. */
-  .visor { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); margin-top: 12px; overflow: hidden; }
+  .visor { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); margin-top: 12px; overflow: hidden; }
   .visor-topo {
     display: flex; align-items: center; justify-content: space-between;
     gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); flex-wrap: wrap;
@@ -564,7 +564,7 @@
 
   /* A janelinha dos bastidores: o que esta acontecendo, enquanto acontece.
      Terminou, vira uma linha so, clicavel para reabrir. */
-  .bastidor { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
+  .bastidor { border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); }
   .bastidor-topo {
     display: flex; align-items: center; gap: 10px; padding: 9px 12px;
     font-size: 13px; color: var(--ink2); cursor: pointer; border-radius: 8px;
@@ -609,7 +609,7 @@
   /* O que entendi do pedido, antes de gravar: uma proposta esperando o sim. */
   /* O cartao da conversa (pacote de telas): superficie, fio de 12%, raio 12
      e 16 x 18 de recuo. Os botoes medem 30 px; o cheio e o da casca. */
-  .proposta { border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); padding: 16px 18px; }
+  .proposta { border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); padding: 16px 18px; }
   .proposta-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
   .proposta-topo b { font: 600 14px var(--sans); }
   .proposta .linha-form { margin-top: 10px; margin-bottom: 0; gap: 8px; }
@@ -642,7 +642,7 @@
   /* Os trechos moram no painel da direita; na resposta fica so a conta - uma
      linha, nunca um cartao. */
   .fontes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font: 400 12px var(--sans); color: var(--ink3); }
-  .trecho { border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; font-size: 12px; background: var(--surf); display: grid; gap: 6px; }
+  .trecho { border: 1px solid var(--ink-a1); border-radius: 8px; padding: 10px 12px; font-size: 12px; background: var(--cartao-fundo); display: grid; gap: 6px; }
   .trecho .origem { font: 500 12px var(--sans); color: var(--ink3); }
   .trecho pre { margin: 0; font: inherit; white-space: pre-wrap; color: var(--ink2); max-height: 170px; overflow-y: auto; line-height: 1.5; }
   .trecho-ver { justify-self: start; }
@@ -678,7 +678,7 @@
   .resposta .texto .cit-documento { background: var(--sub); }
   /* M7: o botao ao lado de "Nao tenho material de <area> na biblioteca". */
   .resposta .texto .bib-acrescentar { margin-left: 6px; padding: 2px 9px; border-radius: 8px; font-size: 12px;
-    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink2); cursor: pointer; }
+    border: 1px solid var(--ink-a15); background: var(--botao-fundo); color: var(--ink2); cursor: pointer; }
   .resposta .texto .bib-acrescentar:hover { color: var(--ink); border-color: var(--ink-a3); }
   .resposta .texto .sem-fonte { display: inline-block; padding: 1px 7px; border-radius: 8px; background: var(--warnbg);
     color: var(--warnt); font-size: 12px; line-height: 1.5; vertical-align: 1px; white-space: nowrap; }
@@ -703,12 +703,12 @@
   .registro.barra-escopo .registro-agora { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .registro.barra-escopo.andando .registro-agora { color: var(--ink); }
   .barra-parar { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 8px; border: 1px solid var(--ink-a1);
-                 border-radius: 999px; background: var(--surf); font: 500 12px var(--sans); color: var(--ink2); cursor: pointer; }
-  .barra-parar:hover { color: var(--ink); background: var(--fill); }
+                 border-radius: 999px; background: var(--botao-fundo); font: 500 12px var(--sans); color: var(--ink2); cursor: pointer; }
+  .barra-parar:hover { color: var(--ink); background: var(--botao-sobre); }
 
   /* A2: o agente da proxima pergunta, na barra acima do campo. */
   .barra-agente select { margin-left: 4px; padding: 1px 6px; border: 1px solid var(--ink-a1); border-radius: 8px;
-                         background: var(--surf); color: var(--ink); font: 500 12px var(--sans); }
+                         background: var(--campo-fundo); color: var(--ink); font: 500 12px var(--sans); }
 
   /* C5: "IA trabalhando" nas outras telas: a linha de estado com o Parar. */
   .ia-trabalhando { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; color: var(--ink2); }
@@ -719,7 +719,7 @@
   /* O CARTAO DE TRABALHO (pacote de telas, `Conversa - Carregando`): o
      titulo, o tempo e o Parar; as faixas das etapas (03-compositor-e-agora,
      .agr-*); e o registro numa caixa no tom da coluna, aberto. */
-  .trab-cartao { display: grid; gap: 16px; padding: 18px 18px 16px 20px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
+  .trab-cartao { display: grid; gap: 16px; padding: 18px 18px 16px 20px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); }
   .trab-topo { display: grid; gap: 16px; }
   .trab-cabeca { display: flex; align-items: center; gap: 12px; }
   .trab-cabeca .quem { flex: 1; min-width: 0; font: 600 14px var(--sans); }

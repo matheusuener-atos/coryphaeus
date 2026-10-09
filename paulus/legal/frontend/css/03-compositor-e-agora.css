@@ -54,9 +54,9 @@
   .agr-tempo { font: 400 12px var(--mono); color: var(--ink2); white-space: nowrap; }
   .agr-parar {
     display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px;
-    border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink);
+    border: 1px solid var(--ink-a12); background: var(--botao-fundo); font: 600 12px var(--sans); color: var(--ink);
   }
-  .agr-parar:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); color: var(--ink); }
+  .agr-parar:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a12); color: var(--ink); }
   .agr-parar i { width: 8px; height: 8px; border-radius: 2px; background: var(--ink); }
   .agr-etapas { display: grid; gap: 6px; }
   .agr-etapa { display: grid; gap: 8px; min-width: 0; }
@@ -80,7 +80,7 @@
   .agora-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
   .cartao-agora {
     border: 1px solid var(--ink-a1); border-radius: 12px; padding: 14px 16px;
-    display: grid; gap: 12px; align-content: start; background: var(--surf);
+    display: grid; gap: 12px; align-content: start; background: var(--cartao-fundo);
     box-shadow: var(--elev-card); transition: border-color .18s;
   }
   .cartao-agora[data-abre] { cursor: pointer; }
@@ -131,7 +131,7 @@
      recuo de 44 px (pacote de telas, `Assistente`). */
   .lista-conversas { display: grid; flex: none; width: 100%; margin-top: 16px; }
   .lc-cartao {
-    display: grid; background: var(--surf); border: 1px solid var(--ink-a1);
+    display: grid; background: var(--cartao-fundo); border: 1px solid var(--ink-a1);
     border-radius: 12px; box-shadow: var(--elev-card);
   }
   /* Sem overflow: hidden no cartao: ele cortava o menu do "...", que abre
@@ -244,7 +244,7 @@
   .ditado-cartao .acoes { gap: 6px; }
   .dit-fantasma { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: none; border-radius: 8px; background: none; font: 500 12px var(--sans); color: var(--ink2); }
   .dit-fantasma:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
-  .dit-borda { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); }
-  .dit-borda:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .dit-borda { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--ink-a12); background: var(--botao-fundo); font: 600 12px var(--sans); color: var(--ink); }
+  .dit-borda:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a12); }
   .dit-cheio { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--ink); color: var(--bg); font: 600 12px var(--sans); }
   .dit-cheio:hover:not(:disabled) { background: var(--ink2); border: none; color: var(--bg); }

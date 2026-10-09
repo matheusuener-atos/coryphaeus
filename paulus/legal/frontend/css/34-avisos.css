@@ -11,7 +11,7 @@
      tras aparece embaixo (a pilha). */
   .av-faixa {
     position: relative; display: flex; align-items: center; gap: 12px; min-width: 0; max-width: 100%; height: 56px; padding: 0 8px 0 10px;
-    border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); box-shadow: var(--elev-card);
+    border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); box-shadow: var(--elev-card);
   }
   .av-faixa[hidden] { display: none; }
   .av-faixa.pilha { box-shadow: var(--elev-card), 0 5px 0 -2px var(--lado-fundo), 0 5px 0 -1px var(--ink-a06); }
@@ -30,8 +30,8 @@
   .av-faixa-selo.metade { background: var(--warnbg); color: var(--warnt); }
   .av-faixa-texto small { font: 500 12px var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .av-faixa-acao { flex: none; display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 8px;
-    border: 1px solid var(--ink-a12); background: none; font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
-  .av-faixa-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+    border: 1px solid var(--ink-a12); background: var(--botao-fundo); font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
+  .av-faixa-acao:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a12); }
   .av-faixa-divisa { width: 1px; height: 20px; flex: none; background: var(--ink-a1); }
   .av-faixa-nav { display: flex; align-items: center; gap: 2px; flex: none; }
   .av-faixa-conta { min-width: 44px; text-align: center; font: 500 12px var(--mono); color: var(--ink3); font-variant-numeric: tabular-nums; }
@@ -57,7 +57,7 @@
      que ele substitui - nunca encostado na caixa. */
   .av-painel-inicio { width: 100%; margin-top: 28px; }
   .avp-rodape { display: flex; align-items: center; min-height: 48px; padding: 8px 16px; border-top: 1px solid var(--ink-a1); }
-  .avp-cartao { display: grid; background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-card); overflow: hidden; }
+  .avp-cartao { display: grid; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-card); overflow: hidden; }
   .avp-cabeca { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--ink-a1); }
   .avp-conta { font: 500 12px var(--sans); color: var(--ink3); }
   .avp-busca { width: 266px; height: 34px; }
@@ -107,8 +107,8 @@
   .avp-onde { color: var(--ink3); }
   .avp-atrasada .avp-quando { color: var(--acc); }
   .avp-linha[data-av-hist] { grid-template-columns: 18px minmax(0, 1fr) auto; }
-  .avp-acao { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--ink-a12); background: var(--bg); font: 600 12px var(--sans); color: var(--ink); }
-  .avp-acao:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); }
+  .avp-acao { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--ink-a12); background: var(--botao-fundo); font: 600 12px var(--sans); color: var(--ink); }
+  .avp-acao:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a12); }
   .avp-abrir { height: 28px; padding: 0 10px; border: none; border-radius: 8px; background: none; font: 500 12px var(--sans); color: var(--ink3); }
   .avp-abrir:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .avp-mais { justify-self: start; margin: 8px 12px; height: 28px; padding: 0 8px; border: none; border-radius: 8px; background: none; font: 500 12px var(--sans); color: var(--ink2); }

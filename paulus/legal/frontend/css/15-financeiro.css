@@ -100,12 +100,12 @@
   .fin-parecer p.fin-parecer-lead { color: var(--ink); }
   .fin-parecer p.fin-lead { font-size: 16px; color: var(--ink); }
   .fin-parecer small { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
-  .fin-numeros-crus { white-space: pre-wrap; font: 400 12px/1.5 var(--mono); color: var(--ink2); padding: 10px 12px; border: 1px solid var(--ink-a1); background: var(--surf); border-radius: 8px; }
+  .fin-numeros-crus { white-space: pre-wrap; font: 400 12px/1.5 var(--mono); color: var(--ink2); padding: 10px 12px; border: 1px solid var(--ink-a1); background: var(--cartao-fundo); border-radius: 8px; }
 
   /* pecas que outras telas usam (Cadastros, Gravacoes, Foco) */
   .fin-cartao {
     flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; box-shadow: var(--elev-card);
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); overflow: hidden; box-shadow: var(--elev-card);
   }
   .fin-cartao-cabeca { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); font: 600 14px var(--sans); }
   .fin-cartao-cabeca > span:first-child { flex: 1; min-width: 0; }
@@ -181,7 +181,7 @@
   .rel-tarefa small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
   .rel-numeros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-content: start; }
   .fin-cartao .rel-numeros { padding: 14px 16px; }
-  .rel-numero { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 4px; }
+  .rel-numero { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); display: grid; gap: 4px; }
   .rel-numero small { font: 500 12px var(--sans); color: var(--ink3); }
   .rel-numero b { font: 600 20px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
   .rel-explica { margin: 0; padding: 0 16px 14px; font: 500 12px/1.5 var(--sans); color: var(--ink3); }

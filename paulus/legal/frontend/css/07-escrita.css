@@ -103,7 +103,7 @@
 
   /* A planilha so existe dentro do cartao de Documentos: a caixa preenche a
      coluna e rola por dentro, sem fio proprio (o cartao ja tem o dele). */
-  .pl-caixa { flex: 1; min-height: 0; overflow: auto; background: var(--surf); }
+  .pl-caixa { flex: 1; min-height: 0; overflow: auto; background: var(--cartao-fundo); }
   .pl-grade { border-collapse: collapse; font-size: 13px; width: max-content; }
   .pl-grade th, .pl-grade td {
     border: 1px solid var(--ink-a08); padding: 0; height: 34px;
@@ -111,14 +111,14 @@
   /* O cabecalho de coluna do sistema (o mesmo da .tabela-cabecalho): 500 12 --ink3,
      na cor do cartao, com o fio a1 embaixo. */
   .pl-grade th {
-    background: var(--surf); color: var(--ink3);
+    background: var(--cartao-fundo); color: var(--ink3);
     font: 500 12px var(--sans); text-align: left; height: auto;
     min-width: 34px; padding: 8px 12px; border-bottom: 1px solid var(--ink-a1);
     position: sticky; top: 0; z-index: 2;
   }
   .pl-grade th.canto { left: 0; z-index: 3; min-width: 44px; }
   .pl-grade td.cabeca-linha {
-    background: var(--surf); color: var(--ink3);
+    background: var(--cartao-fundo); color: var(--ink3);
     font: 500 12px var(--sans); text-align: center;
     min-width: 44px; border-right: 1px solid var(--ink-a1); position: sticky; left: 0; z-index: 1;
   }
@@ -143,7 +143,7 @@
      linha de dados logo abaixo dele — a linha com "Cliente", "Valor". Sem ela
      à vista, rolar uma tabela de parcelas vira adivinhação de coluna. */
   .pl-caixa.congelada tbody tr:first-child td {
-    position: sticky; top: 33px; z-index: 1; background: var(--surf);
+    position: sticky; top: 33px; z-index: 1; background: var(--cartao-fundo);
   }
   .pl-caixa.congelada tbody tr:first-child td.cabeca-linha { z-index: 2; }
 
@@ -181,7 +181,7 @@
   /* Caixa pequena dentro do painel de leis. */
   .artigo {
     border: 1px solid var(--ink-a1); border-radius: 8px;
-    background: var(--surf);
+    background: var(--cartao-fundo);
     padding: 10px 12px;
     margin-bottom: 10px;
   }

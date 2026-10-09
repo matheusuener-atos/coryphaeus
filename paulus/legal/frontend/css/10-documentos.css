@@ -43,7 +43,7 @@
     font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap; max-width: 320px; cursor: pointer;
   }
   .docs-aba:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
-  .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); border-bottom-color: var(--surf); color: var(--ink); font-weight: 600; }
+  .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--cartao-fundo); border-color: var(--ink-a1); border-bottom-color: var(--cartao-fundo); color: var(--ink); font-weight: 600; }
   .docs-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .docs-aba small { font: 500 12px var(--sans); color: var(--ink3); }
   /* O x e um icone dentro do botao da aba, e `button .ic` (05-paineis) deixa
@@ -56,7 +56,7 @@
      e a variante com texto (.com-texto) moram em 05-paineis-e-botoes.css. */
   .docs-barra {
     flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 20px;
-    border-bottom: 1px solid var(--ink-a1); background: var(--surf); font-size: 12px;
+    border-bottom: 1px solid var(--ink-a1); background: var(--cartao-fundo); font-size: 12px;
   }
   /* Na coluna de 1080 (a das outras telas) a barra juridica nao cabe numa linha: quebra, como a da planilha, em vez de cortar o fim. */
   .docs-barra.juridica { flex-wrap: wrap; row-gap: 6px; }
@@ -67,7 +67,7 @@
      espremia em 28 px de icone: rotulo cortado e lista estreita. A receita
      (o campo compacto) mora em 04-acervo.css, com esta especificidade. */
   .docs-sel, .docs-barra .escolha-botao.docs-sel { width: auto; flex: none; }
-  .docs-barra .escolha-botao.docs-sel:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--surf); color: var(--ink); }
+  .docs-barra .escolha-botao.docs-sel:hover:not(:disabled) { border-color: var(--ink-a35); background: var(--campo-fundo); color: var(--ink); }
   .docs-barra.fx { flex-wrap: nowrap; gap: 10px; }
   .docs-ref { padding: 4px 10px; border: 1px solid var(--ink-a15); border-radius: 8px; font: 600 12px var(--sans); white-space: nowrap; }
   .docs-fx { font: 500 12px var(--sans); color: var(--ink3); font-style: italic; }
@@ -87,7 +87,7 @@
   }
   .docs-status {
     flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--ink-a1);
-    background: var(--surf); font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap;
+    background: var(--cartao-fundo); font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap;
   }
   .docs-status .cresce { flex: 1; }
   .docs-papel-area { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; }
@@ -152,7 +152,7 @@
   .fl-marcar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); cursor: pointer; }
   .fl-marcar span { flex: 1; }
   .fl-marcar small { color: var(--ink3); font-weight: 500; }
-  .fl-previa-linhas { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); font: 600 12px/1.45 var(--sans); color: var(--ink2); }
+  .fl-previa-linhas { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); font: 600 12px/1.45 var(--sans); color: var(--ink2); }
   .fl-previa-linhas b { font-weight: 600; color: var(--ink); }
   .folha-painel > .fl-bloco:first-of-type { border-top: none; padding-top: 0; }
 
@@ -162,15 +162,15 @@
   .docs-previa { flex: 1; min-height: 0; display: flex; }
   .docs-miniaturas {
     width: 84px; flex: none; border-right: 1px solid var(--ink-a1); padding: 14px 0; overflow: auto;
-    display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--surf);
+    display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--cartao-fundo);
   }
   .docs-mini {
-    width: 48px; padding: 0; border: 1px solid var(--ink-a1); border-radius: 0; background: var(--surf); flex: none;
+    width: 48px; padding: 0; border: 1px solid var(--ink-a1); border-radius: 0; background: var(--cartao-fundo); flex: none;
     display: flex; flex-direction: column; align-items: center; gap: 2px; padding-bottom: 3px; cursor: pointer;
   }
   .docs-mini img { width: 100%; height: auto; display: block; opacity: .85; }
   .docs-mini span { font: 500 12px var(--sans); color: var(--ink3); }
-  .docs-mini:hover:not(:disabled) { border-color: var(--ink); background: var(--surf); }
+  .docs-mini:hover:not(:disabled) { border-color: var(--ink); background: var(--cartao-fundo); }
   .docs-mini.atual { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   .docs-mini.atual span { color: var(--ink); font-weight: 600; }
   .docs-pv-rolagem { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; align-items: flex-start; }
@@ -190,7 +190,7 @@
      botao de nova aba e o botao de icone de 05. */
   .docs-abas-pl {
     flex: none; display: flex; align-items: center; gap: 2px; padding: 6px 10px; border-top: 1px solid var(--ink-a1);
-    background: var(--surf); font-size: 12px; overflow: hidden;
+    background: var(--cartao-fundo); font-size: 12px; overflow: hidden;
   }
   .docs-abas-pl .docs-ligacao { margin-left: 6px; }
   .docs-selecao { margin-left: 12px; display: flex; gap: 12px; flex-wrap: wrap; font: 500 12px var(--sans); color: var(--ink3); min-width: 0; overflow: hidden; white-space: nowrap; }

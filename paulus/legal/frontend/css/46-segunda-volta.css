@@ -31,7 +31,7 @@
   .cfl-linha button { flex: none; }
   .cfl-linha.resolvido b { font-weight: 500; color: var(--ink2); }
   .cfl-nota { width: 100%; box-sizing: border-box; font: 400 14px/1.5 var(--sans); padding: 8px 10px; border-radius: 8px;
-    border: 1px solid var(--ink-a15); background: var(--surf); color: var(--ink); resize: vertical; }
+    border: 1px solid var(--ink-a15); background: var(--cartao-fundo); color: var(--ink); resize: vertical; }
   .cli-conflito > span { flex: 1; min-width: 0; }
   .cli-conflito .cli-resolver { flex: none; }
   .cli-conflito.resolvido { opacity: .75; }
@@ -43,7 +43,7 @@
   .pas-na-conversa { border: none; padding: 0; background: transparent; }
 
   /* N7: os temas e as súmulas ligados aos artigos citados, embaixo da resposta. */
-  .rel-bloco { margin: 10px 0 4px; border: 1px solid var(--ink-a1); border-radius: 12px; padding: 0 12px; background: var(--surf); }
+  .rel-bloco { margin: 10px 0 4px; border: 1px solid var(--ink-a1); border-radius: 12px; padding: 0 12px; background: var(--cartao-fundo); }
   .rel-bloco summary { cursor: pointer; padding: 9px 0; display: flex; align-items: center; gap: 6px; font: 500 13px var(--sans); color: var(--ink2); list-style: none; }
   .rel-bloco summary::-webkit-details-marker { display: none; }
   .rel-bloco[open] summary { color: var(--ink); }
@@ -79,7 +79,7 @@
   .jur-busca input { flex: 1 1 220px; min-width: 0; max-width: var(--campo); }
   .jur-busca select { flex: 0 1 200px; min-width: 0; }
   .jur-lista { display: grid; gap: 10px; margin-top: 10px; }
-  .jur-acordao { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); display: grid; gap: 6px; }
+  .jur-acordao { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); display: grid; gap: 6px; }
   .jur-cab { display: grid; gap: 2px; }
   .jur-cab small { color: var(--ink3); font-size: 12px; }
   .jur-trecho, .jur-ementa, .jur-tese { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }

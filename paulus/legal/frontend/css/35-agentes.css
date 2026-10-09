@@ -81,9 +81,9 @@
   .agt-legenda i.nao { background: transparent; border: 1px solid var(--ink-a2); }
   .agt-cartoes { padding: 20px 22px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: min-content; gap: 14px; }
   .agt-cartao { text-align: left; font: inherit; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 12px; padding: 16px;
-    border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--surf); box-shadow: none; min-width: 0;
+    border-radius: 12px; border: 1px solid var(--ink-a1); background: var(--cartao-fundo); box-shadow: none; min-width: 0;
     transition: transform .2s cubic-bezier(.2, .7, .3, 1); }
-  .agt-cartao:hover:not(:disabled) { transform: translateY(-3px); background: var(--surf); border-color: var(--ink-a1); color: var(--ink); }
+  .agt-cartao:hover:not(:disabled) { transform: translateY(-3px); background: var(--cartao-fundo); border-color: var(--ink-a1); color: var(--ink); }
   .agt-cartao.escolhido { outline: 2px solid var(--ink); outline-offset: 2px; }
   .agt-cartao.apagado { opacity: .78; }
   .agt-cartao-topo { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; }

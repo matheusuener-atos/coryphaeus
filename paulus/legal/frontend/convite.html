@@ -36,12 +36,12 @@
   quem abriu o link num computador.
 -->
 <style>
-[data-tema="escuro"] { --bg:#131312; --surf:#1a1a18; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
+[data-tema="escuro"] { --bg:#131312; --fill2:#2a2a27; --ink:#f2f1ec; --ink2:#a8a69e; --ink3:#95938a;
     --apagado:#6f6e68; --fio:rgba(242,241,236,.12); --fio2:rgba(242,241,236,.1); --fio3:rgba(242,241,236,.08); --fio-forte:rgba(242,241,236,.4);
-    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; --fill:#222220; --fio-sobre:rgba(242,241,236,.2); color-scheme:dark; }
-  [data-tema="claro"] { --bg:#f6f5f1; --surf:#efeee9; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
+    --erro:#f0a08e; --marca:#8a8982; --marca-sub:#6f6e68; --pastilha-sobre:#303030; --pastilha-ativa:#333330; --fill:#222220; --fio-sobre:rgba(242,241,236,.2); --cartao-fundo:#161616; --campo-fundo:#111111; --botao-fundo:#1a1a1a; --botao-sobre:#212121; --primario-fundo:#262626; --primario-sobre:#2e2e2e; color-scheme:dark; }
+  [data-tema="claro"] { --bg:#f6f5f1; --fill2:#e2e1db; --ink:#1c1c1a; --ink2:#55544f; --ink3:#77766f;
     --apagado:#9a9a93; --fio:rgba(28,28,26,.12); --fio2:rgba(28,28,26,.1); --fio3:rgba(28,28,26,.08); --fio-forte:rgba(28,28,26,.4);
-    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#dad9d2; --pastilha-ativa:#d3d2ca; --fill:#e8e7e1; --fio-sobre:rgba(28,28,26,.2); color-scheme:light; }
+    --erro:#a3331f; --marca:#8a8a86; --marca-sub:#a8a69e; --pastilha-sobre:#dad9d2; --pastilha-ativa:#d3d2ca; --fill:#e8e7e1; --fio-sobre:rgba(28,28,26,.2); --cartao-fundo:#efeee9; --campo-fundo:#faf9f6; --botao-fundo:#f6f5f1; --botao-sobre:#ecebe6; --primario-fundo:#e2e1db; --primario-sobre:#dad9d2; color-scheme:light; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { height: 100vh; height: 100dvh; display: flex; justify-content: center; background: var(--bg); color: var(--ink);
@@ -72,8 +72,8 @@
   .rotulo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .lado { font: 400 12px 'Fira Code', monospace; color: var(--apagado); white-space: nowrap; }
   .lado b { font-weight: 400; color: var(--ink3); }
-  .caixa { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio); }
-  .campo { width: 100%; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio);
+  .caixa { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--campo-fundo); border: 1px solid var(--fio); }
+  .campo { width: 100%; height: 36px; padding: 0 12px; border-radius: 12px; background: var(--campo-fundo); border: 1px solid var(--fio);
     outline: none; color: var(--ink); font: 400 16px 'Manrope', sans-serif; }
   .campo:focus { border-color: var(--fio-forte); }
   .ajuda { margin: 0; font: 400 12px/1.5 'Manrope', sans-serif; color: var(--apagado); text-wrap: pretty; }
@@ -85,14 +85,14 @@
   /* A linha-botao (padronizacao de 08/10/2026): a mesma de css/57-linha-botao.css, copiada aqui
      porque esta pagina abre sem sessao e so carrega o proprio <style>. */
   .linha-botao { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; height: 56px; padding: 0 14px; margin: 0;
-    border: 1px solid var(--fio); border-radius: 12px; background: var(--surf); color: var(--ink);
+    border: 1px solid var(--fio); border-radius: 12px; background: var(--botao-fundo); color: var(--ink);
     font: 400 14px/1.3 'Manrope', system-ui, sans-serif; text-align: left; text-decoration: none; cursor: pointer;
     transition: background .15s, border-color .15s; }
   div.linha-botao { cursor: default; }
   .linha-botao.duas { height: 64px; }
   .linha-botao.centro { justify-content: center; }
   .linha-botao.centro .lb-texto { flex: 0 1 auto; }
-  :is(button, a).linha-botao:hover:not(:disabled) { background: var(--fill); border-color: var(--fio-sobre); }
+  :is(button, a).linha-botao:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--fio-sobre); }
   .linha-botao:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .linha-botao:disabled { opacity: .5; cursor: default; }
   .lb-icones { display: flex; align-items: center; gap: 6px; flex: none; }
@@ -106,11 +106,11 @@
   .lb-acao { border: 0; background: none; padding: 10px 0; font: 400 13px 'Manrope', system-ui, sans-serif; color: var(--ink2); cursor: pointer; }
   button.lb-acao:hover { color: var(--ink); }
   /* O botao de moldura dupla: o trilho com a pastilha dentro. */
-  .g-trilho { display: flex; width: 100%; padding: 1px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio2);
+  .g-trilho { display: flex; width: 100%; padding: 1px; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--fio2);
     cursor: pointer; position: relative; text-decoration: none; }
   .g-trilho::after { content: ""; position: absolute; inset: -2px 0; } /* 44 px de toque */
   .g-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
-    background: var(--fill2); color: var(--ink); font: 500 13px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
+    background: var(--primario-fundo); color: var(--ink); font: 500 13px 'Manrope', system-ui, sans-serif; letter-spacing: .01em; }
   .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   .g-trilho:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
   .g-trilho:disabled { opacity: .5; pointer-events: none; }
@@ -119,21 +119,21 @@
   .ou::before, .ou::after { content: ""; flex: 1; height: 1px; background: var(--fio2); }
 
   /* O Google Authenticator antes de tudo: uma caixa com o icone e as lojas. */
-  .app { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--surf); border: 1px solid var(--fio2); }
+  .app { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--fio2); }
   .app-cabeca { display: flex; align-items: center; gap: 10px; font: 400 13px/1.5 'Manrope', sans-serif; color: var(--ink2); }
   .app-cabeca b { font-weight: 500; color: var(--ink); }
   .app-icone { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 8px; background: #fff; }
   .lojas { display: flex; flex-wrap: wrap; gap: 8px; }
-  .lojas a { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 8px; background: var(--fill2);
+  .lojas a { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 8px; background: var(--botao-fundo);
     color: var(--ink); font: 500 12px 'Manrope', sans-serif; text-decoration: none; }
-  .lojas a:hover { background: var(--pastilha-sobre); }
+  .lojas a:hover { background: var(--botao-sobre); }
 
   /* O widget da Cloudflare nao aparece: so se pedir interacao (appearance
      "interaction-only"), e ai ele surge aqui sozinho. O estado vai para o selo. */
   .robo:empty { display: none; }
   .robo { display: flex; justify-content: center; }
   .cf-badge { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 14px; border-radius: 12px;
-    background: var(--surf); border: 1px solid var(--fio2); }
+    background: var(--cartao-fundo); border: 1px solid var(--fio2); }
   .cf-esq { display: flex; align-items: center; gap: 10px; font: 500 13px 'Manrope', system-ui, sans-serif; color: var(--ink); }
   .cf-icone { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none;
     transition: background .24s, transform .24s cubic-bezier(.2,.8,.2,1); }
@@ -165,14 +165,14 @@
      (o teclado do celular e o colar funcionam), como na tela de entrar. */
   .casas { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
   .casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;
-    background: var(--surf); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
+    background: var(--campo-fundo); border: 1px solid var(--fio); font: 400 20px 'Fira Code', monospace; color: var(--ink); }
   .casas span.vez { border-color: var(--fio-forte); }
   .casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px;
     color: transparent; caret-color: transparent; background: none; }
 
   /* Os codigos de recuperacao: duas colunas de caixas, para copiar. */
   .codigos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; user-select: all; }
-  .codigos code { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--surf);
+  .codigos code { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--campo-fundo);
     border: 1px solid var(--fio); font: 400 14px 'Fira Code', monospace; letter-spacing: .1em; color: var(--ink); }
 
   /* No computador: a coluna de 360 px no meio da tela, a marca em 56 px. */
@@ -181,7 +181,7 @@
     .marca { gap: 14px; padding: calc(22vh - 56px) 0 0; padding-top: calc(22dvh - 56px); }
     .marca h1 { font-size: 40px; }
     .baixo { width: 100%; max-width: 360px; padding: 0; margin-top: 0; }
-    .g-trilho:hover .g-pastilha { background: var(--pastilha-sobre); }
+    .g-trilho:hover .g-pastilha { background: var(--primario-sobre); }
     .g-trilho:active .g-pastilha { background: var(--pastilha-ativa); }
   }
 

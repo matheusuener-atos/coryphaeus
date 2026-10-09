@@ -50,7 +50,7 @@
   .ap-saida-lista { display: grid; gap: 8px; }
   .ap-saida-lista .arquivo-painel .ic { flex: none; color: var(--ink3); }
   .ap-dialogo-leitura .dialogo-cancelar { display: none; }
-  .ap-regras { display: grid; margin-top: 4px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); }
+  .ap-regras { display: grid; margin-top: 4px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); }
   .ap-regra {
     display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 34px; align-items: center; gap: 12px;
     padding: 11px 16px; border-bottom: 1px solid var(--ink-a08); font-size: 14px;
@@ -103,7 +103,7 @@
   /* Acima do degrade do pe da conversa: quando a caixa desliza do inicio
      para o pe, ela passa por baixo dele e escurecia pela metade. */
   .cartao-campo {
-    position: relative; z-index: 4; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf);
+    position: relative; z-index: 4; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--campo-fundo);
     box-shadow: var(--elev-card); padding: 20px 20px 16px 22px;
     display: grid; gap: 18px; transition: border-color .18s;
   }
@@ -183,7 +183,7 @@
     position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
     max-height: 260px; overflow-y: auto; z-index: 40; padding: 6px;
     border: 1px solid var(--ink-a1); border-radius: 12px;
-    background: var(--surf); box-shadow: var(--elev-float);
+    background: var(--cartao-fundo); box-shadow: var(--elev-float);
     animation: menu-entra .16s cubic-bezier(.16,1,.3,1);
   }
   .mencao-item {
@@ -265,17 +265,17 @@
     border-radius: 8px;
     padding: 7px 13px;
     border: 1px solid var(--ink-a1);
-    background: var(--bg);
+    background: var(--botao-fundo);
     color: var(--ink);
   }
-  button:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a1); color: var(--ink); }
+  button:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a1); color: var(--ink); }
   button:disabled { opacity: 0.4; cursor: default; }
-  /* Dentro de cartao e de dialogo o botao usa o fundo do proprio cartao
-     (--surf), e nao o da casca: sobre o branco, o --bg fazia mancha. O
+  /* Dentro de cartao e de dialogo o botao tem o fundo de botao (--botao-fundo,
+     o padrao do sistema de 08/10/2026), o mesmo de fora. O
      `:where` zera a especificidade - qualquer classe (primario, fantasma,
      pilula, botao-icone) continua mandando. Substitui as sete correcoes
      que cada tela fazia com o seu seletor. */
-  :where(.tabela-cartao, .barra-selecao, .fin-cartao, .cfg-cartao, .sv-secao, .sv-ficha, .ag-cartao, .ag-listas, .as-cartao, .em-compor, .em-contas, .cad-sug, .ec-cartao, .be-controles, .dialogo, .cartao, .cartao-agora, .lateral, .acervo-painel, .bv-cartao, .lc-cartao, .editor-lado, .painel, .ex-msg-folha, .sv-pasta, .ac-arvore, .visor) button { background: var(--surf); }
+  :where(.tabela-cartao, .barra-selecao, .fin-cartao, .cfg-cartao, .sv-secao, .sv-ficha, .ag-cartao, .ag-listas, .as-cartao, .em-compor, .em-contas, .cad-sug, .ec-cartao, .be-controles, .dialogo, .cartao, .cartao-agora, .lateral, .acervo-painel, .bv-cartao, .lc-cartao, .editor-lado, .painel, .ex-msg-folha, .sv-pasta, .ac-arvore, .visor) button { background: var(--botao-fundo); }
   button:focus-visible, [tabindex]:focus-visible {
     outline: 2px solid var(--destaque);
     outline-offset: 2px;
@@ -345,7 +345,7 @@
   .esq-fila > span { flex: 1; display: grid; gap: 8px; }
   .esq-bolinha { width: 28px; height: 28px; border-radius: 8px; background: var(--fill); flex: none; }
   .esq-cartoes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .esq-cartao { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
+  .esq-cartao { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); }
   .cartao-erro { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--accln); border-radius: 12px; background: var(--accbg2); }
   .cartao-erro > b { font: 600 14px var(--sans); color: var(--ink); }
   .cartao-erro > p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }

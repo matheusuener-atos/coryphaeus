@@ -15,7 +15,7 @@
      das listas da Agenda); a secao aberta em negrito */
   .cfg-menu {
     position: sticky; top: 0; display: grid; gap: 1px; align-content: start; padding: 8px;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card);
   }
   .cfg-item {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px;
@@ -39,7 +39,7 @@
   .cfg-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
   .cfg-grade.larga { grid-template-columns: minmax(0, 1fr); }
 
-  .cfg-cartao { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden; box-shadow: var(--elev-card); }
+  .cfg-cartao { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); overflow: hidden; box-shadow: var(--elev-card); }
   .cfg-cartao-cabeca { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); font: 600 14px var(--sans); }
   .cfg-cartao-cabeca > span:first-child { flex: 1; min-width: 0; }
   .cfg-cartao-cabeca small { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; }
@@ -70,7 +70,7 @@
   .cfg-foto { display: flex; align-items: center; gap: 16px; }
   .cfg-foto .cad-avatar { width: 56px; height: 56px; font-size: 18px; flex: none; }
   .cfg-foto .cfg-botoes .cfg-explica { margin-left: 4px; }
-  .cfg-logo { width: 56px; height: 56px; border-radius: 8px; border: 1px solid var(--ink-a1); background: var(--surf); display: flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; }
+  .cfg-logo { width: 56px; height: 56px; border-radius: 8px; border: 1px solid var(--ink-a1); background: var(--cartao-fundo); display: flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; }
   .cfg-logo img { width: 32px; height: 32px; border-radius: 8px; filter: var(--logo); }
   /* A logo do escritorio ocupa a moldura inteira e nao leva o filtro do tema:
      ela e a marca de quem usa, e inverter cor no tema escuro a descaracteriza. */
@@ -116,7 +116,7 @@
   .cfg-area svg { position: absolute; left: 40px; top: 0; width: calc(100% - 40px); height: 100%; background-image: linear-gradient(var(--ink-a06) 1px, transparent 1px); background-size: 100% 25%; }
   .cfg-agora { position: absolute; right: 0; display: flex; align-items: center; gap: 6px; pointer-events: none; transform: translateY(-50%); }
   .cfg-agora span { padding: 2px 8px; border-radius: 5px; background: var(--ink); color: var(--bg); font: 600 12px var(--sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .cfg-agora i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--surf); box-sizing: content-box; }
+  .cfg-agora i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--cartao-fundo); box-sizing: content-box; }
   .cfg-tempos { display: flex; justify-content: space-between; padding-left: 40px; font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; }
 
   /* conexoes (a caixa do icone e a .caixa-tipo de 05-paineis-e-botoes.css) */
@@ -144,9 +144,9 @@
   /* As casas do codigo: uma moldura so (o fio e o raio do campo) em duas
      medidas - a grande no passeio (.bv-casas, 20-vinculo.css) e a pequena
      aqui e no cartao de espera. */
-  .bv-casas span, .cfg-casas span, .agora-codigo span { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); color: var(--ink); font-family: var(--mono); font-weight: 400; }
+  .bv-casas span, .cfg-casas span, .agora-codigo span { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--campo-fundo); color: var(--ink); font-family: var(--mono); font-weight: 400; }
   .cfg-casas span, .agora-codigo span { width: 30px; height: 36px; font-size: 15px; }
-  .cfg-endereco { font: 400 12px var(--mono); color: var(--ink3); border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); padding: 10px 12px; overflow-wrap: anywhere; margin-top: 10px; }
+  .cfg-endereco { font: 400 12px var(--mono); color: var(--ink3); border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--campo-fundo); padding: 10px 12px; overflow-wrap: anywhere; margin-top: 10px; }
   .cfg-pronto { padding: 14px 16px; border: 1px solid var(--destaque-linha); border-radius: 12px; background: var(--destaque-fundo); display: grid; gap: 8px; }
 
   /* aprendizado */
@@ -245,7 +245,7 @@
    se marca - o proprio chip e o rotulo da caixa de marcar. */
 .ficha-areas { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-marcar { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
-  border: 1px solid var(--ink-a12); background: var(--surf); font-size: 12px; cursor: pointer; }
+  border: 1px solid var(--ink-a12); background: var(--botao-fundo); font-size: 12px; cursor: pointer; }
 .chip-marcar input { margin: 0; accent-color: var(--acc); }
 .chip-marcar:has(input:checked) { background: var(--fill); border-color: var(--ink-a3); }
 /* O que o PAULUS sabe (Biblioteca, M7): uma linha por area, com as leis e as

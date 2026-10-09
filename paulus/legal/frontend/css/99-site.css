@@ -11,7 +11,7 @@
   --site-line3: rgba(28, 28, 26, .25);
 }
 [data-tema="escuro"] {
-  --site-panel: #1a1a18;
+  --site-panel: var(--cartao-fundo);
   --site-pill: var(--primario-fundo);
   --site-pill-h: var(--primario-sobre);
   --site-line: rgba(242, 241, 236, .1);

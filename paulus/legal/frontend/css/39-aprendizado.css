@@ -13,7 +13,7 @@
      Feedback`): o corpo com a cabeca, as etiquetas do motivo, os dois campos
      lado a lado e o "Precisa ter"; o pe, separado por um fio, com a nota e
      os botoes. */
-  .apr-cartao { display: grid; margin-top: 2px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); overflow: hidden; }
+  .apr-cartao { display: grid; margin-top: 2px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); overflow: hidden; }
   .apr-corpo { display: grid; gap: 14px; padding: 16px 18px 18px; }
   .apr-cabeca { display: flex; align-items: flex-start; gap: 12px; }
   .apr-titulos { flex: 1; display: grid; gap: 2px; min-width: 0; }
@@ -22,19 +22,19 @@
   .apr-cartao p { margin: 0; font-size: 13px; color: var(--ink2); display: flex; align-items: center; gap: 6px; }
   .apr-cartao .apr-feito { padding: 14px 18px; }
   .apr-motivos, .apr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .apr-motivo { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--ink-a12); border-radius: 999px; background: none;
+  .apr-motivo { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--ink-a12); border-radius: 999px; background: var(--botao-fundo);
     font: 500 12px var(--sans); color: var(--ink2); cursor: pointer; }
   .apr-motivo .ic { display: none; }
-  .apr-motivo:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a12); color: var(--ink); }
+  .apr-motivo:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a12); color: var(--ink); }
   .apr-motivo.on, .apr-motivo.on:hover:not(:disabled) { border-color: var(--ink); background: var(--ink); color: var(--bg); font-weight: 600; }
   .apr-motivo.on .ic { display: inline-block; }
   .apr-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .apr-campo { display: grid; gap: 8px; min-width: 0; }
   .apr-campo > span:first-child { font: 500 13px var(--sans); color: var(--ink2); }
   .apr-campo > span:first-child small { margin-left: 4px; font: 500 12px var(--sans); color: var(--ink3); }
-  .apr-cartao textarea { width: 100%; max-width: 100%; min-width: 0; min-height: 86px; padding: 10px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg);
+  .apr-cartao textarea { width: 100%; max-width: 100%; min-width: 0; min-height: 86px; padding: 10px 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--campo-fundo);
     font: 400 14px/1.5 var(--sans); color: var(--ink); resize: vertical; }
-  .apr-linha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--bg); }
+  .apr-linha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border: 1px solid var(--ink-a15); border-radius: 8px; background: var(--campo-fundo); }
   .apr-linha:focus-within, .apr-cartao textarea:focus { border-color: var(--ink-a35); }
   .apr-linha .ic { color: var(--ink3); flex: none; }
   .apr-linha input { flex: 1; min-width: 0; max-width: none; height: 100%; border: none; background: none; padding: 0; box-shadow: none; font: 400 14px var(--sans); color: var(--ink); }

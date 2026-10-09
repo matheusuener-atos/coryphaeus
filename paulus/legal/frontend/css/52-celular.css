@@ -70,7 +70,7 @@
     /* O aviso do dia: a faixa no alto, um aviso so, com a acao e o X. */
     .conversa-col.vazia .cel-aviso:not([hidden]) {
       order: 1; display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 8px 8px 12px;
-      border-radius: 12px; border: 1px solid var(--ink-a12); background: var(--surf); cursor: pointer;
+      border-radius: 12px; border: 1px solid var(--ink-a12); background: var(--cartao-fundo); cursor: pointer;
     }
     .cel-aviso:active { background: var(--sub); }
     .cel-aviso > i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--ink3); }
@@ -103,10 +103,10 @@
     .cel-atalhos::-webkit-scrollbar { display: none; }
     .cel-atalhos button {
       flex: none; display: grid; gap: 8px; grid-template-rows: auto auto; justify-items: start; min-width: 124px; height: auto;
-      padding: 12px 14px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--ink-a12); background: var(--surf);
+      padding: 12px 14px; box-sizing: border-box; border-radius: 12px; border: 1px solid var(--ink-a12); background: var(--botao-fundo);
       text-align: left;
     }
-    .cel-atalhos button:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a12); }
+    .cel-atalhos button:hover:not(:disabled) { background: var(--botao-sobre); border-color: var(--ink-a12); }
     .cel-atalhos button:active { background: var(--fill); }
     .cel-atalhos button.ativo { background: var(--fill); }
     .cel-atalhos .ic { font-size: 18px; width: 18px; height: 18px; color: var(--ink2); }
@@ -116,7 +116,7 @@
        enviar so aparece quando ha o que enviar. */
     .conversa-col.vazia .cartao-campo {
       order: 5; margin: 0 12px 10px; padding: 14px 8px 8px 14px; gap: 10px; border-radius: 16px;
-      border-color: var(--ink-a12); background: var(--surf); box-shadow: none;
+      border-color: var(--ink-a12); background: var(--campo-fundo); box-shadow: none;
     }
     .conversa-col.vazia .cartao-campo textarea { font: 400 16px/1.5 var(--sans); }
     .conversa-col.vazia .cartao-campo textarea::placeholder { color: var(--ink3); }

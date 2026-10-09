@@ -42,7 +42,7 @@
   /* o resumo para o cliente */
   .acp-resumo {
     display: block; box-sizing: border-box; width: calc(100% - 32px); max-width: 100%; margin: 12px 16px 0; padding: 10px 12px; resize: vertical;
-    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); color: var(--ink); font: 400 14px/1.6 var(--sans);
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--cartao-fundo); color: var(--ink); font: 400 14px/1.6 var(--sans);
   }
   .acp-rascunho { margin: 12px 16px 0; padding: 12px 14px; border-radius: 12px; background: var(--fill); display: grid; gap: 6px; }
   .acp-rascunho p { margin: 0; font: 400 14px/1.6 var(--sans); color: var(--ink); white-space: pre-wrap; }
@@ -60,7 +60,7 @@
   .acp-responder { display: flex; gap: 10px; align-items: flex-end; padding: 0 16px; }
   .acp-responder textarea {
     flex: 1; max-width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; resize: vertical; border: 1px solid var(--ink-a15);
-    border-radius: 12px; background: var(--surf); color: var(--ink); font: 400 14px/1.5 var(--sans);
+    border-radius: 12px; background: var(--campo-fundo); color: var(--ink); font: 400 14px/1.5 var(--sans);
   }
 
   /* a atividade do cliente */

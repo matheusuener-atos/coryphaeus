@@ -43,7 +43,7 @@
   .trava-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px var(--sans); color: var(--ink); }
   .trava-trocar { flex: none; border: 0; background: none; padding: 10px 0; font: 500 12px var(--sans); color: var(--mute2); cursor: pointer; }
   .trava-trocar:hover:not(:disabled) { background: none; border: 0; color: var(--ink); }
-  .trava-manter { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surf);
+  .trava-manter { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--botao-fundo);
     border: 1px solid var(--ink-a1); cursor: pointer; font: 400 13px var(--sans); color: var(--ink); position: relative; }
   .trava-manter input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   .trava-manter i { width: 16px; height: 16px; flex: none; border-radius: 4px; background: var(--fill2); border: 1px solid var(--ink-a25);
@@ -52,8 +52,8 @@
   .trava-manter input:checked + i .ic { opacity: 1; }
   .trava-manter input:focus-visible + i { outline: 2px solid var(--ink3); outline-offset: 2px; }
   /* O botao de moldura dupla do padrao de 07/10: 32 px no total (1 px de fundo, 1 px de fio, pastilha de 28). */
-  .trava-trilho { display: flex; width: 100%; height: auto; padding: 1px; border-radius: 12px; background: var(--surf); border: 1px solid var(--ink-a1); cursor: pointer; }
-  .trava-trilho:hover:not(:disabled) { background: var(--surf); border-color: var(--ink-a1); }
+  .trava-trilho { display: flex; width: 100%; height: auto; padding: 1px; border-radius: 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); cursor: pointer; }
+  .trava-trilho:hover:not(:disabled) { background: var(--cartao-fundo); border-color: var(--ink-a1); }
   .trava-pastilha { flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;
     background: var(--primario-fundo); color: var(--ink); font: 500 13px var(--sans); letter-spacing: .01em; }
   .trava-pastilha svg { width: 16px; height: 16px; flex: none; }
@@ -73,19 +73,19 @@
   .trava-renova { font: 400 12px var(--mono); color: var(--mute2); }
   .trava-renova b { font-weight: 400; color: var(--ink3); }
   .trava-casas { position: relative; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 8px; }
-  .trava-casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--surf);
+  .trava-casas span { height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--campo-fundo);
     border: 1px solid var(--ink-a12); font: 400 20px var(--mono); color: var(--ink); }
   .trava-casas span.vez { border-color: var(--ink3); }
   .trava-casas input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; font-size: 16px; background: none; }
   .trava-casas.campo { display: block; }
-  .trava-casas.campo input { position: static; display: block; width: 100%; height: 36px; padding: 0 12px; opacity: 1; border-radius: 12px; background: var(--surf);
+  .trava-casas.campo input { position: static; display: block; width: 100%; height: 36px; padding: 0 12px; opacity: 1; border-radius: 12px; background: var(--campo-fundo);
     border: 1px solid var(--ink-a25); outline: none; color: var(--ink); font: 400 15px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
 
   /* O botao Google em pilula do assistente de configuracao (js/23-boas-vindas.js). */
-  .trava-google { flex: none; height: 40px; padding: 0 18px; border: 1px solid var(--ink-a25); border-radius: 999px; background: var(--bg);
+  .trava-google { flex: none; height: 40px; padding: 0 18px; border: 1px solid var(--ink-a25); border-radius: 999px; background: var(--botao-fundo);
     color: var(--ink); font: 600 14px var(--sans); cursor: pointer; display: flex; align-items: center; gap: 10px; }
   .trava-google svg { width: 16px; height: 16px; }
-  .trava-google:hover { background: var(--fill); }
+  .trava-google:hover { background: var(--botao-sobre); }
   .trava-google:disabled { opacity: .6; cursor: default; }
 
   /* Dentro do programa, os botoes da janela ficam no canto: o tema fica antes deles. */

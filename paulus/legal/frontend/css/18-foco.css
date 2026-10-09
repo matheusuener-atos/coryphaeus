@@ -18,7 +18,7 @@
   /* A barra do ciclo: os botoes a esquerda, as escolhas a direita. */
   .be-controles {
     flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card);
   }
   .be-controles .be-botoes { justify-content: flex-start; }
   .be-campos { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
@@ -97,7 +97,7 @@
   .be-barra small { font: 500 12px var(--sans); color: var(--ink3); text-align: right; font-variant-numeric: tabular-nums; }
   .be-barra.vazio small { color: var(--mute); }
   .be-semana-somas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .be-semana-somas div { padding: 10px 12px; background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 2px; }
+  .be-semana-somas div { padding: 10px 12px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 8px; display: grid; gap: 2px; }
   .be-semana-somas small { font: 500 12px var(--sans); color: var(--ink3); }
   .be-semana-somas b { font: 600 20px/1.1 var(--sans); font-variant-numeric: tabular-nums; }
   .be-parecer .fin-parecer { padding: 14px 16px 6px; }
@@ -119,7 +119,7 @@
   /* O FOCO NO ALTO DA COLUNA DA CONVERSA (pacote de telas, `Conversa -
      Foco`, js/78-conversa-foco.js): o ponto, "Foco", a tarefa do ciclo, o
      tempo e o pausar; a barra do ciclo; e o lembrete vencido com o Feito. */
-  .fcl-cartao { display: grid; gap: 12px; padding: 14px 14px 12px 16px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card); }
+  .fcl-cartao { display: grid; gap: 12px; padding: 14px 14px 12px 16px; border: 1px solid var(--ink-a12); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); }
   .fcl-cabeca { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .fcl-ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); flex: none; animation: pv-pulse 3.2s ease-in-out infinite; }
   .fcl-cabeca b { font: 600 13px var(--sans); }

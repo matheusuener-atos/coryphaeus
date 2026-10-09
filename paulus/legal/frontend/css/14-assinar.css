@@ -10,11 +10,11 @@
   .as-principal { padding: 16px 0; }
   .as-cartao {
     flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); overflow: hidden;
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); overflow: hidden;
     box-shadow: var(--elev-card);
   }
   .as-cartao .docs-previa { background: var(--bg); }
-  .as-cartao .docs-miniaturas { background: var(--surf); }
+  .as-cartao .docs-miniaturas { background: var(--cartao-fundo); }
   .as-visor { padding: 20px 24px; }
   .as-visor .pdf-folha { width: 100%; max-width: 680px; align-self: flex-start; position: relative; line-height: 0; }
   .as-mini-selo { position: absolute; right: 5px; bottom: 12px; width: 14px; height: 8px; background: var(--destaque); border-radius: 1px; }
@@ -43,7 +43,7 @@
   /* a barrinha do selo: replicar nas outras paginas e tirar */
   .as-selo-barra {
     position: absolute; right: -1px; bottom: 100%; margin-bottom: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
+    background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float);
     line-height: normal; cursor: default; z-index: 3;
     animation: menu-entra .16s cubic-bezier(.16,1,.3,1);
   }
@@ -52,7 +52,7 @@
   .as-selo-barra > button[aria-expanded="true"] { background: var(--fill); color: var(--ink); }
   .as-selo-menu {
     position: absolute; right: 0; bottom: 100%; margin-bottom: 4px; min-width: 196px; width: max-content; max-width: 340px; padding: 6px; display: flex; flex-direction: column;
-    background: var(--surf); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float); z-index: 4;
+    background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-float); z-index: 4;
     animation: menu-entra .16s cubic-bezier(.16,1,.3,1);
   }
   /* o menu abre para longe da pagina: para cima, ou para baixo se a barra desceu */
@@ -89,7 +89,7 @@
   .as-radio.on i, .cfg-modelo.on > i, .bv-opcao.escolhida .bv-radio, .cw-radio.on { border: 5px solid var(--ink); }
   .as-radio span { flex: 1; }
   .as-radio input[type=text] { width: 120px; }
-  .as-cert { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .as-cert { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); }
   .as-cert-ic { color: var(--ink2); display: flex; flex: none; }
   .as-cert .duas-linhas b { font-size: 13px; font-weight: 600; }
   .as-cert .duas-linhas small { white-space: normal; }
@@ -100,7 +100,7 @@
   .as-lista .em-senha { margin-top: -2px; }
   /* O cartao e neutro em todo estado: o verde fica so nos checks, que e onde
      ele diz alguma coisa. */
-  .as-pronto { margin: 12px 18px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 12px; }
+  .as-pronto { margin: 12px 18px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); display: grid; gap: 12px; }
   /* falta alguma coisa: neutro, sem cara de erro nem de "carregando" */
   .as-pronto.falta .as-pronto-cabeca .ic { color: var(--ink3); }
   .as-pronto-cabeca { display: flex; align-items: center; gap: 10px; font: 600 14px var(--sans); }
@@ -108,7 +108,7 @@
   .as-passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   .as-selo-coluna { padding: 0 18px 12px; }
   .as-add-coluna { width: 100%; justify-content: center; }
-  .as-selo-linha { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .as-selo-linha { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); }
   .as-selo-linha > .ic { color: var(--verde); flex: none; }
   .as-selo-linha .duas-linhas { flex: 1; min-width: 0; }
   .as-selo-linha .duas-linhas b { font-size: 13px; font-weight: 600; }
@@ -139,7 +139,7 @@
   .as-solta small { font: 500 12px var(--sans); color: var(--ink3); }
   .as-solta-acoes { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
   .as-solta-acoes button { display: inline-flex; align-items: center; gap: 6px; }
-  .as-teste { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 6px; }
+  .as-teste { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); display: grid; gap: 6px; }
   .as-teste b { font: 600 14px var(--sans); }
   .as-teste p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
   .as-teste button { justify-self: start; }
@@ -150,14 +150,14 @@
   .as-titular-acoes { display: flex; gap: 6px; flex: none; }
   .as-titular-acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .as-grade4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-  .as-dado { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); display: grid; gap: 4px; min-width: 0; }
+  .as-dado { padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); display: grid; gap: 4px; min-width: 0; }
   .as-dado small { font: 500 12px var(--sans); color: var(--ink3); }
   .as-dado b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* A senha: chave e olho dentro do campo, Abrir ao lado. */
   .as-bloco .cert-senha { display: flex; align-items: stretch; gap: 8px; }
   .cert-senha-caixa {
     flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 4px 0 12px;
-    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); cursor: text;
+    border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--campo-fundo); cursor: text;
     transition: border-color .15s ease;
   }
   .cert-senha-caixa:focus-within { border-color: var(--ink); }
@@ -240,7 +240,7 @@
   .as-lote-acao .as-pronto + .as-pronto { margin-top: 0; }
   /* nos dialogos do lote: quem fica de fora, quem entra */
   .as-lote-rol { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; max-height: 220px; overflow: auto; }
-  .as-lote-rol li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--surf); }
+  .as-lote-rol li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); }
   .as-lote-rol b { font: 600 13px var(--sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .as-lote-rol span { font: 500 12px var(--sans); color: var(--ink3); }
   .as-salvar-opcoes { display: grid; gap: 8px; margin-top: 4px; }

@@ -6,7 +6,7 @@
   .ec-palco { flex: 1 0 auto; min-height: 100%; box-sizing: border-box; display: grid; align-content: safe center; justify-content: center; justify-items: center; gap: 20px; padding: 40px 24px 56px; }
   .ec-cartao {
     width: 460px; max-width: 100%; box-sizing: border-box; display: grid; gap: 16px; padding: 34px 40px 30px;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--surf); box-shadow: var(--elev-card);
+    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card);
   }
   .ec-cartao h2 { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
   .ec-lide { margin: -6px 0 4px; font: 600 16px/1.5 var(--sans); color: var(--ink2); text-wrap: pretty; }
@@ -14,7 +14,7 @@
   /* Os campos do passo sao o campo padrao (04-acervo.css); so a largura muda, porque o cartao ja mede. */
   .ec-tela .ec-campo input, .ec-tela .ec-campo textarea { width: 100%; max-width: none; }
   /* A senha tem o "mostrar" dentro: a moldura do campo vai no envoltorio e o input fica nu, como .em-senha. */
-  .ec-senha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 4px 0 12px; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--surf); transition: border-color .15s ease; }
+  .ec-senha { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 4px 0 12px; border: 1px solid var(--ink-a15); border-radius: 12px; background: var(--campo-fundo); transition: border-color .15s ease; }
   .ec-senha:focus-within { border-color: var(--ink); }
   .ec-tela .ec-senha input { flex: 1; min-width: 0; max-width: 100%; height: 100%; padding: 0; border: none; border-radius: 0; background: none; box-shadow: none; }
   .ec-erro { display: flex; align-items: flex-start; gap: 6px; margin: -6px 0 0; font: 500 12px/1.45 var(--sans); color: var(--acc); }

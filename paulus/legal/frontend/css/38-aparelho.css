@@ -18,7 +18,7 @@
      cobrir a caixa nem travar a tela. */
   .aparelho-sugestao { position: absolute; left: 0; right: 0; bottom: calc(100% + 10px); z-index: 6;
     display: grid; gap: 10px; padding: 12px 14px; border-radius: 12px;
-    background: var(--surf); border: 1px solid var(--ink-a15); box-shadow: var(--elev-card); }
+    background: var(--cartao-fundo); border: 1px solid var(--ink-a15); box-shadow: var(--elev-card); }
   .aparelho-sugestao p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink2); }
   .aparelho-sugestao p b { color: var(--ink); font-weight: 600; }
   .aparelho-sugestao-botoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

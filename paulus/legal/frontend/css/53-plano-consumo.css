@@ -76,7 +76,7 @@
   .pc-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) 80px; gap: 16px; align-items: center; width: calc(100% + 20px); margin: 0 -10px; padding: 7px 10px;
     border: 0; border-radius: 8px; background: transparent !important; color: var(--ink); text-align: left; font-size: 13px; box-sizing: border-box; }
   button.pc-item { cursor: pointer; }
-  button.pc-item:hover:not(:disabled) { background: var(--surf) !important; border: 0; }
+  button.pc-item:hover:not(:disabled) { background: var(--botao-sobre) !important; border: 0; }
   .pc-hora, .pc-tok { font-family: var(--mono); font-size: 12px; color: var(--ink3); font-variant-numeric: tabular-nums; }
   .pc-tok { text-align: right; color: var(--ink2); }
   .pc-pergunta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
@@ -96,7 +96,7 @@
 
   /* 4. o plano: a ficha em quatro colunas, a troca marcada e a recarga */
   .pc-plano-miolo { display: grid; gap: 12px; padding: 14px 16px 2px; }
-  .pc-ficha-plano { margin: 0; box-shadow: none; background: var(--surf); }
+  .pc-ficha-plano { margin: 0; box-shadow: none; background: var(--cartao-fundo); }
   .pc-ficha-plano .sv-ficha-item { gap: 4px; }
   .pc-troca { display: flex; align-items: center; gap: 6px; margin: 0; }
   .pc-recarga { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 16px;
@@ -116,7 +116,7 @@
   .pc-limite-linha .duas-linhas b { font: 600 14px var(--sans); }
   .pc-limite-linha .duas-linhas small { font: 500 12px var(--sans); color: var(--ink3); }
   .pc-campo { display: grid; gap: 4px; min-width: 0; font-size: 12px; color: var(--ink3); }
-  .pc-campo input { width: 100%; min-width: 0; box-sizing: border-box; height: 36px; padding: 0 10px; border: 1px solid var(--ink-a12); border-radius: 8px; background: var(--surf); color: var(--ink); font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
+  .pc-campo input { width: 100%; min-width: 0; box-sizing: border-box; height: 36px; padding: 0 10px; border: 1px solid var(--ink-a12); border-radius: 8px; background: var(--campo-fundo); color: var(--ink); font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
 
   .pc-planos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); border: 1px solid var(--ink-a1); border-radius: 12px; overflow: hidden; }
   .pc-plano-col { display: grid; grid-template-rows: auto auto 1fr auto; gap: 16px; padding: 20px; border-left: 1px solid var(--ink-a1); }
