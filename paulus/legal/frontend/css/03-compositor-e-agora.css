@@ -28,8 +28,8 @@
   .saudacao-bloco { display: none; gap: 14px; max-width: 720px; padding: 76px 0 8px; }
   .conversa-col.vazia .saudacao-bloco { display: grid; }
   .chamada {
-    font: 600 clamp(32px, 3.4vw, 40px)/1.02 var(--sans);
-    letter-spacing: -.015em; margin: 0; text-wrap: balance;
+    font: 400 clamp(38px, 3.9vw, 48px)/1.04 var(--serif);
+    letter-spacing: -.01em; margin: 0; text-wrap: balance;
   }
   /* Duas linhas e o teto, e o teto e garantido: se um texto futuro passar
      disso, ele e cortado com reticencias em vez de empurrar a caixa de pedido. */

@@ -146,7 +146,7 @@
   .as-titular { display: flex; align-items: flex-start; gap: 14px; }
   .as-titular-ic { width: 44px; height: 44px; border-radius: 12px; background: var(--fill); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink2); }
   .as-titular .duas-linhas { flex: 1; gap: 3px; }
-  .duas-linhas b.as-nome { font: 600 20px/1.25 var(--sans); color: var(--ink); white-space: normal; overflow: visible; }
+  .duas-linhas b.as-nome { font: 400 22px/1.25 var(--serif); color: var(--ink); white-space: normal; overflow: visible; }
   .as-titular-acoes { display: flex; gap: 6px; flex: none; }
   .as-titular-acoes button { display: inline-flex; align-items: center; gap: 6px; }
   .as-grade4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }

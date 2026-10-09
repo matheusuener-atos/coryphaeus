@@ -27,7 +27,7 @@
     background: var(--fill2); font: 700 12px var(--sans); color: var(--ink); }
   .emc-msg-quem { display: grid; gap: 2px; flex: 1; min-width: 0; }
   .emc-msg-titulo { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .emc-msg-titulo h3 { margin: 0; font: 600 20px/1.2 var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .emc-msg-titulo h3 { margin: 0; font: 400 22px/1.2 var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .emc-pasta { flex: none; font: 500 12px var(--sans); padding: 2px 8px; border-radius: 4px; background: var(--fill); color: var(--ink2); }
   .emc-msg-de { display: flex; gap: 6px; min-width: 0; font-size: 13px; }
   .emc-msg-de b { font-weight: 600; }

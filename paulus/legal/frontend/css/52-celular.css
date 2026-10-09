@@ -144,7 +144,7 @@
     .cel-mais.aberto { opacity: 1; pointer-events: auto; }
     .cel-mais-corpo { display: grid; gap: 16px; align-content: start; }
     .cel-perfil { display: grid; gap: 8px; padding: 0 4px 8px; justify-items: end; text-align: right; }
-    .cel-perfil b { font: 600 40px/1.05 var(--sans); color: var(--ink); letter-spacing: -.01em; }
+    .cel-perfil b { font: 400 44px/1.05 var(--serif); color: var(--ink); letter-spacing: -.01em; }
     .cel-perfil span { font: 400 13px var(--sans); color: var(--ink3); letter-spacing: .02em; }
     .cel-grupo { display: grid; }
     .cel-grupo button {

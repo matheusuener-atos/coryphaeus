@@ -25,7 +25,7 @@
   .ex-conta .em-avatar { width: 20px; height: 20px; border-radius: 50%; font-size: 10px; }
   /* a caixa de entrada abre com o resumo da IA de Servicos (12-servicos.css) */
   .ex-abre.sv-abertura { gap: 22px; padding-top: 6px; }
-  .ex-titulo { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }
+  .ex-titulo { margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
   .ex-lide { margin: 0; max-width: 880px; font: 400 16px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
 
 
@@ -87,7 +87,7 @@
 
   .ex-mod-cabeca { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px 24px 18px; border-top: none; }
   .ex-cabeca-linha { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
-  .ex-assunto { flex: 1; min-width: 0; margin: 0; font: 600 20px/1.25 var(--sans); color: var(--ink); text-wrap: balance; overflow-wrap: anywhere; }
+  .ex-assunto { flex: 1; min-width: 0; margin: 0; font: 400 22px/1.25 var(--serif); color: var(--ink); text-wrap: balance; overflow-wrap: anywhere; }
   .ex-msg-acoes { align-items: center; margin-top: 2px; }
   /* A grade, o fio e a letra da .ex-meta vem da regra da ficha em 21-dialogos.css. */
   .ex-meta dd { min-width: 0; }

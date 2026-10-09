@@ -54,7 +54,7 @@
     padding: var(--margem-topo) var(--margem-pagina) 14px;
   }
   .conversa-nome { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.15; }
-  .conversa-topo h2 { font: 600 20px var(--sans); letter-spacing: -.005em; }
+  .conversa-topo h2 { font: 400 22px var(--serif); letter-spacing: -.005em; }
   /* O nome da conversa se renomeia no lugar. Parado, ele e titulo; ao passar
      o mouse, ganha o fundo de campo; escrevendo, o fio. O recuo negativo
      devolve os 6 px do respiro, e o texto nao anda quando vira campo. */
@@ -76,7 +76,7 @@
      do que sobra da coluna da direita. */
   .conversa-col.em-conversa > .conversa-topo { align-items: flex-start; gap: 14px; min-height: 0; padding: 28px 28px 0 32px; }
   .conversa-col.em-conversa .conversa-nome { gap: 3px; line-height: 1.15; }
-  .conversa-col.em-conversa .conversa-topo h2 { font: 600 20px/1.15 var(--sans); }
+  .conversa-col.em-conversa .conversa-topo h2 { font: 400 22px/1.15 var(--serif); }
   .conversa-col.em-conversa .conversa-topo .meta { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .conversa-col.em-conversa #voltar { width: 30px; height: 30px; border-radius: 8px; color: var(--ink2); margin-top: 2px; }
   .conversa-col.em-conversa #voltar:hover:not(:disabled) { color: var(--ink); }

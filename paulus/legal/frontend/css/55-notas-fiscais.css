@@ -40,7 +40,7 @@
   .nf-vazio { display: grid; justify-items: start; gap: 10px; max-width: 64ch; margin: 24px 0; padding: 28px; border: 1px solid var(--ink-a1);
     border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); }
   .nf-vazio > .ic { color: var(--ink3); }
-  .nf-vazio h2 { margin: 0; font: 600 32px/1.2 var(--sans); color: var(--ink); }
+  .nf-vazio h2 { margin: 0; font: 400 36px/1.2 var(--serif); color: var(--ink); }
   .nf-vazio p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
   .nf-vazio .linha-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   @media (max-width: 700px) {

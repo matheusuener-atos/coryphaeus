@@ -61,7 +61,7 @@
   }
   .ae-sumario > .sv-kicker { margin-bottom: 10px; }
   .ae-sum-grupo { display: grid; gap: 2px; padding-top: 14px; }
-  .ae-sum-raiz { font: 600 20px/1.25 var(--sans); color: var(--ink); padding-bottom: 4px; }
+  .ae-sum-raiz { font: 400 22px/1.25 var(--serif); color: var(--ink); padding-bottom: 4px; }
   .ae-sum-item {
     display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px; background: transparent; text-align: left;
     color: var(--ink2); font: 500 13px var(--sans); cursor: pointer;
@@ -76,7 +76,7 @@
 
   .ae-verbetes { display: grid; min-width: 0; }
   .ae-verbetes-cabeca { display: flex; align-items: baseline; gap: 14px; padding: 4px 0 14px; border-bottom: 1px solid var(--ink-a1); }
-  .ae-verbetes-cabeca h2 { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }
+  .ae-verbetes-cabeca h2 { margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
   .ae-verbetes-cabeca small { font: 500 12px var(--sans); color: var(--ink3); }
   .ae-tela .tabela-linha.ae-verbete {
     display: flex; align-items: flex-start; gap: 14px; padding: 18px 0 18px 16px; margin: 0; border-bottom: 1px solid var(--ink-a08); background: none;
@@ -84,7 +84,7 @@
   .ae-tela .tabela-linha.ae-verbete:hover { background: none; }
   .ae-verbete .marcar { margin-top: 26px; }
   .ae-verbete-corpo { flex: 1; min-width: 0; display: grid; gap: 6px; }
-  .ae-verbete h3 { display: flex; align-items: center; gap: 10px; margin: 0; min-width: 0; font: 600 20px/1.25 var(--sans); color: var(--ink); }
+  .ae-verbete h3 { display: flex; align-items: center; gap: 10px; margin: 0; min-width: 0; font: 400 22px/1.25 var(--serif); color: var(--ink); }
   .ae-verbete:hover h3 span { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
   .ae-verbete p { margin: 0; font: 400 14px/1.55 var(--sans); color: var(--ink2); max-width: 720px; }
   .ae-verbete p.vazio { color: var(--ink3); }

@@ -3,7 +3,7 @@
      ainda nao construido. */
 
   .adiante-tela { max-width: 620px; display: grid; gap: 12px; }
-  .adiante-tela h2 { font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); margin: 0; }
+  .adiante-tela h2 { font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); margin: 0; }
   .adiante-tela > p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink2); }
   .precisa { border-top: 1px solid var(--ink-a1); padding-top: 16px; margin-bottom: 0; }
   .precisa .rotulo { display: block; margin-bottom: 10px; }

@@ -130,7 +130,7 @@
   .anx-sem-drive { display: grid; gap: 12px; justify-items: center; padding: 38px 36px 32px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--ink2); }
   .anx-sem-drive p { margin: 0; max-width: 520px; }
   .anx-sem-drive b { color: var(--ink); font-weight: 600; }
-  .anx-sem-drive h3 { margin: 6px 0 2px; font: 600 32px/1.15 var(--sans); color: var(--ink); }
+  .anx-sem-drive h3 { margin: 6px 0 2px; font: 400 36px/1.15 var(--serif); color: var(--ink); }
   .anx-drive-marca { display: inline-flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 12px; background: var(--fill); border: 1px solid var(--ink-a08); }
   .anx-caminhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; margin-top: 18px; text-align: left; }
   .anx-caminho { display: grid; gap: 10px; align-content: start; padding: 16px 18px; border: 1px solid var(--ink-a1); border-radius: 12px; }

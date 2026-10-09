@@ -82,7 +82,7 @@
   /* O resumo da IA no topo: titulo na serifa, o texto na letra do sistema. */
   .sv-resumo-topo { display: grid; gap: 10px; padding: 4px 2px 0; }
   .sv-resumo-cabeca { display: flex; align-items: center; gap: 14px; min-width: 0; }
-  .sv-resumo-cabeca h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }
+  .sv-resumo-cabeca h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
   .sv-resumo-quando { font: 500 12px var(--sans); color: var(--ink3); }
   .sv-resumo-cabeca .sv-ligacao { margin-left: auto; }
   .sv-resumo-corpo { margin: 0; max-width: 860px; font: 400 16px/1.7 var(--sans); color: var(--ink2); white-space: pre-line; }

@@ -8,7 +8,7 @@
     width: 460px; max-width: 100%; box-sizing: border-box; display: grid; gap: 16px; padding: 34px 40px 30px;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card);
   }
-  .ec-cartao h2 { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+  .ec-cartao h2 { margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
   .ec-lide { margin: -6px 0 4px; font: 600 16px/1.5 var(--sans); color: var(--ink2); text-wrap: pretty; }
   .ec-campo { display: grid; gap: 6px; min-width: 0; }
   /* Os campos do passo sao o campo padrao (04-acervo.css); so a largura muda, porque o cartao ja mede. */

@@ -21,4 +21,4 @@
   .eo-erro .ic { flex: none; margin-top: 1px; }
   .eo-texto { margin: -6px 0 2px; font: 600 16px/1.5 var(--sans); color: var(--ink2); }
   .eo-denovo { display: grid; gap: 16px; }
-  .eo-denovo h2 { margin: 0; font: 600 32px/1.15 var(--sans); letter-spacing: -.01em; color: var(--ink); }
+  .eo-denovo h2 { margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }

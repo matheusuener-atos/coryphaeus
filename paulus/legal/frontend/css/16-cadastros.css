@@ -43,7 +43,7 @@
   .cad-sug-conta { min-width: 56px; text-align: center; font: 500 12px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink3); }
   .cad-sug-corpo { display: flex; align-items: center; gap: 24px; min-width: 0; }
   .cad-sug-quem { display: grid; gap: 4px; min-width: 0; flex: 1; }
-  .cad-sug-nome { margin: 0; font: 600 20px/1.25 var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+  .cad-sug-nome { margin: 0; font: 400 22px/1.25 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
   .cad-sug-meta { margin: 0; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
   .cad-sug-prova { margin: 0; font: 400 12px/1.5 var(--sans); color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cad-sug-acoes { display: flex; align-items: center; gap: 8px; flex: none; }
