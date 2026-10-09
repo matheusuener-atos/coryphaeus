@@ -13,7 +13,7 @@
     "Nome": "Name", "Confirmar a senha": "Confirm password", "Pelo menos 10 caracteres, com letras e números.": "At least 10 characters, with letters and numbers.",
     "Código": "Code", "Confirmar": "Confirm", "Reenviar o código": "Resend the code", "Voltar": "Back",
     "Enviar o código": "Send the code", "Nova senha": "New password", "Confirmar a nova senha": "Confirm the new password", "Trocar a senha": "Change password",
-    "Já tem conta? Entrar": "Already have an account? Sign in", "ou com e-mail e senha": "or with email and password",
+    "Já tem conta? Entrar": "Already have an account? Sign in", "ou com a Conta Atos": "or with the Atos Account",
     "Mostrar a senha": "Show password", "Esconder a senha": "Hide password",
     "as duas senhas não são iguais": "the two passwords don't match", "a senha precisa ter pelo menos 10 caracteres": "the password needs at least 10 characters",
     "use letras e números na senha": "use letters and numbers in the password", "confira o e-mail": "check the email", "digite o código de 6 dígitos": "type the 6-digit code",

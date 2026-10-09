@@ -230,7 +230,7 @@ export async function atenderIdentidade(request, env, url, deps = {}) {
       const cod = codigo6();
       await env.APOIOS.put("id:rec:" + email, JSON.stringify({ codigo: await sha256("rec:" + email + ":" + cod) }), { expirationTtl: CODIGO_S });
       await mandar(env, { para: email, assunto: "Código para trocar a senha do PAVLVS: " + cod, titulo: c ? "Trocar a senha" : "Criar uma senha",
-        texto: "O seu código para " + (c ? "trocar a senha" : "criar uma senha para") + " da conta PAVLVS é " + cod + ". Ele vale 15 minutos.\n\nSe você não pediu, ignore este e-mail: a senha atual continua valendo.",
+        texto: "O seu código para " + (c ? "trocar a senha" : "criar uma senha para") + " da sua Conta Atos é " + cod + ". Ele vale 15 minutos.\n\nSe você não pediu, ignore este e-mail: a senha atual continua valendo.",
         pre: "Código " + cod });
     }
     return json({ ok: true, enviado: true });

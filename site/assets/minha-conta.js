@@ -641,9 +641,9 @@
   var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   function entrarHtml() {
     return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com o e-mail que recebeu o convite, pelo Google ou com senha." :
-      "Entre com a conta da assinatura, ou com a que o titular autorizou: pelo Google ou com e-mail e senha.") + "</p>" +
+      "Entre com a conta da assinatura, ou com a que o titular autorizou: pela Conta Google ou pela Conta Atos.") + "</p>" +
       '<div class="linha-botao-g mc-google" id="mc-google" aria-live="polite"></div>' +
-      '<p class="cs-ou">' + L("ou com e-mail e senha", "or with email and password") + '</p><div class="mc-senha" id="mc-senha"></div>' +
+      '<p class="cs-ou">' + L("ou com a Conta Atos", "or with the Atos Account") + '</p><div class="mc-senha" id="mc-senha"></div>' +
       (S.erroEntrar ? '<p class="mc-nota centro mc-erro" role="alert">' + esc(cap(S.erroEntrar)) + "</p>" : "") +
       '<p class="mc-nota centro">Ainda não assina? <a href="' + (MP_IMG === "../../assets/" ? "../../assinatura/" : MP_IMG === "../assets/" ? "../assinatura/" : "Site - Assinatura.dc.html") + '">Conheça os planos</a>.</p></div>';
   }
@@ -793,7 +793,7 @@
     },
     removerInstalacao: function (el) {
       var i = S.d.instalacoes.filter(function (x) { return x.id === el.dataset.id; })[0];
-      S.modal = { tipo: "confirmar", titulo: "Tirar este computador?", ctx: "Instalações", texto: esc(i.nome) + " deixa de usar a assinatura: a IA e os serviços da nuvem param nele até alguém entrar de novo com a conta PAVLVS no programa.", botao: "Tirar",
+      S.modal = { tipo: "confirmar", titulo: "Tirar este computador?", ctx: "Instalações", texto: esc(i.nome) + " deixa de usar a assinatura: a IA e os serviços da nuvem param nele até alguém entrar de novo no programa, com a Conta Google ou a Conta Atos.", botao: "Tirar",
         fazer: function () { return api("POST", "/api/conta/instalacoes/" + encodeURIComponent(i.id) + "/remover", {}).then(function () { S.d.instalacoes = S.d.instalacoes.filter(function (x) { return x !== i; }); toast("Computador tirado"); }); } };
       renderModal();
     },

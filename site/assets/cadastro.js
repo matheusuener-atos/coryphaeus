@@ -255,7 +255,7 @@
     $("cd-google").hidden = false;
     $("cd-ou").hidden = false;
     $("cd-senha").hidden = false;
-    $("cd-conta-texto").textContent = "A conta do PAVLVS pode ser a sua conta Google ou um e-mail com senha: é com ela que você entra no programa depois.";
+    $("cd-conta-texto").textContent = "Você entra com a Conta Google ou com a Conta Atos (e-mail e senha de qualquer provedor): é com ela que você entra no programa depois.";
     if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
   }
 
