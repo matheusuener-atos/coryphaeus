@@ -311,3 +311,18 @@
   .bv-plano-preco > span { font-size: 14px; color: var(--ink3); }
   .bv-plano-pe > span { font-size: 13px; color: var(--ink3); }
   .bv-plano-pe .bv-ligacao { font-size: 13px; }
+
+  /* A tipografia do pos-instalador numa escala so (09/10/2026): os cartoes falam como o lado editorial.
+     Rotulo de secao: mono 12px, .18em (o "PASSO 4 — ..." da esquerda, o titulo do cartao, "O que autorizar",
+     os passos do acesso). Rotulo de campo: mono 11px, .14em. Titulo de linha: 14px 500. Subtitulo de linha:
+     12px 400. Nota e ajuda: 13px 400, 1.5. Botao e link do rodape: 13px 500, como o Continuar e a barra do topo. */
+  #boas-vindas .lb-rotulo,
+  #boas-vindas .acesso-etapa-cabeca > b { font: 400 12px var(--plex); letter-spacing: .18em; text-transform: uppercase; }
+  #boas-vindas .bv-dado > span,
+  #boas-vindas .bv-campo-ro > span { font: 400 11px var(--plex); letter-spacing: .14em; }
+  #boas-vindas .bv-dado > b,
+  #boas-vindas .bv-dado > i { font-size: 14px; }
+  #boas-vindas .bv-lado .duas-linhas small { font-weight: 400; }
+  #boas-vindas .bv-lado .cfg-explica,
+  #boas-vindas .bv-cartao-nota { font: 400 13px/1.5 var(--sans); }
+  #boas-vindas .bv-rodape .bv-ligacao { font-size: 13px; }
