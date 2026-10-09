@@ -1,16 +1,22 @@
 {
-  "versao": "0.9.32",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.32/PAULUS-0.9.32-instalador.exe",
-  "sha256": "c3a229b01af1e5649b175d7369b40ddcf99e48813b1b2c5d0dbd886cdae38496",
-  "tamanho": 102077386,
-  "publicada": "2026-10-07",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.32",
+  "versao": "0.9.33",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.33/PAULUS-0.9.33-instalador.exe",
+  "sha256": "3bded755ffbbfb938b697720239a0e433a097d813daeb86aed641a70abe16e2f",
+  "tamanho": 102596028,
+  "publicada": "2026-10-09",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.33",
   "novidades": [
-    "O ícone do Google Authenticator volta a aparecer (\"Ler o QR no celular\"): a rota dos logos de marca só servia .svg e o dele é .webp; agora serve .svg, .webp e .png, cada um com o tipo certo",
-    "\"Edite no site\" e \"Fazer upgrade\" do pós-instalador abrem a Minha conta já com a sessão (link de uso único, 2 minutos, pedido à nuvem pelo segredo da instalação: POST /api/ia/minha-conta/link; a Minha conta entra com ?entrar=), na aba Cadastro ou Plano; e o pulso de volta: o Paulus relê a assinatura",
-    "Pós-instalador com transição: a cada troca de passo o texto e o cartão entram juntos em 280 ms (para a frente, da direita; ao voltar, da esquerda); redesenhar o mesmo passo fica parado, e quem pediu animações reduzidas vê a troca seca",
-    "Pós-instalador: as etapas do alto param antes dos quatro botões do canto da janela (tema, minimizar, maximizar, fechar) — a folga antiga contava três e \"Atualizações\" passava por baixo do tema — e o botão de tema tem a altura dos outros três (28 px)",
-    "Primeira abertura sem piscar: o fundo do assistente de configuração cobre a janela desde a primeira pintura (index.html marca bv-cedo quando o assistente ainda não foi concluído) e sai no mesmo instante em que ele se desenha, ou quando ele não é preciso — antes, a tela Assistente aparecia enquanto o",
-    "Conta por e-mail e senha no Paulus: vincular, destravar a janela e confirmar a conta pela senha (rotas /api/vinculo/senha/*, que chamam /api/id/* do Worker e seguem o mesmo caminho do Google, com o código do celular quando a conta de titular tem autenticador); o passo \"Sua conta\" do assistente e a t"
+    "Trava sem trocar de conta: ela só protege o computador do servidor, e entra de novo a conta dele do jeito dela (a Conta Google pelo Entrar com Google, a Conta Atos pela senha); quem precisa de fora entra pelo túnel, com o e-mail autorizado. Saem a tela de trocar de conta, a rota /api/vinculo/trocar/",
+    "Trava em seções (09/10/2026): CONTA DESTE SERVIDOR com a linha da conta (Conta Google ou Conta Atos) e \"Trocar de conta\"; o Entrar com Google e, em OU COM A SENHA, o cartão com \"Manter aberto\"; ENQUANTO ISSO, o túnel como interruptor, que liga e desliga com o código do Google Authenticator (ou uma c",
+    "Trava: trocar de conta e o túnel com o código do titular. POST /api/vinculo/trocar/autorizar confere o Google Authenticator (ou uma chave de recuperação) de quem configurou o acesso de fora e libera por 10 min entrar com outra conta (finalidade \"trocar\"), que passa a ser a deste servidor; POST /api/",
+    "Acesso à distância, os últimos detalhes: a disponibilidade do endereço só pela borda (verde livre, vermelha ocupado ou inválido; o texto fica para o leitor de tela), o passo 1 feito mostra o endereço que de fato conectou, \"Guardei os códigos\" à esquerda e \"Baixar .txt\" à direita, e o passo 3 abre já",
+    "Pós-instalador sem legado: saem o caminho de entrar num escritório por código (Escritório, \"Quem é você\", Códigos), o passo Modelo de IA, o de Módulos, a janela antiga de entrar pelo e-mail, o vínculo pendente guardado nesta máquina com o modo limitado (o cartão de espera do Assistente, os destinos ",
+    "Acesso à distância no desenho de 09/10/2026: ACESSAR À DISTÂNCIA fora, o interruptor Ligado/Desligado (ligado por padrão) no primeiro cartão, cada passo num cartão e só o da vez aberto (\"Usar este endereço\" encolhe o passo 1 com o endereço, que volta a ser escolhido num clique), a confirmação com o ",
+    "Pós-instalador em seções (desenho de 09/10/2026): o rótulo fora, acima do cartão; no cartão os campos, o botão e a nota; fora, os links de ir e voltar. Boas-vindas, Sua conta (SUA CONTA com o Google e OU COM E-MAIL E SENHA), Criar conta, código, Trocar a senha, Assinatura, Seus dados (grade de quatr",
+    "Conexões: quando o retorno do Google dá erro (permissão não marcada, conta recusada, limite do plano), a espera do consentimento para e a tela diz o motivo, em vez de seguir \"aguardando\" para sempre; sem conta Google, a nota pede para escolher a conta. Sua conta: \"Trocar de conta\" na linha Vinculado",
+    "Títulos de texto na Garamond (400, a única que vem com o app): a fala de boas-vindas do Assistente, o nome do plano em Seus dados, os títulos de tela e de cartão (E-mail, Acervo, Serviços, Notas fiscais, Cadastros, diálogos, conversa, plano e consumo, celular), com o tamanho um pouco maior pela letr",
+    "Pós-instalador numa escala tipográfica só: rótulo de seção mono 12px .18em nos cartões como no lado editorial (\"O que autorizar\" e os passos do acesso), rótulo de campo 11px .14em, valor dos dados 14px, subtítulo de linha 12px 400, notas e ajuda 13px 400, e o Voltar do rodapé 13px como o Continuar e",
+    "Seus dados: o cartão Plano em destaque, com o nome e \"plano atual\", o valor do período contratado (R$ por mês ou por ano; Cortesia sem cobrança) e embaixo quando renova ou até quando está pago, com \"Fazer upgrade ↗\"; /api/assinatura passa a trazer valor, periodo e pago_ate",
+    "Atualizações no pós-instalador: o cartão com o título ATUALIZAÇÕES alinhado ao texto das linhas, um fio entre elas, e \"o Paulus procura versão nova todo dia\" quando a verificação está ligada"
   ]
 }
