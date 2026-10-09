@@ -116,7 +116,7 @@
     // (MP_ACCESS_TOKEN) continua so como segredo do Worker. As duas precisam ser
     // da mesma aba, ou o cartao lido nao serve para cobrar.
     "MP_PUBLIC_KEY": "APP_USR-a8fb9ba1-3a56-4388-a1de-de353a72a01f",
-    "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "d64e139883ea6f7246380d9c3c9c35a5bdef62163e768d103527cc4c003fd04f" },
+    "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "d64e139883ea6f7246380d9c3c9c35a5bdef62163e768d103527cc4c003fd04f,97c2698f83c0744cdaa5166c0b73cf8a03d361d6ba7cec524c64d16ca73a970b" },
   // O medidor da nuvem: um Durable Object por conta (worker/ia.js, ContaIA).
   // SQLite, o tipo que o plano gratis da Cloudflare aceita.
   //
