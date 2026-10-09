@@ -32,6 +32,12 @@
     border: none; border-radius: 0; background: none; color: var(--ink2);
   }
   html.com-janela :is(.trava-tema, .bv-tema):hover:not(:disabled) { background: var(--fill); color: var(--ink); border: none; }
+  /* Com o pos-instalador aberto, os quatro botoes descem para o meio do cabecalho dele (56 px),
+     na mesma linha das etapas; fora dele, ficam colados no topo como sempre. */
+  html.com-janela:has(#boas-vindas:not([hidden])) .botoes-janela,
+  html.com-janela .boas-vindas:not([hidden]) .bv-tema { top: 14px; }
+  html.com-janela:has(#boas-vindas:not([hidden])) .botao-janela,
+  html.com-janela .boas-vindas:not([hidden]) .bv-tema { border-radius: 6px; }
   /* Seis pixels em cada lado, oito nos cantos: e o que o Windows usa, e o
      bastante para pegar sem atrapalhar o que esta embaixo. */
   .bordas-janela > i { position: fixed; z-index: 141; display: block; }
