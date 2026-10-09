@@ -113,7 +113,14 @@ function formContaSenha(o) {
   const para = "<b>" + esc(c.email) + "</b>";
   let miolo;
   let links;
-  if (c.modo === "esqueci" && c.etapa === "codigo") {
+  if (c.modo === "site") {
+    // Criar conta e no site: o cartao espera a pessoa voltar. Sem login, o Paulus nao sabe de quem e a conta,
+    // entao a espera nao termina sozinha: ela volta e entra com a conta que criou.
+    miolo = '<div class="bv-linha bv-espera"><span class="bv-giro"></span><span class="duas-linhas"><b>Esperando a sua conta no site…</b>' +
+      "<small>crie a conta e assine em paulus.ia.br; depois, entre aqui com ela</small></span></div>" + erro +
+      '<button type="button" class="' + v.trilho + '" data-cs="entrar"><span class="' + v.pastilha + '">Já criei, entrar</span></button>';
+    links = link("criar-no-site", "Abrir o site de novo");
+  } else if (c.modo === "esqueci" && c.etapa === "codigo") {
     miolo = '<p class="' + v.ajuda + '">Se ' + para + " tem conta PAVLVS (ou já entrou com o Google), enviamos um código de 6 números. Ele vale 15 minutos.</p>" +
       codigo + senha("senha", "NOVA SENHA", true) + senha("repetir", "CONFIRMAR A NOVA SENHA", true) + erro + botao("Trocar a senha e entrar");
     links = link("reenviar", "Reenviar código") + link("voltar", "Voltar");
@@ -191,7 +198,7 @@ function ligarContaSenha(raiz, o) {
       }
       if (acao === "voltar") { c.senha = ""; ir(c.modo, ""); return; }
       // Sem conta: o site, na escolha do plano (de la vai ao cadastro, com a conta e a assinatura).
-      if (acao === "criar-no-site") { window.open("https://paulus.ia.br/assinatura/", "_blank", "noopener"); return; }
+      if (acao === "criar-no-site") { window.open("https://paulus.ia.br/assinatura/", "_blank", "noopener"); c.senha = ""; ir("site", ""); return; }
       c.senha = "";
       ir(acao === "entrar" ? "entrar" : acao, "");
     };
@@ -202,6 +209,7 @@ function ligarContaSenha(raiz, o) {
   };
   form.onsubmit = async (ev) => {
     ev.preventDefault();
+    if (c.modo === "site") return;
     erro("");
     // Na trava o e-mail e fixo (o da conta deste servidor): sem campo, vale o guardado.
     if (campo("email")) c.email = valor("email").trim();
