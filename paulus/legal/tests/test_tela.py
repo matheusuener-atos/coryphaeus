@@ -34,6 +34,9 @@ RAIZ = Path(__file__).parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
 # O servidor sobe sobre os dados reais: sem retomar as transcricoes paradas
 # deles (carregar o Whisper ali derrubava o teste por falta de memoria).
+# Para nao tocar nos dados reais, rode com PAULUS_DADOS numa COPIA de
+# data/demo (o escritorio de demonstracao tem documentos; as conversas, que
+# ele nao tem, o teste supre). Numa pasta vazia, as partes do acervo falham.
 import os  # noqa: E402
 
 os.environ.setdefault("PAULUS_SEM_VOZ", "1")
@@ -207,7 +210,7 @@ def test_celular(navegador, base: str) -> None:
 
         nome = api.estado.searcher.documents[0].name if api.estado.searcher.documents else ""
         if nome:
-            pag.evaluate("(n) => { const c = document.createElement('div'); c.className = 'visor-caixa'; $('centro').appendChild(c); abrirCitacao(n, '', '', c); }", nome)
+            pag.evaluate("(n) => { const c = document.createElement('div'); c.className = 'visor-caixa'; document.body.appendChild(c); abrirCitacao(n, '', '', c); }", nome)
             pag.wait_for_timeout(2500)
             checar(pag.evaluate(largura) <= 390 and pag.locator(".visor").count() > 0, "o documento com o trecho cabe em 390 px",
                    pag.evaluate(largura))
@@ -457,7 +460,7 @@ def main() -> int:
                 )
                 # O site confirmou durante a espera: quem assinou agora acabou de preencher tudo la, entao
                 # "Seus dados" nao aparece; os dados do cadastro sao gravados sem a tela.
-                documento_antes = str((api.estado.prefs.dados.get("pessoa") or {}).get("cpf") or "")
+                pagina.evaluate("() => { bv.pessoa = {}; bv.escritorio = ''; }")
                 situacao["a"] = {"ativa": True, "situacao": "ativa", "email": "teste@exemplo.com.br", "escritorio": "Escritório da Tela",
                                  "plano": "Escritório", "renova_em": "2026-11-07", "valor": 1290, "periodo": "mensal", "pago_ate": "",
                                  "pessoa": {"nome": "Helena Teste", "oab": "PA 12345", "cpf": "11.222.333/0001-81",
@@ -473,8 +476,8 @@ def main() -> int:
                 salvo = json.loads(gravados[-1]) if gravados else {}
                 checar(
                     (salvo.get("escritorio") or {}).get("nome") == "Escritório da Tela"
-                    and (documento_antes or ((salvo.get("escritorio") or {}).get("cnpj") == "11.222.333/0001-81"
-                                             and "cpf" not in (salvo.get("pessoa") or {}))),
+                    and (salvo.get("escritorio") or {}).get("cnpj") == "11.222.333/0001-81"
+                    and "cpf" not in (salvo.get("pessoa") or {}),
                     "os dados da assinatura sao gravados: o nome do escritorio, e o CNPJ vai para o escritorio, nao para o CPF",
                     salvo,
                 )
@@ -1470,6 +1473,22 @@ def main() -> int:
                 }
                 return ids;
             }""")
+            conversas_de_mentira = not pagina.evaluate("() => (estado.recentes || []).length")
+            if conversas_de_mentira:
+                from datetime import datetime, timezone
+
+                agora = datetime.now(timezone.utc).isoformat()
+
+                def com_duas_conversas(rota):
+                    resposta = rota.fetch()
+                    d = resposta.json()
+                    d["grupos"] = [{"nome": "", "trabalhos": [
+                        {"id": f"teste-tela-{n}", "titulo": f"Teste de tela — conversa {n}", "atualizado_em": agora, "estado": "concluido", "grupo": ""}
+                        for n in (1, 2)]}]
+                    rota.fulfill(response=resposta, json=d)
+
+                pagina.route("**/api/trabalhos", com_duas_conversas)
+                pagina.evaluate("() => carregarTrabalhos()")
             try:
                 pagina.evaluate("() => { $('nova').click(); alternarListaDeConversas(true); }")
                 pagina.wait_for_selector("#lista-conversas .lc-linha[data-sel]", timeout=20000)
@@ -1506,6 +1525,9 @@ def main() -> int:
                     "Concluir em lote concluiu as duas",
                 )
             finally:
+                if conversas_de_mentira:
+                    pagina.unroute("**/api/trabalhos")
+                    pagina.evaluate("() => { lcSel.escolhidos.clear(); return carregarTrabalhos(); }")
                 for tid in ids_tarefas:
                     pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/tarefas/{tid}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
                 pagina.wait_for_timeout(300)
