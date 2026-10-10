@@ -27,7 +27,7 @@ import {
 } from "./ia.js";
 import { alterarEndereco, disponibilidade, donoDoToken, escritorioDoDono } from "./tunel.js";
 import { enviarEmail } from "./admin.js";
-import { cobrancaPelaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
+import { checkoutDaAtos, cobrancaPelaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
 
 const ROTAS_DE_DINHEIRO = ["/api/conta/recarga", "/api/conta/cartao", "/api/conta/forma", "/api/conta/plano", "/api/conta/oferta", "/api/conta/cancelar"];
 
@@ -248,10 +248,12 @@ async function montar(env, s, agora) {
     principal: Boolean(escritorio && escritorio.instalacao_id && escritorio.instalacao_id === x.instalacao),
   }));
   const titularPessoa = { email: (r.dono || {}).email || r.email, nome: s.papel === "titular" ? s.nome || "" : "", papel: "titular" };
+  // A cobranca pela Atos: o plano e o uso continuam aqui (o medidor), o dinheiro e na Conta Atos (worker/atos.js).
+  const naAtos = cobrancaPelaAtos(env);
   return {
     perfil: { papel: s.papel, email: s.email, nome: s.nome || "" },
     assinatura: {
-      plano: plano.id, nome: plano.nome, periodo, situacao: situacaoDa(r, agora), forma: pix ? "pix" : "cartao",
+      plano: plano.id, nome: plano.nome, periodo, situacao: naAtos ? situacaoNaAtos(r, agora) : situacaoDa(r, agora), forma: pix ? "pix" : "cartao",
       valor: valorProx, valor_plano: valorPlano, proxima: String(proxima).slice(0, 10), desde: String(a.desde || r.criada || "").slice(0, 10),
       ajuste: r.ajuste, plano_proximo: r.plano_proximo ? { id: r.plano_proximo.id, nome: r.plano_proximo.nome } : null,
       cortesia: Boolean(r.cortesia), cancelamento: r.cancelamento ? { quando: r.cancelamento.quando } : null,
@@ -265,7 +267,14 @@ async function montar(env, s, agora) {
       pix_ate: pix ? String(r.pago_ate || "").slice(0, 10) : "",
     },
     recarga: { valor: plano.recarga.valor, tokens: plano.recarga.tokens, pacotes: recargasDe(plano) },
-    faturas: await faturas(env, s.conta, r),
+    faturas: naAtos ? [] : await faturas(env, s.conta, r),
+    // Onde o dinheiro mora: "atos" (a Conta Atos: assinaturas, faturas, cartao) ou "pavlvs" (o caminho antigo).
+    cobranca: naAtos ? "atos" : "pavlvs",
+    atos: naAtos ? {
+      assinaturas: "https://atos.dev.br/conta/assinaturas", faturamento: "https://atos.dev.br/conta/faturamento",
+      checkout: Object.fromEntries(n.planos.map((x) => [x.id, { mensal: checkoutDaAtos(x.id, "mensal"), anual: checkoutDaAtos(x.id, "anual") }])),
+      recarga: "https://atos.dev.br/pavlvs/assinar/?preco=" + encodeURIComponent("pavlvs." + plano.id + ".recarga") + "&volta=" + encodeURIComponent("https://paulus.ia.br/minha-conta/"),
+    } : null,
     consumo: consumoDo(r, "ciclo", agora),
     cadastro: cadastroParaTela(r),
     escritorio: escritorio ? { slug: escritorio.slug, nome: escritorio.nome, online: escritorio.online, ativo: escritorio.ativo } : null,
@@ -279,6 +288,18 @@ async function montar(env, s, agora) {
     email_ligado: Boolean(env.RESEND_API_KEY),
     mp_public_key: env.MP_PUBLIC_KEY || "",
   };
+}
+
+/* A situacao com a cobranca pela Atos: a mesma regra do medidor (so a Atos, ou a cortesia, da plano). A
+   assinatura que vale e a que a Atos mandou (worker/ia.js, direitoDaAtos). */
+function situacaoNaAtos(r, agora) {
+  const a = r.assinatura || {};
+  if (r.cortesia && r.plano_vigente) return "cortesia";
+  if (!r.plano_vigente) return r.cobrador === "atos" ? "vencida" : "nenhuma";
+  if (a.situacao === "cancelled") return "cancelada";
+  if (a.situacao === "paused") return "pausada";
+  if (a.situacao === "pending") return "pendente";
+  return "ativa";
 }
 
 function situacaoDa(r, agora) {

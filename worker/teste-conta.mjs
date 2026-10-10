@@ -508,6 +508,28 @@ console.log("a conta cobrada pela Atos");
   deps.chamarMP = original;
   const g = await conta("GET", "/api/conta", null, ck);
   checar(g.status === 200, "a Minha conta continua abrindo (o consumo, as pessoas, o escritório)", g.status);
+
+  // Com a cobrança pela Atos (COBRANCA_PELA_ATOS): a situação é a do medidor, e o dinheiro é na Conta Atos.
+  const envAtos = { ...env, COBRANCA_PELA_ATOS: "1" };
+  const pedir = async (caminho, cookie) => {
+    const req = new Request("https://paulus.ia.br" + caminho, { headers: { origin: "https://paulus.ia.br", cookie: "pv_conta=" + cookie } });
+    const r = await atenderConta(req, envAtos, new URL(req.url), { waitUntil: () => null }, deps);
+    return { status: r.status, d: await r.json() };
+  };
+  const ga = await pedir("/api/conta", ck);
+  checar(ga.d.cobranca === "atos" && ga.d.assinatura.situacao === "ativa" && ga.d.faturas.length === 0 &&
+    ga.d.atos.checkout.advogado.anual.startsWith("https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.advogado.ano") && /pavlvs\.escritorio\.recarga/.test(decodeURIComponent(ga.d.atos.recarga)),
+  "a conta paga na Atos: ativa, sem faturas daqui, com os links do checkout e da recarga da Atos", { c: ga.d.cobranca, s: ga.d.assinatura.situacao, a: ga.d.atos });
+  // O caso de 10/10: o caminho antigo deixou a conta "ativa" sem pagamento.
+  donos["tk-velho"] = { sub: "pv-velho-mc", email: "velho@escritorio.adv.br" };
+  const idV = await idDe("pv-velho-mc");
+  await CONTAS_IA.get(idV).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "abrir", id: idV, dono: donos["tk-velho"] }) });
+  await CONTAS_IA.get(idV).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "assinatura", plano: "escritorio",
+    assinatura: { id: "pre-sem-pagamento", situacao: "authorized", valor: 1290 } }) });
+  const ev = await conta("POST", "/api/conta/entrar", { credential: "tk-velho" });
+  const gv = await pedir("/api/conta", cookieDe(ev.r));
+  checar(gv.status === 200 && gv.d.assinatura.situacao === "nenhuma" && gv.d.faturas.length === 0,
+    "a conta que o caminho antigo deixou 'ativa' sem pagar aparece sem assinatura", { s: gv.d.assinatura && gv.d.assinatura.situacao });
 }
 
 console.log(falhas ? "\n  Minha conta: " + falhas + " falha(s)" : "\n  Minha conta: todos os testes passaram");

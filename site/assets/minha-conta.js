@@ -27,7 +27,12 @@
   function cap(t) { t = String(t || ""); return t.charAt(0).toUpperCase() + t.slice(1); }
   function L(pt, en) { return window.MC_IDIOMA === "en" ? en : pt; }
   function titular() { return S.d && S.d.perfil.papel === "titular"; }
-  function abas() { return ABAS.filter(function (a) { return titular() || DO_FINANCEIRO[a[0]]; }); }
+  // Com a cobranca pela Atos, as faturas e o pagamento ficam na Conta Atos: as abas daqui saem.
+  function naAtos() { return Boolean(S.d && S.d.cobranca === "atos"); }
+  function abas() {
+    return ABAS.filter(function (a) { return (titular() || DO_FINANCEIRO[a[0]]) && !(naAtos() && (a[0] === "faturas" || a[0] === "pagamento")); });
+  }
+  var FORA = ' target="_blank" rel="noopener"';
 
   var PIX = '<svg class="mc-pix" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.3 11.9a2 2 0 0 1-1.4-.6L8.6 9a.4.4 0 0 0-.6 0l-2.3 2.3a2 2 0 0 1-1.4.6h-.5l2.9 2.9a2.3 2.3 0 0 0 3.3 0l2.9-2.9h-.6ZM4.3 4.1a2 2 0 0 1 1.4.6L8 7a.4.4 0 0 0 .6 0l2.3-2.3a2 2 0 0 1 1.4-.6h.4L9.8 1.2a2.3 2.3 0 0 0-3.3 0L3.7 4.1h.6Zm10.5 2.2L13 4.6h-.7a1.4 1.4 0 0 0-1 .4L9.1 7.3a1.1 1.1 0 0 1-1.6 0L5.3 5a1.4 1.4 0 0 0-1-.4h-.9L1.2 6.3a2.3 2.3 0 0 0 0 3.3l1.7 1.7h1a1.4 1.4 0 0 0 1-.4l2.3-2.3a1.1 1.1 0 0 1 1.6 0l2.3 2.3a1.4 1.4 0 0 0 1 .4h.7l1.7-1.7a2.3 2.3 0 0 0 0-3.3Z"/></svg>';
   // A bandeira pelo id do Mercado Pago ("master", "visa", "elo", "amex", "hipercard").
@@ -80,11 +85,12 @@
 
   /* ------------------------------------------------------------ as abas */
   var TELAS = {};
-  var SIT = { ativa: ["Ativa", "ok"], cortesia: ["Cortesia", "ok"], cancelada: ["Cancelada", "atencao"], vencida: ["Vencida", "erro"], pausada: ["Pausada no Mercado Pago", "atencao"], pendente: ["Esperando o Mercado Pago", "atencao"] };
+  var SIT = { nenhuma: ["Sem assinatura", "mudo"], ativa: ["Ativa", "ok"], cortesia: ["Cortesia", "ok"], cancelada: ["Cancelada", "atencao"], vencida: ["Vencida", "erro"], pausada: ["Pausada no Mercado Pago", "atencao"], pendente: ["Esperando o Mercado Pago", "atencao"] };
   // Ate quando vale o que ja foi pago: no anual e no Pix mensal, o pago_ate; no cartao, o fim do ciclo.
   function pagoAte(a) { return a.periodo === "anual" || a.forma === "pix" ? a.proxima : a.ciclo.ate; }
 
   TELAS.resumo = function (d) {
+    if (naAtos()) return resumoNaAtos(d);
     var a = d.assinatura, c = a.ciclo, s = SIT[a.situacao] || [a.situacao, "mudo"];
     var cob;
     if (a.situacao === "cortesia") cob = ["Cobrança", "sem cobrança"];
@@ -118,6 +124,35 @@
     return '<div class="mc-grade2">' + painel("Assinatura", "", assin) + painel("Uso do ciclo", c.de ? dt(c.de).slice(0, 5) + " – " + dt(c.ate).slice(0, 5) : "", uso) + "</div>" +
       painel("Últimas faturas", "", '<div class="mc-tabela">' + cabFatura() + (ult || '<p class="mc-vazio">Nenhuma fatura ainda.</p>') + '</div><div class="mc-ver"><button type="button" class="mc-ver-mais" data-aba="faturas">Ver todas' + ic("arrow_outward") + "</button></div>");
   };
+
+  /* O resumo com a cobranca pela Atos: o plano e o uso daqui; a assinatura, as faturas e o cartao, na Conta Atos. */
+  function resumoNaAtos(d) {
+    var a = d.assinatura, c = a.ciclo, s = SIT[a.situacao] || [a.situacao, "mudo"], tem = a.situacao !== "nenhuma" && a.situacao !== "vencida";
+    var assin = '<div class="mc-corpo">' + (tem ? '<div class="mc-plano-nome"><h2>' + esc(a.nome) + '</h2><span class="mc-tag">' + (a.periodo === "anual" ? "anual" : "mensal") + "</span></div>" : "") +
+      '<dl class="mc-fatos"><div><dt>Situação</dt><dd><span class="mc-bolinha ' + s[1] + '"></span>' + esc(s[0]) + "</dd></div>" +
+      (tem && c.ate ? "<div><dt>" + (a.situacao === "cancelada" ? "Vale até" : "Ciclo até") + "</dt><dd>" + dt(c.ate) + "</dd></div>" : "") +
+      "<div><dt>Cobrança</dt><dd>" + (a.situacao === "cortesia" ? "sem cobrança" : "pela Conta Atos") + "</dd></div></dl>" +
+      (tem ? "" : '<p class="mc-p">' + (a.situacao === "vencida" ? "O plano venceu. " : "") + "Sem a assinatura, o Paulus abre com todos os arquivos, sem a IA. Escolha um plano na aba Plano.</p>") + "</div>" +
+      '<div class="mc-pe">' + (titular() ? '<button type="button" class="mini" data-aba="plano">' + (tem ? "Ver os planos" : "Assinar") + "</button>" : "") +
+      (a.situacao === "cortesia" ? "" : '<a class="mini" href="' + esc(d.atos.assinaturas) + '"' + FORA + ">Conta Atos" + ic("arrow_outward") + "</a>") + "</div>";
+    var uso;
+    if (!c.tokens || !tem) {
+      uso = '<div class="mc-corpo"><p class="mc-p">Não há um ciclo aberto agora.</p></div>';
+    } else {
+      var pct = Math.min(100, Math.round(c.usados / c.tokens * 100)), resta = Math.max(0, c.tokens - c.usados), dias = diasAte(c.ate);
+      uso = '<div class="mc-corpo"><div class="mc-uso-num"><b>' + pct + '%</b><span>' + tok(c.usados) + " de " + tok(c.tokens) + " tokens</span></div>" +
+        '<span class="mc-barra" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + pct + '%"></i></span>' +
+        '<dl class="mc-fatos"><div><dt>Restam</dt><dd>' + tok(resta) + " tokens</dd></div>" +
+        "<div><dt>Novo ciclo em</dt><dd>" + dt(c.ate) + " · " + dias + (dias === 1 ? " dia" : " dias") + "</dd></div>" +
+        (c.extra ? "<div><dt>Créditos de recarga</dt><dd>" + tok(c.extra) + " tokens · não vencem na renovação</dd></div>" : "") + "</dl></div>";
+    }
+    uso += '<div class="mc-pe"><button type="button" class="mini" data-aba="consumo">Ver consumo</button>' +
+      (tem && a.situacao !== "cortesia" ? '<a class="mini" href="' + esc(d.atos.recarga) + '">Comprar créditos</a>' : "") + "</div>";
+    var pag = '<div class="mc-corpo"><p class="mc-p">A assinatura, as faturas e o cartão ficam na sua Conta Atos, que é quem cobra o PAVLVS. Lá você troca o plano, pausa, cancela e vê os pagamentos.</p></div>' +
+      '<div class="mc-pe"><a class="mini" href="' + esc(d.atos.faturamento) + '"' + FORA + ">Ver as faturas" + ic("arrow_outward") + "</a></div>";
+    return '<div class="mc-grade2">' + painel("Assinatura", "", assin) + painel("Uso do ciclo", tem && c.de ? dt(c.de).slice(0, 5) + " – " + dt(c.ate).slice(0, 5) : "", uso) + "</div>" +
+      painel("Pagamentos", "", pag);
+  }
 
   TELAS.consumo = function (d) {
     var k = d.consumo, dias = k.dias || [];
@@ -231,6 +266,7 @@
   };
 
   TELAS.plano = function (d) {
+    if (naAtos()) return planoNaAtos(d);
     var a = d.assinatura, per = S.anual ? "anual" : "mensal", fim = pagoAte(a);
     var assinar = a.situacao === "vencida", cortesia = a.situacao === "cortesia", cancelada = a.situacao === "cancelada";
     var cards = d.planos.map(function (p) {
@@ -257,6 +293,26 @@
     return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" +
       '<div class="mc-planos">' + cards + "</div>" + pe;
   };
+
+  /* Os planos com a cobranca pela Atos: assinar leva ao checkout dela; com o plano em dia, mudar de plano e
+     cancelar e na Conta Atos (la a regra de nao cobrar em dobro diz como). */
+  function planoNaAtos(d) {
+    var a = d.assinatura, per = S.anual ? "anual" : "mensal", tem = a.situacao !== "nenhuma" && a.situacao !== "vencida";
+    var cards = d.planos.map(function (p) {
+      var atual = tem && p.id === a.plano, preco = S.anual ? p.valor_anual : p.valor;
+      var acao = atual ? '<span class="mc-plano-pe mudo">É o que você tem hoje</span>'
+        : !tem || a.situacao === "cancelada" ? '<a class="mini cheia" href="' + esc(d.atos.checkout[p.id] ? d.atos.checkout[p.id][per] : d.atos.assinaturas) + '">Assinar este</a>' : "";
+      return '<div class="mc-plano' + (atual ? " atual" : "") + '"><div class="mc-plano-topo"><b>' + esc(p.nome) + "</b>" + (atual ? '<span class="mc-tag">plano atual</span>' : "") + "</div>" +
+        '<div class="mc-preco"><span>' + brl0(preco) + "</span><small>" + (S.anual ? "por ano" : "por mês") + "</small></div>" +
+        (S.anual ? '<small class="mc-economia">' + Math.round((1 - p.valor_anual / (p.valor * 12)) * 100) + "% a menos que 12 meses</small>" : "") +
+        '<ul class="mc-itens"><li>' + tok(p.tokens) + " tokens por mês</li><li>" + (p.pessoas === 1 ? "1 pessoa" : "até " + p.pessoas + " pessoas") + "</li><li>" + esc((p.modelos_info || []).map(function (m) { return m.nome; }).join(" e ")) + "</li></ul>" +
+        acao + "</div>";
+    }).join("");
+    var pe = a.situacao === "cortesia" ? '<div class="mc-cancelar"><span>O plano de cortesia não tem cobrança. Para mudar de plano, escreva para contato@paulus.ia.br.</span></div>'
+      : tem && a.situacao !== "cancelada" ? '<div class="mc-cancelar"><span>Mudar de plano, pausar e cancelar são na Conta Atos, que é quem cobra.</span><a class="mini" href="' + esc(d.atos.assinaturas) + '"' + FORA + ">Abrir a Conta Atos" + ic("arrow_outward") + "</a></div>"
+        : '<div class="mc-cancelar"><span>O pagamento é na Atos, com cartão ou Pix. O plano entra assim que o pagamento é aprovado, sem reinstalar.</span></div>';
+    return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" + '<div class="mc-planos">' + cards + "</div>" + pe;
+  }
 
   var UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
   // As mascaras do cadastro (as mesmas da pagina de cadastro, assets/cadastro.js): o servidor fica so com os digitos.
