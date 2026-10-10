@@ -4,12 +4,14 @@
    antes dos itens e os itens, com o que abre em cada um - tambem
    (/api/planos/textos: os que o painel admin escreveu ou os padrao, montados
    com os numeros do plano em worker/planos-textos.js). O botao do plano
-   escolhido leva ao cadastro (/cadastro?plano=&periodo=), onde se entra com o
-   Google e se preenchem os dados do escritorio. */
+   escolhido leva ao checkout da Atos (atos.dev.br/pavlvs/assinar, a Atos Cobranca: a Conta Atos, os
+   dados para a nota e o pagamento, tudo la), com o preco do catalogo da Atos e a volta para ca. */
 (function () {
   "use strict";
 
   var $ = function (id) { return document.getElementById(id); };
+  // O checkout da Atos (C:\atos\docs\COBRANCA.md): o id do preco e "pavlvs.<plano>.<mes|ano>".
+  var CHECKOUT_DA_ATOS = "https://atos.dev.br/pavlvs/assinar/";
   var pedido = new URLSearchParams(location.search);
   var estado = { planos: [], textos: {}, escolhido: pedido.get("plano") || "escritorio", periodo: pedido.get("periodo") === "anual" ? "anual" : "mensal", aberto: {} };
 
@@ -89,15 +91,16 @@
       "<span><b>" + (p.pessoas === 1 ? "1 pessoa" : "até " + p.pessoas + " pessoas") + "</b><small>" + (p.pessoas === 1 ? "uma licença" : "cada uma com o seu login") + "</small></span></div>" +
       '<div class="cd-itens">' + (textos.heranca ? '<span class="cd-heranca"><span class="cd-heranca-selo">' + esc(textos.heranca) + "</span></span>" : "") + itens + "</div>" +
       '<div class="cd-pe">' + (llama ? "<small>Built with Llama</small>" : "") +
-      '<button type="button" class="cd-acao" data-acao="' + esc(p.id) + '" aria-pressed="' + on + '">' + esc((on ? "Assinar " : "Escolher ") + p.nome) + "</button></div></article>";
+      '<button type="button" class="cd-acao" data-mp-checkout-cta="checkout-api" data-acao="' + esc(p.id) + '" aria-pressed="' + on + '">' + esc((on ? "Assinar " : "Escolher ") + p.nome) + "</button></div></article>";
   }
 
-  /* Clicar no card escolhe; o botao do card escolhido leva ao cadastro, com o
-     plano e o periodo. */
-  function escolher(id, irAoCadastro) {
+  /* Clicar no card escolhe; o botao do card escolhido leva ao checkout da Atos, com o preco
+     (plano e periodo) e a volta para ca. */
+  function escolher(id, irAoCheckout) {
     estado.escolhido = id;
-    if (irAoCadastro) {
-      window.location.assign("../cadastro/?plano=" + encodeURIComponent(id) + "&periodo=" + estado.periodo);
+    if (irAoCheckout) {
+      var preco = "pavlvs." + id + "." + (estado.periodo === "anual" ? "ano" : "mes");
+      window.location.assign(CHECKOUT_DA_ATOS + "?preco=" + encodeURIComponent(preco) + "&volta=" + encodeURIComponent("https://paulus.ia.br/"));
       return;
     }
     desenharPlanos();
