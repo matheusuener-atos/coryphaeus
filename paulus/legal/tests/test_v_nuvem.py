@@ -115,18 +115,16 @@ class Nuvem:
             dados = {"ok": True}
         elif url.endswith("/api/ia/conta"):
             dados = {"ok": True, "email": "dono@escritorio.com.br", "plano_vigente": True, "cortesia": False,
-                     "assinatura": {"id": "pre1", "situacao": "authorized"}, "plano": {"valor": 300, "tokens": 30000000},
+                     "assinatura": {"id": "pre1", "situacao": "authorized"}, "plano": {"id": "escritorio", "valor": 300, "tokens": 30000000},
                      "recarga": {"valor": 50, "tokens": 10000000},
                      "ciclo": {"inicio": "2026-10-01T12:00:00Z", "fim": "2026-11-01T12:00:00Z", "tokens": 30000000, "usados": 1200},
                      "tokens": {"do_ciclo": 29998800, "da_recarga": 0, "reservados": 0, "restantes": 29998800, "hoje": 1200}}
         elif url.endswith("/api/ia/modelos"):
             dados = {"modelos": ["meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen2.5-72B-Instruct"]}
         elif url.endswith("/api/ia/assinar"):
-            dados = {"link": "https://paulus.ia.br/cadastro/pagamento/?plano=escritorio&periodo=mensal", "periodo": "mensal"}
-        elif url.endswith("/api/ia/recarga"):
-            dados = {"id": "ORD1", "valor": "50.00", "tokens": 10000000, "qr_code": "000201pix", "qr_code_base64": "", "vence_em_minutos": 30}
-        elif "/api/ia/recarga/" in url:
-            dados = {"id": "ORD1", "pago": True}
+            # Desde 10/10/2026 o Worker devolve o checkout da Atos (worker/ia.js).
+            dados = {"link": "https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.escritorio.mes&volta=https%3A%2F%2Fpaulus.ia.br%2F",
+                     "plano": "escritorio", "periodo": "mensal"}
         elif url.endswith("/api/ia/sair"):
             dados = {"ok": True}
         elif url.endswith("/v1/openai/models"):
@@ -358,15 +356,19 @@ def main() -> int:
            "sem internet, o modelo daqui escreve", c.ultima)
     fake.modo = "ok"
 
-    print("\no plano, a assinatura e a recarga (V7)")
+    print("\no plano e a assinatura (V7; o dinheiro na Atos desde 10/10/2026)")
     r = local.get("/api/nuvem/paulus/conta?forcar=true").json()
     checar(r["conta"]["plano_vigente"] and r["conta"]["tokens"]["hoje"] == 1200, "a tela lê o plano do Worker", r)
-    r = local.post("/api/nuvem/paulus/assinar", json={}).json()
-    checar(r["link"].startswith("https://paulus.ia.br/cadastro/pagamento/"), "assinar devolve a página de pagamento do site (o cartão vai no bloco do Mercado Pago)", r)
-    r = local.post("/api/nuvem/paulus/recarga", json={}).json()
-    checar(r["qr_code"] == "000201pix" and r["tokens"] == 10000000, "a recarga devolve o Pix", r)
-    r = local.get("/api/nuvem/paulus/recarga/ORD1").json()
-    checar(r["pago"] is True, "e diz quando foi pago")
+    r = local.post("/api/nuvem/paulus/assinar", json={"plano": "escritorio", "periodo": "mensal"}).json()
+    ida = fake.ultimas("/api/ia/assinar")[-1]["corpo"]
+    checar(r["link"].startswith("https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.escritorio.mes") and ida.get("plano") == "escritorio" and ida.get("periodo") == "mensal",
+           "assinar devolve o checkout da Atos, com o plano e o período", r)
+    n_antes = len(fake.chamadas)
+    saiu = {x: local.request(*x.split(" ", 1)).status_code for x in ("POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/ORD1",
+                                                                     "POST /api/nuvem/paulus/plano", "POST /api/nuvem/paulus/cancelar",
+                                                                     "POST /api/nuvem/paulus/desistir", "GET /api/nuvem/paulus/assinatura")}
+    checar(all(s in (404, 405) for s in saiu.values()) and len(fake.chamadas) == n_antes,
+           "recarga, troca, cancelar, desistir e a assinatura saíram do PAULUS (são na Atos)", saiu)
 
     print("\nno Edge: o sim e a tela de consumo")
     try:
@@ -392,6 +394,8 @@ def main() -> int:
                 erros = []
                 pag.on("pageerror", lambda e: erros.append(str(e)))
                 pag.add_init_script("try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}")
+                # A Atos abre no navegador: aqui só anota o endereço, sem rede.
+                pag.add_init_script("window.__abertos = []; window.open = (u) => { window.__abertos.push(String(u)); return null; };")
                 pag.goto(f"http://127.0.0.1:{porta}/entrar-local?chave=" + api.estado.acesso.chave, wait_until="load")
                 pag.wait_for_function("() => typeof cartaoNuvem === 'function' && typeof mostrarConfig === 'function'")
                 checar(pag.locator("#pilula-nuvem").count() == 0, "sem o sim, não há pílula “Nuvem”")
@@ -420,13 +424,27 @@ def main() -> int:
                 pag.wait_for_function("() => document.getElementById('pilula-nuvem')", timeout=10000)
                 checar(local.get("/api/nuvem").json()["ligada"] and pag.get_attribute("#pilula-nuvem", "aria-pressed") == "true",
                        "ligada, a pílula aparece já na nuvem")
+                tela = pag.inner_text("#cfg-tela")
+                checar("Mercado Pago" not in tela and "12×" not in tela and "Cancelar a assinatura" in tela,
+                       "o plano sem o Mercado Pago nem o parcelamento; cancelar continua à vista")
                 pag.click("[data-nuvem-recarga]")
-                pag.wait_for_selector(".nuvem-pix", timeout=10000)
-                checar("50,00" in pag.inner_text(".nuvem-pix") and pag.input_value(".nuvem-copia") == "000201pix", "a recarga: o Pix de R$ 50 com o copia e cola")
-                pag.wait_for_function("() => /Pago\\. Os créditos entraram/.test(document.body.innerText)", timeout=15000)
-                checar(True, "o pagamento é visto sozinho, sem fechar a janela")
-                pag.screenshot(path=str(TMP / "v-recarga.png"))
+                pag.wait_for_function("() => window.__abertos.length === 1", timeout=10000)
+                aberto = pag.evaluate("() => window.__abertos[0]")
+                checar(aberto.startswith("https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.escritorio.recarga"),
+                       "a recarga abre o checkout da Atos no plano da conta", aberto)
+                checar("Termine a compra na Atos" in pag.inner_text("body") and pag.locator("[data-nuvem-conferir]").count() == 1,
+                       "e diz que os créditos entram quando o pagamento for aprovado, com o botão de conferir")
+                n0 = len(fake.ultimas("/api/ia/conta"))
+                pag.click("[data-nuvem-conferir]")
+                pag.wait_for_function("() => !document.querySelector('[data-nuvem-conferir]')", timeout=10000)
+                checar(len(fake.ultimas("/api/ia/conta")) > n0, "conferir lê a conta de novo no Worker")
+                pag.click("[data-nuvem-cancelar]")
+                pag.wait_for_selector('[data-dialogo="confirmar"]', timeout=10000)
+                checar("Conta Atos" in pag.inner_text(".dialogo") and "mês pago vale até o fim" in pag.inner_text(".dialogo"),
+                       "cancelar explica que é na Conta Atos e que o mês pago vale até o fim")
                 pag.click('[data-dialogo="confirmar"]')
+                pag.wait_for_function("() => window.__abertos.length === 2", timeout=10000)
+                checar(pag.evaluate("() => window.__abertos[1]") == "https://atos.dev.br/conta/assinaturas", "e abre a Conta Atos")
                 checar(not erros, "nenhum erro de JavaScript", erros[:3])
                 print(f"  (fotos em {TMP})")
                 nav.close()
@@ -442,7 +460,7 @@ def main() -> int:
 
     print("\nas rotas")
     janela = ["GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "POST /api/nuvem/paulus/ativar", "GET /api/nuvem/paulus/conta",
-              "POST /api/nuvem/paulus/assinar", "POST /api/nuvem/paulus/recarga", "POST /api/nuvem/paulus/cancelar"]
+              "POST /api/nuvem/paulus/assinar", "POST /api/nuvem/paulus/adiantar"]
     checar(all(politicas.de(*x.split(" ", 1)) == politicas.BLOQUEADO for x in janela), "o sim, a conta e o pagamento são da janela do escritório")
     checar(politicas.de("GET", "/api/nuvem/situacao") == politicas.PERMITIDO, "a situação da pílula passa de fora")
 

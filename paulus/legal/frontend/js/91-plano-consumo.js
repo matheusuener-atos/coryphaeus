@@ -22,10 +22,11 @@ const pc = { dados: null, aberto: null, historicos: {}, carregando: false };
 const PC_ALERTA = 0.8;
 const PC_RECARGA_A_PARTIR = 0.7;
 const PC_RITMO_FOLGA = 0.1;
-// A pagina do Mercado Pago onde quem paga troca o cartao da assinatura.
-const PC_MP_ASSINATURAS = "https://www.mercadopago.com.br/subscriptions";
-const PC_CONTATO = "contato@paulus.ia.br";
-const PC_SITUACOES = { authorized: "ativa", pending: "esperando o cartão", paused: "pausada", cancelled: "cancelada" };
+// O dinheiro e da Atos desde 10/10/2026 (js/75-nuvem.js: ATOS_ASSINATURAS,
+// ATOS_FATURAS, abrirNaAtos): a assinatura, o cartao, as faturas, cancelar,
+// a recarga e a nota fiscal ficam la; aqui so o plano e o consumo.
+const PC_CONTATO = ATOS_CONTATO;
+const PC_SITUACOES = { authorized: "ativa", pending: "esperando a aprovação", paused: "pausada", cancelled: "cancelada", expired: "vencida" };
 
 async function mostrarConsumo() {
   abrirTela("Plano e consumo", { cheia: true });
@@ -109,7 +110,7 @@ function blocoGeral(d, c) {
   if (!c) {
     const motivo = d.erro
       ? "Sem conseguir falar com paulus.ia.br agora (" + esc(d.erro) + "): os números do plano voltam quando a internet voltar."
-      : "A conta da IA ainda não está ligada neste Paulus. Ligue com a conta Google em Configurações › Modelos, ou assine em paulus.ia.br/assinatura.";
+      : "A conta da IA ainda não está ligada neste Paulus. Ligue com a Conta Atos em Configurações › Modelos; a assinatura é feita na Atos.";
     return '<header class="pc-geral"><span class="pc-rotulo">Consumo do ciclo</span><p class="pc-texto">' + motivo + "</p>" +
       '<div class="linha-form"><button class="primario" data-pc-ir="modelos">Abrir Configurações › Modelos</button></div></header>';
   }
@@ -413,25 +414,25 @@ function blocoPlano(d, c) {
     : plano.nome + " · " + tokCurto(plano.tokens) + " créditos por mês · " + (anual ? reais(plano.valor_anual) + "/ano" : reais(plano.valor) + "/mês");
   const item = (rotulo, valor, acao) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span><b class=\"corta\">" + esc(valor) + "</b>" + (acao || "") + "</div>";
   const ligacao = (dado, rotulo) => '<button type="button" class="pc-sublinhado" ' + dado + ">" + esc(rotulo) + "</button>";
-  const proximo = c.plano_proximo || plano;
   let cobranca, pagamento;
+  const faturas = ligacao('data-pc-pagamentos="1"', "Ver faturas");
+  const acabou = a && (a.situacao === "cancelled" || a.situacao === "expired");
   if (c.cortesia) {
     cobranca = item("Próxima cobrança", "nenhuma · cortesia", "");
     pagamento = item("Pagamento", "sem cartão", "");
   } else if (ativa && anual) {
-    cobranca = item("Pago até", pcData(c.pago_ate) + " · plano anual", ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
-    pagamento = item("Pagamento", "Mercado Pago · ano pago", "");
+    cobranca = item("Pago até", pcData(c.pago_ate) + " · plano anual", faturas);
+    pagamento = item("Pagamento", "Atos · ano pago", "");
   } else if (ativa && c.periodo === "avulso") {
-    cobranca = item("Pago até", pcData(c.pago_ate) + " · no Pix", ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
-    pagamento = item("Pagamento", "Mercado Pago · Pix, sem renovação", "");
+    cobranca = item("Pago até", pcData(c.pago_ate) + " · no Pix", faturas);
+    pagamento = item("Pagamento", "Atos · mês no Pix", "");
   } else if (ativa) {
-    cobranca = item("Próxima cobrança", (k.fim ? pcData(k.fim) + " · " : "") + reais(proximo.valor), ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
-    pagamento = item("Pagamento", "Mercado Pago · " + PC_SITUACOES.authorized, ligacao('data-pc-cartao="1"', "Alterar cartão"));
+    cobranca = item("Próxima cobrança", (k.fim ? pcData(k.fim) + " · " : "") + reais(plano.valor), faturas);
+    pagamento = item("Pagamento", "Atos · cartão, todo mês", ligacao('data-pc-cartao="1"', "Alterar cartão"));
   } else if (a) {
-    cobranca = item("Próxima cobrança", a.situacao === "cancelled" ? "nenhuma" : "quando o cartão entrar",
-      ligacao('data-pc-pagamentos="1"', "Ver pagamentos"));
-    pagamento = item("Pagamento", "Mercado Pago · " + (PC_SITUACOES[a.situacao] || a.situacao),
-      a.situacao === "cancelled" ? ligacao('data-pc-upgrade="1"', "Assinar de novo") : ligacao('data-pc-cartao="1"', "Abrir no Mercado Pago"));
+    cobranca = item("Próxima cobrança", acabou ? "nenhuma" : a.situacao === "paused" ? "nenhuma enquanto pausada" : "quando o pagamento for aprovado", faturas);
+    pagamento = item("Pagamento", "Atos · " + (PC_SITUACOES[a.situacao] || a.situacao),
+      acabou ? ligacao('data-pc-upgrade="1"', "Assinar de novo") : ligacao('data-pc-cartao="1"', "Abrir na Conta Atos"));
   } else {
     cobranca = item("Próxima cobrança", "sem assinatura", ligacao('data-pc-upgrade="1"', "Assinar"));
     pagamento = item("Pagamento", "sem cartão", "");
@@ -442,25 +443,25 @@ function blocoPlano(d, c) {
   const ficha = '<div class="sv-ficha pc-ficha pc-ficha-plano">' + cobranca + pagamento + (ia ? item("IA do plano", ia, "") : "") +
     item("Nota fiscal", "ainda não sai sozinha", ligacao('data-pc-nota="1"', "Pedir por e-mail")) +
     item("Pessoas", plural(contas, "conta") + " com acesso" + (convites ? " · " + plural(convites, "convite") : ""), ligacao('data-pc-convidar="1"', "Convidar")) + "</div>";
-  const troca = c.plano_proximo ? '<p class="sv-dica pc-troca">' + ic("schedule", 15) + "A partir da renovação: " + esc(c.plano_proximo.nome) + " (" +
-    esc(tokCurto(c.plano_proximo.tokens)) + " créditos, " + esc(reais(c.plano_proximo.valor)) + "/mês).</p>" : "";
   const rodape = ativa && anual
-    ? '<p class="sv-dica">O plano anual não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ", com a cota de cada mês. A renovação abre 45 dias antes, em “Ver planos”.</p>"
+    ? '<p class="sv-dica">O ano foi pago de uma vez e não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ", com a cota de cada mês. Para continuar depois dele, assine de novo em “Ver planos”.</p>"
     : ativa && c.periodo === "avulso"
-      ? '<p class="sv-dica">O mês pago no Pix não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ". Para continuar, pague outro mês ou assine no cartão, em “Ver planos”.</p>"
+      ? '<p class="sv-dica">O mês pago no Pix não renova sozinho: vale até ' + esc(pcData(c.pago_ate)) + ". Para continuar depois dele, assine de novo em “Ver planos”.</p>"
     : ativa
-      ? '<p class="sv-dica">Ao cancelar, nada mais é cobrado e os créditos do ciclo pago valem até ' + esc(pcData(k.fim) || "o fim dele") + ". " +
+      ? '<p class="sv-dica">Cancelar é na Conta Atos: nada mais é cobrado, e o mês pago vale até ' + esc(pcData(k.fim) || "o fim dele") + ". " +
         '<button type="button" class="pc-sublinhado" data-pc-cancelar="1">Cancelar assinatura</button></p>'
       : '<p class="sv-dica">Cada plano tem o seu modelo de IA, a profundidade, as pessoas e os recursos. “Ver planos” compara.</p>';
-  // Os 7 dias de arrependimento: desistir devolve o que foi pago (worker/ia.js, desistencia).
-  const des = c.desistencia || {};
-  const desistir = des.pode ? '<p class="sv-dica">Nos 7 primeiros dias, até ' + esc(pcData(des.ate)) + ", dá para desistir e receber " + esc(reais(des.valor)) +
-    ' de volta. <button type="button" class="pc-sublinhado" data-pc-desistir="1">Desistir e receber de volta</button></p>' : "";
+  // Os 7 dias de arrependimento (CDC, art. 49): a desistencia e por e-mail a Atos;
+  // nao ha devolucao automatica. O prazo e o que o resumo traz (arrependimento_ate).
+  const ate = Date.parse(c.arrependimento_ate || "");
+  const desistir = !c.cortesia && a && ate > Date.now()
+    ? '<p class="sv-dica">Nos 7 primeiros dias, até ' + esc(pcData(c.arrependimento_ate)) + ", dá para desistir: escreva para " + esc(PC_CONTATO) + ". " +
+      '<button type="button" class="pc-sublinhado" data-pc-desistir="1">Escrever para a Atos</button></p>' : "";
   return '<section class="sv-secao pc-secao" aria-labelledby="pc-t-plano"><div class="sv-secao-cabeca">' +
     '<span class="sv-secao-titulo" id="pc-t-plano">' + ic("workspace_premium", 16) + "Seu plano</span>" +
     '<span class="sv-secao-meta">' + esc(linha) + "</span>" +
     (c.cortesia ? "" : '<button type="button" class="sv-ligacao" data-pc-upgrade="1">' + ic("arrow_upward", 15) + "Ver planos</button>") + "</div>" +
-    '<div class="pc-plano-miolo">' + ficha + troca + blocoRecarga(c) + "</div>" + rodape + desistir + "</section>";
+    '<div class="pc-plano-miolo">' + ficha + blocoRecarga(c) + "</div>" + rodape + desistir + "</section>";
 }
 
 /* O que cada plano tem, em frases curtas, para a comparacao (os recursos do Worker). */
@@ -485,52 +486,42 @@ function itensDoPlano(p) {
 async function verUpgrade() {
   const c = pc.dados.conta || {};
   const atual = (c.plano || {}).id;
-  const marcado = (c.plano_proximo || c.plano || {}).id;
   const planos = c.planos || [];
-  const ativa = (c.assinatura || {}).situacao === "authorized";
-  const anual = ativa && c.periodo === "anual";
-  // O anual renova nos ultimos 45 dias (worker/ia.js).
-  const renovaAnual = anual && Date.parse(c.pago_ate || "") - Date.now() <= 45 * 864e5;
+  // Com o plano em dia, a Atos nao troca no meio do periodo pago (js/75-nuvem.js, trocarPlanoNaAtos).
+  const emDia = Boolean(c.plano_vigente);
+  const cartao = assinaturaNoCartao(c);
   const tokensAtual = Number((c.plano || {}).tokens || 0);
   const botao = (id, periodo, rotulo, primario, desliga) => '<button type="button" class="' + (primario && !desliga ? "primario" : "") +
     '" data-pc-opcao="' + esc(id) + '" data-pc-periodo="' + periodo + '"' + (desliga ? " disabled" : "") + ">" + esc(rotulo) + "</button>";
   const colunas = planos.map((p) => {
     const eAtual = p.id === atual;
-    const eMarcado = p.id === marcado && p.id !== atual;
     const mensal = reais(p.valor) + "/mês";
     const ano = reais(p.valor_anual) + "/ano";
     let botoes;
-    if (!ativa) {
-      botoes = botao(p.id, "mensal", "Assinar · " + mensal, true, false) + botao(p.id, "anual", "Anual · " + ano + " (até 12×)", false, false);
-    } else if (c.periodo === "avulso") {
-      // O mes no Pix: outro mes (soma ao fim do pago) ou o ano.
-      botoes = botao(p.id, "mensal", (eAtual ? "Pagar mais um mês · " : "Mais um mês no " + p.nome + " · ") + mensal, eAtual, false) +
-        botao(p.id, "anual", "Passar ao anual · " + ano, false, false);
-    } else if (anual) {
-      botoes = renovaAnual ? botao(p.id, "anual", "Renovar o ano no " + p.nome + " · " + ano, eAtual, false)
-        : botao(p.id, "anual", eAtual ? "Plano atual · anual" : "Troca na renovação do ano", false, true);
+    if (!emDia) {
+      botoes = botao(p.id, "mensal", "Assinar · " + mensal, true, false) + botao(p.id, "anual", "Anual · " + ano + " (de uma vez)", false, false);
+    } else if (eAtual) {
+      // O mensal no cartao pode passar ao anual: tambem e troca, na Atos.
+      botoes = botao(p.id, "mensal", "Plano atual", false, true) + (cartao ? botao(p.id, "trocar", "Passar ao anual · " + ano, false, false) : "");
     } else {
-      let rotulo, desliga = false;
-      if (eAtual) { rotulo = c.plano_proximo ? "Ficar no " + p.nome : "Plano atual"; desliga = !c.plano_proximo; }
-      else if (eMarcado) { rotulo = "Troca marcada"; desliga = true; }
-      else rotulo = (p.tokens > tokensAtual ? "Mudar para o " : "Reduzir para o ") + p.nome;
-      botoes = botao(p.id, "mensal", rotulo, p.tokens > tokensAtual, desliga) + botao(p.id, "anual", "Passar ao anual · " + ano, false, false);
+      botoes = botao(p.id, "trocar", (p.tokens > tokensAtual ? "Mudar para o " : "Reduzir para o ") + p.nome, p.tokens > tokensAtual, false);
     }
     const economia = Math.round((1 - p.valor_anual / (p.valor * 12)) * 100);
     return '<div class="pc-plano-col' + (eAtual ? " atual" : "") + '">' +
-      '<div class="pc-plano-nome"><span>' + esc(p.nome) + "</span>" + (eAtual ? '<em class="sv-kicker">atual</em>' : eMarcado ? '<em class="sv-kicker">na renovação</em>' : "") + "</div>" +
+      '<div class="pc-plano-nome"><span>' + esc(p.nome) + "</span>" + (eAtual ? '<em class="sv-kicker">atual</em>' : "") + "</div>" +
       '<div class="pc-plano-tok"><b>' + esc(mensal) + "</b><small>ou " + esc(ano) + (economia > 0 ? " (" + economia + "% a menos)" : "") + "</small></div>" +
       '<ul class="pc-plano-itens">' + itensDoPlano(p).map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul>" +
       '<div class="pc-plano-botoes">' + botoes + "</div></div>";
   }).join("");
+  const ate = pcData(c.pago_ate || (c.ciclo || {}).fim);
   let escolhido = "", periodo = "mensal";
   const aberto = dialogo({
     titulo: "Planos", contexto: "Plano e consumo", classe: "pc-dialogo pc-dialogo-planos", confirmar: "Fechar", semCancelar: true,
-    html: '<p class="pc-texto">' + (anual ? "O plano anual vale até " + esc(pcData(c.pago_ate)) + ". A troca de plano é na renovação, que abre 45 dias antes."
-      : ativa && c.periodo === "avulso" ? "O mês pago no Pix vale até " + esc(pcData(c.pago_ate)) + ". Outro mês, ou o ano, começa quando ele acabar."
-      : ativa ? "Trocar no mensal vale na próxima renovação: o valor novo é cobrado nela, e os créditos do plano novo entram com ela. Passar ao anual vale assim que o ano é pago; a assinatura mensal é cancelada no Mercado Pago."
-        : "O pagamento abre em paulus.ia.br: no Pix, um mês ou o ano, sem renovação; ou no cartão, nos campos seguros do Mercado Pago, com o mensal renovando todo mês e o anual em até 12 vezes (os juros do parcelamento são de quem parcela).") +
-      " Os 7 primeiros dias são de arrependimento, com o dinheiro de volta.</p>" + '<div class="pc-planos">' + colunas + "</div>" });
+    html: '<p class="pc-texto">' + (cartao
+      ? "Para trocar de plano, cancele a assinatura de agora na Conta Atos (o mês pago vale até o fim" + (ate ? ", " + esc(ate) : "") + ") e assine o outro quando ele acabar. Assim não há cobrança em dobro."
+      : emDia ? "O período pago vale até " + esc(ate || "o fim dele") + " e não renova sozinho. Para trocar de plano, assine o outro quando ele acabar."
+        : "O pagamento é na Atos, com a Conta Atos: no cartão, com o mensal renovando todo mês, ou no Pix. O anual é pago de uma vez, sem parcelamento.") +
+      " Nos 7 primeiros dias, dá para desistir escrevendo para " + esc(PC_CONTATO) + ".</p>" + '<div class="pc-planos">' + colunas + "</div>" });
   document.querySelectorAll("#veu-dialogo [data-pc-opcao]").forEach((b) => b.addEventListener("click", () => {
     escolhido = b.dataset.pcOpcao;
     periodo = b.dataset.pcPeriodo || "mensal";
@@ -538,73 +529,51 @@ async function verUpgrade() {
   }));
   await aberto;
   if (!escolhido) return;
-  // O mes no Pix nao tem troca: outro mes e outro pagamento.
-  if (ativa && !anual && c.periodo !== "avulso" && periodo === "mensal") {
-    if (escolhido === marcado) return;
-    const res = await nuvemPost("/api/nuvem/paulus/plano", { plano: escolhido });
-    if (!res) return;
-    avisoCert((res.conta || {}).plano_proximo ? "Troca marcada: o plano novo vale a partir da renovação." : "Troca desfeita: o plano continua o de agora.");
-  } else {
-    const res = await nuvemPost("/api/nuvem/paulus/assinar", { plano: escolhido, periodo: periodo });
-    if (!res) return;
-    if (res.link) window.open(res.link, "_blank");
-    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta Google: no Pix ou no cartão" +
-      (periodo === "anual" ? " (em até 12 vezes)" : "") + ". O plano entra assim que o pagamento for aprovado.");
+  if (periodo === "trocar") {
+    const destino = planos.find((p) => p.id === escolhido) || {};
+    await trocarPlanoNaAtos(c, escolhido === atual ? (destino.nome || "plano") + " anual" : destino.nome || "outro plano");
+    return;
   }
+  const res = await nuvemPost("/api/nuvem/paulus/assinar", { plano: escolhido, periodo: periodo });
+  if (!res) return;
+  if (!res.link) { avisoCert("paulus.ia.br não devolveu o endereço do pagamento na Atos", { tom: "erro" }); return; }
+  abrirNaAtos(res.link);
+  avisoCert("Termine na Atos, na página que abriu, com a Conta Atos: no cartão ou no Pix" + (periodo === "anual" ? ", o ano de uma vez" : "") +
+    ". O plano entra assim que o pagamento for aprovado.");
   await carregarConsumo(true);
 }
 
-/* A mensalidade e as recargas pagas (as dez ultimas, do Worker). */
-async function verPagamentos() {
-  const c = pc.dados.conta || {};
-  const a = c.assinatura || {};
-  const linhas = [];
-  if (a.id) {
-    linhas.push('<div class="pc-pag-linha"><span class="duas-linhas"><b>Assinatura · ' + esc((c.plano || {}).nome || "") + "</b><small>" +
-      esc((a.desde ? "desde " + pcData(a.desde) + " · " : "") + (PC_SITUACOES[a.situacao] || a.situacao || "")) + "</small></span>" +
-      "<b>" + esc(reais(a.valor || (c.plano || {}).valor || 0)) + "/mês</b></div>");
-  }
-  (c.recargas || []).forEach((r) => linhas.push('<div class="pc-pag-linha"><span class="duas-linhas"><b>Recarga · +' + esc(tokCurto(r.tokens)) + " tokens</b><small>" +
-    esc(pcData(r.quando)) + " · Pix</small></span><b>" + esc(reais(r.valor)) + "</b></div>"));
-  await dialogo({ titulo: "Pagamentos", contexto: "Plano e consumo", classe: "pc-dialogo", confirmar: "Fechar", semCancelar: true,
-    html: (linhas.length ? '<div class="pc-pag">' + linhas.join("") + "</div>" : '<p class="pc-texto">Nenhum pagamento ainda.</p>') +
-      '<p class="pc-texto">As cobranças da mensalidade e os recibos ficam na sua conta do Mercado Pago, no e-mail de quem paga.</p>' });
+/* As faturas, os recibos e o cartao ficam na Conta Atos. */
+function verPagamentos() {
+  abrirNaAtos(ATOS_FATURAS);
+  avisoCert("As faturas e os recibos estão na Conta Atos, na página que abriu.");
 }
 
+/* Um e-mail para a Atos, pronto para revisar (a caixa do Paulus; sem ela, o mailto). */
+async function escreverParaAtos(assunto, corpo) {
+  if (typeof telaEscrever !== "function") { window.open("mailto:" + PC_CONTATO + "?subject=" + encodeURIComponent(assunto)); return; }
+  marcarDestino("caixa");
+  await telaEscrever({ para: PC_CONTATO, assunto: assunto, corpo: corpo });
+}
+
+/* A nota fiscal dos pagamentos da Atos ainda sai a mao, a pedido. */
 async function pedirNotaFiscal() {
   const c = pc.dados.conta || {};
-  if (typeof telaEscrever !== "function") { window.open("mailto:" + PC_CONTATO); return; }
-  marcarDestino("caixa");
-  await telaEscrever({ para: PC_CONTATO, assunto: "Nota fiscal da assinatura do Paulus",
-    corpo: "Olá! Peço a nota fiscal da assinatura do Paulus (plano " + ((c.plano || {}).nome || "") + ", conta " + (c.email || "") + ").\n\n" +
-      "Os dados para a nota (CPF ou CNPJ) são os do cadastro em paulus.ia.br/cadastro.\n\nObrigado." });
+  await escreverParaAtos("Nota fiscal do PAVLVS",
+    "Olá! Peço a nota fiscal do pagamento do PAVLVS (plano " + ((c.plano || {}).nome || "") + ", conta " + (c.email || "") + ").\n\n" +
+      "Os dados para a nota (CPF ou CNPJ) são os da minha Conta Atos.\n\nObrigado.");
 }
 
 async function cancelarAssinatura() {
-  const k = cicloDe(pc.dados.conta);
-  const ok = await confirmar({ titulo: "Cancelar a assinatura?", contexto: "Plano e consumo",
-    texto: "Nada mais é cobrado. Os tokens do ciclo pago continuam valendo até " + (pcData(k.fim) || "o fim dele") + "; depois, o Paulus segue sem IA. Os seus documentos e conversas ficam neste computador.",
-    confirmar: "Cancelar a assinatura", cancelar: "Manter", perigo: true });
-  if (!ok) return;
-  const r = await nuvemPost("/api/nuvem/paulus/cancelar", {});
-  if (!r) return;
-  avisoCert("Assinatura cancelada: nada mais é cobrado.");
-  await carregarConsumo(true);
+  await cancelarNaAtos(pc.dados.conta || {});
 }
 
-/* A desistencia nos 7 dias: o dinheiro volta no cartao ou no Pix de origem, o
-   plano acaba agora e a nota fiscal do pagamento e cancelada. */
+/* A desistencia nos 7 dias (CDC, art. 49) e pedida por e-mail a Atos: nao ha
+   devolucao automatica, e quem diz o valor e o prazo da devolucao e ela. */
 async function desistirDoPlano() {
-  const des = (pc.dados.conta || {}).desistencia || {};
-  const ok = await confirmar({ titulo: "Desistir do plano?", contexto: "Plano e consumo",
-    texto: "Você recebe " + reais(des.valor) + " de volta, no cartão ou no Pix em que pagou (o banco leva alguns dias para mostrar). O plano acaba agora e o Paulus segue sem a IA da nuvem; " +
-      "os seus documentos e conversas ficam neste computador. A desistência por aqui é uma vez por CPF ou CNPJ.",
-    confirmar: "Desistir e receber de volta", cancelar: "Manter o plano", perigo: true });
-  if (!ok) return;
-  const r = await nuvemPost("/api/nuvem/paulus/desistir", {});
-  if (!r) return;
-  avisoCert(reais(r.valor || des.valor) + " a caminho de volta. O plano acabou." + ((r.avisos || []).length ? " " + r.avisos[0] : ""));
-  await carregarConsumo(true);
+  const c = pc.dados.conta || {};
+  await escreverParaAtos("Desistência do PAVLVS (7 dias)",
+    "Olá! Quero desistir do PAVLVS dentro dos 7 primeiros dias (CDC, art. 49): plano " + ((c.plano || {}).nome || "") + ", conta " + (c.email || "") + ".\n\nObrigado.");
 }
 
 /* ------------------------------------------------ 5. a recarga rapida */
@@ -613,13 +582,14 @@ function blocoRecarga(c) {
   if (!c || !c.plano_vigente || c.cortesia) return "";
   const k = cicloDe(c);
   if (!k.limite || k.usados / k.limite < PC_RECARGA_A_PARTIR) return "";
-  const pacotes = c.recargas_pacotes || [];
-  if (!pacotes.length) return "";
+  // Um pacote por plano, comprado na Atos, so no Pix (o que o resumo traz em `recarga`).
+  const r = c.recarga || {};
+  if (!r.tokens || !(c.plano || {}).id) return "";
   const dias = k.fim ? Math.max(0, Math.ceil((Date.parse(k.fim) - Date.now()) / 864e5)) : 0;
   return '<div class="pc-recarga"><p class="pc-texto"><b>Precisando de mais tokens neste ciclo?</b> Você já usou ' + Math.round(k.parte * 100) + "%" +
-    (dias ? " com " + plural(dias, "dia") + " pela frente" : "") + ". A recarga entra na hora, no Pix, e não vence na renovação.</p>" +
-    '<div class="pc-acoes">' + pacotes.map((p) => '<button data-pc-recarga="' + esc(p.id) + '">+' + esc(tokCurto(p.tokens)) +
-      ' <span class="pc-preco">· ' + esc(reais(p.valor)) + "</span></button>").join("") + "</div></div>";
+    (dias ? " com " + plural(dias, "dia") + " pela frente" : "") + ". A recarga é comprada na Atos, no Pix; os créditos entram assim que o pagamento for aprovado e não vencem na renovação.</p>" +
+    '<div class="pc-acoes"><button data-pc-recarga="1">+' + esc(tokCurto(r.tokens)) +
+      (r.valor ? ' <span class="pc-preco">· ' + esc(reais(r.valor)) + " no Pix</span>" : "") + "</button></div></div>";
 }
 
 /* ------------------------------------------------------- 6. o extrato */
@@ -685,7 +655,7 @@ function ligarConsumo() {
   clique("[data-pc-upgrade]", verUpgrade);
   clique("[data-pc-extrato]", verExtrato);
   clique("[data-pc-pagamentos]", verPagamentos);
-  clique("[data-pc-cartao]", () => window.open(PC_MP_ASSINATURAS, "_blank"));
+  clique("[data-pc-cartao]", () => abrirNaAtos(ATOS_ASSINATURAS));
   clique("[data-pc-nota]", pedirNotaFiscal);
   clique("[data-pc-cancelar]", cancelarAssinatura);
   clique("[data-pc-desistir]", desistirDoPlano);
@@ -698,5 +668,5 @@ function ligarConsumo() {
     if (conta && typeof acessoPermissoes === "function") await acessoPermissoes(conta);
     await carregarConsumo(false);
   });
-  clique("[data-pc-recarga]", (b) => recarregarNuvem(() => carregarConsumo(true), b.dataset.pcRecarga));
+  clique("[data-pc-recarga]", () => abrirRecargaNaAtos(pc.dados.conta));
 }

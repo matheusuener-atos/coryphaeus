@@ -3,7 +3,8 @@
 
    - Configurações › Modelos: o cartão "Nuvem" - o provedor; para o Paulus
      (nuvem), ativar com o Google, o plano (tokens restantes, usados, a
-     renovação, assinar, recarregar, cancelar); para os outros, a chave. O
+     renovação; assinar, recarregar, trocar e cancelar abrem a Atos, que
+     cobra desde 10/10/2026); para os outros, a chave. O
      termo e o sim do titular, as funcionalidades, mascarar, pedir a cada
      envio, ligar e o registro de envios.
    - A caixa da pergunta: a pílula "Nuvem", de dentro e de fora, ligada por
@@ -39,6 +40,65 @@ function dataNuvem(iso) {
   return isNaN(d) ? "" : d.toLocaleDateString("pt-BR");
 }
 
+/* O dinheiro e da Atos (atos.dev.br) desde 10/10/2026: assinar, recarregar,
+   trocar, cancelar, as faturas e o cartao ficam la. O PAULUS so abre a pagina
+   no navegador; o plano e os creditos chegam aqui pela conta (GET /api/ia/conta)
+   quando a Atos avisa o Worker que o pagamento foi aprovado. */
+const ATOS_ASSINATURAS = "https://atos.dev.br/conta/assinaturas";
+const ATOS_FATURAS = "https://atos.dev.br/conta/faturamento";
+const ATOS_CONTATO = "contato@atos.dev.br";
+
+function abrirNaAtos(url) { window.open(url, "_blank"); }
+
+/* A recarga e um pacote por plano, so no Pix e so com o plano em dia. */
+function linkRecargaAtos(planoId) {
+  return "https://atos.dev.br/pavlvs/assinar/?preco=" + encodeURIComponent("pavlvs." + planoId + ".recarga") +
+    "&volta=" + encodeURIComponent("https://paulus.ia.br/");
+}
+
+/* A assinatura no cartao, que renova todo mes (a unica que se cancela). O ano
+   e o mes no Pix sao pagos de uma vez e nao renovam. */
+function assinaturaNoCartao(c) {
+  return ((c || {}).assinatura || {}).situacao === "authorized" && c.periodo !== "anual" && c.periodo !== "avulso";
+}
+
+function abrirRecargaNaAtos(c) {
+  const id = ((c || {}).plano || {}).id;
+  if (!id) { avisoCert("Não sei o plano desta conta agora: abra de novo depois de ler a conta.", { tom: "erro" }); return; }
+  abrirNaAtos(linkRecargaAtos(id));
+  nuvemTela.esperando = true;
+  avisoCert("Termine a compra na Atos, no Pix; os créditos entram aqui assim que o pagamento for aprovado.");
+}
+
+/* Trocar de plano: sem o plano em dia, e so assinar o outro. Com ele em dia,
+   a Atos nao troca no meio do periodo pago: na assinatura do cartao, cancela-se
+   na Conta Atos (o mes pago vale ate o fim) e assina-se o outro depois; no ano
+   ou no mes do Pix, assina-se o outro quando o periodo acabar. */
+async function trocarPlanoNaAtos(c, nome) {
+  const ate = dataNuvem(c.pago_ate || (c.ciclo || {}).fim);
+  if (assinaturaNoCartao(c)) {
+    const ok = await confirmar({ titulo: "Trocar para o " + nome + "?", contexto: "Conta Atos",
+      texto: "A troca é feita na Conta Atos, em dois passos: cancele a assinatura de agora (o mês pago vale até o fim" + (ate ? ", " + ate : "") +
+        ") e, quando ele acabar, assine o " + nome + ". Assim não há cobrança em dobro.",
+      confirmar: "Abrir a Conta Atos", cancelar: "Agora não" });
+    if (ok) abrirNaAtos(ATOS_ASSINATURAS);
+    return;
+  }
+  await dialogo({ titulo: "Trocar para o " + nome + "?", contexto: "Conta Atos", confirmar: "Entendi", semCancelar: true,
+    texto: "O período pago vale até " + (ate || "o fim dele") + " e não renova sozinho. Quando ele acabar, assine o " + nome + " aqui." });
+}
+
+async function cancelarNaAtos(c) {
+  const ate = dataNuvem((c.ciclo || {}).fim || c.pago_ate);
+  const ok = await confirmar({ titulo: "Cancelar a assinatura?", contexto: "Conta Atos",
+    texto: "A assinatura é cancelada na Conta Atos, em atos.dev.br. Nada mais é cobrado, e o mês pago vale até o fim" + (ate ? " (" + ate + ")" : "") +
+      "; depois, o Paulus segue sem a IA da nuvem. Os seus documentos e conversas ficam neste computador.",
+    confirmar: "Abrir a Conta Atos", cancelar: "Manter" });
+  if (!ok) return;
+  abrirNaAtos(ATOS_ASSINATURAS);
+  nuvemTela.esperando = true;
+}
+
 /* ------------------------------------------------------------ Configurações › Modelos */
 
 function painelDoPlano(d) {
@@ -59,7 +119,8 @@ function painelDoPlano(d) {
   const a = c.assinatura || {};
   const ciclo = c.ciclo || {};
   const situacao = c.cortesia ? "cortesia" : (a.situacao === "authorized" ? "assinatura ativa" : a.situacao === "cancelled" ? "assinatura cancelada"
-    : a.situacao === "pending" ? "assinatura esperando o cartão" : "sem assinatura");
+    : a.situacao === "pending" ? "pagamento esperando a aprovação" : a.situacao === "paused" ? "assinatura pausada"
+    : a.situacao === "expired" ? "período pago acabou" : "sem assinatura");
   const vigente = c.plano_vigente;
   const linhas = [];
   linhas.push('<div class="nuvem-plano"><div class="nuvem-restantes"><span class="nuvem-numero">' + esc(tokens(t.restantes)) + "</span>" +
@@ -77,17 +138,11 @@ function painelDoPlano(d) {
     (vigente ? "" : " · sem o plano em dia, o Paulus funciona sem IA") +
     ". A cota é por semana e não acumula; a recarga não vence na renovação e é gasta depois da cota. Os detalhes estão em Plano e consumo.</p>");
   const botoes = [];
-  const ativa = a.situacao === "authorized";
-  if (ativa && c.plano_proximo) {
-    linhas.push('<p class="cfg-explica">Troca marcada: a partir de ' + esc(ciclo.fim ? dataNuvem(ciclo.fim) : "a renovação") + ", o plano " +
-      esc(c.plano_proximo.nome) + " (R$ " + esc(String(c.plano_proximo.valor)) + "/mês). O ciclo já pago continua no " + esc((c.plano || {}).nome || "plano de agora") + ".</p>");
-  }
   if (!c.cortesia) {
-    // Os tres planos (worker/ia.js): sem assinatura, o escolhido vai na
-    // assinatura; com ela ativa, vira a troca, que vale na renovacao. O mesmo
-    // da pagina paulus.ia.br/cadastro.
+    // Os tres planos (worker/ia.js): sem o plano em dia, o escolhido vai no
+    // checkout da Atos; com ele em dia, a troca e na Atos (trocarPlanoNaAtos).
     const planos = c.planos || [];
-    const vale = (ativa && c.plano_proximo ? c.plano_proximo : c.plano) || {};
+    const vale = c.plano || {};
     if (!nuvemTela.plano) nuvemTela.plano = vale.id || "escritorio";
     const escolhido = planos.find((p) => p.id === nuvemTela.plano) || c.plano || {};
     if (planos.length > 1) {
@@ -96,20 +151,18 @@ function painelDoPlano(d) {
         '" data-nuvem-plano="' + esc(p.id) + '"><b>' + esc(p.nome) + "</b><span>R$ " + esc(String(p.valor)) + "/mês</span><small>" +
         esc(tokens(p.tokens)) + " créditos por mês · " + esc(((p.modelos_info || [])[0] || {}).nome || "") + "</small></button>").join("") + "</div>");
     }
-    if (!ativa) {
+    if (!vigente) {
       botoes.push('<button class="primario" data-nuvem-assinar="1">Assinar o ' + esc(escolhido.nome || "plano") + " · R$ " + esc(String(escolhido.valor || "")) + "/mês</button>");
-      botoes.push('<button data-nuvem-assinar="anual">Anual · R$ ' + esc(String(escolhido.valor_anual || "")) + " (até 12×)</button>");
+      botoes.push('<button data-nuvem-assinar="anual">Anual · R$ ' + esc(String(escolhido.valor_anual || "")) + " (pago de uma vez)</button>");
     } else if (escolhido.id && escolhido.id !== vale.id) {
-      const desfaz = c.plano_proximo && escolhido.id === (c.plano || {}).id;
-      botoes.push('<button class="primario" data-nuvem-trocar="1">' + (desfaz ? "Ficar no " + esc(escolhido.nome) + " (desfazer a troca)"
-        : "Trocar para o " + esc(escolhido.nome) + " · R$ " + esc(String(escolhido.valor)) + "/mês na renovação") + "</button>");
+      botoes.push('<button class="primario" data-nuvem-trocar="1">Trocar para o ' + esc(escolhido.nome) + "</button>");
     }
   }
-  if (vigente) botoes.push('<button class="com-icone" data-nuvem-recarga="1">' + ic("payments", 16) + "Recarregar " + esc(tokens((c.recarga || {}).tokens)) + " créditos" +
+  if (vigente && !c.cortesia) botoes.push('<button class="com-icone" data-nuvem-recarga="1">' + ic("payments", 16) + "Recarregar " + esc(tokens((c.recarga || {}).tokens)) + " créditos" +
     " · R$ " + esc(String((c.recarga || {}).valor || "")) + " no Pix</button>");
-  if (a.situacao === "pending") botoes.push('<button data-nuvem-conferir="1">Já pus o cartão</button>');
-  if (c.anual_pendente) botoes.push('<button data-nuvem-conferir="1">Já paguei o ano</button>');
-  if (a.situacao === "authorized" && c.periodo !== "anual" && c.periodo !== "avulso") botoes.push('<button class="perigo" data-nuvem-cancelar="1">Cancelar a assinatura</button>');
+  // Depois de abrir a Atos (ou com o pagamento ainda pendente), conferir lê a conta de novo.
+  if (nuvemTela.esperando || a.situacao === "pending") botoes.push('<button data-nuvem-conferir="1">Já paguei na Atos</button>');
+  if (assinaturaNoCartao(c)) botoes.push('<button class="perigo" data-nuvem-cancelar="1">Cancelar a assinatura</button>');
   botoes.push('<button data-nuvem-sair="1">Desligar esta instalação da conta</button>');
   linhas.push('<div class="linha-form">' + botoes.join("") + "</div>");
   return linhas.join("");
@@ -258,39 +311,6 @@ async function ativarNuvemPaulus(redesenhar) {
   } catch (err) { avisoCert(err.message, { tom: "erro" }); }
 }
 
-async function recarregarNuvem(redesenhar, pacote) {
-  // `pacote`: a recarga rapida de Plano e consumo ("0.5", "1", "2"); sem ele, a de sempre.
-  const p = await nuvemPost("/api/nuvem/paulus/recarga", pacote ? { pacote: pacote } : {});
-  if (!p) return;
-  let parar = false;
-  const html = '<div class="nuvem-pix">' + (p.qr_code_base64 ? '<img alt="QR do Pix" src="data:image/png;base64,' + esc(p.qr_code_base64) + '">' : "") +
-    '<p>Pix de R$ ' + esc(String(p.valor).replace(".", ",")) + " · " + esc(tokens(p.tokens)) + " créditos · vale " + esc(String(p.vence_em_minutos)) + " min</p>" +
-    '<textarea readonly class="nuvem-copia">' + esc(p.qr_code || "") + "</textarea>" +
-    '<p class="nota" id="nuvem-pix-situacao">Esperando o pagamento…</p></div>';
-  const olhar = async () => {
-    while (!parar) {
-      await new Promise((r) => setTimeout(r, 4000));
-      if (parar) return;
-      const r = await fetch("/api/nuvem/paulus/recarga/" + encodeURIComponent(p.id));
-      if (!r.ok) continue;
-      const s = await r.json();
-      if (s.pago) {
-        const el = document.getElementById("nuvem-pix-situacao");
-        if (el) el.textContent = "Pago. Os créditos entraram.";
-        parar = true;
-        await carregarContaNuvem(true);
-        redesenhar();
-        return;
-      }
-    }
-  };
-  olhar();
-  await dialogo({ titulo: "Recarga da nuvem", contexto: "Configurações › Modelos › Nuvem", classe: "dialogo-ver", confirmar: "Fechar", semCancelar: true, html });
-  parar = true;
-  await carregarContaNuvem(true);
-  redesenhar();
-}
-
 function ligarNuvemNaConfig(raiz, redesenhar) {
   desenharPilulaNuvem();
   if (!raiz || !nuvemTela.dados) return;
@@ -333,34 +353,29 @@ function ligarNuvemNaConfig(raiz, redesenhar) {
     b.onclick = () => { nuvemTela.plano = b.dataset.nuvemPlano; redesenhar(); };
   });
   clique("[data-nuvem-trocar]", async () => {
-    const r = await nuvemPost("/api/nuvem/paulus/plano", { plano: nuvemTela.plano });
-    if (!r) return;
-    nuvemTela.conta = r.conta || r;
-    avisoCert(nuvemTela.conta.plano_proximo ? "Troca marcada: o plano novo vale a partir da renovação." : "Troca desfeita: o plano continua o de agora.");
+    const c = nuvemTela.conta || {};
+    const destino = (c.planos || []).find((p) => p.id === nuvemTela.plano) || {};
+    await trocarPlanoNaAtos(c, destino.nome || "outro plano");
     redesenhar();
   });
   raiz.querySelectorAll("[data-nuvem-assinar]").forEach((b) => { b.onclick = async () => {
     const anual = b.dataset.nuvemAssinar === "anual";
     const r = await nuvemPost("/api/nuvem/paulus/assinar", { plano: nuvemTela.plano, periodo: anual ? "anual" : "mensal" });
     if (!r) return;
-    if (!r.link) { avisoCert("paulus.ia.br não devolveu a página de pagamento", { tom: "erro" }); return; }
-    window.open(r.link, "_blank");
-    avisoCert("Termine na página de pagamento que abriu (paulus.ia.br), com a mesma conta: o cartão vai nos campos seguros do Mercado Pago" +
-      (anual ? ", em até 12 vezes." : ".") + " O plano aparece aqui assim que o pagamento for aprovado.");
-    await carregarContaNuvem(true); redesenhar();
+    if (!r.link) { avisoCert("paulus.ia.br não devolveu o endereço do pagamento na Atos", { tom: "erro" }); return; }
+    abrirNaAtos(r.link);
+    nuvemTela.esperando = true;
+    avisoCert("Termine na Atos, na página que abriu, com a Conta Atos: no cartão ou no Pix" + (anual ? ", o ano de uma vez." : ".") +
+      " O plano aparece aqui assim que o pagamento for aprovado.");
+    redesenhar();
   }; });
   clique("[data-nuvem-conferir]", async () => {
-    const r = await nuvemPost("/api/nuvem/paulus/assinatura", null, "GET");
-    if (r) { nuvemTela.conta = r.conta; redesenhar(); }
+    await carregarContaNuvem(true);
+    if (nuvemTela.conta && nuvemTela.conta.plano_vigente) nuvemTela.esperando = false;
+    redesenhar();
   });
-  clique("[data-nuvem-cancelar]", async () => {
-    const res = await dialogo({ titulo: "Cancelar a assinatura?", texto: "Nada mais é cobrado. Os tokens do ciclo pago continuam valendo até o fim dele.",
-      confirmar: "Cancelar a assinatura", cancelar: "Manter", perigo: true });
-    if (!res || !res.ok) return;
-    const r = await nuvemPost("/api/nuvem/paulus/cancelar", {});
-    if (r) { nuvemTela.conta = r.conta; redesenhar(); }
-  });
-  clique("[data-nuvem-recarga]", () => recarregarNuvem(redesenhar));
+  clique("[data-nuvem-cancelar]", async () => { await cancelarNaAtos(nuvemTela.conta || {}); redesenhar(); });
+  clique("[data-nuvem-recarga]", () => { abrirRecargaNaAtos(nuvemTela.conta); redesenhar(); });
   clique("[data-nuvem-sair]", async () => {
     const res = await dialogo({ titulo: "Desligar esta instalação?", texto: "O segredo desta instalação é apagado daqui e de paulus.ia.br. A conta e o plano continuam; para usar de novo, ative outra vez.",
       confirmar: "Desligar", perigo: true });

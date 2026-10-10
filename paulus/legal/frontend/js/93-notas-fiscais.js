@@ -200,7 +200,7 @@ function blocoRecebidas() {
     '<span class="sv-secao-meta">' + esc(plural(nf.recebidas.length, "nota")) + "</span></div>" +
     '<div class="nf-rolagem"><table class="nf-tabela"><thead><tr><th>Competência</th><th>Nº</th><th>Valor</th><th>Situação</th><th>Ambiente</th><th></th></tr></thead><tbody>' +
     linhas + "</tbody></table></div>" +
-    '<p class="sv-dica">A nota da assinatura é emitida pelo PAVLVS a cada cobrança; o PDF e o XML vêm de paulus.ia.br.</p></section>';
+    '<p class="sv-dica">As notas que o PAVLVS emitiu aparecem aqui, com o PDF e o XML. A nota dos pagamentos feitos na Atos ainda não sai sozinha: peça a contato@atos.dev.br.</p></section>';
 }
 
 function reaisNf(v) {

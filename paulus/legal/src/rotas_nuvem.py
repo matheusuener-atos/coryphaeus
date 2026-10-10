@@ -44,11 +44,9 @@ class Consentimento(BaseModel):
 
 class Email(BaseModel):
     email: str = ""
-    # O pacote da recarga rapida (worker/ia.js: "0.5", "1", "2"); vazio, o de sempre.
-    pacote: str = ""
     # O plano escolhido na tela (worker/ia.js: advogado, escritorio, plus); vazio, o da conta.
     plano: str = ""
-    # "mensal" (a assinatura no cartao) ou "anual" (o ano de uma vez, parcelavel); vazio, mensal.
+    # "mensal" (a assinatura) ou "anual" (o ano de uma vez, sem parcelamento); vazio, mensal.
     periodo: str = ""
 
 
@@ -237,7 +235,7 @@ def montar(estado, app, dados_dir) -> None:
             raise HTTPException(status_code=404, detail="envio não encontrado")
         return {"envio": envio, "texto": arq.read_text(encoding="utf-8")}
 
-    # ------------------------------------------------ o PAULUS (nuvem): conta, plano, recarga
+    # ------------------------------------------------ o PAULUS (nuvem): conta e plano
 
     @app.post("/api/nuvem/paulus/ativar")
     def nuvem_paulus_ativar() -> dict:
@@ -250,6 +248,9 @@ def montar(estado, app, dados_dir) -> None:
 
     @app.get("/api/nuvem/paulus/conta")
     def nuvem_paulus_conta(forcar: bool = False) -> dict:
+        """A conta e o plano. Com forcar (o "Já paguei na Atos"), a IA confere o plano de novo também."""
+        if forcar:
+            plano.esquecer()
         return _conta(estado, forcar=forcar)
 
     @app.post("/api/nuvem/paulus/assinar")
@@ -267,43 +268,10 @@ def montar(estado, app, dados_dir) -> None:
         plano.esquecer()
         return {"conta": d}
 
-    @app.post("/api/nuvem/paulus/desistir")
-    def nuvem_paulus_desistir() -> dict:
-        """A desistencia nos 7 dias (CDC, art. 49): o Worker devolve o que foi pago no prazo, o plano
-        acaba e a nota fiscal sai (worker/ia.js, desistir). Uma vez por conta; depois, pelo suporte."""
-        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/desistir", {}))
-        nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
-        plano.esquecer()
-        return d
-
-    @app.post("/api/nuvem/paulus/plano")
-    def nuvem_paulus_plano(payload: Email) -> dict:
-        """Trocar de plano com a assinatura ativa: o valor novo e os tokens novos valem na renovacao (worker/ia.js)."""
-        if not payload.plano.strip():
-            raise HTTPException(status_code=400, detail="escolha o plano")
-        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/plano", {"plano": payload.plano.strip()}))
-        plano.esquecer()
-        return {"conta": d}
-
-    @app.get("/api/nuvem/paulus/assinatura")
-    def nuvem_paulus_assinatura() -> dict:
-        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "GET", "/api/ia/assinatura"))
-        nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
-        plano.esquecer()
-        return {"conta": d, "erro": ""}
-
-    @app.post("/api/nuvem/paulus/cancelar")
-    def nuvem_paulus_cancelar() -> dict:
-        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/assinatura/cancelar", {}))
-        nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
-        plano.esquecer()
-        return {"conta": d, "erro": ""}
-
-    @app.post("/api/nuvem/paulus/recarga")
-    def nuvem_paulus_recarga(payload: Email) -> dict:
-        email = payload.email.strip() or str((estado.prefs.dados.get("vinculo") or {}).get("email") or "")
-        corpo = {"email": email, **({"pacote": payload.pacote.strip()} if payload.pacote.strip() else {})}
-        return _paulus_ou_400(lambda: nuvem._paulus(estado, "POST", "/api/ia/recarga", corpo))
+    # Desde 10/10/2026 o dinheiro e da Atos (atos.dev.br): trocar de plano,
+    # cancelar, desistir, a recarga e a situacao dela sairam daqui (no Worker,
+    # essas rotas so respondem 409 com o caminho na Atos). A tela abre a Atos
+    # no navegador e le o resultado pela conta (js/75-nuvem.js).
 
     # ------------------------------------------------ Plano e consumo (src/consumo.py)
 
@@ -364,13 +332,3 @@ def montar(estado, app, dados_dir) -> None:
         if alvo.suffix.lower() != ".pdf" or not alvo.is_file():
             raise HTTPException(status_code=404, detail="arquivo não encontrado")
         return FileResponse(alvo, media_type="application/pdf", filename=alvo.name)
-
-    @app.get("/api/nuvem/paulus/recarga/{pedido}")
-    def nuvem_paulus_recarga_situacao(pedido: str) -> dict:
-        if not pedido.replace("-", "").replace("_", "").isalnum():
-            raise HTTPException(status_code=400, detail="pedido inválido")
-        d = _paulus_ou_400(lambda: nuvem._paulus(estado, "GET", f"/api/ia/recarga/{pedido}"))
-        if d.get("pago"):
-            nuvem._CONTA_CACHE.update(quando=0.0, dados=None)
-            plano.esquecer()
-        return d

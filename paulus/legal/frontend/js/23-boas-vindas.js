@@ -412,8 +412,8 @@ function cartaoDoEnderecoBv(hostname) {
 
 /* ----------------------------------------------------------- assinatura */
 
-/* O portao: a assinatura e feita no site (cadastro + pagamento no Mercado Pago),
-   com o e-mail que entrou. Aqui so se le o estado e se espera - a janela fica
+/* O portao: a assinatura e feita na Atos (atos.dev.br, que cobra o PAVLVS: os dados da nota e o pagamento),
+   com a Conta Atos que entrou. Aqui so se le o estado e se espera - a janela fica
    aberta; quando o site confirmar, o passo some e o assistente segue. */
 function passoAssinatura() {
   const a = bv.assinatura || { situacao: "nenhuma" };
@@ -424,10 +424,10 @@ function passoAssinatura() {
   const esperando = bv.assinaturaEsperando;
   const texto = (vencida
     ? "<h1>A assinatura desta conta venceu.</h1><p>Regularize no site para voltar a usar tudo. Enquanto isso, você pode continuar com os seus arquivos.</p>"
-    : "<h1>Ainda não há assinatura para esta conta.</h1><p>A assinatura é feita no site, com os dados do escritório e o pagamento. Quando o site confirmar, esta janela segue sozinha.</p>") +
+    : "<h1>Ainda não há assinatura para esta conta.</h1><p>A assinatura é feita na Atos, que cobra o PAVLVS, com os dados da nota e o pagamento. Quando o pagamento for aprovado, esta janela segue sozinha.</p>") +
     infosBv(vencida
       ? ["Os dados e os documentos continuam seus, no seu computador, com ou sem assinatura.", "Ao regularizar, tudo volta na hora, sem reinstalar."]
-      : ["O cadastro no site já pede nome, OAB, CPF ou CNPJ e endereço: aqui você só confere.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
+      : ["A Atos pede o nome ou a razão social, o CPF ou CNPJ e o endereço da nota; o pagamento é no cartão ou no Pix.", "Se fechar esta janela, na próxima abertura o Paulus volta para este passo."]);
   const lado = '<div class="bv-entrada"><div class="bv-secao"><span class="bv-rotulo">ASSINATURA</span>' +
     // A conta com que se assina ("Continuar como…"): o monograma, o nome e o e-mail; o clique troca de conta (desvincula e volta a Sua conta).
     linhaBotao({ classe: "duas", attrs: ' data-bv="outra-conta" title="Trocar de conta"', icones: iconesDaConta(e && e.por, true),
@@ -438,7 +438,7 @@ function passoAssinatura() {
       : '<button type="button" class="bv-continuar bv-largo" data-bv="assinar"><span>' + ic("open_in_new", 16) + (vencida ? "Regularizar no site" : "Assinar no site") + "</span></button>") +
     '<p class="bv-ajuda ' + (esperando ? "bv-nota-fora" : "bv-bloco-nota") + '">' + (vencida
       ? "Sem assinatura válida, o Paulus abre só com os seus arquivos: documentos, pastas e anotações seguem acessíveis. Ficam suspensos as respostas de IA, a emissão de NFS-e e os demais serviços. Ao regularizar no site, tudo volta na hora."
-      : "O site abre no seu navegador com esta conta já preenchida. O pagamento é feito lá, com o Mercado Pago; nada de cartão passa por aqui.") + "</p>" + (esperando ? "" : "</div>") + "</div></div>";
+      : "A Atos abre no seu navegador; entre com a mesma Conta Atos. O pagamento é feito lá; nada de cartão passa por aqui.") + "</p>" + (esperando ? "" : "</div>") + "</div></div>";
   return [texto, lado];
 }
 

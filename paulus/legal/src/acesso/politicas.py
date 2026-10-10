@@ -482,13 +482,13 @@ _declarar(BLOQUEADO, "GET /api/nfse/recorrencias", "POST /api/nfse/recorrencias"
 _declarar(BLOQUEADO, "GET /api/nfse/producao", "POST /api/nfse/producao/revisado", "POST /api/nfse/teste", "GET /api/nfse/teste/clientes",
           "POST /api/nfse/producao/liberar", "POST /api/nfse/producao/voltar")
 # --- V1-V7 (docs/PLANO-NUVEM.md): o termo, o sim do titular, a conta do PAULUS
-# (nuvem), o plano e a recarga - tudo da janela do escritorio. De fora, so a
-# situacao que a caixa da pergunta usa (sem chave, sem conta).
+# (nuvem) e o plano - tudo da janela do escritorio. De fora, so a situacao que a
+# caixa da pergunta usa (sem chave, sem conta). Desde 10/10/2026 trocar, cancelar,
+# desistir e recarregar sao na Atos: essas rotas sairam do PAULUS.
 _declarar(BLOQUEADO, "GET /api/nuvem/termo", "POST /api/nuvem/consentimento", "POST /api/nuvem/paulus/ativar",
-          "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "POST /api/nuvem/paulus/plano", "GET /api/consumo", "GET /api/consumo/pessoa/{conta_id}", "POST /api/consumo/limites", "GET /api/nuvem/paulus/assinatura",
+          "GET /api/nuvem/paulus/conta", "POST /api/nuvem/paulus/assinar", "GET /api/consumo", "GET /api/consumo/pessoa/{conta_id}", "POST /api/consumo/limites",
           "GET /api/consumo/extrato", "POST /api/consumo/extrato/pdf", "GET /api/consumo/extrato/arquivo",
-          "POST /api/nuvem/paulus/cancelar", "POST /api/nuvem/paulus/recarga", "GET /api/nuvem/paulus/recarga/{pedido}",
-          "POST /api/nuvem/paulus/adiantar", "POST /api/nuvem/paulus/desistir")
+          "POST /api/nuvem/paulus/adiantar")
 _declarar(PERMITIDO, "GET /api/nuvem/situacao")
 # As NFS-e que o PAVLVS emitiu para o escritorio (src/rotas_nfse_recebidas.py):
 # como Plano e consumo, so na janela do escritorio.

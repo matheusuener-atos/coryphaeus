@@ -54,8 +54,8 @@ def _conta_simulada() -> dict:
     return {"ok": True, "email": "titular@escritorio.adv.br", "cortesia": False, "plano_vigente": True,
             "assinatura": {"id": "pre1", "situacao": "authorized", "valor": 300, "desde": (agora - timedelta(days=80)).isoformat()},
             "plano": planos[1], "plano_proximo": None, "planos": planos,
-            "recargas_pacotes": [{"id": "p5", "tokens": 5_000_000, "valor": 25}, {"id": "p10", "tokens": 10_000_000, "valor": 50},
-                                 {"id": "p20", "tokens": 20_000_000, "valor": 100}],
+            # Um pacote de recarga por plano, comprado na Atos (desde 10/10/2026).
+            "recarga": {"valor": 120, "tokens": 10_000_000},
             "ciclo": {"inicio": inicio.isoformat(), "fim": fim.isoformat(), "tokens": 30_000_000, "usados": 22_200_000},
             "tokens": {"restantes": 7_800_000, "hoje": 1_350_000, "da_recarga": 0},
             "recargas": [{"pedido": "r1", "tokens": 5_000_000, "valor": 25, "quando": (agora - timedelta(days=40)).isoformat()}]}
@@ -120,6 +120,8 @@ def main() -> int:
             # Um contexto só: a chave da janela entra uma vez; as outras páginas usam o cookie.
             ctx = nav.new_context(viewport={"width": 1440, "height": 1000})
             ctx.add_init_script("try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}")
+            # A Atos abre no navegador: aqui só anota o endereço, sem rede.
+            ctx.add_init_script("window.__abertos = []; window.open = (u) => { window.__abertos.push(String(u)); return null; };")
             ctx.set_default_timeout(60000)
             pag = ctx.new_page()
             erros: list[str] = []
@@ -147,8 +149,25 @@ def main() -> int:
                 checar("perto do limite mensal (82%)" in pag.inner_text(".pc-equipe"), "o João está a 82% do limite próprio: a linha avisa")
                 plano = pag.evaluate("() => [...document.querySelectorAll('.pc-ficha-plano .sv-kicker')].map(x => x.textContent)")
                 checar(plano == ["Próxima cobrança", "Pagamento", "Nota fiscal", "Pessoas"], "o plano em quatro colunas", plano)
-                checar(pag.locator("[data-pc-recarga]").count() == 3, "com 74% usado, a recarga rápida aparece")
+                checar(pag.locator("[data-pc-recarga]").count() == 1, "com 74% usado, a recarga rápida aparece (um pacote por plano)")
                 checar(pag.locator("[data-pc-cancelar]").count() == 1, "cancelar a assinatura, no rodapé do plano")
+                secao = pag.inner_text("section[aria-labelledby='pc-t-plano']")
+                checar("Atos · cartão, todo mês" in secao and "Mercado Pago" not in secao and "paulus.ia.br" not in secao and "12" + " vezes" not in secao,
+                       "o pagamento é da Atos, sem o Mercado Pago nem o parcelamento", secao[:300])
+                checar(pag.locator("[data-pc-desistir]").count() == 0, "fora dos 7 dias, sem a linha da desistência")
+                pag.evaluate("() => { pc.dados.conta.arrependimento_ate = new Date(Date.now() + 3 * 864e5).toISOString(); desenharConsumo(); }")
+                secao = pag.inner_text("section[aria-labelledby='pc-t-plano']")
+                checar(pag.locator("[data-pc-desistir]").count() == 1 and "contato@atos.dev.br" in secao and "de volta" not in secao,
+                       "nos 7 dias, a desistência é por e-mail à Atos, sem prometer devolução automática", secao[-300:])
+                pag.evaluate("() => { delete pc.dados.conta.arrependimento_ate; desenharConsumo(); }")
+                pag.evaluate("() => { window.__abertos = []; }")
+                pag.click("[data-pc-recarga]")
+                pag.wait_for_function("() => window.__abertos.length === 1", timeout=10000)
+                aberto = pag.evaluate("() => window.__abertos[0]")
+                checar(aberto.startswith("https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.escritorio.recarga"), "a recarga abre o checkout da Atos", aberto)
+                pag.click("[data-pc-pagamentos]")
+                pag.wait_for_function("() => window.__abertos.length === 2", timeout=10000)
+                checar(pag.evaluate("() => window.__abertos[1]") == "https://atos.dev.br/conta/faturamento", "as faturas abrem na Conta Atos")
 
                 pag.click('.pc-pessoa-linha[data-pc-pessoa]')
                 pag.wait_for_selector(".pc-historico .pc-item", timeout=10000)
@@ -170,10 +189,12 @@ def main() -> int:
                 pag.click("#acoes-tela [data-pc-upgrade]")
                 pag.wait_for_selector(".pc-planos", timeout=10000)
                 cols = pag.evaluate("() => [...document.querySelectorAll('.pc-plano-col button')].map(x => [x.textContent, x.disabled])")
-                checar(cols == [["Reduzir para o Advogado", False], ["Passar ao anual · R$ 1.500/ano", False],
+                checar(cols == [["Reduzir para o Advogado", False],
                                 ["Plano atual", True], ["Passar ao anual · R$ 3.000/ano", False],
-                                ["Mudar para o Escritório Plus", False], ["Passar ao anual · R$ 5.500/ano", False]],
-                       "os planos em três colunas, com o atual travado e o anual de cada um", cols)
+                                ["Mudar para o Escritório Plus", False]],
+                       "os planos em três colunas, com o atual travado e a troca pela Atos", cols)
+                checar("Conta Atos" in pag.inner_text(".pc-dialogo-planos") and "Mercado Pago" not in pag.inner_text(".pc-dialogo-planos"),
+                       "a troca, com a assinatura ativa, é na Conta Atos")
                 pag.wait_for_timeout(700)
                 pag.screenshot(path=str(CAPTURAS / f"consumo-{tema}-planos.png"))
                 pag.click('.dialogo [data-dialogo="confirmar"]')
