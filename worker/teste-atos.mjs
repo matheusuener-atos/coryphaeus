@@ -314,6 +314,22 @@ console.log("as vendas pela Atos (COBRANCA_PELA_ATOS)");
   checar(String(sem.d.link || "").startsWith("https://paulus.ia.br/cadastro/pagamento/"), "e sem a chave, o link é o antigo", sem.d);
 }
 
+console.log("só a Atos (ou a cortesia) dá plano");
+{
+  // O caso de 10/10: a assinatura do caminho antigo autorizada, o ciclo aberto, e nenhum pagamento.
+  const envSo = { ...env, COBRANCA_PELA_ATOS: "1" };
+  const id = await idDe("pv-leo");
+  await medidor(env, id).pedir("abrir", { id, dono: { sub: "pv-leo", email: "leo@x.br" } });
+  await medidor(env, id).pedir("assinatura", { plano: "escritorio", assinatura: { id: "pre-sem-pagamento", situacao: "authorized", valor: 1290 } });
+  checar((await medidor(env, id).pedir("resumo")).plano_vigente, "(sem a chave, o caminho antigo ainda dava o plano na autorização do cartão)");
+  const s = await medidor(envSo, id).pedir("resumo");
+  checar(!s.plano_vigente && s.tokens.restantes === 0, "com a cobrança pela Atos, o que o caminho antigo deixou ativo não vale: sem plano e sem tokens", { v: s.plano_vigente, t: s.tokens });
+  const idC = await idDe("pv-cortesia");
+  await medidor(envSo, idC).pedir("abrir", { id: idC, dono: { sub: "pv-cortesia", email: "c@x.br" }, cortesia: true });
+  checar((await medidor(envSo, idC).pedir("resumo")).plano_vigente, "a cortesia continua valendo");
+  checar((await medidor(envSo, await idDe("pv-ana")).pedir("resumo")).plano_vigente, "e quem pagou na Atos também");
+}
+
 console.log("pelo Worker inteiro");
 {
   const ev = evento("direito.atualizado", "pv-ivo", retrato(1, { ate: iso(relogio + 30 * DIA), periodo: "mes" }));

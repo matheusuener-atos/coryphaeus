@@ -178,6 +178,9 @@ export function numeros(env) {
     maxEntradaCaracteres: n(env.IA_MAX_ENTRADA_CARACTERES, 240000),
     porMinuto: n(env.IA_POR_MINUTO, 40),
     modelos: Object.keys(MODELOS),
+    // A cobranca pela Atos (worker/atos.js): so ela, ou a cortesia, da plano. O que o caminho antigo do PAVLVS
+    // (o Mercado Pago proprio) deixou ativo nao vale mais.
+    soAtos: env.COBRANCA_PELA_ATOS === "1",
   };
 }
 
@@ -2526,6 +2529,8 @@ export class ContaIA {
   /* O plano vale agora? A cortesia abre o ciclo do mes sozinha. */
   vigente(conta, n, agora) {
     if (conta.cortesia && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "cortesia");
+    // Com a cobranca pela Atos, o plano e o que a Atos diz que foi pago (cobrador "atos"), ou a cortesia.
+    if (n && n.soAtos && conta.cobrador !== "atos" && !conta.cortesia) return false;
     // O anual: o ano esta pago, e cada mes abre o seu ciclo, com a cota do mes.
     const pagoAte = Date.parse(conta.pago_ate || "");
     const rola = prepago(conta.periodo) || conta.cobrador === "atos";
