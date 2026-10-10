@@ -27,7 +27,7 @@ import {
 } from "./ia.js";
 import { alterarEndereco, disponibilidade, donoDoToken, escritorioDoDono } from "./tunel.js";
 import { enviarEmail } from "./admin.js";
-import { NA_ATOS } from "./atos.js";
+import { cobrancaPelaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
 
 const ROTAS_DE_DINHEIRO = ["/api/conta/recarga", "/api/conta/cartao", "/api/conta/forma", "/api/conta/plano", "/api/conta/oferta", "/api/conta/cancelar"];
 
@@ -87,6 +87,11 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
   // A conta cobrada pela Atos paga, troca e cancela em atos.dev.br/conta (worker/atos.js): aqui seria cobrar em dobro.
   if (m === "POST" && ROTAS_DE_DINHEIRO.includes(p) && (await medidor(env, s.conta).pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
   if (m === "GET" && p === "/api/conta/plano/orcar" && (await medidor(env, s.conta).pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
+  // Com as vendas pela Atos, nenhuma cobranca nova nasce aqui (o cancelar, o cartao e a oferta de quem ainda tem a
+  // assinatura antiga do PAVLVS seguem).
+  if (cobrancaPelaAtos(env) && ((m === "POST" && ["/api/conta/recarga", "/api/conta/forma", "/api/conta/plano"].includes(p)) || (m === "GET" && p === "/api/conta/plano/orcar"))) {
+    return json(vendaPelaAtos(((await medidor(env, s.conta).pedir("resumo")).plano || {}).id, url.searchParams.get("periodo")), 409);
+  }
 
   // O pagamento: titular e financeiro.
   if (p === "/api/conta/recarga" && m === "POST") {

@@ -276,6 +276,44 @@ console.log("a reserva: o evento que se perdeu");
   checar(chamadas.length === 3 && !(await c2.pedir("resumo")).plano_vigente, "passados 10 minutos, pergunta de novo");
 }
 
+console.log("as vendas pela Atos (COBRANCA_PELA_ATOS)");
+{
+  const envVenda = { ...env, COBRANCA_PELA_ATOS: "1", ASSETS: { fetch: async () => new Response("site", { status: 200 }) } };
+  const donos = { "tk-novo": { sub: "pv-kim", email: "kim@x.br" } };
+  const mpAntes = mpChamadas.length;
+  const depsV = { chamarMP, donoDoToken: async (e, t) => donos[t] || null };
+  const ia = async (e, metodo, caminho, corpo, segredo) => {
+    const headers = { "content-type": "application/json" };
+    if (segredo) headers.authorization = "Bearer " + segredo;
+    const req = new Request("https://paulus.ia.br" + caminho, { method: metodo, headers, body: corpo ? JSON.stringify(corpo) : undefined });
+    const r = await atenderIA(req, e, new URL(req.url), { waitUntil() {} }, depsV);
+    return { status: r.status, d: await r.json() };
+  };
+  const ATOS_CK = "https://atos.dev.br/pavlvs/assinar/?preco=";
+  let r = await ia(envVenda, "POST", "/api/ia/site/pagar", { id_token: "tk-novo", plano: "plus", periodo: "anual", meio: "pix" });
+  checar(r.status === 409 && r.d.codigo === "cobranca_na_atos" && r.d.proximo.startsWith(ATOS_CK + "pavlvs.plus.ano"),
+    "conta nova pagando pelo caminho antigo: 409, com o checkout da Atos no mesmo plano e período", r.d);
+  r = await ia(envVenda, "POST", "/api/ia/site/pagar-fora", { id_token: "tk-novo", plano: "advogado" });
+  checar(r.status === 409 && r.d.proximo.startsWith(ATOS_CK + "pavlvs.advogado.mes"), "o pagar-fora também", r.status);
+  const at = await ia(envVenda, "POST", "/api/ia/ativar", { id_token: "tk-novo", instalacao_id: "inst-kim-0001" });
+  r = await ia(envVenda, "POST", "/api/ia/assinar", { plano: "escritorio", periodo: "anual" }, at.d.segredo);
+  checar(r.status === 200 && r.d.link === ATOS_CK + "pavlvs.escritorio.ano&volta=" + encodeURIComponent("https://paulus.ia.br/"),
+    "o 'Fazer upgrade' do PAULUS instalado abre o checkout da Atos", r.d);
+  r = await ia(envVenda, "POST", "/api/ia/recarga", { pacote: "1" }, at.d.segredo);
+  checar(r.status === 409 && r.d.codigo === "cobranca_na_atos", "a recarga pelo caminho antigo: 409", r.status);
+  r = await ia(envVenda, "POST", "/api/ia/site/cadastro", { id_token: "tk-novo", nome_escritorio: "Kim Advocacia", documento: "529.982.247-25", telefone: "(91) 98888-7777",
+    oab: "OAB/PA 1", aceite: true, plano: "plus", periodo: "mensal",
+    endereco: { cep: "66010-000", logradouro: "Av. P", numero: "1", complemento: "", bairro: "C", cidade: "Belém", uf: "PA", cmun: "1501402" } });
+  checar(r.status === 200 && String(r.d.proximo).startsWith(ATOS_CK + "pavlvs.plus.mes"), "o cadastro com plano segue para o checkout da Atos", r.d.proximo);
+  checar(mpChamadas.length === mpAntes, "e o Mercado Pago do PAVLVS não foi chamado");
+  const w = await worker.fetch(new Request("https://paulus.ia.br/cadastro/pagamento/?plano=advogado&periodo=anual"), envVenda, { waitUntil() {} });
+  checar(w.status === 302 && w.headers.get("location").startsWith(ATOS_CK + "pavlvs.advogado.ano"), "/cadastro/pagamento leva ao checkout da Atos (302)", w.headers.get("location"));
+  const w2 = await worker.fetch(new Request("https://paulus.ia.br/cadastro/"), { ...envVenda, COBRANCA_PELA_ATOS: "" }, { waitUntil() {} });
+  checar(w2.status !== 302, "sem a chave, o cadastro antigo continua (para abrir só quando a Atos abrir)", w2.status);
+  const sem = await ia(env, "POST", "/api/ia/assinar", { plano: "escritorio" }, at.d.segredo);
+  checar(String(sem.d.link || "").startsWith("https://paulus.ia.br/cadastro/pagamento/"), "e sem a chave, o link é o antigo", sem.d);
+}
+
 console.log("pelo Worker inteiro");
 {
   const ev = evento("direito.atualizado", "pv-ivo", retrato(1, { ate: iso(relogio + 30 * DIA), periodo: "mes" }));

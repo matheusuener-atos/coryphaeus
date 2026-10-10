@@ -47,7 +47,7 @@
 // DEEPINFRA_KEY: sem os tres, as rotas respondem 404 (ou 503, sem a chave).
 
 import { donoDoToken } from "./tunel.js";
-import { conferirNaAtos, NA_ATOS } from "./atos.js";
+import { checkoutDaAtos, cobrancaPelaAtos, conferirNaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
 import { chamar as chamarEmissor, emitirAutomatico, faltaDoEmissor } from "./nfse/api.js";
 
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
@@ -190,6 +190,10 @@ export function catalogo(ids) {
 
 const ROTAS_DE_DINHEIRO = ["/api/ia/desistir", "/api/ia/assinar", "/api/ia/plano", "/api/ia/assinatura/cancelar", "/api/ia/recarga"];
 const ROTAS_DE_DINHEIRO_DO_SITE = ["/api/ia/site/plano", "/api/ia/site/oferta", "/api/ia/site/pagar", "/api/ia/site/pagar-fora", "/api/ia/site/desistir"];
+// Com as vendas pela Atos, as que criariam uma cobranca nova no Mercado Pago do PAVLVS (o /assinar so da o link,
+// que ja e o da Atos - linkDoPagamento).
+const COBRANCA_NOVA = ["/api/ia/plano", "/api/ia/recarga"];
+const COBRANCA_NOVA_DO_SITE = ["/api/ia/site/plano", "/api/ia/site/oferta", "/api/ia/site/pagar", "/api/ia/site/pagar-fora"];
 
 export function ehRotaDaIA(url) {
   return url.pathname.startsWith("/api/ia/");
@@ -232,8 +236,13 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     if (!r.plano_vigente && (await conferirNaAtos(env, conta, deps))) r = await conta.pedir("resumo");
     return json(await comDesistencia(env, conta, r));
   }
-  // As rotas de dinheiro do PAVLVS nao servem a conta cobrada pela Atos: seria cobrar em dobro.
-  if (m === "POST" && ROTAS_DE_DINHEIRO.includes(p) && (await conta.pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
+  // As rotas de dinheiro do PAVLVS nao servem a conta cobrada pela Atos: seria cobrar em dobro. Com as vendas
+  // pela Atos, o /assinar serve a todos (o link e o do checkout da Atos), e nenhuma cobranca nova nasce aqui.
+  if (m === "POST" && ROTAS_DE_DINHEIRO.includes(p) && !(p === "/api/ia/assinar" && cobrancaPelaAtos(env))) {
+    const r = await conta.pedir("resumo");
+    if (r.cobrador === "atos") return json(NA_ATOS, 409);
+    if (cobrancaPelaAtos(env) && COBRANCA_NOVA.includes(p)) return json(vendaPelaAtos((r.plano || {}).id), 409);
+  }
   // Os modelos do plano desta conta (o padrao primeiro), com nome e empresa.
   if (p === "/api/ia/modelos" && m === "GET") {
     const r = await conta.pedir("resumo");
@@ -767,6 +776,8 @@ async function linkDoPagamento(env, conta, { plano, periodo }) {
   const n = numeros(env);
   const escolhido = planoDe(n, plano || (atual.plano || {}).id);
   const p = periodo === "anual" ? "anual" : "mensal";
+  // As vendas pela Atos: o link e o checkout dela (worker/atos.js).
+  if (cobrancaPelaAtos(env)) return { link: checkoutDaAtos(escolhido.id, p), plano: escolhido, periodo: p };
   return { link: PAGINA_DO_PAGAMENTO + "?plano=" + encodeURIComponent(escolhido.id) + "&periodo=" + p, plano: escolhido, periodo: p };
 }
 
@@ -1483,6 +1494,7 @@ async function atenderSite(request, env, p, deps) {
     return json(await comDesistencia(env, conta, aberta));
   }
   if (ROTAS_DE_DINHEIRO_DO_SITE.includes(p) && aberta.cobrador === "atos") return json(NA_ATOS, 409);
+  if (cobrancaPelaAtos(env) && COBRANCA_NOVA_DO_SITE.includes(p)) return json(vendaPelaAtos(String(d.plano || "") || (aberta.plano || {}).id, d.periodo), 409);
   if (p === "/api/ia/site/plano") {
     const r = await trocarPlano(env, conta, deps.chamarMP, String(d.plano || ""));
     if (!r.ok) return r;

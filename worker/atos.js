@@ -19,6 +19,25 @@ const ATOS = "https://atos.dev.br";
 const IDADE_MAXIMA_S = 300;
 const TEMPO_MS = 10000;
 
+/* As vendas pela Atos (COBRANCA_PELA_ATOS="1", var do Worker): toda cobranca nova do PAVLVS e no checkout da
+   Atos. O caminho antigo (paulus.ia.br/cadastro e /cadastro/pagamento, o Mercado Pago do proprio PAVLVS) leva
+   para la, e as rotas que criariam cobranca nova aqui recusam. O que e de uma assinatura antiga do PAVLVS
+   (cancelar, desistir nos 7 dias, trocar o cartao) continua aqui ate ela acabar. */
+export function cobrancaPelaAtos(env) {
+  return env.COBRANCA_PELA_ATOS === "1";
+}
+
+/* O checkout da Atos para um plano e um periodo do PAVLVS ("mensal"|"anual" ou "mes"|"ano"), com a volta ao site. */
+export function checkoutDaAtos(plano, periodo) {
+  const p = periodo === "anual" || periodo === "ano" ? "ano" : "mes";
+  return ATOS + "/pavlvs/assinar/?preco=" + encodeURIComponent("pavlvs." + (plano || "escritorio") + "." + p) + "&volta=" + encodeURIComponent("https://paulus.ia.br/");
+}
+
+/* A recusa de uma cobranca nova pelo caminho antigo, com o checkout da Atos para seguir. */
+export function vendaPelaAtos(plano, periodo) {
+  return { erro: "a assinatura do PAVLVS agora é pela Atos: assine, mude o plano ou compre créditos em atos.dev.br", codigo: "cobranca_na_atos", proximo: checkoutDaAtos(plano, periodo) };
+}
+
 export const NA_ATOS = {
   erro: "a cobrança desta conta é pela Atos: mude o plano, pague ou cancele em atos.dev.br/conta",
   codigo: "cobranca_na_atos",

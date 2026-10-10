@@ -41,7 +41,7 @@ import { atenderConta, ehRotaDaConta } from "./conta.js";
 import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas, enviarEmail } from "./admin.js";
 import { depoisPendentes } from "./nfse/api.js";
 import { atenderIdentidade, ehRotaDaIdentidade } from "./identidade.js";
-import { atenderAtos, ehRotaDaAtos } from "./atos.js";
+import { atenderAtos, checkoutDaAtos, cobrancaPelaAtos, ehRotaDaAtos } from "./atos.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
@@ -109,7 +109,11 @@ export default {
         return json({ erro: "falha no servidor da Minha conta" }, 500);
       }
     }
-    if (url.pathname === "/cadastro" || url.pathname.startsWith("/cadastro/")) return comCSP(await env.ASSETS.fetch(request));
+    if (url.pathname === "/cadastro" || url.pathname.startsWith("/cadastro/")) {
+      // As vendas pela Atos: o cadastro e o pagamento antigos levam ao checkout dela, com o mesmo plano e periodo.
+      if (cobrancaPelaAtos(env)) return Response.redirect(checkoutDaAtos(url.searchParams.get("plano"), url.searchParams.get("periodo")), 302);
+      return comCSP(await env.ASSETS.fetch(request));
+    }
     // A Minha conta tem o cartao (os campos seguros do Mercado Pago) : a mesma CSP do cadastro (a entrada e a Conta Atos, que abre em outra janela).
     if (/^\/(minha-conta|en\/my-account)(\/|$)/.test(url.pathname)) return comCSP(await env.ASSETS.fetch(request));
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
