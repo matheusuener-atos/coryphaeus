@@ -26,11 +26,11 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none",
     // O Worker responde /api/* antes de procurar arquivo do site, e tambem
-    // /conectar, a pagina em que o titular confirma o acesso de fora, e
-    // /cadastro, a pagina de assinar e pagar: ela sai com a politica de
-    // seguranca de conteudo (CSP) do worker/index.js, porque o cartao e
-    // digitado nela (nos campos seguros do Mercado Pago).
-    "run_worker_first": ["/api/*", "/conectar", "/oauth/*", "/cadastro", "/cadastro/*"]
+    // /conectar, a pagina em que o titular confirma o acesso de fora; /cadastro,
+    // que leva ao checkout da Atos; e a Minha conta (PT e EN), que sai com a
+    // politica de seguranca de conteudo (CSP) do worker/index.js. Sem estar aqui,
+    // a pagina sai direto dos arquivos, sem a CSP.
+    "run_worker_first": ["/api/*", "/conectar", "/oauth/*", "/cadastro", "/cadastro/*", "/minha-conta", "/minha-conta/*", "/en/my-account", "/en/my-account/*"]
   },
   // Sem rota nenhuma aqui de proposito: o Worker atende so paulus.ia.br. Os
   // <escritorio>.paulus.ia.br do acesso de fora sao dos tuneis de cada
