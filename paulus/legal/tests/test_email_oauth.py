@@ -71,6 +71,7 @@ class TokenFalso:
 
     def __init__(self) -> None:
         self.pedidos: list[dict] = []
+        self.agentes: list[str] = []
         self.email = "pessoa@gmail.com"
         self.girar_refresh = False
         self.contador = 0
@@ -84,6 +85,7 @@ class TokenFalso:
                 tamanho = int(self.headers.get("Content-Length") or 0)
                 campos = dict(urllib.parse.parse_qsl(self.rfile.read(tamanho).decode()))
                 dono.pedidos.append(campos)
+                dono.agentes.append(self.headers.get("User-Agent", ""))
                 codigo, corpo = dono.responder(campos)
                 bruto = json.dumps(corpo).encode()
                 self.send_response(codigo)
@@ -311,6 +313,9 @@ def test_troca_e_renovacao(token: TokenFalso) -> None:
     checar(pedido["code_verifier"] == "verificador-1" and pedido["client_secret"] == "segredo-google",
            "a troca leva o verificador PKCE e o secret do Google")
     checar("scope" not in pedido, "Google: sem escopo na troca")
+    # O Cloudflare barra com 403 o "Python-urllib" padrao (o login pela Conta Atos parou nisso em 10/10).
+    checar(token.agentes[-1] == correio_oauth.AGENTE and "urllib" not in token.agentes[-1].lower(),
+           "a troca se identifica como o PAULUS, e nao como Python-urllib", token.agentes[-1])
     checar(t["expira_em"] > time.time() + 3000, "guarda quando o access token vence")
     checar(correio_oauth.quem_entrou(t) == ("pessoa@gmail.com", "Pessoa de Teste"),
            "o id_token diz qual e o endereco")

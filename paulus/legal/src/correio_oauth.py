@@ -46,6 +46,9 @@ from pathlib import Path
 
 PRAZO_LOGIN = 300          # segundos esperando a pessoa entrar no navegador
 TEMPO_REDE = 20            # segundos por chamada ao servidor de token
+# Quem pede: o Cloudflare (Browser Integrity Check) barra com 403 o "Python-urllib" padrao, antes de o
+# pedido chegar a atos.dev.br ou a paulus.ia.br - o login pela Conta Atos parava na troca do codigo.
+AGENTE = "PAULUS (+https://paulus.ia.br)"
 MARGEM_RENOVAR = 120       # renova o access token quando faltar menos que isso
 
 PROVEDORES: dict[str, dict] = {
@@ -370,7 +373,7 @@ def _postar(url: str, campos: dict) -> dict:
     corpo = urllib.parse.urlencode(campos).encode("ascii")
     pedido = urllib.request.Request(
         url, data=corpo, method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": AGENTE},
     )
     try:
         with urllib.request.urlopen(pedido, timeout=TEMPO_REDE) as resposta:
@@ -492,7 +495,7 @@ def revogar(provedor: str, token: str, *, endpoint: str = "") -> None:
         return
     pedido = urllib.request.Request(
         url, data=urllib.parse.urlencode({"token": token}).encode("ascii"), method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": AGENTE},
     )
     try:
         with urllib.request.urlopen(pedido, timeout=TEMPO_REDE):
