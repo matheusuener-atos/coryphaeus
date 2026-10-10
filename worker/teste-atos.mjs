@@ -164,6 +164,16 @@ console.log("a assinatura mensal no cartão");
   relogio = t0;
 }
 
+console.log("a assinatura cancelada e o ano pago à parte (o teste de 10/10)");
+{
+  const as = { id: "atos-a-assinatura-9", status: "canceled", proxima: null, preco: "pavlvs.advogado.mes" };
+  await entregar(evento("direito.atualizado", "pv-jon", retrato(1, { plano: "advogado", assinatura: as })));
+  await entregar(evento("direito.atualizado", "pv-jon", retrato(2, { plano: "advogado", ate: iso(relogio + 365 * DIA), periodo: "ano", pago_por: "compra", assinatura: as })));
+  const s = await resumoDe("pv-jon");
+  checar(s.plano_vigente && s.periodo === "anual" && s.assinatura.situacao === "authorized",
+    "o ano pago numa compra: em dia (e não 'cancelada' por causa da assinatura antiga)", { periodo: s.periodo, a: s.assinatura });
+}
+
 console.log("a devolução encurta o direito");
 {
   const ate = relogio + 30 * DIA;

@@ -2422,7 +2422,12 @@ export class ContaIA {
     Object.assign(atos, { versao, evento: String(d.evento || ""), recebido: iso(agora) });
     conta.atos = atos;
     if (r.plano && n.planos.some((x) => x.id === r.plano)) conta.plano = r.plano;
-    const as = r.assinatura || null;
+    // A assinatura que vale e a viva. A cancelada que a Atos ainda manda no retrato nao manda na situacao quando
+    // o periodo pago veio de uma compra a parte (pago_por "compra": o ano, o mes no Pix): quem pagou o ano esta em
+    // dia, nao "cancelado". Se o mes pago e o da propria assinatura cancelada, "cancelada" e o certo.
+    const recebida = r.assinatura || null;
+    const viva = recebida && ["authorized", "paused", "pending"].includes(recebida.status);
+    const as = viva || !(fim > agora && r.pago_por === "compra") ? recebida : null;
     const situacao = as ? (as.status === "canceled" ? "cancelled" : String(as.status || "")) : fim > agora ? "authorized" : "expired";
     // Os nomes de periodo que as telas ja conhecem: a assinatura no cartao e o "mensal"; o ano, "anual"; o mes no Pix, "avulso".
     conta.periodo = as && situacao === "authorized" ? "mensal" : r.periodo === "ano" ? "anual" : r.periodo === "mes" ? "avulso" : conta.periodo || "avulso";
