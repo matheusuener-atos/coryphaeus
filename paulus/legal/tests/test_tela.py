@@ -155,6 +155,7 @@ def test_celular(navegador, base: str) -> None:
     # A regra de antes volta no fim (desde 07/10/2026 o padrao e desligado): este teste roda
     # tambem sobre os dados de verdade, e nao pode deixar o escritorio so com o Google.
     antes_so_google = bool(prefs.get("so_google", False))
+    antes_host = prefs.get("hostname", "")
     email = "celular-tela@escritorio.com"
     conta = None
     pedido = None
@@ -162,7 +163,7 @@ def test_celular(navegador, base: str) -> None:
         conta = servico.contas.criar("Teste de Tela", email, "titular", "senha-do-celular-12")
         servico.contas.confirmar_totp(conta["conta"]["id"], codigo_totp(conta["segredo"], int(time.time() // 30) - 1))
         prefs["ligado"] = True
-        prefs["so_google"] = False  # o celular entra por senha aqui; a regra "so Google" e de test_e3_google
+        prefs["hostname"] = antes_host or "tela-teste.paulus.ia.br"
         servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
         prefs["turnstile_sitekey"] = "chave-de-teste"
         pedido = api.estado.fila.pedir("Teste de tela: enviar e-mail", "email", acao="correio.enviar",
@@ -177,20 +178,40 @@ def test_celular(navegador, base: str) -> None:
         pag.add_init_script("try { localStorage.setItem('paulus.boasvindas', '1'); } catch (e) {}")
         largura = "() => document.documentElement.scrollWidth"
 
+        # A Atos de mentira (09/10/2026: de fora se entra so com a Conta Atos): a pagina de
+        # atos.dev.br volta direto ao escritorio, e a troca do codigo devolve este e-mail.
+        import base64
+        import json as _json
+        from urllib.parse import parse_qs, urlencode, urlparse
+
+        atos = {}
+
+        def pagina_da_atos(rota):
+            q = {k: v[0] for k, v in parse_qs(urlparse(rota.request.url).query).items()}
+            atos["nonce"] = q.get("nonce", "")
+            rota.fulfill(status=302, headers={"location": base + "/api/acesso/atos/retorno?" + urlencode(
+                {"code": "c-tela", "state": q.get("state", ""), "iss": "https://atos.dev.br"})})
+
+        def trocar(code, verificador, volta):
+            b = lambda d: base64.urlsafe_b64encode(_json.dumps(d).encode()).rstrip(b"=").decode()
+            corpo = {"iss": "https://atos.dev.br", "aud": "pavlvs-escritorio", "exp": time.time() + 600, "email_verified": True,
+                     "email": email, "nonce": atos.get("nonce", "")}
+            return {"id_token": b({"alg": "ES256"}) + "." + b(corpo) + ".x"}
+
+        servico.atos.trocar = trocar
+        ctx.route("https://atos.dev.br/**", pagina_da_atos)
         pag.goto(base + "/", wait_until="networkidle")
-        # Com o Google configurado (dados de verdade), ele vem primeiro e o
-        # e-mail e a senha ficam no "Entrar com e-mail e senha".
-        if pag.locator("#usar-senha").is_visible():
-            pag.click("#usar-senha")
-        checar(pag.evaluate(largura) <= 390 and pag.locator("#email").is_visible(), "a tela de entrar cabe em 390 px",
-               pag.evaluate(largura))
-        pag.fill("#email", email)
-        pag.fill("#senha", "senha-do-celular-12")
-        pag.click("#form-senha button[type=submit]")
+        checar(pag.evaluate(largura) <= 390 and pag.locator("#atos").is_visible() and not pag.locator("#email").count(),
+               "a tela de entrar cabe em 390 px, so com o Entrar com Atos", pag.evaluate(largura))
+        pag.wait_for_function("() => !document.getElementById('atos').disabled", timeout=10000)
+        pag.click("#atos")
         pag.wait_for_selector("#codigo", state="visible", timeout=10000)
         pag.fill("#codigo", codigo_totp(conta["segredo"], int(time.time() // 30)))
         pag.click("#form-codigo button[type=submit]")
-        pag.wait_for_load_state("networkidle")
+        try:
+            pag.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:  # noqa: BLE001 - o checar abaixo diz
+            print("    (sem networkidle)", pag.url, pag.evaluate("() => (document.getElementById('erro-codigo') || {}).textContent || ''"))
         # A pagina recarrega depois do codigo e so marca "remoto" quando
         # /api/acesso/eu responde: espera a marca, e nao um tempo fixo (com a
         # maquina carregada, 2,5 s nao bastavam).
@@ -224,7 +245,9 @@ def test_celular(navegador, base: str) -> None:
     finally:
         prefs["ligado"] = False
         prefs["so_google"] = antes_so_google
+        prefs["hostname"] = antes_host
         servico.__dict__.pop("conferir_turnstile", None)
+        servico.atos.__dict__.pop("trocar", None)
         prefs["turnstile_sitekey"] = antes_chave
         if pedido:
             api.estado.fila.esquecer(pedido.id)
