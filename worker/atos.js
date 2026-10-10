@@ -19,14 +19,6 @@ const ATOS = "https://atos.dev.br";
 const IDADE_MAXIMA_S = 300;
 const TEMPO_MS = 10000;
 
-/* As vendas pela Atos (COBRANCA_PELA_ATOS="1", var do Worker): toda cobranca nova do PAVLVS e no checkout da
-   Atos. O caminho antigo (paulus.ia.br/cadastro e /cadastro/pagamento, o Mercado Pago do proprio PAVLVS) leva
-   para la, e as rotas que criariam cobranca nova aqui recusam. O que e de uma assinatura antiga do PAVLVS
-   (cancelar, desistir nos 7 dias, trocar o cartao) continua aqui ate ela acabar. */
-export function cobrancaPelaAtos(env) {
-  return env.COBRANCA_PELA_ATOS === "1";
-}
-
 /* O checkout da Atos para um plano e um periodo do PAVLVS ("mensal"|"anual" ou "mes"|"ano"), com a volta ao site. */
 export function checkoutDaAtos(plano, periodo) {
   const p = periodo === "anual" || periodo === "ano" ? "ano" : "mes";
@@ -93,8 +85,7 @@ export async function atenderAtos(request, env, url, deps = {}) {
   return json(await aplicarEvento(env, ev, deps));
 }
 
-/* Aplica um evento da Atos na conta. Lanca (-> 500, a Atos manda de novo) se o Mercado Pago do PAVLVS nao
-   cancelou a assinatura antiga: na proxima entrega ele tenta outra vez. */
+/* Aplica um evento da Atos na conta. */
 export async function aplicarEvento(env, ev, deps = {}) {
   const sub = String(ev.conta.sub);
   const id = await idDaConta(sub);
@@ -102,7 +93,6 @@ export async function aplicarEvento(env, ev, deps = {}) {
   const dono = { sub, email: String(ev.conta.email || "") };
   if (ev.tipo === "direito.atualizado") {
     const r = await conta.pedir("atos_direito", { id, dono, evento: String(ev.id || ""), retrato: ev.dados });
-    await cancelarLegado(env, conta, r, deps);
     return { ok: true, aplicado: !r.repetido };
   }
   if (ev.tipo === "credito.adicionado") {
@@ -112,19 +102,6 @@ export async function aplicarEvento(env, ev, deps = {}) {
   }
   // Um tipo que este PAVLVS ainda nao conhece: recebido (2xx), para a Atos nao insistir.
   return { ok: true, ignorado: "tipo desconhecido" };
-}
-
-/* A assinatura mensal que o PAVLVS cobrava no Mercado Pago dele sai quando a conta passa para a Atos. */
-async function cancelarLegado(env, conta, r, deps) {
-  const id = r && r.legado_para_cancelar;
-  if (!id) return;
-  const mp = deps.chamarMP;
-  if (!mp) throw new Error("sem o Mercado Pago para cancelar a assinatura antiga");
-  const c = await mp(env, "/preapproval/" + encodeURIComponent(id), "PUT", { status: "cancelled" });
-  // Ja cancelada no Mercado Pago tambem serve.
-  const ja = c.dados && c.dados.status === "cancelled";
-  if (!c.ok && !ja) throw new Error("o Mercado Pago não cancelou a assinatura antiga do PAVLVS");
-  await conta.pedir("mensal_cancelado", { id });
 }
 
 /* A reserva: a conta fora de dia pergunta a Atos. Sem o segredo, ou sem nada de novo, nao faz nada. */
@@ -145,6 +122,5 @@ export async function conferirNaAtos(env, conta, deps = {}) {
   }
   if (!retrato || !(Number(retrato.versao) > 0)) return false;
   const r = await conta.pedir("atos_direito", { evento: "reserva", retrato });
-  await cancelarLegado(env, conta, r, deps).catch(() => null);
   return !r.repetido;
 }

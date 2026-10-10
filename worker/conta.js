@@ -1,7 +1,6 @@
 // A Minha conta do site (paulus.ia.br/minha-conta e /en/my-account): o
-// titular da assinatura - e quem ele autorizar, como financeiro - cuida do
-// plano, do consumo, das faturas, da forma de pagamento, do cadastro e do
-// escritorio. A pagina e site/minha-conta (site/assets/minha-conta.js); as
+// titular da assinatura - e quem ele autorizar, como financeiro - ve o plano e
+// o consumo e cuida do cadastro e do escritorio. A pagina e site/minha-conta (site/assets/minha-conta.js); as
 // rotas sao /api/conta/*.
 //
 // Entrar: o botao do Google (o mesmo cliente web do cadastro) entrega o
@@ -12,24 +11,22 @@
 // acesso dele e conferido no medidor a cada pedido - tirado pelo titular,
 // acaba na hora.
 //
-// Papeis: o titular faz tudo; o financeiro ve o resumo, o consumo e as faturas
-// e cuida do pagamento (forma, cartao, recarga). Cada rota confere o papel.
+// Papeis: o titular faz tudo; o financeiro ve o resumo e o consumo. Cada rota confere o papel.
 //
-// Nada de dinheiro e decidido aqui: as mudancas na cobranca sao as funcoes do
-// worker/ia.js (trocarPlanoAgora e orcarTrocaDePlano, ofertaParaFicar, cancelarPelaConta,
-// cartaoNovo, pixDaRecarga, pagarNoPix), com as mesmas regras do resto da
-// nuvem. Os POST so valem da propria origem (o cookie e SameSite=Lax e a
-// origem e conferida).
+// O dinheiro nao e daqui: a assinatura, as faturas e o cartao ficam na Conta Atos (atos.dev.br/conta), que e quem
+// cobra o PAVLVS (worker/atos.js). Aqui ficam o plano e o uso que a Atos liberou, o cadastro do escritorio, o
+// endereco, as pessoas e o Google. As rotas de dinheiro de antes respondem 409 com o caminho na Atos (o site em
+// cache de alguem ainda pode chama-las). Os POST so valem da propria origem (o cookie e SameSite=Lax e a origem e
+// conferida).
 
 import {
-  OFERTA_FICAR, arquivoDoCliente, cancelarPelaConta, cartaoNovo, catalogo, conferirCadastro, medidor, modelosDoPlano,
-  notasDoCliente, numeros, ofertaParaFicar, orcarTrocaDePlano, pagarNoPix, pixDaRecarga, prepago, recargasDe, trocarPlanoAgora,
+  arquivoDoCliente, catalogo, conferirCadastro, medidor, modelosDoPlano, notasDoCliente, numeros,
 } from "./ia.js";
 import { alterarEndereco, disponibilidade, donoDoToken, escritorioDoDono } from "./tunel.js";
 import { enviarEmail } from "./admin.js";
-import { checkoutDaAtos, cobrancaPelaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
+import { checkoutDaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
 
-const ROTAS_DE_DINHEIRO = ["/api/conta/recarga", "/api/conta/cartao", "/api/conta/forma", "/api/conta/plano", "/api/conta/oferta", "/api/conta/cancelar"];
+const ROTAS_ANTIGAS = ["/api/conta/recarga", "/api/conta/cartao", "/api/conta/forma", "/api/conta/plano", "/api/conta/oferta", "/api/conta/cancelar"];
 
 const SITE = "https://paulus.ia.br";
 const COOKIE = "pv_conta";
@@ -65,11 +62,9 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
       return json({ erro: "o titular tirou o seu acesso a esta conta", entrar: true }, 401, { "set-cookie": cookie("", 0) });
     }
   }
-  const mp = deps.chamarMP;
   const titular = s.papel === "titular";
   const soTitular = () => json({ erro: "só o titular da assinatura faz isso" }, 403);
   const limitado = async () => Boolean(deps.dentroDoLimite) && !(await deps.dentroDoLimite(request, env));
-  const quem = "Minha conta (" + s.email + ")";
   const responder = (r) => json(r, r.ok === false ? r.status || 400 : 200);
 
   if (p === "/api/conta" && m === "GET") {
@@ -84,58 +79,15 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
   if (nf && m === "GET") return arquivoDoCliente(env, s.conta, nf[1], nf[2]);
   if (p === "/api/conta/nfse.zip" && m === "GET") return zipDoAno(env, s.conta, url.searchParams.get("ano"));
 
-  // A conta cobrada pela Atos paga, troca e cancela em atos.dev.br/conta (worker/atos.js): aqui seria cobrar em dobro.
-  if (m === "POST" && ROTAS_DE_DINHEIRO.includes(p) && (await medidor(env, s.conta).pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
-  if (m === "GET" && p === "/api/conta/plano/orcar" && (await medidor(env, s.conta).pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
-  // Com as vendas pela Atos, nenhuma cobranca nova nasce aqui (o cancelar, o cartao e a oferta de quem ainda tem a
-  // assinatura antiga do PAVLVS seguem).
-  if (cobrancaPelaAtos(env) && ((m === "POST" && ["/api/conta/recarga", "/api/conta/forma", "/api/conta/plano"].includes(p)) || (m === "GET" && p === "/api/conta/plano/orcar"))) {
-    return json(vendaPelaAtos(((await medidor(env, s.conta).pedir("resumo")).plano || {}).id, url.searchParams.get("periodo")), 409);
-  }
-
-  // O pagamento: titular e financeiro.
-  if (p === "/api/conta/recarga" && m === "POST") {
-    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-    const d = (await lerJSON(request)) || {};
-    return responder(await pixDaRecarga(env, mp, s.conta, { pacote: String(d.pacote || "1"), email: s.email }));
-  }
-  if (p === "/api/conta/cartao" && m === "POST") {
-    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-    const d = (await lerJSON(request)) || {};
-    return responder(await cartaoNovo(env, mp, s.conta, { token: String(d.token || ""), metodo: String(d.metodo || "") }));
-  }
-  if (p === "/api/conta/forma" && m === "POST") {
-    const d = (await lerJSON(request)) || {};
-    if (d.tipo === "pix") return responder(await pagarNoPix(env, mp, s.conta, { por: quem }));
-    if (d.tipo !== "cartao") return json({ erro: "a forma é cartão ou Pix" }, 400);
-    const r = await medidor(env, s.conta).pedir("minha_conta");
-    if (!(r.forma && r.forma.tipo === "pix" && !r.forma.parado)) return json({ ok: true, ja: true });
-    // Do Pix de volta ao cartao: a assinatura nova no cartao comeca quando o mes pago acabar (a pagina de pagamento confere).
-    return json({ erro: "o mês pago no Pix vale até " + dataBR(r.pago_ate) + "; a assinatura no cartão começa depois dele, na página de pagamento",
-      proximo: SITE + "/cadastro/pagamento/?plano=" + encodeURIComponent(r.plano.id) + "&periodo=mensal" }, 409);
+  // As rotas de dinheiro de antes: a assinatura, o cartao, o Pix e a recarga sao na Atos.
+  if ((m === "POST" && ROTAS_ANTIGAS.includes(p)) || (m === "GET" && p === "/api/conta/plano/orcar")) {
+    const r = await medidor(env, s.conta).pedir("resumo");
+    return json(r.cobrador === "atos" ? NA_ATOS : vendaPelaAtos((r.plano || {}).id, url.searchParams.get("periodo")), 409);
   }
   if (!titular) return soTitular();
 
   // Daqui em diante, so o titular.
   if (p === "/api/conta/cadastro" && m === "POST") return salvarCadastro(request, env, s);
-  if (p === "/api/conta/plano/orcar" && m === "GET") {
-    const q = url.searchParams;
-    return responder(await orcarTrocaDePlano(env, s.conta, { plano: String(q.get("plano") || ""), periodo: q.get("periodo") === "anual" ? "anual" : "mensal" }));
-  }
-  if (p === "/api/conta/plano" && m === "POST") {
-    if (await limitado()) return json({ erro: "muitas tentativas seguidas - espere um minuto" }, 429);
-    const d = (await lerJSON(request)) || {};
-    return responder(await trocarPlanoAgora(env, mp, s.conta, { plano: String(d.plano || ""), periodo: d.periodo === "anual" ? "anual" : "mensal" }));
-  }
-  if (p === "/api/conta/oferta" && m === "POST") {
-    const d = (await lerJSON(request)) || {};
-    return responder(await ofertaParaFicar(env, mp, s.conta, { tipo: String(d.tipo || ""), motivo: String(d.motivo || ""), por: quem }));
-  }
-  if (p === "/api/conta/cancelar" && m === "POST") {
-    const d = (await lerJSON(request)) || {};
-    const motivo = ["preco", "uso", "falta", "outro"].includes(d.motivo) ? d.motivo : "outro";
-    return responder(await cancelarPelaConta(env, mp, s.conta, { motivo, texto: String(d.texto || ""), por: quem }));
-  }
   if (p === "/api/conta/endereco/disponivel" && m === "GET") {
     const r = await medidor(env, s.conta).pedir("minha_conta");
     const d = await disponibilidade(env, url.searchParams.get("slug") || "", "", r.dono);
@@ -236,11 +188,7 @@ async function montar(env, s, agora) {
   const plano = r.plano;
   const c = r.ciclo_completo;
   const a = r.assinatura || {};
-  const pix = Boolean(r.forma && r.forma.tipo === "pix" && !r.forma.parado);
   const periodo = r.periodo === "anual" ? "anual" : "mensal";
-  const proxima = prepago(r.periodo) ? r.pago_ate || "" : c ? c.fim : "";
-  const valorPlano = periodo === "anual" ? plano.valor_anual : plano.valor;
-  const valorProx = (r.ajuste && r.ajuste.cobrancas && r.ajuste.cobrancas[0]) || Number(a.valor) || valorPlano;
   const recargasNoCiclo = c ? (r.recargas || []).filter((x) => x.quando >= c.inicio && x.quando < c.fim).reduce((t, x) => t + (x.tokens || 0), 0) : 0;
   const escritorio = r.dono ? await escritorioDoDono(env, r.dono, agora) : null;
   const instalacoes = (r.instalacoes_lista || []).map((x, i) => ({
@@ -248,33 +196,20 @@ async function montar(env, s, agora) {
     principal: Boolean(escritorio && escritorio.instalacao_id && escritorio.instalacao_id === x.instalacao),
   }));
   const titularPessoa = { email: (r.dono || {}).email || r.email, nome: s.papel === "titular" ? s.nome || "" : "", papel: "titular" };
-  // A cobranca pela Atos: o plano e o uso continuam aqui (o medidor), o dinheiro e na Conta Atos (worker/atos.js).
-  const naAtos = cobrancaPelaAtos(env);
   return {
     perfil: { papel: s.papel, email: s.email, nome: s.nome || "" },
     assinatura: {
-      plano: plano.id, nome: plano.nome, periodo, situacao: naAtos ? situacaoNaAtos(r, agora) : situacaoDa(r, agora), forma: pix ? "pix" : "cartao",
-      valor: valorProx, valor_plano: valorPlano, proxima: String(proxima).slice(0, 10), desde: String(a.desde || r.criada || "").slice(0, 10),
-      ajuste: r.ajuste, plano_proximo: r.plano_proximo ? { id: r.plano_proximo.id, nome: r.plano_proximo.nome } : null,
-      cortesia: Boolean(r.cortesia), cancelamento: r.cancelamento ? { quando: r.cancelamento.quando } : null,
+      plano: plano.id, nome: plano.nome, periodo, situacao: situacaoDe(r), desde: String(a.desde || r.criada || "").slice(0, 10),
+      cortesia: Boolean(r.cortesia),
       ciclo: { de: c ? c.inicio.slice(0, 10) : "", ate: c ? c.fim.slice(0, 10) : "", tokens: c ? c.tokens : 0, usados: c ? c.usados : 0,
         recargas: recargasNoCiclo, extra: (r.tokens || {}).da_recarga || 0 },
     },
-    pagamento: {
-      tipo: pix ? "pix" : "cartao",
-      cartao: r.cartao && r.cartao.final ? { bandeira: r.cartao.bandeira, final: r.cartao.final, validade: r.cartao.validade, titular: r.cartao.titular } : null,
-      pix: pixPode(env, r, pix),
-      pix_ate: pix ? String(r.pago_ate || "").slice(0, 10) : "",
-    },
-    recarga: { valor: plano.recarga.valor, tokens: plano.recarga.tokens, pacotes: recargasDe(plano) },
-    faturas: naAtos ? [] : await faturas(env, s.conta, r),
-    // Onde o dinheiro mora: "atos" (a Conta Atos: assinaturas, faturas, cartao) ou "pavlvs" (o caminho antigo).
-    cobranca: naAtos ? "atos" : "pavlvs",
-    atos: naAtos ? {
+    // A assinatura, as faturas e o cartao: na Conta Atos, que e quem cobra.
+    atos: {
       assinaturas: "https://atos.dev.br/conta/assinaturas", faturamento: "https://atos.dev.br/conta/faturamento",
       checkout: Object.fromEntries(n.planos.map((x) => [x.id, { mensal: checkoutDaAtos(x.id, "mensal"), anual: checkoutDaAtos(x.id, "anual") }])),
       recarga: "https://atos.dev.br/pavlvs/assinar/?preco=" + encodeURIComponent("pavlvs." + plano.id + ".recarga") + "&volta=" + encodeURIComponent("https://paulus.ia.br/minha-conta/"),
-    } : null,
+    },
     consumo: consumoDo(r, "ciclo", agora),
     cadastro: cadastroParaTela(r),
     escritorio: escritorio ? { slug: escritorio.slug, nome: escritorio.nome, online: escritorio.online, ativo: escritorio.ativo } : null,
@@ -283,16 +218,13 @@ async function montar(env, s, agora) {
     pessoas: [titularPessoa, ...(r.pessoas || [])],
     planos: n.planos.map((x) => ({ id: x.id, nome: x.nome, valor: x.valor, valor_anual: x.valor_anual, tokens: x.tokens, pessoas: x.pessoas,
       modelos_info: catalogo(modelosDoPlano(x)) })),
-    oferta_ficar: { ...r.oferta_ficar, creditos: OFERTA_FICAR.creditos, desconto: OFERTA_FICAR.desconto, cobrancas: OFERTA_FICAR.cobrancas,
-      desconto_pode: Boolean(a.id && a.situacao === "authorized" && !prepago(r.periodo) && !r.ajuste) },
     email_ligado: Boolean(env.RESEND_API_KEY),
-    mp_public_key: env.MP_PUBLIC_KEY || "",
   };
 }
 
-/* A situacao com a cobranca pela Atos: a mesma regra do medidor (so a Atos, ou a cortesia, da plano). A
-   assinatura que vale e a que a Atos mandou (worker/ia.js, direitoDaAtos). */
-function situacaoNaAtos(r, agora) {
+/* A situacao: a mesma regra do medidor (so a Atos, ou a cortesia, da plano). A assinatura que vale e a que a
+   Atos mandou (worker/ia.js, direitoDaAtos). */
+function situacaoDe(r) {
   const a = r.assinatura || {};
   if (r.cortesia && r.plano_vigente) return "cortesia";
   if (!r.plano_vigente) return r.cobrador === "atos" ? "vencida" : "nenhuma";
@@ -302,55 +234,6 @@ function situacaoNaAtos(r, agora) {
   return "ativa";
 }
 
-function situacaoDa(r, agora) {
-  const a = r.assinatura || {};
-  const c = r.ciclo_completo;
-  if (r.cortesia && r.plano_vigente) return "cortesia";
-  if (a.situacao === "cancelled") return c && Date.parse(c.fim) > agora ? "cancelada" : "vencida";
-  if (r.forma && r.forma.parado && r.plano_vigente) return "cancelada";
-  if (a.situacao === "paused") return "pausada";
-  if (a.situacao === "pending") return "pendente";
-  if (!r.plano_vigente) return "vencida";
-  return "ativa";
-}
-
-function pixPode(env, r, pix) {
-  if (pix) return { pode: true, motivo: "" };
-  const a = r.assinatura || {};
-  if (!env.RESEND_API_KEY) return { pode: false, motivo: "o Pix mensal manda o QR por e-mail, e o e-mail do Paulus ainda não está ligado" };
-  if (prepago(r.periodo)) return { pode: false, motivo: "o plano pago de uma vez não tem cobrança mensal" };
-  if (!a.id || a.situacao !== "authorized") return { pode: false, motivo: "é preciso a assinatura mensal ativa" };
-  if (!r.cadastro || !r.cadastro.documento) return { pode: false, motivo: "o Pix pede o CPF ou CNPJ do cadastro" };
-  if (r.ajuste) return { pode: false, motivo: "há uma cobrança com valor ajustado em curso" };
-  return { pode: true, motivo: "" };
-}
-
-const DESCRICAO = { assinatura: "Mensalidade do plano", anual: "Plano anual", avulso: "Um mês no Pix", recarga: "Recarga de créditos" };
-
-/* As faturas: os pagamentos da conta, do mais novo, com a NFS-e de cada um
-   (o painel marca o pagamento quando a nota sai: "admin:nfse:<pagamento>"). */
-async function faturas(env, conta, r) {
-  const linhas = [];
-  for (const pg of (r.pagamentos || []).slice().reverse().slice(0, 60)) {
-    const marca = await kvJSON(env, "admin:nfse:" + pg.ref);
-    const nota = marca && marca.nota === "emitida" && marca.nota_id ? marca : null;
-    const base = nota ? "/api/conta/nfse/" + encodeURIComponent(nota.nota_id) + "/" : "";
-    const forma = pg.tipo === "recarga" || pg.tipo === "avulso" ? { tipo: "pix" }
-      : pg.tipo === "assinatura" ? (r.cartao && r.cartao.final ? { tipo: "cartao", bandeira: r.cartao.bandeira, final: r.cartao.final } : { tipo: "cartao", bandeira: "Cartão", final: "" })
-        : null;
-    linhas.push({ data: String(pg.quando || "").slice(0, 10), descricao: DESCRICAO[pg.tipo] || "Pagamento", forma, valor: Number(pg.valor) || 0,
-      situacao: pg.reembolso ? "estornada" : "paga", nfse: nota ? String(nota.numero || "") : "", pdf: nota ? base + "pdf" : "", xml: nota ? base + "xml" : "" });
-  }
-  if (r.anual_pendente) {
-    linhas.unshift({ data: brt(Date.parse(r.agora) || Date.now()).slice(0, 10), descricao: r.anual_pendente.meses === 1 || r.forma ? DESCRICAO.avulso : DESCRICAO.anual,
-      forma: { tipo: "pix" }, valor: Number(r.anual_pendente.valor) || 0, situacao: "pendente", nfse: "", pdf: "", xml: "" });
-  }
-  return linhas;
-}
-
-/* O consumo por dia de um ciclo: o atual ("ciclo"), o anterior ou o que
-   comecou num mes ("AAAA-MM"). Por pessoa, o PAULUS do escritorio e quem sabe
-   (a nuvem nao recebe quem perguntou): a lista vem vazia. */
 export function consumoDo(r, qual, agora) {
   const c = r && r.ciclo_completo;
   if (!c) return { de: "", ate: "", dias: [], pessoas: [], total: 0 };
@@ -479,7 +362,7 @@ async function convidar(request, env, s, deps) {
   const escritorio = (atual.cadastro && atual.cadastro.nome_escritorio) || atual.nome || "o escritório";
   const e = await (deps.enviarEmail || enviarEmail)(env, {
     para: email, assunto: "Convite para a Minha conta do Paulus", titulo: "Você foi convidado para a conta de " + escritorio,
-    texto: s.email + " convidou você para acompanhar a assinatura do Paulus de " + escritorio + " como financeiro: o resumo, o consumo, as faturas e a forma de pagamento." +
+    texto: s.email + " convidou você para acompanhar a assinatura do Paulus de " + escritorio + " como financeiro: o resumo e o consumo." +
       "\n\nEntre com este e-mail, pelo Google ou com e-mail e senha. O link vale por 7 dias.",
     botao: "Abrir a Minha conta", link: SITE + "/minha-conta/#convite=" + token,
   });

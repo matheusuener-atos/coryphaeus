@@ -1,15 +1,15 @@
-/* Minha conta (paulus.ia.br/minha-conta/): o titular da assinatura - e quem ele autorizar - cuida do plano,
-   do consumo, das faturas, da forma de pagamento, do cadastro e do escritorio. Entra com a conta Google ou com
-   a Conta Atos (assets/entrar-atos.js: o id_token da Atos vai no lugar do do Google).
+/* Minha conta (paulus.ia.br/minha-conta/): o titular da assinatura - e quem ele autorizar - ve o plano e o
+   consumo e cuida do cadastro, do escritorio, das pessoas e do Google. Entra com a Conta Atos
+   (assets/entrar-atos.js). O dinheiro (a assinatura, as faturas, o cartao) fica na Conta Atos, que e quem cobra o
+   PAVLVS: a tela leva la (os links vem em d.atos).
    Desenho: a topbar do site, o titulo centrado e as abas na pilula (como a pagina da conta no Admin).
    O servidor e o worker/conta.js: GET /api/conta traz tudo, cada acao e um POST da propria origem e o
-   papel (titular ou financeiro) e conferido la. O cartao vai pelos campos seguros do Mercado Pago; o
-   Google entra pelo botao oficial, o mesmo cliente web do cadastro. */
+   papel (titular ou financeiro) e conferido la. */
 (function () {
   "use strict";
-  var S = { aba: "resumo", d: null, modal: null, filtroFat: "todas", periodo: "ciclo", anual: null, pix: null, recarga: "1", convite: "", erroEntrar: "" };
-  var ABAS = [["resumo", "Resumo"], ["consumo", "Consumo"], ["faturas", "Faturas"], ["pagamento", "Pagamento"], ["plano", "Plano"], ["cadastro", "Cadastro"], ["escritorio", "Escritório"], ["pessoas", "Pessoas"]];
-  var DO_FINANCEIRO = { resumo: 1, consumo: 1, faturas: 1, pagamento: 1 };
+  var S = { aba: "resumo", d: null, modal: null, periodo: "ciclo", anual: null, convite: "", erroEntrar: "" };
+  var ABAS = [["resumo", "Resumo"], ["consumo", "Consumo"], ["plano", "Plano"], ["cadastro", "Cadastro"], ["escritorio", "Escritório"], ["pessoas", "Pessoas"]];
+  var DO_FINANCEIRO = { resumo: 1, consumo: 1 };
   var MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
   function $(id) { return document.getElementById(id); }
@@ -27,29 +27,9 @@
   function cap(t) { t = String(t || ""); return t.charAt(0).toUpperCase() + t.slice(1); }
   function L(pt, en) { return window.MC_IDIOMA === "en" ? en : pt; }
   function titular() { return S.d && S.d.perfil.papel === "titular"; }
-  // Com a cobranca pela Atos, as faturas e o pagamento ficam na Conta Atos: as abas daqui saem.
-  function naAtos() { return Boolean(S.d && S.d.cobranca === "atos"); }
-  function abas() {
-    return ABAS.filter(function (a) { return (titular() || DO_FINANCEIRO[a[0]]) && !(naAtos() && (a[0] === "faturas" || a[0] === "pagamento")); });
-  }
+  function abas() { return ABAS.filter(function (a) { return titular() || DO_FINANCEIRO[a[0]]; }); }
   var FORA = ' target="_blank" rel="noopener"';
 
-  var PIX = '<svg class="mc-pix" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.3 11.9a2 2 0 0 1-1.4-.6L8.6 9a.4.4 0 0 0-.6 0l-2.3 2.3a2 2 0 0 1-1.4.6h-.5l2.9 2.9a2.3 2.3 0 0 0 3.3 0l2.9-2.9h-.6ZM4.3 4.1a2 2 0 0 1 1.4.6L8 7a.4.4 0 0 0 .6 0l2.3-2.3a2 2 0 0 1 1.4-.6h.4L9.8 1.2a2.3 2.3 0 0 0-3.3 0L3.7 4.1h.6Zm10.5 2.2L13 4.6h-.7a1.4 1.4 0 0 0-1 .4L9.1 7.3a1.1 1.1 0 0 1-1.6 0L5.3 5a1.4 1.4 0 0 0-1-.4h-.9L1.2 6.3a2.3 2.3 0 0 0 0 3.3l1.7 1.7h1a1.4 1.4 0 0 0 1-.4l2.3-2.3a1.1 1.1 0 0 1 1.6 0l2.3 2.3a1.4 1.4 0 0 0 1 .4h.7l1.7-1.7a2.3 2.3 0 0 0 0-3.3Z"/></svg>';
-  // A bandeira pelo id do Mercado Pago ("master", "visa", "elo", "amex", "hipercard").
-  function bandeira(b) {
-    var k = String(b || "").toLowerCase();
-    if (k === "mastercard" || k === "master") return '<span class="mc-bandeira" aria-label="Mastercard"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><circle cx="9.5" cy="8" r="5" fill="#EB001B"/><circle cx="14.5" cy="8" r="5" fill="#F79E1B"/><path d="M12 3.6a5 5 0 0 1 0 8.8 5 5 0 0 1 0-8.8Z" fill="#FF5F00"/></svg></span>';
-    if (k === "visa") return '<span class="mc-bandeira" aria-label="Visa"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="11.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8.4" font-weight="700" font-style="italic" fill="#1A1F71">VISA</text></svg></span>';
-    if (k === "elo") return '<span class="mc-bandeira" style="background:#000" aria-label="Elo"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="11.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8.6" font-weight="700" fill="#fff">elo</text></svg></span>';
-    if (k === "amex") return '<span class="mc-bandeira" style="background:#016FD0" aria-label="American Express"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="10.6" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="6.6" font-weight="700" fill="#fff">AMEX</text></svg></span>';
-    if (k === "hipercard") return '<span class="mc-bandeira" style="background:#B3131B" aria-label="Hipercard"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="10.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="4.6" font-weight="700" fill="#fff">Hipercard</text></svg></span>';
-    return '<span class="mc-bandeira texto">' + esc(b && k !== "cartão" ? b : "Cartão") + "</span>";
-  }
-  function forma(f) {
-    if (!f) return "—";
-    if (f.tipo === "pix") return '<span class="mc-forma">' + PIX + "<span>Pix</span></span>";
-    return '<span class="mc-forma">' + bandeira(f.bandeira) + (f.final ? "<span>•••• " + esc(f.final) + "</span>" : "") + "</span>";
-  }
   function painel(rot, dir, miolo, cls) {
     return '<section class="painel mc-painel' + (cls ? " " + cls : "") + '"><div class="painel-cab"><span class="rotulo">' + esc(rot) + "</span>" + (dir ? "<span>" + dir + "</span>" : "") + "</div>" + miolo + "</section>";
   }
@@ -72,61 +52,11 @@
     el.textContent = cap(t); el.classList.toggle("erro", !!erro); el.classList.add("on");
     clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("on"); }, erro ? 5200 : 3200);
   }
-  // Os scripts de fora (o botao do Google, o SDK do Mercado Pago) so carregam quando a tela precisa deles.
-  var scripts = {};
-  function carregarScript(src) {
-    if (!scripts[src]) scripts[src] = new Promise(function (ok, falha) {
-      var s = document.createElement("script"); s.src = src; s.async = true;
-      s.onload = function () { ok(); }; s.onerror = function () { delete scripts[src]; falha(new Error("não carregou")); };
-      document.head.appendChild(s);
-    });
-    return scripts[src];
-  }
-
   /* ------------------------------------------------------------ as abas */
   var TELAS = {};
   var SIT = { nenhuma: ["Sem assinatura", "mudo"], ativa: ["Ativa", "ok"], cortesia: ["Cortesia", "ok"], cancelada: ["Cancelada", "atencao"], vencida: ["Vencida", "erro"], pausada: ["Pausada no Mercado Pago", "atencao"], pendente: ["Esperando o Mercado Pago", "atencao"] };
-  // Ate quando vale o que ja foi pago: no anual e no Pix mensal, o pago_ate; no cartao, o fim do ciclo.
-  function pagoAte(a) { return a.periodo === "anual" || a.forma === "pix" ? a.proxima : a.ciclo.ate; }
-
+  /* O resumo: o plano e o uso daqui; a assinatura, as faturas e o cartao, na Conta Atos. */
   TELAS.resumo = function (d) {
-    if (naAtos()) return resumoNaAtos(d);
-    var a = d.assinatura, c = a.ciclo, s = SIT[a.situacao] || [a.situacao, "mudo"];
-    var cob;
-    if (a.situacao === "cortesia") cob = ["Cobrança", "sem cobrança"];
-    else if (a.situacao === "vencida" || a.situacao === "cancelada") cob = ["Próxima cobrança", "nenhuma"];
-    else if (a.forma === "pix") cob = ["Próximo Pix", dt(a.proxima) + " · " + brl(a.valor_plano)];
-    else if (a.periodo === "anual") cob = ["Pago até", dt(a.proxima)];
-    else cob = ["Próxima cobrança", dt(a.proxima) + " · " + brl(a.valor)];
-    var semCob = a.situacao === "cortesia" || a.situacao === "vencida";
-    var assin = '<div class="mc-corpo"><div class="mc-plano-nome"><h2>' + esc(a.nome) + '</h2><span class="mc-tag">' + (a.periodo === "anual" ? "anual" : "mensal") + "</span></div>" +
-      '<dl class="mc-fatos">' +
-      '<div><dt>Situação</dt><dd><span class="mc-bolinha ' + s[1] + '"></span>' + esc(s[0]) + (a.situacao === "cancelada" ? " · vale até " + dt(pagoAte(a)) : "") + "</dd></div>" +
-      "<div><dt>" + cob[0] + "</dt><dd>" + esc(cob[1]) + "</dd></div>" +
-      (a.plano_proximo ? "<div><dt>A partir de " + dt(a.proxima) + "</dt><dd>plano " + esc(a.plano_proximo.nome) + "</dd></div>" : "") +
-      "<div><dt>Cobrança em</dt><dd>" + (semCob ? "—" : d.pagamento.tipo === "pix" ? forma({ tipo: "pix" }) : forma(d.pagamento.cartao)) + "</dd></div>" +
-      "<div><dt>Assinante desde</dt><dd>" + mesAno(a.desde) + "</dd></div></dl></div>" +
-      '<div class="mc-pe">' + (titular() ? '<button type="button" class="mini" data-aba="plano">Trocar de plano</button>' : "") + '<button type="button" class="mini" data-aba="faturas">Ver faturas</button></div>';
-    var uso;
-    if (!c.tokens) {
-      uso = '<div class="mc-corpo"><p class="mc-p">Não há um ciclo aberto agora.' + (a.situacao === "vencida" ? " O plano venceu: assine de novo na aba Plano." : "") + "</p></div>";
-    } else {
-      var pct = Math.min(100, Math.round(c.usados / c.tokens * 100)), resta = Math.max(0, c.tokens - c.usados), dias = diasAte(c.ate);
-      uso = '<div class="mc-corpo"><div class="mc-uso-num"><b>' + pct + '%</b><span>' + tok(c.usados) + " de " + tok(c.tokens) + " tokens</span></div>" +
-        '<span class="mc-barra" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + pct + '%"></i></span>' +
-        '<dl class="mc-fatos"><div><dt>Restam</dt><dd>' + tok(resta) + " tokens</dd></div>" +
-        "<div><dt>" + (a.situacao === "cancelada" ? "Termina em" : "Renova em") + "</dt><dd>" + dt(c.ate) + " · " + dias + (dias === 1 ? " dia" : " dias") + "</dd></div>" +
-        (c.recargas ? "<div><dt>Recargas no ciclo</dt><dd>" + tok(c.recargas) + " tokens</dd></div>" : "") +
-        (c.extra ? "<div><dt>Créditos de recarga</dt><dd>" + tok(c.extra) + " tokens · não vencem na renovação</dd></div>" : "") + "</dl></div>";
-    }
-    uso += '<div class="mc-pe"><button type="button" class="mini" data-aba="consumo">Ver consumo</button>' + (a.situacao === "vencida" ? "" : '<button type="button" class="mini" data-a="recarga">' + PIX + "Recarga no Pix</button>") + "</div>";
-    var ult = d.faturas.slice(0, 3).map(linhaFatura).join("");
-    return '<div class="mc-grade2">' + painel("Assinatura", "", assin) + painel("Uso do ciclo", c.de ? dt(c.de).slice(0, 5) + " – " + dt(c.ate).slice(0, 5) : "", uso) + "</div>" +
-      painel("Últimas faturas", "", '<div class="mc-tabela">' + cabFatura() + (ult || '<p class="mc-vazio">Nenhuma fatura ainda.</p>') + '</div><div class="mc-ver"><button type="button" class="mc-ver-mais" data-aba="faturas">Ver todas' + ic("arrow_outward") + "</button></div>");
-  };
-
-  /* O resumo com a cobranca pela Atos: o plano e o uso daqui; a assinatura, as faturas e o cartao, na Conta Atos. */
-  function resumoNaAtos(d) {
     var a = d.assinatura, c = a.ciclo, s = SIT[a.situacao] || [a.situacao, "mudo"], tem = a.situacao !== "nenhuma" && a.situacao !== "vencida";
     var assin = '<div class="mc-corpo">' + (tem ? '<div class="mc-plano-nome"><h2>' + esc(a.nome) + '</h2><span class="mc-tag">' + (a.periodo === "anual" ? "anual" : "mensal") + "</span></div>" : "") +
       '<dl class="mc-fatos"><div><dt>Situação</dt><dd><span class="mc-bolinha ' + s[1] + '"></span>' + esc(s[0]) + "</dd></div>" +
@@ -152,7 +82,7 @@
       '<div class="mc-pe"><a class="mini" href="' + esc(d.atos.faturamento) + '"' + FORA + ">Ver as faturas" + ic("arrow_outward") + "</a></div>";
     return '<div class="mc-grade2">' + painel("Assinatura", "", assin) + painel("Uso do ciclo", tem && c.de ? dt(c.de).slice(0, 5) + " – " + dt(c.ate).slice(0, 5) : "", uso) + "</div>" +
       painel("Pagamentos", "", pag);
-  }
+  };
 
   TELAS.consumo = function (d) {
     var k = d.consumo, dias = k.dias || [];
@@ -208,95 +138,9 @@
     var ini = new Date((a.desde || a.ciclo.de || hoje.toISOString().slice(0, 10)) + "T12:00"), at = new Date((a.ciclo.de || hoje.toISOString().slice(0, 10)) + "T12:00");
     return [ini.getFullYear() * 12 + ini.getMonth(), at.getFullYear() * 12 + at.getMonth() - (ateAtual ? 0 : 2)];
   }
-  function cabFatura() { return '<div class="mc-fat cab"><span>Data</span><span>Descrição</span><span>Forma</span><span class="dir">Valor</span><span>Situação</span><span>NFS-e</span><span class="centro">Arquivos</span></div>'; }
-  var SIT_FAT = { paga: ["Paga", "ok"], pendente: ["Pendente", "atencao"], estornada: ["Estornada", "mudo"] };
-  function linhaFatura(f) {
-    var s = SIT_FAT[f.situacao] || [f.situacao, "mudo"];
-    return '<div class="mc-fat"><span class="mono">' + dt(f.data) + '</span><span class="mc-corta">' + esc(f.descricao) + "</span><span>" + forma(f.forma) + '</span><span class="dir mono">' + brl(f.valor) + '</span><span><span class="mc-sit ' + s[1] + '"><span class="mc-bolinha"></span>' + s[0] + '</span></span><span class="mono">' + esc(f.nfse || "—") + "</span>" +
-      '<span class="centro mc-arquivos">' + (f.nfse && f.pdf ? '<a class="btn-icone" href="' + esc(f.pdf) + '" title="NFS-e em PDF" aria-label="Baixar a NFS-e em PDF">' + ic("picture_as_pdf") + '</a><a class="btn-icone" href="' + esc(f.xml) + '" title="NFS-e em XML" aria-label="Baixar o XML da NFS-e">' + ic("code") + "</a>" : '<span class="mudo">—</span>') + "</span></div>";
-  }
-  TELAS.faturas = function (d) {
-    var l = d.faturas.filter(function (f) { return (S.filtroFat === "todas" || f.situacao === S.filtroFat) && (!S.mesFat || String(f.data).slice(0, 7) === S.mesFat); });
-    var mm = mesesAssinatura(d, true), rotM = S.mesFat ? MESES[Number(S.mesFat.slice(5)) - 1] + "/" + S.mesFat.slice(0, 4) : "";
-    var pop = S.calAberto && S.calAberto.alvo === "faturas" ? calPop(mm[0], mm[1], S.mesFat) : "";
-    var cab = '<span class="mc-periodo">' + pilula("faturas", [["todas", "Todas"], ["paga", "Pagas"], ["pendente", "Pendentes"]], S.filtroFat) +
-      '<div class="segmentos mc-seg"><div><button type="button" class="mc-seg-cal" data-a="mesFatAbrir" aria-pressed="' + !!S.mesFat + '" aria-expanded="' + !!pop + '">' + ic("calendar_month") + "<span>" + (rotM || "Outro período") + "</span></button>" +
-      (S.mesFat ? '<button type="button" data-a="mesFatLimpar" aria-label="Tirar o período" title="Tirar o período">' + ic("close") + "</button>" : "") + "</div></div>" + pop + "</span>";
-    var ano = S.mesFat ? S.mesFat.slice(0, 4) : String(new Date().getFullYear());
-    var temNota = d.faturas.some(function (f) { return f.nfse && String(f.data).slice(0, 4) === ano; });
-    return painel("Faturas · " + l.length, cab, '<div class="mc-tabela">' + cabFatura() + (l.length ? l.map(linhaFatura).join("") : '<p class="mc-vazio">Nenhuma fatura com esse filtro.</p>') + "</div>" +
-      '<div class="mc-pe"><button type="button" class="mini" data-a="baixarTudo" data-v="' + ano + '"' + (temNota ? ' title="As de ' + ano + '"' : ' disabled title="Ainda não há NFS-e em ' + ano + '"') + ">" + ic("download") + "Baixar as NFS-e do ano (.zip)</button></div>", "mc-com-pop") +
-      '<p class="mc-nota">A NFS-e de cada pagamento sai em nome de ' + esc(d.cadastro.nome || "quem está no Cadastro") + ". Quando ela sai, o PDF e o XML aparecem nesta lista.</p>";
-  };
-
-  TELAS.pagamento = function (d) {
-    var p = d.pagamento, c = p.cartao, rc = d.recarga, a = d.assinatura;
-    var formaH;
-    if (a.situacao === "cortesia") {
-      formaH = '<div class="mc-corpo"><p class="mc-p">O plano de cortesia não tem cobrança.</p></div>';
-    } else if (a.periodo === "anual") {
-      formaH = '<div class="mc-corpo"><p class="mc-p">O plano anual foi pago de uma vez e vale até ' + dt(a.proxima) + ". Ele não renova sozinho.</p></div>";
-    } else {
-      var naPix = p.tipo === "pix", pixFechado = !naPix && !p.pix.pode;
-      var cartaoPode = !naPix && ["ativa", "pausada", "pendente"].indexOf(a.situacao) >= 0;
-      formaH = '<div class="mc-corpo"><div class="mc-opcoes" role="radiogroup" aria-label="Forma de pagamento">' +
-        '<button type="button" class="mc-opcao' + (!naPix ? " on" : "") + '" role="radio" aria-checked="' + !naPix + '" data-a="formaPag" data-v="cartao"><span class="mc-radio"></span><span class="mc-txt"><b>Cartão de crédito</b><small>cobrança automática todo mês</small></span>' + (c ? forma(c) : "") + "</button>" +
-        '<button type="button" class="mc-opcao' + (naPix ? " on" : "") + '" role="radio" aria-checked="' + naPix + '" data-a="formaPag" data-v="pix"' + (pixFechado ? " disabled" : "") + '><span class="mc-radio"></span><span class="mc-txt"><b>Pix</b><small>' +
-        (pixFechado ? esc(cap(p.pix.motivo)) : "o QR chega por e-mail 3 dias antes de cada cobrança") + "</small></span>" + PIX + "</button></div>" +
-        (naPix ? '<dl class="mc-fatos"><div><dt>Mês pago até</dt><dd>' + dt(p.pix_ate) + "</dd></div><div><dt>O Pix chega em</dt><dd>" + esc(d.cadastro.email_cobranca || d.perfil.email) + "</dd></div></dl>"
-          : c ? '<dl class="mc-fatos"><div><dt>Cartão</dt><dd>' + forma(c) + "</dd></div><div><dt>Validade</dt><dd>" + esc(c.validade || "—") + "</dd></div><div><dt>Nome no cartão</dt><dd>" + esc(c.titular || "—") + "</dd></div></dl>" : "") + "</div>" +
-        '<div class="mc-pe"><span class="mc-mp">Pagamentos pelo Mercado Pago</span>' + (cartaoPode ? '<button type="button" class="mini" data-a="trocarCartao">' + ic("credit_card") + (c ? "Trocar cartão" : "Cadastrar cartão") + "</button>" : "") + "</div>";
-    }
-    var recH;
-    if (a.situacao === "vencida") {
-      recH = '<div class="mc-corpo"><p class="mc-p">A recarga é para quem tem o plano em dia.</p></div>';
-    } else if (S.pix) {
-      recH = '<div class="mc-corpo mc-pix-gerado"><div class="mc-qr">' + (S.pix.qr ? '<img src="data:image/png;base64,' + esc(S.pix.qr) + '" alt="QR Code do Pix" width="132" height="132">' : ic("qr_code_2")) + '</div><div class="mc-pix-lado"><b>' + brl(S.pix.valor) + " · " + tok(S.pix.tokens) + " tokens</b><small>Vale por 30 minutos. Os créditos entram assim que o pagamento cair, e não vencem na renovação.</small>" +
-        '<label class="campo-site"><span>Pix copia e cola</span><span class="caixa-campo"><input readonly value="' + esc(S.pix.copia) + '"><button type="button" class="btn-icone" data-a="copiarPix" aria-label="Copiar" title="Copiar">' + ic("content_copy") + "</button></span></label></div></div>" +
-        '<div class="mc-pe"><button type="button" class="mc-texto" data-a="pixCancelar">Escolher outro valor</button></div>';
-    } else {
-      var pac = rc.pacotes || [], esc1 = pac.filter(function (x) { return x.id === S.recarga; })[0] || pac[0];
-      recH = '<div class="mc-corpo"><p class="mc-p">Se a cota do ciclo acabar, a recarga é no Pix, no preço do seu plano: ' + brl0(rc.valor) + " a cada " + tok(rc.tokens) + " tokens.</p>" +
-        '<div class="mc-pacotes">' + pac.map(function (x) {
-          return '<button type="button" class="mc-pacote' + (esc1 && esc1.id === x.id ? " on" : "") + '" data-a="pacote" data-v="' + esc(x.id) + '"><b>' + brl(x.valor) + "</b><small>" + tok(x.tokens) + " tokens</small></button>";
-        }).join("") + "</div></div>" +
-        '<div class="mc-pe"><span></span><button type="button" class="btn-duplo pequeno" data-a="gerarPix"' + (esc1 ? "" : " disabled") + "><span>" + PIX + "Gerar Pix de " + brl(esc1 ? esc1.valor : 0) + "</span></button></div>";
-    }
-    return '<div class="mc-grade2">' + painel("Forma de pagamento", "", formaH) + painel("Recarga de créditos", "", recH, "mc-recarga") + "</div>";
-  };
-
+  /* Os planos: assinar leva ao checkout da Atos; com o plano em dia, mudar de plano e cancelar e na Conta Atos
+     (la a regra de nao cobrar em dobro diz como). */
   TELAS.plano = function (d) {
-    if (naAtos()) return planoNaAtos(d);
-    var a = d.assinatura, per = S.anual ? "anual" : "mensal", fim = pagoAte(a);
-    var assinar = a.situacao === "vencida", cortesia = a.situacao === "cortesia", cancelada = a.situacao === "cancelada";
-    var cards = d.planos.map(function (p) {
-      var atual = p.id === a.plano && per === a.periodo && !assinar, preco = S.anual ? p.valor_anual : p.valor;
-      var proximo = a.plano_proximo && a.plano_proximo.id === p.id && per === "mensal";
-      var acao;
-      if (assinar) acao = '<a class="mini cheia" href="/cadastro/?plano=' + encodeURIComponent(p.id) + "&periodo=" + per + '">Assinar este</a>';
-      else if (cortesia || cancelada) acao = atual ? '<span class="mc-plano-pe mudo">É o que você tem hoje</span>' : "";
-      else if (atual) acao = a.plano_proximo && per === "mensal" ? '<button type="button" class="mini cheia" data-a="trocarPlano" data-id="' + esc(p.id) + '">Ficar neste plano</button>' : '<span class="mc-plano-pe mudo">É o que você tem hoje</span>';
-      else if (proximo) acao = '<span class="mc-plano-pe mudo">Vale a partir de ' + dt(a.proxima) + "</span>";
-      else acao = '<button type="button" class="mini cheia" data-a="trocarPlano" data-id="' + esc(p.id) + '">Trocar para este</button>';
-      return '<div class="mc-plano' + (atual ? " atual" : "") + '"><div class="mc-plano-topo"><b>' + esc(p.nome) + "</b>" + (atual ? '<span class="mc-tag">plano atual</span>' : proximo ? '<span class="mc-tag atencao">próximo</span>' : "") + "</div>" +
-        '<div class="mc-preco"><span>' + brl0(preco) + "</span><small>" + (S.anual ? "por ano" : "por mês") + "</small></div>" +
-        (S.anual ? '<small class="mc-economia">' + Math.round((1 - p.valor_anual / (p.valor * 12)) * 100) + "% a menos que 12 meses</small>" : "") +
-        '<ul class="mc-itens"><li>' + tok(p.tokens) + " tokens por mês</li><li>" + (p.pessoas === 1 ? "1 pessoa" : "até " + p.pessoas + " pessoas") + "</li><li>" + esc((p.modelos_info || []).map(function (m) { return m.nome; }).join(" e ")) + "</li></ul>" +
-        acao + "</div>";
-    }).join("");
-    var pe;
-    if (cortesia) pe = '<div class="mc-cancelar"><span>O plano de cortesia não tem cobrança. Para mudar de plano, escreva para contato@paulus.ia.br.</span></div>';
-    else if (assinar) pe = '<div class="mc-cancelar"><span>O plano venceu. Para voltar, escolha um plano: tudo volta assim que o pagamento entrar, sem reinstalar.</span></div>';
-    else if (cancelada) pe = '<div class="mc-cancelar"><span>A assinatura foi cancelada' + (a.cancelamento ? " em " + dt(a.cancelamento.quando) : "") + ". O plano vale até " + dt(fim) + '. Para continuar depois disso, assine de novo.</span><a class="mini" href="/assinatura/">Ver os planos</a></div>';
-    else pe = '<div class="mc-cancelar"><span>Cancelar a assinatura mantém o plano até ' + dt(fim) + ". Depois, o Paulus abre só com os arquivos.</span>" +
-      '<button type="button" class="mc-texto perigo" data-a="cancelar">Cancelar assinatura</button></div>';
-    return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" +
-      '<div class="mc-planos">' + cards + "</div>" + pe;
-  };
-
-  /* Os planos com a cobranca pela Atos: assinar leva ao checkout dela; com o plano em dia, mudar de plano e
-     cancelar e na Conta Atos (la a regra de nao cobrar em dobro diz como). */
-  function planoNaAtos(d) {
     var a = d.assinatura, per = S.anual ? "anual" : "mensal", tem = a.situacao !== "nenhuma" && a.situacao !== "vencida";
     var cards = d.planos.map(function (p) {
       var atual = tem && p.id === a.plano, preco = S.anual ? p.valor_anual : p.valor;
@@ -312,10 +156,10 @@
       : tem && a.situacao !== "cancelada" ? '<div class="mc-cancelar"><span>Mudar de plano, pausar e cancelar são na Conta Atos, que é quem cobra.</span><a class="mini" href="' + esc(d.atos.assinaturas) + '"' + FORA + ">Abrir a Conta Atos" + ic("arrow_outward") + "</a></div>"
         : '<div class="mc-cancelar"><span>O pagamento é na Atos, com cartão ou Pix. O plano entra assim que o pagamento é aprovado, sem reinstalar.</span></div>';
     return '<div class="mc-centro">' + pilula("periodoPlano", [["mensal", "Mensal"], ["anual", "Anual"]], per) + "</div>" + '<div class="mc-planos">' + cards + "</div>" + pe;
-  }
+  };
 
   var UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-  // As mascaras do cadastro (as mesmas da pagina de cadastro, assets/cadastro.js): o servidor fica so com os digitos.
+  // As mascaras do cadastro: o servidor fica so com os digitos.
   function digitos(t) { return String(t || "").replace(/\D/g, ""); }
   function mascararDocumento(t) {
     var d = digitos(t).slice(0, 14);
@@ -376,7 +220,7 @@
       '<div class="mc-form-grade">' + campo("cep", "CEP", ' inputmode="numeric" maxlength="9" data-a-in="cep" placeholder="00000-000"') + campo("logradouro", "Logradouro", "", "largo") + campo("numero", "Número") + campo("complemento", "Complemento") + campo("bairro", "Bairro") + campo("cidade", "Cidade", ' data-a-in="semCmun"') +
       '<label class="campo-site"><span>UF</span><span class="caixa-campo"><select id="mc-cad-uf" data-cad="uf" data-a-in="semCmun">' + (c.uf ? "" : '<option value="" selected>—</option>') + UFS.map(function (u) { return "<option" + (u === c.uf ? " selected" : "") + ">" + u + "</option>"; }).join("") + "</select>" + ic("expand_more") + "</span></label></div>" +
       '<p class="mc-nota" id="mc-cep-nota" hidden></p></div>' +
-      '<div class="mc-pe"><span class="mc-nota">As próximas NFS-e saem com estes dados.</span><button type="button" class="btn-duplo pequeno" data-a="salvarCadastro"><span>Salvar</span></button></div>';
+      '<div class="mc-pe"><span class="mc-nota">Os dados do escritório no Paulus. Os da nota fiscal ficam na Conta Atos.</span><button type="button" class="btn-duplo pequeno" data-a="salvarCadastro"><span>Salvar</span></button></div>';
     return painel("Dados do cadastro", "", corpo);
   };
 
@@ -447,127 +291,15 @@
       '<p class="mc-nota centro">O financeiro vê o resumo, o consumo, as faturas e a forma de pagamento. Trocar de plano, cancelar e mexer no escritório são só do titular.</p>';
   };
 
-  /* ------------------------------------------------------------ trocar o cartao: pagina propria, com os campos seguros do Mercado Pago */
-  // O numero, a validade e o codigo sao quadros do Mercado Pago (Secure Fields, o SDK v2): o que se digita neles
-  // nao passa por esta pagina. O SDK devolve o token do cartao, e so o token (com a bandeira) vai ao servidor.
-  var SDK_MP = "https://sdk.mercadopago.com/js/v2";
-  var FONTES = [{ src: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500&display=swap" }];
   // As imagens ficam em site/assets/: a pagina real esta em /minha-conta/ e a demonstracao na raiz do projeto.
   var MP_IMG = /\/en\/my-account\//.test(location.pathname) ? "../../assets/" : /\/minha-conta\//.test(location.pathname) ? "../assets/" : "site/assets/";
-  function cartaoHtml(d) {
-    var c = d.pagamento.cartao;
-    var quadro = function (id, rot) {
-      return '<div class="campo-site"><span>' + rot + '</span><span class="caixa-campo mc-k-caixa" id="' + id + '-caixa"><div id="' + id + '" class="mc-k-seguro"></div>' +
-        (id === "mc-k-num" ? '<span id="mc-k-band" class="mc-k-band">' + ic("credit_card") + "</span>" : "") + "</span></div>";
-    };
-    var form = '<div class="mc-corpo mc-form">' + quadro("mc-k-num", "Número do cartão") +
-      '<div class="mc-k-grade">' + quadro("mc-k-val", "Validade") + quadro("mc-k-cvv", "Código de segurança") + "</div>" +
-      '<label class="campo-site"><span>Nome impresso no cartão</span><span class="caixa-campo"><input id="mc-k-nome" data-a-in="kCampo" autocomplete="cc-name" spellcheck="false"></span></label>' +
-      '<label class="campo-site"><span>CPF ou CNPJ do titular do cartão</span><span class="caixa-campo"><input id="mc-k-doc" data-a-in="kCampo" inputmode="numeric" autocomplete="off" value="' + esc(d.cadastro.documento || "") + '"></span></label>' +
-      '<p class="mc-nota mc-erro" id="mc-k-erro" role="alert"' + (S.erroCartao ? "" : " hidden") + ">" + esc(S.erroCartao || "") + "</p></div>" +
-      '<div class="mc-pe"><button type="button" class="mc-texto" data-a="cartaoVoltar">Cancelar</button><button type="button" class="btn-duplo pequeno" id="mc-cartao-salvar" data-a="cartaoSalvar"><span>' + ic("lock") + "Salvar cartão</span></button></div>";
-    return '<div class="mc-col mc-col-estreita"><button type="button" class="mc-voltar" data-a="cartaoVoltar">← Voltar</button>' +
-      '<header class="mc-cab"><h1>Trocar o cartão</h1><p class="texto-lead">' + (c && c.final ? "Hoje as cobranças saem no " + forma(c) + ". " : "") + "A próxima, em " + dt(d.assinatura.proxima) + ", já sai no cartão novo.</p></header>" +
-      painel("Cartão novo", "", form) +
-      '<div class="linha-botao tom-mp"><span class="lb-icones"><span class="lb-ic lb-mp"><img src="' + MP_IMG + 'mercadopago-cor.png" alt="" width="93" height="37"></span></span><span class="lb-texto"><b class="lb-titulo">Campos seguros do Mercado Pago</b></span><span class="lb-fim lb-meta">Cartão</span></div>' +
-      '<p class="mc-nota centro">O número, a validade e o código vão direto para o Mercado Pago. O PAVLVS guarda só a bandeira, os 4 últimos dígitos, a validade e o nome impresso.</p></div>';
-  }
-  function erroCartao(t) { S.erroCartao = t || ""; var e = $("mc-k-erro"); if (e) { e.textContent = cap(t || ""); e.hidden = !t; } }
-  function estiloDosCampos() {
-    var css = getComputedStyle(document.documentElement), v = function (n) { return css.getPropertyValue(n).trim(); };
-    return { color: v("--ink"), placeholderColor: v("--ink3"), fontSize: "14px", fontFamily: "Manrope, system-ui, sans-serif" };
-  }
-  function cartaoValido() {
-    var K = S.cartao; if (!K || !K.campos) return false;
-    var nome = (($("mc-k-nome") || {}).value || "").trim(), doc = (($("mc-k-doc") || {}).value || "").replace(/\D/g, "");
-    var semErro = ["cardNumber", "expirationDate", "securityCode"].every(function (k) { return K.validos[k] !== false; });
-    return Boolean(K.metodo) && semErro && nome.length >= 3 && (doc.length === 11 || doc.length === 14);
-  }
-  // O botao so fica parado enquanto salva: com campo errado, ele marca os errados (cartaoSalvar).
-  function cartaoOk() { var b = $("mc-cartao-salvar"); if (b) b.disabled = Boolean(S.cartao && S.cartao.salvando); }
-  // Os tres quadros do Mercado Pago (iframes): a validade vem do validityChange e aparece depois que a pessoa sai
-  // do quadro, ou tenta salvar. Sem bandeira lida, o numero conta como errado.
-  var K_FRASE = { cardNumber: L("confira o número do cartão", "check the card number"), expirationDate: L("confira a validade do cartão", "check the card expiry"), securityCode: L("confira o código de segurança", "check the security code") };
-  var K_ID = { cardNumber: "mc-k-num", expirationDate: "mc-k-val", securityCode: "mc-k-cvv" };
-  function kPintar(tipo, forcar) {
-    var K = S.cartao, cx = $(K_ID[tipo] + "-caixa"); if (!K || !cx || !P) return true;
-    K.tocados = K.tocados || {}; if (forcar) K.tocados[tipo] = true;
-    var v = K.validos[tipo];
-    if (!K.tocados[tipo] || v === undefined) { P.marcar(cx, "", ""); return v !== false; }
-    P.marcar(cx, v ? "ok" : "erro", v ? "" : K_FRASE[tipo]);
-    return Boolean(v);
-  }
-  function mostrarBandeira(m) {
-    var b = $("mc-k-band"); if (!b) return;
-    if (!m) { b.innerHTML = ic("credit_card"); return; }
-    var nossa = /^(master|visa|elo|amex|hipercard)$/.test(m.id);
-    b.innerHTML = '<span class="mc-k-surge">' + (nossa ? bandeira(m.id) : m.secure_thumbnail ? '<img class="mc-k-thumb" src="' + esc(m.secure_thumbnail) + '" alt="' + esc(m.name || m.id) + '">' : bandeira(m.name || m.id)) + "</span>";
-  }
-  function desmontarCartao() {
-    var K = S.cartao; if (!K || !K.campos) return;
-    Object.keys(K.campos).forEach(function (k) { try { K.campos[k].unmount(); } catch (e) { /* ja saiu */ } });
-    K.campos = null;
-  }
-  function montarCampos() {
-    var K = S.cartao, mp = K.mp, estilo = estiloDosCampos();
-    K.validos = {}; K.metodo = ""; K.bin = ""; mostrarBandeira(null);
-    var cria = function (tipo, id, ph) {
-      var f = mp.fields.create(tipo, { placeholder: ph, style: estilo, customFonts: FONTES }).mount(id);
-      try {
-        f.on("validityChange", function (ev) {
-          K.validos[tipo] = !(ev && ev.errorMessages && ev.errorMessages.length);
-          kPintar(tipo);
-          cartaoOk();
-        });
-        f.on("blur", function () { kPintar(tipo, true); });
-      } catch (e) { /* sem o aviso de validade, o createCardToken confere na hora de salvar */ }
-      return f;
-    };
-    K.campos = {
-      num: cria("cardNumber", "mc-k-num", "0000 0000 0000 0000"),
-      val: cria("expirationDate", "mc-k-val", L("MM/AA", "MM/YY")),
-      cvv: cria("securityCode", "mc-k-cvv", L("3 ou 4 dígitos", "3 or 4 digits")),
-    };
-    // A bandeira pelos primeiros digitos; a assinatura e no cartao de credito (o Mercado Pago recusa debito e pre-pago nela).
-    K.campos.num.on("binChange", function (ev) {
-      var bin = ev && ev.bin;
-      if (!bin) { K.bin = ""; K.metodo = ""; mostrarBandeira(null); cartaoOk(); return; }
-      if (bin === K.bin) return;
-      K.bin = bin;
-      mp.getPaymentMethods({ bin: bin }).then(function (r) {
-        var m = r && r.results && r.results[0];
-        if (K.bin !== bin || !K.campos) return;
-        if (!m) { K.metodo = ""; mostrarBandeira(null); cartaoOk(); return; }
-        mostrarBandeira(m);
-        // Debito ou pre-pago: a borda do numero fica vermelha e o porque continua escrito (nao e erro de digitacao).
-        if (m.payment_type_id !== "credit_card") { K.metodo = ""; K.validos.cardNumber = false; kPintar("cardNumber", true); erroCartao("use um cartão de crédito: a assinatura não aceita cartão de débito nem pré-pago"); cartaoOk(); return; }
-        K.metodo = m.id; erroCartao(""); kPintar("cardNumber");
-        var s = m.settings && m.settings[0];
-        if (s) { try { K.campos.num.update({ settings: s.card_number }); K.campos.cvv.update({ settings: s.security_code }); } catch (e) { /* o SDK valida do jeito dele */ } }
-        cartaoOk();
-      }).catch(function () { /* sem a bandeira, o botao fica parado */ });
-    });
-  }
-  function montarCartao() {
-    var d = S.d;
-    if (!d.mp_public_key) { erroCartao("não dá para trocar o cartão por aqui agora: escreva para contato@paulus.ia.br"); return; }
-    carregarScript(SDK_MP).then(function () {
-      if (S.sub !== "cartao" || typeof window.MercadoPago !== "function") return;
-      S.cartao = { mp: new window.MercadoPago(d.mp_public_key, { locale: "pt-BR" }), campos: null, validos: {} };
-      montarCampos();
-    }).catch(function () { erroCartao("o formulário do cartão não carregou (um bloqueador de anúncios pode ter barrado o Mercado Pago). Recarregue a página para tentar de novo"); });
-  }
-  // O tema mudou com a pagina do cartao aberta: os quadros do Mercado Pago sao montados de novo com as cores novas.
-  new MutationObserver(function () {
-    if (S.sub === "cartao" && S.cartao && S.cartao.campos) { desmontarCartao(); montarCampos(); cartaoOk(); }
-    if (S.d && S.d.entrar) { montarSenha(); }
-  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  // O tema mudou com o entrar aberto: o botao da Conta Atos e montado de novo com as cores novas.
+  new MutationObserver(function () { if (S.d && S.d.entrar) montarSenha(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   /* ------------------------------------------------------------ os pop-ups (o dialogo do Paulus) */
   function dialogo(tit, ctx, corpo, pe) {
     return '<div class="mc-veu" data-a="fechar"></div><div class="mc-dialogo" role="dialog" aria-modal="true" aria-labelledby="mc-dlg-tit"><div class="mc-dlg-cab"><span class="mc-dlg-titulos"><h2 id="mc-dlg-tit">' + esc(tit) + "</h2>" + (ctx ? "<span>" + esc(ctx) + "</span>" : "") + '</span><button type="button" class="btn-icone" data-a="fechar" aria-label="Fechar">' + ic("close") + '</button></div><div class="mc-dlg-corpo">' + corpo + '</div><div class="mc-dlg-pe"><span class="mc-cresce"></span>' + pe + "</div></div>";
   }
-  var MOTIVOS = [["preco", "Está caro para o escritório"], ["uso", "Não estamos usando o bastante"], ["falta", "Falta algo de que precisamos"], ["outro", "Outro motivo"]];
   // Disponibilidade do endereco, conferida enquanto a pessoa digita (espera 350 ms sem tecla para perguntar ao servidor).
   var SLUG_OK = /^[a-z0-9](?:[a-z0-9-]{1,22}[a-z0-9])$/, slugT = null;
   // As frases curtas do Admin (Alterar endereco), com a bolinha da cor do estado.
@@ -598,55 +330,9 @@
     if (msg) { msg.className = "mc-slug-msg " + st.cls; msg.innerHTML = st.msg; }
     endPintar(M, st);
   }
-  function fatos(l) { return '<dl class="mc-fatos">' + l.map(function (x) { return "<div><dt>" + x[0] + "</dt><dd>" + x[1] + "</dd></div>"; }).join("") + "</dl>"; }
-  function dialogoTroca(M, d) {
-    var p = d.planos.filter(function (x) { return x.id === M.id; })[0], a = d.assinatura, O = M.orc, anual = M.periodo === "anual";
-    var cancel = '<button type="button" class="mc-texto" data-a="fechar">Cancelar</button>';
-    var ctx = "Plano · " + (anual ? "anual" : "mensal");
-    if (M.erro) return dialogo("Trocar para o " + p.nome + "?", ctx, "<p>" + esc(cap(M.erro)) + "</p>", '<button type="button" class="mc-texto" data-a="fechar">Fechar</button>');
-    if (!O) return dialogo("Trocar para o " + p.nome + "?", ctx, "<p>Conferindo os valores…</p>", cancel + '<button type="button" class="btn-duplo pequeno" disabled><span>Trocar de plano</span></button>');
-    var hoje = esc(a.nome) + " · " + brl0(a.valor_plano) + (a.periodo === "anual" ? "/ano" : "/mês");
-    if (O.tipo === "anual") {
-      return dialogo("Passar para o " + p.nome + " anual?", ctx,
-        "<p>O ano é pago de uma vez, " + brl(O.valor) + ", na página de pagamento (Pix ou cartão). Quando o pagamento entra, a assinatura mensal sai do Mercado Pago e o ano começa.</p>" +
-        fatos([["Hoje", hoje], ["Novo", esc(p.nome) + " · " + brl0(O.valor) + "/ano"], ["Tokens", tok(p.tokens) + " por mês"]]),
-        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Ir para o pagamento</span></button>');
-    }
-    if (O.tipo === "desfazer") {
-      return dialogo("Ficar no " + p.nome + "?", ctx,
-        "<p>A troca para o " + esc(O.marcado) + ", marcada para " + dt(O.vale_em) + ", sai. A próxima cobrança continua no " + esc(p.nome) + ", " + brl(O.valor) + " por mês.</p>",
-        cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Ficar neste plano</span></button>');
-    }
-    var corpo = O.tipo === "agora"
-      ? (O.diferenca > 0 ? "<p>A troca vale a partir de hoje: a cota deste ciclo cresce na proporção dos dias que faltam. A diferença deste ciclo, " + brl(O.diferenca) + ", entra na próxima cobrança, em " + dt(O.vale_em) + ", que sai por " + brl(O.proxima) + ". Depois, " + brl(O.valor) + " por mês.</p>"
-        : "<p>A troca vale a partir de hoje. A próxima cobrança, em " + dt(O.vale_em) + ", sai por " + brl(O.proxima) + ".</p>")
-      : "<p>O ciclo pago continua no " + esc(a.nome) + " até " + dt(O.vale_em) + ". A partir da próxima cobrança, nessa data, o plano passa a ser o " + esc(p.nome) + ", por " + brl(O.valor) + " por mês.</p>";
-    return dialogo("Trocar para o " + p.nome + "?", ctx,
-      corpo + fatos([["Hoje", hoje], ["Novo", esc(p.nome) + " · " + brl0(O.valor) + "/mês"], ["Tokens", tok(p.tokens) + " por mês"]]),
-      cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarTroca"><span>Trocar de plano</span></button>');
-  }
   function modalHtml() {
     var M = S.modal, d = S.d; if (!M) return "";
     var cancel = '<button type="button" class="mc-texto" data-a="fechar">Cancelar</button>';
-    if (M.tipo === "trocarPlano") return dialogoTroca(M, d);
-    if (M.tipo === "cancelar") {
-      var a = d.assinatura, o = d.oferta_ficar || {};
-      if (M.passo === 1) return dialogo("Por que você quer cancelar?", "Cancelar assinatura",
-        '<div class="mc-opcoes">' + MOTIVOS.map(function (m) { return '<button type="button" class="mc-opcao' + (M.motivo === m[0] ? " on" : "") + '" role="radio" aria-checked="' + (M.motivo === m[0]) + '" data-a="motivo" data-v="' + m[0] + '"><span class="mc-radio"></span><span class="mc-txt"><b>' + m[1] + "</b></span></button>"; }).join("") + "</div>" +
-        '<label class="campo-site"><span>Quer contar mais? (opcional)</span><span class="caixa-campo"><input data-a-in="motivoTexto" maxlength="600" value="' + esc(M.texto || "") + '"></span></label>',
-        cancel + '<button type="button" class="btn-duplo pequeno" data-a="cancelarPasso" data-v="2"' + (M.motivo ? "" : " disabled") + "><span>Continuar</span></button>");
-      if (M.passo === 2) {
-        // A oferta do motivo: preco (e outro) leva o desconto, quando a assinatura mensal no cartao permite; senao, os creditos.
-        var credito = !(M.motivo === "preco" || M.motivo === "outro") || !o.desconto_pode;
-        var pct = Math.round((o.desconto || 0.3) * 100), vezes = o.cobrancas || 2;
-        return dialogo(credito ? "Antes de sair: " + tok(o.creditos) + " de tokens por nossa conta" : "Antes de sair: " + pct + "% a menos por " + vezes + " meses", "Cancelar assinatura",
-          "<p>" + (credito ? "Entram agora no ciclo, sem custo, para você testar o que ainda não usou. O plano continua igual." : "As " + (vezes === 2 ? "duas" : vezes) + " próximas cobranças do " + esc(a.nome) + " saem por " + brl(Math.round(a.valor * (1 - (o.desconto || 0.3)) * 100) / 100) + ". Depois, volta ao preço do plano.") + "</p>",
-          '<button type="button" class="mc-texto perigo" data-a="cancelarPasso" data-v="3">Cancelar mesmo assim</button><button type="button" class="btn-duplo pequeno" data-a="aceitarOferta" data-v="' + (credito ? "creditos" : "desconto") + '"><span>Aceitar a oferta</span></button>');
-      }
-      return dialogo("Cancelar a assinatura?", "Cancelar assinatura",
-        "<p>O " + esc(a.nome) + " fica ativo até <b>" + dt(pagoAte(a)) + "</b>. Depois disso, o Paulus abre só com os arquivos: sem respostas da IA, sem NFS-e e sem os demais serviços. Ao assinar de novo, volta tudo, sem reinstalar.</p>",
-        '<button type="button" class="mc-texto" data-a="cancelarPasso" data-v="' + (o.pode ? 2 : 1) + '">Voltar</button><button type="button" class="mc-perigo" data-a="confirmarCancelar">Cancelar assinatura</button>');
-    }
     if (M.tipo === "endereco") {
       var st = endStatus(M);
       return dialogo("Alterar o endereço", "Escritório",
@@ -659,7 +345,7 @@
     if (M.tipo === "convidar") {
       return dialogo("Convidar para Minha conta", "Pessoas",
         '<label class="campo-site"><span>E-mail da pessoa</span><span class="caixa-campo"><input id="mc-conv" type="email" data-a-in="convEmail" value="' + esc(M.email || "") + '" placeholder="nome@escritorio.com.br" autocomplete="off"></span></label>' +
-        "<p>Entra como <b>financeiro</b>: vê o resumo, o consumo, as faturas e a forma de pagamento. Ela recebe um e-mail com o link, válido por 7 dias.</p>",
+        "<p>Entra como <b>financeiro</b>: vê o resumo e o consumo. Ela recebe um e-mail com o link, válido por 7 dias.</p>",
         cancel + '<button type="button" class="btn-duplo pequeno" data-a="confirmarConvite"><span>Enviar convite</span></button>');
     }
     if (M.tipo === "aviso") return dialogo(M.titulo, M.ctx, "<p>" + esc(M.texto) + "</p>", cancel + '<a class="btn-duplo pequeno" href="' + esc(M.link) + '"><span>' + esc(M.botao) + "</span></a>");
@@ -672,10 +358,10 @@
     var r = $("mc-raiz"); if (!r) return;
     if (!S.d) { r.innerHTML = '<div class="mc-carregando">Carregando…</div>'; return; }
     if (S.d.entrar) { r.innerHTML = entrarHtml(); montarSenha(); renderModal(); return; }
-    if (S.sub === "cartao") { r.innerHTML = cartaoHtml(S.d); renderModal(); montarCartao(); return; }
     var lista = abas(); if (!lista.some(function (a) { return a[0] === S.aba; })) S.aba = "resumo";
     var a = S.d.assinatura;
-    var h = '<div class="mc-col"><header class="mc-cab"><h1>Minha conta</h1><p class="texto-lead">' + esc(S.d.cadastro.nome) + " · plano " + esc(a.nome) + " · " + esc(S.d.perfil.email) + (titular() ? "" : " (financeiro)") +
+    var semPlano = a.situacao === "nenhuma" || a.situacao === "vencida";
+    var h = '<div class="mc-col"><header class="mc-cab"><h1>Minha conta</h1><p class="texto-lead">' + esc(S.d.cadastro.nome) + (semPlano ? " · sem assinatura" : " · plano " + esc(a.nome)) + " · " + esc(S.d.perfil.email) + (titular() ? "" : " (financeiro)") +
       ' <button type="button" class="mc-sair" data-a="sair">Sair</button></p></header>' +
       '<div class="mc-centro">' + pilula("aba", lista, S.aba) + "</div>" +
       '<div class="mc-tela" data-tela="' + S.aba + '">' + TELAS[S.aba](S.d) + "</div></div>";
@@ -711,104 +397,6 @@
   function recarregar() { return api("GET", "/api/conta").then(function (d) { S.d = d; render(); }).catch(function () { location.reload(); }); }
   var A = {
     fechar: function () { S.modal = null; renderModal(); },
-    recarga: function () { SEGS.aba("pagamento"); render(); },
-    pacote: function (el) { S.recarga = el.dataset.v; render(); },
-    gerarPix: function (el) {
-      var pac = (S.d.recarga.pacotes || []).filter(function (x) { return x.id === S.recarga; })[0] || (S.d.recarga.pacotes || [])[0]; if (!pac) return;
-      el.disabled = true;
-      api("POST", "/api/conta/recarga", { pacote: pac.id }).then(function (j) { S.pix = { valor: j.valor, tokens: j.tokens, copia: j.copia, qr: j.qr_code_base64 || "" }; render(); })
-        .catch(function (e) { el.disabled = false; toast(e.message, true); });
-    },
-    pixCancelar: function () { S.pix = null; render(); },
-    copiarPix: function () {
-      var feito = function () { toast("Código do Pix copiado"); }, falhou = function () { toast("Copie o código no campo", true); };
-      try { navigator.clipboard.writeText(S.pix.copia).then(feito, falhou); } catch (e) { falhou(); }
-    },
-    formaPag: function (el) {
-      var v = el.dataset.v, p = S.d.pagamento; if (p.tipo === v) return;
-      if (v === "pix") {
-        // Passar para o Pix tira a assinatura do cartao no Mercado Pago: confirma antes.
-        S.modal = { tipo: "confirmar", leve: true, titulo: "Pagar todo mês no Pix?", ctx: "Forma de pagamento", botao: "Passar para o Pix",
-          texto: "A assinatura no cartão sai do Mercado Pago, e o mês já pago vale até " + dt(S.d.assinatura.ciclo.ate) + ". Três dias antes de cada mês novo, o Pix (QR e copia e cola) chega em " + esc(S.d.cadastro.email_cobranca || S.d.perfil.email) + ". Para voltar ao cartão, é pela página de pagamento, quando o mês pago vencer.",
-          fazer: function () { return api("POST", "/api/conta/forma", { tipo: "pix" }).then(function () { toast("As próximas cobranças saem no Pix"); return recarregar(); }); } };
-        renderModal(); return;
-      }
-      api("POST", "/api/conta/forma", { tipo: "cartao" }).then(function () { recarregar(); }).catch(function (e) {
-        if (e.dados && e.dados.proximo) { S.modal = { tipo: "aviso", titulo: "Voltar ao cartão", ctx: "Forma de pagamento", texto: cap(e.message) + ".", botao: "Ir para o pagamento", link: e.dados.proximo }; renderModal(); return; }
-        toast(e.message, true);
-      });
-    },
-    trocarCartao: function () { if (P) P.esquecer("mc-k-"); S.sub = "cartao"; S.cartao = null; S.erroCartao = ""; S.modal = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#cartao"); } catch (e) {} render(); },
-    cartaoVoltar: function () { desmontarCartao(); S.sub = null; S.cartao = null; S.erroCartao = ""; S.aba = "pagamento"; window.scrollTo(0, 0); try { history.replaceState(null, "", "#pagamento"); } catch (e) {} render(); },
-    cartaoSalvar: function (el) {
-      var K = S.cartao; if (!K || !K.mp) return;
-      if (!cartaoValido()) {
-        // Marca todos os errados: os quadros do Mercado Pago, o nome e o documento; o foco vai ao primeiro campo nosso errado.
-        // Sem a bandeira lida (numero vazio ou incompleto), o numero conta como errado.
-        if (!K.metodo) K.validos.cardNumber = false;
-        var quadrosOk = ["cardNumber", "expirationDate", "securityCode"].map(function (t) { return kPintar(t, true); }).every(Boolean);
-        if (P) P.conferir(["mc-k-nome", "mc-k-doc"], { semFoco: !quadrosOk });
-        return;
-      }
-      var nome = $("mc-k-nome").value.trim(), doc = $("mc-k-doc").value.replace(/\D/g, "");
-      K.salvando = true; el.disabled = true; erroCartao("");
-      K.mp.fields.createCardToken({ cardholderName: nome, identificationType: doc.length === 14 ? "CNPJ" : "CPF", identificationNumber: doc })
-        .then(function (t) {
-          if (!t || !t.id) throw new Error("");
-          return api("POST", "/api/conta/cartao", { token: t.id, metodo: K.metodo });
-        })
-        .then(function (j) {
-          S.d.pagamento.cartao = j.cartao; S.d.pagamento.tipo = "cartao";
-          var fim = j.cartao && j.cartao.final; A.cartaoVoltar(); toast(fim ? "Cartão trocado. As próximas cobranças saem no final " + fim : "Cartão trocado");
-        })
-        .catch(function (e) {
-          K.salvando = false; cartaoOk();
-          if (e && e.status) { if (!erroDeCampo(e, [[/CPF ou CNPJ do titular/, "mc-k-doc"]])) erroCartao(e.message); return; }
-          // O Mercado Pago nao gerou o token: cada erro que aponta um quadro pinta esse quadro; sem apontar, o aviso geral.
-          var achou = false, txt = JSON.stringify(e || {});
-          [["cardNumber", /cardNumber|card_number/i], ["expirationDate", /expiration/i], ["securityCode", /securityCode|security_code/i]].forEach(function (x) {
-            if (x[1].test(txt)) { K.validos[x[0]] = false; kPintar(x[0], true); achou = true; }
-          });
-          if (/identification/i.test(txt) && P) { P.servidor("mc-k-doc", L("o CPF ou CNPJ do titular do cartão não confere", "the cardholder's CPF or CNPJ doesn't check out")); achou = true; }
-          if (/cardholder/i.test(txt) && P) { P.servidor("mc-k-nome", L("diga o nome impresso no cartão", "type the name printed on the card")); achou = true; }
-          if (!achou) erroCartao("confira o número, a validade e o código do cartão");
-        });
-    },
-    trocarPlano: function (el) {
-      var M = S.modal = { tipo: "trocarPlano", id: el.dataset.id, periodo: S.anual ? "anual" : "mensal" }; renderModal();
-      api("GET", "/api/conta/plano/orcar?plano=" + encodeURIComponent(M.id) + "&periodo=" + M.periodo).then(function (j) { if (S.modal === M) { M.orc = j; renderModal(); } })
-        .catch(function (e) { if (S.modal === M) { M.erro = e.message; renderModal(); } });
-    },
-    confirmarTroca: function (el) {
-      var M = S.modal, p = S.d.planos.filter(function (x) { return x.id === M.id; })[0]; el.disabled = true;
-      api("POST", "/api/conta/plano", { plano: p.id, periodo: M.periodo }).then(function (j) {
-        if (j.proximo) { location.assign(j.proximo); return; }
-        S.modal = null; toast(j.desfeita ? "A troca marcada saiu: o plano continua o " + S.d.assinatura.nome : j.agora ? "Plano trocado para o " + p.nome : "O " + p.nome + " vale a partir de " + dt(j.vale_em || S.d.assinatura.proxima));
-        return recarregar();
-      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
-    },
-    cancelar: function () { S.modal = { tipo: "cancelar", passo: 1, motivo: null, texto: "" }; renderModal(); },
-    motivo: function (el) { S.modal.motivo = el.dataset.v; renderModal(); },
-    cancelarPasso: function (el) {
-      var v = Number(el.dataset.v);
-      // Sem oferta para ficar (uma a cada 12 meses, e so com a assinatura ativa), o passo 2 e pulado.
-      if (v === 2 && !(S.d.oferta_ficar || {}).pode) v = S.modal.passo === 3 ? 1 : 3;
-      S.modal.passo = v; renderModal();
-    },
-    aceitarOferta: function (el) {
-      var v = el.dataset.v, o = S.d.oferta_ficar; el.disabled = true;
-      api("POST", "/api/conta/oferta", { tipo: v, motivo: S.modal.motivo }).then(function () {
-        S.modal = null; toast(v === "creditos" ? tok(o.creditos) + " de tokens entraram no ciclo" : "As " + (o.cobrancas === 2 ? "duas" : o.cobrancas) + " próximas cobranças saem com " + Math.round(o.desconto * 100) + "% a menos");
-        return recarregar();
-      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
-    },
-    confirmarCancelar: function (el) {
-      var M = S.modal; el.disabled = true;
-      api("POST", "/api/conta/cancelar", { motivo: M.motivo, texto: M.texto }).then(function (j) {
-        S.modal = null; toast("Assinatura cancelada. O plano fica ativo até " + dt(j.ate || pagoAte(S.d.assinatura)));
-        return recarregar();
-      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
-    },
     salvarCadastro: function (el) {
       var v = {}; document.querySelectorAll("[data-cad]").forEach(function (i) { v[i.dataset.cad] = i.value.trim(); });
       if (S.cmun) v.cmun = S.cmun;
@@ -866,33 +454,18 @@
     },
     confirmarSim: function (el) { var M = S.modal; el.disabled = true; M.fazer().then(function () { if (S.modal === M) S.modal = null; render(); }).catch(function (e) { el.disabled = false; toast(e.message, true); }); },
     calMes: function (el) {
-      if (S.calAberto && S.calAberto.alvo === "faturas") { S.mesFat = el.dataset.v; S.calAberto = null; render(); return; }
       S.cicloEsc = el.dataset.v; S.periodo = "outro"; S.calAberto = null; render(); carregarConsumo(el.dataset.v);
     },
-    mesFatAbrir: function () { S.calAberto = S.calAberto ? null : { ano: S.mesFat ? Number(S.mesFat.slice(0, 4)) : new Date().getFullYear(), vista: "meses", alvo: "faturas" }; render(); },
-    mesFatLimpar: function () { S.mesFat = null; S.calAberto = null; render(); },
     calAnoPasso: function (el) { S.calAberto.ano += Number(el.dataset.v) * (S.calAberto.vista === "anos" ? 12 : 1); render(); },
     calVistaAnos: function () { S.calAberto.vista = "anos"; render(); },
     calAno: function (el) { S.calAberto.ano = Number(el.dataset.v); S.calAberto.vista = "meses"; render(); },
-    // O .zip das NFS-e do ano: baixado aqui (fetch) para que um ano sem notas vire um aviso, e nao uma pagina de erro.
-    baixarTudo: function (el) {
-      var ano = el.dataset.v; el.disabled = true;
-      fetch("/api/conta/nfse.zip?ano=" + encodeURIComponent(ano), { credentials: "same-origin" }).then(function (r) {
-        if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.erro || "não foi possível agora"); });
-        return r.blob();
-      }).then(function (b) {
-        var u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = "nfse-pavlvs-" + ano + ".zip"; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(u); }, 4000); el.disabled = false;
-      }).catch(function (e) { el.disabled = false; toast(e.message, true); });
-    },
     entrarComToken: function (credencial) {
       S.erroEntrar = "";
       api("POST", "/api/conta/entrar", { credential: credencial, convite: S.convite || "" }).then(function () { S.convite = ""; S.d = null; render(); carregar(); })
         .catch(function (e) {
-          // Entrou, mas a conta ainda nao assina (e nao veio por convite): vai escolher o plano. O token fica
-          // na aba (a mesma chave do assets/cadastro.js), e o cadastro ja abre com a conta, sem pedir de novo.
+          // Entrou, mas a conta ainda nao assina (e nao veio por convite): vai escolher o plano (o Assinar leva
+          // ao checkout da Atos).
           if (e.dados && e.dados.sem_conta && !S.convite) {
-            try { sessionStorage.setItem("pv-cadastro-token", credencial); } catch (x) { /* o cadastro pede para entrar de novo */ }
             location.assign("/assinatura/");
             return;
           }
@@ -902,7 +475,7 @@
     sair: function () {
       api("POST", "/api/conta/sair", {}).catch(function () { /* o cookie some de qualquer jeito */ }).then(function () {
         try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) { /* nada */ }
-        S.d = { entrar: true }; S.modal = null; S.sub = null; S.aba = "resumo"; S.anual = null; try { history.replaceState(null, "", location.pathname); } catch (e) {} render();
+        S.d = { entrar: true }; S.modal = null; S.aba = "resumo"; S.anual = null; try { history.replaceState(null, "", location.pathname); } catch (e) {} render();
       });
     },
   };
@@ -928,11 +501,9 @@
     });
   }
   var ENTRADAS = {
-    kCampo: function () { cartaoOk(); },
     cep: function (el) { mascarar(el); buscarCep(el); },
     mascarar: mascarar,
     semCmun: function () { S.cmun = ""; },
-    motivoTexto: function (el) { S.modal.texto = el.value; },
     slug: function (el) {
       var v = el.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 24); if (el.value !== v) el.value = v;
       var M = S.modal; M.v = v; clearTimeout(slugT);
@@ -949,8 +520,7 @@
     convEmail: function (el) { S.modal.email = el.value; },
   };
   var SEGS = {
-    aba: function (v) { S.aba = v; S.pix = null; S.calAberto = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#" + v); } catch (e) {} },
-    faturas: function (v) { S.filtroFat = v; S.calAberto = null; },
+    aba: function (v) { S.aba = v; S.calAberto = null; window.scrollTo(0, 0); try { history.replaceState(null, "", "#" + v); } catch (e) {} },
     periodo: function (v) {
       if (v === "outro") { var base = S.cicloEsc ? Number(S.cicloEsc.slice(0, 4)) : new Date((S.d.assinatura.ciclo.de || new Date().toISOString().slice(0, 10)) + "T12:00").getFullYear(); S.calAberto = S.calAberto ? null : { ano: base, vista: "meses", alvo: "consumo" }; return; }
       S.calAberto = null; S.periodo = v; carregarConsumo(v);
@@ -987,7 +557,6 @@
     // O link do convite (#convite=<codigo>): o codigo vai junto ao entrar com o Google, e sai do endereco.
     if (/^convite=[0-9a-f]{48}$/.test(h)) { S.convite = h.slice(8); h = ""; try { history.replaceState(null, "", location.pathname); } catch (e) {} }
     if (op.aba) S.aba = op.aba; else if (h) S.aba = h;
-    if (S.aba === "cartao") { S.aba = "pagamento"; S.sub = "cartao"; }
     // ?entrar=<codigo>: o link que o Paulus abriu ("edite no site", "Fazer upgrade") ja traz a sessao.
     var q = new URLSearchParams(location.search).get("entrar") || "";
     if (/^[0-9a-f]{64}$/.test(q)) {
@@ -999,7 +568,7 @@
     render(); carregar();
   }
   window.MinhaConta = { iniciar: iniciar };
-  // Comeca sozinha: a CSP da pagina (a do cadastro, por causa do cartao) nao deixa script inline.
+  // Comeca sozinha: a CSP da pagina nao deixa script inline.
   if (document.getElementById("mc-raiz")) {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { iniciar(); }); else iniciar();
   }

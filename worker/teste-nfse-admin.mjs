@@ -22,9 +22,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { atenderAdmin } from "./admin.js";
-import { avisoDaIA, ContaIA, devolverPagamento, numeros } from "./ia.js";
+import { ContaIA, numeros } from "./ia.js";
 import { EmissorNFSe, K_DEPOIS } from "./nfse/emissor.js";
-import { depoisPendentes } from "./nfse/api.js";
+import { chamar as chamarEmissor, depoisPendentes, emitirAutomatico } from "./nfse/api.js";
 import { SefinSimulada } from "./nfse/sefin-simulada.js";
 import { lerPfx } from "./nfse/pfx.js";
 import { b64 } from "./nfse/assinatura.js";
@@ -402,11 +402,33 @@ checar(x.dados.email === "enviado" && emails.length === antesEmails + 1 && em.to
 x = await nf("POST", "notas/999/enviar");
 checar(x.status === 404, "enviar nota que não existe: 404");
 
+// O pagamento confirmado entra na fila das notas e, com o auto ligado, a nota sai (o que o aviso do Mercado Pago do
+// PAVLVS fazia antes da Atos; o emissor e o mesmo).
+async function pagamentoConfirmado(p) {
+  const chave = "admin:nfse:" + p.id;
+  if (!(await env.APOIOS.get(chave))) await env.APOIOS.put(chave, JSON.stringify({ ...p, quando: new Date().toISOString(), nota: "pendente" }));
+  await emitirAutomatico(env, p.id);
+}
+// O pagamento devolvido: a nota dele e cancelada (ou vai a analise fiscal), e a fila guarda o que aconteceu.
+async function pagamentoDevolvido(ref, por) {
+  const n = await chamarEmissor(env, "nota_do_reembolso", { pagamento: String(ref), quem: por, texto: "" });
+  const nota = n.status === 200 ? n.dados : { acao: "erro", frase: "a nota não foi cancelada" };
+  const chave = "admin:nfse:" + ref;
+  const nf = JSON.parse((await env.APOIOS.get(chave)) || "null");
+  if (nf) {
+    nf.reembolso = { quando: new Date().toISOString(), por, nota: nota.frase };
+    if (!nf.nota || nf.nota === "pendente") nf.nota = "reembolsado";
+    await env.APOIOS.put(chave, JSON.stringify(nf));
+  }
+  const aviso = ["erro", "cancelamento_recusado", "analise_recusada", "em_andamento"].includes(nota.acao) ? "o dinheiro foi devolvido; " + nota.frase : "";
+  return { nota, aviso };
+}
+
 // ------------------------------------------------------------ 5. automático
 console.log("5. automático no pagamento");
 kv.set("admin:nfse:config", JSON.stringify({ auto: true, email: true, mail: true }));
 const antesAuto = emails.length;
-await avisoDaIA(env, "order", { id: "ORD-ANA", external_reference: "ia-recarga-" + ANA + "-1", status: "processed", total_amount: 50 }, chamarMP);
+await pagamentoConfirmado({ id: "ORD-ANA", conta: ANA, tipo: "recarga pix", valor: 50 });
 const auto = instancia.listar({}).find((n) => n.pagamento === "ORD-ANA");
 checar(auto && auto.estado === "emitida" && auto.centavos === 5000 && auto.conta === ANA && /Recarga/.test(auto.descricao), "o Pix confirmado com o auto ligado emite sozinho (tomador completo)", auto);
 const baseA = ANA + ":nuvem-" + auto.id;
@@ -419,14 +441,14 @@ feitas = await depoisPendentes(env, Date.now() + 2 * 60 * 1000);
 checar(feitas.feitas === 1 && kvJson("nfse:nota:" + baseA).tem_pdf === true && emails.length === antesAuto + 1 && instancia.obter(auto.id).email === "enviado",
   "o Cron de cada minuto faz o PDF e manda o e-mail", { feitas, emails: emails.length - antesAuto, email: instancia.obter(auto.id).email });
 checar((await depoisPendentes(env, Date.now() + 3 * 60 * 1000)).feitas === 0, "sem nota esperando, nada a fazer");
-await avisoDaIA(env, "order", { id: "ORD-BRUNO", external_reference: "ia-recarga-" + BRUNO + "-1", status: "processed", total_amount: 50 }, chamarMP);
+await pagamentoConfirmado({ id: "ORD-BRUNO", conta: BRUNO, tipo: "recarga pix", valor: 50 });
 const pagB = kvJson("admin:nfse:ORD-BRUNO");
 checar(pagB.nota === "pendente" && /emissão automática parada: falta .*CEP/.test(pagB.motivo) && !instancia.listar({}).some((n) => n.pagamento === "ORD-BRUNO"),
   "tomador incompleto: nada é emitido e o motivo fica no pagamento", pagB);
 d = await painel();
 checar(d.pagamentos.some((p) => p.id === "ORD-BRUNO" && /falta/.test(p.motivo)), "a lista de pagamentos sem nota mostra o motivo", d.pagamentos);
 kv.set("admin:nfse:config", JSON.stringify({ auto: false, email: true, mail: false }));
-await avisoDaIA(env, "order", { id: "ORD-ANA-2", external_reference: "ia-recarga-" + ANA + "-2", status: "processed", total_amount: 50 }, chamarMP);
+await pagamentoConfirmado({ id: "ORD-ANA-2", conta: ANA, tipo: "recarga pix", valor: 50 });
 checar(!instancia.listar({}).some((n) => n.pagamento === "ORD-ANA-2") && (await painel()).pagamentos.some((p) => p.id === "ORD-ANA-2"), "com o auto desligado, o pagamento só entra na lista");
 // Emitir pelo pop-up a partir do pagamento: o valor, a descrição e a competência vêm dele.
 x = await nf("POST", "notas", { conta: ANA, pagamento: "ORD-ANA-2", tomador: cAna.tomador });
@@ -444,17 +466,17 @@ checar(x.status === 200 && x.dados.nota.estado === "emitida" && x.dados.nota.cen
   "substituta emitida pelo painel; a original fica substituída", x.dados);
 checar(kvJson("nfse:nota:" + base1).cancelada === true && kvJson("nfse:nota:" + base1).substituta === x.dados.nota.numero, "o app do cliente vê a original cancelada com o número da substituta");
 // O reembolso: a nota do pagamento devolvido sai sozinha.
-let rb = await devolverPagamento(env, chamarMP, ANA, "ORD-ANA-2", { por: "dono@paulus.ia.br" });
+let rb = await pagamentoDevolvido("ORD-ANA-2", "dono@paulus.ia.br");
 const notaRb = instancia.listar({}).find((n) => n.pagamento === "ORD-ANA-2");
 checar(rb.nota.acao === "cancelada" && notaRb.estado === "cancelada" && !rb.aviso && kvJson("admin:nfse:ORD-ANA-2").reembolso,
   "reembolso no prazo do município: a nota do pagamento é cancelada (motivo 9, o texto da desistência)", { nota: rb.nota, estado: notaRb.estado });
 const evRb = instancia.todos("SELECT tipo, motivo, texto FROM eventos WHERE nota_id = ? ORDER BY id DESC", notaRb.id)[0];
 checar(evRb.tipo === "101101" && evRb.motivo === "9" && /arrependimento/.test(evRb.texto), "o evento de cancelamento com o motivo 9 e o texto", evRb);
-await avisoDaIA(env, "order", { id: "ORD-ANA-3", external_reference: "ia-recarga-" + ANA + "-3", status: "processed", total_amount: 50 }, chamarMP);
+await pagamentoConfirmado({ id: "ORD-ANA-3", conta: ANA, tipo: "recarga pix", valor: 50 });
 x = await nf("POST", "notas", { conta: ANA, pagamento: "ORD-ANA-3", tomador: cAna.tomador });
 const notaFora = x.dados;
 sim.usar("fora_do_prazo");
-rb = await devolverPagamento(env, chamarMP, ANA, "ORD-ANA-3", { por: "dono@paulus.ia.br" });
+rb = await pagamentoDevolvido("ORD-ANA-3", "dono@paulus.ia.br");
 sim.usar("sucesso");
 const evFora = instancia.todos("SELECT tipo, estado FROM eventos WHERE nota_id = ? ORDER BY id", notaFora.id);
 checar(rb.nota.acao === "analise_fiscal" && instancia.obter(notaFora.id).estado === "emitida" && evFora.some((e) => e.tipo === "101103" && e.estado === "registrado"),

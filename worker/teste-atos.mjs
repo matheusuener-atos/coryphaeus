@@ -184,43 +184,25 @@ console.log("a devolução encurta o direito");
   checar(!s.plano_vigente && s.ciclo.fim === iso(relogio), "a Atos devolveu: o ciclo acaba agora", s.ciclo);
 }
 
-console.log("quem já pagava o PAVLVS passa para a Atos");
+console.log("o que o caminho antigo deixou numa conta");
 {
-  // Uma assinatura mensal do Mercado Pago do PAVLVS, autorizada, com o ciclo aberto.
+  // Uma conta com o que o Mercado Pago do PAVLVS anotava antes de 10/10/2026 (a assinatura autorizada, o ciclo
+  // aberto na autorização do cartão, um Pix pendente): nao da plano, e sai quando a Atos chega.
   const id = await idDe("pv-dani");
-  const conta = medidor(env, id);
-  await conta.pedir("abrir", { id, dono: { sub: "pv-dani", email: "dani@x.br" } });
-  await conta.pedir("assinatura", { plano: "plus", assinatura: { id: "pre-antiga", situacao: "authorized", valor: 3490 } });
-  const fimAntigo = (await conta.pedir("resumo")).ciclo.fim;
-  mpFalha = true;
-  const ev = evento("direito.atualizado", "pv-dani", retrato(1, { plano: "plus", ate: iso(relogio + 365 * DIA), periodo: "ano" }));
-  const req = pedido(ev);
-  const recusou = await atenderAtos(req, env, new URL(req.url), deps).then(() => false, () => true);
-  checar(recusou, "o Mercado Pago do PAVLVS fora: o evento falha (500 no Worker) e a Atos manda de novo");
-  mpFalha = false;
-  let r = await entregar(ev);
+  await medidor(env, id).pedir("abrir", { id, dono: { sub: "pv-dani", email: "dani@x.br" } });
+  const o = objeto(id);
+  const velha = o.dados.get("conta");
+  Object.assign(velha, { plano: "escritorio", periodo: "mensal", assinatura: { id: "pre-antiga", situacao: "authorized", valor: 1290 },
+    ciclo: { inicio: iso(relogio), fim: iso(relogio + 30 * DIA), tokens: 60000000, usados: 0, origem: "assinatura", semana: 14000000, por_semana: {} },
+    anual_pendente: { ref: "ia-mes-x", plano: "escritorio", valor: 1290, meses: 1 }, cartao: { final: "4242" }, forma: { tipo: "cartao" } });
+  o.dados.set("conta", velha);
+  const s0 = await resumoDe("pv-dani");
+  checar(!s0.plano_vigente && s0.tokens.restantes === 0 && s0.cobrador === "pavlvs", "o caminho antigo não dá plano: sem plano e sem tokens", { v: s0.plano_vigente, t: s0.tokens });
+  const r = await entregar(evento("direito.atualizado", "pv-dani", retrato(1, { plano: "plus", ate: iso(relogio + 365 * DIA), periodo: "ano", pago_por: "compra" })));
   const c = await contaDe("pv-dani");
-  const cancel = mpChamadas.filter((x) => x.caminho === "/preapproval/pre-antiga" && x.metodo === "PUT" && x.corpo.status === "cancelled");
-  checar(r.status === 200 && cancel.length >= 2 && c.mensal_cancelado && c.mensal_cancelado.id === "pre-antiga",
-    "na entrega seguinte, a assinatura antiga sai no Mercado Pago do PAVLVS", { status: r.status, cancel: cancel.length, mc: c.mensal_cancelado });
-  const s = await resumoDe("pv-dani");
-  checar(s.cobrador === "atos" && s.plano.id === "plus" && s.periodo === "anual" && Date.parse(s.pago_ate) > Date.parse(fimAntigo), "e o plano passa a ser o da Atos", s.pago_ate);
-  const antes = mpChamadas.length;
-  r = await entregar(ev);
-  checar(r.d.aplicado === false && mpChamadas.length === antes, "repetido depois de cancelada: não chama o Mercado Pago de novo");
-  await conta.pedir("assinatura", { assinatura: { id: "pre-antiga", situacao: "cancelled" } });
-  checar((await resumoDe("pv-dani")).assinatura.id.startsWith("atos-"), "o aviso da assinatura antiga cancelada não mexe na conta da Atos");
-}
-{
-  // O anual pago no PAVLVS: o tempo que falta fica.
-  const id = await idDe("pv-eli");
-  const conta = medidor(env, id);
-  await conta.pedir("abrir", { id, dono: { sub: "pv-eli", email: "eli@x.br" } });
-  await conta.pedir("anual_pago", { plano: "advogado", pagamento: "pg-1", valor: 3990, meses: 12 });
-  const pagoAntes = (await conta.pedir("resumo")).pago_ate;
-  await entregar(evento("direito.atualizado", "pv-eli", retrato(1, { plano: "advogado", ate: iso(relogio + 30 * DIA), periodo: "mes" })));
-  const s = await resumoDe("pv-eli");
-  checar(s.cobrador === "atos" && s.pago_ate === pagoAntes && s.plano_vigente, "o ano já pago no PAVLVS não se perde ao passar para a Atos", { antes: pagoAntes, depois: s.pago_ate });
+  checar(r.status === 200 && c.cobrador === "atos" && !c.anual_pendente && !c.cartao && !c.forma && c.ciclo.origem === "atos" && c.ciclo.tokens === 40000000,
+    "a Atos chega: a conta passa a ser dela, o que era do caminho antigo sai e o ciclo é o do plano pago", { ciclo: c.ciclo, cobrador: c.cobrador });
+  checar(mpChamadas.length === 0, "e nada vai ao Mercado Pago do PAVLVS");
 }
 
 console.log("as rotas de dinheiro do PAVLVS não servem a conta da Atos");
@@ -276,58 +258,52 @@ console.log("a reserva: o evento que se perdeu");
   checar(chamadas.length === 3 && !(await c2.pedir("resumo")).plano_vigente, "passados 10 minutos, pergunta de novo");
 }
 
-console.log("as vendas pela Atos (COBRANCA_PELA_ATOS)");
+console.log("as vendas são pela Atos");
 {
-  const envVenda = { ...env, COBRANCA_PELA_ATOS: "1", ASSETS: { fetch: async () => new Response("site", { status: 200 }) } };
+  const envSite = { ...env, ASSETS: { fetch: async () => new Response("site", { status: 200 }) } };
   const donos = { "tk-novo": { sub: "pv-kim", email: "kim@x.br" } };
-  const mpAntes = mpChamadas.length;
   const depsV = { chamarMP, donoDoToken: async (e, t) => donos[t] || null };
-  const ia = async (e, metodo, caminho, corpo, segredo) => {
+  const ia = async (metodo, caminho, corpo, segredo) => {
     const headers = { "content-type": "application/json" };
     if (segredo) headers.authorization = "Bearer " + segredo;
     const req = new Request("https://paulus.ia.br" + caminho, { method: metodo, headers, body: corpo ? JSON.stringify(corpo) : undefined });
-    const r = await atenderIA(req, e, new URL(req.url), { waitUntil() {} }, depsV);
+    const r = await atenderIA(req, envSite, new URL(req.url), { waitUntil() {} }, depsV);
     return { status: r.status, d: await r.json() };
   };
   const ATOS_CK = "https://atos.dev.br/pavlvs/assinar/?preco=";
-  let r = await ia(envVenda, "POST", "/api/ia/site/pagar", { id_token: "tk-novo", plano: "plus", periodo: "anual", meio: "pix" });
+  let r = await ia("POST", "/api/ia/site/pagar", { id_token: "tk-novo", plano: "plus", periodo: "anual", meio: "pix" });
   checar(r.status === 409 && r.d.codigo === "cobranca_na_atos" && r.d.proximo.startsWith(ATOS_CK + "pavlvs.plus.ano"),
     "conta nova pagando pelo caminho antigo: 409, com o checkout da Atos no mesmo plano e período", r.d);
-  r = await ia(envVenda, "POST", "/api/ia/site/pagar-fora", { id_token: "tk-novo", plano: "advogado" });
+  r = await ia("POST", "/api/ia/site/pagar-fora", { id_token: "tk-novo", plano: "advogado" });
   checar(r.status === 409 && r.d.proximo.startsWith(ATOS_CK + "pavlvs.advogado.mes"), "o pagar-fora também", r.status);
-  const at = await ia(envVenda, "POST", "/api/ia/ativar", { id_token: "tk-novo", instalacao_id: "inst-kim-0001" });
-  r = await ia(envVenda, "POST", "/api/ia/assinar", { plano: "escritorio", periodo: "anual" }, at.d.segredo);
+  const at = await ia("POST", "/api/ia/ativar", { id_token: "tk-novo", instalacao_id: "inst-kim-0001" });
+  r = await ia("POST", "/api/ia/assinar", { plano: "escritorio", periodo: "anual" }, at.d.segredo);
   checar(r.status === 200 && r.d.link === ATOS_CK + "pavlvs.escritorio.ano&volta=" + encodeURIComponent("https://paulus.ia.br/"),
     "o 'Fazer upgrade' do PAULUS instalado abre o checkout da Atos", r.d);
-  r = await ia(envVenda, "POST", "/api/ia/recarga", { pacote: "1" }, at.d.segredo);
+  r = await ia("POST", "/api/ia/recarga", { pacote: "1" }, at.d.segredo);
   checar(r.status === 409 && r.d.codigo === "cobranca_na_atos", "a recarga pelo caminho antigo: 409", r.status);
-  r = await ia(envVenda, "POST", "/api/ia/site/cadastro", { id_token: "tk-novo", nome_escritorio: "Kim Advocacia", documento: "529.982.247-25", telefone: "(91) 98888-7777",
+  r = await ia("POST", "/api/ia/site/cadastro", { id_token: "tk-novo", nome_escritorio: "Kim Advocacia", documento: "529.982.247-25", telefone: "(91) 98888-7777",
     oab: "OAB/PA 1", aceite: true, plano: "plus", periodo: "mensal",
     endereco: { cep: "66010-000", logradouro: "Av. P", numero: "1", complemento: "", bairro: "C", cidade: "Belém", uf: "PA", cmun: "1501402" } });
   checar(r.status === 200 && String(r.d.proximo).startsWith(ATOS_CK + "pavlvs.plus.mes"), "o cadastro com plano segue para o checkout da Atos", r.d.proximo);
-  checar(mpChamadas.length === mpAntes, "e o Mercado Pago do PAVLVS não foi chamado");
-  const w = await worker.fetch(new Request("https://paulus.ia.br/cadastro/pagamento/?plano=advogado&periodo=anual"), envVenda, { waitUntil() {} });
-  checar(w.status === 302 && w.headers.get("location").startsWith(ATOS_CK + "pavlvs.advogado.ano"), "/cadastro/pagamento leva ao checkout da Atos (302)", w.headers.get("location"));
-  const w2 = await worker.fetch(new Request("https://paulus.ia.br/cadastro/"), { ...envVenda, COBRANCA_PELA_ATOS: "" }, { waitUntil() {} });
-  checar(w2.status !== 302, "sem a chave, o cadastro antigo continua (para abrir só quando a Atos abrir)", w2.status);
-  const sem = await ia(env, "POST", "/api/ia/assinar", { plano: "escritorio" }, at.d.segredo);
-  checar(String(sem.d.link || "").startsWith("https://paulus.ia.br/cadastro/pagamento/"), "e sem a chave, o link é o antigo", sem.d);
+  checar(mpChamadas.length === 0, "e o Mercado Pago do PAVLVS não foi chamado");
+  for (const caminho of ["/cadastro/", "/cadastro/pagamento/?plano=advogado&periodo=anual"]) {
+    const w = await worker.fetch(new Request("https://paulus.ia.br" + caminho), envSite, { waitUntil() {} });
+    checar(w.status === 302 && w.headers.get("location").startsWith(ATOS_CK), caminho + " leva ao checkout da Atos (302)", w.headers.get("location"));
+  }
+  const av = await worker.fetch(new Request("https://paulus.ia.br/api/mp/aviso?data.id=1&type=order", { method: "POST", body: "{}" }), envSite, { waitUntil() {} });
+  checar(av.status === 200 && (await av.json()).ignorado, "o webhook do Mercado Pago de antes responde 200 e não faz nada");
 }
 
 console.log("só a Atos (ou a cortesia) dá plano");
 {
-  // O caso de 10/10: a assinatura do caminho antigo autorizada, o ciclo aberto, e nenhum pagamento.
-  const envSo = { ...env, COBRANCA_PELA_ATOS: "1" };
-  const id = await idDe("pv-leo");
-  await medidor(env, id).pedir("abrir", { id, dono: { sub: "pv-leo", email: "leo@x.br" } });
-  await medidor(env, id).pedir("assinatura", { plano: "escritorio", assinatura: { id: "pre-sem-pagamento", situacao: "authorized", valor: 1290 } });
-  checar((await medidor(env, id).pedir("resumo")).plano_vigente, "(sem a chave, o caminho antigo ainda dava o plano na autorização do cartão)");
-  const s = await medidor(envSo, id).pedir("resumo");
-  checar(!s.plano_vigente && s.tokens.restantes === 0, "com a cobrança pela Atos, o que o caminho antigo deixou ativo não vale: sem plano e sem tokens", { v: s.plano_vigente, t: s.tokens });
   const idC = await idDe("pv-cortesia");
-  await medidor(envSo, idC).pedir("abrir", { id: idC, dono: { sub: "pv-cortesia", email: "c@x.br" }, cortesia: true });
-  checar((await medidor(envSo, idC).pedir("resumo")).plano_vigente, "a cortesia continua valendo");
-  checar((await medidor(envSo, await idDe("pv-ana")).pedir("resumo")).plano_vigente, "e quem pagou na Atos também");
+  await medidor(env, idC).pedir("abrir", { id: idC, dono: { sub: "pv-cortesia", email: "c@x.br" }, cortesia: true });
+  checar((await medidor(env, idC).pedir("resumo")).plano_vigente, "a cortesia tem o plano");
+  checar((await medidor(env, await idDe("pv-ana")).pedir("resumo")).plano_vigente, "quem pagou na Atos também");
+  const idN = await idDe("pv-nada");
+  await medidor(env, idN).pedir("abrir", { id: idN, dono: { sub: "pv-nada", email: "n@x.br" } });
+  checar(!(await medidor(env, idN).pedir("resumo")).plano_vigente, "e quem não pagou, não");
 }
 
 console.log("pelo Worker inteiro");

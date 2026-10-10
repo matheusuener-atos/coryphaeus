@@ -4,7 +4,7 @@
 // com a mesma classe, sobre um Map.
 import { createHmac } from "node:crypto";
 import worker from "./index.js";
-import { atenderIA, ContaIA, usoDoFim } from "./ia.js";
+import { atenderIA, ContaIA, medidor, usoDoFim } from "./ia.js";
 
 let falhas = 0;
 const checar = (ok, descricao, detalhe) => {
@@ -219,6 +219,17 @@ const cartao = (token = "tokaprovado00000000001", extra = {}) => ({ token, payme
 const CADASTRO = { nome_escritorio: "Moura Advogados", documento: "529.982.247-25", telefone: "(91) 98888-7777", oab: "OAB/PA 12.345", aceite: true,
   endereco: { cep: "66.010-000", logradouro: "Av. Presidente Vargas", numero: "100", complemento: "", bairro: "Campina", cidade: "Belém", uf: "PA", cmun: "1501402" } };
 
+// O plano vem da Atos (worker/atos.js): o retrato do direito, aplicado no medidor da conta.
+let versaoAtos = 0;
+async function daAtos(idConta, retrato) {
+  return medidor(env, idConta).pedir("atos_direito", { id: idConta, retrato: { versao: ++versaoAtos, metadados: null, periodo: "mes", pago_por: "assinatura", ...retrato } });
+}
+async function creditoDaAtos(idConta, origem, tokens, centavos) {
+  return medidor(env, idConta).pedir("atos_credito", { id: idConta, credito: { origem, centavos, metadados: { tokens } } });
+}
+const idDoSegredo = (seg) => seg.slice(4, 28);
+const emDias = (n) => new Date(relogio + n * 864e5).toISOString();
+
 // ------------------------------------------------ desligada
 {
   const r = await atenderIA(new Request("https://paulus.ia.br/api/ia/conta"), { ...env, IA_ATIVA: "0" }, new URL("https://paulus.ia.br/api/ia/conta"), ctx, deps);
@@ -259,49 +270,24 @@ const pergunta = { model: "meta-llama/Llama-3.3-70B-Instruct", messages: [{ role
   checar(deepinfra.length === 0, "nenhum pedido chegou ao DeepInfra");
 }
 
-// ------------------------------------------------ assinar
-let preId;
+// ------------------------------------------------ assinar (é na Atos)
 {
   const r = await ia("POST", "/api/ia/assinar", { plano: "escritorio" }, segredo);
   const d = await corpoDe(r);
-  checar(r.status === 200 && d.link === "https://paulus.ia.br/cadastro/pagamento/?plano=escritorio&periodo=mensal" && !mpPedidos.some((p) => p.caminho === "/preapproval"),
-    "o PAULUS instalado abre a página de pagamento do site; nada é criado no Mercado Pago", d);
-  const pagar = (corpo) => ia("POST", "/api/ia/site/pagar", { id_token: "token-do-dono", plano: "escritorio", periodo: "mensal", cartao: cartao(), ...corpo });
-  checar((await pagar({})).status === 409, "sem os dados do escritório, não cobra");
-  const cad = await corpoDe(await ia("POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "token-do-dono", plano: "escritorio" }));
-  checar(cad.proximo === "https://paulus.ia.br/cadastro/pagamento/?plano=escritorio&periodo=mensal" && cad.cadastro, "o cadastro com o plano leva à página de pagamento", cad);
-  const of = await corpoDe(await ia("POST", "/api/ia/site/oferta", { id_token: "token-do-dono", plano: "escritorio", periodo: "mensal" }));
-  checar(of.valor === 300 && of.parcelas_max === 1 && of.email === "dono@escritorio.com.br" && of.cadastro_completo, "a oferta: o valor e as parcelas vêm do servidor", of);
-  checar((await pagar({ cartao: cartao(undefined, { installments: 3 }) })).status === 400, "a assinatura mensal é sem parcelas");
-  checar((await pagar({ cartao: cartao("12") })).status === 400, "token que não parece do bloco é recusado");
-  checar((await pagar({ cartao: cartao(undefined, { payer: { identification: { type: "CPF", number: "111.111.111-11" } } }) })).status === 400,
-    "o CPF do titular do cartão é conferido");
-  const ruim = await pagar({ cartao: cartao("tokrecusa000000000001") });
-  checar(ruim.status === 402 && (await corpoDe(ruim)).erro.includes("não aceitou o cartão"), "cartão recusado na assinatura: 402, com a frase");
-  const r2 = await pagar({});
-  const d2 = await corpoDe(r2);
-  const criado = mpPedidos.filter((p) => p.caminho === "/preapproval" && p.metodo === "POST").at(-1).corpo;
-  preId = [...mpPreapprovals.keys()].at(-1);
-  checar(r2.status === 200 && d2.situacao === "authorized" && criado.status === "authorized" && criado.card_token_id === "tokaprovado00000000001"
-    && criado.auto_recurring.transaction_amount === 300 && /^ia-assinatura-[0-9a-f]{24}$/.test(criado.external_reference)
-    && criado.payer_email === "dono@escritorio.com.br" && criado.init_point === undefined,
-    "o token do cartão vira a assinatura autorizada de R$ 300/mês (o valor é o do servidor, e não o do bloco)", criado);
-  checar(d2.conta.plano_vigente, "e o plano vale na hora, sem esperar o aviso");
-  checar((await pagar({ cartao: cartao("tokaprovado00000000009") })).status === 409, "com a assinatura ativa, não cobra de novo");
-  // O aviso do Mercado Pago chega pelo Worker inteiro e não muda nada.
-  const av = await worker.fetch(aviso(preId, "subscription_preapproval"), env, ctx);
-  await Promise.all(pendentes.splice(0));
-  checar(av.status === 200, "o aviso da assinatura é aceito");
+  checar(r.status === 200 && d.link === "https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.escritorio.mes&volta=" + encodeURIComponent("https://paulus.ia.br/") && mpPedidos.length === 0,
+    "o 'Fazer upgrade' do PAULUS abre o checkout da Atos; nada vai ao Mercado Pago daqui", d);
+  const anual = await corpoDe(await ia("POST", "/api/ia/assinar", { plano: "plus", periodo: "anual" }, segredo));
+  checar(anual.link.includes("preco=pavlvs.plus.ano"), "no plano e no período pedidos", anual.link);
+  const pagar = await ia("POST", "/api/ia/site/pagar", { id_token: "token-do-dono", plano: "escritorio", periodo: "mensal" });
+  const dp = await corpoDe(pagar);
+  checar(pagar.status === 409 && dp.codigo === "cobranca_na_atos" && dp.proximo.startsWith("https://atos.dev.br/pavlvs/assinar/"), "pagar pelo caminho antigo: 409, para a Atos", dp);
+  // A Atos avisa que a mensalidade foi paga: o plano entra.
+  const c0 = await daAtos(idDoSegredo(segredo), { plano: "escritorio", ate: emDias(30), assinatura: { id: "atos-a-1", status: "authorized", proxima: emDias(30), preco: "pavlvs.escritorio.mes" } });
+  checar(c0.plano_vigente && c0.cobrador === "atos", "o aviso da Atos dá o plano", c0);
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
   checar(c.plano_vigente && c.tokens.do_mes === 30000 && c.tokens.restantes === 7000 && c.assinatura.situacao === "authorized",
-    "assinatura ativa abre o ciclo com a cota do plano; a da semana é 7/30 dela", c.tokens);
-  checar(soAdminSemPessoa(), "a assinatura da nuvem só grava no KV APOIOS o que é do painel, sem dado pessoal", [...guardados.keys()]);
-  // A primeira cobrança (logo depois) só confirma o ciclo aberto.
-  await worker.fetch(aviso("cob-1", "subscription_authorized_payment"), env, ctx);
-  await Promise.all(pendentes.splice(0));
-  const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c2.ciclo.inicio === c.ciclo.inicio && c2.tokens.restantes === 7000, "a primeira cobrança não abre um segundo ciclo", c2.ciclo);
-  checar(soAdminSemPessoa() && [...guardados.keys()].includes("admin:nfse:cob-1"), "a cobrança do plano entra na fila de notas fiscais, sem dado pessoal", [...guardados.keys()]);
+    "o plano pago abre o ciclo com a cota do plano; a da semana é 7/30 dela", c.tokens);
+  checar(soAdminSemPessoa(), "o plano da Atos só grava no KV APOIOS o que é do painel, sem dado pessoal", [...guardados.keys()]);
 }
 
 // ------------------------------------------------ chamar
@@ -361,27 +347,18 @@ let preId;
   checar(c.tokens.restantes > 200, "(antes havia mais)");
 }
 
-// ------------------------------------------------ recarga
+// ------------------------------------------------ recarga (é na Atos)
 {
   const r = await ia("POST", "/api/ia/recarga", {}, segredo);
   const d = await corpoDe(r);
-  checar(mpPedidos.filter((p) => p.caminho === "/v1/orders").pop().corpo.payer.email === "dono@escritorio.com.br", "sem e-mail no pedido, vai o da conta Google");
-  checar(r.status === 200 && d.qr_code === "000201pix" && d.tokens === 5000 && d.valor === "50.00", "a recarga é um Pix de R$ 50 com o QR", d);
-  const pend = await corpoDe(await ia("GET", "/api/ia/recarga/" + d.id, null, segredo));
-  checar(pend.pago === false, "antes de pagar, nada entra");
-  mpOrders.get(d.id).status = "processed";
-  // O aviso do Pix pago, pelo Worker inteiro.
-  await worker.fetch(aviso(d.id, "order"), env, ctx);
-  await Promise.all(pendentes.splice(0));
+  checar(r.status === 409 && d.codigo === "cobranca_na_atos", "a recarga pelo caminho antigo: 409, para a Conta Atos", d);
+  checar((await ia("GET", "/api/ia/recarga/ORD1234567", null, segredo)).status === 409, "e a consulta de um Pix antigo também");
+  await creditoDaAtos(idDoSegredo(segredo), "order:R1", 5000, 5000);
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c.tokens.da_recarga === 5000 && c.tokens.restantes === 5200 && c.recargas.length === 1, "o Pix pago põe os tokens da recarga", c.tokens);
-  checar(soAdminSemPessoa() && [...guardados.keys()].includes("admin:nfse:" + d.id), "a recarga entra na fila de notas fiscais, sem dado pessoal", [...guardados.keys()]);
-  // Conferir de novo (o PAULUS pergunta) não credita duas vezes.
-  await ia("GET", "/api/ia/recarga/" + d.id, null, segredo);
-  const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c2.tokens.da_recarga === 5000, "o mesmo Pix não credita duas vezes");
-  // A antiga rota do Pix do apoio saiu.
-  checar((await worker.fetch(new Request("https://paulus.ia.br/api/mp/pix/" + d.id), env, ctx)).status === 404, "a rota do Pix do apoio não existe mais");
+  checar(c.tokens.da_recarga === 5000 && c.tokens.restantes === 5200 && c.recargas.length === 1, "os créditos comprados na Atos entram", c.tokens);
+  await creditoDaAtos(idDoSegredo(segredo), "order:R1", 5000, 5000);
+  checar((await corpoDe(await ia("GET", "/api/ia/conta", null, segredo))).tokens.da_recarga === 5000, "o mesmo pagamento não credita duas vezes");
+  checar((await worker.fetch(new Request("https://paulus.ia.br/api/mp/pix/R1"), env, ctx)).status === 404, "a rota do Pix do apoio não existe mais");
   // Gasta do ciclo e depois da recarga.
   await (await ia("POST", "/api/ia/v1/chat/completions", pergunta, segredo)).text();
   await Promise.all(pendentes.splice(0));
@@ -389,31 +366,29 @@ let preId;
   checar(c3.tokens.do_ciclo === 0 && c3.tokens.da_recarga === 5000 - 1000, "gasta o ciclo primeiro, o resto da recarga", c3.tokens);
 }
 
-// ------------------------------------------------ renovação
+// ------------------------------------------------ renovação (a Atos estende)
 {
   relogio += 31 * 24 * 3600 * 1000;
-  await worker.fetch(aviso("cob-2", "subscription_authorized_payment"), env, ctx);
-  await Promise.all(pendentes.splice(0));
+  await daAtos(idDoSegredo(segredo), { plano: "escritorio", ate: emDias(29), assinatura: { id: "atos-a-1", status: "authorized", proxima: emDias(29), preco: "pavlvs.escritorio.mes" } });
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c.tokens.do_ciclo === 30000 && c.tokens.da_recarga === 4000, "a cobrança do mês seguinte abre o ciclo novo; a recarga continua", c.tokens);
-  await worker.fetch(aviso("cob-2", "subscription_authorized_payment"), env, ctx);
-  await Promise.all(pendentes.splice(0));
-  const c2 = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(c2.ciclo.inicio === c.ciclo.inicio, "o mesmo aviso repetido não abre outro ciclo");
+  checar(c.tokens.do_ciclo === 30000 && c.tokens.da_recarga === 4000, "a mensalidade seguinte paga abre o ciclo novo; a recarga continua", c.tokens);
 }
 
-// ------------------------------------------------ cancelar e vencer
+// ------------------------------------------------ cancelar e vencer (na Atos)
 {
   const r = await ia("POST", "/api/ia/assinatura/cancelar", null, segredo);
-  const d = await corpoDe(r);
-  checar(r.status === 200 && d.assinatura.situacao === "cancelled" && d.plano_vigente, "cancelar: o ciclo pago continua até o fim", d);
+  checar(r.status === 409 && (await corpoDe(r)).proximo === "https://atos.dev.br/conta/", "cancelar pelo caminho antigo: 409, para a Conta Atos");
+  const sit = await corpoDe(await ia("GET", "/api/ia/assinatura", null, segredo));
+  checar(sit.plano_vigente && sit.assinatura.situacao === "authorized", "a situação da assinatura é a do resumo", sit.assinatura);
+  const ate = (await corpoDe(await ia("GET", "/api/ia/conta", null, segredo))).pago_ate;
+  await daAtos(idDoSegredo(segredo), { plano: "escritorio", ate, assinatura: { id: "atos-a-1", status: "canceled", proxima: null, preco: "pavlvs.escritorio.mes" } });
+  const d = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
+  checar(d.assinatura.situacao === "cancelled" && d.plano_vigente, "cancelada na Atos: o mês pago continua até o fim", d.assinatura);
   relogio += 32 * 24 * 3600 * 1000;
   const c = await corpoDe(await ia("GET", "/api/ia/conta", null, segredo));
-  checar(!c.plano_vigente && c.tokens.restantes === 0, "fim do ciclo sem assinatura: nada mais sai", c);
+  checar(!c.plano_vigente && c.tokens.restantes === 0, "fim do mês pago sem assinatura: nada mais sai", c);
   const r2 = await ia("POST", "/api/ia/v1/chat/completions", pergunta, segredo);
   checar(r2.status === 402, "e o portão bloqueia");
-  const r3 = await ia("POST", "/api/ia/recarga", { email: "dono@escritorio.com.br" }, segredo);
-  checar(r3.status === 409, "recarga sem plano em dia é recusada");
 }
 
 // ------------------------------------------------ retirar o sim, sair, cortesia, por minuto
@@ -451,13 +426,13 @@ let preId;
 checar(usoDoFim('data: {"choices":[]}\n\ndata: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3}}\n\ndata: [DONE]').entrada === 7, "lê o uso da última linha");
 checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
 
-// ------------------------------------------------ aviso que não é da nuvem
+// ------------------------------------------------ o aviso do Mercado Pago de antes
 {
-  mpOrders.set("ORDAPOIO1", { id: "ORDAPOIO1", status: "processed", external_reference: "apoio-pix-abc", total_amount: "40.00" });
   const antes = guardados.size;
   const r = await worker.fetch(aviso("ORDAPOIO1", "order"), env, ctx);
   await Promise.all(pendentes.splice(0));
-  checar(r.status === 200 && guardados.size === antes, "o aviso de um Pix que não é da nuvem (o antigo apoio) é aceito e ignorado");
+  checar(r.status === 200 && (await corpoDe(r)).ignorado && guardados.size === antes && mpPedidos.length === 0,
+    "o webhook do Mercado Pago de antes da Atos responde 200 e não faz nada");
 }
 
 // ------------------------------------------------ os planos e o cadastro pelo site
@@ -490,25 +465,21 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar((await erro({ aceite: false })).includes("aceitar"), "sem aceitar os termos, não cadastra");
   checar((await erro({ plano: "ouro" })) === "esse plano não existe", "plano que não existe é recusado");
 
-  const antes = mpPreapprovals.size;
   r = await ia("POST", "/api/ia/site/cadastro", { ...base, plano: "advogado" });
   const assinou = await corpoDe(r);
-  checar(r.status === 200 && assinou.proximo.endsWith("?plano=advogado&periodo=mensal") && mpPreapprovals.size === antes,
-    "o cadastro com o plano Advogado leva ao pagamento, sem criar nada antes do cartão", assinou);
-  await ia("POST", "/api/ia/site/pagar", { id_token: "token-novo", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000003") });
-  const pre = [...mpPreapprovals.values()].at(-1);
-  const pedidoMP = mpPedidos.filter((x) => x.caminho === "/preapproval" && x.metodo === "POST").at(-1).corpo;
-  checar(mpPreapprovals.size === antes + 1 && pre.auto_recurring.transaction_amount === 150 && pedidoMP.back_url === "https://paulus.ia.br/cadastro/"
-    && pedidoMP.payer_email === "nova@advocacia.com.br", "pago no bloco: a assinatura de R$ 150; o recibo vai ao e-mail do Google", pedidoMP);
-
+  checar(r.status === 200 && assinou.proximo.startsWith("https://atos.dev.br/pavlvs/assinar/?preco=pavlvs.advogado.mes") && mpPedidos.length === 0,
+    "o cadastro com o plano Advogado leva ao checkout da Atos", assinou);
   const situacao = await corpoDe(await ia("POST", "/api/ia/site/situacao", { id_token: "token-novo" }));
-  checar(situacao.plano_vigente && situacao.plano.id === "advogado" && situacao.ciclo.tokens === 12000000,
-    "cartão aceito: o plano Advogado vale, com 12 milhões de tokens", { plano: situacao.plano, ciclo: situacao.ciclo });
+  checar(!situacao.plano_vigente, "antes de pagar na Atos, sem plano", situacao.plano_vigente);
   checar(situacao.cadastro && situacao.cadastro.documento === "52998224725" && situacao.cadastro.oab === "PA 12345" && situacao.nome === "Nova Advocacia",
     "o cadastro fica na conta, conferido e normalizado", situacao.cadastro);
   const end = situacao.cadastro.endereco || {};
   checar(end.cep === "66010000" && end.logradouro === "Av. Presidente Vargas" && end.uf === "PA" && end.cmun === "1501402" && end.cidade === "Belém" && end.complemento === "",
     "o endereço fica no cadastro, limpo (CEP só dígitos, UF maiúscula, código IBGE)", end);
+  for (const rota of ["/api/ia/site/plano", "/api/ia/site/oferta", "/api/ia/site/pix", "/api/ia/site/pagar-fora", "/api/ia/site/desistir"]) {
+    const x = await ia("POST", rota, { id_token: "token-novo", plano: "plus" });
+    checar(x.status === 409 && (await corpoDe(x)).codigo === "cobranca_na_atos", rota + ": 409, para a Atos");
+  }
 
   // A conta antiga, cadastrada antes do endereço, continua valendo sem ele.
   donos["token-antigo"] = { sub: "666", email: "antiga@advocacia.com.br" };
@@ -523,44 +494,13 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const antigaRuim = await ia("POST", "/api/ia/site/cadastro", { ...base, id_token: "token-antigo", endereco: { ...base.endereco, cep: "1" } });
   checar(antigaRuim.status === 400, "mas, se mandar o endereço, ele é conferido");
 
-  // Trocar de plano: o valor muda no Mercado Pago, os tokens na renovação.
-  let troca = await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "ouro" });
-  checar(troca.status === 400, "trocar para plano que não existe é recusado");
-  troca = await corpoDe(await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "plus" }));
-  checar(pre.auto_recurring.transaction_amount === 550 && troca.plano.id === "advogado" && troca.plano_proximo && troca.plano_proximo.id === "plus"
-    && troca.ciclo.tokens === 12000000, "trocar para o Plus: o Mercado Pago cobra R$ 550, e o ciclo pago continua no Advogado",
-    { valor: pre.auto_recurring.transaction_amount, plano: troca.plano, proximo: troca.plano_proximo });
-  const desfeita = await corpoDe(await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "advogado" }));
-  checar(desfeita.plano_proximo === null && pre.auto_recurring.transaction_amount === 150, "pedir o plano de agora desfaz a troca");
-  await ia("POST", "/api/ia/site/plano", { id_token: "token-novo", plano: "plus" });
-  const contaNova = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "555");
-  relogio += 31 * 24 * 3600 * 1000;
-  const renovada = contaNova.o.fazer("renovar", contaNova.dados.get("conta"), { cobranca: "cob-plus-1", quando: new Date(relogio).toISOString() }, (await import("./ia.js")).numeros(env))[0];
-  checar(renovada.plano.id === "plus" && renovada.ciclo.tokens === 60000000 && renovada.plano_proximo === null,
-    "na renovação, o Plus entra com 60 milhões de tokens", { plano: renovada.plano, ciclo: renovada.ciclo });
-  relogio -= 31 * 24 * 3600 * 1000;
-
-  // Depois, o PAULUS instalado entra com a mesma conta Google e já encontra o plano.
+  // Pago na Atos: o PAULUS instalado entra com a mesma conta e já encontra o plano.
+  const contaNova = [...objetos.entries()].find(([, x]) => (x.dados.get("conta") || {}).dono?.sub === "555")[0];
+  await daAtos(contaNova, { plano: "plus", ate: emDias(30), metadados: { plano: "plus", tokens_por_ciclo: 60000000, pessoas: 15 },
+    assinatura: { id: "atos-a-555", status: "authorized", proxima: emDias(30), preco: "pavlvs.plus.mes" } });
   const ativou = await corpoDe(await ia("POST", "/api/ia/ativar", { id_token: "token-novo", instalacao_id: "inst-nova-0001" }));
-  const pacote = await corpoDe(await ia("POST", "/api/ia/recarga", { pacote: "2" }, ativou.segredo));
-  checar(pacote.valor === "100.00" && pacote.tokens === 10000, "a recarga do dobro: R$ 100 pelo dobro de tokens", pacote);
-  mpOrders.get(pacote.id).status = "processed";
-  mpOrders.get(pacote.id).total_amount = "100.00";
-  const creditada = await corpoDe(await ia("GET", "/api/ia/recarga/" + pacote.id, null, ativou.segredo));
-  checar(creditada.pago && creditada.conta.recargas[0].tokens === 10000, "paga, entram os tokens do pacote", creditada.conta && creditada.conta.recargas);
-  checar((await ia("POST", "/api/ia/recarga", { pacote: "7" }, ativou.segredo)).status === 400, "pacote que não existe é recusado");
-  checar(ativou.conta.plano_vigente && ativou.conta.plano.id === "plus" && ativou.conta.instalacoes === 1,
-    "o PAULUS instalado entra com a mesma conta e já tem o plano", ativou.conta);
-
-  // Quem assinava antes dos três planos fica no Escritório.
-  const { numeros } = await import("./ia.js");
-  const medidorAntigo = objeto("conta-de-antes-dos-planos").o;
-  const contaAntiga = { id: "x", segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [],
-    assinatura: { id: "pre-velha", situacao: "authorized", valor: 300 } };
-  medidorAntigo.abrirCiclo(contaAntiga, numeros(env), relogio, "assinatura");
-  const resumoAntigo = medidorAntigo.resumo(contaAntiga, numeros(env), relogio);
-  checar(resumoAntigo.plano.id === "escritorio" && contaAntiga.ciclo.tokens === 30000 && resumoAntigo.plano_vigente,
-    "quem assinava antes dos três planos fica no Escritório, com os mesmos tokens", resumoAntigo.plano);
+  checar(ativou.conta.plano_vigente && ativou.conta.plano.id === "plus" && ativou.conta.instalacoes === 1 && ativou.conta.ciclo.tokens === 60000000,
+    "o PAULUS instalado entra com a mesma conta e já tem o plano pago na Atos", ativou.conta);
 }
 
 
@@ -622,7 +562,10 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   const oPago = objetoDe("8011");
   const cPago = oPago.dados.get("conta");
   cPago.cortesia = false;
-  cPago.assinatura = { id: "preplus", situacao: "authorized", valor: 3490, desde: new Date(relogio).toISOString() };
+  cPago.cobrador = "atos";
+  cPago.periodo = "mensal";
+  cPago.pago_ate = new Date(relogio + 30 * 864e5).toISOString();
+  cPago.assinatura = { id: "atos-plus", situacao: "authorized", valor: 3490, desde: new Date(relogio).toISOString() };
   cPago.ciclo = { inicio: new Date(relogio).toISOString(), fim: new Date(relogio + 30 * 864e5).toISOString(), tokens: 40000000, usados: 0, origem: "assinatura",
     semana: Math.round(40000000 * 7 / 30), por_semana: {} };
   oPago.dados.set("conta", cPago);
@@ -711,246 +654,6 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   checar(cs.semana.numero === 3 && cs.semana.limite === 0 && cs.tokens.restantes === 0, "a semana seguinte, já adiantada, fica vazia", cs.semana);
   relogio -= 15 * 24 * 3600 * 1000;
 
-  // A recarga do plano: o pacote e o preço são os do plano, e a referência leva o plano.
-  const rec = await corpoDe(await pedir(envReal, "POST", "/api/ia/recarga", {}, se));
-  const refRec = mpPedidos.filter((x) => x.caminho === "/v1/orders").at(-1).corpo.external_reference;
-  checar(rec.valor === "120.00" && rec.tokens === 10000000 && refRec.endsWith("-escritorio"), "a recarga do Escritório: 10 milhões por R$ 120", { rec, refRec });
-
-  // O anual: paga o ano no bloco de cartão (em até 12 parcelas), o plano vale 12 meses e cada mês abre o seu ciclo.
-  donos["tk-804"] = { sub: "804", email: "anual@a.br" };
-  const an = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-804", instalacao_id: "inst-804-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-804" });
-  const pagarAno = (tk, plano, corpo = {}) => pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: tk, plano, periodo: "anual", ...corpo });
-  checar((await pagarAno("tk-804", "advogado", { periodo: "trimestral", cartao: cartao() })).status === 400, "período que não existe é recusado");
-  checar((await pagarAno("tk-804", "advogado", { cartao: cartao(undefined, { installments: 13 }) })).status === 400, "o anual vai em até 12 parcelas");
-  r = await pagarAno("tk-804", "advogado", { idempotencia: "chave-anual-0000000001", cartao: cartao("tokaprovado00000000004", { installments: 12, transaction_amount: 1 }) });
-  const pa = await corpoDe(r);
-  const pg = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1);
-  checar(r.status === 200 && pa.situacao === "approved" && pg.corpo.transaction_amount === 3990 && pg.corpo.installments === 12 && pg.corpo.payment_method_id === "master"
-    && pg.corpo.issuer_id === 24 && pg.headers["X-Idempotency-Key"] === "chave-anual-0000000001" && pg.corpo.payer.email === "anual@a.br"
-    && pg.corpo.payer.identification.number === "52998224725" && /^ia-anual-[0-9a-f]{24}-advogado-[0-9a-f]+$/.test(pg.corpo.external_reference),
-    "o anual do Advogado: R$ 3.990 (do servidor) em 12 parcelas, com a chave de idempotência da página", pg);
-  let sa2 = pa.conta;
-  checar(sa2.plano_vigente && sa2.periodo === "anual" && sa2.plano.id === "advogado" && sa2.assinatura.periodo === "anual"
-    && Date.parse(sa2.pago_ate) - relogio > 364 * 24 * 3600 * 1000 && sa2.ciclo.tokens === 30000000,
-    "aprovado: o ano vale na hora, com o ciclo do mês aberto", { periodo: sa2.periodo, pago_ate: sa2.pago_ate, ciclo: sa2.ciclo });
-  checar(!mpPedidos.some((x) => x.caminho === "/checkout/preferences"), "nenhum redirecionamento ao Checkout Pro");
-  // O aviso depois não credita de novo.
-  await worker.fetch(aviso(pa.pagamento, "payment"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  const pagos = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "804").dados.get("conta").pagamentos;
-  checar(pagos.length === 1 && [...guardados.keys()].includes("admin:nfse:" + pa.pagamento), "o aviso repetido não paga duas vezes; a nota fiscal entra na fila", pagos);
-  checar((await pagarAno("tk-804", "advogado", { cartao: cartao("tokaprovado00000000005") })).status === 409, "ano pago: só renova nos últimos 45 dias");
-  checar((await pedir(envReal, "POST", "/api/ia/assinatura/cancelar", null, an.segredo)).status === 409, "o anual não tem o que cancelar: não renova sozinho");
-  checar((await pedir(envReal, "POST", "/api/ia/plano", { plano: "plus" }, an.segredo)).status === 409, "no anual, a troca de plano é na renovação");
-  relogio += 40 * 24 * 3600 * 1000;
-  sa2 = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, an.segredo));
-  checar(sa2.plano_vigente && sa2.ciclo.origem === "anual" && sa2.ciclo.usados === 0 && Date.parse(sa2.ciclo.inicio) <= relogio && Date.parse(sa2.ciclo.fim) > relogio,
-    "um mês depois, o ano pago abre o ciclo novo sozinho", sa2.ciclo);
-  relogio += 330 * 24 * 3600 * 1000;
-  sa2 = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, an.segredo));
-  checar(!sa2.plano_vigente && sa2.assinatura.situacao === "expired", "depois do ano, sem renovar, o plano acaba", sa2.assinatura);
-  relogio -= 370 * 24 * 3600 * 1000;
-
-  // Recusado e em análise.
-  donos["tk-806"] = { sub: "806", email: "recusa@a.br" };
-  const rc = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-806", instalacao_id: "inst-806-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-806" });
-  r = await pagarAno("tk-806", "escritorio", { cartao: cartao("tokrecusa000000000002", { installments: 3 }) });
-  const dr = await corpoDe(r);
-  checar(r.status === 402 && dr.erro === "o cartão não tem limite suficiente para este valor", "recusado: 402, com o motivo em português", dr);
-  r = await pagarAno("tk-806", "escritorio", { cartao: cartao("tokanalise000000000001", { installments: 3 }) });
-  const dan = await corpoDe(r);
-  let crc = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, rc.segredo));
-  checar(r.status === 200 && dan.situacao === "in_process" && !crc.plano_vigente && crc.anual_pendente, "em análise: o plano espera a aprovação", dan);
-  mpPagamentos.get(dan.pagamento).status = "approved";
-  await worker.fetch(aviso(dan.pagamento, "payment"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  crc = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, rc.segredo));
-  checar(crc.plano_vigente && crc.periodo === "anual" && crc.plano.id === "escritorio" && !crc.anual_pendente, "aprovado depois, pelo aviso: o ano entra", crc.plano);
-
-  // Do mensal para o anual: a assinatura mensal sai do Mercado Pago.
-  donos["tk-805"] = { sub: "805", email: "troca@a.br" };
-  const tr = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-805", instalacao_id: "inst-805-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-805" });
-  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-805", plano: "escritorio", periodo: "mensal", cartao: cartao("tokaprovado00000000006") });
-  const mensalId = [...mpPreapprovals.keys()].at(-1);
-  checar(mpPreapprovals.get(mensalId).auto_recurring.transaction_amount === 1290 && mpPreapprovals.get(mensalId).status === "authorized", "o mensal do Escritório é de R$ 1.290");
-  const pt = await corpoDe(await pagarAno("tk-805", "plus", { cartao: cartao("tokaprovado00000000007", { installments: 6 }) }));
-  let ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
-  checar(mpPreapprovals.get(mensalId).status === "cancelled" && ct.plano.id === "plus" && ct.periodo === "anual" && ct.ciclo.tokens === 40000000,
-    "passou ao anual do Plus: o mensal é cancelado no Mercado Pago e o ciclo novo é do Plus", { mp: mpPreapprovals.get(mensalId).status, plano: ct.plano.id });
-  // O aviso do mensal cancelado, que chega depois, não mexe no anual.
-  await worker.fetch(aviso(mensalId, "subscription_preapproval"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
-  checar(ct.assinatura.situacao === "authorized" && ct.assinatura.periodo === "anual", "o aviso do mensal cancelado não derruba o anual", ct.assinatura);
-  // O reembolso dos 7 dias (estorno no Mercado Pago): o plano acaba na hora.
-  mpPagamentos.get(pt.pagamento).status = "refunded";
-  await worker.fetch(aviso(pt.pagamento, "payment"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  ct = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, tr.segredo));
-  checar(!ct.plano_vigente && ct.assinatura.situacao === "refunded", "estornado, o plano anual acaba", ct.assinatura);
-
-  // A chave pública e a CSP da página de pagamento.
-  const cfg = await pedir({ ...envReal, MP_PUBLIC_KEY: "TEST-chave-publica" }, "GET", "/api/ia/mp-config");
-  checar(cfg.status === 200 && (await corpoDe(cfg)).publicKey === "TEST-chave-publica" && cfg.headers.get("cache-control").includes("no-store"),
-    "a chave pública sai do Worker, sem cache");
-  checar((await pedir(envReal, "GET", "/api/ia/mp-config")).status === 503, "sem a chave pública: 503");
-  const html = { fetch: async () => new Response("<!doctype html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }) };
-  const pagina = await worker.fetch(new Request("https://paulus.ia.br/cadastro/pagamento/"), { ...envReal, ASSETS: html }, ctx);
-  const csp = pagina.headers.get("content-security-policy") || "";
-  checar(/script-src 'self' https:\/\/sdk\.mercadopago\.com/.test(csp) && !/'sha256-/.test(csp) && !/script-src[^;]*'unsafe-inline'/.test(csp)
-    && csp.includes("frame-ancestors 'none'") && csp.includes("object-src 'none'"), "a página de pagamento sai com a CSP: só scripts do site, do Mercado Pago e do Google", csp);
-  const inicio = await worker.fetch(new Request("https://paulus.ia.br/"), { ...envReal, ASSETS: html }, ctx);
-  checar(!inicio.headers.get("content-security-policy"), "as outras páginas não mudam");
-
-  // O plano B: o formulario nao carregou e a pessoa paga na pagina do Mercado Pago.
-  donos["tk-807"] = { sub: "807", email: "fora@a.br" };
-  const fo = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-807", instalacao_id: "inst-807-0001" }));
-  const fora = (corpo) => pedir(envReal, "POST", "/api/ia/site/pagar-fora", { id_token: "tk-807", plano: "advogado", periodo: "mensal", ...corpo });
-  checar((await fora({})).status === 409, "plano B sem os dados do escritório: não abre");
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-807" });
-  let fr = await corpoDe(await fora({ valor: 1 }));
-  const preFora = mpPedidos.filter((x) => x.caminho === "/preapproval" && x.metodo === "POST").at(-1).corpo;
-  checar(fr.link.startsWith("https://www.mercadopago.com.br/") && preFora.status === "pending" && !preFora.card_token_id && preFora.auto_recurring.transaction_amount === 449
-    && preFora.back_url === "https://paulus.ia.br/cadastro/?voltou=1", "plano B mensal: a assinatura pendente de R$ 449 na página do Mercado Pago", preFora);
-  let cf = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, fo.segredo));
-  checar(!cf.plano_vigente && cf.assinatura.situacao === "pending", "e o plano espera o cartão entrar lá", cf.assinatura);
-  fr = await corpoDe(await fora({ periodo: "anual" }));
-  const prefFora = mpPedidos.filter((x) => x.caminho === "/checkout/preferences").at(-1).corpo;
-  checar(fr.link.includes("pref_id=") && prefFora.items[0].unit_price === 3990 && prefFora.payment_methods.installments === 12
-    && /^ia-anual-[0-9a-f]{24}-advogado-/.test(prefFora.external_reference), "plano B anual: R$ 3.990 no Checkout Pro, em até 12 vezes", prefFora);
-  mpPagamentos.set("9907", { id: 9907, status: "approved", external_reference: prefFora.external_reference, transaction_amount: 3990 });
-  const volta = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/situacao", { id_token: "tk-807" }));
-  checar(volta.plano_vigente && volta.periodo === "anual", "na volta, a consulta acha o pagamento do ano e o plano entra", volta.periodo);
-
-  // O cupom saiu do sistema: a rota não existe e um "cupom" mandado no pagamento é ignorado (o valor é o do plano).
-  checar((await pedir(envReal, "GET", "/api/ia/cupom?codigo=ANO10&plano=escritorio&periodo=anual")).status === 401, "a rota do cupom não existe mais (cai na autenticação)");
-
-  // O Pix: o mês avulso (vale até vencer, não renova) e o ano à vista.
-  donos["tk-808"] = { sub: "808", email: "pix@a.br" };
-  const px = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-808", instalacao_id: "inst-808-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-808" });
-  const pix = (corpo) => pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-808", plano: "advogado", periodo: "mensal", meio: "pix", ...corpo });
-  const of = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-808", plano: "advogado", periodo: "mensal" }));
-  checar(of.meios && of.meios.cartao === "" && of.meios.pix === "" && of.valor === 449, "a oferta diz que cartão e Pix podem", of.meios);
-  r = await pix({ valor: 1, cupom: "PILOTO30" });
-  const qr = await corpoDe(r);
-  const pgPix = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1);
-  checar(r.status === 200 && qr.qr_code.startsWith("00020126pix") && qr.qr_code_base64 && pgPix.corpo.payment_method_id === "pix" && pgPix.corpo.transaction_amount === 449
-    && /^ia-mes-[0-9a-f]{24}-advogado-[0-9a-f]+$/.test(pgPix.corpo.external_reference) && /-03:00$/.test(pgPix.corpo.date_of_expiration)
-    && !pgPix.corpo.token && !pgPix.corpo.installments && pgPix.corpo.payer.identification.number === "52998224725",
-    "o Pix do mês: R$ 449 (do servidor), QR que vence no horário de Brasília, sem cartão", { qr, corpo: pgPix.corpo });
-  let spx = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-808", pagamento: qr.pagamento }));
-  checar(!spx.pago && spx.situacao === "pending" && !spx.conta.plano_vigente, "antes de pagar, o plano espera", spx.situacao);
-  checar((await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-807", pagamento: qr.pagamento })).status === 403, "o Pix de outra conta não se consulta");
-  mpPagamentos.get(qr.pagamento).status = "approved";
-  mpPagamentos.get(qr.pagamento).date_approved = new Date(relogio).toISOString();
-  spx = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-808", pagamento: qr.pagamento }));
-  const um = spx.conta;
-  const mes = Date.parse(um.pago_ate) - relogio;
-  checar(spx.pago && um.plano_vigente && um.periodo === "avulso" && um.assinatura.periodo === "avulso" && mes > 27 * 864e5 && mes < 32 * 864e5
-    && um.ciclo.tokens === 30000000 && um.ciclo.fim === um.pago_ate, "pago: o mês avulso vale na hora, até o fim do mês", { periodo: um.periodo, pago_ate: um.pago_ate });
-  await worker.fetch(aviso(qr.pagamento, "payment"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  const pagosPix = [...objetos.values()].find((x) => (x.dados.get("conta") || {}).dono?.sub === "808").dados.get("conta").pagamentos;
-  checar(pagosPix.length === 1 && pagosPix[0].tipo === "avulso" && JSON.parse(guardados.get("admin:nfse:" + qr.pagamento)).tipo === "mês avulso",
-    "o aviso depois não paga duas vezes; a nota entra na fila como mês avulso", pagosPix);
-  checar((await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-808", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000008") })).status === 409,
-    "com o mês pago no Pix, a assinatura no cartão espera ele vencer");
-  checar((await pedir(envReal, "POST", "/api/ia/assinatura/cancelar", null, px.segredo)).status === 409, "o mês avulso não tem o que cancelar");
-  // O mês seguinte pago antes: começa no fim do pago.
-  r = await pix({});
-  const qr2 = await corpoDe(r);
-  mpPagamentos.get(qr2.pagamento).status = "approved";
-  const dois = (await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-808", pagamento: qr2.pagamento }))).conta;
-  checar(Date.parse(dois.pago_ate) - Date.parse(um.pago_ate) > 27 * 864e5 && dois.ciclo.inicio === um.ciclo.inicio, "o segundo mês pago antes soma ao fim do primeiro; o ciclo de agora continua", dois.pago_ate);
-  relogio += 40 * 864e5;
-  let cpx = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, px.segredo));
-  checar(cpx.plano_vigente && cpx.ciclo.origem === "avulso" && Date.parse(cpx.ciclo.inicio) <= relogio, "no segundo mês, o ciclo dele abre sozinho", cpx.ciclo);
-  relogio += 30 * 864e5;
-  cpx = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, px.segredo));
-  checar(!cpx.plano_vigente && cpx.assinatura.situacao === "expired", "venceu sem pagar de novo: o plano acaba, sem cobrar nada", cpx.assinatura);
-  // Depois de vencer, o ano à vista no Pix.
-  r = await pix({ periodo: "anual" });
-  const qr3 = await corpoDe(r);
-  const pgAno = mpPedidos.filter((x) => x.caminho === "/v1/payments" && x.metodo === "POST").at(-1).corpo;
-  checar(pgAno.transaction_amount === 3990 && /^ia-anual-/.test(pgAno.external_reference), "o ano no Pix: R$ 3.990 à vista", pgAno);
-  mpPagamentos.get(qr3.pagamento).status = "approved";
-  await worker.fetch(aviso(qr3.pagamento, "payment"), envReal, ctx);
-  await Promise.all(pendentes.splice(0));
-  cpx = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, px.segredo));
-  checar(cpx.plano_vigente && cpx.periodo === "anual" && Date.parse(cpx.pago_ate) - relogio > 364 * 864e5, "pago pelo aviso: o ano entra", cpx.periodo);
-  relogio -= 70 * 864e5;
-  // Com a assinatura mensal no cartão ativa, o mês no Pix não é oferecido.
-  donos["tk-809"] = { sub: "809", email: "cartao@a.br" };
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-809" });
-  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-809", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000009") });
-  const ofCartao = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-809", plano: "advogado", periodo: "mensal" }));
-  checar(ofCartao.erro && !ofCartao.meios, "com a assinatura no cartão ativa, nem outro mês no cartão nem no Pix", ofCartao);
-  r = await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-809", plano: "advogado", periodo: "mensal", meio: "pix" });
-  checar(r.status === 409 && (await corpoDe(r)).erro.includes("cartão já está ativa"), "e o Pix do mês é recusado com o motivo");
-  const ofAno = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/oferta", { id_token: "tk-809", plano: "advogado", periodo: "anual" }));
-  checar(ofAno.meios && ofAno.meios.pix === "" && ofAno.meios.cartao === "", "mas passar ao anual, no cartão ou no Pix, pode", ofAno.meios);
-
-  // A desistência nos 7 dias: o cliente desiste sozinho e o dinheiro volta.
-  donos["tk-810"] = { sub: "810", email: "desiste@a.br" };
-  const ds = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-810", instalacao_id: "inst-810-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-810" });
-  const qrD = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-810", plano: "advogado", periodo: "mensal", meio: "pix" }));
-  mpPagamentos.get(qrD.pagamento).status = "approved";
-  let sd = (await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-810", pagamento: qrD.pagamento }))).conta;
-  checar(sd.plano_vigente && sd.desistencia.pode && sd.desistencia.valor === 449 && sd.desistencia.ate, "pago há pouco: o resumo diz que dá para desistir, quanto volta e até quando", sd.desistencia);
-  r = await pedir(envReal, "POST", "/api/ia/site/desistir", { id_token: "tk-810" });
-  const des = await corpoDe(r);
-  const refund = mpPedidos.filter((x) => x.caminho === "/v1/payments/" + qrD.pagamento + "/refunds").at(-1);
-  checar(r.status === 200 && des.valor === 449 && refund && refund.headers["X-Idempotency-Key"] === "reembolso-" + qrD.pagamento && !des.conta.plano_vigente
-    && des.conta.assinatura.situacao === "refunded", "desistiu pelo site: o Pix volta no Mercado Pago e o plano acaba na hora", { status: r.status, des });
-  checar(des.notas[0].acao === "sem_emissor", "sem o emissor de NFS-e ligado, a nota fica para conferir no painel", des.notas);
-  checar((await pedir(envReal, "POST", "/api/ia/site/desistir", { id_token: "tk-810" })).status === 409, "desistir de novo: não há mais o que devolver");
-  // Assina de novo e desiste outra vez: a desistência pelo PAULUS é uma por conta.
-  const qrD2 = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-810", plano: "advogado", periodo: "mensal", meio: "pix" }));
-  mpPagamentos.get(qrD2.pagamento).status = "approved";
-  sd = (await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-810", pagamento: qrD2.pagamento }))).conta;
-  r = await pedir(envReal, "POST", "/api/ia/desistir", null, ds.segredo);
-  checar(r.status === 409 && (await corpoDe(r)).erro.includes("já foi usada") && !sd.desistencia.pode, "a segunda desistência não é sozinha: fica para o painel");
-  // O cartão sem a primeira cobrança ainda: a assinatura sai e a cobrança, quando vier, volta.
-  donos["tk-811"] = { sub: "811", email: "cartao2@a.br" };
-  const dc2 = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-811", instalacao_id: "inst-811-0001" }));
-  // Outro CPF (o do tk-810 já desistiu): no cadastro e no cartão.
-  const outro = { type: "CPF", number: "111.444.777-35" };
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, documento: outro.number, id_token: "tk-811" });
-  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-811", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000011", { payer: { identification: outro } }) });
-  const preD = [...mpPreapprovals.keys()].at(-1);
-  r = await pedir(envReal, "POST", "/api/ia/desistir", null, dc2.segredo);
-  const d2 = await corpoDe(r);
-  checar(r.status === 200 && mpPreapprovals.get(preD).status === "cancelled" && !d2.conta.plano_vigente && d2.conta.desistencia_pendente,
-    "desistiu pelo PAULUS antes da primeira cobrança: a assinatura é cancelada e a cobrança fica para devolver quando chegar", { status: r.status, d2 });
-  // Outra conta Google com o mesmo CPF da que já desistiu: a desistência sozinha não vale de novo.
-  donos["tk-813"] = { sub: "813", email: "outraconta@a.br" };
-  const oc = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-813", instalacao_id: "inst-813-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, documento: "123.456.789-09", id_token: "tk-813" });
-  // O cadastro com outro CPF, mas o cartão no nome de quem já desistiu (o do tk-810).
-  await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-813", plano: "advogado", periodo: "mensal", cartao: cartao("tokaprovado00000000013") });
-  const c813 = await corpoDe(await pedir(envReal, "GET", "/api/ia/conta", null, oc.segredo));
-  checar(c813.plano_vigente && !c813.desistencia.pode && c813.desistencia.motivo.includes("CPF ou CNPJ"), "outra conta Google, cartão no CPF que já desistiu: o resumo já não oferece", c813.desistencia);
-  r = await pedir(envReal, "POST", "/api/ia/desistir", null, oc.segredo);
-  checar(r.status === 409 && (await corpoDe(r)).erro.includes("CPF ou CNPJ"), "e desistir é recusado, com o motivo");
-  const guardadoDoc = [...guardados.keys()].filter((k) => k.startsWith("admin:desistencia:"));
-  checar(guardadoDoc.length >= 2 && guardadoDoc.every((k) => /^admin:desistencia:[0-9a-f]{32}$/.test(k)) && ![...guardados.values()].some((v) => String(v).includes("52998224725") && String(v).includes("desistencia")),
-    "o KV guarda só o resumo do documento, não o número", guardadoDoc);
-  // Passados os 7 dias, não há desistência sozinha.
-  donos["tk-812"] = { sub: "812", email: "tarde@a.br" };
-  const tt = await corpoDe(await pedir(envReal, "POST", "/api/ia/ativar", { id_token: "tk-812", instalacao_id: "inst-812-0001" }));
-  await pedir(envReal, "POST", "/api/ia/site/cadastro", { ...CADASTRO, id_token: "tk-812" });
-  const qrT = await corpoDe(await pedir(envReal, "POST", "/api/ia/site/pagar", { id_token: "tk-812", plano: "advogado", periodo: "anual", meio: "pix" }));
-  mpPagamentos.get(qrT.pagamento).status = "approved";
-  await pedir(envReal, "POST", "/api/ia/site/pix", { id_token: "tk-812", pagamento: qrT.pagamento });
-  relogio += 8 * 864e5;
-  r = await pedir(envReal, "POST", "/api/ia/desistir", null, tt.segredo);
-  checar(r.status === 409 && (await corpoDe(r)).erro.includes("7 dias"), "depois dos 7 dias: recusado, com o motivo");
-  relogio -= 8 * 864e5;
 }
 
 function aviso(dataId, tipo, ts = Date.now()) {

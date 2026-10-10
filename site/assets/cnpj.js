@@ -1,5 +1,5 @@
 /* O CNPJ digitado, consultado na BrasilAPI (dados públicos da Receita).
-   Usado pelo cadastro (assets/cadastro.js) e pelo painel (assets/admin.js);
+   Usado pelo painel (assets/admin.js);
    o PAULUS instalado tem o mesmo resumo em paulus/legal/src/cnpj_receita.py.
 
    PavlvsCnpj.paraConsultar(texto) -> os 14 dígitos, se o CNPJ fecha; senão "".

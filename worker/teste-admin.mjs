@@ -95,18 +95,20 @@ globalThis.fetch = async (url, init = {}) => {
   }
   return new Response("{}", { status: 404 });
 };
-// Os pagamentos que o Mercado Pago conhece (a forma no extrato): id -> o /v1/payments/{id}.
-const pagamentosMP = new Map();
+// O Mercado Pago de mentira: so anota. A cobranca e da Atos; o painel nao chama mais o Mercado Pago.
 async function chamarMP(env, caminho, metodo, corpo, extra = {}) {
   mp.push({ caminho, metodo, corpo, extra });
-  // A cobranca da assinatura traz o pagamento dela (o reembolso da mensalidade).
-  if (/^\/authorized_payments\//.test(caminho)) {
-    const id = caminho.split("/").pop();
-    return { ok: true, status: 200, dados: { id, payment: { id: pagamentosMP.has("cobranca:" + id) ? pagamentosMP.get("cobranca:" + id) : 555 } } };
-  }
-  const pg = metodo === "GET" && caminho.match(/^\/v1\/payments\/([^/]+)$/);
-  if (pg && pagamentosMP.has(pg[1])) return { ok: true, status: 200, dados: pagamentosMP.get(pg[1]) };
   return { ok: true, status: 200, dados: {} };
+}
+
+// A conta com o plano pago na Atos (worker/atos.js -> ContaIA "atos_direito"): o unico caminho, alem da cortesia.
+const versaoNaAtos = new Map();
+async function naAtos(id, plano, assinatura = null, dias = 30) {
+  const versao = (versaoNaAtos.get(id) || 0) + 1;
+  versaoNaAtos.set(id, versao);
+  const r = await CONTAS_IA.get(id).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "atos_direito", id,
+    retrato: { versao, plano, ate: new Date(relogio + dias * 864e5).toISOString(), periodo: "mes", assinatura } }) });
+  return r.json();
 }
 
 // ------------------------------------------------ o Access de mentira
@@ -245,17 +247,20 @@ for (const quem of ["ana", "bruno"]) {
 const idAna = segredos.ana.split("_")[1];
 const idBruno = segredos.bruno.split("_")[1];
 checar(guardados.has("admin:conta:" + idAna) && guardados.has("admin:conta:" + idBruno), "cada conta se anota no indice do painel");
-await CONTAS_IA.get(idAna).fetch("https://conta-ia/creditar", { method: "POST", body: JSON.stringify({ acao: "creditar", pedido: "ORD1", valor: 50 }) });
+// Um pagamento de antes da Atos que o medidor ainda guarda: o painel le, e nada novo grava pagamentos.
+await mexerNaConta(idAna, (x) => { x.pagamentos = [{ tipo: "recarga", ref: "ORD1", valor: 50, quando: new Date(relogio).toISOString() }]; });
 r = await admin("GET", "/api/admin/contas", como());
 d = await r.json();
 checar(d.contas.length === 2 && d.contas.every((c) => c.email.endsWith("@escritorio.com.br") && !c._d), "lista as contas da nuvem (sem o detalhe cru)", d.contas);
 r = await admin("GET", "/api/admin/contas/" + idAna, como());
 d = await r.json();
 checar(d.pagamentos.length === 1 && d.pagamentos[0].valor === 50 && d.instalacoes.length === 1 && d.instalacoes[0].hash8.length === 8, "detalhe da conta: pagamentos e instalacoes", d);
+checar(!("forma" in d.pagamentos[0]) && !("pendentes" in d) && !("plano_proximo" in d) && !mp.length, "a ficha não pergunta nada ao Mercado Pago (sem a forma, os pendentes e a troca marcada)", d.pagamentos[0]);
 const hash8 = d.instalacoes[0].hash8;
 r = await admin("GET", "/api/admin/visao", como());
 d = await r.json();
 checar(d.kpi.contas === 2 && d.kpi.receita_recargas === 50 && d.dias.length === 42, "visao geral: contas, receita do mes e 14 dias x 3 turnos", d.kpi);
+checar(!("avisos" in d), "a visão geral não tem mais os avisos do Mercado Pago do PAVLVS");
 r = await admin("GET", "/api/admin/busca?q=bruno", como());
 d = await r.json();
 checar(d.contas.length === 1 && d.contas[0].alvo === idBruno, "busca acha a conta pelo nome");
@@ -328,15 +333,17 @@ checar(htmlDoEmail({ titulo: "<b>", texto: "a\n\nb" }).includes("&lt;b&gt;"), "o
 
 // --------------------------------------------------------- renovacoes
 console.log("renovacoes");
-await CONTAS_IA.get(idBruno).fetch("https://conta-ia/assinatura", { method: "POST", body: JSON.stringify({ acao: "assinatura", assinatura: { id: "pre1", situacao: "authorized", valor: 300 } }) });
+await naAtos(idBruno, "escritorio", { id: "atos-b1", status: "authorized" });
 relogio += 40 * 24 * 3600 * 1000;
 r = await admin("GET", "/api/admin/renovacoes", como());
 d = await r.json();
-checar(d.abertas.length === 1 && d.abertas[0].id === idBruno && d.abertas[0].dias_vencido >= 1, "ciclo vencido aparece em nao renovacoes", d);
+checar(d.abertas.length === 1 && d.abertas[0].id === idBruno && d.abertas[0].dias_vencido >= 1 && d.abertas[0].motivo.includes("da Atos") && !("oferta" in d.abertas[0]),
+  "ciclo vencido da conta cobrada pela Atos aparece em nao renovacoes, com o motivo da Atos", d);
 emails.length = 0;
 r = await admin("POST", "/api/admin/renovacoes/" + idBruno + "/lembrete", como());
 d = await r.json();
-checar(emails.length === 1 && emails[0].to[0] === "bruno@escritorio.com.br" && d.abertas[0].lembrete_em, "lembrete enviado e anotado");
+checar(emails.length === 1 && emails[0].to[0] === "bruno@escritorio.com.br" && d.abertas[0].lembrete_em && emails[0].text.includes("atos.dev.br/conta") && !emails[0].text.includes("Mercado Pago"),
+  "lembrete enviado (para a Conta Atos) e anotado", emails[0] && emails[0].text);
 r = await admin("POST", "/api/admin/renovacoes/" + idBruno + "/tratar", como());
 d = await r.json();
 checar(!d.abertas.length && d.tratadas.length === 1, "marcar como tratada");
@@ -375,53 +382,9 @@ r = await admin("GET", "/api/admin/equipe", como());
 d = await r.json();
 checar(d.membros.length === 2 && d.matriz.length >= 6, "equipe e matriz de permissoes");
 
-// ----------------------------------------------------------- reembolso
-console.log("reembolso");
+// ----------------------------------------------------------- o medidor por dentro
 const contaDo = (id, acao, dados = {}) => CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados }) }).then((x) => x.json());
-for (const quem of ["carla", "dani"]) await ia("/api/ia/ativar", { id_token: quem, instalacao_id: "inst-" + quem + "-123", nome_escritorio: "Escritório " + quem });
-const idCarla = (await (await ia("/api/ia/ativar", { id_token: "carla", instalacao_id: "inst-carla-123" })).json()).segredo.split("_")[1];
-const idDani = (await (await ia("/api/ia/ativar", { id_token: "dani", instalacao_id: "inst-dani-123" })).json()).segredo.split("_")[1];
-// Carla: um mês no Pix e uma recarga; Dani: a assinatura mensal no cartão, com a primeira cobrança.
-let rc = await contaDo(idCarla, "anual_pago", { pagamento: "PAYMES1", plano: "advogado", valor: 449, meses: 1 });
-checar(rc.plano_vigente && rc.periodo === "avulso", "Carla com o mês no Pix", rc.periodo);
-guardados.set("admin:nfse:PAYMES1", JSON.stringify({ id: "PAYMES1", conta: idCarla, tipo: "mês avulso", valor: 449, quando: new Date(relogio).toISOString(), nota: "pendente" }));
-rc = await contaDo(idCarla, "creditar", { pedido: "ORD9", valor: 120, plano: "advogado" });
-const extraAntes = (await contaDo(idCarla, "admin_detalhe")).extra;
-await contaDo(idDani, "assinatura", { plano: "advogado", assinatura: { id: "preDani", situacao: "authorized", valor: 449 } });
-let rd = await contaDo(idDani, "renovar", { cobranca: "COB1", valor: 449, quando: new Date(relogio).toISOString() });
-checar(rd.plano_vigente, "Dani com a mensalidade paga", rd.ciclo);
 const fila = async () => (await (await admin("GET", "/api/admin/alteracoes", como())).json()).pendentes;
-for (const x of await fila()) await admin("DELETE", "/api/admin/alteracoes/" + x.id, como());
-const reemb = (id, pagamento) => admin("POST", "/api/admin/alteracoes", como({ corpo: { tela: "contas", tipo: "conta.reembolsar", alvo: id + ":" + pagamento, dados: { id, pagamento }, texto: "Reembolsei " + pagamento } }));
-checar((await reemb(idCarla, "NAOEXISTE")).status === 400, "reembolsar pagamento que não é da conta: recusado na fila");
-checar((await reemb(idCarla, "PAYMES1")).status === 200 && (await reemb(idCarla, "ORD9")).status === 200 && (await reemb(idDani, "COB1")).status === 200, "três reembolsos na fila");
-let antesMP = mp.length;
-checar(!(await contaDo(idCarla, "resumo")).pagamentos, "na fila, nada mudou ainda");
-r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
-d = await r.json();
-checar(d.ok && d.resultados.length === 3, "publicar aplica os três", d);
-const feitos = mp.slice(antesMP);
-checar(feitos.some((x) => x.caminho === "/v1/payments/PAYMES1/refunds" && x.metodo === "POST" && x.extra["X-Idempotency-Key"] === "reembolso-PAYMES1"),
-  "o mês no Pix volta pelo /v1/payments/<id>/refunds, com a chave de idempotência do pagamento", feitos);
-checar(feitos.some((x) => x.caminho === "/v1/orders/ORD9/refund"), "a recarga volta pelo /v1/orders/<id>/refund", feitos);
-checar(feitos.some((x) => x.caminho === "/authorized_payments/COB1") && feitos.some((x) => x.caminho === "/v1/payments/555/refunds")
-  && feitos.some((x) => x.caminho === "/preapproval/preDani" && x.corpo.status === "cancelled"), "a mensalidade: acha o pagamento da cobrança, devolve e cancela a assinatura", feitos);
-const dc = await contaDo(idCarla, "admin_detalhe");
-checar(!dc.plano_vigente && dc.assinatura.situacao === "refunded" && dc.pagamentos.find((x) => x.ref === "PAYMES1").reembolso.por === "dono@paulus.ia.br",
-  "Carla: o mês acaba na hora e o pagamento fica marcado com quem devolveu", dc.assinatura);
-checar(extraAntes > 0 && dc.extra === 0 && dc.pagamentos.find((x) => x.ref === "ORD9").tokens_tirados === extraAntes, "a recarga devolvida sai dos créditos", { antes: extraAntes, depois: dc.extra, pg: dc.pagamentos.find((x) => x.ref === "ORD9") });
-checar(JSON.parse(guardados.get("admin:nfse:PAYMES1")).nota === "reembolsado", "a fila de notas não pede nota do pagamento devolvido");
-const dd = await contaDo(idDani, "admin_detalhe");
-checar(!dd.plano_vigente && dd.assinatura.situacao === "cancelled", "Dani: a assinatura cancelada e o ciclo pago fechado", { a: dd.assinatura, c: dd.ciclo });
-checar((await reemb(idCarla, "PAYMES1")).status === 400, "reembolsar de novo: recusado");
-// O aviso do estorno, que o Mercado Pago manda depois, não mexe de novo.
-const estornoDepois = await contaDo(idCarla, "anual_estornado", { pagamento: "PAYMES1" });
-checar(estornoDepois.assinatura.situacao === "refunded", "o aviso do estorno depois do painel não muda nada");
-d = await (await admin("GET", "/api/admin/visao", como())).json();
-checar((d.avisos || []).some((x) => x.tipo === "reembolso" && x.texto.startsWith("Reembolso pelo painel")), "o reembolso aparece nos avisos da visão geral", d.avisos);
-// O suporte não reembolsa.
-r = await admin("POST", "/api/admin/alteracoes", { email: "suporte@paulus.ia.br", corpo: { tipo: "conta.reembolsar", dados: { id: idCarla, pagamento: "ORD9" } } });
-checar(r.status === 401 || r.status === 403, "o suporte não reembolsa", r.status);
 
 // ================================================ etapa 6: o que o painel pedia ao servidor
 const DIA = 24 * 3600 * 1000;
@@ -443,38 +406,16 @@ async function mexerNaConta(id, f) {
 const retroagir = (corpo, extra = {}) => admin("POST", "/api/admin/retroagir", como({ ...extra, corpo: { confirmacao: "retroagir", ...corpo } }));
 let antesMP2, det;
 
-// ---------------------------------------------- conta: plano, cadastro e pausa
-console.log("conta: plano, cadastro e pausa");
+// ---------------------------------------------- conta: o cadastro (a cobranca e da Atos)
+console.log("conta: cadastro; as ações de dinheiro saíram");
 await limparFila();
 const idEva = await novaConta("eva");
-await contaDo(idEva, "assinatura", { plano: "advogado", assinatura: { id: "preEva", situacao: "authorized", valor: 449 } });
-antesMP2 = mp.length;
-r = await pedir("conta.plano", { id: idEva, plano: "escritorio" }, "Troquei o plano da Eva: Advogado → Escritório na renovação");
-d = await r.json();
-checar(r.status === 200, "trocar o plano entra na fila", d);
-d = await publicarFila();
-const putEva = mp.slice(antesMP2).find((x) => x.caminho === "/preapproval/preEva" && x.metodo === "PUT");
-// O valor do Escritorio e o de agora no painel (R$ 320, editado na fila acima), nao o de fabrica.
-checar(d.ok && putEva && putEva.corpo.auto_recurring.transaction_amount === 320 && putEva.corpo.reason === "Paulus - plano Escritório",
-  "publicado: o Mercado Pago passa a cobrar o valor do Escritório", { d, putEva });
-det = await (await admin("GET", "/api/admin/contas/" + idEva, como())).json();
-checar(det.plano.id === "advogado" && det.plano_proximo && det.plano_proximo.id === "escritorio", "o ciclo de agora fica no Advogado; o Escritório vale na renovação",
-  { plano: det.plano && det.plano.id, prox: det.plano_proximo });
-r = await pedir("conta.plano", { id: idEva, plano: "nao-existe" });
-checar(r.status === 400, "plano que não existe: recusado");
-const idFabi = await novaConta("fabi");
-await contaDo(idFabi, "anual_pago", { pagamento: "PAYANO1", plano: "advogado", valor: 3990, meses: 12 });
-r = await pedir("conta.plano", { id: idFabi, plano: "escritorio" });
-d = await r.json();
-checar(r.status === 400 && d.erro.includes("pago de uma vez"), "no anual, a troca é na renovação: recusado com o porquê", d);
-r = await pedir("conta.plano", { id: idEva, plano: "plus" }, "x", comoSuporte());
-checar(r.status === 403, "o suporte não troca plano");
-await mexerNaConta(idEva, (x) => { x.ajuste = { motivo: "o preço especial da volta", cobrancas: [99], valor_cheio: 449, atual: 99 }; });
-r = await pedir("conta.plano", { id: idEva, plano: "advogado" });
-d = await r.json();
-checar(r.status === 400 && d.erro.includes("valor ajustado"), "com uma cobrança de valor ajustado em curso: recusado", d);
-await mexerNaConta(idEva, (x) => { delete x.ajuste; });
-
+for (const tipo of ["conta.reembolsar", "conta.cancelar", "conta.pausar", "conta.plano", "renov.oferta"]) {
+  r = await pedir(tipo, { id: idEva, plano: "plus", pagamento: "PAY1", tipo: "creditos", tokens: 10e6 });
+  d = await r.json();
+  if (!(r.status === 400 && String(d.erro).includes("desconhecida"))) checar(false, tipo + " saiu do painel: alteração desconhecida", { s: r.status, d });
+}
+checar(!(await fila()).length && !mp.length, "devolver, cancelar, pausar, trocar o plano e a oferta de volta saíram do painel (a cobrança é da Atos)");
 const cadEva = { nome_escritorio: "Eva Advocacia", documento: "52998224725", telefone: "91988887777", oab: "PA 12345", termos: "2026-10-03", quando: "2026-10-01T12:00:00.000Z",
   endereco: { cep: "66010000", logradouro: "Rua A", numero: "10", complemento: "", bairro: "Centro", cidade: "Belém", uf: "PA", cmun: "1501402" } };
 await contaDo(idEva, "cadastro", { cadastro: cadEva });
@@ -492,28 +433,6 @@ const cadDepois = (await contaDo(idEva, "admin_detalhe")).cadastro;
 checar(d.ok && cadDepois.telefone === "9132221111" && cadDepois.endereco.cidade === "Ananindeua" && cadDepois.endereco.cmun === "1500800" && cadDepois.endereco.logradouro === "Rua A"
   && cadDepois.termos === "2026-10-03" && cadDepois.quando === "2026-10-01T12:00:00.000Z" && cadDepois.ajustado.por === "suporte@paulus.ia.br",
   "publicado: telefone e cidade novos com o código IBGE da cidade; o aceite dos termos continua o da pessoa", cadDepois);
-
-const idGil = await novaConta("gil");
-await contaDo(idGil, "assinatura", { plano: "advogado", assinatura: { id: "preGil", situacao: "authorized", valor: 449 } });
-r = await pedir("conta.pausar", { id: idFabi });
-d = await r.json();
-checar(r.status === 400 && d.erro.includes("não há o que pausar"), "o pago de uma vez não pausa, e a resposta diz por quê", d);
-antesMP2 = mp.length;
-await pedir("conta.pausar", { id: idGil }, "Pausei a cobrança do Gil");
-d = await publicarFila();
-checar(d.ok && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preGil" && x.corpo.status === "paused") && (await contaDo(idGil, "resumo")).assinatura.situacao === "paused",
-  "pausar: PUT status paused no Mercado Pago, e a conta fica pausada", d);
-r = await pedir("conta.pausar", { id: idGil });
-d = await r.json();
-checar(r.status === 400 && d.erro.includes("só a assinatura ativa pausa"), "pausar de novo: recusado", d);
-antesMP2 = mp.length;
-await pedir("conta.pausar", { id: idGil, retomar: true }, "Retomei a cobrança do Gil");
-d = await publicarFila();
-checar(d.ok && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preGil" && x.corpo.status === "authorized") && (await contaDo(idGil, "resumo")).assinatura.situacao === "authorized",
-  "retomar: PUT status authorized", d);
-await pedir("conta.pausar", { id: idGil }, "Pausei a cobrança do Gil de novo");
-d = await publicarFila();
-const pubPausa = d.publicacao;
 
 // ---------------------------------------------- o registro de enderecos
 console.log("registro de endereços");
@@ -859,51 +778,16 @@ checar(r.status === 200 && r.headers.get("content-type").startsWith("application
 r = await admin("GET", "/api/admin/nfse/emissor/notas/9/xml", { semAccess: true, envUsado: envNf });
 checar(r.status === 401, "sem o Cloudflare Access, os links não abrem");
 
-// ---------------------------------------------- a oferta para voltar (sem cupom)
-console.log("oferta para voltar (sem cupom)");
-await limparFila();
-r = await pedir("renov.oferta", { id: idBruno, tipo: "creditos", tokens: 50 });
-checar(r.status === 400, "créditos de menos: recusado");
-r = await pedir("renov.oferta", { id: idBruno, tipo: "creditos", tokens: 10e6 }, "x", comoSuporte());
-checar(r.status === 403, "o suporte não faz oferta");
-r = await pedir("renov.oferta", { id: idEva, tipo: "creditos", tokens: 10e6 });
-checar(r.status === 400 && (await r.json()).erro.includes("Não renovações"), "conta fora de Não renovações: recusada");
-r = await pedir("renov.oferta", { id: idBruno, tipo: "preco", valor: 2000, plano: "escritorio" });
-checar(r.status === 400 && (await r.json()).erro.includes("valor do plano"), "preço especial acima do plano: recusado");
-emails.length = 0;
-await pedir("renov.oferta", { id: idBruno, tipo: "creditos", tokens: 10e6 }, "Ofereci 10M tokens para Bruno voltar (entram quando voltar a pagar)");
-d = await publicarFila();
-const ofCred = emails.find((e) => e.to[0] === "bruno@escritorio.com.br");
-const resBruno = await contaDo(idBruno, "resumo");
-checar(d.ok && ofCred && ofCred.subject.includes("Créditos extras") && ofCred.text.includes("10 milhões") && ofCred.text.includes("próximo pagamento confirmado") && !/cupom/i.test(ofCred.text + ofCred.html),
-  "créditos: a pessoa recebe o e-mail, sem cupom: entram com o próximo pagamento", ofCred && ofCred.text);
-checar(resBruno.oferta_volta && resBruno.oferta_volta.tipo === "creditos" && resBruno.oferta_volta.tokens === 10e6, "e a conta guarda a oferta (worker/ia.js, ofertaDeVolta)", resBruno.oferta_volta);
-d = await (await admin("GET", "/api/admin/renovacoes", como())).json();
-checar(([...d.abertas, ...d.tratadas].find((x) => x.id === idBruno) || {}).oferta.tipo === "creditos", "a não renovação mostra a oferta feita");
-antesMP2 = mp.length;
-emails.length = 0;
-await pedir("renov.oferta", { id: idBruno, tipo: "preco", valor: 99, plano: "escritorio" }, "Ofereci a Bruno o próximo mês por R$ 99");
-d = await publicarFila();
-const ofPreco = emails.find((e) => e.to[0] === "bruno@escritorio.com.br") || {};
-checar(d.ok && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/pre1" && x.corpo.auto_recurring.transaction_amount === 99) && String(ofPreco.subject).includes("preço especial")
-  && String(ofPreco.text).includes("R$ 99") && String(ofPreco.text).includes("Depois dele, volta ao valor do plano"),
-  "preço especial: a assinatura que ainda existe passa a cobrar o valor, e o e-mail conta", { d, texto: ofPreco.text });
-
-// ---------------------------------------------- quem cancelou pela Minha conta
-console.log("não renovações: quem cancelou pela Minha conta");
-const idIvo = await novaConta("ivo");
-await contaDo(idIvo, "assinatura", { plano: "advogado", assinatura: { id: "preIvo", situacao: "authorized", valor: 449 } });
-await contaDo(idIvo, "assinatura", { assinatura: { id: "preIvo", situacao: "cancelled" } });
-await contaDo(idIvo, "cancelamento", { motivo: "preco", texto: "ficou caro", por: "ivo@escritorio.com.br" });
+// ---------------------------------------------- nao renovacoes: so a Atos
+console.log("não renovações: só a conta cobrada pela Atos");
 const idJoe = await novaConta("joe");
-await contaDo(idJoe, "assinatura", { plano: "advogado", assinatura: { id: "preJoe", situacao: "authorized", valor: 449 } });
-await contaDo(idJoe, "assinatura", { assinatura: { id: "preJoe", situacao: "cancelled" } });
-for (const id of [idIvo, idJoe]) await mexerNaConta(id, (x) => { x.ciclo.fim = new Date(relogio - 2 * DIA).toISOString(); });
+await mexerNaConta(idJoe, (x) => {
+  x.plano = "advogado";
+  x.ciclo = { inicio: new Date(relogio - 32 * DIA).toISOString(), fim: new Date(relogio - 2 * DIA).toISOString(), tokens: 1e6, usados: 0 };
+  x.assinatura = { id: "preJoe", situacao: "authorized", valor: 449 };
+});
 d = await (await admin("GET", "/api/admin/renovacoes", como())).json();
-const rIvo = d.abertas.find((x) => x.id === idIvo) || {};
-checar(String(rIvo.motivo).startsWith("cancelou pela Minha conta: está caro para o escritório") && rIvo.motivo.includes("ficou caro") && rIvo.cancelamento.motivo === "preco"
-  && rIvo.tolerancia_dias === 0 && rIvo.plano.id === "advogado", "quem cancelou pela Minha conta aparece, com o motivo e o plano", rIvo);
-checar(!d.abertas.some((x) => x.id === idJoe), "a cancelada sem motivo (no Mercado Pago ou pelo painel) continua fora");
+checar(![...d.abertas, ...d.tratadas].some((x) => x.id === idJoe), "o ciclo vencido do caminho antigo (fora da Atos) não entra em Não renovações", d.abertas.map((x) => x.id));
 
 // ---------------------------------------------- retroagir
 console.log("retroagir");
@@ -935,28 +819,22 @@ checar(r.status === 409 && naoVolta.erro.includes("créditos já estão na conta
   "com uma alteração que não volta, nada volta (tudo ou nada), e a resposta diz qual e por quê", naoVolta);
 
 const idHana = await novaConta("hana");
-await contaDo(idHana, "assinatura", { plano: "advogado", assinatura: { id: "preHana", situacao: "authorized", valor: 449 } });
+await naAtos(idHana, "advogado", { id: "atos-h1", status: "authorized" });
+const mpAntesDosPlanos = mp.length;
 const planosAntesA = guardados.get("admin:planos");
 await pedir("plano.editar", { id: "advogado", valor: 459, valor_anual: 4090, tokens: 30 }, "Advogado a R$ 459");
 const pA = (await publicarFila()).publicacao;
 await pedir("plano.editar", { id: "advogado", valor: 469, valor_anual: 4190, tokens: 30 }, "Advogado a R$ 469");
 const pB = (await publicarFila()).publicacao;
-checar(mp.some((x) => x.caminho === "/preapproval/preHana" && x.corpo.auto_recurring && x.corpo.auto_recurring.transaction_amount === 469)
-  && !mp.some((x) => x.caminho === "/preapproval/preEva" && x.corpo.auto_recurring && [459, 469].includes(x.corpo.auto_recurring.transaction_amount)),
-  "o valor novo do plano vai para quem o Advogado cobra na renovação (a Eva, que troca para o Escritório, fica de fora)");
+checar(mp.length === mpAntesDosPlanos, "mudar o valor do plano não mexe em assinatura nenhuma (a cobrança é da Atos)");
 r = await retroagir({ publicacao: pA.id });
 checar(r.status === 409 && (await r.json()).erro.includes("mudaram depois"), "retroagir a mais velha com uma mais nova por cima: recusado");
-antesMP2 = mp.length;
 r = await retroagir({ publicacao: pB.id });
-checar(r.status === 200 && JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "advogado").valor === 459
-  && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preHana" && x.corpo.auto_recurring.transaction_amount === 459), "a mais nova volta primeiro, e quem assina volta a pagar o valor de antes");
+checar(r.status === 200 && JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "advogado").valor === 459 && mp.length === mpAntesDosPlanos,
+  "a mais nova volta primeiro, sem chamar o Mercado Pago");
 r = await retroagir({ publicacao: pA.id });
 checar(r.status === 200 && guardados.get("admin:planos") === planosAntesA, "depois, a mais velha: os planos ficam como eram antes das duas");
 
-antesMP2 = mp.length;
-r = await retroagir({ publicacao: pubPausa.id });
-checar(r.status === 200 && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/preGil" && x.corpo.status === "authorized") && (await contaDo(idGil, "resumo")).assinatura.situacao === "authorized",
-  "a pausa volta: a assinatura é retomada no Mercado Pago", await r.clone().json());
 r = await admin("POST", "/api/admin/retroagir", comoSuporte({ corpo: { publicacao: pubCadastro.id, confirmacao: "retroagir" } }));
 checar(r.status === 403, "nem a publicação do próprio suporte: só o dono retroage");
 r = await retroagir({ publicacao: pubCadastro.id });
@@ -1081,7 +959,7 @@ checar(r.status === 200 && d.ok && kvAba.every((p) => !("itens" in p) && !("para
   "a lista como a aba .JSON manda (textos padrão, heranca null) entra, e os textos padrão não são guardados", rAba.erro || kvAba.map((p) => Object.keys(p)));
 pl = await (await admin("GET", "/api/admin/planos", como())).json();
 const idPlus = await novaConta("plusa");
-await contaDo(idPlus, "assinatura", { plano: "plus", assinatura: { id: "prePlus", situacao: "authorized", valor: 3490 } });
+await naAtos(idPlus, "plus", { id: "atos-p1", status: "authorized" });
 const novaLista = comMudanca((l) => {
   l.find((p) => p.id === "plus").valor = 3590;
   l.push({ id: "socio", nome: "Sócio", valor: 990, valor_anual: 9900, tokens: 20000000, pessoas: 3, itens: [{ titulo: "Para dois sócios", descricao: "Com a IA do Escritório." }] });
@@ -1097,8 +975,8 @@ const pubJson = d.publicacao;
 const kvJson = JSON.parse(guardados.get("admin:planos"));
 pl = await (await admin("GET", "/api/admin/planos", como())).json();
 checar(d.ok && kvJson.length === 4 && kvJson.find((p) => p.id === "socio").itens.length === 1 && !("itens" in kvJson.find((p) => p.id === "plus"))
-  && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/prePlus" && x.corpo.auto_recurring.transaction_amount === 3590),
-  "publicado: o plano novo com os itens dele, os textos padrão não guardados, e quem assina o Plus passa a pagar o valor novo", kvJson.map((p) => p.id));
+  && mp.length === antesMP2,
+  "publicado: o plano novo com os itens dele, os textos padrão não guardados, e nenhuma assinatura mexida (a cobrança é da Atos)", kvJson.map((p) => p.id));
 checar(pl.versoes.length === versoesAntes + 1 && pl.versoes[pl.versoes.length - 1].resumo === "Atualizei o IA_PLANOS (4 planos)" && pl.versoes[pl.versoes.length - 1].quem === "matheus"
   && pl.versoes[pl.versoes.length - 1].planos.length === 4, "e entra uma versão nova no histórico, com a lista guardada");
 txt = await (await publico("/api/planos/textos")).json();
@@ -1108,8 +986,8 @@ antesMP2 = mp.length;
 r = await retroagir({ publicacao: pubJson.id });
 d = await r.json();
 pl = await (await admin("GET", "/api/admin/planos", como())).json();
-checar(r.status === 200 && guardados.get("admin:planos") === planosAntesJson && mp.slice(antesMP2).some((x) => x.caminho === "/preapproval/prePlus" && x.corpo.auto_recurring.transaction_amount === 3490)
-  && pl.versoes[pl.versoes.length - 1].resumo === "Retroagi: Atualizei o IA_PLANOS (4 planos)", "retroagir o .JSON: a lista de antes volta, o Plus volta ao valor dele, e o histórico anota", d);
+checar(r.status === 200 && guardados.get("admin:planos") === planosAntesJson && mp.length === antesMP2
+  && pl.versoes[pl.versoes.length - 1].resumo === "Retroagi: Atualizei o IA_PLANOS (4 planos)", "retroagir o .JSON: a lista de antes volta e o histórico anota", d);
 
 // ---------------------------------------------- cancelar a campanha agendada
 console.log("cancelar a campanha agendada");
@@ -1135,45 +1013,6 @@ checar(r.status === 400 && (await r.json()).erro.includes("já foi cancelada"), 
 const enviada = camps.find((x) => x.situacao === "enviada");
 r = await pedir("campanha.cancelar", { id: enviada.id });
 checar(r.status === 400 && (await r.json()).erro.includes("saiu inteira"), "a que já saiu inteira não cancela: os e-mails não voltam");
-
-// ---------------------------------------------- a forma e a situacao no extrato
-console.log("forma e situação no extrato");
-const idLia = await novaConta("lia");
-const quandoIso = (ms) => new Date(ms).toISOString();
-await contaDo(idLia, "assinatura", { plano: "advogado", assinatura: { id: "preLia", situacao: "authorized", valor: 449 } });
-await contaDo(idLia, "renovar", { cobranca: "COBL0", valor: 449, quando: quandoIso(relogio - 40 * DIA) });
-await contaDo(idLia, "cartao", { bandeira: "master", final: "4242", validade: "12/30", titular: "LIA" });
-await contaDo(idLia, "renovar", { cobranca: "COBL1", valor: 449, quando: quandoIso(relogio + 60 * 1000) });
-await contaDo(idLia, "creditar", { pedido: "ORDL1", valor: 50, plano: "advogado" });
-await contaDo(idLia, "anual_pago", { pagamento: "PAYL2", plano: "advogado", valor: 3990, meses: 12, quando: quandoIso(relogio) });
-await contaDo(idLia, "anual_pendente", { ref: "ia-mes-" + idLia + "-advogado-ab12", plano: "advogado", valor: 449, meses: 1 });
-pagamentosMP.set("cobranca:COBL0", 777);
-pagamentosMP.set("777", { id: 777, status: "approved", payment_method_id: "visa", payment_type_id: "credit_card", card: { last_four_digits: "1111" }, installments: 1 });
-pagamentosMP.set("PAYL2", { id: "PAYL2", status: "approved", payment_method_id: "pix", payment_type_id: "bank_transfer" });
-antesMP2 = mp.length;
-det = await (await admin("GET", "/api/admin/contas/" + idLia, como())).json();
-const pgLia = (ref) => (det.pagamentos || []).find((x) => x.ref === ref) || {};
-checar(pgLia("COBL1").forma.tipo === "cartao" && pgLia("COBL1").forma.bandeira === "mastercard" && pgLia("COBL1").forma.final === "4242" && !pgLia("COBL1").forma_falta,
-  "mensalidade depois do cartão guardado: a bandeira e o final dele", pgLia("COBL1"));
-checar(pgLia("COBL0").forma.bandeira === "visa" && pgLia("COBL0").forma.final === "1111" && mp.slice(antesMP2).some((x) => x.caminho === "/authorized_payments/COBL0")
-  && mp.slice(antesMP2).some((x) => x.caminho === "/v1/payments/777"), "mensalidade de antes do cartão de agora: o cartão que o Mercado Pago diz", pgLia("COBL0"));
-checar(pgLia("ORDL1").forma.tipo === "pix" && pgLia("PAYL2").forma.tipo === "pix" && pgLia("PAYL2").situacao === "pago" && pgLia("ORDL1").situacao === "pago",
-  "a recarga é Pix; o anual, o que o Mercado Pago diz (aqui, Pix); a situação de cada um", { r: pgLia("ORDL1"), a: pgLia("PAYL2") });
-checar(det.pendentes.length === 1 && det.pendentes[0].situacao === "pendente" && det.pendentes[0].tipo === "avulso" && det.pendentes[0].valor === 449 && det.pendentes[0].forma_falta,
-  "o mês no Pix que ainda espera a confirmação aparece como pendente", det.pendentes);
-checar(JSON.parse(guardados.get("admin:forma:COBL0")).final === "1111" && JSON.parse(guardados.get("admin:forma:PAYL2")).tipo === "pix", "o que o Mercado Pago disse fica guardado (só a forma)");
-antesMP2 = mp.length;
-det = await (await admin("GET", "/api/admin/contas/" + idLia, como())).json();
-checar(mp.length === antesMP2 && pgLia("COBL0").forma.final === "1111", "na próxima vez, sem perguntar de novo ao Mercado Pago");
-await contaDo(idLia, "anual_pago", { pagamento: "PAYL3", plano: "advogado", valor: 3990, meses: 12, quando: quandoIso(relogio + 2 * 60 * 1000) });
-det = await (await admin("GET", "/api/admin/contas/" + idLia, { ...como(), envUsado: { ...env, MP_ACCESS_TOKEN: "" } })).json();
-checar(pgLia("PAYL3").forma === null && pgLia("PAYL3").forma_falta.includes("MP_ACCESS_TOKEN"), "sem o Mercado Pago, o anual fica sem a forma e diz o que falta", pgLia("PAYL3"));
-// Muitas mensalidades antigas: o Mercado Pago responde ate 6 consultas por ficha; o resto fica para a proxima vez.
-for (let i = 0; i < 4; i++) await contaDo(idLia, "renovar", { cobranca: "COBV" + i, valor: 449, quando: quandoIso(relogio - (80 + i) * DIA) });
-det = await (await admin("GET", "/api/admin/contas/" + idLia, como())).json();
-const semAgora = det.pagamentos.filter((x) => /^COBV/.test(x.ref) && x.forma_falta && x.forma_falta.includes("próxima vez"));
-checar(semAgora.length >= 1 && det.pagamentos.filter((x) => /^COBV/.test(x.ref)).every((x) => x.forma && x.forma.tipo === "cartao"),
-  "com muitas a conferir, o resto espera a próxima vez, e diz", semAgora.map((x) => x.ref));
 
 // --------------------------------------------------------- privacidade
 const pessoais = [...guardados.entries()].filter(([k]) => !k.startsWith("admin:"));
@@ -1212,7 +1051,6 @@ checar(d.ok && d.access.feito && cf.chamadas.some((x) => x.caminho === "/account
 
 console.log("a conta cobrada pela Atos");
 {
-  // O dinheiro esta na Atos (worker/atos.js): o painel do PAVLVS nao devolve, cancela nem troca o plano dela.
   const idAtos = "a7a7a7a7a7a7a7a7a7a7a7a7";
   const t0 = relogio;
   // Uma sessao nova (o teste de antes encerrou todas).
@@ -1222,13 +1060,6 @@ console.log("a conta cobrada pela Atos");
   await CONTAS_IA.get(idAtos).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "atos_direito", id: idAtos, dono: { sub: "pv-atos", email: "atos@x.br" },
     retrato: { versao: 1, plano: "escritorio", ate: new Date(relogio + 30 * 864e5).toISOString(), periodo: "mes", assinatura: { id: "atos-a1", status: "canceled", preco: "pavlvs.escritorio.mes" } } }) });
   await APOIOS.put("admin:conta:" + idAtos, JSON.stringify({ id: idAtos, criada: new Date(relogio).toISOString() }));
-  const mpAntes = mp.length;
-  for (const tipo of ["conta.cancelar", "conta.reembolsar", "conta.plano"]) {
-    const rr = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo, dados: { id: idAtos, plano: "plus" }, texto: "na Atos" } }));
-    const dd = await rr.json();
-    checar(rr.status === 400 && /cobrada pela Atos/.test(dd.erro || ""), tipo + " numa conta cobrada pela Atos: recusado, com o porquê", { s: rr.status, dd });
-  }
-  checar(mp.length === mpAntes, "e o Mercado Pago do PAVLVS não foi chamado");
   // Passado o mes pago, sem renovar: entra em Nao renovacoes com o motivo da Atos, e o lembrete aponta para a Atos.
   relogio += 35 * 864e5;
   const rr = await admin("GET", "/api/admin/renovacoes", como());

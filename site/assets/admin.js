@@ -77,7 +77,7 @@
   // O papel que pode cada tipo da fila (a tabela do contrato).
   var DF = ["dono", "financeiro"], DS = ["dono", "suporte"];
   var PAPEIS = { "retroagir": ["dono"],
-    "conta.creditar": DF, "conta.instalacao.apagar": DS, "conta.cancelar": DF, "conta.reembolsar": DF, "google.servicos": DS, "google.desvincular": DS,
+    "conta.creditar": DF, "conta.instalacao.apagar": DS, "google.servicos": DS, "google.desvincular": DS,
     "tunel.apagar": DS, "tunel.endereco": DS, "tunel.ativo": DS, "plano.editar": DF,
     "plano.criar": DF, "planos.json": DF, "nfse.config": DF, "equipe.papel": ["dono"],
   };
@@ -93,7 +93,7 @@
     contas: { filtro: "todas", agrupar: "conta", q: "" },
     google: { confirmando: null, sel: null },
     tuneis: { filtro: "todos", sel: {}, aberto: null, selecionando: false, reg: "todos", regTodos: false },
-    renovacoes: { sel: null, aberto: null, msg: {}, oferta: {} },
+    renovacoes: { sel: null, aberto: null, msg: {} },
     emails: { aba: "campanhas", passo: 1, so: null, camp: novaCamp() },
     tokens: { visao: "geral", periodo: "mes", sel: null },
     planos: { novo: { nome: "", id: "", valor: "", anual: "", tokens: "" } },
@@ -312,20 +312,7 @@
       "<div><dt>Saída</dt><dd>" + esc(somaT ? pct(somaS / somaT) : "—") + "</dd></div></dl>";
     hd += "</div>";
 
-    var av = v.avisos || [];
-    var COR = { entrada: "var(--ok)", recusado: "var(--erro)", cancelado: "var(--ink3)", neutro: "var(--ink2)" };
-    var mp = cfg("mercado_pago");
-    var ha = '<div class="painel">' + painelCab("Últimos avisos do Mercado Pago", "/api/mp/aviso") + (desligado(mp) ? '<p class="aviso-falta embutido">' + ic("warning") + "<span>" + esc(mp.falta) + "</span></p>" : "");
-    var avVer = avisosTodos ? av : av.slice(0, 5);
-    ha += av.length ? avVer.map(function (a) {
-      var val = Number(a.valor) || 0;
-      var txt = a.tom === "entrada" ? "+ " + brl(val) : a.tom === "cancelado" ? "− " + brl(Math.abs(val)) : brl(val);
-      return '<div class="aviso-mp"><span class="q">' + esc(quando(a.quando)) + '</span><span class="tp">' + esc(a.tipo) + '</span><span class="tx">' + esc(a.texto) + '</span><span class="v" style="color:' + (COR[a.tom] || COR.neutro) + '">' + esc(txt) + "</span></div>";
-    }).join("") : '<p class="vazio-linha">Nenhum aviso ainda.</p>';
-    if (av.length > 5) ha += '<div class="ver-mais-linha"><button type="button" class="ver-mais" data-a="avisosVerMais">' + (avisosTodos ? "Ver menos" : "Ver mais") + ic(avisosTodos ? "north_west" : "arrow_outward") + "</button></div>";
-    ha += "</div>";
-
-    return h + '<div class="duas-col">' + hp + hd + "</div>" + ha;
+    return h + '<div class="duas-col">' + hp + hd + "</div>";
   };
   function kpi(t, v, sub, cor) { return "<div><dt>" + esc(t) + '</dt><dd' + (cor ? ' style="color:' + cor + '"' : "") + ">" + esc(v) + '</dd><span class="sub">' + esc(sub) + "</span></div>"; }
 
@@ -558,7 +545,7 @@
 
   /* ---------- 5. Nao renovacoes ---------- */
   TELAS_RENDER.renovacoes = function () {
-    var h = cab("Não renovações", "Ciclos que venceram sem a cobrança do Mercado Pago. O plano segue valendo durante a tolerância; depois, a conta fica sem IA até pagar.");
+    var h = cab("Não renovações", "Ciclos das contas cobradas pela Atos que venceram sem renovar. O plano segue valendo durante a tolerância; depois, a conta fica sem IA até pagar.");
     var est = estadoLeitura(["renovacoes"], "renovacoes"); if (est) return h + est;
     h += erroRecente("renovacoes", "renovacoes");
     var d = dadosDe("renovacoes"), ab = d.abertas || [], tr = d.tratadas || [];
@@ -589,7 +576,7 @@
     h += '<div class="painel' + (SR ? " selecionando" : "") + '">' + selR + grade(cols, 880, "<span>Conta</span><span>Plano</span><span>Prazo</span><span>Motivo</span><span></span>", linhas) +
       '<div class="pe-painel fio">' + ab.length + (ab.length === 1 ? " aberta" : " abertas") + " · " + tr.length + (tr.length === 1 ? " tratada" : " tratadas") + "</div></div>";
     var c = d.config || {};
-    var OP = [["email", "E-mail a cada não renovação", "para " + (E.sessao.access && E.sessao.access.email || "você") + ", na hora do aviso do Mercado Pago"], ["resumo", "Resumo diário às 8h", "vencidas, tolerância acabando, túneis parados"], ["whats", "WhatsApp quando a tolerância acabar", "só o nome e o plano, sem dados pessoais"], ["tol", "Lembrete automático ao cliente no 3º dia", "modelo \"Seu plano não renovou\""]];
+    var OP = [["email", "E-mail a cada não renovação", "para " + (E.sessao.access && E.sessao.access.email || "você") + ", na hora do aviso da Atos"], ["resumo", "Resumo diário às 8h", "vencidas, tolerância acabando, túneis parados"], ["whats", "WhatsApp quando a tolerância acabar", "só o nome e o plano, sem dados pessoais"], ["tol", "Lembrete automático ao cliente no 3º dia", "modelo \"Seu plano não renovou\""]];
     h += '<div class="duas-col"><div class="painel">' + painelCab("Como você quer ser avisado") + OP.map(function (o) {
       return '<button type="button" class="linha-btn" role="switch" aria-checked="' + !!c[o[0]] + '" data-a="renovCfg" data-k="' + o[0] + '"><span class="txt2"><b>' + esc(o[1]) + "</b><small>" + esc(o[2]) + "</small></span>" + sw(!!c[o[0]]) + "</button>";
     }).join("") + "</div>";
@@ -1138,7 +1125,7 @@
 
   /* ---------- 13. Confirmar alteracoes ---------- */
   TELAS_RENDER.alteracoes = function () {
-    var h = cab("Confirmar alterações", "Tudo o que você mudou nesta sessão fica aqui até publicar. Publicar aplica tudo em ordem: contas, Mercado Pago, túneis e KV na hora; material publicado vira commit na main, que o deploy do site leva ao ar.");
+    var h = cab("Confirmar alterações", "Tudo o que você mudou nesta sessão fica aqui até publicar. Publicar aplica tudo em ordem: contas, túneis e KV na hora; material publicado vira commit na main, que o deploy do site leva ao ar.");
     var est = estadoLeitura(["alteracoes"], "alteracoes"); if (est) return h + est;
     h += erroRecente("alteracoes", "alteracoes");
     var ps = E.pendentes, pubs = (dadosDe("alteracoes").publicacoes || []);
@@ -1195,9 +1182,8 @@
       cic ? fato("Ciclo", ddmm(cic.inicio) + " a " + ddmm(cic.fim)) : fato("Ciclo", "sem ciclo aberto"),
       cic ? fato("Usados", tok(cic.usados)) : "",
       fato("Restantes", tok(det.restantes)),
-      fato("Recarga", tok(det.extra)),
-      det.plano_proximo ? fato("Na renovação", "troca para " + (det.plano_proximo.nome || det.plano_proximo.id || det.plano_proximo)) : ""
-    ], '<button type="button" class="btn-icone icone-secao" data-a="contaPlano" data-id="' + esc(det.id) + '" aria-label="Alterar plano" title="Alterar plano">' + ic("swap_horiz") + "</button>", 3);
+      fato("Recarga", tok(det.extra))
+    ], "", 3);
     // cadastro
     P.cadastro = secao("Cadastro", [
       fato("Escritório", esc_.nome || "—"),
@@ -1211,9 +1197,9 @@
       fato("CEP", cad.cep || "—"),
       fato("Conta desde", ddmmaaaa(det.criada))
     ], '<button type="button" class="btn-icone icone-secao" data-a="contaCadastro" data-id="' + esc(det.id) + '" aria-label="Editar cadastro" title="Editar cadastro">' + ic("edit") + "</button>");
-    // pagamento
-    var tipoAss = !ass ? "sem assinatura" : ass.periodo === "anual" ? "anual" : ass.periodo === "avulso" ? "um mês no Pix" : "mensal (preapproval)";
-    P.mp = secao("Mercado Pago", [
+    // a cobranca (e da Atos: o painel so mostra o que ela mandou)
+    var tipoAss = !ass ? "sem assinatura" : ass.periodo === "anual" ? "anual" : ass.periodo === "avulso" ? "um mês avulso" : "mensal";
+    P.mp = secao("Cobrança (Atos)", [
       fato("Assinatura", tipoAss),
       ass ? fato("Situação", prepago ? (SIT_PAGO[ass.situacao] || ass.situacao) : ass.situacao) : "",
       prepago && det.pago_ate ? fato("Pago até", ddmmaaaa(det.pago_ate)) : "",
@@ -1240,23 +1226,17 @@
         (podeI ? '<button type="button" class="mini" style="height:26px" data-a="instDesvincular" data-hash="' + esc(i.hash8) + '" data-inst="' + esc(i.instalacao) + '"' + attrDis(fila, "já está na fila de alterações") + ">" + (fila ? "Na fila" : "Desvincular") + "</button>" : "") + "</div>";
     }).join("") : '<p class="vazio-linha" style="padding:14px">Nenhuma instalação ligada.</p>') + "</div>";
     // pagamentos
-    var pgs = (det.pagamentos || []).slice().sort(function (a, b) { return Date.parse(b.quando) - Date.parse(a.quando); }), podeR = pode("conta.reembolsar"), mpDesl = desligado(cfg("mercado_pago"));
+    var pgs = (det.pagamentos || []).slice().sort(function (a, b) { return Date.parse(b.quando) - Date.parse(a.quando); });
     P.pgs = '<div class="pilha" style="gap:10px"><div class="painel"><div class="painel-cab secao-cab"><span class="rotulo">Pagamentos</span><span class="cab-dir">' + pgs.length + "</span></div>" + (pgs.length ? pgs.slice(0, 5).map(function (x) {
-      var fila = naFila("conta.reembolsar", det.id + ":" + x.ref);
-      var dias = Math.floor((Date.now() - Date.parse(x.quando)) / 864e5);
       var sub = x.reembolso ? "reembolsado em " + ddmm(x.reembolso.quando) : "";
-      var botao = !podeR || x.reembolso ? "" : '<button type="button" class="mini" style="height:26px" data-a="contaReembolsar" data-ref="' + esc(x.ref) + '"' +
-        attrDis(fila || mpDesl, fila ? "já está na fila de alterações" : cfg("mercado_pago").falta) + ">" + (fila ? "Na fila" : "Reembolsar") + "</button>";
-      return '<div class="linha"><span class="txt2"><b class="corta">' + esc(TIPO_PAG[x.tipo] || x.tipo) + " de " + esc(brl(x.valor)) + "</b><small>" + esc(ddmmaaaa(x.quando)) + "</small>" + (sub ? "<small" + (x.reembolso ? ' class="c-ink3"' : "") + ">" + esc(sub) + "</small>" : "") + "</span>" + botao + "</div>";
+      return '<div class="linha"><span class="txt2"><b class="corta">' + esc(TIPO_PAG[x.tipo] || x.tipo) + " de " + esc(brl(x.valor)) + "</b><small>" + esc(ddmmaaaa(x.quando)) + "</small>" + (sub ? "<small" + (x.reembolso ? ' class="c-ink3"' : "") + ">" + esc(sub) + "</small>" : "") + "</span></div>";
     }).join("") : '<p class="vazio-linha" style="padding:14px">Nenhum pagamento.</p>') +
       "</div>" +
-      (podeR && pgs.some(function (x) { return !x.reembolso; }) ? '<span class="nota-campo">Reembolsar devolve o valor inteiro pelo Mercado Pago, no cartão ou no Pix de origem, e tira da conta o que ele pagou: o anual e o mês no Pix acabam, a mensalidade cancela a assinatura, a recarga sai dos créditos. Entra na fila e acontece ao confirmar. A nota fiscal já emitida se cancela em Notas fiscais.</span>' : "") + "</div>";
+      "" + "</div>";
     // acoes
-    var nome1 = primeiro(det.nome), mpOff = desligado(cfg("mercado_pago"));
     var A = [];
     if (pode("conta.creditar")) A.push(acaoG("account_balance_wallet", naFila("conta.creditar", det.id) ? "Cortesia na fila" : "Cortesia", "contaCreditar"));
-    if (pode("conta.cancelar") && ass && !prepago && ass.situacao !== "cancelled" && det.situacao !== "cancelada") P.perigo = (acaoG("close", naFila("conta.cancelar", det.id) ? "Cancelamento na fila" : "Cancelar assinatura", "contaCancelar", mpOff ? cfg("mercado_pago").falta : naFila("conta.cancelar", det.id) ? "já está na fila de alterações" : "", true));
-    P.acoes = '<div class="ficha-acoes">' + A.join("") + "</div>" + (mpOff && pode("conta.cancelar") && ass ? '<span class="nota-campo">' + esc(cfg("mercado_pago").falta) + "</span>" : "");
+    P.acoes = '<div class="ficha-acoes">' + A.join("") + "</div>";
     return P;
   }
 
@@ -1404,16 +1384,8 @@
       h += modalCab("Editar plano") + '<div class="modal-corpo"><b style="font:500 15px var(--sans)">' + esc(M.nome) + ' <span class="num s11 c-ink3">' + esc(M.id) + "</span></b>" +
         '<div class="grade-campos">' + campoModal("modal-valor", "Valor por mês", M.valor, "planoValor", "R$") + campoModal("modal-anual", "Valor por ano", M.anual, "planoAnual", "R$") + campoModal("modal-tokens", "Créditos por mês", M.tokens, "planoTokens", "", "M") + "</div>" +
         '<span class="t125">' + (t ? esc(brl(v / (t / 1e6))) + " por milhão" + (cc != null ? " · se o assinante usar tudo, custa " + esc(brl(cc)) + " no " + esc(M.modelo || "modelo do plano") : "") + (va && v ? " · o anual sai " + Math.round((1 - va / (v * 12)) * 100) + "% abaixo de 12 meses" : "") : "Preencha valor e créditos.") + "</span>" +
-        '<p class="nota-campo">Quem já assina continua pagando o valor de agora até a próxima renovação; o PUT no preapproval do Mercado Pago sai na publicação.</p></div>' +
+        '<p class="nota-campo">A cobrança é da Atos: o valor daqui não muda o que a Atos cobra de quem já assina.</p></div>' +
         modalPe('<button type="button" class="btn-acao" data-a="planoSalvar" id="modal-ok">Salvar</button>');
-    } else if (M.tipo === "contaPlano") {
-      h += modalCab("Alterar plano") + '<div class="modal-corpo"><div class="quem"><b>' + esc(M.nome) + "</b><span>" + esc(M.email) + "</span></div>" +
-        (M.planos ? '<div class="caixa-escura">' + M.planos.map(function (p) {
-          var on = M.escolhido === p.id;
-          return '<button type="button" class="linha-btn escolha-plano' + (on ? " on" : "") + '" data-a="contaPlanoEscolher" data-id="' + esc(p.id) + '" aria-pressed="' + on + '"><span class="txt2"><b>' + esc(p.nome) + (p.id === M.atual ? ' <span class="c-ink3">· atual</span>' : "") + "</b><small>" + esc(brl(p.valor)) + "/mês</small></span>" + (on ? ic("check") : "") + "</button>";
-        }).join("") + "</div>" : M.erro ? '<p class="erro-linha">' + ic("warning") + "<span>Não foi possível ler os planos: " + esc(M.erro) + "</span></p>" : '<p class="carregando">Carregando os planos…</p>') +
-        '<p class="nota-campo">A troca entra na fila e vale a partir da próxima renovação; o ciclo de agora continua no plano atual.</p></div>' +
-        modalPe('<button type="button" class="btn-acao" data-a="contaPlanoSalvar" id="modal-ok"' + (M.escolhido && M.escolhido !== M.atual ? "" : " disabled") + ">Feito</button>");
     } else if (M.tipo === "contaCadastro") {
       var cc = function (k, rot) { return '<label class="campo-adm"><span class="rot">' + esc(rot) + '</span><span class="caixa-campo fundo"><input id="cad-' + k + '" data-in="cadCampo" data-k="' + k + '" value="' + esc(M.v[k]) + '"></span></label>'; };
       h += modalCab("Editar cadastro") + '<div class="modal-corpo"><div class="quem"><b>' + esc(M.nome) + "</b><span>" + esc(M.email) + "</span></div>" +
@@ -1428,7 +1400,7 @@
         modalPe('<button type="button" class="btn-acao" data-a="contaCadastroSalvar" id="modal-ok">Feito</button>');
     } else if (M.tipo === "contaExtrato") {
       var SIT_FAT = { pago: ["paga", "var(--ok)"], pendente: ["pendente", "var(--atencao)"], recusado: ["recusada", "var(--erro)"], reembolsado: ["reembolsada", "var(--ink3)"] };
-      var cols = "88px minmax(120px,1fr) minmax(150px,1.1fr) 100px 128px 100px 56px 32px 32px";
+      var cols = "88px minmax(120px,1fr) 100px 128px 100px 56px 32px 32px";
       var fT = M.filtro || "todos", fP = M.periodo || "tudo", agoraE = Date.now(), anoE = String(new Date().getFullYear());
       var itensF = M.itens.filter(function (x) {
         var okT = fT === "todos" || (fT === "reembolsados" ? !!x.reembolso : !x.reembolso && x.tipo === fT);
@@ -1441,16 +1413,12 @@
       var linhasE = itensF.map(function (x) {
         var st = SIT_FAT[x.reembolso ? "reembolsado" : (x.situacao || "pago")] || [x.situacao, "var(--ink3)"], nf = x.nfse;
         var arq = function (tipo, icone) { return nf ? '<a class="btn-icone ext-arq" href="' + NF + "notas/" + esc(nf.id) + "/" + tipo + (tipo === "pdf" ? "?baixar=1" : "") + '" download aria-label="' + tipo.toUpperCase() + " da NFS-e " + esc(nf.numero) + '" title="' + tipo.toUpperCase() + '">' + ic(icone) + "</a>" : '<span class="c-ink3">—</span>'; };
-        return '<div class="grade-linha p10"><span class="num">' + esc(ddmmaaaa(x.quando)) + '</span><span class="corta">' + esc(descPag(x, M)) + "</span>" + formaHtml(x.forma, x.forma_falta) +
+        return '<div class="grade-linha p10"><span class="num">' + esc(ddmmaaaa(x.quando)) + '</span><span class="corta">' + esc(descPag(x, M)) + "</span>" +
           '<span class="num dir">' + esc(brl(x.valor)) + '</span><span class="corta">' + esc(MODALIDADE[x.tipo] || "—") + "</span>" +
           sit(st[0], st[1]) + '<span class="num"' + (nf && nf.estado && nf.estado !== "emitida" ? ' title="NFS-e ' + esc(nf.estado === "substituida" ? "substituída" : nf.estado) + '"' : "") + ">" + esc(nf ? nf.numero : "—") + "</span>" + arq("pdf", "picture_as_pdf") + arq("xml", "code") + "</div>";
       }).join("") || '<p class="vazio-linha">Nenhum pagamento com esse filtro.</p>';
       var pago = itensF.reduce(function (s, x) { return s + (x.reembolso || x.situacao === "pendente" ? 0 : Number(x.valor) || 0); }, 0);
-      // O que o extrato nao sabe dizer: a forma que falta e por que (o medidor guarda so o tipo, o valor e a data).
-      var semForma = itensF.filter(function (x) { return x.forma_falta; });
-      var faltas = semForma.map(function (x) { return x.forma_falta; }).filter(function (t, i, l) { return l.indexOf(t) === i; });
-      var notaE = '<p class="nota-campo">' + (faltas.length ? "Sem a forma completa de " + semForma.length + (semForma.length === 1 ? " pagamento: " : " pagamentos: ") + esc(faltas.join("; ")) + ". " : "") +
-        "As cobranças recusadas não ficam na conta: elas aparecem no Mercado Pago.</p>";
+      var notaE = '<p class="nota-campo">A assinatura, o cartão e as faturas ficam na Conta Atos da pessoa (atos.dev.br).</p>';
       var nPend = itensF.filter(function (x) { return x.situacao === "pendente"; }).length;
       if (itensF.length) linhasE += '<div class="grade-linha linha-total"><span class="tot-rot"><b>Total pago</b><small>' + itensF.length + (itensF.length === 1 ? " lançamento" : " lançamentos") +
         (nPend ? " · " + nPend + (nPend === 1 ? " pendente, fora do total" : " pendentes, fora do total") : "") + "</small></span><span></span>" +
@@ -1459,21 +1427,19 @@
       var A_ = M.ass, SIT_PRE = { authorized: ["ativa", "var(--ok)"], paused: ["pausada", "var(--atencao)"], cancelled: ["cancelada", "var(--erro)"], pending: ["pendente", "var(--atencao)"], expired: ["vencida", "var(--erro)"], refunded: ["reembolsada", "var(--ink3)"] };
       var sa = A_ ? (SIT_PRE[A_.situacao] || [A_.situacao, "var(--ink3)"]) : null;
       var tile = function (rot, val, extra) { return '<div class="ass-tile"><span class="ass-rot">' + rot + '</span><span class="ass-val">' + val + "</span>" + (extra || "") + "</div>"; };
-      var cardAss = !A_ ? '<div class="ass-card vazio"><span class="ass-marca mp"><img src="' + ASSETS + 'mercadopago-cor.png" alt="Mercado Pago"></span><span class="txt2"><b>Sem assinatura no Mercado Pago</b><small>Os pagamentos avulsos aparecem na tabela abaixo.</small></span></div>' :
-        '<div class="ass-card"><div class="ass-topo"><img class="ass-logo" src="' + ASSETS + 'mercadopago-cor.png" alt="Mercado Pago"><span class="ass-linha"><b>' + esc(MODALIDADE[A_.periodo === "anual" ? "anual" : A_.periodo === "avulso" ? "avulso" : "assinatura"]) + "</b>" +
+      var cardAss = !A_ ? '<div class="ass-card vazio"><span class="txt2"><b>Sem assinatura na Atos</b><small>Os pagamentos que a conta tiver aparecem na tabela abaixo.</small></span></div>' :
+        '<div class="ass-card"><div class="ass-topo"><span class="ass-linha"><b>' + esc(MODALIDADE[A_.periodo === "anual" ? "anual" : A_.periodo === "avulso" ? "avulso" : "assinatura"]) + "</b>" +
         (M.plano ? "<span>Plano " + esc(M.plano) + "</span>" : "") + (M.valor != null ? "<span>" + esc(brl(M.valor)) + (A_.periodo === "anual" ? "/ano" : "/mês") + "</span>" : "") + "</span>" +
         '<span class="ass-sit"><i style="background:' + sa[1] + '"></i>' + esc(sa[0]) + "</span></div>" +
         '<div class="ass-tiles">' + tile("Assinante desde", esc(A_.desde ? ddmmaaaa(A_.desde) : "—")) +
-        tile(A_.prepago ? "Pago até" : "Próxima cobrança", esc(A_.prepago ? (M.pagoAte ? ddmmaaaa(M.pagoAte) : "—") : (M.proxima ? ddmmaaaa(M.proxima) : "—")) +
-          (!A_.prepago && A_.situacao === "authorized" && pode("conta.cancelar") ? '<button type="button" class="btn-icone ass-copiar" data-a="contaPausar" data-id="' + esc(M.id) + '"' + attrDis(naFila("conta.pausar", M.id), "já está na fila de alterações") + ' aria-label="Pausar a cobrança" title="Pausar a cobrança">' + ic("pause_circle") + "</button>" : "") +
-          (!A_.prepago && A_.situacao === "paused" && pode("conta.cancelar") ? '<button type="button" class="btn-icone ass-copiar" data-a="contaRetomar" data-id="' + esc(M.id) + '"' + attrDis(naFila("conta.pausar", M.id), "já está na fila de alterações") + ' aria-label="Retomar a cobrança" title="Retomar a cobrança">' + ic("play_circle") + "</button>" : "")) +
-        (A_.id ? tile("ID no Mercado Pago", '<span class="ass-id-linha"><span class="ass-id" title="' + esc(A_.id) + '">' + esc(A_.id) + '</span><button type="button" class="btn-icone ass-copiar" data-a="copiarTexto" data-t="' + esc(A_.id) + '" aria-label="Copiar o ID" title="Copiar">' + ic("content_copy") + "</button></span>") : "") + "</div></div>";
+        tile(A_.prepago ? "Pago até" : "Próxima cobrança", esc(A_.prepago ? (M.pagoAte ? ddmmaaaa(M.pagoAte) : "—") : (M.proxima ? ddmmaaaa(M.proxima) : "—"))) +
+        (A_.id ? tile("ID na Atos", '<span class="ass-id-linha"><span class="ass-id" title="' + esc(A_.id) + '">' + esc(A_.id) + '</span><button type="button" class="btn-icone ass-copiar" data-a="copiarTexto" data-t="' + esc(A_.id) + '" aria-label="Copiar o ID" title="Copiar">' + ic("content_copy") + "</button></span>") : "") + "</div></div>";
       h += modalCab("Extrato") + '<div class="modal-corpo">' + (M.embutido ? "" : '<div class="quem"><b>' + esc(M.nome) + "</b><span>" + esc(M.email) + "</span></div>") + cardAss +
         '<div class="barra-filtros">' + seg("extrato.tipo", [["todos", "Todos"], ["assinatura", "Mensalidades"], ["anual", "Anuais"], ["recarga", "Recargas"], ["reembolsados", "Reembolsados"]], fT) +
         seg("extrato.periodo", [["tudo", "Tudo"], ["30", "30 dias"], ["90", "90 dias"]], fP).replace(/<\/div><\/div>$/, "") +
         '<button type="button" class="seg-cal" data-a="extratoCal" aria-pressed="' + (fP === "custom") + '" aria-expanded="' + !!M.cal + '" title="Período específico" aria-label="Período específico">' + ic("calendar_month") +
         "<span>" + (fP === "custom" ? esc(ddmm(M.de) + " – " + ddmm(M.ate)) : "Outro período") + "</span></button></div></div>" + (M.cal ? calHtml(M.cal) : "") + "</div>" +
-        '<div class="painel">' + grade(cols, 840, "<span>Data</span><span>Descrição</span><span>Forma</span><span class=\"dir\">Valor</span><span>Modalidade</span><span>Status</span><span>NFS-e</span><span>PDF</span><span>XML</span>", linhasE) + "</div>" + notaE +
+        '<div class="painel">' + grade(cols, 840, "<span>Data</span><span>Descrição</span><span class=\"dir\">Valor</span><span>Modalidade</span><span>Status</span><span>NFS-e</span><span>PDF</span><span>XML</span>", linhasE) + "</div>" + notaE +
         "</div>" + '<div class="modal-pe"><button type="button" class="btn-acao" data-a="fecharModal" id="modal-ok">Fechar</button></div>';
     } else if (M.tipo === "tunelHist") {
       h += modalCab("Histórico · " + M.slug + ".paulus.ia.br") + '<div class="modal-corpo"><div class="painel">' +
@@ -1498,7 +1464,7 @@
       var P = M.pub, okR = M.texto.trim() === "retroagir";
       h += modalCab("Retroagir publicação") + '<div class="modal-corpo"><p class="t13" style="line-height:1.55;font-size:13.5px">Desfaz a publicação de <b class="c-ink" style="font-weight:500">' + esc(quando(P.quando)) + "</b> (commit " + esc(String(P.commit).slice(0, 7)) + "): " + (P.n || 0) + (P.n === 1 ? " alteração volta" : " alterações voltam") + " ao estado anterior, num commit novo de reversão na main. As publicações depois dela não mudam.</p>" +
         '<div class="lista-commit"><span><span>—</span>' + esc(P.resumo || "") + "</span></div>" +
-        '<p class="nota-campo">O que já saiu para fora não volta: e-mails enviados, cobranças feitas no Mercado Pago e notas emitidas continuam valendo.</p>' +
+        '<p class="nota-campo">O que já saiu para fora não volta: e-mails enviados e notas emitidas continuam valendo.</p>' +
         '<label class="campo-adm"><span class="rot">Digite <code class="cod">retroagir</code> para confirmar</span><span class="caixa-campo mono fundo"><input id="modal-retro" data-in="retroTexto" value="' + esc(M.texto) + '" placeholder="retroagir" spellcheck="false" autocomplete="off" autocapitalize="none"></span></label>' +
         (M.erro ? '<p class="erro-campo">' + esc(M.erro) + "</p>" : "") + "</div>" +
         modalPe('<button type="button" class="btn-acao' + (okR ? " perigo-cheio" : "") + '" data-a="retroagir" id="modal-ok"' + (M.enviando ? " disabled" : "") + ">" + ic("undo") + (M.enviando ? "Retroagindo…" : "Retroagir") + "</button>");
@@ -2079,7 +2045,6 @@
   A.seg = function (el) {
     var n = el.dataset.seg, v = el.dataset.v;
     if (n === "nfCli.filtro") { if (E.modal) { E.modal.filtro = v; E.modal.editando = null; } renderCamada(); return; }
-    if (n.indexOf("renovOferta:") === 0) { var o = U.renovacoes.oferta[n.slice(12)]; if (o) o.tipo = v; render(); return; }
     if (n.indexOf("equipe.papel:") === 0) return mudarPapel(n.slice(13), v);
     if (SEG[n]) SEG[n](v);
     else { var p = n.split("."); U[p[0]][p[1]] = v; }
@@ -2130,7 +2095,7 @@
   A.abrirPaginaConta = function () { if (!E.gaveta) return; E.gaveta.pagina = true; renderCamada(); render(); window.scrollTo(0, 0); };
   A.voltarContas = function () { E.gaveta = null; if (E.modal && E.modal.embutido) E.modal = null; render(); window.scrollTo(0, 0); };
   // Na pagina da conta, o que era pop-up (extrato, cadastro, plano, Google) abre como aba.
-  var ABAS_CONTA = [["resumo", "Resumo", ""], ["extrato", "Pagamentos", "contaExtrato"], ["cadastro", "Cadastro", "contaCadastro"], ["plano", "Plano", "contaPlano"], ["google", "Permissões Google", "modalGoogle"], ["tunel", "Túnel", ""]];
+  var ABAS_CONTA = [["resumo", "Resumo", ""], ["extrato", "Pagamentos", "contaExtrato"], ["cadastro", "Cadastro", "contaCadastro"], ["google", "Permissões Google", "modalGoogle"], ["tunel", "Túnel", ""]];
   A.contaAba = function (el) {
     var aba = el.dataset.aba, def = ABAS_CONTA.filter(function (x) { return x[0] === aba; })[0]; if (!def || !E.gaveta) return;
     if (!def[2]) { E.modal = null; E.gaveta.aba = aba; render(); return; }
@@ -2148,16 +2113,6 @@
   A.contaDesvincular = function (el) {
     var c = (E.gaveta && (E.gaveta.det || E.gaveta.resumo)) || contaResumo(el && el.dataset.id); if (!c) return;
     enfileirar("contas", "google.desvincular", c.id, { id: c.id }, "Desvinculei a conta Google de " + c.nome);
-  };
-  A.contaCancelar = function () {
-    var c = E.gaveta.det || E.gaveta.resumo; if (!c) return;
-    enfileirar("contas", "conta.cancelar", c.id, { id: c.id }, "Cancelei a assinatura de " + c.nome + (c.plano ? " (" + c.plano.nome + ")" : ""));
-  };
-  A.contaReembolsar = function (el) {
-    var c = E.gaveta.det; if (!c) return;
-    var p = (c.pagamentos || []).filter(function (x) { return String(x.ref) === el.dataset.ref; })[0]; if (!p) return;
-    enfileirar("contas", "conta.reembolsar", c.id + ":" + p.ref, { id: c.id, pagamento: p.ref },
-      "Reembolsei " + brl(p.valor) + " (" + (TIPO_PAG[p.tipo] || p.tipo).toLowerCase() + " de " + ddmm(p.quando) + ") de " + c.nome);
   };
   A.instDesvincular = function (el) {
     var c = E.gaveta.det; if (!c) return;
@@ -2296,25 +2251,14 @@
     var ok = await naHora("POST", "/api/admin/renovacoes/" + encodeURIComponent(id) + "/lembrete", {}, "Lembrete enviado para " + (r ? r.email : "a conta"));
     if (ok) ler("renovacoes"); else el.disabled = false;
   };
-  // O detalhe aberto da nao renovacao: uma mensagem do proprio punho e uma oferta para a pessoa voltar.
+  // O detalhe aberto da nao renovacao: uma mensagem do proprio punho.
   function renovDetHtml(r, emailOff, email) {
-    var id = String(r.id), msg = U.renovacoes.msg[id] || "", of = U.renovacoes.oferta[id] || (U.renovacoes.oferta[id] = { tipo: "creditos", tokens: "10", valor: "", plano: r.plano ? r.plano.id : "" });
+    var id = String(r.id), msg = U.renovacoes.msg[id] || "";
     regrasRenovacao(id);
-    var ps = (dadosDe("planos") || {}).planos; if (!ps && !renovDetHtml.pediu) { renovDetHtml.pediu = true; ler("planos"); }
-    ps = ps || (r.plano ? [r.plano] : []);
     var h = '<div class="tunel-det renov-det"><div class="td-esq rd-col"><span class="td-tit">Mensagem para ' + esc(primeiro(r.nome)) + "</span>" +
       '<textarea class="area rd-msg" rows="4" id="rd-msg-' + esc(id) + '" data-in="renovMsg" data-id="' + esc(id) + '" placeholder="Escreva do seu jeito. Sai do e-mail do Paulus, com o seu nome.">' + esc(msg) + "</textarea>" +
       '<div class="res-acoes rd-pe"><span class="nota-campo">Vai para ' + esc(r.email) + "</span>" +
-      '<button type="button" class="mini cheia" data-a="renovMsgEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff, email.falta) + ">" + ic("send") + "Enviar mensagem</button></div></div>" +
-      '<div class="td-dir rd-col"><span class="td-tit">Oferta para voltar</span>' + seg("renovOferta:" + id, [["creditos", "Créditos extras"], ["preco", "Preço especial"]], of.tipo, "pequeno") +
-      (of.tipo === "creditos"
-        ? '<div class="rd-linha"><label class="campo-adm"><span class="rot">Créditos</span><span class="caixa-campo fundo"><input inputmode="numeric" id="rd-tokens-' + esc(id) + '" data-in="renovOf" data-id="' + esc(id) + '" data-k="tokens" value="' + esc(of.tokens) + '" style="width:0"><span class="sufixo">M tokens</span></span></label>' +
-          '<label class="campo-adm"><span class="rot">Vale por</span><span class="caixa-campo fundo"><input readonly value="60 dias" style="width:0"></span></label></div>' +
-          '<p class="nota-campo">Os créditos entram na conta quando a pessoa voltar a pagar, com o próximo pagamento confirmado. Ela recebe a oferta por e-mail.</p>'
-        : '<div class="rd-linha"><label class="campo-adm"><span class="rot">Só este mês por</span><span class="caixa-campo fundo"><span class="pre">R$</span><input inputmode="decimal" id="rd-valor-' + esc(id) + '" data-in="renovOf" data-id="' + esc(id) + '" data-k="valor" value="' + esc(of.valor) + '" placeholder="' + esc(r.plano ? String(Math.round(r.plano.valor * 0.6)) : "") + '" style="width:0"></span></label>' +
-          '<label class="campo-adm"><span class="rot">No plano</span><span class="caixa-campo fundo"><select data-in="renovOf" data-id="' + esc(id) + '" data-k="plano">' + ps.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === of.plano ? " selected" : "") + ">" + esc(p.nome) + " · " + esc(brl(p.valor)) + "</option>"; }).join("") + "</select></span></label></div>" +
-          '<p class="nota-campo">Vale só para o próximo pagamento; depois volta ao preço do plano.</p>') +
-      '<div class="res-acoes rd-pe"><span></span><button type="button" class="mini cheia" data-a="renovOfertaEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff, email.falta) + ">" + ic("local_offer") + "Enviar oferta</button></div></div></div>";
+      '<button type="button" class="mini cheia" data-a="renovMsgEnviar" data-id="' + esc(id) + '"' + attrDis(emailOff, email.falta) + ">" + ic("send") + "Enviar mensagem</button></div></div></div>";
     return h;
   }
   A.renovAbrir = function (el) { if (U.renovacoes.sel) return; var id = el.dataset.id; U.renovacoes.aberto = String(U.renovacoes.aberto) === String(id) ? null : id; render(); };
@@ -2325,13 +2269,6 @@
     el.disabled = true;
     var ok = await naHora("POST", "/api/admin/renovacoes/" + encodeURIComponent(id) + "/mensagem", { texto: t }, "Mensagem enviada");
     if (ok) { U.renovacoes.msg[id] = ""; render(); } else el.disabled = false;
-  };
-  A.renovOfertaEnviar = function (el) {
-    var id = el.dataset.id, of = U.renovacoes.oferta[id], r = (((dadosDe("renovacoes") || {}).abertas) || []).filter(function (x) { return String(x.id) === String(id); })[0]; if (!of || !r) return;
-    if (PC && !PC.conferir([(of.tipo === "creditos" ? "rd-tokens-" : "rd-valor-") + id])) return;
-    var dados = of.tipo === "creditos" ? { id: id, tipo: "creditos", tokens: Number(of.tokens) * 1e6 } : { id: id, tipo: "preco", valor: numDec(of.valor), plano: of.plano };
-    var txt = of.tipo === "creditos" ? "Ofereci " + of.tokens + "M tokens para " + r.nome + " voltar (entram quando voltar a pagar)" : "Ofereci a " + r.nome + " o próximo mês por " + brl(numDec(of.valor)) + " no plano " + of.plano;
-    enfileirar("renovacoes", "renov.oferta", id, dados, txt);
   };
   A.renovSelSair = function () { U.renovacoes.sel = null; render(); };
   A.renovSelTodas = function () { U.renovacoes.sel = {}; (((dadosDe("renovacoes") || {}).abertas) || []).forEach(function (r) { U.renovacoes.sel[r.id] = true; }); render(); };
@@ -2517,21 +2454,6 @@
   };
 
   function contaAtual() { return E.gaveta && (E.gaveta.det || E.gaveta.resumo); }
-  A.contaPlano = function () {
-    var c = contaAtual(); if (!c) return;
-    var M = { tipo: "contaPlano", id: c.id, nome: c.nome, email: c.email, atual: c.plano && c.plano.id, escolhido: c.plano && c.plano.id, planos: null, erro: "" };
-    var ps = (dadosDe("planos") || {}).planos;
-    if (ps) M.planos = ps;
-    abrirModal(M);
-    if (!ps) api("GET", "/api/admin/planos").then(function (d) { if (E.modal === M) { M.planos = d.planos || []; renderCamada(); } }, function (e) { if (E.modal === M) { M.erro = e.message; renderCamada(); } });
-  };
-  A.contaPlanoEscolher = function (el) { E.modal.escolhido = el.dataset.id; renderCamada(); };
-  A.contaPlanoSalvar = function () {
-    var M = E.modal, p = (M.planos || []).filter(function (x) { return x.id === M.escolhido; })[0]; if (!p) return;
-    var antes = (M.planos || []).filter(function (x) { return x.id === M.atual; })[0];
-    fecharModal();
-    enfileirar("contas", "conta.plano", M.id, { id: M.id, plano: p.id }, "Troquei o plano de " + M.nome + ": " + (antes ? antes.nome : "—") + " → " + p.nome + " na renovação");
-  };
   A.contaCadastro = function () {
     var c = contaAtual(); if (!c || !E.gaveta.det) return;
     var d = E.gaveta.det, cad = d.cadastro || {}, es = d.escritorio || {};
@@ -2668,31 +2590,6 @@
   var MODALIDADE = { assinatura: "Assinatura mensal", anual: "Assinatura anual", avulso: "Mês avulso", recarga: "Recarga avulsa" };
   var SIT_FAT_TXT = { pago: "paga", pendente: "pendente", recusado: "recusada", reembolsado: "reembolsada" };
   function descPag(x, M) { return x.tipo === "recarga" ? "Recarga" + (x.tokens ? " de " + tok(x.tokens) + " tokens" : "") : "Plano " + (M.plano || ""); }
-  // A forma: o simbolo do Pix e a chave, ou a bandeira do cartao e o final.
-  var PIX_SVG = '<svg class="pix-ic" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.3 11.9a2 2 0 0 1-1.4-.6L8.6 9a.4.4 0 0 0-.6 0l-2.3 2.3a2 2 0 0 1-1.4.6h-.5l2.9 2.9a2.3 2.3 0 0 0 3.3 0l2.9-2.9h-.6ZM4.3 4.1a2 2 0 0 1 1.4.6L8 7a.4.4 0 0 0 .6 0l2.3-2.3a2 2 0 0 1 1.4-.6h.4L9.8 1.2a2.3 2.3 0 0 0-3.3 0L3.7 4.1h.6Zm10.5 2.2L13 4.6h-.7a1.4 1.4 0 0 0-1 .4L9.1 7.3a1.1 1.1 0 0 1-1.6 0L5.3 5a1.4 1.4 0 0 0-1-.4h-.9L1.2 6.3a2.3 2.3 0 0 0 0 3.3l1.7 1.7h1a1.4 1.4 0 0 0 1-.4l2.3-2.3a1.1 1.1 0 0 1 1.6 0l2.3 2.3a1.4 1.4 0 0 0 1 .4h.7l1.7-1.7a2.3 2.3 0 0 0 0-3.3Z"/></svg>';
-  // A bandeira do cartao desenhada no cartaozinho branco (Visa, Mastercard); as outras vao pelo nome.
-  function bandeiraHtml(b) {
-    var k = String(b || "").toLowerCase();
-    if (k === "mastercard") return '<span class="bandeira-c" aria-label="Mastercard"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><circle cx="9.5" cy="8" r="5" fill="#EB001B"/><circle cx="14.5" cy="8" r="5" fill="#F79E1B"/><path d="M12 3.6a5 5 0 0 1 0 8.8 5 5 0 0 1 0-8.8Z" fill="#FF5F00"/></svg></span>';
-    if (k === "visa") return '<span class="bandeira-c" aria-label="Visa"><svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><text x="12" y="11.2" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8.4" font-weight="700" font-style="italic" fill="#1A1F71" letter-spacing=".2">VISA</text></svg></span>';
-    return '<span class="bandeira">' + esc(b || "Cartão") + "</span>";
-  }
-  // Sem a forma (ou sem a bandeira e o final), o traço diz por quê ao passar o mouse.
-  function formaHtml(f, falta) {
-    if (!f) return '<span class="c-ink3"' + (falta ? ' title="' + esc(falta) + '"' : "") + ">—</span>";
-    if (f.tipo === "pix") return '<span class="forma" title="Pix' + (f.chave ? " · " + esc(f.chave) : "") + '">' + PIX_SVG + '<span class="corta">' + esc(f.chave || "Pix") + "</span></span>";
-    if (f.tipo === "saldo") return '<span class="forma corta" title="Saldo no Mercado Pago">Saldo no Mercado Pago</span>';
-    if (f.tipo !== "cartao") return '<span class="corta">' + esc(f.tipo) + "</span>";
-    if (!f.final) return '<span class="forma"' + (falta ? ' title="' + esc(falta) + '"' : "") + ">" + (f.bandeira ? bandeiraHtml(f.bandeira) : '<span class="bandeira">Cartão</span>') + "</span>";
-    return '<span class="forma" title="' + esc((f.bandeira || "Cartão") + " final " + f.final + (f.parcelas > 1 ? " · em " + f.parcelas + "×" : "") + (f.debito ? " · débito" : "")) + '">' + bandeiraHtml(f.bandeira) + '<span class="num">•••• ' + esc(f.final) + "</span></span>";
-  }
-  function formaTexto(f) {
-    if (!f) return null;
-    if (f.tipo === "pix") return "Pix" + (f.chave ? " " + f.chave : "");
-    if (f.tipo === "saldo") return "Saldo no Mercado Pago";
-    if (f.tipo !== "cartao") return f.tipo;
-    return (f.bandeira || "Cartão") + (f.final ? " •••• " + f.final : "") + (f.parcelas > 1 ? " em " + f.parcelas + "×" : "");
-  }
   function extratoLinhas(M) {
     var fT = M.filtro || "todos", fP = M.periodo || "tudo", agora = Date.now(), ano = String(new Date().getFullYear());
     return M.itens.filter(function (x) {
@@ -2705,17 +2602,9 @@
       // A NFS-e do pagamento: o numero, o estado e os links do painel para o PDF e o XML (atras do Access).
       var nf = x.nfse ? { numero: x.nfse.numero, estado: x.nfse.estado || "emitida", pdf: x.nfse.pdf || location.origin + NF + "notas/" + x.nfse.id + "/pdf?baixar=1", xml: x.nfse.xml || location.origin + NF + "notas/" + x.nfse.id + "/xml" } : null;
       var st = SIT_FAT_TXT[x.reembolso ? "reembolsado" : (x.situacao || "pago")] || x.situacao;
-      return { data: (x.quando || "").slice(0, 10), descricao: descPag(x, M), forma: formaTexto(x.forma), forma_falta: x.forma_falta || null, modalidade: MODALIDADE[x.tipo] || null, valor: Number(x.valor) || 0, status: st, nfse: nf, ref: x.ref };
+      return { data: (x.quando || "").slice(0, 10), descricao: descPag(x, M), modalidade: MODALIDADE[x.tipo] || null, valor: Number(x.valor) || 0, status: st, nfse: nf, ref: x.ref };
     });
   }
-  A.contaPausar = function (el) {
-    var c = contaAtual() || contaResumo(el.dataset.id); if (!c) return;
-    enfileirar("contas", "conta.pausar", c.id, { id: c.id }, "Pausei a cobrança da assinatura de " + c.nome + " no Mercado Pago");
-  };
-  A.contaRetomar = function (el) {
-    var c = contaAtual() || contaResumo(el.dataset.id); if (!c) return;
-    enfileirar("contas", "conta.pausar", c.id, { id: c.id, retomar: true }, "Retomei a cobrança da assinatura de " + c.nome + " no Mercado Pago");
-  };
   A.copiarTexto = async function (el) { try { await navigator.clipboard.writeText(el.dataset.t || ""); toast("Copiado"); } catch (e) { toast("O navegador não deixou copiar", true); } };
   A.extratoJson = function () {
     var M = E.modal; if (!M || M.tipo !== "contaExtrato") return;
@@ -2729,13 +2618,13 @@
     var ls = extratoLinhas(M), tot = ls.reduce(function (s, x) { return s + (x.status === "reembolsada" || x.status === "pendente" ? 0 : x.valor); }, 0);
     var w = window.open("", "_blank"); if (!w) { toast("O navegador bloqueou a janela do PDF", true); return; }
     w.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Extrato · ' + esc(M.nome) + '</title><style>body{font:13px/1.5 system-ui,sans-serif;color:#1c1c1a;margin:32px}h1{font-size:18px;margin:0 0 2px}p{margin:0 0 18px;color:#66655f}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #ddd}th{font-weight:600;font-size:12px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tfoot td{font-weight:600;border-top:2px solid #1c1c1a}</style></head><body>' +
-      "<h1>Extrato · " + esc(M.nome) + "</h1><p>" + esc(M.email) + " · gerado em " + esc(ddmmaaaa(new Date().toISOString())) + "</p><table><thead><tr><th>Data</th><th>Descrição</th><th>Forma</th><th class=\"n\">Valor</th><th>Modalidade</th><th>Status</th><th>NFS-e</th></tr></thead><tbody>" +
+      "<h1>Extrato · " + esc(M.nome) + "</h1><p>" + esc(M.email) + " · gerado em " + esc(ddmmaaaa(new Date().toISOString())) + "</p><table><thead><tr><th>Data</th><th>Descrição</th><th class=\"n\">Valor</th><th>Modalidade</th><th>Status</th><th>NFS-e</th></tr></thead><tbody>" +
       ls.map(function (x) {
         var nf = x.nfse ? esc(x.nfse.numero || "—") + (x.nfse.estado !== "emitida" ? " (" + esc(x.nfse.estado === "substituida" ? "substituída" : x.nfse.estado) + ")" : "") +
           ' · <a href="' + esc(x.nfse.pdf) + '">PDF</a> · <a href="' + esc(x.nfse.xml) + '">XML</a>' : "—";
-        return "<tr><td>" + esc(ddmmaaaa(x.data)) + "</td><td>" + esc(x.descricao) + "</td><td>" + esc(x.forma || "—") + '</td><td class="n">' + esc(brl(x.valor)) + "</td><td>" + esc(x.modalidade || "—") + "</td><td>" + esc(x.status) + "</td><td>" + nf + "</td></tr>";
+        return "<tr><td>" + esc(ddmmaaaa(x.data)) + "</td><td>" + esc(x.descricao) + '</td><td class="n">' + esc(brl(x.valor)) + "</td><td>" + esc(x.modalidade || "—") + "</td><td>" + esc(x.status) + "</td><td>" + nf + "</td></tr>";
       }).join("") +
-      '</tbody><tfoot><tr><td></td><td>Total pago</td><td></td><td class="n">' + esc(brl(tot)) + "</td><td></td><td></td><td></td></tr></tfoot></table></body></html>");
+      '</tbody><tfoot><tr><td></td><td>Total pago</td><td class="n">' + esc(brl(tot)) + "</td><td></td><td></td><td></td></tr></tfoot></table></body></html>");
     w.document.close(); w.focus(); setTimeout(function () { w.print(); }, 200);
   };
   A.contaExtrato = function () {
@@ -2743,8 +2632,7 @@
     var ass = E.gaveta.det.assinatura, prep = ass && (ass.periodo === "anual" || ass.periodo === "avulso");
     abrirModal({ tipo: "contaExtrato", id: c.id, nome: c.nome, email: c.email, plano: c.plano ? c.plano.nome : "", valor: c.plano ? c.plano.valor : null, pagoAte: E.gaveta.det.pago_ate, proxima: E.gaveta.det.ciclo ? E.gaveta.det.ciclo.fim : null,
       ass: ass ? { periodo: ass.periodo, situacao: ass.situacao, desde: ass.desde, id: ass.id, prepago: prep } : null,
-      // Os pagamentos e, no alto, o de uma vez que ainda espera a confirmacao do Mercado Pago.
-      itens: (E.gaveta.det.pendentes || []).concat((E.gaveta.det.pagamentos || []).slice().sort(function (a, b) { return Date.parse(b.quando) - Date.parse(a.quando); })) });
+      itens: (E.gaveta.det.pagamentos || []).slice().sort(function (a, b) { return Date.parse(b.quando) - Date.parse(a.quando); }) });
   };
 
   A.googleSelSair = function () { U.google.sel = null; render(); };
@@ -2782,8 +2670,7 @@
     });
   })();
 
-  var visaoTodas = false, avisosTodos = false;
-  A.avisosVerMais = function () { avisosTodos = !avisosTodos; render(); };
+  var visaoTodas = false;
   A.visaoVerMais = function () { visaoTodas = !visaoTodas; render(); };
 
   // materiais
@@ -3202,7 +3089,7 @@
   A.fecharModal = function () { fecharModal(); };
   A.fecharBusca = function () { fecharBusca(); };
   A.buscaIr = function (el) { var r = itensBusca[Number(el.dataset.i)]; if (r) { E.busca.aberta = false; renderCamada(); r.ir(); } };
-  var ABA_DO_MODAL = { contaExtrato: "extrato", contaCadastro: "cadastro", contaPlano: "plano", google: "google" };
+  var ABA_DO_MODAL = { contaExtrato: "extrato", contaCadastro: "cadastro", google: "google" };
   var NF_ABA = { nfEmitir: "emitir", nfClientes: "clientes", nfParametros: "parametros" };
   function abrirModal(m) {
     if (PC && /^nf/.test(m.tipo)) { PC.esquecer("nf-c-"); PC.esquecer("nf-token"); }
@@ -3265,8 +3152,6 @@
     if (!PC) return;
     var R = {};
     R["rd-msg-" + id] = PC.regra("preenchido", "escreva a mensagem");
-    R["rd-tokens-" + id] = PC.regra(function (v) { return Number(v) > 0; }, "os créditos precisam ser maiores que zero");
-    R["rd-valor-" + id] = PC.regra(function (v) { return numDec(v) > 0; }, "o valor precisa ser maior que zero");
     PC.regras(R);
   }
   // O endereco do tunel: a borda segue o M.check, depois que a pessoa digitou e saiu (ou tentou trocar).
@@ -3314,7 +3199,6 @@
       f.text().then(function (t) { try { t = JSON.stringify(JSON.parse(t), null, 2); } catch (e) { /* mostra como veio; o aviso diz o erro */ } U.planos.json = t; render(); toast("Arquivo carregado: confira e salve"); });
     },
     renovMsg: function (el) { U.renovacoes.msg[el.dataset.id] = el.value; },
-    renovOf: function (el) { var o = U.renovacoes.oferta[el.dataset.id]; if (!o) return; o[el.dataset.k] = el.value; if (el.tagName !== "SELECT") { var pos = el.selectionStart, k = el.dataset.k, id = el.dataset.id; render(); var n = document.querySelector('[data-in="renovOf"][data-id="' + id + '"][data-k="' + k + '"]'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } } else render(); },
     regQ: function (el) { U.tuneis.regQ = el.value; var pos = el.selectionStart; render(); var i = $("reg-q"); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (e) {} } },
     cadUf: function (el) { E.modal.v.uf = el.value; },
     // A cidade sugere os municipios do IBGE (a mesma busca da NFS-e), so os da UF escolhida.

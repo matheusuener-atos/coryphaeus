@@ -45,15 +45,12 @@ function aviso(dataId, segredo, ts = Date.now()) {
   });
 }
 
+// A cobranca e da Atos: o webhook do Mercado Pago de antes so e respondido (200, para ele nao repetir), e nada muda.
 const r1 = await worker.fetch(aviso("ORD01HRYFWNYRE1MR1E60MW3X0T2P", env.MP_WEBHOOK_SECRET), env);
-checar(r1.status === 200, "aviso com a assinatura certa é aceito");
-const r2 = await worker.fetch(aviso("123456789", "outro-segredo"), env);
-checar(r2.status === 401, "aviso com assinatura errada é recusado");
-const r3 = await worker.fetch(aviso("123456789", env.MP_WEBHOOK_SECRET, Date.now() - 60 * 60 * 1000), env);
-checar(r3.status === 401, "aviso velho (repetido) é recusado");
+checar(r1.status === 200 && (await r1.json()).ignorado, "o aviso do Mercado Pago de antes é respondido e ignorado");
 const r4 = await worker.fetch(new Request("https://paulus.ia.br/api/mp/aviso", { method: "POST", body: "{}" }), env);
-checar(r4.status === 401, "aviso sem assinatura é recusado");
-checar(guardados.size === 0, "aviso que não é da nuvem não grava nada");
+checar(r4.status === 200, "até sem assinatura: não há o que aplicar");
+checar(guardados.size === 0, "e nada é gravado");
 
 // O antigo "Apoiar o projeto" saiu: as rotas dele nao existem mais.
 const postar = (caminho, corpo) => worker.fetch(new Request("https://paulus.ia.br" + caminho, { method: "POST", body: JSON.stringify(corpo) }), env);
