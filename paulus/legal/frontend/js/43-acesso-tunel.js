@@ -181,34 +181,25 @@ function blocoConexao() {
     // senha; o e-mail secundario e so de contato.
     // No assistente, com o vinculo, tudo vem de Seus dados: so o resumo.
     // No assistente, a titularidade ja esta dada (a conta Google que entrou, ou Seus dados): nome e e-mail
-    // nao se perguntam - so para convidados, em Configuracoes › Acesso externo. Sobram a senha e o autenticador.
+    // nao se perguntam - so para convidados, em Configuracoes › Acesso externo. Sobra o autenticador.
     if (conexaoUI.onde === "bv") {
       const daPessoa = conexaoUI.daPessoa || {};
       if (daPessoa.nome) v.nome = daPessoa.nome;
       if (vinculo.email) v.email = vinculo.email; else if (daPessoa.email) v.email = daPessoa.email;
       v.secundario = daPessoa.secundario || "";
-      // Vinculado pelo Google, a senha e a do Google: aqui so o autenticador. Pela conta PAVLVS
-      // de e-mail e senha (07/10), a entrada de fora pede uma senha deste computador - pode ser a mesma.
-      conta = ((vinculo.por === "atos" || vinculo.por === "senha")
-        ? '<p class="cfg-texto">Para entrar de fora: o seu e-mail, uma senha e o código de 6 dígitos do aplicativo autenticador do celular. A senha fica só neste computador; pode ser a mesma da sua Conta Atos.</p>' +
-          '<div class="acesso-form">' + campo("senha", "Senha para entrar de fora", "password", "pelo menos 10 caracteres") +
-          campo("repetir", "Confirmar a senha", "password", "") + "</div>"
-        : '<p class="cfg-texto">Para entrar de fora: a sua conta Google e o código de 6 dígitos do aplicativo autenticador do celular.</p>') +
+      // De fora se entra com a Conta Atos (09/10/2026): aqui so o autenticador, nenhuma senha deste computador.
+      conta = '<p class="cfg-texto">Para entrar de fora: a sua Conta Atos e o código de 6 dígitos do aplicativo autenticador do celular.</p>' +
         '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
         '<div class="acesso-pe">' + linhaBotao({ classe: "centro", attrs: ' data-cx-criar-conta="1"', icones: [{ html: '<img src="/img/marcas/authenticator.webp" alt="" width="22" height="22">', classe: "lb-22" }], titulo: "Ler o QR no celular" }) +
         '<p class="cfg-explica">O código fica só neste computador. Sem ele, ninguém entra de fora.</p></div>';
     } else conta = '<div class="acesso-form">' + campo("nome", "Nome", "text", "como aparece no registro de acessos") +
-      (d.so_google
-        ? (vinculo.email
-          ? '<div class="ag-campo"><label>E-mail Google</label><div class="acesso-fixo">' + ic("check_circle", 16) + "<span>" + esc(vinculo.email) +
-            "</span><small>a conta vinculada a este Paulus</small></div></div>"
-          : campo("email", "E-mail Google", "email", "Gmail ou do Google Workspace")) + campo("secundario", "E-mail secundário (opcional)", "email", "")
-        : campo("email", "E-mail", "email", "") + campo("senha", "Senha", "password", "pelo menos 10 caracteres") +
-          campo("repetir", "Repita a senha", "password", "")) + "</div>" +
+      (vinculo.email
+        ? '<div class="ag-campo"><label>E-mail da Conta Atos</label><div class="acesso-fixo">' + ic("check_circle", 16) + "<span>" + esc(vinculo.email) +
+          "</span><small>a conta vinculada a este Paulus</small></div></div>"
+        : campo("email", "E-mail da Conta Atos", "email", "com ele você entra de fora")) + campo("secundario", "E-mail secundário (opcional)", "email", "") + "</div>" +
       '<p class="acesso-erro" role="alert">' + esc(conexaoUI.erroConta) + "</p>" +
       '<div class="acesso-pe"><button class="primario com-icone" data-cx-criar-conta="1">' + ic("shield_person", 16) + "Criar a conta e ler o QR</button>" +
-      '<p class="cfg-explica">' + (d.so_google ? "Sem ela, ninguém entra de fora. Você entra com o Google e o código do celular; o código fica só neste computador."
-        : "Sem ela, ninguém entra de fora. Senha e código ficam só neste computador.") + "</p></div>";
+      '<p class="cfg-explica">Sem ela, ninguém entra de fora. Você entra com a Conta Atos e o código do celular; o código fica só neste computador.</p></div>';
   }
   const contaPronta = titulares.length > 0 && conexaoUI.fase !== "codigos";
   const etapaConta = etapaConexao(2, conexaoUI.onde === "bv" ? "Autenticação" : "Sua conta de titular", conta, contaPronta && (conexaoUI.onde !== "bv" || bvPassos.e1),
@@ -421,33 +412,26 @@ function ligarBlocoConexao(raiz) {
   vigiarCampo(cxCampo("nome"), REGRA_CAMPO.preenchido, { vazio: "diga o nome" });
   vigiarCampo(cxCampo("email"), REGRA_CAMPO.email, { vazio: "diga o e-mail" });
   vigiarCampo(cxCampo("secundario"), REGRA_CAMPO.email);
-  vigiarCampo(cxCampo("senha"), (s) => (s.length < 10 ? "a senha precisa de pelo menos 10 caracteres" : ""), { vazio: "a senha precisa de pelo menos 10 caracteres" });
-  vigiarCampo(cxCampo("repetir"), (s) => (s === ((cxCampo("senha") || {}).value || "") ? "" : "as duas senhas não são iguais"), { vazio: "repita a senha" });
-  if (cxCampo("senha") && cxCampo("repetir")) cxCampo("senha").addEventListener("input", () => { if (cxCampo("repetir").dataset.campoTocado) pintarCampo(cxCampo("repetir")); });
   clique("[data-cx-criar-conta]", async (b) => {
     const v = conexaoUI.conta;
     raiz.querySelectorAll("[data-cx-conta]").forEach((i) => { v[i.dataset.cxConta] = i.value; });
     conexaoUI.erroConta = "";
-    // No assistente, nome e e-mail ja vieram. Vinculado pelo Google, a conta entra pelo Google (sem senha
-    // daqui); pela Conta Atos, a senha de fora (deste computador) e pedida aqui.
+    // No assistente, nome e e-mail ja vieram. A conta entra pela Conta Atos: nenhuma senha daqui.
     const noBv = conexaoUI.onde === "bv";
-    const porSenha = ["atos", "senha"].includes((((tunelCfg.dados || {}).vinculo) || {}).por);
-    const soGoogle = noBv ? !porSenha : Boolean((tunelCfg.dados || {}).so_google);
-    const naTela = ["nome", "email", "secundario", "senha", "repetir"].map(cxCampo);
+    const naTela = ["nome", "email", "secundario"].map(cxCampo);
     if (!conferirCampos(naTela)) return;
     // No assistente nome e e-mail nao tem campo: sem eles, o passo Sua conta nao terminou (nao e campo daqui).
     if (!v.nome.trim() || !v.email.trim()) conexaoUI.erroConta = noBv ? "a sua conta ainda não foi reconhecida; volte ao passo Sua conta" : "diga o nome e o e-mail";
     if (!conexaoUI.erroConta) {
       b.disabled = true;
       try {
-        conexaoUI.criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: soGoogle ? "" : v.senha,
+        conexaoUI.criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email,
           email_secundario: v.secundario || "", papel: "titular" });
         conexaoUI.fase = "autenticador";
-        v.senha = ""; v.repetir = "";
       } catch (err) {
-        // O erro que e de um campo (e-mail, senha) pinta o campo; o resto fica no aviso.
+        // O erro que e de um campo (e-mail) pinta o campo; o resto fica no aviso.
         const m = String(err.message || "");
-        const alvo = /senha/i.test(m) ? cxCampo("senha") : /e-mail/i.test(m) && !/secund/i.test(m) ? cxCampo("email") : /secund/i.test(m) ? cxCampo("secundario") : null;
+        const alvo = /e-mail/i.test(m) && !/secund/i.test(m) ? cxCampo("email") : /secund/i.test(m) ? cxCampo("secundario") : null;
         if (alvo) { b.disabled = false; campoErradoPeloServidor(alvo, m); alvo.focus(); return; }
         conexaoUI.erroConta = m;
       }

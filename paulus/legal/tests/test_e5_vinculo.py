@@ -47,9 +47,11 @@ class EntradaFalsa:
     email = ""
     nome = "Dona do Escritório"
     kwargs: dict = {}
+    provedor = ""
 
     def __init__(self, provedor, credenciais, ao_concluir, **kw) -> None:
         EntradaFalsa.kwargs = kw
+        EntradaFalsa.provedor = provedor
         self.ao_concluir = ao_concluir
         self.fase = "preparando"
         self.mensagem = ""
@@ -58,7 +60,7 @@ class EntradaFalsa:
         import correio_oauth
 
         try:
-            self.ao_concluir("google", {}, EntradaFalsa.email, EntradaFalsa.nome)
+            self.ao_concluir(EntradaFalsa.provedor, {}, EntradaFalsa.email, EntradaFalsa.nome)
             self.fase = "pronto"
         except correio_oauth.ErroOAuth as exc:
             self.fase = "erro"
@@ -104,7 +106,8 @@ def test_http() -> None:
     e = r.json()
     checar(r.status_code == 200 and e["vinculado"] and e["email"] == "dona@gmail.com" and not e["travado"],
            "vincula e ja fica aberto", e)
-    checar(e["por"] == "google", "o vinculo sabe que foi pelo Google (a conta PAVLVS por senha e a outra)", e.get("por"))
+    checar(e["por"] == "atos" and EntradaFalsa.provedor == "atos",
+           "o vinculo e da Conta Atos, mesmo pedido como Google (o PAULUS so entra com ela, 09/10/2026)", (e.get("por"), EntradaFalsa.provedor))
     checar(EntradaFalsa.kwargs.get("escopos") == "openid email profile" and EntradaFalsa.kwargs.get("so_identidade"),
            "o login pede so a identidade (nada de e-mail)", EntradaFalsa.kwargs)
     checar(prefs["pessoa"].get("nome") == "Dona do Escritório" and prefs["pessoa"].get("email") == "dona@gmail.com",
@@ -116,17 +119,15 @@ def test_http() -> None:
     checar(prefs["pessoa"].get("email") == "dona@gmail.com" and prefs["pessoa"].get("email_secundario") == "contato@escritorio.com",
            "o e-mail de Meus dados vira o do Google, e o antigo vai para o secundario", prefs["pessoa"])
 
-    print("  vincular e ja conectar o Gmail, a Agenda e o Drive, num login so")
+    print("  o Gmail, a Agenda e o Drive nao vem mais junto do vinculo (so em Conexoes)")
     ligados = []
     antes_ligar = v.ligar_servicos
     v.ligar_servicos = lambda tokens, email, nome: ligados.append(email)
     try:
         local.post("/api/vinculo/desvincular")
         r = local.post("/api/vinculo/entrar", json={"finalidade": "vincular", "servicos": True})
-        esc = EntradaFalsa.kwargs.get("escopos", "")
-        checar(r.status_code == 200 and "https://mail.google.com/" in esc and "calendar.events" in esc and "drive.file" in esc
-               and not EntradaFalsa.kwargs.get("so_identidade"), "o mesmo login pede o Gmail, a Agenda e o Drive", esc)
-        checar(ligados == ["dona@gmail.com"] and r.json()["vinculado"], "e a conta de e-mail do escritorio nasce junto", ligados)
+        checar(r.status_code == 200 and EntradaFalsa.kwargs.get("escopos") == "openid email profile" and EntradaFalsa.kwargs.get("so_identidade")
+               and not ligados and r.json()["vinculado"], "vincular so pede a identidade, na Atos", EntradaFalsa.kwargs)
     finally:
         v.ligar_servicos = antes_ligar
 

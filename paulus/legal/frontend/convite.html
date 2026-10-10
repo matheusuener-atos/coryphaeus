@@ -22,9 +22,9 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <!--
   O convite (docs/PLANO-EQUIPE.md, E4; src/acesso/convites.py). Quem foi
-  convidado abre este link no proprio celular: entra com o Google (ou escolhe
-  a senha), adiciona a conta ao Google Authenticator e confirma com o primeiro
-  codigo. A conta nasce aqui - ninguem precisa ir ate o computador do escritorio.
+  convidado abre este link no proprio celular: entra com a Conta Atos (desde
+  09/10/2026 a unica entrada; o Google e a senha ficam em atos.dev.br),
+  adiciona a conta ao Google Authenticator e confirma com o primeiro codigo. A conta nasce aqui - ninguem precisa ir ate o computador do escritorio.
 
   Sem maquete propria: segue as telas de entrada do pacote "Paulus - Site e
   Entrada" (03/10/2026), as mesmas de frontend/entrar.html - a marca no alto
@@ -48,6 +48,8 @@
     font: 400 14px/1.5 'Manrope', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   button { font: inherit; }
   [hidden] { display: none !important; }
+  .atos-ic { display: block; width: 22px; height: 22px; }
+  [data-tema="claro"] .atos-ic { filter: invert(1); }
 
   /* A coluna: no celular, a marca no alto e os campos no pe; no computador,
      360 px no meio, com a marca no mesmo ponto da tela de entrar. */
@@ -226,13 +228,13 @@
       <a class="g-trilho" href="/"><span class="g-pastilha">Ir para a tela de entrar</span></a>
     </section>
 
-    <!-- 1. Google ou senha -->
+    <!-- 1. A Conta Atos -->
     <section id="passo-senha" hidden>
       <form id="form-senha" autocomplete="on" novalidate>
         <div class="grupo">
           <div class="rotulo-linha"><span class="rotulo">CONTA</span><span class="lado" id="passo-de">passo 1 de 3</span></div>
           <div class="linha-botao"><span class="lb-icones"><span class="lb-ic" id="marca-conta"></span></span><span class="lb-texto"><b class="lb-titulo" id="email"></b></span></div>
-          <p class="ajuda" id="so-google-ajuda" hidden>Entre no Google com essa conta.</p>
+          <p class="ajuda">Entre na Atos com este e-mail. Sem Conta Atos? Ela se cria lá, com o Google ou com uma senha.</p>
         </div>
         <div class="app" id="app">
           <span class="app-cabeca"><span class="app-icone"><svg viewBox="0 0 48 48" width="22" height="22" aria-hidden="true"><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(60 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#FBBC04" transform="rotate(120 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#EA4335" transform="rotate(180 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#4285F4" transform="rotate(240 24 24)"/><rect x="21" y="4" width="6" height="20" rx="3" fill="#34A853" transform="rotate(300 24 24)"/><circle cx="24" cy="24" r="5" fill="#5F6368"/></svg></span>
@@ -242,22 +244,14 @@
             <a id="loja-iphone" href="https://apps.apple.com/app/google-authenticator/id388497605" target="_blank" rel="noopener noreferrer">iPhone · App Store</a>
           </span>
         </div>
-        <button type="button" class="linha-botao centro" id="google" hidden><span class="lb-icones"><span class="lb-ic"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg></span></span><span class="lb-texto"><b class="lb-titulo">Continuar com o Google</b></span></button>
-        <div class="ou" id="ou" hidden>OU CRIE UMA SENHA</div>
-        <div class="grupo" id="por-senha">
-          <input type="email" id="usuario" autocomplete="username" hidden>
-          <div class="rotulo-linha"><span class="rotulo">SENHA</span><span class="lado">10 caracteres ou mais</span></div>
-          <input class="campo" id="senha" type="password" autocomplete="new-password" required minlength="10" aria-label="Senha">
-          <input class="campo" id="repetir" type="password" autocomplete="new-password" required minlength="10" placeholder="Repita a senha" aria-label="Repita a senha">
-        </div>
+        <button type="button" class="linha-botao centro" id="atos"><span class="lb-icones"><span class="lb-ic"><img class="atos-ic" src="/img/conta-atos.png" alt="" width="22" height="22"></span></span><span class="lb-texto"><b class="lb-titulo">Continuar com Atos</b></span></button>
         <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
         <div class="cf-badge" id="cf-badge" data-estado="verificando" role="status" aria-live="polite" hidden>
           <span class="cf-esq"><span class="cf-icone"><svg class="cf-v" viewBox="0 0 24 24" aria-hidden="true"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg><svg class="cf-x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 19 5 17.6 10.6 12 5 6.4 6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4Z"/></svg></span><span class="cf-texto" id="cf-texto">Verificando…</span></span>
           <span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · <a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener">Ajuda</a></span></span>
         </div>
         <p class="erro" id="erro-senha" role="alert"></p>
-        <button type="submit" class="g-trilho" id="continuar-senha"><span class="g-pastilha">Continuar</span></button>
-        <p class="ajuda centro">O convite vale uma vez e por 7 dias. A senha e o autenticador ficam só no computador do escritório.</p>
+        <p class="ajuda centro">O convite vale uma vez e por 7 dias. O autenticador fica só no computador do escritório.</p>
       </form>
     </section>
 
@@ -317,8 +311,7 @@
   const $ = (id) => document.getElementById(id);
   const codigoDoConvite = decodeURIComponent(location.pathname.split("/").filter(Boolean)[1] || "");
   const api = "/api/acesso/convite/" + encodeURIComponent(codigoDoConvite);
-  const G = $("google").querySelector("svg").outerHTML;
-  const ENVELOPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="color:var(--ink3)"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M4 7l8 6 8-6"/></svg>';
+  const ATOS = '<img class="atos-ic" src="/img/conta-atos.png" alt="" width="22" height="22">';
   let robo = null;
   let comRobo = false;
   let ocupado = false;
@@ -356,8 +349,7 @@
   // teste na rede do escritorio, nao ha verificacao e eles ficam livres).
   function travar() {
     const parado = ocupado || (comRobo && $("cf-badge").dataset.estado !== "ok");
-    $("google").disabled = parado;
-    $("continuar-senha").disabled = parado;
+    $("atos").disabled = parado;
   }
   function selo(estado, texto) {
     $("cf-badge").dataset.estado = estado;
@@ -456,9 +448,6 @@
     if (primeiro) primeiro.focus();
     return !primeiro;
   }
-  vigiar($("senha"), (v) => (v.length < 10 ? "a senha precisa ter pelo menos 10 caracteres" : v.length > 200 ? "a senha pode ter no máximo 200 caracteres" : ""));
-  vigiar($("repetir"), (v) => (v && v === $("senha").value ? "" : "as duas senhas não são iguais"));
-  $("senha").addEventListener("input", () => { if (tocados.has($("repetir"))) pintar($("repetir")); });
   vigiar($("codigo"), (v) => (/^\d{6}$/.test(v.replace(/\D/g, "")) ? "" : "o código tem 6 números"));
 
   // "Renova em 00:18": o codigo do autenticador vale 30 s.
@@ -466,14 +455,12 @@
   relogio();
   setInterval(relogio, 1000);
 
-  // `porSenha`: o convite aceito com a senha (e nao com o Google) - muda so o jeito de entrar que a tela diz.
-  function mostrarQr(d, porSenha) {
+  function mostrarQr(d) {
     if (d.simples) {
       // Seguranca "simples": sem autenticador - a conta ja esta pronta.
       $("liberado-email").textContent = d.email || "";
-      $("marca-liberado").innerHTML = porSenha ? ENVELOPE : G;
-      $("liberado-texto").textContent = "O escritório escolheu entrar sem o código do celular: a sua conta está pronta. Para usar o PAVLVS, entre " +
-        (porSenha ? "com este e-mail e a senha que você escolheu." : "com esta conta Google.");
+      $("marca-liberado").innerHTML = ATOS;
+      $("liberado-texto").textContent = "O escritório escolheu entrar sem o código do celular: a sua conta está pronta. Para usar o PAVLVS, entre com esta Conta Atos.";
       frase("convite_pronto");
       mostrar("passo-liberado");
       return;
@@ -485,22 +472,23 @@
     mostrar("passo-app");
   }
 
-  // A volta do Google (E3a): #g=<token> busca o QR da conta que acabou de
-  // nascer; #erro=<frase> diz o que nao fechou (outra conta do Google, por exemplo).
+  // A volta da Atos: #g=<token> busca o QR da conta que acabou de nascer;
+  // #erro=<frase> diz o que nao fechou (outra Conta Atos, por exemplo).
   const volta = new URLSearchParams(location.hash.slice(1));
   if (volta.get("g") || volta.get("erro")) history.replaceState(null, "", location.pathname);
   if (volta.get("g")) {
     fetch(api + "/google?t=" + encodeURIComponent(volta.get("g"))).then(async (r) => {
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.detail || "a volta do Google venceu; abra o convite de novo");
+      if (!r.ok) throw new Error(d.detail || "a volta da Atos venceu; abra o convite de novo");
       mostrarQr(d);
     }).catch((err) => { $("erro-convite-texto").textContent = err.message; convidou(); });
   }
 
-  $("google").addEventListener("click", async () => {
+  async function aceitarComAtos() {
     ocupado = true; travar(); $("erro-senha").textContent = "";
     try {
-      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "convite", convite: codigoDoConvite, turnstile: tokenDoRobo() });
+      const d = await enviar("/api/acesso/atos/iniciar", { finalidade: "convite", convite: codigoDoConvite, turnstile: tokenDoRobo(),
+        dica: convite.email || "" });
       location.assign(d.url);
       return;
     } catch (err) { $("erro-senha").textContent = err.message; }
@@ -508,7 +496,8 @@
     ocupado = false;
     novoRobo();
     travar();
-  });
+  }
+  $("atos").addEventListener("click", aceitarComAtos);
 
   if (!volta.get("g")) fetch(api).then(async (r) => {
     const d = await r.json().catch(() => ({}));
@@ -521,8 +510,7 @@
     const primeiro = String(d.nome || "").split(" ")[0];
     frase("convite", { nome: primeiro, escritorio: d.escritorio || "" });
     $("email").textContent = d.email;
-    $("usuario").value = d.email;
-    $("marca-conta").innerHTML = d.google ? G : ENVELOPE;
+    $("marca-conta").innerHTML = ATOS;
     if (d.seguranca === "simples") {
       // Sem autenticador: um passo so, e nada de instalar app.
       $("app").hidden = true;
@@ -530,41 +518,13 @@
     }
     mostrar("passo-senha");
     if (volta.get("erro")) $("erro-senha").textContent = volta.get("erro");
-    if (d.google) { $("google").hidden = false; $("ou").hidden = false; }
-    // So o Google: o convite se aceita entrando no Google com a conta convidada.
-    if (d.so_google) {
-      if (!d.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem convidou você";
-      $("por-senha").hidden = true; $("ou").hidden = true; $("continuar-senha").hidden = true;
-      $("senha").required = false; $("repetir").required = false;
-      $("so-google-ajuda").hidden = false;
-    }
     mostrarRobo(d.turnstile_sitekey);
   }).catch(() => {
     $("erro-convite-texto").textContent = "não consegui abrir o convite; recarregue a página";
     convidou();
   });
 
-  $("form-senha").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (convite.so_google) return;
-    $("erro-senha").textContent = "";
-    // A senha e a confirmacao conferidas aqui tambem, antes de gastar a verificacao contra robos:
-    // o campo que nao fecha fica vermelho, sem texto.
-    if (!conferir(["senha", "repetir"])) return;
-    ocupado = true; travar();
-    try {
-      const d = await enviar(api + "/aceitar", { senha: $("senha").value, turnstile: tokenDoRobo() });
-      $("senha").value = ""; $("repetir").value = "";
-      mostrarQr(d, true);
-    } catch (err) {
-      // A senha recusada pelo servidor e o campo; o resto (robo, convite) fica no texto.
-      if (/senha/.test(err.message) && !/escolha a senha/.test(err.message)) { tocados.add($("senha")); marcar($("senha"), "erro", err.message); $("senha").focus(); }
-      else $("erro-senha").textContent = err.message;
-    }
-    ocupado = false;
-    novoRobo();
-    travar();
-  });
+  $("form-senha").addEventListener("submit", (e) => { e.preventDefault(); if (!ocupado) aceitarComAtos(); });
 
   $("form-codigo").addEventListener("submit", async (e) => {
     e.preventDefault();

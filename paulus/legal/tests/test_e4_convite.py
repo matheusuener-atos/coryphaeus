@@ -6,11 +6,11 @@ equipe entra por convite (src/acesso/convites.py).
   - sem o acesso de fora conectado, nao ha link;
   - o link e https://<endereco>/convite/<codigo>; de fora, sem sessao, a
     pagina abre e as tres rotas do convite respondem; o resto continua 401;
-  - aceitar pede a verificacao contra robos e senha forte; a conta nasce
-    colaborador, com as permissoes do convite, e so entra depois do codigo;
+  - aceitar e pela Conta Atos (09/10/2026), com a verificacao contra robos; a
+    conta nasce colaborador, com as permissoes do convite, e so entra depois do codigo;
   - confirmar com o codigo certo devolve 10 codigos de recuperacao e gasta o
-    convite; a pessoa entra com senha + codigo;
-  - quem abandona no meio abre de novo: senha e QR refeitos;
+    convite; a pessoa entra com a Conta Atos + codigo;
+  - quem abandona no meio abre de novo: o QR refeito, na mesma conta;
   - cancelado, vencido, usado, inexistente: a frase de cada um;
   - convidar de fora: 403.
 
@@ -19,11 +19,14 @@ equipe entra por convite (src/acesso/convites.py).
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import shutil
 import sys
 import tempfile
 import time
+import urllib.parse
 from pathlib import Path
 
 RAIZ = Path(__file__).parent.parent
@@ -58,11 +61,27 @@ def test_http() -> None:
     api.estado.prefs.dados["vinculo"] = {"email": "dono@x.com", "nome": "Dono", "em": "", "manter_aberto": True}
     prefs = api.estado.prefs.dados["acesso_remoto"]
     servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
-    # O convite por senha (o caminho sem o Google): o "so Google" do
-    # escritorio e testado em test_e3_google.py.
     prefs["ligado"] = True
-    prefs["so_google"] = False
     local = TestClient(api.app, headers=api.cabecalho_local())
+    # A volta da Atos (src/acesso/atos_login.py): a troca do codigo e simulada.
+    quem = {}
+
+    def trocar(code, verificador, volta):
+        b = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+        corpo = {"iss": "https://atos.dev.br", "aud": "pavlvs-escritorio", "exp": time.time() + 600, "email_verified": True, **quem}
+        return {"id_token": b({"alg": "ES256"}) + "." + b(corpo) + ".x"}
+
+    servico.atos.trocar = trocar
+
+    def pela_atos(f, email, **dados):
+        """Vai a Atos e volta como `email`; devolve o destino (o que vem depois do # inclusive)."""
+        r = f.post("/api/acesso/atos/iniciar", json={"turnstile": "ok", "finalidade": "entrar", **dados})
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.json().get("url", "")).query))
+        quem.clear()
+        quem.update(email=email, nonce=q.get("nonce", ""))
+        r = f.get("/api/acesso/atos/retorno", params={"code": "c", "state": q.get("state", ""), "iss": "https://atos.dev.br"},
+                  follow_redirects=False)
+        return urllib.parse.unquote(r.headers.get("location", ""))
 
     def de_fora() -> TestClient:
         return TestClient(api.app, base_url="https://moura.paulus.ia.br", headers={"Cf-Connecting-IP": "200.3.3.3"})
@@ -94,24 +113,29 @@ def test_http() -> None:
         r = f.get("/api/acesso/convite/" + codigo)
         checar(r.status_code == 200 and r.json()["nome"] == "Bia Souza" and r.json()["email"] == "bia@x.com",
                "ver o convite", r.text[:200])
-        r = f.post(f"/api/acesso/convite/{codigo}/aceitar", json={"senha": "senha-da-bia-1"})
+        r = f.post("/api/acesso/atos/iniciar", json={"finalidade": "convite", "convite": codigo})
         checar(r.status_code == 403, "aceitar sem a verificacao contra robos: 403", r.status_code)
-        r = f.post(f"/api/acesso/convite/{codigo}/aceitar", json={"senha": "curta", "turnstile": "ok"})
-        checar(r.status_code == 400, "senha fraca: 400", r.status_code)
-        r = f.post(f"/api/acesso/convite/{codigo}/aceitar", json={"senha": "senha-provisoria-1", "turnstile": "ok"})
-        checar(r.status_code == 200 and r.json()["otpauth"].startswith("otpauth://") and r.json()["qr_svg"].startswith("<svg"),
-               "aceitar: o QR e o otpauth:// para o botao do celular", r.text[:120])
+        para = pela_atos(f, "outra@x.com", finalidade="convite", convite=codigo)
+        checar("#erro=" in para and not [c for c in servico.contas.listar() if c["email"] == "outra@x.com"],
+               "aceitar com outra Conta Atos: recusado", para)
+        para = pela_atos(f, "bia@x.com", finalidade="convite", convite=codigo)
+        token = urllib.parse.parse_qs(para.split("#", 1)[-1]).get("g", [""])[0]
+        r = f.get(f"/api/acesso/convite/{codigo}/google", params={"t": token})
+        checar(para.startswith("/convite/" + codigo + "#g=") and r.status_code == 200 and r.json()["otpauth"].startswith("otpauth://")
+               and r.json()["qr_svg"].startswith("<svg"), "aceitar pela Atos: o QR e o otpauth:// para o botao do celular", r.text[:120])
         conta = next(c for c in servico.contas.listar() if c["email"] == "bia@x.com")
         checar(conta["papel"] == "colaborador" and not conta["totp_confirmado"] and conta["permissoes"]["agenda"] == "faz",
                "a conta nasce colaborador, sem autenticador, com as permissoes do convite", conta)
 
-        # Abandonou e abriu de novo: senha e QR refeitos, a mesma conta.
-        r = f.post(f"/api/acesso/convite/{codigo}/aceitar", json={"senha": "senha-da-bia-1", "turnstile": "ok"})
+        # Abandonou e abriu de novo: o QR refeito, a mesma conta.
+        para = pela_atos(f, "bia@x.com", finalidade="convite", convite=codigo)
+        token = urllib.parse.parse_qs(para.split("#", 1)[-1]).get("g", [""])[0]
+        r = f.get(f"/api/acesso/convite/{codigo}/google", params={"t": token})
         segredo = r.json()["segredo"]
         checar(r.status_code == 200 and len([c for c in servico.contas.listar() if c["email"] == "bia@x.com"]) == 1,
-               "abrir de novo refaz senha e QR, na mesma conta")
-        r = f.post("/api/acesso/entrar", json={"email": "bia@x.com", "senha": "senha-da-bia-1", "turnstile": "ok"})
-        checar(r.status_code == 401, "antes do codigo, a conta nao entra", r.status_code)
+               "abrir de novo refaz o QR, na mesma conta")
+        para = pela_atos(f, "bia@x.com")
+        checar("#erro=" in para, "antes do codigo, a conta nao entra", para)
         r = f.post(f"/api/acesso/convite/{codigo}/confirmar", json={"codigo": "000000"})
         checar(r.status_code == 400, "codigo errado: 400")
         passo = int(time.time() // 30)
@@ -119,10 +143,10 @@ def test_http() -> None:
         checar(r.status_code == 200 and len(r.json()["codigos_recuperacao"]) == 10, "confirmar: 10 codigos de recuperacao",
                r.text[:160])
         checar(f.get("/api/acesso/convite/" + codigo).status_code == 410, "o convite usado nao vale mais")
-        pend = f.post("/api/acesso/entrar", json={"email": "bia@x.com", "senha": "senha-da-bia-1", "turnstile": "ok"})
-        r = f.post("/api/acesso/entrar/codigo", json={"pendente": pend.json().get("pendente", ""),
-                                                      "codigo": codigo_totp(segredo, passo + 1)})
-        checar(r.status_code == 200, "a Bia entra com senha + codigo", r.text[:160])
+        para = pela_atos(f, "bia@x.com")
+        pend = urllib.parse.parse_qs(para.split("#", 1)[-1]).get("g", [""])[0]
+        r = f.post("/api/acesso/entrar/codigo", json={"pendente": pend, "codigo": codigo_totp(segredo, passo + 1)})
+        checar(r.status_code == 200, "a Bia entra com a Conta Atos + codigo", r.text[:160])
         checar(any(e.get("acao") == "convite_aceito" for e in servico.eventos), "o aceite ficou no registro de acessos")
 
         print("  cancelado, vencido, inexistente, e de fora")
@@ -145,8 +169,8 @@ def test_http() -> None:
         checar({x["estado"] for x in lista} >= {"aceito", "revogado", "aberto"}, "a lista diz o estado de cada convite",
                [x["estado"] for x in lista])
         tita = de_fora()
-        pend = tita.post("/api/acesso/entrar", json={"email": "tita@x.com", "senha": "senha-da-tita-1", "turnstile": "ok"})
-        r = tita.post("/api/acesso/entrar/codigo", json={"pendente": pend.json()["pendente"],
+        para = pela_atos(tita, "tita@x.com")
+        r = tita.post("/api/acesso/entrar/codigo", json={"pendente": urllib.parse.parse_qs(para.split("#", 1)[-1]).get("g", [""])[0],
                                                          "codigo": codigo_totp(t["segredo"], int(time.time() // 30))})
         tita.headers["X-PAULUS-CSRF"] = r.json()["csrf"]
         r = tita.post("/api/acesso/convites", json={"nome": "X", "email": "x@x.com"})
@@ -154,8 +178,8 @@ def test_http() -> None:
     finally:
         prefs["ligado"] = False
         prefs["hostname"] = ""
-        prefs["so_google"] = True
         servico.__dict__.pop("conferir_turnstile", None)
+        servico.atos.__dict__.pop("trocar", None)
 
 
 def main() -> int:

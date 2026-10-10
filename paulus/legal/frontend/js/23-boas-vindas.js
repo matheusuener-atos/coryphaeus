@@ -285,9 +285,9 @@ function passoGoogle() {
   const e = (typeof vinc !== "undefined" && vinc.estado) || null;
   if (!e && typeof lerVinculoGoogle === "function") lerVinculoGoogle().then(() => { if (passoBv() === "google") desenharBoasVindas(); });
   const texto = "<h1>Entre com a sua conta.</h1>" +
-    "<p>Este computador passa a ser o servidor do escritório, e a sua conta é a chave de acesso: a Conta Google ou a Conta Atos, com e-mail e senha de qualquer provedor, inclusive do seu domínio ou da Microsoft. A equipe entra do mesmo jeito, cada um com a própria conta.</p>" +
+    "<p>Este computador passa a ser o servidor do escritório, e a sua Conta Atos é a chave de acesso: ela se cria com o Google ou com e-mail e senha de qualquer provedor, inclusive do seu domínio ou da Microsoft. A equipe entra do mesmo jeito, cada um com a própria Conta Atos.</p>" +
     infosBv([
-      "O Google ou a Atos só confirmam quem é você. Nenhum documento vai junto.",
+      "A Atos só confirma quem é você. Nenhum documento vai junto.",
       "É com ela que o Paulus confere a assinatura e, depois, convida a equipe.",
       "O Gmail, a Agenda e o Drive são opcionais e se conectam depois, em Conexões, com uma conta Google.",
     ]);
@@ -295,7 +295,7 @@ function passoGoogle() {
   let lado;
   if (e && e.vinculado) {
     // A mesma coluna do passo anterior: a conta vinculada no lugar do botao, e o interruptor como linha.
-    // A conta com o icone da Conta Atos (e o G, na conta Google), js/45-vinculo.js iconesDaConta.
+    // A conta com o icone da Conta Atos, js/45-vinculo.js iconesDaConta.
     lado = '<div class="bv-entrada"><span class="bv-rotulo">SUA CONTA</span>' +
       linhaBotao({ tag: "div", classe: "duas bv-conta-vinculada", icones: iconesDaConta(e.por, true), titulo: nomeDaConta(e.por, true), sub: esc(e.email),
         // Trocar de conta (09/10/2026): desvincula e o passo volta a pedir a conta (o mesmo do passo Assinatura).
@@ -305,20 +305,12 @@ function passoGoogle() {
       '<span class="interruptor-min' + (e.manter_aberto ? " on" : "") + '"></span></div>' +
       '<p class="bv-ajuda">' + (e.manter_aberto ? "O Paulus abre direto neste computador, sem pedir a conta de novo." : "O Paulus abre travado e pede a conta a cada abertura.") + "</p></div>";
   } else {
-    // Desenho de 09/10/2026: cada parte e uma secao - o rotulo fora, o cartao embaixo: "SUA CONTA" com o Google e
-    // "OU COM A CONTA ATOS" com o "Entrar com Atos". Criar a Conta Atos e trocar a senha ficam em atos.dev.br.
-    const comGoogle = !(e && !e.google);
-    const espera = esperando ? quemNoNavegador(e) : "";
+    // So a Conta Atos (09/10/2026): o Google, se a pessoa quiser, e escolhido la, em atos.dev.br.
     lado = '<div class="bv-entrada bv-secoes-conta">' +
-      (comGoogle ? '<div class="bv-secao"><span class="bv-rotulo">SUA CONTA</span><div class="bv-bloco">' +
-        linhaBotao({ classe: "centro", attrs: ' data-bv-google="1"' + (esperando ? " disabled" : ""),
-          icones: [typeof G_DO_GOOGLE !== "undefined" ? G_DO_GOOGLE : ""], titulo: espera === "o Google" ? "Esperando o Google no navegador…" : "Entrar com Google" }) +
-        "</div></div>" : "") +
-      '<div class="bv-secao"><span class="bv-rotulo">' + (comGoogle ? "OU COM A CONTA ATOS" : "SUA CONTA") + '</span><div class="bv-bloco">' +
-        (typeof botaoAtos === "function" ? botaoAtos(' data-bv-atos="1"' + (esperando && espera !== "a Atos" ? " disabled" : ""), espera === "a Atos") : "") +
-        "</div></div>" +
+      '<div class="bv-secao"><span class="bv-rotulo">SUA CONTA</span><div class="bv-bloco">' +
+        (typeof botaoAtos === "function" ? botaoAtos(' data-bv-atos="1"', esperando) : "") + "</div></div>" +
       (e && e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
-      '<p class="bv-ajuda bv-nota-fora">Você entra com a Conta Google ou com a Conta Atos (e-mail e senha de qualquer provedor): é com ela que você entra no programa depois. Sem Conta Atos? Ela se cria na página que abre.</p></div>';
+      '<p class="bv-ajuda bv-nota-fora">É com a Conta Atos que você entra no programa depois. Sem Conta Atos? Ela se cria na página que abre, com o Google ou com e-mail e senha.</p></div>';
   }
   return [texto, lado];
 }
@@ -657,13 +649,6 @@ function ligarBoasVindas() {
   };
   caixa.querySelectorAll("[data-bv-atu]").forEach((m) => {
     teclaAtiva(m, () => { const id = m.dataset.bvAtu; bv.atualizacoes[id] = !bv.atualizacoes[id]; desenharBoasVindas(); });
-  });
-  caixa.querySelectorAll("[data-bv-google]").forEach((b) => {
-    b.onclick = async () => {
-      try {
-        await entrarNoGoogleDoVinculo("vincular", aoVincularBv, false);
-      } catch (err) { avisoCert(err.message, { tom: "erro" }); }
-    };
   });
   // A Conta Atos (js/45-vinculo.js): o navegador abre atos.dev.br e a volta segue como a do Google.
   caixa.querySelectorAll("[data-bv-atos]").forEach((b) => {

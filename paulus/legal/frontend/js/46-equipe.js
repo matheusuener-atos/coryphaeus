@@ -14,7 +14,7 @@
    So na janela do servidor: de fora, contas e convites nao se mexem.
 */
 
-const eqp = { contas: [], convites: [], equipe: [], soGoogle: false, carregado: false };
+const eqp = { contas: [], convites: [], equipe: [], carregado: false };
 
 async function carregarAcessoDaEquipe() {
   if (typeof acessoDeFora !== "undefined" && !acessoDeFora.local) return;
@@ -25,7 +25,6 @@ async function carregarAcessoDaEquipe() {
       fetch("/api/cadastros?tipo=&termo=&ordem=").then((r) => (r.ok ? r.json() : {})),
     ]);
     eqp.contas = c.contas || [];
-    eqp.soGoogle = Boolean(c.so_google);
     eqp.segurancaPadrao = c.seguranca_padrao || "padrao";
     eqp.convites = v.convites || [];
     eqp.equipe = (f.fichas || []).filter((x) => x.tipo === "colaborador" || x.tipo === "socio");
@@ -69,15 +68,12 @@ async function convidarPessoa(ficha, depois, inicial) {
   const ja = inicial || {};
   const pedido = dialogo({
     titulo: ficha ? "Convidar " + ficha.nome : "Convidar alguém novo", contexto: "Equipe › acesso ao Paulus",
-    texto: (eqp.soGoogle
-      ? "A pessoa recebe um link, entra com a conta Google dela e, se a segurança pedir, liga o Google Authenticator no próprio celular."
-      : "A pessoa recebe um link, entra com a conta Google dela ou escolhe uma senha (com confirmação) e, se a segurança pedir, liga o Google Authenticator no próprio celular.") +
-      (eqp.soGoogle ? "\nO e-mail do convite precisa ser o da conta Google da pessoa (Gmail ou Google Workspace)."
-        : "\nServe qualquer e-mail: o do Google (para entrar pelo Google) ou outro, de domínio próprio ou da Microsoft (para entrar com a senha).") +
+    texto: "A pessoa recebe um link, entra com a Conta Atos dela e, se a segurança pedir, liga o Google Authenticator no próprio celular." +
+      "\nServe qualquer e-mail: é o da Conta Atos da pessoa, que ela cria em atos.dev.br com o Google ou com uma senha." +
       (ficha ? "" : " Ela também entra em Cadastros › Equipe."),
     campos: [
       { chave: "nome", rotulo: "Nome", valor: ficha ? ficha.nome : (ja.nome || ""), obrigatorio: true },
-      { chave: "email", rotulo: eqp.soGoogle ? "E-mail Google" : "E-mail", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true,
+      { chave: "email", rotulo: "E-mail", tipo: "email", valor: ficha ? (ficha.email || "") : (ja.email || ""), placeholder: "com ele a pessoa entra", obrigatorio: true,
         conferir: (x) => REGRA_CAMPO.email(x) },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false,
         conferir: (x) => REGRA_CAMPO.email(x) },
@@ -117,9 +113,8 @@ async function convidarPessoa(ficha, depois, inicial) {
 
 async function mostrarConviteCriado(nome, email, link, simples) {
   const mensagem = "Olá, " + String(nome || "").split(" ")[0] + "! Este é o seu convite para o Paulus do escritório. " +
-    (simples ? (eqp.soGoogle ? "Abra e entre com a sua conta Google (" + email + "): " : "Abra e entre com a sua conta Google (" + email + ") ou escolha uma senha: ")
-      : eqp.soGoogle ? "Abra no celular, entre com a sua conta Google (" + email + ") e ligue o Google Authenticator: "
-        : "Abra no celular, entre com a sua conta Google ou escolha uma senha, e ligue o Google Authenticator: ") + link + " (vale 7 dias, uma vez)";
+    (simples ? "Abra e entre com a sua Conta Atos (" + email + "): "
+      : "Abra no celular, entre com a sua Conta Atos (" + email + ") e ligue o Google Authenticator: ") + link + " (vale 7 dias, uma vez)";
   const escolha = await dialogo({
     titulo: "Convite pronto", contexto: "Convidar " + nome,
     texto: "Mande este link para " + nome + ". Ele vale 7 dias e uma vez só, e não aparece de novo — se perder, é só convidar outra vez.",
@@ -201,7 +196,7 @@ function cartaoDaEquipeCfg() {
     (linhas || novo ? '<div class="cfg-linhas">' + linhas + novo + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>') +
     '<div class="acesso-pe"><button class="primario com-icone" data-eqp-cfg-novo="1">' + ic("send", 16) + "Convidar pela internet</button>" +
     '<button class="com-icone" data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button>" +
-    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao Paulus se liga a cada pessoa pelo e-mail' + (eqp.soGoogle ? " Google" : "") + ".</p></div>");
+    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao Paulus se liga a cada pessoa pelo e-mail da Conta Atos.</p></div>');
 }
 
 function ligarEquipeCfg() {

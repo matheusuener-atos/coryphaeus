@@ -1,17 +1,13 @@
-/* A pagina de cadastro (paulus.ia.br/cadastro): entrar (Google, ou a Conta Atos por
-   assets/entrar-atos.js, com o id_token da Atos no lugar do do Google) e os dados
+/* A pagina de cadastro (paulus.ia.br/cadastro): entrar com a Conta Atos (assets/entrar-atos.js;
+   desde 09/10/2026 a unica entrada - o Google e escolhido em atos.dev.br) e os dados
    do escritorio, com o plano escolhido em /assinatura (?plano=&periodo=), pelo Worker (worker/ia.js, /api/ia/planos e
    /api/ia/site/*). O pagamento e a pagina seguinte, /cadastro/pagamento
-   (assets/pagamento.js), com o cartao nos campos seguros do Mercado Pago. O id_token do
-   Google vale uma hora e fica so nesta aba (sessionStorage): e com ele que a
+   (assets/pagamento.js), com o cartao nos campos seguros do Mercado Pago. O id_token da
+   Atos vale uma hora e fica so nesta aba (sessionStorage): e com ele que a
    pagina de pagamento sabe de quem e a assinatura. */
 (function () {
   "use strict";
 
-  // O cliente OAuth web do Paulus (o mesmo da equipe). Identificador de
-  // cliente nao e segredo; https://paulus.ia.br precisa estar entre as
-  // origens JavaScript autorizadas dele no Google Cloud.
-  var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
   var CHAVE = "pv-cadastro-token";
   var $ = function (id) { return document.getElementById(id); };
   var estado = { planos: [], escolhido: "escritorio", periodo: "mensal", pedido: false, token: "", conta: null };
@@ -131,8 +127,6 @@
     $("cd-conta-texto").innerHTML = "Entrou como <b>" + esc(conta.email) + "</b>. " +
       '<button type="button" class="trocar" id="cd-trocar">Usar outra conta</button>';
     $("cd-trocar").onclick = sair;
-    $("cd-google").hidden = true;
-    $("cd-ou").hidden = true;
     $("cd-senha").hidden = true;
     var c = conta.cadastro || {};
     if (c.nome_escritorio && !$("cd-nome").value) $("cd-nome").value = c.nome_escritorio;
@@ -252,24 +246,8 @@
     $("cd-form").hidden = true;
     $("cd-pronto").hidden = true;
     $("cd-troca").hidden = true;
-    $("cd-google").hidden = false;
-    $("cd-ou").hidden = false;
     $("cd-senha").hidden = false;
-    $("cd-conta-texto").textContent = "Você entra com a Conta Google ou com a Conta Atos (e-mail e senha de qualquer provedor): é com ela que você entra no programa depois.";
-    if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
-  }
-
-  function iniciarGoogle() {
-    if (!(window.google && google.accounts && google.accounts.id)) { setTimeout(iniciarGoogle, 300); return; }
-    google.accounts.id.initialize({
-      client_id: CLIENTE_GOOGLE,
-      callback: function (r) { if (r && r.credential) entrar(r.credential); },
-      ux_mode: "popup",
-      context: "signup",
-    });
-    // O botao e o do Google (so ele entrega a identidade), no tema escuro e na largura da coluna.
-    var claro = document.documentElement.getAttribute("data-theme") === "light";
-    google.accounts.id.renderButton($("cd-google"), { theme: claro ? "outline" : "filled_black", size: "large", text: "continue_with", shape: "rectangular", width: Math.min(400, Math.max(200, ($("cd-google").clientWidth || 418) - 18)), locale: "pt-BR" });
+    $("cd-conta-texto").textContent = "Você entra com a Conta Atos (com o Google ou com e-mail e senha, em atos.dev.br): é com ela que você entra no programa depois.";
   }
 
   /* ------------------------------------------------------- o formulario */
@@ -392,7 +370,7 @@
   async function pagar(ev) {
     ev.preventDefault();
     mostrarErro("cd-form-erro", "");
-    if (!estado.token) { mostrarErro("cd-form-erro", "Entre primeiro (Google, ou e-mail e senha)."); return; }
+    if (!estado.token) { mostrarErro("cd-form-erro", "Entre primeiro com a Conta Atos."); return; }
     if (P && !P.conferir(CAMPOS)) return;
     if (!$("cd-aceite").checked) { mostrarErro("cd-form-erro", "Para assinar, aceite os Termos de uso e a Política de privacidade."); return; }
     var botao = $("cd-pagar");
@@ -432,8 +410,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     vigiarResumo();
-    iniciarGoogle();
-    // A Conta Atos (assets/entrar-atos.js): o id_token da Atos segue o mesmo caminho do do Google.
+    // A Conta Atos (assets/entrar-atos.js): o id_token da Atos abre a conta do cadastro.
     if (window.EntrarAtos) EntrarAtos.montar($("cd-senha"), { aoEntrar: function (token) { entrar(token); } });
     $("cd-form").addEventListener("submit", pagar);
     $("cd-trocar-plano").addEventListener("click", trocarPlano);

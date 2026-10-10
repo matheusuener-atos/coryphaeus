@@ -83,15 +83,12 @@ _declarar(PUBLICO,
           "GET /api/acesso/eu", "GET /api/acesso/entrar/config", "POST /api/acesso/entrar",
           "POST /api/acesso/entrar/codigo",
           # o convite (E4): quem foi convidado ainda nao tem conta
-          "GET /api/acesso/convite/{codigo}", "POST /api/acesso/convite/{codigo}/aceitar",
+          "GET /api/acesso/convite/{codigo}",
           "POST /api/acesso/convite/{codigo}/confirmar", "GET /api/acesso/convite/{codigo}/google",
           # entrar com o Google (E3a)
           "POST /api/acesso/google/iniciar", "GET /api/acesso/google/retorno",
           # entrar com Atos (09/10/2026): ir a atos.dev.br e voltar dela
           "POST /api/acesso/atos/iniciar", "GET /api/acesso/atos/retorno",
-          # "Esqueci a senha" (07/10/2026): o codigo vai ao e-mail da conta; a
-          # senha nova nao dispensa o codigo do autenticador na entrada
-          "POST /api/acesso/senha/esqueci", "POST /api/acesso/senha/redefinir",
           # a frase das telas de entrar (src/saudacao.py): so a hora, o dia e o calendario
           "GET /api/saudacao/entrada")
 
@@ -100,14 +97,14 @@ _declarar(PUBLICO,
 # responde 401, e toda outra pagina e a tela de entrar.
 SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"),
               ("GET", "/img/paulus-logo.png"), ("GET", "/img/paulus-icone.svg"), ("GET", "/favicon.ico"),
+              # o A da Conta Atos no "Entrar com Atos" (09/10/2026)
+              ("GET", "/img/conta-atos.png"),
               ("GET", "/api/acesso/entrar/config"), ("POST", "/api/acesso/entrar"),
               ("POST", "/api/acesso/entrar/codigo"),
               # entrar com o Google (E3a): ir ao Google e voltar dele
               ("POST", "/api/acesso/google/iniciar"), ("GET", "/api/acesso/google/retorno"),
               # entrar com Atos (09/10/2026)
               ("POST", "/api/acesso/atos/iniciar"), ("GET", "/api/acesso/atos/retorno"),
-              # "Esqueci a senha": quem esqueceu ainda nao tem sessao
-              ("POST", "/api/acesso/senha/esqueci"), ("POST", "/api/acesso/senha/redefinir"),
               # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)
               ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js")}
 
@@ -148,7 +145,7 @@ def estatico_da_entrada(metodo: str, caminho: str) -> bool:
 
 # --- trocar a propria senha e encerrar as proprias sessoes, de fora: so o
 # titular, e a rota pede o codigo do autenticador de novo (R2)
-_declarar(TITULAR, "POST /api/acesso/minha-senha", "POST /api/acesso/minhas-sessoes/encerrar")
+_declarar(TITULAR, "POST /api/acesso/minhas-sessoes/encerrar")
 
 # --- conversar, perguntar, buscar; ver documento e o trecho citado
 _declarar(PERMITIDO,

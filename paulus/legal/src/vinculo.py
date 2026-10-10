@@ -45,6 +45,13 @@ onde vale o do Google e fica, como ele, so na memoria. Destravar pede a senha
 de novo (prompt=login), mesmo com a sessao aberta no navegador. O vinculo grava
 `por` "atos"; os de 07/10 a 09/10 gravaram "senha" e contam como Atos. O Gmail,
 a Agenda e o Drive continuam do Google, em Conexoes, e sao opcionais.
+
+SO A ATOS (09/10/2026, decisao do dono): o PAULUS so entra com a Conta Atos. O
+Google virou um jeito de entrar NA Atos ("Continuar com Google", em
+atos.dev.br) e, aqui, so os servicos (Gmail, Agenda, Drive, Meet), em Conexoes.
+O servidor vinculado pelo Google antes disso destrava pela Atos: a Conta Atos
+do mesmo e-mail (com o Google, la) e a mesma conta, e no primeiro destravar o
+vinculo passa a dizer "atos".
 """
 
 from __future__ import annotations
@@ -102,8 +109,8 @@ PROVEDORES_DO_VINCULO = ("google", "atos")
 
 
 def por_do_vinculo(por: str) -> str:
-    """Como a conta entra: "google" ou "atos" ("senha", de 07/10 a 09/10, e a Conta Atos)."""
-    return "atos" if por in ("atos", "senha") else "google"
+    """Como a conta entra: sempre "atos" desde 09/10/2026 (o "google" e o "senha" de antes viram a Conta Atos)."""
+    return "atos"
 
 
 class Vinculo:
@@ -201,10 +208,9 @@ class Vinculo:
         self._conferir_finalidade(finalidade)
         if provedor not in PROVEDORES_DO_VINCULO:
             raise ErroVinculo("provedor desconhecido")
-        if finalidade != "vincular":
-            # Destravar e confirmar: so a conta vinculada, do jeito dela.
-            provedor = por_do_vinculo(self.dados().get("por") or "google")
-        atos = provedor == "atos"
+        # So a Conta Atos (09/10/2026): o pedido do Google de antes tambem vai a Atos.
+        provedor = "atos"
+        atos = True
         credenciais = correio_oauth.CLIENTE_ATOS if atos else self.credenciais()
         with self._trava:
             if self.entrada and not self.entrada.terminou:
@@ -249,7 +255,7 @@ class Vinculo:
             # o Drive (os escopos voltam juntos no token).
             self.ligar_servicos(tokens, email, nome)
         try:
-            return self._concluir(email, nome, tokens, "atos" if provedor == "atos" else "google")
+            return self._concluir(email, nome, tokens, "atos")
         except ErroVinculo as exc:
             # A volta do Google so entende o erro dela (a pagina de retorno o mostra).
             raise correio_oauth.ErroOAuth(str(exc)) from exc
@@ -279,8 +285,10 @@ class Vinculo:
             return {"email": email, "nome": nome}
         esperado = str(self.dados().get("email") or "").lower()
         if email != esperado:
-            qual = "a Conta Google" if por == "google" else "a Conta Atos"
-            raise ErroVinculo(f"esta não é {qual} deste Paulus ({esperado}); entre com ela")
+            raise ErroVinculo(f"esta não é a Conta Atos deste Paulus ({esperado}); entre com ela")
+        if self.dados().get("por") != por:
+            # O vinculo de antes (Google ou senha) passa a dizer que e a Conta Atos.
+            self.prefs.atualizar({"vinculo": {"por": por}})
         self._guardar_id_token(tokens)
         if self.finalidade == "confirmar":
             return {"email": email, "nome": nome}

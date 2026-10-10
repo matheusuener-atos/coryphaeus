@@ -17,12 +17,8 @@ id_token de mentira; nada vai a internet.
   - o vinculo gravado como "senha" (07/10 a 09/10) conta como Conta Atos;
   - o e-mail do escritorio nao aceita a Atos como provedor (ela nao tem caixa);
   - as rotas /api/vinculo/senha/* sairam;
-  - o padrao: e-mail e senha valem de fora (so_google desligado), e o `True`
-    gravado pela regra antiga cai uma vez;
-  - de fora, "Esqueci a senha" da equipe: o codigo vai ao e-mail (em segundo
-    plano), a resposta e a mesma com conta ou sem, a senha nova nao abre
-    sessao - a entrada continua pedindo o codigo do autenticador -, o codigo
-    errado conta, e o Worker sem o tipo "senha" recebe o "codigo".
+  - a preferencia so_google antiga cai uma vez (desde 09/10/2026 nao conta mais:
+    de fora tambem se entra so com a Conta Atos, tests/test_acesso_atos.py).
 
     PYTHONIOENCODING=utf-8 venv/Scripts/python.exe tests/test_vinculo_atos.py
 """
@@ -231,114 +227,6 @@ def test_vinculo() -> None:
         v.abrir = abrir_antes
 
 
-def test_esqueci_da_equipe() -> None:
-    print("\nde fora: Esqueci a senha da equipe")
-    from fastapi.testclient import TestClient
-
-    import api
-    import segredos
-    from acesso.contas import codigo_totp
-
-    if not segredos.disponivel():
-        print("  --   sem a protecao de dados do Windows: pulado")
-        return
-    servico = api.estado.acesso_de_fora
-    prefs = api.estado.prefs.dados["acesso_remoto"]
-    cartas: list[dict] = []
-    respostas = {"senha": ""}
-
-    def email_do_cliente(dados):
-        cartas.append(dict(dados))
-        return respostas.get(dados["tipo"], "")
-
-    servico.conferir_turnstile = lambda token, ip="": "ok" if token == "ok" else "recusado"
-    servico.email_do_cliente = email_do_cliente
-    servico.cofre.tem = lambda: True
-    prefs.update(ligado=True, hostname="moura.paulus.ia.br")
-
-    def esperar_cartas(n: int) -> None:
-        fim = time.time() + 5
-        while len(cartas) < n and time.time() < fim:
-            time.sleep(0.05)
-
-    try:
-        c = servico.contas.criar("Edu", "edu@moura.adv.br", "colaborador", "senha-antiga-do-edu")
-        servico.contas.confirmar_totp(c["conta"]["id"], codigo_totp(c["segredo"], int(time.time() // 30) - 1))
-        fora = TestClient(api.app, base_url="https://moura.paulus.ia.br", headers={"Cf-Connecting-IP": "200.9.9.9"})
-        checar(fora.get("/api/acesso/entrar/config").json().get("so_google") is False, "a tela de entrar oferece a senha")
-
-        r = fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "robo"})
-        checar(r.status_code == 403 and not cartas, "sem passar pelo anti-robo: 403, nada sai", r.status_code)
-        r = fora.post("/api/acesso/senha/esqueci", json={"email": "ninguem@moura.adv.br", "turnstile": "ok"})
-        sem_conta = r.json()
-        time.sleep(0.2)
-        checar(r.status_code == 200 and not cartas, "e-mail sem conta: a mesma resposta, e nenhum e-mail", r.text[:160])
-        r = fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        esperar_cartas(1)
-        checar(r.status_code == 200 and r.json() == sem_conta, "com conta: a resposta e a mesma", r.text[:160])
-        checar(len(cartas) == 1 and cartas[0]["tipo"] == "senha" and cartas[0]["para"] == "edu@moura.adv.br"
-               and len(cartas[0]["codigo"]) == 6 and cartas[0]["link"].startswith("https://moura.paulus.ia.br/"),
-               "o codigo vai ao e-mail da conta, pelo Worker, com o tipo senha", cartas)
-        codigo = cartas[0]["codigo"]
-        errado = "000000" if codigo != "000000" else "111111"
-
-        r = fora.post("/api/acesso/senha/redefinir", json={"email": "edu@moura.adv.br", "codigo": errado, "senha": "senha-nova-do-edu"})
-        checar(r.status_code == 400 and "não confere" in r.json().get("detail", ""), "codigo errado: recusado", r.text[:160])
-        r = fora.post("/api/acesso/senha/redefinir", json={"email": "edu@moura.adv.br", "codigo": codigo, "senha": "curta"})
-        checar(r.status_code == 400 and "10" in r.json().get("detail", ""), "senha nova curta: recusada", r.text[:160])
-        r = fora.post("/api/acesso/senha/redefinir", json={"email": "edu@moura.adv.br", "codigo": codigo, "senha": "senha-nova-do-edu"})
-        d = r.json()
-        checar(r.status_code == 200 and d["ok"] and d["codigo_do_celular"] and "paulus_sessao" not in r.headers.get("set-cookie", ""),
-               "codigo certo: senha trocada, sem abrir sessao", r.text[:200])
-        r = fora.post("/api/acesso/senha/redefinir", json={"email": "edu@moura.adv.br", "codigo": codigo, "senha": "mais-uma-senha-123"})
-        checar(r.status_code == 400, "o mesmo codigo nao vale duas vezes", r.status_code)
-
-        r = fora.post("/api/acesso/entrar", json={"email": "edu@moura.adv.br", "senha": "senha-antiga-do-edu", "turnstile": "ok"})
-        checar(r.status_code == 401, "a senha antiga deixa de valer", r.status_code)
-        r = fora.post("/api/acesso/entrar", json={"email": "edu@moura.adv.br", "senha": "senha-nova-do-edu", "turnstile": "ok"})
-        checar(r.status_code == 200 and r.json().get("pendente") and not r.json().get("ok"),
-               "a senha nova entra so ate o codigo do autenticador (nao o dispensa)", r.text[:160])
-
-        print("  tentativas e teto")
-        servico.contas._trocas.clear()
-        cartas.clear()
-        fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        esperar_cartas(1)
-        codigo = cartas[-1]["codigo"]
-        errado = "000000" if codigo != "000000" else "111111"
-        for _ in range(5):
-            fora.post("/api/acesso/senha/redefinir", json={"email": "edu@moura.adv.br", "codigo": errado, "senha": "senha-nova-do-edu-3"})
-        r = fora.post("/api/acesso/senha/redefinir", json={"email": "edu@moura.adv.br", "codigo": codigo, "senha": "senha-nova-do-edu-3"})
-        checar(r.status_code == 400 and "peça outro" in r.json().get("detail", ""), "5 erros: nem o codigo certo vale mais", r.text[:160])
-        fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        r = fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        checar(r.status_code == 429, "o 4o pedido na mesma hora: 429", r.status_code)
-        r = fora.post("/api/acesso/senha/esqueci", json={"email": "outro@moura.adv.br", "turnstile": "ok"})
-        checar(r.status_code == 200, "o teto e por e-mail", r.status_code)
-
-        print("  o Worker que ainda nao conhece o tipo senha")
-        servico.contas._trocas.clear()
-        cartas.clear()
-        respostas["senha"] = "tipo de e-mail desconhecido"
-        fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        esperar_cartas(2)
-        checar([x["tipo"] for x in cartas] == ["senha", "codigo"] and cartas[1]["codigo"] == cartas[0]["codigo"]
-               and cartas[1]["link"].startswith("https://moura.paulus.ia.br/cliente/"),
-               "vai o codigo pelo tipo da Area do cliente", cartas)
-
-        print("  o escritorio que escolheu so o Google")
-        prefs["so_google"] = True
-        r = fora.post("/api/acesso/senha/esqueci", json={"email": "edu@moura.adv.br", "turnstile": "ok"})
-        checar(r.status_code == 403, "so Google: nao ha senha para trocar", r.status_code)
-        prefs["so_google"] = False
-    finally:
-        prefs.update(ligado=False, hostname="")
-        servico.__dict__.pop("conferir_turnstile", None)
-        servico.__dict__.pop("email_do_cliente", None)
-        servico.cofre.__dict__.pop("tem", None)
-
-
 def main() -> int:
     print("=" * 55)
     print("  a Conta Atos no servidor e a senha de fora")
@@ -346,7 +234,6 @@ def main() -> int:
     try:
         test_preferencia()
         test_vinculo()
-        test_esqueci_da_equipe()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "=" * 55)

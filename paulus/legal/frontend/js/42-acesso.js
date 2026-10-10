@@ -82,7 +82,6 @@ async function carregarAcesso() {
     acessoCfg.contas = d ? d.contas : null;
     acessoCfg.sessoes = (d && d.sessoes) || [];
     acessoCfg.disponivel = !d || d.disponivel !== false;
-    acessoCfg.soGoogle = Boolean(d && d.so_google);
     acessoCfg.segurancaPadrao = (d && d.seguranca_padrao) || "padrao";
     acessoCfg.vinculo = (d && d.vinculo) || {};
   } catch (err) {
@@ -177,13 +176,13 @@ function secaoAcesso() {
 /* Os niveis de seguranca (acesso/contas.py NIVEIS): o escritorio escolhe,
    conta por conta, quanto pedir na entrada de fora. */
 const NIVEIS_SEGURANCA = [
-  // A conta e a do Google ou o e-mail e a senha (07/10/2026): o nivel diz so o que vem depois dela.
+  // A conta e a Conta Atos (09/10/2026): o nivel diz so o que vem depois dela.
   { id: "reforcada", rotulo: "Reforçada", curto: "conta + código sempre",
-    explica: "A conta (Google ou e-mail e senha) e o código do autenticador em toda entrada, sem lembrar o navegador." },
+    explica: "A Conta Atos e o código do autenticador em toda entrada, sem lembrar o navegador." },
   { id: "padrao", rotulo: "Padrão (recomendada)", curto: "conta + código",
-    explica: "A conta (Google ou e-mail e senha) e o código do autenticador; a pessoa pode marcar o navegador dela como confiável por 30 dias." },
+    explica: "A Conta Atos e o código do autenticador; a pessoa pode marcar o navegador dela como confiável por 30 dias." },
   { id: "simples", rotulo: "Simples", curto: "só a conta",
-    explica: "Só a conta (Google ou e-mail e senha), sem autenticador. Mais cômodo e mais fraco: quem souber a senha, ou abrir o Google da pessoa, entra no Paulus." },
+    explica: "Só a Conta Atos, sem autenticador. Mais cômodo e mais fraco: quem entrar na Conta Atos da pessoa entra no Paulus." },
 ];
 
 function nivelSeguranca(id) {
@@ -246,9 +245,8 @@ function cartaoComoFunciona() {
     ["desktop_windows", "O computador do escritório precisa estar ligado e com o Paulus aberto. Desligado, o endereço para de responder."],
     ["key", "Os documentos, o índice e o modelo de IA não saem deste computador. O que passa pela internet é a tela e o que se digita nela."],
     ["lan", "O caminho é o túnel da Cloudflare, num endereço paulus.ia.br da conta do Atos. A conexão é criptografada, mas a Cloudflare a abre no meio do caminho para entregá-la; o Atos não roteia, não inspeciona e não registra esse conteúdo."],
-    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria conta — " +
-      (acessoCfg.soGoogle ? "a conta Google" : "o Google ou o e-mail e a senha, com \"Esqueci a senha\" por código no e-mail") +
-      " — e, conforme o nível de segurança da conta, o código do autenticador do celular. O nível se escolhe aqui, conta por conta."],
+    ["verified", "Para entrar, cada pessoa passa pela verificação contra robôs e entra com a própria Conta Atos " +
+      "(com o Google ou com e-mail e senha, em atos.dev.br) e, conforme o nível de segurança da conta, o código do autenticador do celular. O nível se escolhe aqui, conta por conta."],
     ["history", "Todo acesso externo fica registrado neste computador: quem entrou, quando, o que abriu e o que baixou."],
   ];
   return cartaoCfg("Como funciona", "",
@@ -278,7 +276,6 @@ function cartaoContas() {
       '<button data-acesso-seguranca="' + c.id + '">Segurança</button>' +
       (c.papel === "titular" ? "" : '<button data-acesso-permissoes="' + c.id + '">Permissões</button>') +
       '<button data-acesso-emails="' + c.id + '">E-mails</button>' +
-      (acessoCfg.soGoogle ? "" : '<button data-acesso-senha="' + c.id + '">Senha</button>') +
       (simples ? "" : '<button data-acesso-autenticador="' + c.id + '">Autenticador</button>' +
         '<button data-acesso-codigos="' + c.id + '">Códigos</button>') +
       '<button class="mais-linha" data-acesso-remover="' + c.id + '" title="Remover a conta" aria-label="Remover a conta">' + ic("close", 16) + "</button>" +
@@ -302,7 +299,7 @@ function cartaoContas() {
         '<button class="com-icone" data-acesso-nova="1">' + ic("person_add", 16) + "Criar aqui</button>"
       : '<button class="primario com-icone" data-acesso-nova="1">' + ic("person_add", 16) + (contas.length ? "Nova conta" : "Criar a conta do titular") + "</button>") +
     '<p class="cfg-explica">' + (titularPronto
-      ? "Convidar manda um link (pelo WhatsApp, por exemplo): a pessoa escolhe a senha e liga o autenticador no próprio celular. As contas só mudam aqui, neste computador."
+      ? "Convidar manda um link (pelo WhatsApp, por exemplo): a pessoa entra com a Conta Atos e liga o autenticador no próprio celular. As contas só mudam aqui, neste computador."
       : "Contas se criam, mudam e saem só aqui, neste computador. De fora, ninguém mexe nelas.") + "</p></div>");
 }
 
@@ -406,23 +403,19 @@ async function acessoNovaConta() {
     titulo: primeira ? "Conta do titular" : "Nova conta",
     contexto: "Configurações › Acesso externo",
     texto: (primeira ? "A primeira conta é sempre do titular: cuida das contas e pode aprovar de fora.\n" : "") +
-      "Com a segurança reforçada ou padrão, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele. Na simples, basta a conta" +
-      (acessoCfg.soGoogle ? " Google." : " (o e-mail e a senha, ou o Google)."),
+      "Com a segurança reforçada ou padrão, a pessoa precisa do Google Authenticator no celular: no próximo passo ela lê um QR com ele. Na simples, basta a Conta Atos do e-mail abaixo.",
     html: lojasAutenticador(),
     depois: campoSeguranca("acc-nova-seg", acessoCfg.segurancaPadrao || "padrao"),
     campos: [
       { chave: "nome", rotulo: "Nome", placeholder: "como aparece no registro de acessos",
         valor: primeira ? ((acessoCfg.vinculo || {}).nome || "") : "" },
-      { chave: "email", rotulo: acessoCfg.soGoogle ? "E-mail Google" : "E-mail", tipo: "email",
+      { chave: "email", rotulo: "E-mail da Conta Atos", tipo: "email",
         valor: primeira ? ((acessoCfg.vinculo || {}).email || "") : "",
-        placeholder: acessoCfg.soGoogle ? "Gmail ou do Google Workspace — com ele a pessoa entra" : "com ele a pessoa entra de fora", obrigatorio: true,
+        placeholder: "com ele a pessoa entra de fora", obrigatorio: true,
         conferir: (x) => REGRA_CAMPO.email(x) },
       { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", placeholder: "outro e-mail de contato", obrigatorio: false,
         conferir: (x) => REGRA_CAMPO.email(x) },
-    ].concat(acessoCfg.soGoogle ? [] : [
-      { chave: "senha", rotulo: "Senha", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true, conferir: (x) => REGRA_CAMPO.senha10(x) },
-      { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true, igualA: "senha", frase: "as duas senhas não são iguais" },
-    ]),
+    ],
     marcar: primeira ? null : { rotulo: "Titular (pode aprovar de fora e cuidar das contas)", marcada: false },
     confirmar: "Criar a conta",
   });
@@ -432,13 +425,13 @@ async function acessoNovaConta() {
   const v = r.valores || {};
   let criada;
   try {
-    criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email, senha: v.senha || "",
+    criada = await acessoPost("/api/acesso/contas", { nome: v.nome, email: v.email,
       email_secundario: v.secundario || "", papel: r.marcada || primeira ? "titular" : "colaborador",
       seguranca: v.seguranca || "" });
   } catch (err) { avisoCert(err.message, { tom: "erro" }); return; }
   if (criada.conta && criada.conta.seguranca === "simples") {
-    // Sem autenticador: a conta ja entra so com ela (o Google ou o e-mail e a senha).
-    avisoCert(acessoCfg.soGoogle ? "conta pronta — entra de fora só com a conta Google" : "conta pronta — entra de fora só com a conta, sem o código do celular", { tom: "ok" });
+    // Sem autenticador: a conta ja entra so com a Conta Atos.
+    avisoCert("conta pronta — entra de fora só com a Conta Atos, sem o código do celular", { tom: "ok" });
     acessoRedesenhar();
     return;
   }
@@ -549,11 +542,9 @@ function ligarAcesso() {
     if (!c) return;
     const r = await dialogo({
       titulo: "E-mails de " + c.nome, contexto: "Configurações › Acesso externo",
-      texto: acessoCfg.soGoogle
-        ? "O e-mail Google é o que entra (Gmail ou do Google Workspace). O secundário é só de contato. Trocar o e-mail Google encerra as sessões da pessoa."
-        : "O e-mail de entrada é o que entra (com a senha, ou pelo Google quando é uma conta Google). O secundário é só de contato. Trocar o e-mail de entrada encerra as sessões da pessoa.",
+      texto: "O e-mail de entrada é o da Conta Atos da pessoa. O secundário é só de contato. Trocar o e-mail de entrada encerra as sessões da pessoa.",
       campos: [
-        { chave: "email", rotulo: acessoCfg.soGoogle ? "E-mail Google" : "E-mail de entrada", tipo: "email", valor: c.email, obrigatorio: true },
+        { chave: "email", rotulo: "E-mail da Conta Atos", tipo: "email", valor: c.email, obrigatorio: true },
         { chave: "secundario", rotulo: "E-mail secundário (opcional)", tipo: "email", valor: c.email_secundario || "", obrigatorio: false },
       ],
       confirmar: "Salvar",
@@ -568,23 +559,6 @@ function ligarAcesso() {
   clique("[data-acesso-permissoes]", (b) => {
     const c = conta(b.dataset.acessoPermissoes);
     if (c) acessoPermissoes(c);
-  });
-  clique("[data-acesso-senha]", async (b) => {
-    const c = conta(b.dataset.acessoSenha);
-    if (!c) return;
-    const r = await dialogo({
-      titulo: "Trocar a senha", contexto: "Acesso externo › " + c.nome,
-      texto: "Quem estiver de fora com esta conta sai e entra de novo com a senha nova.",
-      campos: [{ chave: "senha", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres", conferir: (x) => REGRA_CAMPO.senha10(x) },
-        { chave: "repetir", rotulo: "Repita a senha", tipo: "password", obrigatorio: true, igualA: "senha", frase: "as duas senhas não são iguais" }],
-      confirmar: "Trocar a senha",
-    });
-    if (!r || !r.ok) return;
-    try {
-      const d = await acessoPost("/api/acesso/contas/" + c.id + "/senha", { senha: r.valores.senha });
-      avisoCert("senha trocada" + (d.sessoes_encerradas ? " · " + plural(d.sessoes_encerradas, "sessão encerrada", "sessões encerradas") : ""), { tom: "ok" });
-    } catch (err) { avisoCert(err.message, { tom: "erro" }); }
-    acessoRedesenhar();
   });
   clique("[data-acesso-remover]", async (b) => {
     const c = conta(b.dataset.acessoRemover);

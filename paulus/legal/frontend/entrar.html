@@ -27,11 +27,12 @@
 
   1. Sem campo de escritorio (03/10): quem chega aqui ja esta no endereco
      dele (uener.paulus.ia.br); escolher o escritorio e em paulus.ia.br/escritorio.
-  2. "Entrar com Google", travado ate a verificacao contra robos (Turnstile)
-     passar. O widget da Cloudflare fica escondido ("interaction-only": so
-     aparece se pedir um toque) e o estado vai para um selo proprio
-     (Verificando, Sucesso, Tente de novo) - o guia "Escritorio online". Onde
-     o escritorio deixa, e-mail e senha. Os dois levam ao codigo.
+  2. "Entrar com Atos" (09/10/2026: a Conta Atos e a unica entrada; o Google
+     e a senha ficam em atos.dev.br), travado ate a verificacao contra robos
+     (Turnstile) passar. O widget da Cloudflare fica escondido
+     ("interaction-only": so aparece se pedir um toque) e o estado vai para um
+     selo proprio (Verificando, Sucesso, Tente de novo) - o guia "Escritorio
+     online". A Atos volta direto a este escritorio e leva ao codigo.
   3. O codigo de 6 digitos do app autenticador - ou, sem o celular, a chave de
      recuperacao XXXX-XXXX, que vale uma vez. "Confiar neste navegador por 30
      dias" pula o codigo nas proximas entradas.
@@ -57,6 +58,8 @@
   .serif { font-family: 'Manrope', system-ui, sans-serif; }
   button { font: inherit; }
   [hidden] { display: none !important; }
+  .atos-ic { display: block; width: 22px; height: 22px; }
+  [data-tema="claro"] .atos-ic { filter: invert(1); }
 
   /* --- 1. o escritorio e o jeito de entrar */
   /* A marca tem lugar fixo em todas as telas de entrada (02/10): o alto dela
@@ -229,39 +232,20 @@
 <script>(function(){var b=document.getElementById("topo-tema");if(!b)return;b.onclick=function(){var h=document.documentElement;h.dataset.tema=h.dataset.tema==="claro"?"escuro":"claro";try{localStorage.setItem("paulus.tema.entrar",h.dataset.tema);}catch(e){}};try{var t=localStorage.getItem("paulus.tema.entrar");if(t)document.documentElement.dataset.tema=t;}catch(e){}})();</script>
 <div class="tela">
 
-  <!-- 1. O escritorio e o jeito de entrar (Google | Codigo) -->
+  <!-- 1. Entrar com Atos -->
   <section id="entrar-senha" class="tela passo">
     <div class="marca abrindo" id="marca-entrar">
       <h1 data-es-titulo>O que faremos juntos hoje?</h1>
       <p data-es-frase>O mesmo escritório, de onde você estiver.</p>
     </div>
     <form id="form-senha" class="baixo" autocomplete="on" novalidate>
-      <button type="button" class="linha-botao centro" id="google" disabled><span class="lb-icones"><span class="lb-ic"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg></span></span><span class="lb-texto"><b class="lb-titulo">Entrar com Google</b></span></button>
-      <!-- E-mail e senha (07/10/2026: valem por inteiro, com o Google como opcao). -->
-      <div class="campos" id="por-senha" hidden>
-        <input id="email" type="email" autocomplete="username" placeholder="E-mail" aria-label="E-mail">
-        <input id="senha" type="password" autocomplete="current-password" minlength="10" placeholder="Senha" aria-label="Senha">
-      </div>
-      <!-- Esqueci a senha: o codigo vai ao e-mail da conta; a senha nova nao dispensa o codigo do celular. -->
-      <div class="campos" id="por-esqueci" hidden>
-        <p class="ajuda" id="esqueci-texto">Digite o e-mail da sua conta: mandamos um código para trocar a senha.</p>
-        <input id="esqueci-email" type="email" autocomplete="username" placeholder="E-mail" aria-label="E-mail">
-        <div class="campos" id="esqueci-campos" hidden>
-          <input id="esqueci-codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Código do e-mail (6 números)" aria-label="Código do e-mail">
-          <input id="esqueci-senha" type="password" autocomplete="new-password" placeholder="Nova senha (10 ou mais caracteres)" aria-label="Nova senha">
-          <input id="esqueci-repetir" type="password" autocomplete="new-password" placeholder="Confirmar a nova senha" aria-label="Confirmar a nova senha">
-        </div>
-      </div>
+      <button type="button" class="linha-botao centro" id="atos" disabled><span class="lb-icones"><span class="lb-ic"><img class="atos-ic" src="/img/conta-atos.png" alt="" width="22" height="22"></span></span><span class="lb-texto"><b class="lb-titulo">Entrar com Atos</b></span></button>
       <div class="robo" id="robo" aria-label="Verificação contra robôs"></div>
       <div class="cf-badge" id="cf-badge" data-estado="verificando" role="status" aria-live="polite">
         <span class="cf-esq"><span class="cf-icone"><svg class="cf-v" viewBox="0 0 24 24" aria-hidden="true"><path d="m9.55 18-5.7-5.7 1.43-1.42 4.27 4.27 9.17-9.18 1.43 1.43Z"/></svg><svg class="cf-x" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 19 5 17.6 10.6 12 5 6.4 6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4Z"/></svg></span><span class="cf-texto" id="cf-texto">Verificando…</span></span>
         <span class="cf-dir"><span class="cf-marca">CLOUDFLARE</span><span class="cf-links"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacidade</a> · <a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener">Ajuda</a></span></span>
       </div>
       <p class="erro" id="erro-senha" role="alert"></p>
-      <p class="ajuda" id="aviso-senha" role="status"></p>
-      <button type="submit" class="g-trilho" id="continuar-senha" hidden><span class="g-pastilha" id="continuar-texto">Continuar</span></button>
-      <div class="ligacoes" id="links-senha" hidden><button type="button" class="link-senha" id="esqueci">Esqueci a senha</button><button type="button" class="link-senha" id="reenviar" hidden>Reenviar código</button></div>
-      <button type="button" class="link-senha" id="usar-senha" hidden>Entrar com e-mail e senha</button>
     </form>
   </section>
 
@@ -274,7 +258,7 @@
     <form id="form-codigo" class="baixo" autocomplete="off" novalidate>
       <div class="escritorio">
         <span class="rotulo">CONTA</span>
-        <div class="linha-botao"><span class="lb-icones"><span class="lb-ic" id="quem-marca"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg></span></span><span class="lb-texto"><b class="lb-titulo" id="quem-email"></b></span><button type="button" class="lb-fim lb-acao" id="trocar">Trocar</button></div>
+        <div class="linha-botao"><span class="lb-icones"><span class="lb-ic" id="quem-marca"><img class="atos-ic" src="/img/conta-atos.png" alt="" width="22" height="22"></span></span><span class="lb-texto"><b class="lb-titulo" id="quem-email"></b></span><button type="button" class="lb-fim lb-acao" id="trocar">Trocar</button></div>
       </div>
       <div class="escritorio">
         <div class="rotulo-linha"><span class="rotulo" id="rotulo-codigo">GOOGLE AUTHENTICATOR</span><span class="renova" id="renova">renova em <b id="segundos">00:30</b></span></div>
@@ -299,8 +283,6 @@
   let robo = null;
   let chaveRobo = "";
   let porRecuperacao = false;
-  let modo = "google";
-  let config = { google: false, so_google: false };
   const $ = (id) => document.getElementById(id);
 
   /* Erro de campo e borda, nao texto (regra de 08/10/2026, a mesma do Paulus,
@@ -360,106 +342,26 @@
     const p = $(ids[0]);
     if (p) p.focus();
   }
-  const emailOk = (v) => (/^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(v.trim()) ? "" : "confira o e-mail");
-  vigiar($("email"), emailOk);
-  vigiar($("senha"), (v) => (v ? "" : "digite a senha"));
-  vigiar($("esqueci-email"), emailOk);
-  vigiar($("esqueci-codigo"), (v) => (/^\d{6}$/.test(v.replace(/\D/g, "")) ? "" : "o código tem 6 números"));
-  vigiar($("esqueci-senha"), (v) => (v.length < 10 ? "a senha precisa ter pelo menos 10 caracteres" : ""));
-  vigiar($("esqueci-repetir"), (v) => (v && v === $("esqueci-senha").value ? "" : "as duas senhas não são iguais"));
-  $("esqueci-senha").addEventListener("input", () => { if (tocados.has($("esqueci-repetir"))) pintar($("esqueci-repetir")); });
   vigiar($("codigo"), (v) => (porRecuperacao ? (/^[0-9A-Z]{4}-?[0-9A-Z]{4}$/i.test(v.trim()) ? "" : "a chave tem 8 letras e números")
     : (/^\d{6}$/.test(v.trim()) ? "" : "o código tem 6 números")));
   // O erro do servidor que e de campo: quais campos ficam vermelhos (lista vazia = nao e de campo).
-  function camposDoErro(msg, esqueci) {
+  function camposDoErro(msg) {
     const m = String(msg || "");
-    if (/e-mail ou senha/.test(m)) return ["email", "senha"];
-    if (/confira o e-mail|e-mail inválido/.test(m)) return [esqueci ? "esqueci-email" : "email"];
-    if (/código/.test(m) && /não confere|venceu/.test(m)) return [esqueci ? "esqueci-codigo" : "codigo"];
+    if (/código/.test(m) && /não confere|venceu/.test(m)) return ["codigo"];
     if (/chave/.test(m) && /não confere|inválid/.test(m)) return ["codigo"];
-    if (/a senha precisa/.test(m)) return [esqueci ? "esqueci-senha" : "senha"];
     return [];
   }
-  function mostrarErro(err, onde, esqueci) {
-    const campos = err.campos || camposDoErro(err.message, esqueci).filter((id) => $(id) && !$(id).closest("[hidden]"));
+  function mostrarErro(err, onde) {
+    const campos = camposDoErro(err.message).filter((id) => $(id) && !$(id).closest("[hidden]"));
     if (campos.length) { $(onde).textContent = ""; errado(campos, err.message); return; }
     $(onde).textContent = err.message;
-  }
-
-  // O jeito de entrar: o Google (o desenho) ou e-mail e senha - sozinhos
-  // quando o Google nao foi configurado, ou por escolha no "Entrar com e-mail
-  // e senha". O escritorio que escolheu so o Google (so_google) nao mostra a
-  // senha. "Esqueci a senha" (07/10/2026) e o terceiro modo: o e-mail, e
-  // depois o codigo que chegou nele com a senha nova.
-  let etapaEsqueci = "";
-  function escolher(qual) {
-    modo = qual;
-    const senha = qual === "senha";
-    const esqueci = qual === "esqueci";
-    $("google").hidden = senha || esqueci;
-    $("por-senha").hidden = !senha;
-    $("por-esqueci").hidden = !esqueci;
-    $("esqueci-campos").hidden = !(esqueci && etapaEsqueci);
-    $("esqueci-email").readOnly = Boolean(esqueci && etapaEsqueci);
-    $("email").required = senha;
-    $("senha").required = senha;
-    $("continuar-senha").hidden = !(senha || esqueci);
-    $("continuar-texto").textContent = esqueci ? (etapaEsqueci ? "Trocar a senha" : "Enviar código") : "Continuar";
-    $("usar-senha").hidden = esqueci || !(config.google && !config.so_google);
-    $("usar-senha").textContent = senha ? "Entrar com Google" : "Entrar com e-mail e senha";
-    $("links-senha").hidden = !(senha || esqueci) || config.so_google;
-    $("esqueci").textContent = esqueci ? "Voltar para a senha" : "Esqueci a senha";
-    $("reenviar").hidden = !(esqueci && etapaEsqueci);
-    $("erro-senha").textContent = "";
-    if (!$("entrar-senha").hidden) saudar($("marca-entrar"), senha || esqueci ? "senha" : "entrar");
-  }
-  $("google").addEventListener("click", () => entrarComGoogle());
-  $("usar-senha").addEventListener("click", () => { escolher(modo === "senha" ? "google" : "senha"); if (modo === "senha") $("email").focus(); });
-  $("esqueci").addEventListener("click", () => {
-    $("aviso-senha").textContent = "";
-    if (modo === "esqueci") { etapaEsqueci = ""; escolher("senha"); $("email").focus(); return; }
-    $("esqueci-email").value = $("email").value.trim();
-    etapaEsqueci = "";
-    escolher("esqueci");
-    $("esqueci-email").focus();
-  });
-  $("reenviar").addEventListener("click", () => { etapaEsqueci = ""; escolher("esqueci"); $("aviso-senha").textContent = "Confirme a verificação contra robôs e peça o código de novo."; });
-
-  // Esqueci a senha: pedir o codigo (com o anti-robo) e, com ele, a senha nova.
-  // A senha nova nao abre sessao: a entrada e a de sempre, com o codigo do celular.
-  // Campo que nao fecha: o erro leva os campos (`campos`), que ficam vermelhos sem texto.
-  const deCampo = (ids) => Object.assign(new Error(""), { campos: ids });
-  async function esqueciASenha() {
-    const email = $("esqueci-email").value.trim();
-    if (!conferir(["esqueci-email"])) throw deCampo(["esqueci-email"]);
-    if (!etapaEsqueci) {
-      const token = tokenDoRobo();
-      if (!token) throw new Error("confirme a verificação contra robôs acima");
-      await enviar("/api/acesso/senha/esqueci", { email, turnstile: token });
-      etapaEsqueci = "codigo";
-      escolher("esqueci");
-      $("esqueci-texto").textContent = "Se " + email + " tem conta neste escritório, enviamos um código de 6 números para ele. O código vale 10 minutos.";
-      $("esqueci-codigo").focus();
-      return;
-    }
-    const codigo = $("esqueci-codigo").value.replace(/\D/g, "");
-    const nova = $("esqueci-senha").value;
-    if (!conferir(["esqueci-codigo", "esqueci-senha", "esqueci-repetir"])) throw deCampo([]);
-    const d = await enviar("/api/acesso/senha/redefinir", { email, codigo, senha: nova });
-    ["esqueci-codigo", "esqueci-senha", "esqueci-repetir"].forEach((id) => { $(id).value = ""; });
-    etapaEsqueci = "";
-    $("esqueci-texto").textContent = "Digite o e-mail da sua conta: mandamos um código para trocar a senha.";
-    $("email").value = email;
-    escolher("senha");
-    $("aviso-senha").textContent = "Senha trocada. Entre com ela" + (d.codigo_do_celular ? " — o código do celular continua sendo pedido." : ".");
-    $("senha").focus();
   }
 
   // O selo da verificacao contra robos, no lugar do widget da Cloudflare.
   function selo(estado, texto) {
     $("cf-badge").dataset.estado = estado;
     $("cf-texto").textContent = texto;
-    $("google").disabled = estado !== "ok";
+    $("atos").disabled = estado !== "ok";
   }
   $("cf-badge").addEventListener("click", (e) => {
     if ($("cf-badge").dataset.estado !== "erro" || e.target.closest("a")) return;
@@ -477,7 +379,7 @@
   function passo(qual) {
     $("entrar-senha").hidden = qual !== "entrar";
     $("entrar-codigo").hidden = qual !== "codigo";
-    if (qual === "entrar") saudar($("marca-entrar"), modo === "senha" ? "senha" : "entrar");
+    if (qual === "entrar") saudar($("marca-entrar"), "entrar");
     else saudar($("marca-codigo"), porRecuperacao ? "chave" : "codigo");
     if (qual === "codigo") { desenharCasas(); $("codigo").focus(); }
   }
@@ -535,7 +437,7 @@
   relogio();
   setInterval(relogio, 1000);
 
-  // A volta do Google vem depois do # (nao sai do navegador): #g=<pendencia>&e=<e-mail>
+  // A volta da Atos vem depois do # (nao sai do navegador): #g=<pendencia>&e=<e-mail>
   // leva ao codigo; #entrou e o navegador confiado (a sessao ja esta aberta);
   // #erro=<frase> diz o que nao fechou.
   const volta = new URLSearchParams(location.hash.slice(1));
@@ -544,25 +446,24 @@
   if (volta.get("erro")) $("erro-senha").textContent = volta.get("erro");
   if (volta.get("g")) {
     pendente = volta.get("g");
-    // A conta que voltou do Google fica lembrada neste aparelho: na proxima
-    // entrada ela vai como dica, e o Google nao pede para escolher de novo.
-    if (volta.get("e")) { try { localStorage.setItem("paulus.google.email", volta.get("e")); } catch (e) { /* sem memoria */ } }
-    $("quem-email").textContent = volta.get("e") || "sua conta Google";
+    // A conta que voltou da Atos fica lembrada neste aparelho: na proxima
+    // entrada ela vai como dica (o e-mail ja vem preenchido la).
+    if (volta.get("e")) { try { localStorage.setItem("paulus.atos.email", volta.get("e")); } catch (e) { /* sem memoria */ } }
+    $("quem-email").textContent = volta.get("e") || "sua Conta Atos";
     passo("codigo");
   } else {
     passo("entrar");
   }
 
-  async function entrarComGoogle() {
-    const b = $("google");
+  async function entrarComAtos() {
+    const b = $("atos");
     b.disabled = true; $("erro-senha").textContent = "";
     try {
-      if (!config.google) throw new Error("o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS");
       const token = tokenDoRobo();
       if (!token) throw new Error("confirme a verificação contra robôs acima");
       let dica = "";
-      try { dica = localStorage.getItem("paulus.google.email") || ""; } catch (e) { /* sem memoria */ }
-      const d = await enviar("/api/acesso/google/iniciar", { finalidade: "entrar", turnstile: token, dica });
+      try { dica = localStorage.getItem("paulus.atos.email") || ""; } catch (e) { /* sem memoria */ }
+      const d = await enviar("/api/acesso/atos/iniciar", { finalidade: "entrar", turnstile: token, dica });
       location.assign(d.url);
       return;
     } catch (err) { $("erro-senha").textContent = err.message; }
@@ -570,51 +471,12 @@
     selo("verificando", "Verificando…");
     novoRobo();
   }
+  $("atos").addEventListener("click", () => entrarComAtos());
+  $("form-senha").addEventListener("submit", (e) => { e.preventDefault(); entrarComAtos(); });
 
   fetch("/api/acesso/entrar/config").then((r) => r.json()).then((d) => {
-    config = { google: Boolean(d.google), so_google: Boolean(d.so_google) };
     mostrarRobo(d.turnstile_sitekey);
-    // Sem o Google configurado (e com a senha liberada): e-mail e senha.
-    escolher(config.google || config.so_google ? "google" : "senha");
-    if (config.so_google && !config.google) $("erro-senha").textContent = "o login com o Google ainda não foi configurado neste escritório; avise quem administra o PAVLVS";
   }).catch(() => { $("erro-senha").textContent = "não consegui abrir a tela de entrar; recarregue a página"; });
-
-  $("form-senha").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (modo === "google") return entrarComGoogle();
-    const b = $("continuar-senha");
-    b.disabled = true; $("erro-senha").textContent = "";
-    if (modo === "esqueci") {
-      const pediu = !etapaEsqueci;
-      try { if (pediu) $("aviso-senha").textContent = ""; await esqueciASenha(); } catch (err) {
-        // Campo que nao fecha ja esta vermelho; o resto (robo, limite, servidor) vai no texto.
-        if (err.campos) $("erro-senha").textContent = "";
-        else mostrarErro(err, "erro-senha", true);
-      }
-      // So o pedido do codigo gasta o token do anti-robo.
-      if (pediu) { selo("verificando", "Verificando…"); novoRobo(); }
-      b.disabled = false;
-      return;
-    }
-    $("aviso-senha").textContent = "";
-    // E-mail e senha conferidos antes: o que nao fecha fica vermelho e nao gasta o token do robo.
-    if (!conferir(["email", "senha"])) { b.disabled = false; return; }
-    try {
-      const token = tokenDoRobo();
-      if (!token) throw new Error("confirme a verificação contra robôs acima");
-      const d = await enviar("/api/acesso/entrar", { email: $("email").value.trim(), senha: $("senha").value, turnstile: token });
-      if (d.ok) { location.replace("/"); return; }  // seguranca "simples": sem codigo
-      pendente = d.pendente;
-      $("senha").value = "";
-      $("quem-email").textContent = $("email").value.trim();
-      $("quem-marca").style.display = "none";
-      passo("codigo");
-    } catch (err) { mostrarErro(err, "erro-senha", false); }
-    // Cada token do Turnstile vale uma vez: a proxima tentativa pede outro.
-    selo("verificando", "Verificando…");
-    novoRobo();
-    b.disabled = false;
-  });
 
   $("form-codigo").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -627,7 +489,7 @@
     try {
       await enviar("/api/acesso/entrar/codigo", { pendente, codigo, confiar: $("confiar").checked });
       location.replace("/");
-    } catch (err) { mostrarErro(err, "erro-codigo", false); b.disabled = false; }
+    } catch (err) { mostrarErro(err, "erro-codigo"); b.disabled = false; }
   });
 
   // Sem o celular: a chave de recuperacao (`Chave de recuperacao`), XXXX-XXXX,

@@ -288,6 +288,9 @@ def test_http() -> None:
     checar(r.status_code == 200, "a janela local cria a conta", r.text[:200])
     criada = r.json()
     cid = criada["conta"]["id"]
+    # A conta nasce sem senha (entra-se com a Conta Atos, 09/10/2026). O resto deste teste e da entrada por
+    # senha de quem ja tinha uma: a senha entra pela rota local de trocar a senha.
+    local.post(f"/api/acesso/contas/{cid}/senha", json={"senha": "carla-senha-forte"})
     recuperacao = list(criada["codigos_recuperacao"])
     agora = time.time()
     r = local.post(f"/api/acesso/contas/{cid}/autenticador/confirmar",
@@ -374,27 +377,22 @@ def test_http() -> None:
         r = fora.post("/api/acesso/minhas-sessoes/encerrar", json={"codigo": "000000"}, headers=cab)
         checar(r.status_code == 403 and fora.get("/api/acesso/eu").json().get("pessoa"),
                "encerrar as sessoes com codigo errado: 403, e a sessao continua", r.text[:160])
+        # "Trocar minha senha" saiu (09/10/2026): a senha e da Conta Atos, em atos.dev.br.
         r = fora.post("/api/acesso/minha-senha", json={"atual": "carla-senha-forte", "nova": "outra-senha-forte-1",
                                                        "codigo": "000000"}, headers=cab)
-        checar(r.status_code == 403, "trocar a propria senha sem o codigo certo: 403", r.status_code)
-        r = fora.post("/api/acesso/minha-senha", json={"atual": "nao-e-essa", "nova": "outra-senha-forte-1",
-                                                       "codigo": recuperacao.pop()}, headers=cab)
-        checar(r.status_code == 403 and "atual" in r.json().get("detail", ""), "com o codigo, mas a senha atual errada: 403",
-               r.text[:160])
-        r = fora.post("/api/acesso/minha-senha", json={"atual": "carla-senha-forte", "nova": "carla-senha-nova-1",
-                                                       "codigo": recuperacao.pop()}, headers=cab)
-        checar(r.status_code == 200, "com o codigo e a senha atual: troca", r.text[:160])
-        checar(fora.get("/api/acesso/eu").json().get("pessoa") is None, "e a sessao cai: entra de novo")
+        checar(r.status_code in (403, 404, 405) and fora.get("/api/acesso/eu").json().get("pessoa"),
+               "trocar a propria senha de fora nao existe mais", r.status_code)
+        fora.post("/api/acesso/sair", headers=cab)
 
         # Entra de novo (codigo de recuperacao) e encerra tudo com o codigo.
-        r = fora.post("/api/acesso/entrar", json={"email": "carla@escritorio.com", "senha": "carla-senha-nova-1", "turnstile": "ok"})
+        r = fora.post("/api/acesso/entrar", json={"email": "carla@escritorio.com", "senha": "carla-senha-forte", "turnstile": "ok"})
         r = fora.post("/api/acesso/entrar/codigo", json={"pendente": r.json()["pendente"], "codigo": recuperacao.pop()})
         csrf = r.json()["csrf"]
         r = fora.post("/api/acesso/minhas-sessoes/encerrar", json={"codigo": recuperacao.pop()}, headers={"X-PAULUS-CSRF": csrf})
         checar(r.status_code == 200 and r.json().get("encerradas") == 1, "encerrar as sessoes com o codigo", r.text[:160])
         checar(fora.get("/api/acesso/eu").json().get("pessoa") is None, "e ninguem fica de fora")
 
-        r = fora.post("/api/acesso/entrar", json={"email": "carla@escritorio.com", "senha": "carla-senha-nova-1", "turnstile": "ok"})
+        r = fora.post("/api/acesso/entrar", json={"email": "carla@escritorio.com", "senha": "carla-senha-forte", "turnstile": "ok"})
         r = fora.post("/api/acesso/entrar/codigo", json={"pendente": r.json()["pendente"], "codigo": recuperacao.pop()})
         caidas = local.post(f"/api/acesso/contas/{cid}/senha", json={"senha": "carla-senha-nova-2"}).json()
         checar(caidas.get("sessoes_encerradas") == 1, "trocar a senha pela janela local encerra a sessao", caidas)

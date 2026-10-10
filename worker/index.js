@@ -98,7 +98,7 @@ export default {
       }
     }
     if (url.pathname === "/cadastro" || url.pathname.startsWith("/cadastro/")) return comCSP(await env.ASSETS.fetch(request));
-    // A Minha conta tem o cartao (os campos seguros do Mercado Pago) e o botao do Google: a mesma CSP do cadastro.
+    // A Minha conta tem o cartao (os campos seguros do Mercado Pago) : a mesma CSP do cadastro (a entrada e a Conta Atos, que abre em outra janela).
     if (/^\/(minha-conta|en\/my-account)(\/|$)/.test(url.pathname)) return comCSP(await env.ASSETS.fetch(request));
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
@@ -136,8 +136,8 @@ export default {
 };
 
 /* A pagina de assinar e pagar (site/cadastro): o cartao e digitado nela, nos
-   campos seguros do Mercado Pago. So rodam scripts do proprio site, do Mercado Pago e
-   do botao do Google; um script injetado (o golpe dos campos falsos por cima do
+   campos seguros do Mercado Pago. So rodam scripts do proprio site e do Mercado Pago;
+   um script injetado (o golpe dos campos falsos por cima do
    formulario) e bloqueado pelo navegador. Nenhum script inline roda: o do
    tema, nessas paginas, e o assets/tema-cedo.js. O MercadoPago.js injeta um script inline de telemetria (sendCookies /
    setDeprecationLab), diferente a cada carga: ele fica bloqueado de proposito
@@ -145,12 +145,12 @@ export default {
    ele (conferido no Edge com a chave de teste, 03/10/2026). */
 export const CSP_CADASTRO = [
   "default-src 'self'",
-  "script-src 'self' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://accounts.google.com/gsi/",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
+  "script-src 'self' https://sdk.mercadopago.com https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: https:",
-  "connect-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://accounts.google.com https://viacep.com.br https://brasilapi.com.br",
-  "frame-src https://*.mercadopago.com https://*.mercadolibre.com https://*.mercadolivre.com https://accounts.google.com",
+  "connect-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://viacep.com.br https://brasilapi.com.br",
+  "frame-src https://*.mercadopago.com https://*.mercadolibre.com https://*.mercadolivre.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

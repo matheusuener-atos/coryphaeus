@@ -432,7 +432,7 @@ def main() -> int:
                 # "Pular por agora" nem Continuar enquanto a conta nao esta vinculada.
                 checar(
                     pagina.evaluate(etapa) == "Sua conta"
-                    and pagina.evaluate("() => !!document.querySelector('[data-bv-google], [data-bv-atos]')")
+                    and pagina.evaluate("() => !!document.querySelector('[data-bv-atos]')")
                     and pagina.evaluate("() => !document.querySelector('[data-bv=pular]') && !document.querySelector('[data-bv=continuar]')"),
                     "Comecar leva ao passo Sua conta: o login, sem pular e sem Continuar antes de entrar",
                     pagina.evaluate(etapa),

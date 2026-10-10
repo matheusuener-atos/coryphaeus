@@ -40,7 +40,6 @@ function quemCriou(nome, conta) {
       acessoDeFora.permissoes = d.permissoes || [];
       acessoDeFora.google = d.google || "";
       acessoDeFora.googleDisponivel = Boolean(d.google_disponivel);
-      acessoDeFora.soGoogle = Boolean(d.so_google);
       acessoDeFora.csrf = d.csrf || "";
       if (!acessoDeFora.local) document.documentElement.classList.add("remoto");
     })
@@ -150,11 +149,8 @@ function quemCriou(nome, conta) {
       '<div class="conta-cabeca"><span class="cad-avatar">' + esc(iniciais(p.nome)) + "</span>" +
       '<span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(p.email) + " · " + (titular ? "titular" : "colaborador") + "</small></span></div>" +
       '<div class="conta-acoes">' +
-      // Trocar a senha (07/10/2026: e-mail e senha valem de fora, salvo no escritorio so do Google) e
-      // encerrar as sessoes: so o titular, e as duas pedem o codigo do autenticador de novo.
-      (titular && !acessoDeFora.soGoogle
-        ? linha("senha", "key", "Trocar minha senha", "pede a senha atual e o código do autenticador")
-        : "") +
+      // Encerrar as sessoes: so o titular, e pede o codigo do autenticador de novo. A senha (e trocar
+      // a senha) e da Conta Atos, em atos.dev.br (09/10/2026).
       (titular
         ? linha("sessoes", "group", "Encerrar todas as sessões", "todo mundo que está de fora sai, você também", "perigo")
         : "") +
@@ -171,9 +167,8 @@ function quemCriou(nome, conta) {
       // W1: o Word desta pessoa, em outro computador ou no navegador (js/76-word.js).
       linha("word", "description", "Conectar o Word", "o código do painel do PAVLVS e o do autenticador") +
       linha("sair", "logout", "Sair", "encerra esta sessão neste aparelho") + "</div>" +
-      (titular ? "" : '<p class="conta-nota">Você entra com a sua conta (' + (acessoDeFora.soGoogle ? "o Google" : "o Google ou o e-mail e a senha") +
-        ") e o código do celular" + (acessoDeFora.soGoogle ? "" : '; a senha esquecida se troca pelo "Esqueci a senha" da tela de entrar') +
-        "; o autenticador se troca com o titular, no computador do escritório.</p>");
+      '<p class="conta-nota">Você entra com a sua Conta Atos e o código do celular. A senha se troca em atos.dev.br' +
+        (titular ? "." : "; o autenticador se troca com o titular, no computador do escritório.") + "</p>";
     let escolha = "";
     const aberto = dialogo({ titulo: "Minha conta", contexto: "Acesso externo", html: html, confirmar: "Fechar", semCancelar: true, classe: "conta-dialogo" });
     document.querySelectorAll("[data-conta-acao]").forEach((b) => b.addEventListener("click", () => {
@@ -205,19 +200,7 @@ function quemCriou(nome, conta) {
       if (!r || !r.ok) return;
       url = "/api/acesso/minhas-sessoes/encerrar";
       corpo = { codigo: r.valores.codigo };
-    } else {
-      const r = await dialogo({
-        titulo: "Trocar minha senha", contexto: "Minha conta",
-        texto: "Trocar a senha encerra as suas sessões; você entra de novo com a senha nova.",
-        campos: [{ chave: "atual", rotulo: "Senha atual", tipo: "password" },
-          { chave: "nova", rotulo: "Senha nova", tipo: "password", dica: "pelo menos 10 caracteres", obrigatorio: true, conferir: (v) => REGRA_CAMPO.senha10(v) },
-          { chave: "repetir", rotulo: "Repita a senha nova", tipo: "password", obrigatorio: true, igualA: "nova", frase: "as duas senhas novas não são iguais" }, codigo],
-        confirmar: "Trocar a senha",
-      });
-      if (!r || !r.ok) return;
-      url = "/api/acesso/minha-senha";
-      corpo = { atual: r.valores.atual, nova: r.valores.nova, codigo: r.valores.codigo };
-    }
+    } else return;
     const resp = await window.fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
     if (!resp.ok) {
       let msg = "não deu certo";

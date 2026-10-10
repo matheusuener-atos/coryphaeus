@@ -80,13 +80,13 @@ const G_DO_GOOGLE = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden
    o proprio icone ("Conta Atos" ou "Conta Google"); no pos-instalador (`comAtos`), a Google vem como "Atos + Google". */
 const ICONE_ATOS = '<img class="atos-ic" src="/img/conta-atos.png" alt="" width="22" height="22">';
 
-function iconesDaConta(por, comAtos) {
-  const atos = { html: ICONE_ATOS, classe: "lb-22" };
-  return ehContaAtos(por) ? [atos] : comAtos ? [atos, G_DO_GOOGLE] : [G_DO_GOOGLE];
+/* Desde 09/10/2026 o Paulus so entra com a Conta Atos: todo vinculo e dela (o do Google de antes tambem). */
+function iconesDaConta() {
+  return [{ html: ICONE_ATOS, classe: "lb-22" }];
 }
 
-function nomeDaConta(por, comAtos) {
-  return ehContaAtos(por) ? "Conta Atos" : comAtos ? "Atos + Google" : "Conta Google";
+function nomeDaConta() {
+  return "Conta Atos";
 }
 
 function telaDaTrava() {
@@ -124,7 +124,7 @@ function desenharTrava() {
   const codigo = e.precisa_codigo || semNet;
   const pronto = Boolean((e.sem_internet || {}).pronto);
   const conta = (rotulo, trocar) => '<div class="trava-grupo"><span class="trava-etiqueta">' + rotulo + "</span>" +
-    '<div class="trava-caixa">' + (semNet ? ic("desktop_windows", 16) : ehContaAtos(e.por) ? ICONE_ATOS.replace(/22/g, "16") : G_DO_GOOGLE) + '<span class="trava-email">' + esc(e.email) + "</span>" +
+    '<div class="trava-caixa">' + (semNet ? ic("desktop_windows", 16) : ICONE_ATOS.replace(/22/g, "16")) + '<span class="trava-email">' + esc(e.email) + "</span>" +
     (trocar ? '<button type="button" class="trava-trocar" id="trava-trocar">' + esc(trocar) + "</button>" : "") + "</div></div>";
   // O Google e a linha-botao (css/57-linha-botao.css); o enviar do formulario segue no trilho.
   const trilho = (id, texto, google, desligado) => google
@@ -155,10 +155,9 @@ function desenharTrava() {
     tela = "trava";
     frase = "Entre com a sua conta para abrir o escritório.";
     // Desenho de 09/10/2026: a trava so protege o computador do servidor - entra de novo a conta dele, do jeito
-    // dela: a Conta Google pelo "Entrar com Google", a Conta Atos pelo "Entrar com Atos" (a senha e pedida de novo
+    // dela: a Conta Atos, pelo "Entrar com Atos" (a senha e pedida de novo
     // la, em atos.dev.br). Nada de trocar de conta aqui: quem precisa de fora entra pelo tunel, com o e-mail
     // autorizado. Depois, "ENQUANTO ISSO": o tunel, que liga e desliga com o codigo do Google Authenticator.
-    const atos = ehContaAtos(e.por);
     const linhaConta = linhaBotao({ tag: "div", classe: "duas", icones: iconesDaConta(e.por), titulo: nomeDaConta(e.por), sub: esc(e.email) });
     const manter = '<label class="trava-manter"><input type="checkbox" id="trava-manter"' + (vinc.manterAoEntrar ? " checked" : "") + '><i aria-hidden="true">' +
       ic("check", 13) + "</i><span>Manter aberto neste computador</span></label>";
@@ -174,10 +173,7 @@ function desenharTrava() {
       : "";
     corpo = '<div class="trava-secoes bv-secoes-conta">' +
       '<div class="bv-secao"><span class="bv-rotulo">CONTA DESTE SERVIDOR</span>' + linhaConta +
-      (atos
-        ? botaoAtos(' id="trava-entrar"', esperando)
-        : linhaBotao({ classe: "centro", attrs: ' id="trava-entrar"' + (esperando ? " disabled" : ""), icones: [G_DO_GOOGLE],
-            titulo: esperando ? "Esperando o Google no navegador…" : "Entrar com Google" })) +
+      botaoAtos(' id="trava-entrar"', esperando) +
       '<div class="trava-manter-fora">' + manter + "</div>" +
       (esperando ? '<div class="cs-links"><button type="button" class="bv-ligacao" id="trava-cancelar">Cancelar</button></div>' : "") +
       '<p class="acesso-erro" id="trava-erro">' + esc(e.fase === "erro" ? e.mensagem : "") + "</p>" +
@@ -419,20 +415,17 @@ function cartaoDoVinculo() {
   if (!e) return "";
   const esperando = e.fase === "aguardando" || e.fase === "trocando" || e.fase === "testando";
   if (!e.vinculado) {
-    // Pela Conta Google ou pela Conta Atos: as duas abrem o navegador.
-    const espera = esperando ? quemNoNavegador(e) : "";
+    // Pela Conta Atos (o navegador abre em atos.dev.br; la, com o Google ou com e-mail e senha).
     return cartaoCfg("Conta deste Paulus", metaCfg("não vinculado"),
-      '<p class="cfg-texto">Vincule este Paulus à sua conta — a Conta Google ou a Conta Atos, com e-mail e senha de qualquer provedor: ele passa a abrir travado e pede a conta a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
+      '<p class="cfg-texto">Vincule este Paulus à sua Conta Atos — com o Google ou com e-mail e senha de qualquer provedor: ele passa a abrir travado e pede a conta a cada abertura (dá para manter aberto neste computador). O vínculo é exigido para ligar o acesso externo e convidar a equipe.</p>' +
       (e.fase === "erro" ? '<p class="acesso-erro">' + esc(e.mensagem) + "</p>" : "") +
-      '<div class="acesso-pe">' + (e.google ? '<button class="primario com-icone" data-vinc-vincular="1"' + (esperando ? " disabled" : "") + ">" +
-      (espera === "o Google" ? "Esperando o Google no navegador…" : "Vincular com Google") + "</button>" : "") +
-      '<button class="com-icone" data-vinc-atos="1"' + (esperando ? " disabled" : "") + ">" + ICONE_ATOS.replace(/22/g, "16") +
-      (espera === "a Atos" ? "Esperando a Atos no navegador…" : "Vincular com Atos") + "</button>" +
+      '<div class="acesso-pe"><button class="primario com-icone" data-vinc-atos="1"' + (esperando ? " disabled" : "") + ">" + ICONE_ATOS.replace(/22/g, "16") +
+      (esperando ? "Esperando a Atos no navegador…" : "Vincular com Atos") + "</button>" +
       (esperando ? '<button data-vinc-cancelar="1">Cancelar</button>' : "") + "</div>");
   }
   const quando = e.vinculado_em ? new Date(e.vinculado_em).toLocaleDateString("pt-BR") : "";
   return cartaoCfg("Conta deste Paulus", pontoCfg("vinculado", "ok"),
-    '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + chaveCfg("Entra com", ehContaAtos(e.por) ? "Conta Atos" : "Conta Google") +
+    '<div class="cfg-linhas">' + chaveCfg("Conta", e.email) + chaveCfg("Entra com", "Conta Atos") +
     (e.nome ? chaveCfg("Nome", e.nome) : "") + (quando ? chaveCfg("Desde", quando) : "") + "</div>" +
     '<div class="acesso-energia">' +
     ligaCfg("", "Manter aberto neste computador", e.manter_aberto
@@ -482,9 +475,6 @@ function blocoSemInternet(e) {
 function ligarVinculoCfg() {
   const redesenhar = () => { if (typeof desenharConfig === "function") desenharConfig(); };
   const clique = (sel, fn) => document.querySelectorAll(sel).forEach((b) => { b.onclick = (ev) => { ev.stopPropagation(); fn(b); }; });
-  clique("[data-vinc-vincular]", async () => {
-    try { await entrarNoGoogleDoVinculo("vincular", redesenhar); } catch (err) { avisoCert(err.message, { tom: "erro" }); }
-  });
   clique("[data-vinc-cancelar]", async () => { await postVinculo("/api/vinculo/cancelar").catch(() => {}); redesenhar(); });
   clique("[data-vinc-atos]", async () => {
     try { await entrarNoGoogleDoVinculo("vincular", redesenhar, false, "atos"); } catch (err) { avisoCert(err.message, { tom: "erro" }); }

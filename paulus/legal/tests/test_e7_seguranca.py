@@ -2,7 +2,7 @@
 Os niveis de seguranca das contas (acesso/contas.py NIVEIS) - o escritorio
 escolhe, conta por conta, quanto pedir na entrada de fora:
 
-  - "simples": so o Google (ou a senha); a conta fica pronta sem o
+  - "simples": so a Conta Atos (desde 09/10/2026 a unica entrada de fora); a conta fica pronta sem o
     autenticador e entra sem o passo do codigo;
   - "padrao": Google + codigo, podendo confiar no navegador por 30 dias;
   - "reforcada": Google + codigo sempre - "confiar" nao vale, e subir para
@@ -51,6 +51,12 @@ def _jwt(**campos) -> str:
     return b({"alg": "RS256"}) + "." + b(corpo) + ".assinatura"
 
 
+def _jwt_atos(**campos) -> str:
+    b = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+    corpo = {"iss": "https://atos.dev.br", "aud": "pavlvs-escritorio", "exp": time.time() + 600, "email_verified": True, **campos}
+    return b({"alg": "ES256"}) + "." + b(corpo) + ".assinatura"
+
+
 def test_http() -> None:
     print("\nos niveis de seguranca, de ponta a ponta")
     import segredos
@@ -71,7 +77,7 @@ def test_http() -> None:
     prefs["hostname"] = "moura.paulus.ia.br"
     local = TestClient(api.app, headers=api.cabecalho_local())
     respostas = {}
-    servico.google.trocar = lambda code, verificador, credenciais: respostas.get(code, {"error": "invalid_grant"})
+    servico.atos.trocar = lambda code, verificador, volta: respostas.get(code, {"error": "invalid_grant"})
     n = [0]
 
     def de_fora() -> TestClient:
@@ -79,13 +85,13 @@ def test_http() -> None:
                           follow_redirects=False)
 
     def google(f, email, **dados):
-        """Vai ao Google e volta como `email`; devolve a resposta e o destino."""
-        r = f.post("/api/acesso/google/iniciar", json={"turnstile": "ok", "finalidade": "entrar", **dados})
+        """Vai a Atos (a unica entrada de fora, 09/10/2026) e volta como `email`; devolve a resposta e o destino."""
+        r = f.post("/api/acesso/atos/iniciar", json={"turnstile": "ok", "finalidade": "entrar", **dados})
         q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.json().get("url", "")).query))
         n[0] += 1
         code = f"g{n[0]}"
-        respostas[code] = {"id_token": _jwt(email=email)}
-        r = f.get("/api/acesso/google/retorno", params={"code": code, "state": q.get("state", "")})
+        respostas[code] = {"id_token": _jwt_atos(email=email, nonce=q.get("nonce", ""))}
+        r = f.get("/api/acesso/atos/retorno", params={"code": code, "state": q.get("state", ""), "iss": "https://atos.dev.br"})
         return r, urllib.parse.unquote(r.headers.get("location", ""))
 
     try:
@@ -102,7 +108,7 @@ def test_http() -> None:
         checar(para == "/#entrou" and "paulus_sessao=" in r.headers.get("set-cookie", ""),
                "a volta do Google ja abre a sessao, sem o codigo", para)
         checar(f.get("/api/status").status_code == 200, "e a pessoa usa o PAULUS")
-        checar(any(e.get("alvo") == "Google (segurança simples)" for e in servico.eventos), "o registro diz como entrou")
+        checar(any(e.get("alvo") == "Atos (segurança simples)" for e in servico.eventos), "o registro diz como entrou")
 
         print("  padrao: o navegador confiado")
         r = local.post("/api/acesso/contas", json={"nome": "Pat", "email": "pat@x.com"})

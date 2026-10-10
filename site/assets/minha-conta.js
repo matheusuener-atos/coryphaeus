@@ -504,7 +504,7 @@
   // O tema mudou com a pagina do cartao aberta: os quadros do Mercado Pago sao montados de novo com as cores novas.
   new MutationObserver(function () {
     if (S.sub === "cartao" && S.cartao && S.cartao.campos) { desmontarCartao(); montarCampos(); cartaoOk(); }
-    if (S.d && S.d.entrar) { botaoGoogle(); montarSenha(); }
+    if (S.d && S.d.entrar) { montarSenha(); }
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   /* ------------------------------------------------------------ os pop-ups (o dialogo do Paulus) */
@@ -615,7 +615,7 @@
   function render() {
     var r = $("mc-raiz"); if (!r) return;
     if (!S.d) { r.innerHTML = '<div class="mc-carregando">Carregando…</div>'; return; }
-    if (S.d.entrar) { r.innerHTML = entrarHtml(); botaoGoogle(); montarSenha(); renderModal(); return; }
+    if (S.d.entrar) { r.innerHTML = entrarHtml(); montarSenha(); renderModal(); return; }
     if (S.sub === "cartao") { r.innerHTML = cartaoHtml(S.d); renderModal(); montarCartao(); return; }
     var lista = abas(); if (!lista.some(function (a) { return a[0] === S.aba; })) S.aba = "resumo";
     var a = S.d.assinatura;
@@ -636,36 +636,19 @@
     if (P) P.reaplicar();
     if (S.modal && S.modal.tipo === "endereco") endAtualizar();
   }
-  // O botao do Google e o oficial (Google Identity Services), o mesmo cliente web do cadastro: ele entrega o
-  // id_token, e o Worker abre a sessao da Minha conta (um cookie HttpOnly). Nenhuma senha a mais.
-  var CLIENTE_GOOGLE = "834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com";
+  // So a Conta Atos (09/10/2026): o Google e escolhido em atos.dev.br. O id_token da Atos abre a sessao da
+  // Minha conta (um cookie HttpOnly), como o do Google abria.
   function entrarHtml() {
-    return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com o e-mail que recebeu o convite, pelo Google ou com senha." :
-      "Entre com a conta da assinatura, ou com a que o titular autorizou: pela Conta Google ou pela Conta Atos.") + "</p>" +
-      '<div class="linha-botao-g mc-google" id="mc-google" aria-live="polite"></div>' +
-      '<p class="cs-ou">' + L("ou com a Conta Atos", "or with the Atos Account") + '</p><div class="mc-senha" id="mc-senha"></div>' +
+    return '<div class="mc-entrar"><h1>Minha conta</h1><p class="texto-lead">' + (S.convite ? "Você recebeu um convite para a Minha conta de um escritório. Entre com a Conta Atos do e-mail que recebeu o convite." :
+      "Entre com a Conta Atos da assinatura, ou com a que o titular autorizou.") + "</p>" +
+      '<div class="mc-senha" id="mc-senha"></div>' +
       (S.erroEntrar ? '<p class="mc-nota centro mc-erro" role="alert">' + esc(cap(S.erroEntrar)) + "</p>" : "") +
       '<p class="mc-nota centro">Ainda não assina? <a href="' + (MP_IMG === "../../assets/" ? "../../assinatura/" : MP_IMG === "../assets/" ? "../assinatura/" : "Site - Assinatura.dc.html") + '">Conheça os planos</a>.</p></div>';
   }
-  // A Conta Atos (assets/entrar-atos.js): o id_token da Atos abre a mesma sessao que o do Google.
+  // A Conta Atos (assets/entrar-atos.js).
   function montarSenha() {
     var l = $("mc-senha"); if (!l || !window.EntrarAtos) return;
     EntrarAtos.montar(l, { ingles: L(false, true), aoEntrar: function (token) { A.entrarComToken(token); } });
-  }
-  function botaoGoogle() {
-    var lugar = $("mc-google"); if (!lugar) return;
-    carregarScript("https://accounts.google.com/gsi/client").then(function () {
-      var l = $("mc-google"); if (!l || !(window.google && google.accounts && google.accounts.id)) return;
-      var claro = document.documentElement.getAttribute("data-theme") === "light";
-      if (!botaoGoogle.pronto) {
-        google.accounts.id.initialize({ client_id: CLIENTE_GOOGLE, callback: function (r) { if (r && r.credential) A.entrarComToken(r.credential); }, ux_mode: "popup", auto_select: false });
-        botaoGoogle.pronto = true;
-      }
-      l.innerHTML = "";
-      google.accounts.id.renderButton(l, { theme: claro ? "outline" : "filled_black", size: "large", text: "signin_with", shape: "rectangular", width: Math.min(400, Math.max(200, (l.clientWidth || 418) - 18)), locale: L("pt-BR", "en") });
-    }).catch(function () {
-      var l = $("mc-google"); if (l) { l.classList.remove("linha-botao-g"); l.innerHTML = '<p class="mc-nota centro mc-erro">O botão do Google não carregou. Confira a internet ou o bloqueador de anúncios e recarregue a página.</p>'; }
-    });
   }
 
   /* ------------------------------------------------------------ acoes */

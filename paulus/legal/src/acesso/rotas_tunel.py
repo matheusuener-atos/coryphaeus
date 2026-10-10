@@ -41,7 +41,8 @@ def montar(servico, conexao, r) -> None:
                 "titulares": [{"nome": c["nome"], "email": c["email"]} for c in conexao.titulares_prontos()],
                 "escritorio": nome, "sugestao": sugerir_endereco(nome) if nome else "",
                 "energia": servico.energia() if hasattr(servico, "energia") else {},
-                "so_google": servico.so_google(),
+                # Desde 09/10/2026 toda entrada de fora e pela Conta Atos: a conta do titular nasce sem senha.
+                "so_google": True,
                 # Os enderecos desta conta Google (retomar depois de reinstalar)
                 # e se ha um login recente no Google para provar a conta.
                 "meus": conexao.meus(),
