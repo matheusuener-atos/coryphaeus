@@ -1210,5 +1210,36 @@ d = await r.json();
 checar(d.ok && d.access.feito && cf.chamadas.some((x) => x.caminho === "/accounts/conta1/access/organizations/revoke_user" && x.corpo.email === "dono@paulus.ia.br"),
   "com a API do Access, as sessões do Access dela caem também", d);
 
+console.log("a conta cobrada pela Atos");
+{
+  // O dinheiro esta na Atos (worker/atos.js): o painel do PAVLVS nao devolve, cancela nem troca o plano dela.
+  const idAtos = "a7a7a7a7a7a7a7a7a7a7a7a7";
+  const t0 = relogio;
+  // Uma sessao nova (o teste de antes encerrou todas).
+  const rs = await admin("GET", "/api/admin/sessao");
+  const ck = ((rs.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/) || [])[1];
+  const como = (extra = {}) => ({ cookie: ck, ...extra });
+  await CONTAS_IA.get(idAtos).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "atos_direito", id: idAtos, dono: { sub: "pv-atos", email: "atos@x.br" },
+    retrato: { versao: 1, plano: "escritorio", ate: new Date(relogio + 30 * 864e5).toISOString(), periodo: "mes", assinatura: { id: "atos-a1", status: "canceled", preco: "pavlvs.escritorio.mes" } } }) });
+  await APOIOS.put("admin:conta:" + idAtos, JSON.stringify({ id: idAtos, criada: new Date(relogio).toISOString() }));
+  const mpAntes = mp.length;
+  for (const tipo of ["conta.cancelar", "conta.reembolsar", "conta.plano"]) {
+    const rr = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo, dados: { id: idAtos, plano: "plus" }, texto: "na Atos" } }));
+    const dd = await rr.json();
+    checar(rr.status === 400 && /cobrada pela Atos/.test(dd.erro || ""), tipo + " numa conta cobrada pela Atos: recusado, com o porquê", { s: rr.status, dd });
+  }
+  checar(mp.length === mpAntes, "e o Mercado Pago do PAVLVS não foi chamado");
+  // Passado o mes pago, sem renovar: entra em Nao renovacoes com o motivo da Atos, e o lembrete aponta para a Atos.
+  relogio += 35 * 864e5;
+  const rr = await admin("GET", "/api/admin/renovacoes", como());
+  const item = ((await rr.json()).abertas || []).find((x) => x.id === idAtos);
+  checar(item && item.motivo === "cancelou a assinatura na Atos" && item.tolerancia_dias === 0, "em Não renovações, com o motivo da Atos (e não do Mercado Pago do PAVLVS)", item);
+  emails.length = 0;
+  await admin("POST", "/api/admin/renovacoes/" + idAtos + "/lembrete", como());
+  const em = emails[0] || {};
+  checar(em.html && em.html.includes("atos.dev.br/conta") && !em.html.includes("Mercado Pago"), "o lembrete manda à Conta Atos", (em.html || "").slice(0, 200));
+  relogio = t0;
+}
+
 console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  painel admin: todos os testes passaram");
 process.exit(falhas ? 1 : 0);

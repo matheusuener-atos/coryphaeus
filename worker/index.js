@@ -21,6 +21,9 @@
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
 //
+// A cobranca pela Atos (worker/atos.js): POST /api/atos/eventos, os eventos
+// assinados da Atos Cobranca (o plano pago, a recarga). Sem EVENTOS_SEGREDO_PAVLVS, 503.
+//
 // A nuvem do PAULUS (worker/ia.js): /api/ia/*, o portao ate os provedores dos
 // modelos (DeepInfra, Mistral, Anthropic) com o medidor de creditos, a
 // assinatura do plano (mensal ou anual) e a recarga. Desligada sem IA_ATIVA.
@@ -38,6 +41,7 @@ import { atenderConta, ehRotaDaConta } from "./conta.js";
 import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas, enviarEmail } from "./admin.js";
 import { depoisPendentes } from "./nfse/api.js";
 import { atenderIdentidade, ehRotaDaIdentidade } from "./identidade.js";
+import { atenderAtos, ehRotaDaAtos } from "./atos.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
@@ -72,6 +76,14 @@ export default {
         return await atenderAdmin(request, env, url, ctx, { dentroDoLimite, chamarMP });
       } catch (erro) {
         return json({ erro: "falha no servidor do painel" }, 500);
+      }
+    }
+    // Os eventos da Atos Cobranca (worker/atos.js): o plano pago na Atos chega aqui.
+    if (ehRotaDaAtos(url)) {
+      try {
+        return await atenderAtos(request, env, url, { chamarMP });
+      } catch (erro) {
+        return json({ erro: "falha ao aplicar o evento da Atos" }, 500);
       }
     }
     if (ehRotaDaIA(url)) {

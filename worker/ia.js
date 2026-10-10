@@ -47,6 +47,7 @@
 // DEEPINFRA_KEY: sem os tres, as rotas respondem 404 (ou 503, sem a chave).
 
 import { donoDoToken } from "./tunel.js";
+import { conferirNaAtos, NA_ATOS } from "./atos.js";
 import { chamar as chamarEmissor, emitirAutomatico, faltaDoEmissor } from "./nfse/api.js";
 
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
@@ -60,6 +61,8 @@ const RESERVA_VENCE_MS = 15 * 60 * 1000;
 // Depois do fim do ciclo, com a assinatura ativa, a cobranca do mes pode
 // atrasar uns dias no Mercado Pago: o plano continua valendo nesse intervalo.
 export const TOLERANCIA_MS = 5 * 24 * 3600 * 1000;
+// A conta fora de dia pergunta a Atos (o evento que se perdeu) no maximo a cada 10 minutos (worker/atos.js).
+const ATOS_RESERVA_MS = 10 * 60 * 1000;
 // Portugues tem ~4 caracteres por token; 3 estima para cima (a reserva e teto).
 const CARACTERES_POR_TOKEN = 3;
 
@@ -185,6 +188,9 @@ export function catalogo(ids) {
 
 // ------------------------------------------------------------- entrada
 
+const ROTAS_DE_DINHEIRO = ["/api/ia/desistir", "/api/ia/assinar", "/api/ia/plano", "/api/ia/assinatura/cancelar", "/api/ia/recarga"];
+const ROTAS_DE_DINHEIRO_DO_SITE = ["/api/ia/site/plano", "/api/ia/site/oferta", "/api/ia/site/pagar", "/api/ia/site/pagar-fora", "/api/ia/site/desistir"];
+
 export function ehRotaDaIA(url) {
   return url.pathname.startsWith("/api/ia/");
 }
@@ -220,7 +226,14 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
   const quem = await autenticar(request, env);
   if (quem.erro) return json({ erro: quem.erro }, quem.status);
   const conta = quem.conta;
-  if (p === "/api/ia/conta" && m === "GET") return json(await comDesistencia(env, conta, await conta.pedir("resumo")));
+  if (p === "/api/ia/conta" && m === "GET") {
+    let r = await conta.pedir("resumo");
+    // Fora de dia: o pagamento pode estar na Atos, com o evento perdido (worker/atos.js).
+    if (!r.plano_vigente && (await conferirNaAtos(env, conta, deps))) r = await conta.pedir("resumo");
+    return json(await comDesistencia(env, conta, r));
+  }
+  // As rotas de dinheiro do PAVLVS nao servem a conta cobrada pela Atos: seria cobrar em dobro.
+  if (m === "POST" && ROTAS_DE_DINHEIRO.includes(p) && (await conta.pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
   // Os modelos do plano desta conta (o padrao primeiro), com nome e empresa.
   if (p === "/api/ia/modelos" && m === "GET") {
     const r = await conta.pedir("resumo");
@@ -1464,8 +1477,12 @@ async function atenderSite(request, env, p, deps) {
   const conta = medidor(env, id);
   const cortesias = String(env.IA_CORTESIA || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   // Entrar abre a conta (a mesma que o PAULUS instalado usa, pela conta Google), sem segredo de instalacao.
-  const aberta = await conta.pedir("abrir", { id, dono, cortesia: cortesias.includes(await sha256(dono.email)) });
-  if (p === "/api/ia/site/entrar") return json(await comDesistencia(env, conta, aberta));
+  let aberta = await conta.pedir("abrir", { id, dono, cortesia: cortesias.includes(await sha256(dono.email)) });
+  if (p === "/api/ia/site/entrar") {
+    if (!aberta.plano_vigente && (await conferirNaAtos(env, conta, deps))) aberta = await conta.pedir("ler_cadastro");
+    return json(await comDesistencia(env, conta, aberta));
+  }
+  if (ROTAS_DE_DINHEIRO_DO_SITE.includes(p) && aberta.cobrador === "atos") return json(NA_ATOS, 409);
   if (p === "/api/ia/site/plano") {
     const r = await trocarPlano(env, conta, deps.chamarMP, String(d.plano || ""));
     if (!r.ok) return r;
@@ -1893,6 +1910,13 @@ export class ContaIA {
       this.vigente(conta, n, agora);
       return [{ ...this.resumo(conta, n, agora), cadastro: conta.cadastro || null }, conta];
     }
+    if (acao === "atos_direito" || acao === "atos_credito") {
+      // A cobranca pela Atos (worker/atos.js): quem pagou na Atos antes de abrir o PAVLVS ganha a conta aqui.
+      const conta = c || { id: d.id, criada: new Date(agora).toISOString(), segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [] };
+      if (!conta.dono && d.dono && d.dono.sub) conta.dono = { sub: String(d.dono.sub), email: String(d.dono.email || "") };
+      this.limparReservas(conta, agora);
+      return acao === "atos_direito" ? this.direitoDaAtos(conta, d, n, agora) : this.creditoDaAtos(conta, d, n, agora);
+    }
     if (!c) return [{ ok: false, erro: "conta não existe", status: 401 }, null];
     const conta = c;
     this.limparReservas(conta, agora);
@@ -1911,6 +1935,13 @@ export class ContaIA {
       return [{ ok: true }, null];
     }
     if (acao === "resumo") return [this.resumo(conta, n, agora), conta];
+    if (acao === "atos_reserva") {
+      const atos = conta.atos || {};
+      const sub = (conta.dono || {}).sub || "";
+      if (!sub || this.vigente(conta, n, agora) || agora - (Date.parse(atos.conferido || "") || 0) < ATOS_RESERVA_MS) return [{ ok: true, conferir: false }, null];
+      conta.atos = { ...atos, conferido: new Date(agora).toISOString() };
+      return [{ ok: true, conferir: true, sub }, conta];
+    }
     if (acao === "sair") {
       conta.segredos = (conta.segredos || []).filter((s) => s.hash !== d.hash);
       return [{ ok: true }, conta];
@@ -2003,6 +2034,7 @@ export class ContaIA {
       return [this.resumo(conta, n, agora), conta];
     }
     if (acao === "assinatura") {
+      if (conta.cobrador === "atos") return [this.resumo(conta, n, agora), null];
       // Com o anual em dia, o aviso da assinatura mensal antiga (cancelada ao
       // passar para o anual) nao mexe mais na conta.
       if (prepago(conta.periodo) && conta.assinatura && d.assinatura && conta.assinatura.id !== d.assinatura.id) {
@@ -2357,6 +2389,72 @@ export class ContaIA {
     return cheio;
   }
 
+  /* O retrato do direito que a Atos mandou (direito.atualizado; worker/atos.js). Aplica so versao maior que a
+     que ja tem: o evento repetido, ou o que chegou fora de ordem, nao estraga nada. A primeira vez, a conta
+     passa a ser cobrada pela Atos: o tempo que o PAVLVS ja tinha cobrado fica, e a assinatura mensal dele
+     sai no Mercado Pago (quem chamou cancela, pela resposta). */
+  direitoDaAtos(conta, d, n, agora) {
+    const iso = (t) => new Date(t).toISOString();
+    const r = d.retrato || {};
+    const versao = Math.round(Number(r.versao) || 0);
+    const atos = { ...(conta.atos || {}) };
+    const legadoParaCancelar = () =>
+      atos.legado_assinatura && !(conta.mensal_cancelado && conta.mensal_cancelado.id === atos.legado_assinatura) ? atos.legado_assinatura : "";
+    if (versao <= (atos.versao || 0)) {
+      return [{ ...this.resumo(conta, n, agora), repetido: true, legado_para_cancelar: legadoParaCancelar() }, null];
+    }
+    if (conta.cobrador !== "atos") {
+      const a = conta.assinatura || {};
+      const aberto = this.cicloAberto(conta, agora);
+      if (prepago(conta.periodo) && Date.parse(conta.pago_ate || "") > agora) atos.legado_ate = conta.pago_ate;
+      else if (a.id && !prepago(a.periodo) && ["authorized", "pending", "paused"].includes(a.situacao)) {
+        atos.legado_assinatura = a.id;
+        if (aberto && a.situacao === "authorized") atos.legado_ate = aberto.fim;
+      }
+      conta.cobrador = "atos";
+      delete conta.plano_proximo;
+      delete conta.anual_pendente;
+      delete conta.ajuste;
+    }
+    const ate = Date.parse(r.ate || "") || 0;
+    const legado = Date.parse(atos.legado_ate || "") || 0;
+    const fim = Math.max(ate, legado > agora ? legado : 0);
+    Object.assign(atos, { versao, evento: String(d.evento || ""), recebido: iso(agora) });
+    conta.atos = atos;
+    if (r.plano && n.planos.some((x) => x.id === r.plano)) conta.plano = r.plano;
+    const as = r.assinatura || null;
+    const situacao = as ? (as.status === "canceled" ? "cancelled" : String(as.status || "")) : fim > agora ? "authorized" : "expired";
+    // Os nomes de periodo que as telas ja conhecem: a assinatura no cartao e o "mensal"; o ano, "anual"; o mes no Pix, "avulso".
+    conta.periodo = as && situacao === "authorized" ? "mensal" : r.periodo === "ano" ? "anual" : r.periodo === "mes" ? "avulso" : conta.periodo || "avulso";
+    const plano = planoDe(n, conta.plano);
+    conta.assinatura = { id: "atos-" + (as ? as.id : versao), situacao, valor: conta.periodo === "anual" ? plano.valor_anual : plano.valor,
+      periodo: conta.periodo, desde: (conta.assinatura || {}).desde || iso(agora), cobrador: "atos" };
+    conta.pago_ate = fim ? iso(fim) : null;
+    const c = this.cicloAberto(conta, agora);
+    if (c && fim < Date.parse(c.fim)) {
+      // O direito encurtou (a devolucao, ou o mes que nao veio): o ciclo acaba com ele.
+      c.fim = iso(Math.max(fim, Date.parse(c.inicio)));
+    } else if (!c && fim > agora) {
+      // O primeiro pagamento, ou a cobranca que veio depois do fim do ciclo: o ciclo comeca agora.
+      this.abrirCiclo(conta, n, agora, "atos");
+    }
+    return [{ ...this.resumo(conta, n, agora), legado_para_cancelar: legadoParaCancelar() }, conta];
+  }
+
+  /* Uma compra avulsa paga na Atos (credito.adicionado): a recarga, com os tokens que o catalogo da Atos
+     diz. Uma vez por origem (o pagamento). */
+  creditoDaAtos(conta, d, n, agora) {
+    const c = d.credito || {};
+    const tokens = Math.max(0, Math.round(Number((c.metadados || {}).tokens) || 0));
+    if (!c.origem || !tokens) return [{ ok: false, status: 400, erro: "o crédito precisa da origem e dos tokens" }, null];
+    const pedido = "atos:" + String(c.origem);
+    conta.recargas = conta.recargas || [];
+    if (conta.recargas.some((x) => x.pedido === pedido)) return [{ ...this.resumo(conta, n, agora), repetido: true }, null];
+    conta.extra = (conta.extra || 0) + tokens;
+    conta.recargas = [...conta.recargas, { pedido, tokens, valor: (Number(c.centavos) || 0) / 100, quando: new Date(agora).toISOString(), por: "atos" }].slice(-50);
+    return [this.resumo(conta, n, agora), conta];
+  }
+
   cicloAberto(conta, agora) {
     const c = conta.ciclo;
     return c && Date.parse(c.fim) > agora ? c : null;
@@ -2413,13 +2511,14 @@ export class ContaIA {
     if (conta.cortesia && !this.cicloAberto(conta, agora)) this.abrirCiclo(conta, n, agora, "cortesia");
     // O anual: o ano esta pago, e cada mes abre o seu ciclo, com a cota do mes.
     const pagoAte = Date.parse(conta.pago_ate || "");
-    if (prepago(conta.periodo) && conta.ciclo && !this.cicloAberto(conta, agora) && agora < pagoAte) {
+    const rola = prepago(conta.periodo) || conta.cobrador === "atos";
+    if (rola && conta.ciclo && !this.cicloAberto(conta, agora) && agora < pagoAte) {
       let inicio = Date.parse(conta.ciclo.fim);
       while (maisUmMes(inicio) <= agora) inicio = maisUmMes(inicio);
       this.abrirCiclo(conta, n, inicio, conta.periodo);
     }
     const a = conta.assinatura || {};
-    if (prepago(conta.periodo) && a.situacao === "authorized" && agora >= pagoAte) conta.assinatura = { ...a, situacao: "expired" };
+    if (prepago(conta.periodo) && conta.cobrador !== "atos" && a.situacao === "authorized" && agora >= pagoAte) conta.assinatura = { ...a, situacao: "expired" };
     const c = conta.ciclo;
     if (!c) return false;
     const fim = Date.parse(c.fim);
@@ -2563,6 +2662,8 @@ export class ContaIA {
       email: (conta.dono || {}).email || "",
       nome: conta.nome || "",
       cortesia: Boolean(conta.cortesia),
+      // Quem cobra esta conta: o PAVLVS (o Mercado Pago dele) ou a Atos (atos.dev.br; worker/atos.js).
+      cobrador: conta.cobrador || "pavlvs",
       consentimento: conta.consentimento || null,
       assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde, periodo: a.periodo || "mensal" } : null,
       plano_vigente: vigente,

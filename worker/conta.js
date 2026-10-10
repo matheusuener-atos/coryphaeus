@@ -27,6 +27,9 @@ import {
 } from "./ia.js";
 import { alterarEndereco, disponibilidade, donoDoToken, escritorioDoDono } from "./tunel.js";
 import { enviarEmail } from "./admin.js";
+import { NA_ATOS } from "./atos.js";
+
+const ROTAS_DE_DINHEIRO = ["/api/conta/recarga", "/api/conta/cartao", "/api/conta/forma", "/api/conta/plano", "/api/conta/oferta", "/api/conta/cancelar"];
 
 const SITE = "https://paulus.ia.br";
 const COOKIE = "pv_conta";
@@ -80,6 +83,10 @@ export async function atenderConta(request, env, url, ctx, deps = {}) {
   const nf = p.match(/^\/api\/conta\/nfse\/([A-Za-z0-9_.-]{1,64})\/(pdf|xml)$/);
   if (nf && m === "GET") return arquivoDoCliente(env, s.conta, nf[1], nf[2]);
   if (p === "/api/conta/nfse.zip" && m === "GET") return zipDoAno(env, s.conta, url.searchParams.get("ano"));
+
+  // A conta cobrada pela Atos paga, troca e cancela em atos.dev.br/conta (worker/atos.js): aqui seria cobrar em dobro.
+  if (m === "POST" && ROTAS_DE_DINHEIRO.includes(p) && (await medidor(env, s.conta).pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
+  if (m === "GET" && p === "/api/conta/plano/orcar" && (await medidor(env, s.conta).pedir("resumo")).cobrador === "atos") return json(NA_ATOS, 409);
 
   // O pagamento: titular e financeiro.
   if (p === "/api/conta/recarga" && m === "POST") {

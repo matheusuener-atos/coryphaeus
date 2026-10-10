@@ -485,5 +485,30 @@ console.log("\npelo Worker inteiro");
   checar(/sdk\.mercadopago\.com/.test(p.headers.get("content-security-policy") || ""), "a página tem a CSP do cadastro (o cartão e o Google)");
 }
 
+console.log("a conta cobrada pela Atos");
+{
+  // O dinheiro esta na Atos (worker/atos.js): a Minha conta do PAVLVS nao paga, troca nem cancela por aqui.
+  donos["tk-atos"] = { sub: "pv-atos-mc", email: "atos@escritorio.adv.br" };
+  const id = await idDe("pv-atos-mc");
+  await CONTAS_IA.get(id).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "atos_direito", id, dono: donos["tk-atos"],
+    retrato: { versao: 1, plano: "escritorio", ate: new Date(relogio + 30 * DIA).toISOString(), periodo: "mes", assinatura: null } }) });
+  const e = await conta("POST", "/api/conta/entrar", { credential: "tk-atos" });
+  const ck = cookieDe(e.r);
+  checar(e.status === 200 && ck, "a pessoa entra na Minha conta", e.d);
+  let mpChamadas = 0;
+  const original = deps.chamarMP;
+  deps.chamarMP = async (...a) => { mpChamadas++; return original(...a); };
+  for (const [caminho, corpo] of [["/api/conta/recarga", { pacote: "1" }], ["/api/conta/plano", { plano: "plus" }], ["/api/conta/cancelar", { motivo: "preco" }], ["/api/conta/cartao", { token: "x" }]]) {
+    const r = await conta("POST", caminho, corpo, ck);
+    checar(r.status === 409 && r.d.codigo === "cobranca_na_atos" && r.d.proximo === "https://atos.dev.br/conta/", caminho + ": 409, para a Atos", r.d);
+  }
+  const o = await conta("GET", "/api/conta/plano/orcar?plano=plus", null, ck);
+  checar(o.status === 409 && o.d.codigo === "cobranca_na_atos", "orçar a troca: 409 também", o.status);
+  checar(mpChamadas === 0, "e o Mercado Pago do PAVLVS não foi chamado", mpChamadas);
+  deps.chamarMP = original;
+  const g = await conta("GET", "/api/conta", null, ck);
+  checar(g.status === 200, "a Minha conta continua abrindo (o consumo, as pessoas, o escritório)", g.status);
+}
+
 console.log(falhas ? "\n  Minha conta: " + falhas + " falha(s)" : "\n  Minha conta: todos os testes passaram");
 process.exit(falhas ? 1 : 0);

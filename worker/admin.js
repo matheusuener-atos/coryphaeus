@@ -1030,6 +1030,14 @@ async function avisos(c, contas) {
 // Os motivos de quem cancela pela Minha conta (site/assets/minha-conta.js, MOTIVOS).
 const MOTIVO_DO_CANCELAMENTO = { preco: "está caro para o escritório", uso: "não está usando o bastante", falta: "falta algo de que precisa", outro: "outro motivo" };
 
+/* Por que a conta cobrada pela Atos nao renovou (o retrato que a Atos mandou). */
+function motivoNaAtos(a) {
+  if (a.situacao === "authorized") return "a cobrança do mês não chegou da Atos (cartão recusado ou sem limite)";
+  if (a.situacao === "cancelled") return "cancelou a assinatura na Atos";
+  if (a.situacao === "paused") return "assinatura pausada na Atos";
+  return "o período pago na Atos acabou e não foi renovado";
+}
+
 async function renovacoes(c) {
   if (c._renovacoes) return c._renovacoes;
   const contas = await lerContas(c);
@@ -1040,18 +1048,20 @@ async function renovacoes(c) {
     // Quem cancelou pela Minha conta deixou o motivo (worker/ia.js, cancelarPelaConta):
     // entra aqui quando o ciclo pago acaba. A cancelada sem motivo (no Mercado Pago, pelo painel) fica fora.
     const canc = d.cancelamento || null;
-    if (!d.ciclo || conta.situacao === "cortesia" || (a.situacao === "cancelled" && !canc)) continue;
+    // Na Atos (worker/atos.js), cancelar e la: a cancelada entra como nao renovacao, com o motivo dela.
+    const naAtos = d.cobrador === "atos";
+    if (!d.ciclo || conta.situacao === "cortesia" || (a.situacao === "cancelled" && !canc && !naAtos)) continue;
     const fim = Date.parse(d.ciclo.fim);
     if (!(fim < c.agora)) continue;
     const dias = Math.floor((c.agora - fim) / DIA_MS);
     const marca = await kvJSON(c.env, "admin:renov:" + conta.id, null);
-    const motivo = canc ? "cancelou pela Minha conta: " + (MOTIVO_DO_CANCELAMENTO[canc.motivo] || MOTIVO_DO_CANCELAMENTO.outro) + (canc.texto ? " (“" + String(canc.texto).slice(0, 200) + "”)" : "")
+    const motivo = naAtos ? motivoNaAtos(a) : canc ? "cancelou pela Minha conta: " + (MOTIVO_DO_CANCELAMENTO[canc.motivo] || MOTIVO_DO_CANCELAMENTO.outro) + (canc.texto ? " (“" + String(canc.texto).slice(0, 200) + "”)" : "")
       : { paused: "assinatura pausada no Mercado Pago", pending: "a assinatura está pendente: o cartão não foi confirmado", authorized: "a cobrança do mês não chegou do Mercado Pago (cartão recusado ou sem limite)" }[a.situacao] ||
       (a.situacao ? "assinatura " + a.situacao + " no Mercado Pago" : "sem assinatura no Mercado Pago");
     const r = {
       id: conta.id, nome: conta.nome, email: conta.email, plano: conta.plano ? { id: conta.plano.id, nome: conta.plano.nome, valor: conta.plano.valor } : null,
       fim: d.ciclo.fim, dias_vencido: dias, tolerancia_dias: a.situacao === "authorized" && !canc ? Math.round(TOLERANCIA_MS / DIA_MS) : 0,
-      motivo, cancelamento: canc ? { quando: canc.quando || null, motivo: canc.motivo || "outro", texto: canc.texto || "" } : null,
+      motivo, cobrador: naAtos ? "atos" : "pavlvs", cancelamento: canc ? { quando: canc.quando || null, motivo: canc.motivo || "outro", texto: canc.texto || "" } : null,
       lembrete_em: marca && marca.fim === d.ciclo.fim ? marca.lembrete_em || null : null,
       mensagem_em: marca && marca.fim === d.ciclo.fim ? marca.mensagem_em || null : null,
       oferta: marca && marca.fim === d.ciclo.fim ? marca.oferta || null : null,
@@ -1075,9 +1085,15 @@ async function acaoDeRenovacao(c, id, acao) {
     const e = await enviarEmail(c.env, {
       para: item.email, assunto: "Seu plano do Paulus não renovou",
       titulo: "O plano " + ((item.plano || {}).nome || "") + " não renovou",
-      texto: "O ciclo do seu plano venceu em " + dataBR(item.fim) + " e o Mercado Pago não confirmou a cobrança do mês." +
-        "\n\nEnquanto isso, o Paulus funciona sem a IA da nuvem. Para voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/assinatura.",
-      botao: "Abrir a página Assinar", link: SITE + "/assinatura/",
+      ...(item.cobrador === "atos" ? {
+        texto: "O ciclo do seu plano venceu em " + dataBR(item.fim) + " e não houve renovação." +
+          "\n\nEnquanto isso, o Paulus funciona sem a IA da nuvem. Para voltar, confira o cartão ou pague o período na sua Conta Atos, em atos.dev.br/conta.",
+        botao: "Abrir a Conta Atos", link: "https://atos.dev.br/conta/",
+      } : {
+        texto: "O ciclo do seu plano venceu em " + dataBR(item.fim) + " e o Mercado Pago não confirmou a cobrança do mês." +
+          "\n\nEnquanto isso, o Paulus funciona sem a IA da nuvem. Para voltar, confira o cartão na sua conta do Mercado Pago ou assine de novo em paulus.ia.br/assinatura.",
+        botao: "Abrir a página Assinar", link: SITE + "/assinatura/",
+      }),
     });
     if (!e.ok) return json({ erro: e.erro }, e.status || 502);
     marca.lembrete_em = new Date(c.agora).toISOString();
@@ -2083,11 +2099,21 @@ async function tirarDaFila(c, id) {
   return json({ pendentes: lista });
 }
 
+/* A conta cobrada pela Atos (worker/atos.js) nao se devolve, cancela, pausa nem troca de plano pelo Mercado
+   Pago do PAVLVS: o dinheiro esta na Atos. */
+const ACOES_DE_DINHEIRO = ["conta.reembolsar", "conta.cancelar", "conta.pausar", "conta.plano", "renov.oferta"];
+const NA_ATOS_NO_PAINEL = "esta conta é cobrada pela Atos (atos.dev.br): devolver, cancelar, pausar e trocar o plano são lá, não pelo Mercado Pago do PAVLVS";
+async function cobradaPelaAtos(env, tipo, d) {
+  if (!ACOES_DE_DINHEIRO.includes(tipo) || !/^[0-9a-f]{24}$/.test(String(d.id || ""))) return false;
+  return ((await medidor(env, d.id).pedir("resumo")) || {}).cobrador === "atos";
+}
+
 /* O que da para conferir antes de entrar na fila (formato, existencia). */
 async function conferirAlteracao(c, tipo, d) {
   if (tipo.startsWith("conta.") || tipo.startsWith("google.") || tipo === "renov.oferta") {
     if (!/^[0-9a-f]{24}$/.test(String(d.id || ""))) return "conta inválida";
   }
+  if (await cobradaPelaAtos(c.env, tipo, d)) return NA_ATOS_NO_PAINEL;
   if (tipo === "conta.plano") {
     if (!(await planosAgora(c)).n.planos.some((p) => p.id === String(d.plano || ""))) return "esse plano não existe";
     return motivoContraTrocaDePlano(c, d.id, String(d.plano));
@@ -2501,6 +2527,8 @@ async function aplicar(c, alt) {
   const { env } = c;
   const d = alt.dados || {};
   const mp = c.deps.chamarMP;
+  // Conferido de novo aqui: a conta pode ter passado para a Atos enquanto a alteracao esperava na fila.
+  if (await cobradaPelaAtos(env, alt.tipo, d)) throw new Error(NA_ATOS_NO_PAINEL);
   switch (alt.tipo) {
     case "conta.creditar":
       return medidor(env, d.id).pedir("admin_creditar", { tokens: Number(d.tokens), por: c.quem.email });
