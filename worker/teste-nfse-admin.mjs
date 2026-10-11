@@ -15,7 +15,6 @@
 //   5. automatico no pagamento (tomador completo e incompleto) e o Cron do PDF
 //   6. cancelar, substituir e a producao
 import { readFileSync } from "node:fs";
-import vm from "node:vm";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -179,27 +178,9 @@ const PRESTADOR = {
 };
 const senha = "segredo-de-teste";
 const pfx = lerPfx(readFileSync(join(AQUI, "nfse", "fixtures", "a1-cn.pfx")), senha);
-// O que o navegador manda: o .pfx aberto por site/assets/nfse-pfx.js (com o
-// forge de site/assets/vendor), rodado aqui num contexto de "janela".
-const janela = {};
-vm.runInNewContext(readFileSync(join(AQUI, "..", "site", "assets", "vendor", "forge.min.js"), "utf8"), { self: janela, globalThis: janela, window: janela });
-vm.runInNewContext(readFileSync(join(AQUI, "..", "site", "assets", "nfse-pfx.js"), "utf8"), { window: janela, Uint8Array, String, Error });
-const doNavegador = janela.PavlvsPfx.ler(readFileSync(join(AQUI, "nfse", "fixtures", "a1-cn.pfx")), senha);
-
-// ------------------------------------------------------------ 0. o .pfx no navegador
-console.log("0. o .pfx aberto no navegador");
-checar(doNavegador.certPem === pfx.certPem && doNavegador.chavePkcs8 === b64(pfx.chavePkcs8) && doNavegador.titular === pfx.titular && doNavegador.documento === "11222333000181"
-  && doNavegador.validoAte === pfx.validoAte && JSON.stringify(doNavegador.cadeiaPem) === JSON.stringify(pfx.cadeiaPem),
-  "site/assets/nfse-pfx.js dá o mesmo que worker/nfse/pfx.js (certificado, cadeia, chave, titular, CNPJ, validade)", { ...doNavegador, chavePkcs8: "..." });
-let senhaErrada = "";
-try {
-  janela.PavlvsPfx.ler(readFileSync(join(AQUI, "nfse", "fixtures", "a1-cn.pfx")), "errada");
-} catch (e) {
-  senhaErrada = e.message;
-}
-checar(/senha do certificado incorreta/.test(senhaErrada), "senha errada: a frase para a tela", senhaErrada);
-const ecpf = janela.PavlvsPfx.ler(readFileSync(join(AQUI, "nfse", "fixtures", "a1-ecpf.pfx")), senha);
-checar(ecpf.documento === lerPfx(readFileSync(join(AQUI, "nfse", "fixtures", "a1-ecpf.pfx")), senha).documento && ecpf.documento.length === 11, "e-CPF: o CPF do otherName", ecpf.documento);
+// O que o painel manda (o .pfx aberto no navegador; a tela e o leitor do navegador agora sao da Atos,
+// C:\atos\public\assets\nfse-pfx.js, testados la): aqui, o mesmo formato a partir de worker/nfse/pfx.js.
+const doNavegador = { certPem: pfx.certPem, cadeiaPem: pfx.cadeiaPem, chavePkcs8: b64(pfx.chavePkcs8), titular: pfx.titular, documento: pfx.documento, validoAte: pfx.validoAte };
 
 // ------------------------------------------------------------ 1. situacao e municipios
 console.log("1. a situação, os municípios e os parâmetros");
