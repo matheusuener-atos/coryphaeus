@@ -3,6 +3,7 @@
 //   node worker/teste-conta.mjs
 // O Durable Object roda aqui sobre um Map; o Mercado Pago, o Google, a
 // Cloudflare e o e-mail sao de mentira. O relogio e um so (Date.now tambem).
+import { atosDasNotas } from "./atos-falsa.mjs";
 import worker from "./index.js";
 import { ContaIA, atenderIA, medidor } from "./ia.js";
 import { atenderConta, consumoDo } from "./conta.js";
@@ -36,7 +37,10 @@ const mpPreapprovals = new Map();
 const mpPagamentos = new Map();
 const recusarPut = new Set();
 const cf = [];
+const atos = atosDasNotas("segredo-dos-eventos");
 globalThis.fetch = async (url, init = {}) => {
+  const daAtos = atos.atender(url, init);
+  if (daAtos) return daAtos;
   const u = String(url);
   const metodo = init.method || "GET";
   const corpo = init.body ? JSON.parse(init.body) : null;
@@ -99,7 +103,7 @@ const kv = () => {
 const APOIOS = kv();
 const ESCRITORIOS = kv();
 const env = {
-  IA_ATIVA: "1", CONTAS_IA, APOIOS, ESCRITORIOS, RESEND_API_KEY: "re_teste", MP_PUBLIC_KEY: "APP_USR-publica",
+  IA_ATIVA: "1", CONTAS_IA, APOIOS, ESCRITORIOS, EVENTOS_SEGREDO_PAVLVS: "segredo-dos-eventos", RESEND_API_KEY: "re_teste", MP_PUBLIC_KEY: "APP_USR-publica",
   IA_PLANOS: JSON.stringify([
     { id: "advogado", nome: "Advogado", valor: 449, valor_anual: 3990, tokens: 30000000 },
     { id: "escritorio", nome: "Escritório", valor: 1290, valor_anual: 11490, tokens: 60000000 },
@@ -262,15 +266,16 @@ console.log("\nescritório, instalações, Google e notas");
     "os serviços do Google viram a ordem para o PAULUS do escritório", g3.d);
   await conta("POST", "/api/conta/google/desvincular", {}, ck);
   checar((await resumoDe(helena)).google_pendente.ligados.length === 0, "desvincular: nenhum serviço fica");
-  // As notas da conta, como o emissor grava.
-  await APOIOS.put("nfse:nota:" + helena + ":nuvem-1", JSON.stringify({ id: "nuvem-1", conta: helena, numero: "41", competencia: "2026-10", valor: 1290 }));
-  await APOIOS.put("nfse:nota-pdf:" + helena + ":nuvem-1", btoa("%PDF-1.4 nota"));
-  await APOIOS.put("nfse:nota-xml:" + helena + ":nuvem-1", btoa("<NFSe/>"));
+  // As notas da conta: a Atos emite e guarda; o PAVLVS busca pelo sub do titular (111).
+  atos.notas.set("111", [{ id: "nfse-1", numero: "41", competencia: "2026-10", valor: 1290, emitida_em: "2026-10-02T10:00:00Z", pdf: "%PDF-1.4 nota", xml: "<NFSe/>" }]);
   const z = await conta("GET", "/api/conta/nfse.zip?ano=2026", null, ck);
   const bytes = new Uint8Array(await z.r.arrayBuffer());
   checar(z.status === 200 && bytes[0] === 0x50 && bytes[1] === 0x4b && new TextDecoder().decode(bytes).includes("NFS-e 41.pdf"), "as NFS-e do ano num .zip", bytes.length);
-  checar((await conta("GET", "/api/conta/nfse/nuvem-1/xml", null, ck)).status === 200, "o XML de uma nota");
+  checar((await conta("GET", "/api/conta/nfse/nfse-1/xml", null, ck)).status === 200, "o XML de uma nota");
   checar((await conta("GET", "/api/conta/nfse.zip?ano=2019", null, ck)).status === 404, "ano sem notas: 404");
+  atos.fora = true;
+  checar((await conta("GET", "/api/conta/nfse.zip?ano=2026", null, ck)).status === 502, "a Atos fora: 502 dizendo, nunca um .zip vazio");
+  atos.fora = false;
   const rm = await conta("POST", "/api/conta/instalacoes/inst-0001-abcd/remover", {}, ck);
   checar(rm.status === 200 && (await resumoDe(helena)).instalacoes_lista.length === 0, "tirar o computador apaga o segredo dele");
 }

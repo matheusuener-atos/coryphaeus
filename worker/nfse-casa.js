@@ -12,8 +12,9 @@
 //   avisarNotaCancelada               a nota cancelada (ou substituida) no app do cliente
 //   mandarNotaPorEmail / mandarEmail  o e-mail da nota pelo Resend
 //   marcarPagamento                   a marca da nota no pagamento
-// O PAULUS de cada cliente busca as proprias notas em /api/ia/nfse
-// (worker/ia.js, notasDoCliente, com o segredo da instalacao).
+// Desde 11/10/2026 quem emite as notas de quem assina o PAVLVS e a Atos: o PAULUS de
+// cada cliente busca as proprias notas em /api/ia/nfse, que as pede a Atos (worker/ia.js,
+// notasDoCliente; worker/atos.js, notasNaAtos). O que esta aqui so serve ao emissor antigo.
 //
 // No KV APOIOS:
 //   nfse:tomador:<conta>          o que o painel corrigiu do tomador (vence o cadastro)

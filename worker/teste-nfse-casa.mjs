@@ -4,6 +4,7 @@
 // A antiga ponte com o PAULUS da casa (/api/nfse-casa/*) saiu em 03/10/2026:
 // confere que a rota responde 404. A emissao pelo painel esta em
 // worker/teste-nfse-admin.mjs.
+import { atosDasNotas } from "./atos-falsa.mjs";
 import worker from "./index.js";
 import { ContaIA, numeros } from "./ia.js";
 import {
@@ -159,27 +160,44 @@ for (const k of [...guardados.keys()]) if (/^nfse:nota(-pdf|-xml)?:[0-9a-f]{24}:
 globalThis.fetch = fetchDeVerdade;
 
 // ------------------------------------------------------------ o cliente
-console.log("cliente");
-async function cliente(caminho, id) {
-  return worker.fetch(new Request("https://paulus.ia.br" + caminho, { headers: { authorization: "Bearer " + segredo(id) } }), env, ctx);
+// As notas que o PAULUS mostra como recebidas: quem emite e a Atos, e o PAVLVS busca la pelo sub do titular
+// (worker/atos.js, notasNaAtos). A Ana e "ana"; o Bruno, "bruno".
+console.log("cliente (as notas vem da Atos)");
+const atos = atosDasNotas("segredo-dos-eventos");
+atos.notas.set("ana", [{ id: "nfse-1", numero: "43", competencia: "2026-10", valor: 300, descricao: "PAVLVS Escritório", emitida_em: "2026-10-02T10:00:00Z",
+  ambiente: "producao_restrita", cancelada: false, pdf: "%PDF-1.4 nota da Ana", xml: "<NFSe><nNFSe>43</nNFSe></NFSe>" }]);
+globalThis.fetch = async (url, init) => atos.atender(url, init) || new Response("{}", { status: 404 });
+const envAtos = { ...env, EVENTOS_SEGREDO_PAVLVS: "segredo-dos-eventos" };
+async function cliente(caminho, id, e = envAtos) {
+  return worker.fetch(new Request("https://paulus.ia.br" + caminho, { headers: { authorization: "Bearer " + segredo(id) } }), e, ctx);
 }
 let r = await cliente("/api/ia/nfse", ID_ANA);
 let d = await r.json();
-checar(r.status === 200 && d.notas.length === 1 && d.notas[0].numero === "43" && d.notas[0].competencia === "2026-10" && !d.notas[0].cancelada && !("pdf_b64" in d.notas[0]), "a Ana ve a nota dela (sem os arquivos)", d);
+checar(r.status === 200 && d.notas.length === 1 && d.notas[0].numero === "43" && d.notas[0].competencia === "2026-10" && !d.notas[0].cancelada && !("pdf" in d.notas[0]), "a Ana ve a nota dela (sem os arquivos)", d);
+checar(atos.pedidos.at(-1) === "/api/cobranca/v1/notas?produto=pavlvs&sub=ana", "o PAVLVS pergunta a Atos pelo sub da Ana e pelo produto", atos.pedidos.at(-1));
 r = await cliente("/api/ia/nfse", ID_BRUNO);
 checar((await r.json()).notas.length === 0, "o Bruno nao ve a nota da Ana");
-r = await cliente("/api/ia/nfse/n-1/pdf", ID_BRUNO);
+r = await cliente("/api/ia/nfse/nfse-1/pdf", ID_BRUNO);
 checar(r.status === 404, "o Bruno nao baixa o PDF da Ana");
-r = await cliente("/api/ia/nfse/n-1/pdf", ID_ANA);
+r = await cliente("/api/ia/nfse/nfse-1/pdf", ID_ANA);
 const bytes = Buffer.from(await r.arrayBuffer()).toString();
-checar(r.status === 200 && r.headers.get("content-type") === "application/pdf" && bytes === "%PDF-1.4 nota da Ana" && r.headers.get("content-disposition").includes("NFS-e 43.pdf"), "a Ana baixa o PDF");
-r = await cliente("/api/ia/nfse/n-1/xml", ID_ANA);
-checar(r.status === 200 && (await r.text()).includes("<nNFSe>42"), "e o XML");
-r = await worker.fetch(new Request("https://paulus.ia.br/api/ia/nfse"), env, ctx);
+checar(r.status === 200 && r.headers.get("content-type") === "application/pdf" && bytes === "%PDF-1.4 nota da Ana" && r.headers.get("content-disposition").includes("NFS-e 1.pdf"), "a Ana baixa o PDF");
+r = await cliente("/api/ia/nfse/nfse-1/xml", ID_ANA);
+checar(r.status === 200 && (await r.text()).includes("<nNFSe>43"), "e o XML");
+r = await worker.fetch(new Request("https://paulus.ia.br/api/ia/nfse"), envAtos, ctx);
 checar(r.status === 401, "sem o segredo da instalacao: 401");
-x = await avisarNotaCancelada(env, "n-1", { conta: ID_ANA });
+atos.notas.get("ana")[0].cancelada = true;
 d = await (await cliente("/api/ia/nfse", ID_ANA)).json();
-checar(x.status === 200 && d.notas[0].cancelada === true && JSON.parse(guardados.get("admin:nfse:PAY1")).nota === "cancelada", "o cliente ve a nota cancelada e o pagamento tambem", d);
+checar(d.notas[0].cancelada === true, "a nota cancelada na Atos aparece cancelada", d);
+atos.fora = true;
+r = await cliente("/api/ia/nfse", ID_ANA);
+checar(r.status === 502 && /Atos/.test((await r.json()).erro), "a Atos fora: 502 dizendo (nunca uma lista vazia no lugar)");
+r = await cliente("/api/ia/nfse/nfse-1/pdf", ID_ANA);
+checar(r.status === 502, "e o arquivo tambem: 502");
+atos.fora = false;
+r = await cliente("/api/ia/nfse", ID_ANA, env);
+checar(r.status === 502, "sem o segredo da Atos no PAVLVS: 502");
+globalThis.fetch = fetchDeVerdade;
 
 console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  notas do cliente: todos os testes passaram");
 process.exit(falhas ? 1 : 0);

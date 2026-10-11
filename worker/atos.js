@@ -124,3 +124,15 @@ export async function conferirNaAtos(env, conta, deps = {}) {
   const r = await conta.pedir("atos_direito", { evento: "reserva", retrato });
   return !r.repetido;
 }
+
+/* As NFS-e que a Atos emitiu para quem assina o PAVLVS (o PAULUS instalado mostra as notas recebidas): o pedido
+   a Atos com o segredo dos eventos e o sub do titular - so as notas dos pagamentos do PAVLVS. `caminho` e
+   "/api/cobranca/v1/notas" ou ".../notas/<id>/pdf|xml". Devolve a Response da Atos; lanca sem o segredo ou sem
+   resposta (quem chama diz que nao deu para buscar agora). */
+export async function notasNaAtos(env, caminho, sub, deps = {}) {
+  const segredo = String(env.EVENTOS_SEGREDO_PAVLVS || "");
+  if (!segredo) throw new Error("o PAVLVS nao tem o segredo da Atos");
+  const buscar = deps.fetch || fetch;
+  return buscar(ATOS + caminho + "?produto=pavlvs&sub=" + encodeURIComponent(sub), {
+    headers: { authorization: "Bearer " + segredo }, signal: AbortSignal.timeout(TEMPO_MS) });
+}

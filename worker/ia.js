@@ -48,7 +48,7 @@
 // DEEPINFRA_KEY: sem os tres, as rotas respondem 404 (ou 503, sem a chave).
 
 import { donoDoToken } from "./tunel.js";
-import { checkoutDaAtos, conferirNaAtos, NA_ATOS, vendaPelaAtos } from "./atos.js";
+import { checkoutDaAtos, conferirNaAtos, NA_ATOS, notasNaAtos, vendaPelaAtos } from "./atos.js";
 
 const RE_SEGREDO = /^pia_([0-9a-f]{24})_([0-9a-f]{64})$/;
 const MAX_SEGREDOS = 3;
@@ -280,8 +280,8 @@ export async function atenderIA(request, env, url, ctx, deps = {}) {
     return json({ link: checkoutDaAtos(plano.id, periodo), plano, periodo });
   }
   if (p === "/api/ia/assinatura" && m === "GET") return json(await conta.pedir("resumo"));
-  // As NFS-e que o PAVLVS emitiu para esta conta (o emissor da nuvem grava por worker/nfse-casa.js).
-  if (p === "/api/ia/nfse" && m === "GET") return json({ notas: await notasDoCliente(env, quem.id) });
+  // As NFS-e que a Atos emitiu para esta conta (as notas recebidas no PAULUS): buscadas na Atos, na hora.
+  if (p === "/api/ia/nfse" && m === "GET") return listaDeNotas(env, quem.id);
   const nf = p.match(/^\/api\/ia\/nfse\/([A-Za-z0-9_.-]{1,64})\/(pdf|xml)$/);
   if (nf && m === "GET") return arquivoDoCliente(env, quem.id, nf[1], nf[2]);
   return json({ erro: "rota não existe" }, 404);
@@ -321,40 +321,58 @@ export function cadastroDaConta(r) {
 }
 
 // --------------------------------------------- as NFS-e da conta
-// Gravadas pela ponte da casa (worker/nfse-casa.js) em "nfse:nota:<conta>:<id>"
-// e os arquivos em "nfse:nota-pdf:..." e "nfse:nota-xml:..." (base64).
+// Quem emite as notas do PAVLVS para quem assina e a Atos (atos.dev.br): elas ficam la. O PAVLVS as busca na
+// hora (worker/atos.js, notasNaAtos), pelo sub do titular da conta, para o PAULUS instalado (GET /api/ia/nfse).
 
-/* As notas da conta, para GET /api/ia/nfse (sem os arquivos). Tambem a Minha conta (worker/conta.js). */
-export async function notasDoCliente(env, conta) {
-  if (!env.APOIOS) return [];
-  const notas = [];
-  const chaves = [];
-  let cursor;
-  do {
-    const lista = await env.APOIOS.list({ prefix: "nfse:nota:" + conta + ":", cursor });
-    for (const k of lista.keys) chaves.push(k.name);
-    cursor = lista.list_complete ? undefined : lista.cursor;
-  } while (cursor);
-  for (const k of chaves) {
-    const x = await lerKV(env, k);
-    if (!x || x.conta !== conta) continue;
-    notas.push({ id: x.id, numero: x.numero, competencia: x.competencia, valor: x.valor, descricao: x.descricao, emitida_em: x.emitida_em, ambiente: x.ambiente, cancelada: Boolean(x.cancelada) });
+const SEM_ATOS = "não deu para buscar as notas na Atos agora: tente de novo em instantes";
+
+async function subDaConta(env, conta) {
+  return (await medidor(env, conta).pedir("atos_sub")).sub || "";
+}
+
+/* As notas da conta (sem os arquivos), da mais nova para a mais velha. Lanca se a Atos nao responder. */
+export async function notasDoCliente(env, conta, deps = {}) {
+  const sub = await subDaConta(env, conta);
+  if (!sub) return [];
+  const r = await notasNaAtos(env, "/api/cobranca/v1/notas", sub, deps);
+  if (!r.ok) throw new Error("a Atos respondeu " + r.status);
+  const d = await r.json();
+  return (Array.isArray(d.notas) ? d.notas : []).map((x) => ({ id: x.id, numero: x.numero, competencia: x.competencia, valor: x.valor,
+    descricao: x.descricao, emitida_em: x.emitida_em, ambiente: x.ambiente, cancelada: Boolean(x.cancelada), substituida: Boolean(x.substituta) }))
+    .sort((a, b) => String(b.emitida_em).localeCompare(String(a.emitida_em)));
+}
+
+/* Os bytes do PDF ou do XML de uma nota da conta; null se a nota (ou o arquivo) nao existe. Lanca se a Atos nao
+   responder. */
+export async function bytesDaNota(env, conta, id, tipo, deps = {}) {
+  if (!/^[A-Za-z0-9_.-]{1,64}$/.test(String(id || "")) || !["pdf", "xml"].includes(tipo)) return null;
+  const sub = await subDaConta(env, conta);
+  if (!sub) return null;
+  const r = await notasNaAtos(env, "/api/cobranca/v1/notas/" + id + "/" + tipo, sub, deps);
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("a Atos respondeu " + r.status);
+  return new Uint8Array(await r.arrayBuffer());
+}
+
+/* GET /api/ia/nfse: a lista, ou 502 dizendo que a Atos nao respondeu (nunca uma lista vazia no lugar). */
+export async function listaDeNotas(env, conta, deps = {}) {
+  try {
+    return json({ notas: await notasDoCliente(env, conta, deps) });
+  } catch {
+    return json({ erro: SEM_ATOS }, 502);
   }
-  notas.sort((a, b) => String(b.emitida_em).localeCompare(String(a.emitida_em)));
-  return notas;
 }
 
 /* O PDF ou o XML de uma nota da conta, como Response; 404 se nao houver. */
-export async function arquivoDoCliente(env, conta, id, tipo) {
-  if (!env.APOIOS || !/^[A-Za-z0-9_.-]{1,64}$/.test(id) || !["pdf", "xml"].includes(tipo)) return json({ erro: "não encontrado" }, 404);
-  const meta = await lerKV(env, "nfse:nota:" + conta + ":" + id);
-  if (!meta || meta.conta !== conta) return json({ erro: "essa nota não existe" }, 404);
-  const b64 = await env.APOIOS.get("nfse:nota-" + tipo + ":" + conta + ":" + id);
-  if (!b64) return json({ erro: "essa nota não tem " + tipo.toUpperCase() }, 404);
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const nome = "NFS-e " + (meta.numero || id) + "." + tipo;
+export async function arquivoDoCliente(env, conta, id, tipo, deps = {}) {
+  let bytes;
+  try {
+    bytes = await bytesDaNota(env, conta, id, tipo, deps);
+  } catch {
+    return json({ erro: SEM_ATOS }, 502);
+  }
+  if (!bytes) return json({ erro: "essa nota não existe" }, 404);
+  const nome = "NFS-e " + id.replace(/^nfse-/, "") + "." + tipo;
   return new Response(bytes, {
     status: 200,
     headers: {
@@ -363,15 +381,6 @@ export async function arquivoDoCliente(env, conta, id, tipo) {
       "cache-control": "no-store",
     },
   });
-}
-
-async function lerKV(env, chave) {
-  try {
-    const v = await env.APOIOS.get(chave);
-    return v ? JSON.parse(v) : null;
-  } catch {
-    return null;
-  }
 }
 
 // ------------------------------------------------------------ utilidades
@@ -973,6 +982,8 @@ export class ContaIA {
       return [{ ok: true }, null];
     }
     if (acao === "resumo") return [this.resumo(conta, n, agora), conta];
+    // O sub do titular (a Conta Atos): o PAVLVS busca na Atos as notas desta conta (notasDoCliente).
+    if (acao === "atos_sub") return [{ ok: true, sub: (conta.dono || {}).sub || "" }, null];
     if (acao === "atos_reserva") {
       const atos = conta.atos || {};
       const sub = (conta.dono || {}).sub || "";

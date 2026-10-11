@@ -96,7 +96,7 @@
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
     "IA_ATIVA": "1",
     // A cobranca e da Atos (worker/atos.js): o PAVLVS nao fala com o Mercado Pago. Os segredos MP_ACCESS_TOKEN e
-    // MP_WEBHOOK_SECRET deste Worker sobraram do caminho antigo e podem sair (npx wrangler secret delete).
+    // MP_WEBHOOK_SECRET deste Worker sairam em 11/10/2026.
     // A chave publica da conta Atos (atos.dev.br, "Entrar com Atos"): o
     // donoDoToken confere o id_token ES256 da Atos com ela (worker/identidade.js).
     // Nao e segredo. Trocar a chave la = acrescentar a nova aqui antes.

@@ -20,7 +20,7 @@
 // conferida).
 
 import {
-  arquivoDoCliente, catalogo, conferirCadastro, medidor, modelosDoPlano, notasDoCliente, numeros,
+  arquivoDoCliente, bytesDaNota, catalogo, conferirCadastro, medidor, modelosDoPlano, notasDoCliente, numeros,
 } from "./ia.js";
 import { alterarEndereco, disponibilidade, donoDoToken, escritorioDoDono } from "./tunel.js";
 import { enviarEmail } from "./admin.js";
@@ -385,12 +385,18 @@ async function removerPessoa(env, s, email) {
 /* As NFS-e do ano num .zip (PDF e XML de cada uma), sem compressao. */
 async function zipDoAno(env, conta, anoTexto) {
   const ano = /^\d{4}$/.test(String(anoTexto || "")) ? String(anoTexto) : String(new Date().getUTCFullYear());
-  const notas = (await notasDoCliente(env, conta)).filter((x) => String(x.competencia || x.emitida_em || "").startsWith(ano));
+  let notas;
+  try {
+    notas = await notasDoCliente(env, conta);
+  } catch {
+    return json({ erro: "não deu para buscar as notas na Atos agora: tente de novo em instantes" }, 502);
+  }
+  notas = notas.filter((x) => String(x.competencia || x.emitida_em || "").startsWith(ano));
   const arquivos = [];
   for (const x of notas) {
     for (const tipo of ["pdf", "xml"]) {
-      const b64 = await env.APOIOS.get("nfse:nota-" + tipo + ":" + conta + ":" + x.id);
-      if (b64) arquivos.push({ nome: "NFS-e " + (x.numero || x.id) + "." + tipo, bytes: deB64(b64) });
+      const bytes = await bytesDaNota(env, conta, x.id, tipo);
+      if (bytes) arquivos.push({ nome: "NFS-e " + (x.numero || x.id) + "." + tipo, bytes });
     }
   }
   if (!arquivos.length) return json({ erro: "não há NFS-e de " + ano + " nesta conta" }, 404);
@@ -571,9 +577,3 @@ function telParaTela(t) {
   return x;
 }
 
-function deB64(b64) {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
