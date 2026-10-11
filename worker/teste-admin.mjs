@@ -1,8 +1,8 @@
 // Teste do painel admin (worker/admin.js), sem rede:
 //   node worker/teste-admin.mjs
-// O Cloudflare Access assina com uma chave gerada aqui; o GitHub, o Resend, o
-// Mercado Pago e a API da Cloudflare (tuneis e a politica do Access) sao de
-// mentira; o Durable Object roda aqui sobre um Map.
+// O painel mora na Atos (atos.dev.br/admin): os pedidos chegam assinados por ela (PAINEL_SEGREDO_PAVLVS), e a
+// assinatura e feita aqui pelo contrato (worker/admin-api.md). O GitHub (a reversao), o Resend, o Mercado Pago
+// e a API da Cloudflare (tuneis) sao de mentira; o Durable Object roda aqui sobre um Map.
 import { atenderAdmin, comPlanosDoPainel, ehRotaDoAdmin, enviarCampanhas, htmlDoEmail } from "./admin.js";
 import { atenderIA, ContaIA } from "./ia.js";
 import { atenderTunel, limparEscritorios, provisionar } from "./tunel.js";
@@ -44,16 +44,8 @@ const CONTAS_IA = {
 // ------------------------------------- Resend, Mercado Pago e a Cloudflare
 const emails = [];
 const mp = [];
-// A API da Cloudflare: os tuneis e o DNS (worker/tunel.js) e a politica de
-// permitir da aplicacao do Access do painel (o convite da equipe). A politica
-// e reutilizavel (a de hoje: so muda pelo caminho da conta) ou, com
-// reutilizavel = false, a antiga, presa a aplicacao.
-const cf = {
-  tuneis: new Map(), dns: new Map(), chamadas: [], seq: 0, recusar: "", reutilizavel: true,
-  politica: { id: "pol1", name: "Equipe do painel", decision: "allow", include: [{ email: { email: "dono@paulus.ia.br" } }, { email: { email: "suporte@paulus.ia.br" } }],
-    exclude: [], require: [], session_duration: "24h", mfa_config: { allowed_authenticators: ["totp"] } },
-  apps: [],
-};
+// A API da Cloudflare: os tuneis e o DNS (worker/tunel.js).
+const cf = { tuneis: new Map(), dns: new Map(), chamadas: [], seq: 0, recusar: "" };
 const respCF = (result, ok = true, status = ok ? 200 : 400, msg = "falha de mentira") =>
   new Response(JSON.stringify({ success: ok, errors: ok ? [] : [{ message: msg }], result }), { status });
 globalThis.fetch = async (url, init = {}) => {
@@ -69,21 +61,6 @@ globalThis.fetch = async (url, init = {}) => {
     cf.chamadas.push({ metodo, caminho, corpo, auth: (init.headers || {}).Authorization });
     if (cf.recusar && caminho.includes(cf.recusar)) return respCF(null, false);
     let m;
-    if (metodo === "GET" && (m = caminho.match(/^\/accounts\/[^/]+\/access\/apps\?aud=(.*)$/))) {
-      return respCF(structuredClone(cf.apps.filter((a) => a.aud === decodeURIComponent(m[1]))));
-    }
-    if ((m = caminho.match(/^\/accounts\/[^/]+\/access\/policies\/([^/]+)$/))) {
-      if (!cf.reutilizavel || m[1] !== cf.politica.id) return respCF(null, false, 404, "access.api.error.not_found");
-      if (metodo === "GET") return respCF(structuredClone(cf.politica));
-      if (metodo === "PUT") { cf.politica = { ...corpo, id: cf.politica.id }; return respCF(cf.politica); }
-    }
-    if ((m = caminho.match(/^\/accounts\/[^/]+\/access\/apps\/([^/]+)\/policies\/([^/]+)$/))) {
-      if (cf.reutilizavel && metodo === "PUT") return respCF(null, false, 400, "can not update reusable policies through this endpoint");
-      if (m[2] !== cf.politica.id) return respCF(null, false, 404, "access.api.error.not_found");
-      if (metodo === "GET") return respCF(structuredClone(cf.politica));
-      if (metodo === "PUT") { cf.politica = { ...corpo, id: cf.politica.id }; return respCF(cf.politica); }
-    }
-    if (metodo === "POST" && /\/access\/organizations\/revoke_user$/.test(caminho)) return respCF(true);
     if (metodo === "POST" && /\/cfd_tunnel$/.test(caminho)) { const id = "tun-" + ++cf.seq; cf.tuneis.set(id, { status: "inactive" }); return respCF({ id }); }
     if (metodo === "PUT" && /\/cfd_tunnel\/[^/]+\/configurations$/.test(caminho)) return respCF({});
     if (metodo === "GET" && (m = caminho.match(/\/cfd_tunnel\/([^/]+)\/token$/))) return respCF("token-" + m[1]);
@@ -111,17 +88,18 @@ async function naAtos(id, plano, assinatura = null, dias = 30) {
   return r.json();
 }
 
-// ------------------------------------------------ o Access de mentira
-const TIME = "paulus.cloudflareaccess.com";
-const AUD = "aud-do-painel";
-const par = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
-const jwkPublica = { ...(await crypto.subtle.exportKey("jwk", par.publicKey)), kid: "k1" };
-const b64url = (bytes) => Buffer.from(bytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-async function jwt(email, extra = {}) {
-  const cab = b64url(new TextEncoder().encode(JSON.stringify({ alg: "RS256", kid: "k1" })));
-  const corpo = b64url(new TextEncoder().encode(JSON.stringify({ email, aud: [AUD], iss: "https://" + TIME, exp: relogio / 1000 + 3600, ...extra })));
-  const ass = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", par.privateKey, new TextEncoder().encode(cab + "." + corpo));
-  return cab + "." + corpo + "." + b64url(new Uint8Array(ass));
+// ------------------------------------------------ a Atos de mentira
+// O painel mora na Atos: ela encaminha /api/admin/pavlvs/* com quem pede assinado (HMAC-SHA256 com
+// PAINEL_SEGREDO_PAVLVS). Aqui a assinatura e feita a parte, pelo contrato (worker/admin-api.md), sem usar o
+// codigo da Atos nem o do PAVLVS.
+const SEGREDO = "segredo-do-painel-de-teste";
+const EQUIPE = { "dono@paulus.ia.br": { nome: "Matheus", papel: "dono" }, "suporte@paulus.ia.br": { nome: "Ana", papel: "suporte" } };
+const GH_TOKEN = { login: "matheus", token: "gho_x" };
+const hexDe = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+async function assinar(segredo, metodo, caminho, corpo, quem64, ts) {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(segredo), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const resumo = hexDe(await crypto.subtle.digest("SHA-256", corpo));
+  return "t=" + ts + ",v1=" + hexDe(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode([ts, metodo, caminho, resumo, quem64].join("."))));
 }
 
 // ------------------------------------------------ o GitHub de mentira
@@ -151,85 +129,95 @@ async function github(metodo, url, token, corpo) {
 }
 
 const env = {
-  IA_ATIVA: "1", CONTAS_IA, APOIOS, ACCESS_TEAM: TIME, ACCESS_AUD: AUD,
-  GITHUB_CLIENT_ID: "cid", GITHUB_CLIENT_SECRET: "csec", RESEND_API_KEY: "re_x", MP_ACCESS_TOKEN: "mp",
+  IA_ATIVA: "1", CONTAS_IA, APOIOS, PAINEL_SEGREDO_PAVLVS: SEGREDO, RESEND_API_KEY: "re_x", MP_ACCESS_TOKEN: "mp",
   IA_PLANO_TOKENS: "10000", IA_RECARGA_TOKENS: "5000",
-  ADMIN_EQUIPE: JSON.stringify([{ email: "dono@paulus.ia.br", nome: "Matheus", papel: "dono" }, { email: "suporte@paulus.ia.br", nome: "Ana", papel: "suporte" }]),
   ASSETS: { fetch: async () => new Response(JSON.stringify({ versao: "0.9.22" }), { status: 200 }) },
 };
-const deps = { github, chamarMP, chavesDoAccess: async () => [jwkPublica], agora: () => relogio };
+const deps = { github, chamarMP, agora: () => relogio };
 
-async function admin(metodo, caminho, { email = "dono@paulus.ia.br", corpo, cookie = "", semAccess = false, envUsado = env } = {}) {
+/* Um pedido ao painel como a Atos encaminha. `caminho` no formato de sempre (/api/admin/x): vira
+   /api/admin/pavlvs/x. `cookie` diz se o GitHub esta ligado na sessao da Atos: "gh" (ligado) ou "sem-gh".
+   semAtos: sem assinatura nenhuma (um pedido direto da internet). `adulterar(cabecalhos)` mexe no pedido
+   depois de assinado. `cru`: o caminho vai como esta (sem o pavlvs/). */
+async function admin(metodo, caminho, { email = "dono@paulus.ia.br", corpo, cookie = "", semAtos = false, envUsado = env, papel, nome, segredo = SEGREDO, ts, adulterar, cru = false } = {}) {
+  const final = cru || !caminho.startsWith("/api/admin/") ? caminho : "/api/admin/pavlvs/" + caminho.slice("/api/admin/".length);
+  const bytes = corpo === undefined ? new Uint8Array(0) : new TextEncoder().encode(typeof corpo === "string" ? corpo : JSON.stringify(corpo));
   const headers = { "content-type": "application/json" };
-  if (!semAccess) headers["cf-access-jwt-assertion"] = typeof email === "string" && email.includes(".") && email.split(".").length === 3 && !email.includes("@") ? email : await jwt(email);
-  if (cookie) headers.cookie = "pv_admin=" + cookie;
-  const req = new Request("https://paulus.ia.br" + caminho, { method: metodo, headers, body: corpo ? JSON.stringify(corpo) : undefined });
+  if (!semAtos && final.startsWith("/api/admin/")) {
+    const m = EQUIPE[email] || {};
+    const quem = { email, nome: nome ?? m.nome ?? "", papel: papel ?? m.papel ?? "suporte", github: cookie === "gh" ? GH_TOKEN : null };
+    const quem64 = Buffer.from(JSON.stringify(quem)).toString("base64url");
+    const u = new URL("https://paulus.ia.br" + final);
+    headers["Atos-Painel-Quem"] = quem64;
+    headers["Atos-Painel-Assinatura"] = await assinar(segredo, metodo, u.pathname + u.search, bytes, quem64, ts ?? Math.floor(relogio / 1000));
+  }
+  if (adulterar) adulterar(headers);
+  const req = new Request("https://paulus.ia.br" + final, { method: metodo, headers, body: metodo === "GET" || metodo === "HEAD" ? undefined : adulterar && adulterar.corpo ? adulterar.corpo : bytes });
   return atenderAdmin(req, envUsado, new URL(req.url), { waitUntil() {} }, deps);
 }
 
 // ------------------------------------------------------------ as portas
-console.log("portas");
-let r = await admin("GET", "/api/admin/sessao", { semAccess: true });
+console.log("portas (o pedido assinado pela Atos)");
+let r = await admin("GET", "/api/admin/visao", { semAtos: true });
 let d = await r.json();
-checar(r.status === 200 && !d.access.ok && !d.pronto, "sessao sem o Access: 200, nada liberado", d);
-r = await admin("GET", "/api/admin/visao", { semAccess: true });
-checar(r.status === 401, "visao sem o Access: 401");
-r = await admin("GET", "/api/admin/visao", { envUsado: { ...env, ACCESS_AUD: "" } });
-checar(r.status === 503, "sem ACCESS_AUD configurado o painel fica fechado");
-const outroTime = await jwt("dono@paulus.ia.br", { iss: "https://outro.cloudflareaccess.com" });
-r = await admin("GET", "/api/admin/visao", { email: outroTime });
-checar(r.status === 401, "JWT de outro time do Access: 401");
-const adulterado = (await jwt("dono@paulus.ia.br")).replace(/\.[^.]+$/, ".AAAA");
-r = await admin("GET", "/api/admin/visao", { email: adulterado });
-checar(r.status === 401, "JWT com a assinatura errada: 401");
-r = await admin("GET", "/api/admin/visao", { email: "intruso@gmail.com" });
-checar(r.status === 403, "e-mail fora da equipe: 403");
-r = await admin("GET", "/api/admin/visao");
+checar(r.status === 401 && !JSON.stringify(d).includes("PAINEL_SEGREDO"), "sem a assinatura da Atos (direto da internet): 401", d);
+r = await admin("GET", "/api/admin/visao", { cru: true });
+checar(r.status === 404, "o caminho antigo (/api/admin/* sem pavlvs/) não existe mais: 404");
+r = await admin("GET", "/api/admin/sessao", { cru: true, semAtos: true });
+checar(r.status === 404, "nem a sessão antiga");
+r = await admin("GET", "/api/admin/visao", { envUsado: { ...env, PAINEL_SEGREDO_PAVLVS: "" } });
 d = await r.json();
-checar(r.status === 401 && d.passo === "sessao", "com o Access e sem a sessão: 401 passo sessao", d);
-// A sessao nasce do Access, sem o GitHub.
-r = await admin("GET", "/api/admin/sessao");
+checar(r.status === 503 && !d.erro.includes("PAINEL_SEGREDO"), "sem o segredo configurado o painel fica fechado (503, sem o nome do segredo)", d);
+r = await admin("GET", "/api/admin/visao", { segredo: "outro-segredo" });
+checar(r.status === 401, "assinado com outro segredo: 401");
+r = await admin("GET", "/api/admin/visao", { ts: Math.floor(relogio / 1000) - 61 });
+checar(r.status === 401, "assinatura de mais de 60 s atrás: 401 (não dá para repetir um pedido velho)");
+r = await admin("GET", "/api/admin/visao", { ts: Math.floor(relogio / 1000) + 61 });
+checar(r.status === 401, "e do futuro também");
+r = await admin("GET", "/api/admin/visao", { ts: Math.floor(relogio / 1000) - 50 });
+checar(r.status === 200, "dentro da janela: abre");
+r = await admin("GET", "/api/admin/visao", { adulterar: (h) => { h["Atos-Painel-Quem"] = Buffer.from(JSON.stringify({ email: "dono@paulus.ia.br", papel: "dono", github: null })).toString("base64url"); }, papel: "suporte" });
+checar(r.status === 401, "trocar quem pede depois de assinado (o suporte se dizendo dono): 401");
+const corpoAssinado = JSON.stringify({ tipo: "conta.creditar", dados: { id: "a".repeat(24), tokens: 5 } });
+const trocaCorpo = (h) => {};
+trocaCorpo.corpo = new TextEncoder().encode(JSON.stringify({ tipo: "conta.creditar", dados: { id: "a".repeat(24), tokens: 5000000 } }));
+r = await admin("POST", "/api/admin/alteracoes", { corpo: corpoAssinado, adulterar: trocaCorpo });
+checar(r.status === 401, "trocar o corpo depois de assinado: 401");
+r = await admin("GET", "/api/admin/tokens?visao=conta", { adulterar: (h) => {} });
+checar(r.status === 200, "a query faz parte do que é assinado (e confere)");
+r = await admin("GET", "/api/admin/visao", { papel: "rei" });
+checar(r.status === 401, "papel que não existe: 401");
+r = await admin("GET", "/api/admin/visao", { email: "sem-arroba" });
+checar(r.status === 401, "e-mail que não serve: 401");
+const semGitHub = "sem-gh";
+r = await admin("GET", "/api/admin/sessao", { cookie: semGitHub });
 d = await r.json();
-const soAccess = (r.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)?.[1];
-checar(r.status === 200 && d.pronto && d.access.ok && !d.github.ok && soAccess && /HttpOnly; Secure; SameSite=Lax/.test(r.headers.get("set-cookie")),
-  "com o Access e o e-mail na equipe, a sessão nasce sem o GitHub", d);
-r = await admin("GET", "/api/admin/sessao", { cookie: soAccess });
-checar(!r.headers.get("set-cookie") && (await r.json()).pronto, "com o cookie, a mesma sessão (sem criar outra)");
-r = await admin("GET", "/api/admin/visao", { cookie: soAccess });
-checar(r.status === 200, "só com o Access, o painel abre");
-r = await admin("POST", "/api/admin/publicar", { cookie: soAccess, corpo: { confirmacao: "comitar e pushar" } });
+checar(r.status === 200 && d.pronto && d.access.ok && d.access.email === "dono@paulus.ia.br" && !d.github.ok && d.papel === "dono" && d.nome === "Matheus" && d.worker === "0.9.22"
+  && !("nfse" in d.config) && !("access" in d.config) && !("equipe" in d.config) && d.config.tuneis.ligado === false, "a sessão: quem a Atos assinou, sem o GitHub, e o que falta configurar aqui", d);
+r = await admin("GET", "/api/admin/visao", { cookie: semGitHub });
+checar(r.status === 200, "sem o GitHub, o painel abre");
+r = await admin("POST", "/api/admin/publicar", { cookie: semGitHub, corpo: { confirmacao: "comitar e pushar" } });
 d = await r.json();
 checar(r.status === 403 && d.passo === "github" && d.erro.includes("comitar e pushar"), "comitar e pushar sem o GitHub: 403 passo github", d);
-r = await admin("POST", "/api/admin/retroagir", { cookie: soAccess, corpo: { commit: "abc1234", confirmacao: "retroagir" } });
+r = await admin("POST", "/api/admin/retroagir", { cookie: semGitHub, corpo: { commit: "abc1234", confirmacao: "retroagir" } });
 d = await r.json();
 checar(r.status === 403 && d.passo === "github" && d.erro.includes("retroagir"), "retroagir sem o GitHub: 403 passo github", d);
-r = await admin("GET", "/api/admin/sessao", { semAccess: true, cookie: soAccess });
-checar(!(await r.json()).pronto, "o cookie sozinho, sem o Access, não vale");
-
-r = await admin("GET", "/api/admin/github/entrar");
-const loc = new URL(r.headers.get("location"));
-const state = loc.searchParams.get("state");
-checar(r.status === 302 && loc.hostname === "github.com" && loc.searchParams.get("scope") === "public_repo read:user", "entrar com o GitHub: 302 com o escopo do repositorio");
-r = await admin("GET", "/api/admin/github/retorno?code=bom&state=errado");
-checar(r.status === 302 && r.headers.get("location").includes("erro="), "state errado volta com erro");
-permissao = "read";
-r = await admin("GET", "/api/admin/github/retorno?code=bom&state=" + state);
-checar(r.headers.get("location").includes("escrita"), "conta sem escrita no repositorio nao entra", r.headers.get("location"));
-permissao = "write";
-r = await admin("GET", "/api/admin/github/entrar");
-const state2 = new URL(r.headers.get("location")).searchParams.get("state");
-r = await admin("GET", "/api/admin/github/retorno?code=bom&state=" + state2, { email: "suporte@paulus.ia.br" });
-checar(r.headers.get("location").includes("erro="), "o state de uma pessoa nao serve para outra");
-r = await admin("GET", "/api/admin/github/entrar");
-const state3 = new URL(r.headers.get("location")).searchParams.get("state");
-r = await admin("GET", "/api/admin/github/retorno?code=bom&state=" + state3);
-const sessao = (r.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)?.[1];
-checar(r.status === 302 && r.headers.get("location") === "/admin/" && sessao && /HttpOnly; Secure; SameSite=Lax/.test(r.headers.get("set-cookie")), "login completo: cookie HttpOnly e volta ao painel");
-r = await admin("GET", "/api/admin/visao", { email: "suporte@paulus.ia.br", cookie: sessao });
-checar(r.status === 401, "o cookie de uma pessoa nao vale com o Access de outra");
+for (const rota of ["/api/admin/github/entrar", "/api/admin/github/retorno?code=bom&state=x", "/api/admin/equipe"]) {
+  r = await admin("GET", rota, { cookie: "gh" });
+  checar(r.status === 404, "GET " + rota.split("?")[0] + " saiu do PAVLVS (é da Atos): 404");
+}
+for (const rota of ["/api/admin/sair", "/api/admin/sessoes/encerrar"]) {
+  r = await admin("POST", rota, { cookie: "gh" });
+  checar(r.status === 404, "POST " + rota + " saiu (a sessão é a da Conta Atos): 404");
+}
+const sessao = "gh";
 r = await admin("GET", "/api/admin/sessao", { cookie: sessao });
 d = await r.json();
-checar(d.pronto && d.papel === "dono" && d.github.login === "matheus" && d.worker === "0.9.22" && d.config.nfse.ligado === false && d.config.nfse.falta.includes("EMISSOR_NFSE") && d.config.tuneis.ligado === false, "sessao pronta, papel e o que falta configurar (sem o DO, o emissor de NFS-e diz que falta)", d);
+checar(d.github.ok && d.github.login === "matheus", "com o GitHub ligado na Atos, a sessão diz o login", d.github);
+r = await admin("GET", "/api/admin/papeis", { cookie: sessao, email: "suporte@paulus.ia.br" });
+d = await r.json();
+checar(r.status === 200 && d.matriz.length >= 6 && d.matriz.some((x) => x.acao === "Creditar tokens" && x.dono && x.financeiro && !x.suporte) && !d.matriz.some((x) => /nota|equipe/i.test(x.acao)),
+  "a matriz do PAVLVS (sem notas fiscais nem equipe, que são da Atos)", d.matriz);
 const como = (extra = {}) => ({ cookie: sessao, ...extra });
 
 // ------------------------------------------------------------ as contas
@@ -297,15 +285,12 @@ r = await admin("GET", "/api/admin/alteracoes", como());
 d = await r.json();
 checar(!d.pendentes.length && d.publicacoes.length === 1, "fila vazia e a publicacao no historico");
 
-// papel
-r = await admin("GET", "/api/admin/github/entrar", { email: "suporte@paulus.ia.br" });
-const st = new URL(r.headers.get("location")).searchParams.get("state");
-r = await admin("GET", "/api/admin/github/retorno?code=bom&state=" + st, { email: "suporte@paulus.ia.br" });
-const sessaoSuporte = (r.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)?.[1];
+// papel (o suporte com o GitHub ligado na Atos)
+const sessaoSuporte = "gh";
 r = await admin("POST", "/api/admin/alteracoes", { email: "suporte@paulus.ia.br", cookie: sessaoSuporte, corpo: { tipo: "conta.creditar", dados: { id: idAna, tokens: 5 } } });
 checar(r.status === 403, "suporte nao credita tokens");
-r = await admin("POST", "/api/admin/alteracoes", { email: "suporte@paulus.ia.br", cookie: sessaoSuporte, corpo: { tipo: "equipe.papel", dados: { email: "dono@paulus.ia.br", papel: "suporte" } } });
-checar(r.status === 403, "suporte nao muda papeis");
+r = await admin("POST", "/api/admin/alteracoes", { email: "suporte@paulus.ia.br", cookie: sessaoSuporte, corpo: { tipo: "plano.editar", dados: { id: "escritorio", valor: 1, valor_anual: 10, tokens: 1 } } });
+checar(r.status === 403, "suporte nao mexe nos planos");
 
 // --------------------------------------------------------- e-mail e campanhas
 console.log("e-mail");
@@ -324,9 +309,9 @@ const campanha = JSON.parse(guardados.get("admin:campanha:" + idCamp));
 checar(campanha.situacao === "enviada" && campanha.destinatarios.every((x) => !x.email), "terminado o envio, os e-mails saem do KV", campanha);
 checar(JSON.parse(guardados.get("admin:campanhas:fila")).length === 0, "e a campanha sai do indice do Cron");
 const t = campanha.destinatarios[0].t;
-const ab = await admin("GET", "/api/e/" + idCamp + "/" + t + "/a.gif", { semAccess: true });
-await admin("GET", "/api/e/" + idCamp + "/" + t + "/a.gif", { semAccess: true });
-const cl = await admin("GET", "/api/e/" + idCamp + "/" + t + "/c", { semAccess: true });
+const ab = await admin("GET", "/api/e/" + idCamp + "/" + t + "/a.gif", { semAtos: true });
+await admin("GET", "/api/e/" + idCamp + "/" + t + "/a.gif", { semAtos: true });
+const cl = await admin("GET", "/api/e/" + idCamp + "/" + t + "/c", { semAtos: true });
 const depois = JSON.parse(guardados.get("admin:campanha:" + idCamp));
 checar(ab.headers.get("content-type") === "image/gif" && cl.status === 302 && cl.headers.get("location") === "https://paulus.ia.br/" && depois.abertos === 1 && depois.cliques === 1, "abertura conta uma vez; clique redireciona", depois);
 checar(htmlDoEmail({ titulo: "<b>", texto: "a\n\nb" }).includes("&lt;b&gt;"), "o HTML do e-mail escapa o texto");
@@ -355,32 +340,22 @@ checar(semMateriais.status !== 200 && !ehRotaDoAdmin(new URL("https://paulus.ia.
 r = await admin("GET", "/api/admin/materiais", como());
 checar(r.status === 404, "a fila de materiais saiu do painel", r.status);
 
-// --------------------------------------------------------- NFS-e e equipe
-console.log("nfse e equipe");
+// --------------------------------------------------------- NFS-e e equipe (sairam do painel do PAVLVS)
+console.log("nfse e equipe: saíram do PAVLVS");
 r = await admin("GET", "/api/admin/nfse", como());
-d = await r.json();
-checar(r.status === 200 && !d.emissor.ligado && d.emissor.falta.includes("EMISSOR_NFSE") && Array.isArray(d.notas) && Array.isArray(d.pagamentos) && d.pode.emitir === true,
-  "sem o DO do emissor: a aba abre e diz o que falta (o resto em teste-nfse-admin.mjs)", d);
+checar(r.status === 404, "a aba Notas fiscais do PAVLVS saiu do painel (a Atos tem a dela): 404");
+r = await admin("GET", "/api/admin/nfse/emissor/situacao", como());
+checar(r.status === 404, "as rotas do emissor não são expostas: 404");
 r = await admin("POST", "/api/admin/nfse/emissor/notas", como({ corpo: { valor: 1 } }));
-d = await r.json();
-checar(r.status === 503 && d.erro.includes("EMISSOR_NFSE"), "emitir sem o DO: 503 dizendo o que falta", d);
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.config", dados: { auto: true, email: false, mail: true }, texto: "Liguei: mandar também por e-mail" } }));
-r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
-d = await r.json();
-checar(d.ok && JSON.stringify(JSON.parse(guardados.get("admin:nfse:config"))) === JSON.stringify({ auto: true, email: false, mail: true }), "nfse.config grava os tres interruptores (auto, email, mail)", { d, cfg: guardados.get("admin:nfse:config") });
-r = await admin("GET", "/api/admin/nfse", como());
-d = await r.json();
-checar(d.config.mail === true && d.config.auto === true, "e o painel le o mail de volta", d.config);
-guardados.delete("admin:nfse:config");
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "nfse.emitir", dados: { ids: ["x"] }, texto: "Emiti" } }));
-checar(r.status === 400, "nfse.emitir saiu da fila: emitir e na hora, pelo emissor");
-r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo: "equipe.papel", dados: { email: "dono@paulus.ia.br", papel: "suporte" }, texto: "Rebaixei o dono" } }));
-r = await admin("POST", "/api/admin/publicar", como({ corpo: { confirmacao: "comitar e pushar" } }));
-d = await r.json();
-checar(!d.ok && d.resultados[0].erro.includes("pelo menos um dono"), "a equipe nao fica sem dono", d);
-r = await admin("GET", "/api/admin/equipe", como());
-d = await r.json();
-checar(d.membros.length === 2 && d.matriz.length >= 6, "equipe e matriz de permissoes");
+checar(r.status === 404, "nem para emitir");
+for (const tipo of ["nfse.config", "nfse.emitir", "equipe.papel", "equipe.membro"]) {
+  r = await admin("POST", "/api/admin/alteracoes", como({ corpo: { tipo, dados: { email: "dono@paulus.ia.br", papel: "suporte", acao: "excluir" }, texto: tipo } }));
+  d = await r.json();
+  checar(r.status === 400 && d.erro.includes("desconhecida"), tipo + " saiu da fila do PAVLVS (a equipe é a fila da Atos): alteração desconhecida", d);
+}
+r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("x@paulus.ia.br") + "/reenviar", como());
+checar(r.status === 404, "reenviar convite saiu do PAVLVS (é da Atos): 404");
+checar(!ehRotaDoAdmin(new URL("https://paulus.ia.br/api/equipe/convite")), "a página do convite da equipe saiu do Worker");
 
 // ----------------------------------------------------------- o medidor por dentro
 const contaDo = (id, acao, dados = {}) => CONTAS_IA.get(id).fetch("https://conta-ia/" + acao, { method: "POST", body: JSON.stringify({ acao, ...dados }) }).then((x) => x.json());
@@ -584,169 +559,6 @@ d = await publicarFila();
 checar(!d.ok && d.resultados[0].erro.includes("passou antes de publicar"), "publicada depois da hora: não sai atrasada sozinha, volta para a fila com o porquê", d);
 await limparFila();
 
-// ---------------------------------------------- equipe: convite, Access e reenviar
-console.log("equipe: convite, Access e reenviar");
-let eq = await (await admin("GET", "/api/admin/equipe", como())).json();
-checar(eq.liberacao && eq.liberacao.ligado === false && eq.liberacao.falta.includes("CF_ACCESS_TOKEN") && eq.matriz.some((x) => x.acao.startsWith("Convidar")),
-  "sem a API do Access, a equipe diz que a liberação é à mão", eq.liberacao);
-d = await (await admin("GET", "/api/admin/sessao", como())).json();
-checar(d.config.equipe && d.config.equipe.ligado === false, "a sessão também diz (config.equipe)");
-emails.length = 0;
-r = await pedir("equipe.membro", { acao: "criar", nome: "Bia Souza", email: "Bia@paulus.ia.br", papel: "financeiro" }, "Convidei a Bia");
-checar(r.status === 200, "convidar entra na fila");
-r = await pedir("equipe.membro", { acao: "criar", nome: "Ana", email: "suporte@paulus.ia.br", papel: "suporte" });
-checar(r.status === 400, "convidar quem já está na equipe: recusado");
-r = await pedir("equipe.membro", { acao: "criar", nome: "Xavier", email: "x@paulus.ia.br", papel: "dono" }, "x", comoSuporte());
-checar(r.status === 403, "o suporte não convida");
-r = await admin("POST", "/api/admin/alteracoes", { ...como(), envUsado: { ...env, RESEND_API_KEY: "" }, corpo: { tipo: "equipe.membro", dados: { acao: "criar", nome: "Zé", email: "ze@paulus.ia.br", papel: "suporte" } } });
-checar(r.status === 400 && (await r.json()).erro.includes("RESEND_API_KEY"), "sem o e-mail ligado, o convite nem entra na fila");
-d = await publicarFila();
-const conviteBia = emails.find((e) => e.to[0] === "bia@paulus.ia.br");
-const tokenBia = ((conviteBia && conviteBia.html.match(/convite\?t=([0-9a-f]{64})/)) || [])[1];
-checar(d.ok && conviteBia && tokenBia && conviteBia.text.includes("Financeiro") && conviteBia.text.includes("à mão") && conviteBia.subject === "Convite para o painel do Paulus",
-  "o convite vai por e-mail, com o link e o papel, e diz que o Access ainda é à mão", conviteBia && conviteBia.text);
-const kvConvites = JSON.parse(guardados.get("admin:convites"));
-checar(!guardados.get("admin:convites").includes(tokenBia) && kvConvites[0].nome === "Bia Souza" && kvConvites[0].email === "bia@paulus.ia.br"
-  && Object.keys(kvConvites[0]).sort().join() === "criado,email,h,nome,papel,por,por_nome,vence", "o KV guarda o resumo do link, nunca o link; e só nome, e-mail e papel da pessoa", kvConvites[0]);
-eq = await (await admin("GET", "/api/admin/equipe", como())).json();
-const mBia = eq.membros.find((x) => x.email === "bia@paulus.ia.br") || {};
-checar(mBia.convite && mBia.convite.vence === new Date(relogio + 7 * DIA).toISOString() && mBia.papel === "financeiro" && !mBia.convite.vencido, "a equipe mostra o convite e quando vence (7 dias)", mBia);
-const convite = (metodo, token, envUsado = env) => {
-  const req = metodo === "GET" ? new Request("https://paulus.ia.br/api/equipe/convite?t=" + token)
-    : new Request("https://paulus.ia.br/api/equipe/convite", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "t=" + token });
-  return atenderAdmin(req, envUsado, new URL(req.url), { waitUntil() {} }, deps);
-};
-checar(ehRotaDoAdmin(new URL("https://paulus.ia.br/api/equipe/convite")), "o convite é rota do painel, fora do /api/admin (e do Access)");
-r = await convite("GET", tokenBia);
-let pagina = await r.text();
-checar(r.status === 200 && pagina.includes("Bia Souza") && pagina.includes("Aceitar o convite") && pagina.includes("feita à mão") && !pagina.includes("PAULUS")
-  && r.headers.get("content-security-policy").includes("form-action 'self'") && r.headers.get("referrer-policy") === "no-referrer",
-  "o link abre a página do convite sem o Access, e não promete a liberação automática");
-checar(!guardados.get("admin:equipe") || !guardados.get("admin:equipe").includes("bia@"), "abrir o link não aceita sozinho (quem lê links no e-mail não aceita pela pessoa)");
-r = await convite("GET", "f".repeat(64));
-checar(r.status === 410, "link que não existe: 410");
-r = await convite("POST", tokenBia);
-pagina = await r.text();
-checar(r.status === 200 && pagina.includes("Pronto, Bia.") && pagina.includes("à mão") && !pagina.includes("Abrir o painel"), "aceito: a página diz o passo que ainda é à mão (e não oferece o painel)");
-checar(JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "bia@paulus.ia.br" && x.papel === "financeiro") && !guardados.has("admin:convites"), "a Bia está na equipe e o convite saiu");
-r = await convite("POST", tokenBia);
-checar(r.status === 410, "o link não vale duas vezes");
-d = await (await admin("GET", "/api/admin/sessao", { email: "bia@paulus.ia.br" })).json();
-checar(d.access.ok && d.papel === "financeiro", "com o Access dela, o painel a reconhece como financeiro", d.access);
-
-emails.length = 0;
-await pedir("equipe.membro", { acao: "criar", nome: "Caio", email: "caio@paulus.ia.br", papel: "suporte" }, "Convidei o Caio");
-d = await publicarFila();
-const tokenCaio1 = emails[0].html.match(/convite\?t=([0-9a-f]{64})/)[1];
-relogio += 2 * DIA;
-r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("caio@paulus.ia.br") + "/reenviar", comoSuporte());
-checar(r.status === 403, "o suporte não reenvia convite");
-r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("caio@paulus.ia.br") + "/reenviar", como());
-d = await r.json();
-const tokenCaio2 = emails[emails.length - 1].html.match(/convite\?t=([0-9a-f]{64})/)[1];
-const mCaio = d.membros.find((x) => x.email === "caio@paulus.ia.br") || {};
-checar(r.status === 200 && tokenCaio2 !== tokenCaio1 && mCaio.convite.vence === new Date(relogio + 7 * DIA).toISOString(), "reenviar: link novo, mais 7 dias", mCaio);
-checar((await convite("GET", tokenCaio1)).status === 410 && (await convite("GET", tokenCaio2)).status === 200, "o link antigo para de valer; o novo abre");
-r = await admin("POST", "/api/admin/equipe/convite/" + encodeURIComponent("ninguem@paulus.ia.br") + "/reenviar", como());
-checar(r.status === 404, "reenviar sem convite: 404");
-relogio += 8 * DIA;
-r = await convite("GET", tokenCaio2);
-checar(r.status === 410 && (await r.text()).includes("venceu"), "depois dos 7 dias, o convite venceu");
-eq = await (await admin("GET", "/api/admin/equipe", como())).json();
-checar((eq.membros.find((x) => x.email === "caio@paulus.ia.br") || {}).convite.vencido === true, "e a equipe mostra o convite vencido");
-await pedir("equipe.membro", { acao: "cancelar_convite", email: "caio@paulus.ia.br" }, "Cancelei o convite do Caio");
-d = await publicarFila();
-checar(d.ok && !guardados.has("admin:convites"), "cancelar o convite tira o link");
-
-r = await pedir("equipe.membro", { acao: "excluir", email: "dono@paulus.ia.br" });
-checar(r.status === 400 && (await r.json()).erro.includes("pelo menos um dono"), "tirar o único dono: recusado");
-r = await pedir("equipe.membro", { acao: "editar", de: "suporte@paulus.ia.br", email: "suporte@paulus.ia.br", nome: "Ana Lima", papel: "suporte" }, "Editei a Ana");
-d = await publicarFila();
-checar(d.ok && JSON.parse(guardados.get("admin:equipe")).find((x) => x.email === "suporte@paulus.ia.br").nome === "Ana Lima", "editar o nome, com o mesmo e-mail");
-await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia");
-d = await publicarFila();
-checar(d.ok && !JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "bia@paulus.ia.br") && String(d.resultados[0].aviso).includes("Access")
-  && String(d.resultados[0].aviso).includes("CF_ACCESS_TOKEN") && !/ACCESS_APP_ID|ACCESS_POLICY_ID/.test(String(d.resultados[0].aviso)),
-  "tirar da equipe: sai da lista; sem a API, o aviso diz que o Access é à mão e só pede o token (a política é achada sozinha)", d.resultados);
-checar((await admin("GET", "/api/admin/visao", { email: "bia@paulus.ia.br" })).status === 403, "e ela não passa mais do painel");
-
-// So o token e a conta: a politica e a de permitir da aplicacao do ACCESS_AUD.
-const envAcc = { ...env, CF_ACCESS_TOKEN: "cfat_teste", CF_ACCOUNT_ID: "conta1" };
-cf.apps = [{ id: "app0", aud: "outra-aplicacao", policies: [{ id: "pol0", decision: "allow" }] },
-  { id: "app1", aud: AUD, policies: [{ id: "pol9", decision: "deny" }, { id: "pol1", decision: "allow" }] }];
-const POLITICA = "/accounts/conta1/access/policies/pol1";
-const POLITICA_ANTIGA = "/accounts/conta1/access/apps/app1/policies/pol1";
-const naPolitica = (email) => cf.politica.include.some((x) => x.email && x.email.email === email);
-emails.length = 0;
-cf.chamadas.length = 0;
-await pedir("equipe.membro", { acao: "criar", nome: "Duda Lima", email: "duda@paulus.ia.br", papel: "suporte" }, "Convidei a Duda", { envUsado: envAcc });
-d = await publicarFila({ envUsado: envAcc });
-const tokenDuda = emails[0].html.match(/convite\?t=([0-9a-f]{64})/)[1];
-checar(d.ok && emails[0].text.includes("é liberado no Cloudflare Access") && !emails[0].text.includes("à mão"), "com a API do Access, o convite diz que a liberação é sozinha");
-cf.recusar = "/policies/";
-r = await convite("POST", tokenDuda, envAcc);
-pagina = await r.text();
-checar(r.status === 502 && pagina.includes("Quase lá") && JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "duda@paulus.ia.br") && guardados.has("admin:convites"),
-  "o Access recusou: ela entra na equipe e o link continua valendo para tentar de novo");
-cf.recusar = "";
-r = await convite("POST", tokenDuda, envAcc);
-pagina = await r.text();
-const putPol = cf.chamadas.filter((x) => x.metodo === "PUT" && x.caminho === POLITICA).pop();
-checar(r.status === 200 && pagina.includes("Abrir o painel") && naPolitica("duda@paulus.ia.br") && naPolitica("dono@paulus.ia.br") && putPol && putPol.corpo.name === "Equipe do painel"
-  && putPol.corpo.decision === "allow" && putPol.corpo.session_duration === "24h" && putPol.corpo.mfa_config.allowed_authenticators[0] === "totp" && !("precedence" in putPol.corpo)
-  && putPol.auth === "Bearer cfat_teste" && !guardados.has("admin:convites"),
-  "aceito: o e-mail entra na política reutilizável do painel (achada pela aplicação do ACCESS_AUD), que guarda o resto (nome, decisão, duração, MFA)", putPol);
-checar(!cf.chamadas.some((x) => x.metodo === "PUT" && x.caminho.includes("/apps/")), "e nada vai pelo caminho da aplicação, que a Cloudflare recusa para a política reutilizável",
-  cf.chamadas.map((x) => x.metodo + " " + x.caminho));
-eq = await (await admin("GET", "/api/admin/equipe", como({ envUsado: envAcc }))).json();
-checar(eq.liberacao.ligado === true, "e a equipe diz que a liberação está ligada");
-emails.length = 0;
-await pedir("equipe.membro", { acao: "editar", de: "duda@paulus.ia.br", email: "maria.eduarda@paulus.ia.br", nome: "Maria Eduarda", papel: "suporte" }, "Troquei o e-mail da Duda", { envUsado: envAcc });
-d = await publicarFila({ envUsado: envAcc });
-checar(d.ok && emails[0].to[0] === "maria.eduarda@paulus.ia.br" && !naPolitica("duda@paulus.ia.br") && !JSON.parse(guardados.get("admin:equipe")).some((x) => x.email === "duda@paulus.ia.br")
-  && JSON.parse(guardados.get("admin:convites"))[0].email === "maria.eduarda@paulus.ia.br", "trocar o e-mail: o novo recebe convite, o antigo sai da equipe e do Access", d);
-await pedir("equipe.membro", { acao: "cancelar_convite", email: "maria.eduarda@paulus.ia.br" }, "Cancelei", { envUsado: envAcc });
-await publicarFila({ envUsado: envAcc });
-cf.politica.include.push({ email: { email: "bia@paulus.ia.br" } });
-guardados.set("admin:equipe", JSON.stringify([...JSON.parse(guardados.get("admin:equipe")), { email: "bia@paulus.ia.br", nome: "Bia Souza", papel: "financeiro" }]));
-cf.chamadas.length = 0;
-await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: envAcc });
-d = await publicarFila({ envUsado: envAcc });
-checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && cf.chamadas.some((x) => x.caminho === "/accounts/conta1/access/organizations/revoke_user" && x.corpo.email === "bia@paulus.ia.br"),
-  "tirar da equipe com a API: sai da política do Access e as sessões dela no Access caem", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
-
-// Volta a Bia (a equipe e a politica) para tirar de novo em outro cenario.
-const voltaBia = () => {
-  cf.politica.include.push({ email: { email: "bia@paulus.ia.br" } });
-  guardados.set("admin:equipe", JSON.stringify([...JSON.parse(guardados.get("admin:equipe")), { email: "bia@paulus.ia.br", nome: "Bia Souza", papel: "financeiro" }]));
-  cf.chamadas.length = 0;
-};
-// A politica antiga, presa a aplicacao: o caminho da conta nao a conhece, e o da aplicacao muda (com a precedencia).
-cf.reutilizavel = false;
-cf.politica.precedence = 3;
-voltaBia();
-await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: envAcc });
-d = await publicarFila({ envUsado: envAcc });
-const putAntiga = cf.chamadas.filter((x) => x.metodo === "PUT" && x.caminho === POLITICA_ANTIGA).pop();
-checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && putAntiga && putAntiga.corpo.precedence === 3 && putAntiga.corpo.name === "Equipe do painel",
-  "a política antiga, presa à aplicação: muda pelo caminho da aplicação, com a precedência dela", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
-cf.reutilizavel = true;
-delete cf.politica.precedence;
-// Duas politicas de permitir na aplicacao: o Worker nao escolhe sozinho; ACCESS_POLICY_ID escolhe.
-cf.apps[1].policies.push({ id: "pol2", decision: "allow" });
-voltaBia();
-await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: envAcc });
-d = await publicarFila({ envUsado: envAcc });
-checar(d.ok && String(d.resultados[0].aviso).includes("ACCESS_POLICY_ID") && naPolitica("bia@paulus.ia.br") && !cf.chamadas.some((x) => x.metodo === "PUT"),
-  "duas políticas de permitir: não mexe em nenhuma, e o aviso pede o ACCESS_POLICY_ID", d.resultados);
-cf.politica.include = cf.politica.include.filter((x) => !(x.email && x.email.email === "bia@paulus.ia.br"));
-voltaBia();
-await pedir("equipe.membro", { acao: "excluir", email: "bia@paulus.ia.br" }, "Tirei a Bia", { envUsado: { ...envAcc, ACCESS_POLICY_ID: "pol1" } });
-d = await publicarFila({ envUsado: { ...envAcc, ACCESS_POLICY_ID: "pol1" } });
-checar(d.ok && !d.resultados[0].aviso && !naPolitica("bia@paulus.ia.br") && cf.chamadas.some((x) => x.metodo === "PUT" && x.caminho === POLITICA),
-  "com o ACCESS_POLICY_ID, muda a política escolhida", cf.chamadas.map((x) => x.metodo + " " + x.caminho));
-cf.apps[1].policies.pop();
-
 // ---------------------------------------------- o extrato com as NFS-e
 console.log("extrato com as NFS-e");
 const notasFalsas = [
@@ -765,18 +577,12 @@ const envNf = { ...env, EMISSOR_NFSE, NFSE_CHAVE_MESTRA: "chave-de-teste" };
 det = await (await admin("GET", "/api/admin/contas/" + idAna, como({ envUsado: envNf }))).json();
 const pgOrd1 = (det.pagamentos || []).find((x) => x.ref === "ORD1") || {};
 checar(pgOrd1.nfse && pgOrd1.nfse.id === 9 && pgOrd1.nfse.numero === "12" && pgOrd1.nfse.estado === "emitida"
-  && pgOrd1.nfse.pdf === "https://paulus.ia.br/api/admin/nfse/emissor/notas/9/pdf?baixar=1" && pgOrd1.nfse.xml === "https://paulus.ia.br/api/admin/nfse/emissor/notas/9/xml",
-  "cada pagamento traz a NFS-e (a substituta, não a substituída; a de outra conta não entra) e os links do painel", pgOrd1);
+  && pgOrd1.nfse.pdf === null && pgOrd1.nfse.xml === null,
+  "cada pagamento traz a NFS-e (a substituta, não a substituída; a de outra conta não entra), sem os links do emissor (saíram do painel)", pgOrd1);
 det = await (await admin("GET", "/api/admin/contas/" + idAna, como())).json();
 checar(det.pagamentos.every((x) => x.nfse === null), "sem o emissor, o extrato não inventa nota");
-guardados.set("admin:nfse-pdf:9", Buffer.from("%PDF-1.4 teste").toString("base64"));
 r = await admin("GET", "/api/admin/nfse/emissor/notas/9/pdf?baixar=1", comoSuporte({ envUsado: envNf }));
-checar(r.status === 200 && r.headers.get("content-type") === "application/pdf" && r.headers.get("content-disposition").startsWith("attachment") && (await r.text()).startsWith("%PDF"),
-  "o link do PDF baixa pelo painel (o suporte também baixa)");
-r = await admin("GET", "/api/admin/nfse/emissor/notas/9/xml", comoSuporte({ envUsado: envNf }));
-checar(r.status === 200 && r.headers.get("content-type").startsWith("application/xml") && (await r.text()).includes("<NFSe>"), "e o do XML");
-r = await admin("GET", "/api/admin/nfse/emissor/notas/9/xml", { semAccess: true, envUsado: envNf });
-checar(r.status === 401, "sem o Cloudflare Access, os links não abrem");
+checar(r.status === 404, "e o PDF da nota não abre mais pelo painel");
 
 // ---------------------------------------------- nao renovacoes: so a Atos
 console.log("não renovações: só a conta cobrada pela Atos");
@@ -792,8 +598,8 @@ checar(![...d.abertas, ...d.tratadas].some((x) => x.id === idJoe), "o ciclo venc
 // ---------------------------------------------- retroagir
 console.log("retroagir");
 await limparFila();
-guardados.set("admin:nfse:config", JSON.stringify({ auto: false, email: true, mail: false }));
-await pedir("nfse.config", { auto: true, email: true, mail: true }, "Liguei tudo nas notas");
+const planosAntesNf = guardados.get("admin:planos");
+await pedir("plano.editar", { id: "plus", valor: 999, valor_anual: 9990, tokens: 90 }, "Plus a R$ 999");
 d = await publicarFila();
 const pubNf = d.publicacao;
 checar(d.ok && pubNf.id && pubNf.retroagivel && !("retrato" in pubNf) && guardados.has("admin:retrato:" + pubNf.id), "cada publicação guarda o retrato (fora da lista que a tela lê)", pubNf);
@@ -803,19 +609,20 @@ r = await admin("POST", "/api/admin/retroagir", comoSuporte({ corpo: { publicaca
 checar(r.status === 403, "o suporte não retroage");
 r = await retroagir({ commit: pubNf.commit });
 d = await r.json();
-checar(r.status === 200 && d.ok && d.commit.startsWith("kv-") && d.publicacao.revertida && JSON.parse(guardados.get("admin:nfse:config")).mail === false
-  && JSON.parse(guardados.get("admin:nfse:config")).auto === false, "retroagir pelo commit (como a tela manda): os interruptores voltam ao que eram", d);
+checar(r.status === 200 && d.ok && d.commit.startsWith("kv-") && d.publicacao.revertida && guardados.get("admin:planos") === planosAntesNf,
+  "retroagir pelo commit (como a tela manda): os planos voltam ao que eram", d);
 r = await retroagir({ commit: pubNf.commit });
 checar(r.status === 409, "de novo: já foi retroagida");
 d = await (await admin("GET", "/api/admin/alteracoes", como())).json();
 checar(d.publicacoes.find((x) => x.id === pubNf.id).revertida.por === "matheus", "o histórico mostra a publicação retroagida");
 
 await pedir("conta.creditar", { id: idAna, tokens: 1000 }, "Creditei 1.000 tokens à Ana");
-await pedir("nfse.config", { auto: true, email: false, mail: false }, "Liguei o automático");
+const planosAntesTudo = guardados.get("admin:planos");
+await pedir("plano.editar", { id: "plus", valor: 998, valor_anual: 9980, tokens: 90 }, "Plus a R$ 998");
 d = await publicarFila();
 r = await retroagir({ publicacao: d.publicacao.id });
 const naoVolta = await r.json();
-checar(r.status === 409 && naoVolta.erro.includes("créditos já estão na conta") && JSON.parse(guardados.get("admin:nfse:config")).auto === true,
+checar(r.status === 409 && naoVolta.erro.includes("créditos já estão na conta") && JSON.parse(guardados.get("admin:planos")).find((p) => p.id === "plus").valor === 998,
   "com uma alteração que não volta, nada volta (tudo ou nada), e a resposta diz qual e por quê", naoVolta);
 
 const idHana = await novaConta("hana");
@@ -1018,45 +825,10 @@ checar(r.status === 400 && (await r.json()).erro.includes("saiu inteira"), "a qu
 const pessoais = [...guardados.entries()].filter(([k]) => !k.startsWith("admin:"));
 checar(!pessoais.length, "o painel so grava chaves admin: no APOIOS", pessoais.map(([k]) => k));
 
-r = await admin("POST", "/api/admin/sair", como());
-checar(r.status === 200 && /Max-Age=0/.test(r.headers.get("set-cookie")) && !guardados.has("admin:sessao:" + sessao), "sair apaga a sessao");
-
-// --------------------------------------------------------- encerrar todas as sessoes
-console.log("encerrar todas as sessões");
-async function entrar(email) {
-  let x = await admin("GET", "/api/admin/github/entrar", { email });
-  const st_ = new URL(x.headers.get("location")).searchParams.get("state");
-  x = await admin("GET", "/api/admin/github/retorno?code=bom&state=" + st_, { email });
-  return (x.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)[1];
-}
-const s1 = await entrar("dono@paulus.ia.br");
-const s2 = await entrar("dono@paulus.ia.br");
-const sOutra = await entrar("suporte@paulus.ia.br");
-// Uma sessao de antes do indice (que o indice nao conhece).
-guardados.set("admin:sessao:" + "a".repeat(48), JSON.stringify({ email: "dono@paulus.ia.br", login: "matheus", token: "gho_x" }));
-r = await admin("POST", "/api/admin/sessoes/encerrar", { cookie: s1 });
-d = await r.json();
-// 4: as duas do GitHub, a de antes do indice e a so do Access, do comeco.
-checar(r.status === 200 && d.encerradas === 4 && !guardados.has("admin:sessao:" + soAccess) && /Max-Age=0/.test(r.headers.get("set-cookie")) && !guardados.has("admin:sessao:" + s1) && !guardados.has("admin:sessao:" + s2)
-  && !guardados.has("admin:sessao:" + "a".repeat(48)) && guardados.has("admin:sessao:" + sOutra) && !guardados.has("admin:sessoes:dono@paulus.ia.br"),
-  "encerra todas as sessões do painel da pessoa (esta também, e as de antes do índice), e só as dela", d);
-checar(d.access.feito === false && d.access.frase.includes("CF_ACCESS_TOKEN"), "sem a API do Access, diz que as sessões do Access ficam até vencer", d.access);
-checar((await admin("GET", "/api/admin/visao", { cookie: s2 })).status === 401, "a sessão do outro aparelho não vale mais");
-const s3 = await entrar("dono@paulus.ia.br");
-cf.chamadas.length = 0;
-r = await admin("POST", "/api/admin/sessoes/encerrar", { cookie: s3, envUsado: { ...env, CF_ACCESS_TOKEN: "cfat_teste", CF_ACCOUNT_ID: "conta1" } });
-d = await r.json();
-checar(d.ok && d.access.feito && cf.chamadas.some((x) => x.caminho === "/accounts/conta1/access/organizations/revoke_user" && x.corpo.email === "dono@paulus.ia.br"),
-  "com a API do Access, as sessões do Access dela caem também", d);
-
 console.log("a conta cobrada pela Atos");
 {
   const idAtos = "a7a7a7a7a7a7a7a7a7a7a7a7";
   const t0 = relogio;
-  // Uma sessao nova (o teste de antes encerrou todas).
-  const rs = await admin("GET", "/api/admin/sessao");
-  const ck = ((rs.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/) || [])[1];
-  const como = (extra = {}) => ({ cookie: ck, ...extra });
   await CONTAS_IA.get(idAtos).fetch("https://conta-ia/", { method: "POST", body: JSON.stringify({ acao: "atos_direito", id: idAtos, dono: { sub: "pv-atos", email: "atos@x.br" },
     retrato: { versao: 1, plano: "escritorio", ate: new Date(relogio + 30 * 864e5).toISOString(), periodo: "mes", assinatura: { id: "atos-a1", status: "canceled", preco: "pavlvs.escritorio.mes" } } }) });
   await APOIOS.put("admin:conta:" + idAtos, JSON.stringify({ id: idAtos, criada: new Date(relogio).toISOString() }));

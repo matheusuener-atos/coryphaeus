@@ -29,8 +29,9 @@
     // /conectar, a pagina em que o titular confirma o acesso de fora; /cadastro,
     // que leva ao checkout da Atos; e a Minha conta (PT e EN), que sai com a
     // politica de seguranca de conteudo (CSP) do worker/index.js. Sem estar aqui,
-    // a pagina sai direto dos arquivos, sem a CSP.
-    "run_worker_first": ["/api/*", "/conectar", "/oauth/*", "/cadastro", "/cadastro/*", "/minha-conta", "/minha-conta/*", "/en/my-account", "/en/my-account/*"]
+    // a pagina sai direto dos arquivos, sem a CSP. /admin volta para o painel da
+    // Atos (301, atos.dev.br/admin): sem estar aqui, sairia a pagina antiga.
+    "run_worker_first": ["/api/*", "/conectar", "/oauth/*", "/cadastro", "/cadastro/*", "/minha-conta", "/minha-conta/*", "/en/my-account", "/en/my-account/*", "/admin", "/admin/*"]
   },
   // Sem rota nenhuma aqui de proposito: o Worker atende so paulus.ia.br. Os
   // <escritorio>.paulus.ia.br do acesso de fora sao dos tuneis de cada
@@ -80,33 +81,16 @@
   // com o plano de cortesia (o do fundador, para testar) - o resumo, e nao o
   // e-mail, porque este arquivo e publico.
   //
-  // O painel admin (worker/admin.js, worker/admin-api.md): ACCESS_TEAM e
-  // ACCESS_AUD sao do Cloudflare Access que protege /admin e /api/admin (sem
-  // eles o painel fica fechado); GITHUB_CLIENT_ID e do OAuth App "PAVLVS
-  // Admin" (o secret e segredo: GITHUB_CLIENT_SECRET); ADMIN_EQUIPE e a lista
-  // inicial da equipe com o papel de cada um. RESEND_API_KEY (segredo) liga o
+  // O painel admin (worker/admin.js, worker/admin-api.md) mora em atos.dev.br/admin: a Atos confere quem
+  // entra (a Conta Atos, a equipe dela e o papel), liga o GitHub e encaminha /api/admin/pavlvs/* ate aqui pelo
+  // service binding dela, assinado com o segredo PAINEL_SEGREDO_PAVLVS (o MESMO valor nos dois Workers: npx
+  // wrangler secret put PAINEL_SEGREDO_PAVLVS). Sem ele, o painel responde 503. RESEND_API_KEY (segredo) liga o
   // envio de e-mail.
   //
-  // O convite da equipe do painel: aceito o convite, o Worker poe o e-mail na
-  // politica de permitir da aplicacao do Access do painel pela API da
-  // Cloudflare (e tira, ao excluir a pessoa). Para ligar, so o segredo
-  // CF_ACCESS_TOKEN (npx wrangler secret put CF_ACCESS_TOKEN; token da conta
-  // com "Access: Apps and Policies" Edit e, para "Encerrar todas as sessoes"
-  // derrubar tambem as do Access, "Access: Organizations, Identity Providers,
-  // and Groups" Edit), com o CF_ACCOUNT_ID que ja esta la. A politica e achada
-  // sozinha: a de permitir da aplicacao do ACCESS_AUD (a reutilizavel, que o
-  // painel da Cloudflare cria hoje, muda pelo caminho da conta; a antiga, pelo
-  // da aplicacao). So se a aplicacao tiver mais de uma de permitir, diga qual
-  // em "ACCESS_POLICY_ID" nas vars abaixo (Zero Trust > Access > Policies; e
-  // identificador, nao segredo). Sem o token, o convite funciona e o e-mail
-  // entra na politica a mao (o painel e a pagina do convite dizem isso).
-  //
-  // As notas fiscais (NFS-e do PAVLVS) sao emitidas pelo painel (/admin ›
-  // Notas fiscais; worker/nfse/api.js). CF_ACCOUNT_ID: a conta Cloudflare onde
-  // o painel cadastra o certificado A1 como mTLS e republica o auxiliar
-  // paulus-nfse-mtls (worker/nfse/mtls.js; o token de API fica cifrado no KV,
-  // colado em Notas fiscais › Parametros). Identificador de conta nao e segredo.
-  "vars": { "ACCESS_TEAM": "flat-cloud-c226.cloudflareaccess.com", "ACCESS_AUD": "a2820f4ed9f0e11fcf052fa538cb835c241fe36bce9259f523d359a62edf4165", "GITHUB_CLIENT_ID": "Ov23li63aRJVcRPb4QhE", "ADMIN_EQUIPE": "[{\"email\":\"matheusuener.atos@gmail.com\",\"nome\":\"Matheus\",\"papel\":\"dono\"}]",
+  // O emissor de NFS-e do PAVLVS (worker/nfse/) continua no Worker, mas o painel nao o expoe mais (as notas
+  // sao da Atos). CF_ACCOUNT_ID: a conta Cloudflare do mTLS do auxiliar paulus-nfse-mtls (worker/nfse/mtls.js) e
+  // da API dos tuneis. Identificador de conta nao e segredo.
+  "vars": {
     "CF_ACCOUNT_ID": "54164f67b5d5eb33c0a1d325dfebb449",
     "TURNSTILE_SITEKEY": "0x4AAAAAAFHNSwEPTb-CTWwV", "TUNEL_ATIVO": "1", "MAX_ESCRITORIOS": "20",
     "GOOGLE_CLIENT_IDS": "834374999044-k6ci1409n2i95m3akqkc23bfc2m8ujpe.apps.googleusercontent.com,834374999044-278vmq8hd7th777q084u0rthand7e1jn.apps.googleusercontent.com",
@@ -126,7 +110,7 @@
   // NFS-e ficam cifrados nele com o segredo NFSE_CHAVE_MESTRA (npx wrangler
   // secret put NFSE_CHAVE_MESTRA; openssl rand -base64 32), que tambem cifra o
   // token da Cloudflare no KV. Trocar a mestra = instalar o certificado e colar
-  // o token de novo. As rotas sao as do painel (/api/admin/nfse/emissor/*).
+  // o token de novo. Sem rota hoje (saiu do painel admin).
   "durable_objects": { "bindings": [{ "name": "CONTAS_IA", "class_name": "ContaIA" }, { "name": "EMISSOR_NFSE", "class_name": "EmissorNFSe" }] },
   "migrations": [{ "tag": "v1-contas-ia", "new_sqlite_classes": ["ContaIA"] }, { "tag": "v2-emissor-nfse", "new_sqlite_classes": ["EmissorNFSe"] }],
   // A conexao com a Sefin (mTLS): todo pedido a Sefin/ADN sai pelo Worker

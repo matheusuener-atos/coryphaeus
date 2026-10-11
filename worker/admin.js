@@ -1,42 +1,26 @@
-// O painel de administracao do PAVLVS (paulus.ia.br/admin; o contrato das
-// rotas esta em worker/admin-api.md). A equipe ve as contas da nuvem, os
-// tuneis do acesso externo (com o registro de enderecos), as nao renovacoes,
-// as campanhas de e-mail, os tokens e a receita, os planos, as notas fiscais
-// e a propria equipe.
+// O painel de administracao do PAVLVS: o servidor (o contrato das rotas esta em worker/admin-api.md). A pagina
+// mora no painel da Atos (atos.dev.br/admin), que encaminha /api/admin/pavlvs/* ate aqui pelo service binding,
+// assinado (conferirAtos, abaixo). A equipe ve as contas da nuvem, as permissoes Google, os tuneis do acesso
+// externo (com o registro de enderecos), as nao renovacoes, as campanhas de e-mail, os tokens e a receita e os
+// planos.
 //
-// As notas fiscais (NFS-e do PAVLVS) sao emitidas daqui: /api/admin/nfse/emissor/*
-// vai ao emissor da nuvem (worker/nfse/api.js, o Durable Object EmissorNFSe),
-// atras do mesmo Access; dono e financeiro emitem e configuram, suporte
-// so le. Essas acoes sao na hora (nao passam pela fila de alteracoes).
-//
-// Nenhuma senha:
-//   1. Cloudflare Access na frente de /admin e /api/admin (e-mail da equipe,
-//      codigo de uso unico). Aqui o Worker confere o JWT que o Access poe em
-//      cada pedido - sem ele, nada passa (e sem ACCESS_TEAM/ACCESS_AUD
-//      configurados o painel fica fechado).
-//   2. A sessao (cookie pv_admin, 24 h, no KV APOIOS "admin:sessao:<id>")
-//      nasce do Access, na primeira leitura de /api/admin/sessao. O login
-//      social do GitHub (conta com escrita no repositorio) so e pedido para
-//      "Comitar e pushar" e para retroagir: sem ele, essas duas rotas
-//      respondem 403 com passo "github".
-// O papel (dono, financeiro, suporte) vem de ADMIN_EQUIPE (JSON) ou, depois de
-// publicado pelo painel, de "admin:equipe" no KV.
+// Quem entra e decidido na Atos: a Conta Atos com login de ate 12 horas, na equipe do painel da Atos (que vale
+// para o painel inteiro e mora no KV dela). O papel (dono, financeiro, suporte) chega assinado; aqui fica so quem
+// pode o que (PODE). O GitHub (conta com escrita no repositorio) e ligado na Atos e so e pedido para "Comitar e
+// pushar" e para retroagir: sem ele, essas duas rotas respondem 403 com passo "github".
 //
 // O que muda o que esta no ar nao acontece na hora: entra na fila da pessoa
-// ("admin:pendentes:<email>") e so e aplicado em "Commitar e pushar"
-// (POST /api/admin/publicar, com a frase digitada). Comunicacao (lembrete,
-// mensagem, aviso, e-mail de teste, reenviar convite) e marcacao (tratada)
-// sao na hora. Cada publicacao guarda o retrato do que ela mudou
-// ("admin:retrato:<id>", 30 dias): e com ele que o dono retroage
-// (POST /api/admin/retroagir) o que da para desfazer.
+// ("admin:pendentes:<email>") e so e aplicado em "Comitar e pushar"
+// (POST /api/admin/pavlvs/publicar, com a frase digitada). Comunicacao (lembrete,
+// mensagem, aviso, e-mail de teste) e marcacao (tratada) sao na hora. Cada
+// publicacao guarda o retrato do que ela mudou ("admin:retrato:<id>", 30 dias):
+// e com ele que o dono retroage (POST /api/admin/pavlvs/retroagir) o que da para desfazer.
 //
-// Fora do Access ficam so o rastreio dos e-mails (/api/e/*), a pagina do
-// convite da equipe (/api/equipe/convite: quem foi convidado ainda nao esta
-// na politica do Access) e os textos dos planos que a pagina de assinatura le
-// (/api/planos/textos). Aceito o convite, o Worker poe o e-mail na politica
-// de permitir da aplicacao do painel (a do ACCESS_AUD) pela API da Cloudflare
-// (CF_ACCESS_TOKEN e CF_ACCOUNT_ID); sem eles, a pagina e o painel dizem que
-// isso e a mao.
+// Fora do painel ficam so o rastreio dos e-mails (/api/e/*) e os textos dos planos que a pagina de assinatura
+// le (/api/planos/textos). O resto de /api/admin/* (o caminho antigo, sem o pavlvs/) responde 404.
+//
+// As notas fiscais do PAVLVS (o emissor da nuvem, worker/nfse/) nao sao mais expostas pelo painel: a Atos tem as
+// dela. O emissor continua no Worker (o Durable Object, o Cron do PDF), sem rota.
 //
 // Tudo no KV APOIOS com o prefixo "admin:". O envio de e-mail e pelo Resend
 // (RESEND_API_KEY); sem a chave, as rotas de e-mail dizem que falta.
@@ -49,27 +33,24 @@ import {
   listarParaAdmin, enderecosLivres, motivoDoEnderecoNovo, alterarEndereco, ativarEndereco, liberarEndereco,
   anotarHistorico, cfConfigurado, registroDeEnderecos,
 } from "./tunel.js";
-import { atenderEmissor, chamar as chamarEmissor, faltaDoEmissor, resumoParaPainel, PREFIXO as PREFIXO_EMISSOR } from "./nfse/api.js";
+import { chamar as chamarEmissor, faltaDoEmissor } from "./nfse/api.js";
 import { buscarMunicipios } from "./nfse/tabelas.js";
 
 const REPO = "matheusuener-atos/coryphaeus";
 const RAMO = "main";
 const SITE = "https://paulus.ia.br";
 const DE_EMAIL = "PAVLVS <naoresponda@paulus.ia.br>";
-const SESSAO_S = 24 * 3600;
 const DIA_MS = 24 * 3600 * 1000;
 const CONFIRMACAO = "comitar e pushar";
 const PAPEIS = ["dono", "financeiro", "suporte"];
-const NOME_DO_PAPEL = { dono: "Dono", financeiro: "Financeiro", suporte: "Suporte" };
 const TODOS = PAPEIS;
 const RITMO_POR_MINUTO = 50;
-// O convite da equipe vale 7 dias; reenviar troca o link e conta 7 de novo.
-const CONVITE_MS = 7 * DIA_MS;
 // O retrato do que uma publicacao mudou (para retroagir) vence em 30 dias.
 const RETRATO_S = 30 * 24 * 3600;
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Quem pode o que (o painel mostra a mesma matriz em Equipe).
+// Quem pode o que no PAVLVS (o painel mostra a mesma matriz em Equipe, por GET /api/admin/pavlvs/papeis). A
+// equipe e os papeis de cada um sao da Atos; mudar a equipe e a fila da Atos (equipe.papel, equipe.membro).
 const PODE = {
   "conta.creditar": ["dono", "financeiro"],
   "conta.instalacao.apagar": ["dono", "suporte"],
@@ -84,13 +65,7 @@ const PODE = {
   "plano.editar": ["dono", "financeiro"],
   "plano.criar": ["dono", "financeiro"],
   "planos.json": ["dono", "financeiro"],
-  "nfse.config": ["dono", "financeiro"],
-  "equipe.papel": ["dono"],
-  "equipe.membro": ["dono"],
 };
-// O emissor de NFS-e (/api/admin/nfse/emissor/*, na hora): quem emite,
-// cancela, substitui e configura. Os outros papeis so leem (GET).
-const PODE_NFSE = ["dono", "financeiro"];
 export const MATRIZ = [
   ["Ver contas, tokens e receita", TODOS],
   ["Mandar e-mails e lembretes", TODOS],
@@ -99,61 +74,41 @@ export const MATRIZ = [
   ["Apagar e mudar túneis", ["dono", "suporte"]],
   ["Planos", ["dono", "financeiro"]],
   ["Creditar tokens", ["dono", "financeiro"]],
-  ["Ver as notas fiscais e baixar PDF e XML", TODOS],
-  ["Emitir, cancelar e substituir notas fiscais; certificado e parâmetros", PODE_NFSE],
-  ["Convidar, editar e tirar pessoas da equipe; mudar papéis", ["dono"]],
   ["Retroagir uma publicação", ["dono"]],
 ];
 
 // ---------------------------------------------------------------- entrada
 
 export function ehRotaDoAdmin(url) {
-  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/") || url.pathname === "/api/equipe/convite" || url.pathname === "/api/planos/textos";
+  return url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/e/") || url.pathname === "/api/planos/textos";
 }
 
 export async function atenderAdmin(request, env, url, ctx, deps = {}) {
-  const p = url.pathname;
+  const p0 = url.pathname;
   const m = request.method;
-  // Fora do Access: o rastreio dos e-mails, o convite da equipe e os textos dos planos (a pagina de assinatura).
-  if (p.startsWith("/api/e/")) return rastreio(env, url);
-  if (p === "/api/planos/textos") return m === "GET" ? textosDosPlanos(env) : json({ erro: "rota não existe" }, 404);
+  // Fora do painel: o rastreio dos e-mails e os textos dos planos (a pagina de assinatura).
+  if (p0.startsWith("/api/e/")) return rastreio(env, url);
+  if (p0 === "/api/planos/textos") return m === "GET" ? textosDosPlanos(env) : json({ erro: "rota não existe" }, 404);
+  // O caminho antigo (/api/admin/* sem o pavlvs/) nao existe mais: o painel e o da Atos.
+  if (!p0.startsWith(PREFIXO)) return json({ erro: "rota não existe" }, 404);
   if (!env.APOIOS) return json({ erro: "o painel precisa do KV APOIOS" }, 503);
-  if (p === "/api/equipe/convite") return conviteDaEquipe(request, env, url, deps);
-
-  const access = await conferirAccess(request, env, deps);
-  if (p === "/api/admin/sessao" && m === "GET") return sessaoAtual(request, env, access);
-  if (!access.ok) return json({ erro: access.erro, passo: "access" }, access.status || 401);
-  const membro = await membroDaEquipe(env, access.email);
-  if (!membro) return json({ erro: "o e-mail " + access.email + " não está na equipe do painel", passo: "access" }, 403);
-  if (p === "/api/admin/github/entrar" && m === "GET") return githubEntrar(env, access, url);
-  if (p === "/api/admin/github/retorno" && m === "GET") return githubRetorno(env, url, access, membro, deps);
-
-  const sessao = await sessaoDoCookie(request, env, access);
-  if (!sessao) return json({ erro: "a sessão do painel venceu: recarregue a página", passo: "sessao" }, 401);
-  const quem = { email: access.email, nome: membro.nome || "", papel: membro.papel, login: sessao.login, token: sessao.token, sessao };
-  if (p === "/api/admin/sair" && m === "POST") {
-    await env.APOIOS.delete("admin:sessao:" + sessao.id);
-    return json({ ok: true, logout: "/cdn-cgi/access/logout" }, 200, { "set-cookie": cookie("", 0) });
-  }
-  const c = { env, deps, quem, ctx, agora: (deps.agora || Date.now)() };
+  const agora = (deps.agora || Date.now)();
+  const atos = await conferirAtos(request, env, url, agora);
+  if (!atos.ok) return json({ erro: atos.erro }, atos.status);
+  // O corpo ja foi lido para conferir a assinatura: o pedido segue com os mesmos bytes.
+  const pedido = new Request(request.url, { method: m, headers: request.headers, body: m === "GET" || m === "HEAD" ? undefined : atos.corpo });
+  const quem = { email: atos.email, nome: atos.nome, papel: atos.papel, login: atos.login, token: atos.token };
+  const c = { env, deps, quem, ctx, agora };
+  // Daqui para dentro, o caminho de sempre (/api/admin/<rota>).
+  const p = "/api/admin/" + p0.slice(PREFIXO.length);
   try {
-    return await rotear(c, request, url, p, m);
+    return await rotear(c, pedido, url, p, m);
   } catch (e) {
     return json({ erro: String((e && e.message) || e).slice(0, 300) }, 500);
   }
 }
 
 async function rotear(c, request, url, p, m) {
-  // O emissor de NFS-e: na hora, sem a fila. GET para todos; o resto, dono e financeiro.
-  if (p.startsWith(PREFIXO_EMISSOR)) {
-    if (m !== "GET" && !PODE_NFSE.includes(c.quem.papel)) {
-      return json({ erro: "o papel " + c.quem.papel + " só vê as notas fiscais: emitir, cancelar e configurar são do dono e do financeiro" }, 403);
-    }
-    const falta = faltaDoEmissor(c.env);
-    // A busca de município é só a tabela: funciona com o emissor desligado.
-    if (falta && !(m === "GET" && p === PREFIXO_EMISSOR + "municipios")) return json({ erro: "o emissor de NFS-e ainda não está ligado: " + falta }, 503);
-    return atenderEmissor(request, c.env, c.ctx, { quem: c.quem.email, prefixo: PREFIXO_EMISSOR });
-  }
   if (m === "GET") {
     if (p === "/api/admin/visao") return json(await visao(c));
     if (p === "/api/admin/contas") return json(await contasParaTela(c));
@@ -175,8 +130,9 @@ async function rotear(c, request, url, p, m) {
       return json(await tokens(c, visaoPedida, per));
     }
     if (p === "/api/admin/planos") return json(await planos(c));
-    if (p === "/api/admin/nfse") return json(await nfse(c));
-    if (p === "/api/admin/equipe") return json(await equipe(c));
+    if (p === "/api/admin/sessao") return sessaoAtual(c);
+    // A matriz de quem pode o que no PAVLVS (a equipe e da Atos: GET /api/admin/equipe la).
+    if (p === "/api/admin/papeis") return json({ matriz: MATRIZ.map(([acao, papeis]) => ({ acao, dono: papeis.includes("dono"), financeiro: papeis.includes("financeiro"), suporte: papeis.includes("suporte") })) });
     if (p === "/api/admin/busca") return json(await busca(c, url.searchParams.get("q") || ""));
     if (p === "/api/admin/alteracoes") return json(await alteracoes(c));
   }
@@ -188,7 +144,6 @@ async function rotear(c, request, url, p, m) {
     }
     if (p === "/api/admin/publicar") return publicar(c, d);
     if (p === "/api/admin/retroagir") return retroagir(c, d);
-    if (p === "/api/admin/sessoes/encerrar") return encerrarSessoes(c.env, c.quem);
     let r = p.match(/^\/api\/admin\/tuneis\/([a-z0-9-]{3,24})\/avisar$/);
     if (r) return avisarTunel(c, r[1]);
     r = p.match(/^\/api\/admin\/renovacoes\/([0-9a-f]{24})\/(lembrete|tratar|reabrir)$/);
@@ -197,8 +152,6 @@ async function rotear(c, request, url, p, m) {
     if (r) return mensagemDeRenovacao(c, r[1], d);
     if (p === "/api/admin/renovacoes/config") return configRenovacoes(c, d);
     if (p === "/api/admin/campanhas/teste") return campanhaTeste(c, d.campanha || d);
-    r = p.match(/^\/api\/admin\/equipe\/convite\/([^/]{3,200})\/reenviar$/);
-    if (r) return reenviarConvite(c, decodificar(r[1]).trim().toLowerCase());
   }
   if (m === "DELETE") {
     const r = p.match(/^\/api\/admin\/alteracoes\/([a-z0-9]{6,32})$/);
@@ -230,14 +183,6 @@ function aleatorio(n) {
   return [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-function decodificar(s) {
-  try {
-    return decodeURIComponent(String(s || ""));
-  } catch {
-    return "";
-  }
-}
-
 function iso(ms) {
   return new Date(ms).toISOString();
 }
@@ -253,15 +198,6 @@ function dataHoraBR(ms) {
   return dataBR(ms) + " às " + new Date(ms - 3 * 3600 * 1000).toISOString().slice(11, 16);
 }
 
-/* "a, b e c". */
-function juntar(lista) {
-  return lista.length < 2 ? lista.join("") : lista.slice(0, -1).join(", ") + " e " + lista[lista.length - 1];
-}
-
-function primeiroNome(nome) {
-  return String(nome || "").trim().split(/\s+/)[0] || "";
-}
-
 /* O nome de uma pessoa para o e-mail e a tela: sem controle nem < > ". */
 function nomeLimpo(t, max = 80) {
   return String(t || "").replace(/[\u0000-\u001f<>"]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
@@ -269,11 +205,6 @@ function nomeLimpo(t, max = 80) {
 
 function semAcento(t) {
   return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-}
-
-async function sha256Hex(texto) {
-  const r = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(texto)));
-  return [...new Uint8Array(r)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function kvJSON(env, chave, padrao = null) {
@@ -293,19 +224,6 @@ async function kvPor(env, prefixo) {
     for (const k of lista.keys) saida.push(k.name);
     cursor = lista.list_complete ? undefined : lista.cursor;
   } while (cursor);
-  return saida;
-}
-
-function cookie(valor, maxAge) {
-  return "pv_admin=" + valor + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=" + maxAge;
-}
-
-function cookies(request) {
-  const saida = {};
-  for (const parte of String(request.headers.get("cookie") || "").split(";")) {
-    const i = parte.indexOf("=");
-    if (i > 0) saida[parte.slice(0, i).trim()] = parte.slice(i + 1).trim();
-  }
   return saida;
 }
 
@@ -359,237 +277,83 @@ function custoDoUso(env, uso) {
   return total + custoUSD(env, Math.max(0, entrada), Math.max(0, saida));
 }
 
-// ------------------------------------------------------------- as portas
+// ------------------------------------------------------------- a porta
+//
+// O painel mora em atos.dev.br/admin. A Atos confere a Conta Atos (login de ate 12 horas), a equipe e o papel, e
+// encaminha /api/admin/pavlvs/* ate aqui pelo service binding PAVLVS, com dois cabecalhos:
+//   Atos-Painel-Quem:        base64url do JSON {email, nome, papel, github: {login, token} | null}
+//   Atos-Painel-Assinatura:  t=<segundos>,v1=<HMAC-SHA256 hex, com PAINEL_SEGREDO_PAVLVS, de
+//                            "<t>.<METODO>.<caminho com a query>.<SHA-256 hex do corpo>.<Atos-Painel-Quem>">
+// Mais de JANELA_ATOS_S de diferenca, assinatura que nao confere, e-mail ou papel que nao servem: 401. O PAVLVS
+// confia no papel que a Atos assina; quem pode o que aqui continua decidido aqui (PODE, abaixo). O token do GitHub
+// (a Atos faz o login do GitHub e guarda o token na sessao do painel dela) so vem quando a pessoa ligou o GitHub.
 
-/* O JWT do Cloudflare Access (RS256), conferido com as chaves do time. */
-async function conferirAccess(request, env, deps) {
-  if (!env.ACCESS_TEAM || !env.ACCESS_AUD) {
-    return { ok: false, status: 503, erro: "o Cloudflare Access do painel ainda não foi configurado (ACCESS_TEAM e ACCESS_AUD)" };
+export const PREFIXO = "/api/admin/pavlvs/";
+export const JANELA_ATOS_S = 60;
+
+const hexDe = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+
+async function hmacHex(segredo, texto) {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(segredo), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hexDe(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(texto)));
+}
+
+function iguais(a, b) {
+  a = String(a);
+  b = String(b);
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+/* Confere o pedido assinado pela Atos: {ok, email, nome, papel, login, token, corpo} ou {ok: false, status, erro}. */
+export async function conferirAtos(request, env, url, agoraMs) {
+  const segredo = String(env.PAINEL_SEGREDO_PAVLVS || "");
+  if (!segredo) {
+    console.warn("painel: falta o segredo PAINEL_SEGREDO_PAVLVS");
+    return { ok: false, status: 503, erro: "o painel da Atos não está ligado a este Worker" };
   }
-  const token = request.headers.get("cf-access-jwt-assertion") || cookies(request).CF_Authorization || "";
-  const partes = token.split(".");
-  if (partes.length !== 3) return { ok: false, erro: "entre pelo Cloudflare Access" };
-  let cab, corpo;
+  const recusa = { ok: false, status: 401, erro: "pedido sem a assinatura do painel da Atos" };
+  const quem64 = String(request.headers.get("atos-painel-quem") || "");
+  const p = Object.fromEntries(String(request.headers.get("atos-painel-assinatura") || "").split(",").map((x) => x.trim().split("=")).filter((x) => x.length === 2));
+  const ts = Number(p.t);
+  if (!quem64 || quem64.length > 8000 || !/^[A-Za-z0-9_-]+$/.test(quem64) || !Number.isInteger(ts) || !/^[0-9a-f]{64}$/.test(String(p.v1 || ""))) return recusa;
+  if (Math.abs(agoraMs / 1000 - ts) > JANELA_ATOS_S) return recusa;
+  const m = request.method;
+  const corpo = m === "GET" || m === "HEAD" ? new Uint8Array(0) : new Uint8Array(await request.arrayBuffer());
+  const resumo = hexDe(await crypto.subtle.digest("SHA-256", corpo));
+  const esperado = await hmacHex(segredo, [ts, m, url.pathname + url.search, resumo, quem64].join("."));
+  if (!iguais(esperado, p.v1)) return recusa;
+  let q;
   try {
-    cab = JSON.parse(new TextDecoder().decode(b64urlBytes(partes[0])));
-    corpo = JSON.parse(new TextDecoder().decode(b64urlBytes(partes[1])));
+    q = JSON.parse(new TextDecoder().decode(b64urlBytes(quem64)));
   } catch {
-    return { ok: false, erro: "a sessão do Cloudflare Access não confere" };
+    return recusa;
   }
-  const time = String(env.ACCESS_TEAM).replace(/^https?:\/\//, "").replace(/\/$/, "");
-  const agora = (deps.agora || Date.now)() / 1000;
-  const auds = Array.isArray(corpo.aud) ? corpo.aud : [corpo.aud];
-  if (cab.alg !== "RS256" || !auds.includes(env.ACCESS_AUD) || corpo.iss !== "https://" + time || !(corpo.exp > agora) || !corpo.email) {
-    return { ok: false, erro: "a sessão do Cloudflare Access venceu ou não é deste painel" };
-  }
-  const chaves = await (deps.chavesDoAccess || chavesDoAccess)(time);
-  const jwk = (chaves || []).find((k) => k.kid === cab.kid);
-  if (!jwk) return { ok: false, erro: "a sessão do Cloudflare Access não confere" };
-  try {
-    const chave = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
-    const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", chave, b64urlBytes(partes[2]), new TextEncoder().encode(partes[0] + "." + partes[1]));
-    if (!ok) return { ok: false, erro: "a sessão do Cloudflare Access não confere" };
-  } catch {
-    return { ok: false, erro: "a sessão do Cloudflare Access não confere" };
-  }
-  return { ok: true, email: String(corpo.email).toLowerCase() };
-}
-
-let CHAVES_CACHE = { quando: 0, time: "", chaves: null };
-async function chavesDoAccess(time) {
-  if (CHAVES_CACHE.chaves && CHAVES_CACHE.time === time && Date.now() - CHAVES_CACHE.quando < 3600 * 1000) return CHAVES_CACHE.chaves;
-  const r = await fetch("https://" + time + "/cdn-cgi/access/certs");
-  const d = r.ok ? await r.json() : {};
-  CHAVES_CACHE = { quando: Date.now(), time, chaves: d.keys || [] };
-  return CHAVES_CACHE.chaves;
-}
-
-export async function listaDaEquipe(env) {
-  const doKV = await kvJSON(env, "admin:equipe", null);
-  if (Array.isArray(doKV) && doKV.length) return doKV;
-  try {
-    const l = JSON.parse(env.ADMIN_EQUIPE || "[]");
-    return Array.isArray(l) ? l : [];
-  } catch {
-    return [];
-  }
-}
-
-async function membroDaEquipe(env, email) {
-  const lista = await listaDaEquipe(env);
-  const m = lista.find((x) => String(x.email || "").toLowerCase() === String(email || "").toLowerCase());
-  if (!m || !PAPEIS.includes(m.papel)) return null;
-  return { email: String(m.email).toLowerCase(), nome: m.nome || "", papel: m.papel };
-}
-
-async function sessaoDoCookie(request, env, access) {
-  const id = cookies(request).pv_admin || "";
-  if (!/^[0-9a-f]{48}$/.test(id)) return null;
-  const s = await kvJSON(env, "admin:sessao:" + id, null);
-  if (!s || s.email !== access.email) return null;
-  return { ...s, id };
+  const email = String((q && q.email) || "").trim().toLowerCase();
+  if (!q || !RE_EMAIL.test(email) || email.length > 120 || !PAPEIS.includes(q.papel)) return recusa;
+  const gh = q.github && typeof q.github === "object" && q.github.login && q.github.token ? q.github : null;
+  return { ok: true, email, nome: nomeLimpo(q.nome), papel: q.papel, login: gh ? String(gh.login).slice(0, 60) : "", token: gh ? String(gh.token) : "", corpo };
 }
 
 function configuracao(env) {
   const cfg = (ligado, falta) => ({ ligado: Boolean(ligado), falta: ligado ? "" : falta });
   return {
-    access: cfg(env.ACCESS_TEAM && env.ACCESS_AUD, "falta ACCESS_TEAM e ACCESS_AUD"),
-    github: cfg(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET, "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)"),
     email: cfg(env.RESEND_API_KEY, "o envio de e-mail ainda não está ligado: falta RESEND_API_KEY"),
-    // O emissor de NFS-e da nuvem (worker/nfse/api.js): o DO e a chave mestra.
-    nfse: cfg(!faltaDoEmissor(env), "o emissor de NFS-e ainda não está ligado: " + faltaDoEmissor(env)),
     tuneis: cfg(cfConfigurado(env), "falta a chave da Cloudflare (CF_API_TOKEN, CF_ACCOUNT_ID, CF_ZONE_ID)"),
     nuvem: cfg(env.IA_ATIVA === "1" && env.CONTAS_IA, "a nuvem do Paulus está desligada (IA_ATIVA)"),
-    // A liberacao do convidado no Cloudflare Access (a politica do painel, pela API).
-    equipe: cfg(accessConfigurado(env), "a liberação no Cloudflare Access ainda é à mão: " + faltaDoAccess(env) +
-      ". Quem aceitar o convite entra na equipe, mas o e-mail dela precisa ser incluído na política do Access do painel pelo dono."),
   };
 }
 
-// ------------------------------------------- o Cloudflare Access (a API)
-
-/* O que falta para o Worker mexer na politica do Access do painel ("" se nada). A
-   politica e achada pela aplicacao do painel (ACCESS_AUD); ACCESS_POLICY_ID so
-   escolhe quando a aplicacao tem mais de uma politica de permitir. */
-function faltaDoAccess(env) {
-  const falta = ["CF_ACCESS_TOKEN", "CF_ACCOUNT_ID"].filter((k) => !env[k]);
-  if (!env.ACCESS_POLICY_ID && !env.ACCESS_AUD) falta.push("ACCESS_AUD");
-  return falta.length ? "falta " + juntar(falta) : "";
-}
-
-function accessConfigurado(env) {
-  return !faltaDoAccess(env);
-}
-
-/* A API da Cloudflare com o token do Access (CF_ACCESS_TOKEN): o result, ou erro com a frase (e o status). */
-async function chamarCloudflare(env, metodo, caminho, corpo) {
-  const r = await fetch("https://api.cloudflare.com/client/v4" + caminho, {
-    method: metodo,
-    headers: { Authorization: "Bearer " + env.CF_ACCESS_TOKEN, "Content-Type": "application/json" },
-    body: corpo === undefined ? undefined : JSON.stringify(corpo),
-  });
-  let d = {};
-  try {
-    d = await r.json();
-  } catch {
-    d = {};
-  }
-  if (!r.ok || d.success === false) {
-    const msg = (d.errors && d.errors[0] && d.errors[0].message) || "HTTP " + r.status;
-    const erro = new Error("a Cloudflare recusou (" + msg + ")");
-    erro.status = r.status;
-    throw erro;
-  }
-  return d.result;
-}
-
-// A politica de permitir do painel no Access. A que o painel da Cloudflare cria hoje e
-// "reutilizavel": mora na conta (/access/policies/{id}), e a API recusa muda-la pelo
-// caminho da aplicacao ("can not update reusable policies through this endpoint"). A
-// antiga, presa a aplicacao, so muda por /access/apps/{app}/policies/{id}. Sem
-// ACCESS_POLICY_ID, vale a unica politica de permitir da aplicacao do ACCESS_AUD.
-async function politicaDoPainel(env) {
-  const conta = "/accounts/" + env.CF_ACCOUNT_ID + "/access";
-  const aplicacao = async () => {
-    const lista = await chamarCloudflare(env, "GET", conta + "/apps?aud=" + encodeURIComponent(env.ACCESS_AUD || ""));
-    const achada = (Array.isArray(lista) ? lista : []).find((a) => a && a.aud && a.aud === env.ACCESS_AUD);
-    if (!achada) throw new Error("a aplicação do painel (ACCESS_AUD) não está no Cloudflare Access desta conta");
-    return achada;
-  };
-  let app = env.ACCESS_APP_ID || "";
-  let id = env.ACCESS_POLICY_ID || "";
-  if (!id) {
-    const painel = await aplicacao();
-    app = app || painel.id;
-    const permitir = (Array.isArray(painel.policies) ? painel.policies : []).filter((p) => p && p.decision === "allow");
-    if (permitir.length !== 1) {
-      throw new Error(permitir.length ? "a aplicação do painel tem " + permitir.length + " políticas de permitir no Access: diga qual em ACCESS_POLICY_ID"
-        : "a aplicação do painel não tem política de permitir no Access");
-    }
-    id = permitir[0].id;
-  }
-  const reutilizavel = conta + "/policies/" + id;
-  try {
-    return { caminho: reutilizavel, antiga: false, atual: (await chamarCloudflare(env, "GET", reutilizavel)) || {} };
-  } catch (e) {
-    // A antiga nao existe no caminho da conta: tenta o da aplicacao.
-    if (e.status !== 404 && e.status !== 400) throw e;
-  }
-  if (!app) app = (await aplicacao()).id;
-  const caminho = conta + "/apps/" + app + "/policies/" + id;
-  return { caminho, antiga: true, atual: (await chamarCloudflare(env, "GET", caminho)) || {} };
-}
-
-// PUT com a politica inteira: o e-mail entra (ou sai) do include como {email: {email}},
-// e o resto fica como esta. A precedencia so existe na antiga (na reutilizavel, e de
-// cada aplicacao que a usa).
-const CAMPOS_DA_POLITICA = ["session_duration", "approval_required", "approval_groups", "isolation_required",
-  "purpose_justification_required", "purpose_justification_prompt", "mfa_config", "connection_rules"];
-
-/* Poe (por = true) ou tira o e-mail da politica: {feito, frase}. Nunca lanca. */
-async function politicaDoAccess(env, email, por) {
-  if (!accessConfigurado(env)) return { feito: false, frase: "a liberação no Cloudflare Access é à mão (" + faltaDoAccess(env) + ")" };
-  const alvo = String(email || "").toLowerCase();
-  try {
-    const { caminho, antiga, atual } = await politicaDoPainel(env);
-    const include = Array.isArray(atual.include) ? atual.include : [];
-    const eDele = (regra) => Boolean(regra && regra.email && String(regra.email.email || "").toLowerCase() === alvo);
-    if (include.some(eDele) === por) return { feito: true, frase: por ? "o e-mail já estava liberado no Access" : "o e-mail já não estava na política do Access" };
-    const novo = por ? [...include, { email: { email: alvo } }] : include.filter((x) => !eDele(x));
-    // Uma politica de "permitir" sem ninguem fecharia o painel para todos.
-    if (!novo.length) return { feito: false, frase: "tirar esse e-mail deixaria a política do Access vazia: tire à mão no painel da Cloudflare" };
-    const corpo = { name: atual.name, decision: atual.decision || "allow", include: novo, exclude: atual.exclude || [], require: atual.require || [] };
-    for (const k of CAMPOS_DA_POLITICA) if (atual[k] !== undefined && atual[k] !== null) corpo[k] = atual[k];
-    if (antiga && atual.precedence !== undefined && atual.precedence !== null) corpo.precedence = atual.precedence;
-    await chamarCloudflare(env, "PUT", caminho, corpo);
-    return { feito: true, frase: por ? "o e-mail foi liberado no Cloudflare Access" : "o e-mail saiu da política do Cloudflare Access" };
-  } catch (e) {
-    return { feito: false, frase: String((e && e.message) || e).slice(0, 200) };
-  }
-}
-
-/* Derruba as sessoes do Access de um e-mail (todos os aparelhos): {feito, frase}. Nunca lanca.
-   Pede a permissao "Access: Organizations, Identity Providers, and Groups" (Edit) no token. */
-async function revogarNoAccess(env, email) {
-  if (!env.CF_ACCESS_TOKEN || !env.CF_ACCOUNT_ID) {
-    return { feito: false, frase: "as sessões do Cloudflare Access continuam até vencer: falta " + juntar(["CF_ACCESS_TOKEN", "CF_ACCOUNT_ID"].filter((k) => !env[k])) };
-  }
-  try {
-    await chamarCloudflare(env, "POST", "/accounts/" + env.CF_ACCOUNT_ID + "/access/organizations/revoke_user", { email: String(email || "").toLowerCase() });
-    return { feito: true, frase: "as sessões do Cloudflare Access também saíram" };
-  } catch (e) {
-    return { feito: false, frase: "as sessões do Cloudflare Access continuam até vencer: " + String((e && e.message) || e).slice(0, 160) };
-  }
-}
-
-/* GET /api/admin/sessao: com o Access e o e-mail na equipe, a sessao nasce aqui (sem o GitHub). */
-async function sessaoAtual(request, env, access) {
-  const membro = access.ok ? await membroDaEquipe(env, access.email) : null;
-  let sessao = access.ok && membro ? await sessaoDoCookie(request, env, access) : null;
-  let novo = null;
-  if (access.ok && membro && !sessao) {
-    sessao = await criarSessao(env, access.email, {});
-    novo = cookie(sessao.id, SESSAO_S);
-  }
+/* GET /api/admin/pavlvs/sessao: quem a Atos assinou, o GitHub dela, a versao e o que falta configurar aqui. */
+async function sessaoAtual(c) {
   return json({
-    access: { ok: Boolean(access.ok && membro), email: access.ok ? access.email : "", erro: access.ok ? (membro ? "" : "esse e-mail não está na equipe do painel") : access.erro },
-    github: { ok: Boolean(sessao && sessao.token), login: sessao && sessao.login ? sessao.login : "" },
-    papel: membro ? membro.papel : "", nome: membro ? membro.nome : "",
-    worker: await versaoDoSite(env), pronto: Boolean(sessao), config: configuracao(env),
-  }, 200, novo ? { "set-cookie": novo } : {});
-}
-
-/* Uma sessao nova do painel (com o GitHub, extra traz login e token): {id, ...}. */
-async function criarSessao(env, email, extra) {
-  const id = aleatorio(24);
-  const s = { email, login: "", token: "", ...extra, criada: new Date().toISOString() };
-  await env.APOIOS.put("admin:sessao:" + id, JSON.stringify(s), { expirationTtl: SESSAO_S });
-  await env.APOIOS.put("admin:acesso:" + email, JSON.stringify({ ultimo: s.criada, login: s.login }));
-  // O indice das sessoes da pessoa: e por ele que "Encerrar todas as sessoes" acha as dos outros aparelhos.
-  const chave = "admin:sessoes:" + email;
-  const ids = ((await kvJSON(env, chave, [])) || []).filter((x) => /^[0-9a-f]{48}$/.test(x));
-  await env.APOIOS.put(chave, JSON.stringify([...ids.slice(-19), id]), { expirationTtl: SESSAO_S });
-  return { ...s, id };
+    access: { ok: true, email: c.quem.email },
+    github: { ok: Boolean(c.quem.token), login: c.quem.login || "" },
+    papel: c.quem.papel, nome: c.quem.nome,
+    worker: await versaoDoSite(c.env), pronto: true, config: configuracao(c.env),
+  });
 }
 
 async function versaoDoSite(env) {
@@ -599,72 +363,6 @@ async function versaoDoSite(env) {
   } catch {
     return "";
   }
-}
-
-async function githubEntrar(env, access, url) {
-  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) return json({ erro: "falta o OAuth App do GitHub (GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET)" }, 503);
-  const state = aleatorio(16);
-  // A tela para onde voltar (#alteracoes etc.): so um nome simples, nunca um endereco.
-  const volta = /^[a-z-]{1,30}$/.test(String(url.searchParams.get("volta") || "")) ? url.searchParams.get("volta") : "";
-  await env.APOIOS.put("admin:gh:" + state, JSON.stringify({ email: access.email, volta }), { expirationTtl: 600 });
-  const q = new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID, redirect_uri: SITE + "/api/admin/github/retorno", scope: "public_repo read:user", state, allow_signup: "false" });
-  return new Response(null, { status: 302, headers: { location: "https://github.com/login/oauth/authorize?" + q.toString(), "cache-control": "no-store" } });
-}
-
-function voltarComErro(frase) {
-  return new Response(null, { status: 302, headers: { location: "/admin/?erro=" + encodeURIComponent(frase), "cache-control": "no-store" } });
-}
-
-async function githubRetorno(env, url, access, membro, deps) {
-  const state = url.searchParams.get("state") || "";
-  const code = url.searchParams.get("code") || "";
-  const guardado = /^[0-9a-f]{32}$/.test(state) ? await kvJSON(env, "admin:gh:" + state, null) : null;
-  if (!guardado || guardado.email !== access.email || !code) return voltarComErro("o login do GitHub venceu; tente de novo");
-  await env.APOIOS.delete("admin:gh:" + state);
-  const gh = deps.github || chamarGitHub;
-  const t = await gh("POST", "https://github.com/login/oauth/access_token", null, {
-    client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: SITE + "/api/admin/github/retorno",
-  });
-  const token = t.ok && t.dados && t.dados.access_token;
-  if (!token) return voltarComErro("o GitHub não confirmou o login");
-  const u = await gh("GET", "https://api.github.com/user", token);
-  const login = u.ok && u.dados && u.dados.login;
-  if (!login) return voltarComErro("o GitHub não disse quem é a conta");
-  const perm = await gh("GET", "https://api.github.com/repos/" + REPO + "/collaborators/" + encodeURIComponent(login) + "/permission", token);
-  const nivel = perm.ok && perm.dados ? String(perm.dados.permission || "") : "";
-  if (!["admin", "write", "maintain"].includes(nivel)) return voltarComErro("a conta " + login + " não tem escrita em " + REPO);
-  const { id } = await criarSessao(env, access.email, { login, token });
-  const destino = "/admin/" + (guardado.volta ? "?github=1#" + guardado.volta : "");
-  return new Response(null, { status: 302, headers: { location: destino, "set-cookie": cookie(id, SESSAO_S), "cache-control": "no-store" } });
-}
-
-/* Apaga as sessoes do painel de um e-mail (as do KV): as do indice e, para as
-   de antes dele, uma volta na lista. Devolve quantas. */
-async function apagarSessoesDe(env, email, alem = []) {
-  const ids = new Set([...alem, ...(((await kvJSON(env, "admin:sessoes:" + email, [])) || []))].filter((x) => /^[0-9a-f]{48}$/.test(x)));
-  for (const k of await kvPor(env, "admin:sessao:")) {
-    const id = k.slice("admin:sessao:".length);
-    if (ids.has(id)) continue;
-    const s = await kvJSON(env, k, null);
-    if (s && s.email === email) ids.add(id);
-  }
-  let apagadas = 0;
-  for (const id of ids) {
-    const s = await kvJSON(env, "admin:sessao:" + id, null);
-    if (!s || s.email !== email) continue;
-    await env.APOIOS.delete("admin:sessao:" + id);
-    apagadas++;
-  }
-  await env.APOIOS.delete("admin:sessoes:" + email);
-  return apagadas;
-}
-
-/* "Encerrar todas as sessoes" (Minha conta): todas as sessoes do painel da pessoa,
-   esta tambem; com a chave da API do Access, as sessoes do Access dela tambem. */
-async function encerrarSessoes(env, quem) {
-  const encerradas = await apagarSessoesDe(env, quem.email, [quem.sessao.id]);
-  const access = await revogarNoAccess(env, quem.email);
-  return json({ ok: true, encerradas, access, logout: "/cdn-cgi/access/logout" }, 200, { "set-cookie": cookie("", 0) });
 }
 
 async function chamarGitHub(metodo, url, token, corpo) {
@@ -793,15 +491,16 @@ async function notasDaConta(c, id) {
 
 /* A nota de um pagamento para o extrato: a emitida (a substituta, se houve
    substituicao); sem ela, a ultima cancelada ou substituida, com o estado.
-   Os links sao as rotas do painel (atras do Access), as mesmas da aba Notas
-   fiscais: GET /api/admin/nfse/emissor/notas/:id/pdf e /xml. */
+   As notas sao as que o emissor do PAVLVS emitiu antes da cobranca ir para a
+   Atos; o PDF e o XML nao tem mais rota no painel (pdf e xml: null). */
 function notaDoPagamento(notas, ref) {
   const doPagamento = notas.filter((n) => String(n.pagamento || "") === String(ref || "") && ["emitida", "cancelada", "substituida"].includes(n.estado));
   if (!doPagamento.length) return null;
   doPagamento.sort((a, b) => Number(b.id) - Number(a.id));
   const n = doPagamento.find((x) => x.estado === "emitida") || doPagamento[0];
   return { id: n.id, numero: n.numero || "", estado: n.estado, ambiente: n.ambiente || "", quando: n.quando || "",
-    pdf: SITE + PREFIXO_EMISSOR + "notas/" + n.id + "/pdf?baixar=1", xml: SITE + PREFIXO_EMISSOR + "notas/" + n.id + "/xml" };
+    // Sem os links do PDF e do XML: as rotas do emissor sairam do painel (a NFS-e e da Atos).
+    pdf: null, xml: null };
 }
 
 // ------------------------------------------------------------ os tuneis
@@ -1563,7 +1262,7 @@ async function aplicarPlanosJson(c, d, resumo) {
   return {};
 }
 
-/* GET /api/planos/textos (publico, fora do Access): os textos de cada plano na
+/* GET /api/planos/textos (publico, fora do painel): os textos de cada plano na
    pagina de assinatura - os proprios do painel ou os padrao. Os numeros a
    pagina le de /api/ia/planos. */
 function textosDosPlanos(env) {
@@ -1598,282 +1297,6 @@ export async function comPlanosDoPainel(env) {
     PLANOS_CACHE = { quando: Date.now(), valor: v };
   }
   return PLANOS_CACHE.valor ? { ...env, IA_PLANOS: PLANOS_CACHE.valor } : env;
-}
-
-// ------------------------------------------------------------- NFS-e
-
-/* A aba Notas fiscais: o emissor da nuvem (situacao, notas, pagamentos sem
-   nota, Cloudflare) e o que o papel pode (worker/nfse/api.js, resumoParaPainel). */
-async function nfse(c) {
-  const r = await resumoParaPainel(c.env);
-  return { ...r, pode: { emitir: PODE_NFSE.includes(c.quem.papel) } };
-}
-
-// ------------------------------------------------------------- equipe
-//
-// A equipe e "admin:equipe" (ou, antes da primeira mudanca, o ADMIN_EQUIPE).
-// Os convites pendentes ficam em "admin:convites": nome, e-mail e papel - nem
-// documento nem endereco -, o resumo SHA-256 do link, quem convidou e ate
-// quando vale (7 dias). O link (/api/equipe/convite?t=...) fica fora do
-// Access: por ele a pessoa aceita, entra na equipe e, com a API do Access
-// configurada, o Worker poe o e-mail dela na politica do painel.
-
-async function convitesPendentes(env) {
-  const l = await kvJSON(env, "admin:convites", []);
-  return Array.isArray(l) ? l.filter((x) => x && x.email && x.h) : [];
-}
-
-async function guardarConvites(env, lista) {
-  if (lista.length) await env.APOIOS.put("admin:convites", JSON.stringify(lista.slice(-50)));
-  else await env.APOIOS.delete("admin:convites");
-}
-
-async function guardarEquipe(env, lista) {
-  await env.APOIOS.put("admin:equipe", JSON.stringify(lista.map((x) => ({ email: String(x.email).toLowerCase(), nome: x.nome || "", papel: x.papel }))));
-}
-
-async function equipe(c) {
-  const lista = await listaDaEquipe(c.env);
-  const membros = [];
-  for (const m of lista) {
-    const ac = await kvJSON(c.env, "admin:acesso:" + String(m.email).toLowerCase(), null);
-    membros.push({ email: String(m.email).toLowerCase(), nome: m.nome || "", papel: m.papel, ultimo: ac ? ac.ultimo : null });
-  }
-  // Os convites pendentes: a pessoa ainda nao aceitou (a tela mostra reenviar e cancelar).
-  for (const cv of await convitesPendentes(c.env)) {
-    if (membros.some((x) => x.email === cv.email)) continue;
-    membros.push({ email: cv.email, nome: cv.nome || "", papel: cv.papel, ultimo: null,
-      convite: { criado: cv.criado, vence: cv.vence, por: cv.por || "", vencido: !(Date.parse(cv.vence) > c.agora) } });
-  }
-  return {
-    membros, matriz: MATRIZ.map(([acao, papeis]) => ({ acao, dono: papeis.includes("dono"), financeiro: papeis.includes("financeiro"), suporte: papeis.includes("suporte") })),
-    liberacao: configuracao(c.env).equipe,
-  };
-}
-
-/* O que um equipe.membro pede faz sentido agora? "" se sim; senao, o motivo. */
-async function conferirMembro(c, d) {
-  const acao = String(d.acao || "");
-  if (!["criar", "editar", "excluir", "cancelar_convite"].includes(acao)) return "o que fazer com essa pessoa? (criar, editar, excluir ou cancelar_convite)";
-  const email = String(d.email || "").trim().toLowerCase();
-  if (!RE_EMAIL.test(email) || email.length > 120) return "e-mail inválido";
-  const lista = await listaDaEquipe(c.env);
-  const naEquipe = (e) => lista.some((x) => String(x.email).toLowerCase() === e);
-  const pendentes = await convitesPendentes(c.env);
-  const convidado = (e) => pendentes.some((x) => x.email === e);
-  const comDono = (l) => l.some((x) => x.papel === "dono");
-  if (acao === "criar" || acao === "editar") {
-    if (nomeLimpo(d.nome).length < 2) return "diga o nome da pessoa";
-    if (!PAPEIS.includes(d.papel)) return "papel inválido";
-  }
-  if (acao === "criar") {
-    if (naEquipe(email)) return email + " já está na equipe";
-    if (convidado(email)) return "já há um convite para " + email + ": reenvie ou cancele";
-    if (!c.env.RESEND_API_KEY) return "o convite vai por e-mail, e o envio ainda não está ligado: falta RESEND_API_KEY";
-  }
-  if (acao === "editar") {
-    const de = String(d.de || "").trim().toLowerCase();
-    if (!naEquipe(de)) return (de || "essa pessoa") + " não está na equipe";
-    if (de === email) {
-      if (!comDono(lista.map((x) => (String(x.email).toLowerCase() === de ? { ...x, papel: d.papel } : x)))) return "a equipe precisa de pelo menos um dono";
-    } else {
-      if (naEquipe(email) || convidado(email)) return email + " já está na equipe ou tem convite";
-      if (!c.env.RESEND_API_KEY) return "trocar o e-mail manda um convite para o novo, e o envio ainda não está ligado: falta RESEND_API_KEY";
-      // O e-mail novo so entra quando aceitar: ate la, o antigo ja saiu.
-      if (!comDono(lista.filter((x) => String(x.email).toLowerCase() !== de))) return "a equipe precisa de pelo menos um dono: o e-mail novo só entra quando aceitar o convite. Convide-o como dono antes de trocar este";
-    }
-  }
-  if (acao === "excluir") {
-    if (!naEquipe(email)) return email + " não está na equipe";
-    if (!comDono(lista.filter((x) => String(x.email).toLowerCase() !== email))) return "a equipe precisa de pelo menos um dono";
-  }
-  if (acao === "cancelar_convite" && !convidado(email)) return "não há convite pendente para " + email;
-  return "";
-}
-
-/* equipe.membro na publicacao: convida, edita, tira da equipe ou cancela o convite. */
-async function aplicarMembro(c, d) {
-  const erro = await conferirMembro(c, d);
-  if (erro) throw new Error(erro);
-  const { env } = c;
-  const email = String(d.email).trim().toLowerCase();
-  const nome = nomeLimpo(d.nome);
-  if (d.acao === "criar") return convidar(c, { email, nome, papel: d.papel });
-  if (d.acao === "cancelar_convite") {
-    await guardarConvites(env, (await convitesPendentes(env)).filter((x) => x.email !== email));
-    return {};
-  }
-  const lista = await listaDaEquipe(env);
-  if (d.acao === "excluir") return tirarDaEquipe(env, lista, email);
-  // editar
-  const de = String(d.de).trim().toLowerCase();
-  if (de === email) {
-    await guardarEquipe(env, lista.map((x) => (String(x.email).toLowerCase() === de ? { ...x, nome, papel: d.papel } : x)));
-    return {};
-  }
-  // O e-mail mudou: o novo recebe o convite (se o e-mail nao sai, nada muda) e o antigo sai.
-  const r = await convidar(c, { email, nome, papel: d.papel });
-  const fora = await tirarDaEquipe(env, lista, de);
-  return { ...r, ...fora };
-}
-
-/* Tira da equipe: a lista, a politica do Access (se a API estiver ligada), as sessoes do painel e as do Access. */
-async function tirarDaEquipe(env, lista, email) {
-  await guardarEquipe(env, lista.filter((x) => String(x.email).toLowerCase() !== email));
-  const access = accessConfigurado(env) ? await politicaDoAccess(env, email, false) : { feito: false, frase: "tire " + email + " da política do Cloudflare Access à mão (" + faltaDoAccess(env) + ")" };
-  await apagarSessoesDe(env, email);
-  if (accessConfigurado(env)) await revogarNoAccess(env, email);
-  return { access, ...(access.feito ? {} : { aviso: email + " saiu da equipe, mas não do Access: " + access.frase }) };
-}
-
-/* Um convite novo (ou o mesmo e-mail de novo): guarda e manda o e-mail. Se o e-mail nao sai, o convite tambem nao fica. */
-async function convidar(c, { email, nome, papel }) {
-  const token = aleatorio(32);
-  const cv = { email, nome, papel, h: await sha256Hex("convite:" + token), criado: iso(c.agora), vence: iso(c.agora + CONVITE_MS),
-    por: c.quem.email, por_nome: nomeLimpo(c.quem.nome, 60) };
-  const antes = await convitesPendentes(c.env);
-  await guardarConvites(c.env, [...antes.filter((x) => x.email !== email), cv]);
-  const e = await emailDoConvite(c.env, cv, token);
-  if (!e.ok) {
-    await guardarConvites(c.env, antes);
-    throw new Error(e.erro);
-  }
-  return { convite: email, vence: cv.vence };
-}
-
-function emailDoConvite(env, cv, token) {
-  const auto = accessConfigurado(env);
-  const quem = cv.por_nome || cv.por || "A equipe do Paulus";
-  return enviarEmail(env, {
-    para: cv.email, assunto: "Convite para o painel do Paulus", titulo: "Você foi convidado para a equipe do Paulus",
-    pre: "O link vale até " + dataBR(cv.vence),
-    texto: (cv.nome ? "Olá, " + primeiroNome(cv.nome) + ".\n\n" : "") +
-      quem + " convidou você para o painel de administração do Paulus, com o papel " + (NOME_DO_PAPEL[cv.papel] || cv.papel) + ". O link abaixo vale até " + dataBR(cv.vence) + ".\n\n" +
-      (auto ? "Ao aceitar, o seu e-mail é liberado no Cloudflare Access do painel."
-        : "Depois de aceitar, avise quem convidou: a liberação do seu e-mail no Cloudflare Access do painel ainda é feita à mão.") +
-      " Para entrar, o Access manda um código para este e-mail. A conta do GitHub (com escrita no repositório do PAVLVS) só é pedida para comitar e pushar ou retroagir." +
-      "\n\nSe não esperava este convite, ignore este e-mail.",
-    botao: "Abrir o convite", link: SITE + "/api/equipe/convite?t=" + token,
-  });
-}
-
-/* POST /api/admin/equipe/convite/:email/reenviar (na hora, so o dono): um link novo
-   (o anterior para de valer), mais 7 dias. */
-async function reenviarConvite(c, email) {
-  if (c.quem.papel !== "dono") return json({ erro: "o papel " + c.quem.papel + " não convida: convites são do dono" }, 403);
-  const lista = await convitesPendentes(c.env);
-  const cv = lista.find((x) => x.email === email);
-  if (!cv) return json({ erro: "não há convite pendente para " + (email || "esse e-mail") }, 404);
-  const token = aleatorio(32);
-  const novo = { ...cv, h: await sha256Hex("convite:" + token), vence: iso(c.agora + CONVITE_MS), reenviado: iso(c.agora), por: c.quem.email, por_nome: nomeLimpo(c.quem.nome, 60) };
-  await guardarConvites(c.env, lista.map((x) => (x.email === email ? novo : x)));
-  const e = await emailDoConvite(c.env, novo, token);
-  if (!e.ok) {
-    await guardarConvites(c.env, lista);
-    return json({ erro: e.erro }, e.status || 502);
-  }
-  return json(await equipe(c));
-}
-
-/* A pagina do convite (GET mostra, POST aceita), fora do Access. Aceitar poe a
-   pessoa na equipe e, com a API do Access configurada, o e-mail na politica
-   do painel; sem ela, a pagina diz que essa parte e a mao. */
-async function conviteDaEquipe(request, env, url, deps) {
-  const m = request.method;
-  if (m !== "GET" && m !== "POST") return paginaDoConvite(405, { titulo: "Abra o link do convite", paragrafos: ["Este endereço só abre o convite que chegou por e-mail."] });
-  if (deps.dentroDoLimite && !(await deps.dentroDoLimite(request, env))) {
-    return paginaDoConvite(429, { titulo: "Muitas tentativas seguidas", paragrafos: ["Espere um minuto e abra o link de novo."] });
-  }
-  const agora = (deps.agora || Date.now)();
-  let token = "";
-  if (m === "POST") {
-    try {
-      token = String((await request.formData()).get("t") || "");
-    } catch {
-      token = "";
-    }
-  } else token = String(url.searchParams.get("t") || "");
-  const h = /^[0-9a-f]{64}$/.test(token) ? await sha256Hex("convite:" + token) : "";
-  const cv = h ? (await convitesPendentes(env)).find((x) => x.h === h) : null;
-  if (!cv) {
-    return paginaDoConvite(410, { titulo: "Este convite não vale mais",
-      paragrafos: ["O link foi cancelado, trocado por um novo ou já foi usado. Peça a quem convidou para reenviar o convite."] });
-  }
-  if (!(Date.parse(cv.vence) > agora)) {
-    return paginaDoConvite(410, { titulo: "Este convite venceu",
-      paragrafos: ["Ele valia até " + dataBR(cv.vence) + ". Peça a quem convidou para reenviar: o link novo vale por mais 7 dias."] });
-  }
-  const auto = accessConfigurado(env);
-  const papel = NOME_DO_PAPEL[cv.papel] || cv.papel;
-  const linhas = [["Nome", cv.nome || "—"], ["E-mail", cv.email], ["Papel", papel], ["Vale até", dataBR(cv.vence)]];
-  const github = "A conta do GitHub (com escrita no repositório do PAVLVS) só é pedida para comitar e pushar ou retroagir.";
-  if (m === "GET") {
-    return paginaDoConvite(200, {
-      titulo: "Entrar na equipe do Paulus?", linhas, form: token, botao: "Aceitar o convite",
-      paragrafos: [(cv.por_nome || cv.por || "A equipe do Paulus") + " convidou você para o painel de administração do Paulus.",
-        auto ? "Ao aceitar, o seu e-mail é liberado no Cloudflare Access do painel. Para entrar, o Access manda um código para " + cv.email + ". " + github
-          : "Ao aceitar, você entra na equipe do painel. A liberação do seu e-mail no Cloudflare Access ainda é feita à mão por quem convidou: avise depois de aceitar. Com ela, o Access manda um código para " + cv.email + ". " + github],
-    });
-  }
-  // Aceitar. A equipe primeiro: com o Access liberado depois (a mao ou de novo pelo link), a pessoa ja tem o papel.
-  const equipeAtual = await listaDaEquipe(env);
-  if (!equipeAtual.some((x) => String(x.email).toLowerCase() === cv.email)) {
-    await guardarEquipe(env, [...equipeAtual, { email: cv.email, nome: cv.nome, papel: cv.papel }]);
-  }
-  if (auto) {
-    const lib = await politicaDoAccess(env, cv.email, true);
-    if (!lib.feito) {
-      // O convite continua valendo: abrir o link de novo tenta o Access outra vez.
-      return paginaDoConvite(502, { titulo: "Quase lá", linhas, paragrafos: ["Você entrou na equipe, mas o Cloudflare Access não liberou o seu e-mail agora: " + lib.frase + ".",
-        "Abra o link de novo em alguns minutos: ele continua valendo até " + dataBR(cv.vence) + ". Se não der, avise quem convidou."] });
-    }
-  }
-  await guardarConvites(env, (await convitesPendentes(env)).filter((x) => x.h !== h));
-  return paginaDoConvite(200, auto ? {
-    titulo: cv.nome ? "Pronto, " + primeiroNome(cv.nome) + "." : "Pronto.", linhas, botao: "Abrir o painel", link: "/admin/",
-    paragrafos: ["Você entrou na equipe, com o papel " + papel + ", e o seu e-mail foi liberado no Cloudflare Access do painel.",
-      "Para entrar: abra o painel, digite " + cv.email + " no Access e use o código que chega nesse e-mail. " + github],
-  } : {
-    titulo: cv.nome ? "Pronto, " + primeiroNome(cv.nome) + "." : "Pronto.", linhas,
-    paragrafos: ["Você entrou na equipe, com o papel " + papel + ".",
-      "Falta um passo, que ainda é feito à mão: quem convidou precisa incluir " + cv.email + " na política do Cloudflare Access do painel. Avise essa pessoa; depois disso, o Access manda um código para esse e-mail quando você abrir paulus.ia.br/admin. " + github],
-  });
-}
-
-/* A pagina do convite, no desenho das paginas do Worker (claro ou escuro, pelo sistema). Sem script. */
-function paginaDoConvite(status, { rotulo = "Convite", titulo = "", paragrafos = [], linhas = [], form = "", botao = "", link = "" }) {
-  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-  const tabela = linhas.length ? '<div class="linhas">' + linhas.map(([r, v]) => '<div class="linha"><span class="r">' + esc(r) + "</span><span>" + esc(v) + "</span></div>").join("") + "</div>" : "";
-  const acao = form
-    ? '<form method="post" action="/api/equipe/convite"><input type="hidden" name="t" value="' + esc(form) + '"><button class="principal" type="submit"><span>' + esc(botao) + "</span></button></form>"
-    : botao && link ? '<a class="principal" href="' + esc(link) + '"><span>' + esc(botao) + "</span></a>" : "";
-  const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
-    "<title>" + esc(titulo) + ' — PAVLVS</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">' +
-    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=Manrope:wght@400;500;600&family=Fira+Code:wght@400&display=swap"><style>' +
-    ":root{--bg:#f6f5f1;--panel:#efeee9;--pill:#e2e1db;--pill-h:#dad9d2;--ink:#1c1c1a;--ink2:#55544f;--ink3:#77766f;--line:rgba(28,28,26,.12);--line2:rgba(28,28,26,.25);color-scheme:light}" +
-    "@media (prefers-color-scheme:dark){:root{--bg:#131312;--panel:#1a1a18;--pill:#2a2a27;--pill-h:#303030;--ink:#f2f1ec;--ink2:#a8a69e;--ink3:#6f6e68;--line:rgba(242,241,236,.1);--line2:rgba(242,241,236,.2);color-scheme:dark}}" +
-    "*{box-sizing:border-box}html,body{margin:0}" +
-    'body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font:400 16px/1.6 Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}' +
-    "header{padding:0 28px;min-height:56px;display:flex;align-items:center;border-bottom:1px solid var(--line)}" +
-    '.marca{font:400 20px/1 "EB Garamond",Georgia,serif;letter-spacing:.12em;color:inherit;text-decoration:none}' +
-    "main{flex:1;width:100%;max-width:560px;margin:0 auto;padding:48px 16px;display:grid;gap:18px;align-content:center}" +
-    '.rotulo{font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}' +
-    'h1{margin:0;font:400 clamp(30px,6vw,40px)/1.1 "EB Garamond",Georgia,serif;text-wrap:balance}' +
-    "p{margin:0;font-size:14px;line-height:1.6;color:var(--ink2);text-wrap:pretty}" +
-    ".linhas{display:grid;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}" +
-    ".linha{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:baseline;padding:10px 12px;border-top:1px solid var(--line);font-size:14px;overflow-wrap:anywhere}" +
-    '.linha:first-child{border-top:0}.linha .r{font:400 12px "Fira Code",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}' +
-    "form{margin:0}" +
-    ".principal{display:inline-flex;padding:1px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);font:500 13px Manrope,system-ui,sans-serif;text-decoration:none;cursor:pointer}" +
-    ".principal>span{height:28px;padding:0 22px;display:flex;align-items:center;border-radius:8px;background:var(--pill)}" +
-    ".principal:hover{border-color:var(--line2)}.principal:hover>span{background:var(--pill-h)}.principal:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}" +
-    '</style></head><body><header><a class="marca" href="/">PAVLVS</a></header><main><span class="rotulo">' + esc(rotulo) + "</span><h1>" + esc(titulo) + "</h1>" +
-    paragrafos.map((t) => "<p>" + esc(t) + "</p>").join("") + tabela + (acao ? "<div>" + acao + "</div>" : "") + "</main></body></html>";
-  return new Response(html, {
-    status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer",
-      "x-content-type-options": "nosniff",
-      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
-  });
 }
 
 // -------------------------------------------------------------- busca
@@ -1941,7 +1364,6 @@ async function conferirAlteracao(c, tipo, d) {
     const r = await cadastroEditado(c, d);
     return r.erro || "";
   }
-  if (tipo === "equipe.membro") return conferirMembro(c, d);
   if (tipo === "conta.creditar" && !(Number(d.tokens) > 0 && Number(d.tokens) <= 1e9)) return "quantos tokens?";
   if (tipo.startsWith("tunel.") && !/^[a-z0-9-]{3,24}$/.test(String(d.slug || ""))) return "endereço inválido";
   if (tipo === "tunel.endereco") {
@@ -1967,7 +1389,6 @@ async function conferirAlteracao(c, tipo, d) {
   if ((tipo === "plano.criar" || tipo === "plano.editar") && !(Number(d.valor) > 0 && Number(d.tokens) > 0)) return "valor e tokens precisam ser maiores que zero";
   if (tipo === "plano.criar" && !(Number(d.valor_anual) > 0)) return "diga o valor do ano";
   if (tipo === "plano.editar" && d.valor_anual !== undefined && !(Number(d.valor_anual) > 0)) return "o valor do ano precisa ser maior que zero";
-  if (tipo === "equipe.papel" && !PAPEIS.includes(d.papel)) return "papel inválido";
   if (tipo === "campanha.disparar") {
     if (!String(d.assunto || "").trim() || !String(d.texto || "").trim()) return "a campanha precisa de assunto e texto";
     if (d.quando !== undefined && !["agora", "amanha", "segunda", "agendado"].includes(d.quando)) return "quando enviar? (agora, amanha, segunda ou agendado)";
@@ -2052,7 +1473,9 @@ async function publicar(c, d) {
 // continua).
 // O resto mudou fora do painel e e desfeito pela propria tela.
 
-const KV_DA_ALTERACAO = { "plano.criar": ["admin:planos"], "plano.editar": ["admin:planos"], "planos.json": ["admin:planos"], "nfse.config": ["admin:nfse:config"], "equipe.papel": ["admin:equipe"] };
+// As publicacoes de antes (ate 11/10/2026) podem ter retrato dos interruptores das notas e da equipe, que
+// sairam do painel: o rotulo continua, para a frase do conflito.
+const KV_DA_ALTERACAO = { "plano.criar": ["admin:planos"], "plano.editar": ["admin:planos"], "planos.json": ["admin:planos"] };
 const ROTULO_DO_KV = { "admin:planos": "os planos", "admin:nfse:config": "os interruptores das notas fiscais", "admin:equipe": "a equipe" };
 const NAO_VOLTA = {
   "conta.creditar": "os créditos já estão na conta (o medidor não tira créditos pelo painel)",
@@ -2062,6 +1485,7 @@ const NAO_VOLTA = {
   "tunel.apagar": "o túnel e o DNS apagados não voltam: o escritório conecta de novo",
   "tunel.endereco": "para voltar, altere o endereço de novo em Túneis",
   "tunel.ativo": "para voltar, use Ativar ou Desativar acesso em Túneis",
+  // A equipe saiu do PAVLVS (e da Atos agora): o que uma publicacao antiga mudou nela nao volta por aqui.
   "equipe.membro": "convites e acessos voltam pela tela Equipe (convidar de novo ou excluir)",
   "campanha.cancelar": "a campanha cancelada não volta: dispare de novo",
 };
@@ -2329,8 +1753,6 @@ async function aplicar(c, alt) {
       return ativarEndereco(env, d.slug, Boolean(d.ativo), c.agora, c.quem.email);
     case "campanha.disparar":
       return dispararCampanha(c, d);
-    case "equipe.membro":
-      return aplicarMembro(c, d);
     case "plano.criar":
     case "plano.editar":
       return aplicarPlano(c, alt.tipo, d, alt.texto);
@@ -2338,18 +1760,6 @@ async function aplicar(c, alt) {
       return aplicarPlanosJson(c, d, alt.texto);
     case "campanha.cancelar":
       return cancelarCampanhaPelaFila(c, d);
-    case "nfse.config":
-      await env.APOIOS.put("admin:nfse:config", JSON.stringify({ auto: Boolean(d.auto), email: Boolean(d.email), mail: Boolean(d.mail) }));
-      return {};
-    case "equipe.papel": {
-      const lista = await listaDaEquipe(env);
-      const m = lista.find((x) => String(x.email).toLowerCase() === String(d.email).toLowerCase());
-      if (!m) throw new Error("essa pessoa não está na equipe");
-      m.papel = d.papel;
-      if (!lista.some((x) => x.papel === "dono")) throw new Error("a equipe precisa de pelo menos um dono");
-      await env.APOIOS.put("admin:equipe", JSON.stringify(lista));
-      return {};
-    }
     default:
       throw new Error("alteração desconhecida");
   }

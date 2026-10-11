@@ -1,30 +1,28 @@
-// A aba Notas fiscais do painel com o emissor da nuvem ligado, sem rede:
+// O emissor de NFS-e do PAVLVS (worker/nfse/api.js, atenderEmissor) com tudo ligado, sem rede:
 //   node worker/teste-nfse-admin.mjs
 //
-// Passa pelo painel inteiro (worker/admin.js: Cloudflare Access de mentira +
-// sessão do GitHub) até o Durable Object EmissorNFSe (SQLite de verdade, pelo
-// node:sqlite) e a Sefin simulada atrás do SEFIN_MTLS. A API da Cloudflare é
-// de mentira (nenhuma chamada sai daqui): o teste confere o corpo de cada
-// chamada do cadastro do mTLS.
-//   1. as portas: Access, GitHub e o papel (suporte só lê)
+// O emissor continua no Worker, mas desde 11/10/2026 o painel admin (que mora na Atos) nao o expoe mais: a Atos
+// tem as notas dela. Este teste chama o emissor direto (o que o painel fazia por /api/admin/nfse/emissor/*, sem a
+// porta nem os papeis, que eram do painel) ate o Durable Object EmissorNFSe (SQLite de verdade, pelo node:sqlite)
+// e a Sefin simulada atras do SEFIN_MTLS. A API da Cloudflare e de mentira (nenhuma chamada sai daqui): o teste
+// confere o corpo de cada chamada do cadastro do mTLS.
+//   1. a situacao, os municipios e os parametros
 //   2. o certificado aberto no navegador: sem token (guarda e diz que falta),
 //      com o token (POST mtls_certificates, PUT do auxiliar, DELETE do anterior),
-//      e a publicação do auxiliar que falha
-//   3. testar comunicação: certificado, Sefin e convênio, com o tempo
-//   4. clientes, emitir pelo painel (com erro de conferência), PDF na hora,
-//      depois, enviar ao cliente, XML
-//   5. automático no pagamento (tomador completo e incompleto) e o Cron do PDF
-//   6. cancelar, substituir e a produção
+//      e a publicacao do auxiliar que falha
+//   3. testar comunicacao: certificado, Sefin e convenio, com o tempo
+//   4. clientes, emitir (com erro de conferencia), PDF na hora, depois, enviar ao cliente, XML
+//   5. automatico no pagamento (tomador completo e incompleto) e o Cron do PDF
+//   6. cancelar, substituir e a producao
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { atenderAdmin } from "./admin.js";
 import { ContaIA, numeros } from "./ia.js";
 import { EmissorNFSe, K_DEPOIS } from "./nfse/emissor.js";
-import { chamar as chamarEmissor, depoisPendentes, emitirAutomatico } from "./nfse/api.js";
+import { atenderEmissor, chamar as chamarEmissor, depoisPendentes, emitirAutomatico, resumoParaPainel, PREFIXO } from "./nfse/api.js";
 import { SefinSimulada } from "./nfse/sefin-simulada.js";
 import { lerPfx } from "./nfse/pfx.js";
 import { b64 } from "./nfse/assinatura.js";
@@ -135,65 +133,25 @@ async function chamarMP() {
   return { ok: true, status: 200, dados: {} };
 }
 
-// ------------------------------------------------------------ Access e GitHub de mentira
-const TIME = "paulus.cloudflareaccess.com";
-const AUD = "aud-do-painel";
-const par = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
-const jwkPublica = { ...(await crypto.subtle.exportKey("jwk", par.publicKey)), kid: "k1" };
-const b64url = (bytes) => Buffer.from(bytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-async function jwt(email) {
-  const cab = b64url(new TextEncoder().encode(JSON.stringify({ alg: "RS256", kid: "k1" })));
-  const corpo = b64url(new TextEncoder().encode(JSON.stringify({ email, aud: [AUD], iss: "https://" + TIME, exp: Date.now() / 1000 + 3600 })));
-  const ass = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", par.privateKey, new TextEncoder().encode(cab + "." + corpo));
-  return cab + "." + corpo + "." + b64url(new Uint8Array(ass));
-}
-async function github(metodo, url, token, corpo) {
-  if (url.includes("/login/oauth/access_token")) return { ok: true, status: 200, dados: { access_token: "gho_" + corpo.code } };
-  if (url.endsWith("/user")) return { ok: true, status: 200, dados: { login: "gh-" + token.slice(4) } };
-  if (url.includes("/collaborators/")) return { ok: true, status: 200, dados: { permission: "write" } };
-  return { ok: false, status: 404, dados: null };
-}
-
 const mestra = b64(crypto.getRandomValues(new Uint8Array(32)));
 const env = {
-  IA_ATIVA: "1", CONTAS_IA, APOIOS, ACCESS_TEAM: TIME, ACCESS_AUD: AUD, GITHUB_CLIENT_ID: "cid", GITHUB_CLIENT_SECRET: "csec",
+  IA_ATIVA: "1", CONTAS_IA, APOIOS,
   RESEND_API_KEY: "re_x", MP_ACCESS_TOKEN: "mp", EMISSOR_NFSE, NFSE_CHAVE_MESTRA: mestra, SEFIN_MTLS: { fetch: sim.fetch }, CF_ACCOUNT_ID: CF_CONTA,
-  ADMIN_EQUIPE: JSON.stringify([
-    { email: "dono@paulus.ia.br", nome: "Matheus", papel: "dono" },
-    { email: "fin@paulus.ia.br", nome: "Fátima", papel: "financeiro" },
-    { email: "sup@paulus.ia.br", nome: "Sérgio", papel: "suporte" },
-  ]),
   ASSETS: { fetch: async () => new Response(JSON.stringify({ versao: "0.9.22" }), { status: 200 }) },
 };
 instancia = new EmissorNFSe({ storage }, env);
-const deps = { github, chamarMP, chavesDoAccess: async () => [jwkPublica] };
 const esperando = [];
 const ctx = { waitUntil: (p) => esperando.push(p) };
 
-async function admin(metodo, caminho, { email = "dono@paulus.ia.br", corpo, cookie, semAccess = false } = {}) {
-  const headers = { "content-type": "application/json" };
-  if (!semAccess) headers["cf-access-jwt-assertion"] = await jwt(email);
-  if (cookie) headers.cookie = "pv_admin=" + cookie;
-  const req = new Request("https://paulus.ia.br" + caminho, { method: metodo, headers, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
-  return atenderAdmin(req, env, new URL(req.url), ctx, deps);
-}
-async function entrar(email) {
-  let r = await admin("GET", "/api/admin/github/entrar", { email });
-  const state = new URL(r.headers.get("location")).searchParams.get("state");
-  r = await admin("GET", "/api/admin/github/retorno?code=" + email.split("@")[0] + "&state=" + state, { email });
-  return (r.headers.get("set-cookie") || "").match(/pv_admin=([0-9a-f]+)/)[1];
-}
-const SESSOES = {};
-for (const e of ["dono@paulus.ia.br", "fin@paulus.ia.br", "sup@paulus.ia.br"]) SESSOES[e] = await entrar(e);
-/** Pedido ao emissor pelo painel: {status, dados, r}. */
-async function nf(metodo, caminho, corpo, email = "dono@paulus.ia.br") {
-  const r = await admin(metodo, "/api/admin/nfse/emissor/" + caminho, { email, corpo, cookie: SESSOES[email] });
+/** Pedido ao emissor, como o painel fazia (o quem e o e-mail de quem pede): {status, dados, r}. */
+async function nf(metodo, caminho, corpo, email = "dono@paulus.ia.br", envUsado = env) {
+  const req = new Request("https://paulus.ia.br" + PREFIXO + caminho, { method: metodo, headers: { "content-type": "application/json" }, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
+  const r = await atenderEmissor(req, envUsado, ctx, { quem: email, prefixo: PREFIXO });
   const tipo = r.headers.get("content-type") || "";
   return { status: r.status, r, dados: tipo.includes("json") ? await r.json() : tipo.includes("pdf") ? new Uint8Array(await r.arrayBuffer()) : await r.text() };
 }
-async function painel(email = "dono@paulus.ia.br") {
-  const r = await admin("GET", "/api/admin/nfse", { email, cookie: SESSOES[email] });
-  return r.json();
+async function painel() {
+  return resumoParaPainel(env);
 }
 
 // As contas: Ana com o cadastro completo (endereço), Bruno sem endereço.
@@ -243,27 +201,16 @@ checar(/senha do certificado incorreta/.test(senhaErrada), "senha errada: a fras
 const ecpf = janela.PavlvsPfx.ler(readFileSync(join(AQUI, "nfse", "fixtures", "a1-ecpf.pfx")), senha);
 checar(ecpf.documento === lerPfx(readFileSync(join(AQUI, "nfse", "fixtures", "a1-ecpf.pfx")), senha).documento && ecpf.documento.length === 11, "e-CPF: o CPF do otherName", ecpf.documento);
 
-// ------------------------------------------------------------ 1. portas
-console.log("1. as portas do painel");
-let r = await admin("GET", "/api/admin/nfse/emissor/situacao", { semAccess: true });
-checar(r.status === 401, "sem o Cloudflare Access: 401");
-r = await admin("GET", "/api/admin/nfse/emissor/situacao");
-checar(r.status === 401 && (await r.json()).passo === "sessao", "com o Access e sem a sessão do painel: 401 passo sessao");
-r = await admin("GET", "/api/admin/nfse/emissor/situacao", { email: "intruso@gmail.com", cookie: SESSOES["dono@paulus.ia.br"] });
-checar(r.status === 403, "e-mail fora da equipe: 403");
-r = await admin("GET", "/api/admin/nfse/emissor/situacao", { email: "sup@paulus.ia.br", cookie: SESSOES["dono@paulus.ia.br"] });
-checar(r.status === 401, "o cookie do dono não vale com o Access do suporte");
-let x = await nf("GET", "situacao", undefined, "sup@paulus.ia.br");
+// ------------------------------------------------------------ 1. situacao e municipios
+console.log("1. a situação, os municípios e os parâmetros");
+let r;
+let x = await nf("GET", "situacao");
 checar(x.status === 200 && x.dados.pode_emitir === false && x.dados.cloudflare && x.dados.cloudflare.token === false && x.dados.opcoes.motivos_cancelamento["1"],
-  "o suporte lê a situação (com as opções da tela e a Cloudflare sem token)", x.dados);
-for (const [rota, corpo] of [["notas", { valor: 1 }], ["certificado", doNavegador], ["prestador", { prestador: PRESTADOR }], ["cloudflare", { token: TOKEN_CF }], ["producao/liberar", {}]]) {
-  x = await nf("POST", rota, corpo, "sup@paulus.ia.br");
-  checar(x.status === 403 && /só vê as notas fiscais/.test(x.dados.erro), "suporte: POST " + rota + " é recusado (403)", x.dados);
-}
+  "a situação (com as opções da tela e a Cloudflare sem token)", x.dados);
 // a busca de município pelo nome (Emitir, Clientes e Parâmetros)
-x = await nf("GET", "municipios?q=goi", undefined, "sup@paulus.ia.br");
+x = await nf("GET", "municipios?q=goi");
 checar(x.status === 200 && x.dados.municipios.length === 12 && x.dados.municipios.some((m) => m.codigo === "5208707" && m.nome === "Goiânia" && m.uf === "GO")
-  && x.dados.municipios.every((m) => /^\d{7}$/.test(m.codigo) && m.nome && m.uf), "municípios: \"goi\" acha Goiânia/GO (até 12; o suporte também busca)", x.dados);
+  && x.dados.municipios.every((m) => /^\d{7}$/.test(m.codigo) && m.nome && m.uf), "municípios: \"goi\" acha Goiânia/GO (até 12)", x.dados);
 x = await nf("GET", "municipios?q=" + encodeURIComponent("SAO PAULO"));
 checar(x.dados.municipios[0].codigo === "3550308", "sem acento e sem caixa: \"SAO PAULO\" -> São Paulo primeiro", x.dados.municipios[0]);
 x = await nf("GET", "municipios?q=paulo&uf=sp");
@@ -274,14 +221,11 @@ checar(x.dados.municipios.length === 1 && x.dados.municipios[0].nome === "Goiân
 x = await nf("GET", "municipios?q=" + encodeURIComponent("xyzw"));
 const vazio = await nf("GET", "municipios?q=");
 checar(x.status === 200 && x.dados.municipios.length === 0 && vazio.dados.municipios.length === 0, "nada que bata (ou busca vazia): lista vazia");
-r = await admin("GET", "/api/admin/nfse/emissor/municipios?q=goi");
-checar(r.status === 401, "a busca de município pede a mesma autenticação do painel");
-r = await admin("POST", "/api/admin/nfse/emissor/prestador", { email: "fin@paulus.ia.br", cookie: SESSOES["fin@paulus.ia.br"], corpo: { prestador: PRESTADOR } });
-let d = await r.json();
-checar(r.status === 200 && d.versao === 1 && d.faltas.length === 0, "o financeiro grava os parâmetros (na hora, sem a fila)", d);
-checar(!kv.has("admin:pendentes:fin@paulus.ia.br") || JSON.parse(kv.get("admin:pendentes:fin@paulus.ia.br")).length === 0, "nada entrou na fila de alterações");
+x = await nf("POST", "prestador", { prestador: PRESTADOR }, "fin@paulus.ia.br");
+let d = x.dados;
+checar(x.status === 200 && d.versao === 1 && d.faltas.length === 0, "grava os parâmetros", d);
 const passoPrest = storage.db.prepare("SELECT criado_por FROM prestador ORDER BY id DESC LIMIT 1").get();
-checar(passoPrest.criado_por === "fin@paulus.ia.br", "a versão da configuração registra quem gravou (o e-mail do Access)", passoPrest);
+checar(passoPrest.criado_por === "fin@paulus.ia.br", "a versão da configuração registra quem gravou", passoPrest);
 
 // ------------------------------------------------------------ 2. certificado
 console.log("2. o certificado e o mTLS");
@@ -345,52 +289,47 @@ x = await nf("GET", "situacao");
 checar(x.dados.pode_emitir === true && x.dados.municipio.situacao === "conveniado", "agora pode emitir", x.dados.motivos);
 
 // ------------------------------------------------------------ 4. clientes e emitir
-console.log("4. clientes e emitir pelo painel");
-x = await nf("GET", "clientes", undefined, "sup@paulus.ia.br");
+console.log("4. clientes e emitir");
+x = await nf("GET", "clientes");
 const cAna = x.dados.clientes.find((c) => c.id === ANA);
 const cBruno = x.dados.clientes.find((c) => c.id === BRUNO);
 checar(x.status === 200 && cAna.faltas.length === 0 && cAna.tomador.cmun === "1501402" && cBruno.faltas.includes("CEP"), "clientes: o tomador de cada um e o que falta", x.dados);
 x = await nf("POST", "clientes/" + ANA, { tomador: { cep: "123" } });
 checar(x.status === 400, "ajuste com CEP errado: 400");
-x = await nf("POST", "clientes/" + ANA, { tomador: { email: "fiscal@ana.adv.br" } }, "sup@paulus.ia.br");
-checar(x.status === 403, "o suporte não edita cliente");
 x = await nf("POST", "clientes/" + ANA, { tomador: { email: "fiscal@ana.adv.br" } });
-checar(x.status === 200 && x.dados.tomador.email === "fiscal@ana.adv.br" && x.dados.ajustado, "o dono salva o ajuste do tomador", x.dados);
+checar(x.status === 200 && x.dados.tomador.email === "fiscal@ana.adv.br" && x.dados.ajustado, "salva o ajuste do tomador", x.dados);
 kv.set("admin:nfse:config", JSON.stringify({ auto: false, email: false, mail: false }));
 const competencia = HOJE.slice(0, 7);
 x = await nf("POST", "notas", { conta: ANA, pagamento: "PAY1", tomador: { ...cAna.tomador, documento: "52998224726" }, valor: "300,00", descricao: "Assinatura do PAULUS — plano mensal", competencia });
 checar(x.status === 400 && /não passou na conferência|CPF/.test(x.dados.erro), "erro de conferência volta com a frase (o pop-up mostra)", x.dados);
 x = await nf("POST", "notas", { conta: ANA, pagamento: "PAY1", tomador: cAna.tomador, valor: "300,00", descricao: "Assinatura do PAULUS — plano mensal", competencia }, "fin@paulus.ia.br");
 const n1 = x.dados;
-checar(x.status === 200 && n1.estado === "emitida" && n1.numero && n1.competencia === competencia && n1.centavos === 30000 && n1.pagamento === "PAY1", "emitida pelo painel", n1);
+checar(x.status === 200 && n1.estado === "emitida" && n1.numero && n1.competencia === competencia && n1.centavos === 30000 && n1.pagamento === "PAY1", "emitida", n1);
 checar(!kv.has("nfse:nota:" + ANA + ":nuvem-" + n1.id), "com \"entregar ao app\" desligado, a nota não vai ao app do cliente");
 checar(kvJson("admin:nfse:PAY1").nota === "emitida" && kvJson("admin:nfse:PAY1").numero === n1.numero, "o pagamento fica marcado emitida");
 checar(JSON.parse(kv.get(K_DEPOIS)).some((y) => y.id === n1.id), "a nota entra na lista do depois (PDF)");
 const passos = (await nf("GET", "notas/" + n1.id)).dados.passos;
 checar(passos[0].quem === "fin@paulus.ia.br" && passos.some((p) => /Enviar ao cliente/.test(p.detalhe)), "os passos dizem quem emitiu e que a entrega ficou para o botão", passos.map((p) => p.quem + ": " + p.detalhe));
 d = await painel();
-checar(d.emissor.ligado && d.notas.some((n) => n.id === n1.id) && !d.pagamentos.some((p) => p.id === "PAY1") && d.situacao.pode_emitir && d.pode.emitir,
-  "GET /api/admin/nfse: a nota na lista e o pagamento fora dos sem nota", { pag: d.pagamentos, notas: d.notas.length });
-checar((await painel("sup@paulus.ia.br")).pode.emitir === false, "para o suporte, a aba diz que ele não emite");
+checar(d.emissor.ligado && d.notas.some((n) => n.id === n1.id) && !d.pagamentos.some((p) => p.id === "PAY1") && d.situacao.pode_emitir,
+  "o resumo (o que a aba lia): a nota na lista e o pagamento fora dos sem nota", { pag: d.pagamentos, notas: d.notas.length });
 // PDF na hora (ainda não existe)
 checar(!kv.has("admin:nfse-pdf:" + n1.id), "o PDF ainda não existe");
-x = await nf("GET", "notas/" + n1.id + "/pdf", undefined, "sup@paulus.ia.br");
+x = await nf("GET", "notas/" + n1.id + "/pdf");
 checar(x.status === 200 && x.r.headers.get("content-type") === "application/pdf" && Buffer.from(x.dados.subarray(0, 5)).toString() === "%PDF-" && /^inline; filename="NFS-e \d+\.pdf"$/.test(x.r.headers.get("content-disposition")),
-  "PDF: gerado na hora num pedido próprio (o suporte também baixa)", x.r.headers.get("content-disposition"));
+  "PDF: gerado na hora num pedido próprio", x.r.headers.get("content-disposition"));
 checar(kv.has("admin:nfse-pdf:" + n1.id), "e guardado para a próxima vez");
 x = await nf("GET", "notas/" + n1.id + "/pdf?baixar=1");
 checar(/^attachment;/.test(x.r.headers.get("content-disposition")), "?baixar=1: attachment");
 x = await nf("GET", "notas/" + n1.id + "/xml");
 checar(x.status === 200 && x.r.headers.get("content-type").startsWith("application/xml") && x.dados.includes("<NFSe"), "XML da nota");
-// depois (PDF + e-mail) pelo painel
+// depois (PDF + e-mail)
 x = await nf("POST", "notas/" + n1.id + "/depois");
 checar(x.status === 202 && esperando.length === 1, "POST depois: 202, em ctx.waitUntil");
 await Promise.all(esperando.splice(0));
 checar(instancia.obter(n1.id).pdf_em !== "" && !JSON.parse(kv.get(K_DEPOIS)).some((y) => y.id === n1.id), "o PDF marcado na nota; fora da lista do depois");
 // enviar ao cliente, com "mail" ligado
 kv.set("admin:nfse:config", JSON.stringify({ auto: false, email: false, mail: true }));
-x = await nf("POST", "notas/" + n1.id + "/enviar", undefined, "sup@paulus.ia.br");
-checar(x.status === 403, "o suporte não envia ao cliente");
 const antesEmails = emails.length;
 x = await nf("POST", "notas/" + n1.id + "/enviar");
 const base1 = ANA + ":nuvem-" + n1.id;
@@ -456,14 +395,12 @@ checar(x.status === 200 && x.dados.estado === "emitida" && x.dados.centavos === 
 
 // ------------------------------------------------------------ 6. cancelar, substituir, produção
 console.log("6. cancelar, substituir e produção");
-x = await nf("POST", "notas/" + auto.id + "/cancelar", { motivo: "1", texto: "Erro na emissão: valor errado na nota" }, "sup@paulus.ia.br");
-checar(x.status === 403, "o suporte não cancela");
 x = await nf("POST", "notas/" + auto.id + "/cancelar", { motivo: "1", texto: "Erro na emissão: valor errado na nota" });
 checar(x.status === 200 && x.dados.nota.estado === "cancelada" && kvJson("nfse:nota:" + baseA).cancelada === true && kvJson("admin:nfse:ORD-ANA").nota === "cancelada",
   "cancelada: o app do cliente e o pagamento ficam sabendo", x.dados.nota);
 x = await nf("POST", "notas/" + n1.id + "/substituir", { motivo: "99", texto: "Valor digitado errado na nota anterior", ajustes: { valor: "299,90" } });
 checar(x.status === 200 && x.dados.nota.estado === "emitida" && x.dados.nota.centavos === 29990 && x.dados.original.estado === "substituida",
-  "substituta emitida pelo painel; a original fica substituída", x.dados);
+  "substituta emitida; a original fica substituída", x.dados);
 checar(kvJson("nfse:nota:" + base1).cancelada === true && kvJson("nfse:nota:" + base1).substituta === x.dados.nota.numero, "o app do cliente vê a original cancelada com o número da substituta");
 // O reembolso: a nota do pagamento devolvido sai sozinha.
 let rb = await pagamentoDevolvido("ORD-ANA-2", "dono@paulus.ia.br");
@@ -496,14 +433,10 @@ checar(x.status === 200 && x.dados.ambiente === "producao_restrita" && !x.dados.
 // ------------------------------------------------------------ sem o emissor
 console.log("7. sem o emissor ligado");
 const semMestra = { ...env, NFSE_CHAVE_MESTRA: "" };
-r = await atenderAdmin(new Request("https://paulus.ia.br/api/admin/nfse/emissor/situacao", { headers: { "cf-access-jwt-assertion": await jwt("dono@paulus.ia.br"), cookie: "pv_admin=" + SESSOES["dono@paulus.ia.br"] } }),
-  semMestra, new URL("https://paulus.ia.br/api/admin/nfse/emissor/situacao"), ctx, deps);
-d = await r.json();
-checar(r.status === 503 && /NFSE_CHAVE_MESTRA/.test(d.erro), "sem a NFSE_CHAVE_MESTRA: 503 dizendo o que falta", d);
-r = await atenderAdmin(new Request("https://paulus.ia.br/api/admin/nfse/emissor/municipios?q=bel", { headers: { "cf-access-jwt-assertion": await jwt("dono@paulus.ia.br"), cookie: "pv_admin=" + SESSOES["dono@paulus.ia.br"] } }),
-  semMestra, new URL("https://paulus.ia.br/api/admin/nfse/emissor/municipios?q=bel"), ctx, deps);
-d = await r.json();
-checar(r.status === 200 && d.municipios.some((m) => m.codigo === "1501402"), "a busca de município não depende do emissor ligado (é só a tabela)", d);
+x = await nf("GET", "municipios?q=bel", undefined, "dono@paulus.ia.br", semMestra);
+checar(x.status === 200 && x.dados.municipios.some((m) => m.codigo === "1501402"), "a busca de município não depende do emissor ligado (é só a tabela)", x.dados);
+d = await resumoParaPainel(semMestra);
+checar(!d.emissor.ligado && /NFSE_CHAVE_MESTRA/.test(d.emissor.falta), "sem a NFSE_CHAVE_MESTRA, o resumo diz o que falta", d.emissor);
 
-console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  notas fiscais no painel: todos os testes passaram");
+console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  emissor de NFS-e (sem o painel): todos os testes passaram");
 process.exit(falhas ? 1 : 0);

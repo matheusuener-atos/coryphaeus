@@ -11,9 +11,12 @@
 //
 // Todo o resto e o site estatico.
 //
-// As notas fiscais (NFS-e do PAVLVS) sao emitidas pelo painel admin, em
-// /api/admin/nfse/* (worker/admin.js -> worker/nfse/api.js -> o Durable Object
-// EmissorNFSe). A antiga ponte com o PAULUS da casa (/api/nfse-casa/*) saiu.
+// O painel admin (worker/admin.js) mora em atos.dev.br/admin: a Atos encaminha /api/admin/pavlvs/* ate aqui pelo
+// service binding, assinado; paulus.ia.br/admin volta para la com 301.
+//
+// O emissor de NFS-e do PAVLVS (worker/nfse/, o Durable Object EmissorNFSe e o Cron do PDF) continua aqui, mas
+// sem rota: o painel nao o expoe mais (as notas sao da Atos). A antiga ponte com o PAULUS da casa
+// (/api/nfse-casa/*) saiu.
 //
 // O acesso de fora (worker/tunel.js): /conectar e /api/tunel/*, que criam o
 // caminho de cada escritorio ate o PAULUS dele. Desligado sem TUNEL_ATIVO.
@@ -40,7 +43,7 @@ import { atenderAtos, checkoutDaAtos, ehRotaDaAtos } from "./atos.js";
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
 export { ContaIA } from "./ia.js";
 // O emissor de NFS-e da nuvem (worker/nfse/emissor.js): a classe do Durable
-// Object (o binding EMISSOR_NFSE pede). As rotas ficam no painel admin.
+// Object (o binding EMISSOR_NFSE pede). Sem rota (saiu do painel admin).
 export { EmissorNFSe } from "./nfse/emissor.js";
 
 
@@ -55,6 +58,8 @@ export default {
     if (url.hostname.endsWith(".paulus.ia.br") && url.hostname !== "www.paulus.ia.br") {
       return new Response("não encontrado", { status: 404 });
     }
+    // O painel admin mora na Atos (atos.dev.br/admin; worker/admin.js atende so o que ela encaminha).
+    if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return Response.redirect("https://atos.dev.br/admin/", 301);
     if (ehRotaDoTunel(url)) {
       try {
         return await atenderTunel(request, env, url, { dentroDoLimite });
