@@ -77,8 +77,8 @@
   // (valor do mes e do ano, creditos, pessoas, modelo, recarga e recursos)
   // ficam em PLANOS_DE_FABRICA no worker/ia.js; o painel admin publica outros
   // numeros no KV (IA_PLANOS). Aqui ficam o teto de saida e de entrada de um
-  // pedido e de pedidos por minuto. IA_CORTESIA: o SHA-256 dos e-mails Google
-  // com o plano de cortesia (o do fundador, para testar) - o resumo, e nao o
+  // pedido e de pedidos por minuto. IA_CORTESIA: o SHA-256 dos e-mails da Conta Atos
+  // com o plano de cortesia (so master@atos.dev.br, desde 11/10/2026) - o resumo, e nao o
   // e-mail, porque este arquivo e publico.
   //
   // O painel admin (worker/admin.js, worker/admin-api.md) mora em atos.dev.br/admin: a Atos confere quem
@@ -101,7 +101,7 @@
     // donoDoToken confere o id_token ES256 da Atos com ela (worker/identidade.js).
     // Nao e segredo. Trocar a chave la = acrescentar a nova aqui antes.
     "ATOS_JWKS": "[{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"de_6JI9TCEXk78hRFEzffNeJiuHC9cm7gHiXtUol6sQ\",\"y\":\"Gwu29O1smT_j9HCn6fYXdjReM-Pi76jGH5wKYN8OSRE\",\"kid\":\"atos-2026-10-09\",\"alg\":\"ES256\",\"use\":\"sig\"}]",
-    "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "d64e139883ea6f7246380d9c3c9c35a5bdef62163e768d103527cc4c003fd04f" },
+    "IA_MAX_SAIDA": "8000", "IA_MAX_ENTRADA_CARACTERES": "240000", "IA_POR_MINUTO": "40", "IA_CORTESIA": "eb3c0d6926364330978a82d4cb16563f1a88624f13d74627059ede8e1f5a3982" },
   // O medidor da nuvem: um Durable Object por conta (worker/ia.js, ContaIA).
   // SQLite, o tipo que o plano gratis da Cloudflare aceita.
   //
