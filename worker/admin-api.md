@@ -16,12 +16,16 @@ e sempre esse caminho; os corpos e as respostas sao os mesmos de antes, salvo o 
 1. **Conta Atos** (na Atos): a sessao do atos.dev.br (cookie `__Host-atos`), com login de ate 12 horas, e o
    e-mail na equipe do painel da Atos (abaixo, "O painel na Atos"). Sem sessao: 401 `{erro, entrar: true}`;
    login velho: 401 `{erro, reentrar: true}`; fora da equipe: 403 `{erro}` (a pagina volta calada para `/conta/`;
-   a resposta nao diz nada da configuracao). Nada disso chega ao PAVLVS.
-2. **O encaminhamento** (Atos -> PAVLVS): service binding `PAVLVS` (wrangler.jsonc da Atos, `service: "paulus"`).
+   a resposta nao diz nada da configuracao). Quem esta na equipe mas nao tem a area `pavlvs` (abaixo, "As areas"):
+   403 `{erro: "você não atua no PAVLVS: peça ao dono para incluir a área"}`. Nada disso chega ao PAVLVS.
+2. **O encaminhamento** (Atos -> PAVLVS): a rota generica `/api/admin/<produto>/*` da Atos, pelo registro de
+   produtos (abaixo, "Os produtos"); para o PAVLVS, o service binding `PAVLVS` (wrangler.jsonc da Atos,
+   `service: "paulus"`).
    A Atos monta o pedido do zero - o metodo, o caminho com a query, `content-type`, `accept` e o corpo intactos;
    nenhum outro cabecalho do navegador passa - e acrescenta:
    - `Atos-Painel-Quem`: base64url (sem `=`) do JSON `{email, nome, papel, github: {login, token} | null}`.
-     `github` vem quando a pessoa ligou o GitHub nesta sessao do painel (abaixo).
+     `github` vem quando a pessoa ligou o GitHub nesta sessao do painel (abaixo) e so porque o PAVLVS tem
+     `github: true` no registro; a produto sem isso vai sempre `null`.
    - `Atos-Painel-Assinatura`: `t=<segundos>,v1=<hex>`, o HMAC-SHA256, com o segredo `PAINEL_SEGREDO_PAVLVS`
      (o mesmo valor nos dois Workers), de `"<t>.<METODO>.<caminho com a query>.<SHA-256 hex do corpo>.<Atos-Painel-Quem>"`
      (corpo vazio no GET: o SHA-256 de nada).
@@ -231,11 +235,59 @@ O que cada tipo novo faz na publicacao:
 
 ## O painel na Atos (atos.dev.br)
 
-As rotas da propria Atos (`C:\atos\worker\admin.js`, teste em `C:\atos\worker\teste-admin.mjs`). Todas pedem a
-Conta Atos na equipe com login de ate 12 horas (as portas acima); os POST, a origem `https://atos.dev.br`.
+As rotas da propria Atos (`C:\atos\worker\admin.js` e `C:\atos\worker\oidc-painel.js`; testes em
+`C:\atos\worker\teste-admin.mjs` e `teste-oauth.mjs`). Todas pedem a Conta Atos na equipe com login de ate 12 horas
+(as portas acima); os POST, a origem `https://atos.dev.br`.
 
-- `GET /api/admin/eu` -> `{email, nome, papel, github: login | null}` (`github`: o GitHub ligado nesta sessao).
+### Os produtos (o registro)
+
+O painel da Atos nao tem o PAVLVS escrito em lugar nenhum fora do registro `PRODUTOS` (`C:\atos\worker\admin.js`):
+
+    PRODUTOS = { pavlvs: { nome: "PAVLVS", binding: "PAVLVS", segredo: "PAINEL_SEGREDO_PAVLVS", origem: "https://paulus.ia.br", github: true } }
+
+- `*    /api/admin/<id>/<rota>` (o `<id>` de um produto do registro) -> encaminhado ao Worker do produto pelo service
+  binding `binding`, com o mesmo caminho e a mesma query (`<origem>/api/admin/<id>/<rota>`), assinado com o segredo
+  `segredo` (`Atos-Painel-Quem` e `Atos-Painel-Assinatura`, como nas portas acima, que descrevem o do PAVLVS). Quem
+  nao tem a area `<id>`: 403 `{erro: "você não atua no <nome>: peça ao dono para incluir a área"}`, sem chamar o
+  produto. Sem o binding ou sem o segredo: 503 `{erro: "o <nome> não está ligado a este painel"}`; o produto nao
+  respondeu: 502 `{erro: "o <nome> não respondeu"}`. A resposta volta como veio; o que cada papel pode e decidido no
+  produto.
+- `github: true`: so ao produto que o tem vai o token do GitHub da sessao (`Atos-Painel-Quem.github = {login,
+  token}`); para os outros, `github: null` sempre. Hoje so o PAVLVS (o OAuth App "PAVLVS Admin" e do repositorio
+  dele).
+- Os ids que nao podem ser de produto (sao rotas do proprio painel): `eu`, `nfse`, `equipe`, `alteracoes`,
+  `publicar`, `retroagir`, `github`, `oauth`, `atos` (`RESERVADOS`).
+- Um produto novo = a linha no registro + o service binding em `wrangler.jsonc` da Atos + o segredo nos dois Workers
+  + a tela dele (`C:\atos\public\assets\admin-<id>.js`, grupo = o nome), que declara os prefixos dos tipos que poe
+  na fila (`AdminAtos.fila.tiposDo("<id>", ["conta.", ...], {tipo: [papeis]})`). A fila do produto
+  (`/api/admin/<id>/alteracoes`, `/publicar`, `/retroagir`, como as do PAVLVS) aparece sozinha em Confirmar
+  alteracoes, a partir do `/eu`; `admin-fila.js` nao muda. Um tipo que nenhuma tela declarou, que casa com dois
+  lugares ou que e de um produto fora do painel da pessoa nao vai a fila nenhuma: a tela diz o erro.
+
+### As areas (onde cada pessoa atua)
+
+O papel diz o que a pessoa faz; a area, onde. As areas sao `atos` (o que e da propria Atos: as notas fiscais) e o id
+de cada produto do registro (`areas_do_painel`, na ordem do menu: `[{id: "atos", nome: "Atos"}, {id: "pavlvs", nome:
+"PAVLVS"}]`).
+
+- Cada membro da equipe pode ter `areas: [id]`. O **dono atua em todas**, sempre (nao guarda lista). O membro
+  **sem a lista** (os de antes dela) tambem atua em todas. Os outros, so nas da lista que existem no registro.
+- Sem a area: as rotas do produto respondem 403 sem chamar o produto; `/api/admin/nfse/*` (area `atos`) tambem, com
+  uma excecao: `GET /api/admin/nfse/municipios` (a tabela do IBGE) e de consulta e serve a todos, porque as telas dos
+  produtos (o cadastro de uma conta do PAVLVS) usam. O suporte so faz GET nas notas.
+- A equipe em si (incluir, papeis, areas) e o Login Atos sao so do dono, em qualquer area.
+- A pagina mostra no menu so as secoes das areas da pessoa (`area` da secao) e so as filas dessas areas; o servidor
+  confere de novo.
+
+### Quem esta
+
+- `GET /api/admin/eu` -> `{email, nome, papel, areas: [id], produtos: [{id, nome, github}], areas_do_painel: [{id,
+  nome}], github: login | null}`. `areas`: onde a pessoa atua (acima); `produtos`: o registro, so o que a tela usa
+  (o binding, o segredo e a origem nao saem do servidor); `github` (o de fora): o GitHub ligado nesta sessao.
   Anota o ultimo acesso (no maximo uma escrita por hora por pessoa).
+
+### O GitHub
+
 - `GET /api/admin/github/entrar?volta=<tela>` -> 302 para o GitHub (`scope: public_repo read:user`,
   `redirect_uri: https://atos.dev.br/api/admin/github/retorno`; o state no KV, 10 min). Sem o OAuth App
   (`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` na Atos): 503. Sem sessao: 302 para `/admin/`.
@@ -245,50 +297,100 @@ Conta Atos na equipe com login de ate 12 horas (as portas acima); os POST, a ori
   `/admin/?github=1#<tela>`, ou `/admin/?erro=frase`). O state de uma pessoa nao serve para outra.
 - `POST /api/admin/github/sair` -> `{ok}`: esquece o GitHub desta sessao. Sair da Conta Atos (`POST /api/sair`)
   tambem desliga (o token so abre com o cookie).
-- `*    /api/admin/pavlvs/<rota>` -> o painel do PAVLVS (as portas, acima).
-- `*    /api/admin/nfse/...` -> as notas fiscais da Atos (o emissor dela; suporte so GET).
+- O token so vai ao produto com `github: true` (acima). A fila da Atos nao precisa dele.
+
+### As notas fiscais da Atos
+
+- `*    /api/admin/nfse/...` -> o emissor da Atos (area `atos`, salvo `GET /api/admin/nfse/municipios`; suporte so
+  GET). Sem o emissor ligado: 503.
 
 ### A equipe (o painel inteiro)
 
-A equipe vale para o painel todo da Atos (as notas, o PAVLVS e o que vier). Mora no KV da Atos (o `CONTAS`, que e o
-mesmo namespace do `APOIOS` do PAVLVS), em `atos:admin:equipe` = `[{email, nome, papel, convidado?: {criado, por,
-por_nome}}]`. Enquanto essa chave nao existe, vale a **semente** `ATOS_EQUIPE` (segredo da Atos, o mesmo formato
-`[{email, nome, papel}]`): e por ela que o dono entra na primeira vez, e e dela que a primeira mudanca parte (dali em
-diante, a semente nao conta mais). No Worker de teste da Atos (`AMBIENTE: "teste"`), as chaves sao
-`atos-teste:admin:*` e a semente e a `ATOS_EQUIPE` das vars dele. Se o KV nao responde, ninguem entra (a semente
+A equipe vale para o painel todo da Atos (as notas, os produtos e o que vier). Mora no KV da Atos (o `CONTAS`, que e
+o mesmo namespace do `APOIOS` do PAVLVS), em `atos:admin:equipe` = `[{email, nome, papel, areas?: [id], convidado?:
+{criado, por, por_nome}}]`. Enquanto essa chave nao existe, vale a **semente** `ATOS_EQUIPE` (segredo da Atos, o
+mesmo formato `[{email, nome, papel, areas?}]`): e por ela que o dono entra na primeira vez, e e dela que a primeira
+mudanca parte (dali em diante, a semente nao conta mais). No Worker de teste da Atos (`AMBIENTE: "teste"`), as chaves
+sao `atos-teste:admin:*` e a semente e a `ATOS_EQUIPE` das vars dele. Se o KV nao responde, ninguem entra (a semente
 nunca vale no lugar de uma lista que existe).
 
-- `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, ultimo, convite?: {criado, vence: null, por, vencido:
-  false}}], matriz: [{acao, dono, financeiro, suporte}], liberacao: {ligado: true, falta: ""}}`. `convite`: incluida
-  e ainda sem entrar. A `matriz` e a da Atos (notas e equipe); a do PAVLVS vem de `GET /api/admin/pavlvs/papeis`.
-- O convite: o dono inclui o e-mail, o nome e o papel (pela fila, abaixo); publicado, a pessoa ja esta na equipe e
-  entra com a Conta Atos daquele e-mail (se nao tem, cria em atos.dev.br/entrar com o mesmo e-mail). Nao ha aceite
-  nem Access. Vai um e-mail de aviso (Resend da Atos); se ele nao sai, a pessoa continua incluida e a publicacao diz
-  no `aviso`.
+- `GET /api/admin/equipe` -> `{membros: [{email, nome, papel, areas: [id], todas, ultimo, convite?: {criado, vence:
+  null, por, vencido: false}}], areas_do_painel, matriz: [{acao, dono, financeiro, suporte}], liberacao: {ligado:
+  true, falta: ""}}`. `areas`: onde atua de fato; `todas`: dono ou membro sem lista. `convite`: incluida e ainda sem
+  entrar. A `matriz` e a da Atos (notas, equipe, Login Atos); a do PAVLVS vem de `GET /api/admin/pavlvs/papeis`.
+- O convite: o dono inclui o e-mail, o nome, o papel e as areas (pela fila, abaixo); publicado, a pessoa ja esta na
+  equipe e entra com a Conta Atos daquele e-mail (se nao tem, cria em atos.dev.br/entrar com o mesmo e-mail). Nao ha
+  aceite nem Access. Vai um e-mail de aviso (Resend da Atos), com as areas quando nao sao todas; se ele nao sai, a
+  pessoa continua incluida e a publicacao diz no `aviso`.
 - `POST /api/admin/equipe/convite/:email/reenviar` (so o dono, na hora) -> o e-mail de aviso de novo ->
   `GET /api/admin/equipe`. So para quem ainda nao entrou: senao 404.
 
-### A fila da equipe
+### A fila da Atos
 
-A mesma regra do PAVLVS: mudar a equipe entra na fila da pessoa e so vale na publicacao, com a frase.
+A mesma regra do PAVLVS: mudar a equipe ou o Login Atos entra na fila da pessoa e so vale na publicacao, com a frase.
 
-- `GET /api/admin/alteracoes` -> `{pendentes: [Alteracao], publicacoes: [Publicacao]}` (as da Atos; as do PAVLVS em
-  `/api/admin/pavlvs/alteracoes`).
-- `POST /api/admin/alteracoes` `{tela, tipo, alvo, dados, texto}` -> `{pendentes}`; `DELETE /api/admin/alteracoes/:id`.
+- `GET /api/admin/alteracoes` -> `{pendentes: [Alteracao], publicacoes: [Publicacao]}` (as da Atos; as de cada
+  produto em `/api/admin/<id>/alteracoes`).
+- `POST /api/admin/alteracoes` `{tela, tipo, alvo, dados, texto}` -> `{pendentes}` (o que da para conferir antes
+  volta 400 com o porque; tipo fora da tabela: 400 "alteração desconhecida"); `DELETE /api/admin/alteracoes/:id`.
 - `POST /api/admin/publicar` `{confirmacao: "comitar e pushar"}` -> `{ok, resultados, publicacao}` (sem GitHub: nada
-  aqui vira commit).
-- `POST /api/admin/retroagir` `{publicacao | commit, confirmacao: "retroagir"}` (so o dono): volta o `equipe.papel`
-  (se a equipe nao mudou depois; a equipe de antes era a semente -> a chave sai e a semente volta a valer);
-  `equipe.membro` nao volta por aqui (409, volta pela tela).
-- KV: `atos:admin:pendentes:<email>`, `atos:admin:publicacoes` (30), `atos:admin:retrato:<id>` (30 dias).
+  aqui vira commit; `commit` e `kv-xxxxx`).
+- `POST /api/admin/retroagir` `{publicacao | commit, confirmacao: "retroagir"}` (so o dono): tudo ou nada; volta o
+  `equipe.papel`, o `equipe.areas` (a equipe de antes era a semente -> a chave sai e a semente volta a valer) e o
+  `oauth.app`/`oauth.cliente` (o registro do Login Atos de antes), se a chave nao mudou depois (senao 409: retroaja a
+  mais nova antes). `equipe.membro` nao volta por aqui (409, volta pela tela). O segredo de um cliente apagado nao
+  volta (o `avisos` diz: gere outro).
+- KV: `atos:admin:pendentes:<email>` (50), `atos:admin:publicacoes` (30), `atos:admin:retrato:<id>` (30 dias).
 
 | tipo | dados | papel |
 | --- | --- | --- |
 | `equipe.papel` | `{email, papel}` | dono |
-| `equipe.membro` | `{acao: "criar", nome, email, papel}`, `{acao: "editar", de, nome, email, papel}`, `{acao: "excluir", email}` ou `{acao: "cancelar_convite", email}` | dono |
+| `equipe.membro` | `{acao: "criar", nome, email, papel, areas}`, `{acao: "editar", de, nome, email, papel, areas?}`, `{acao: "excluir", email}` ou `{acao: "cancelar_convite", email}` | dono |
+| `equipe.areas` | `{email, areas: [id]}` | dono |
+| `oauth.app` | `{acao: "criar" \| "editar", id, nome, descricao, site, privacidade, termos, icone?}` ou `{acao: "apagar", id}` | dono |
+| `oauth.cliente` | `{acao: "criar", id, app, tipo: "publico" \| "confidencial", voltas, loopback?, origens?}`, `{acao: "editar", id, voltas, loopback?, origens?}`, `{acao: "ligar" \| "desligar" \| "apagar", id}` | dono |
 
-`editar` com outro e-mail: o novo entra (e recebe o aviso) e o antigo sai. `cancelar_convite`: so de quem ainda nao
-entrou (quem ja entrou sai por `excluir`). A equipe nunca fica sem dono.
+`equipe.membro`: `areas` (ao menos uma, so ids do registro) e obrigatoria ao incluir quem nao e dono; ao editar, sem
+`areas` ficam as de antes; o dono nao guarda lista. `editar` com outro e-mail: o novo entra (e recebe o aviso) e o
+antigo sai. `cancelar_convite`: so de quem ainda nao entrou (quem ja entrou sai por `excluir`). A equipe nunca fica
+sem dono. `equipe.areas` de um dono: 400 ("o dono atua em todas as áreas"). Os tipos `oauth.*`: abaixo.
+
+### Login Atos (os aplicativos do "Entrar com Atos")
+
+O provedor OpenID Connect da Atos (`C:\atos\worker\oidc.js`) atende os aplicativos fixos do codigo (`APPS`,
+`CLIENTES`: o PAVLVS, com os clientes `pavlvs-site`, `pavlvs-app` e `pavlvs-escritorio`, todos publicos) e os
+cadastrados no painel, no KV em `atos:oidc:registro` (`atos-teste:oidc:registro` no Worker de teste) =
+`{apps: {<id>: {nome, descricao, site, privacidade, termos, icone, criado, por, mudado?}}, clientes: {<id>: {app,
+tipo, voltas, loopback, origens, ativo, criado, por, mudado?}}}`. O fixo vale sobre o do KV com o mesmo id e nao
+muda pelo painel. Tudo aqui e so do dono (os outros papeis: 403 "o Login Atos é só do dono").
+
+- `GET /api/admin/oauth` -> `{emissor, descoberta, autorizacao, token, userinfo, jwks, revogacao, escopos: [{id,
+  texto}], token_s, apps: [...], clientes: [...]}`. Cada app e cliente diz `codigo: true|false` (do codigo, so
+  leitura, ou do KV); o cliente confidencial do KV traz `segredo: {quando, por} | null` (nunca o valor).
+- `GET /api/admin/oauth/log` -> `{log: [{quando, por, cliente, acao: "gerou o segredo" | "trocou o segredo"}]}` (os
+  ultimos 100, sem o valor; KV `atos:oidc:log`).
+- `POST /api/admin/oauth/clientes/:id/segredo` `{confirmar: true}` -> `{segredo: "atos_cs_...", quando, trocado}`
+  **na hora**, fora da fila (o valor aparece uma vez so e nao poderia esperar na fila): gera ou troca o segredo de um
+  cliente confidencial do KV; o anterior para de valer na hora. Fica so o SHA-256 (`atos:oidc:segredo:<id>`, com
+  quem e quando). Sem `confirmar: true`, cliente do codigo ou cliente publico: 400; cliente que nao existe (ou ainda
+  na fila): 404.
+- Criar, editar, ligar, desligar e apagar passam pela fila da Atos (`oauth.app`, `oauth.cliente`, acima), conferidos
+  ao enfileirar e de novo ao publicar:
+  - aplicativo: id de 2 a 31 (`[a-z0-9][a-z0-9-]`), nome, descricao (aparece para quem entra), site, privacidade e
+    termos em https, icone opcional so `data:image/png|jpeg|webp;base64` de ate 30 KB (a CSP de `/entrar` e `/conta`
+    nao carrega imagem de fora). Apagar o aplicativo leva os clientes dele (e os segredos, que nao voltam).
+  - cliente: client_id de 3 a 63; `app` e `tipo` nao mudam depois (crie outro cliente). `voltas` (ate 10): endereco
+    exato, https, ou http so em `127.0.0.1`/`[::1]`, sem `#` nem usuario; `loopback: true` aceita qualquer porta em
+    127.0.0.1/[::1] (o programa instalado, RFC 8252); pelo menos uma volta ou o loopback. `origens` (ate 10, opcional):
+    esquema, host e porta, para o CORS de `/oauth/token` quando a pagina troca o codigo no navegador. Desligado ou
+    apagado, o cliente nao comeca login, nao troca codigo e o access_token dele deixa de valer no userinfo (o id_token
+    ja emitido vale ate vencer, 1 hora).
+- **Publico** (pagina ou programa): PKCE, sem segredo; mandar `client_secret` e recusado (401 `invalid_client`).
+  **Confidencial** (um servidor): PKCE **e** o `client_secret`, por `client_secret_basic` (Authorization: Basic, id e
+  segredo em form-urlencoded) ou `client_secret_post` (no corpo), um jeito so; sem segredo gerado, 401 ("gere um no
+  painel da Atos"). **PKCE S256 e obrigatorio para todos** (`code_challenge_method` diferente: `invalid_request`).
+  A descoberta (`/.well-known/openid-configuration`) anuncia `token_endpoint_auth_methods_supported: ["none",
+  "client_secret_basic", "client_secret_post"]` e `code_challenge_methods_supported: ["S256"]`.
 
 ## Retroagir
 
