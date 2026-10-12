@@ -84,6 +84,12 @@ def main() -> int:
              ({"nome": "Distribuição"}, "G1", ""), ({"nome": "Conclusão"}, "G1", "")]
     errados = [(m, g, e, t.ato_do_movimento(m, grau=g)) for m, g, e in casos if t.ato_do_movimento(m, grau=g) != e]
     checar(not errados, "sentença, acórdão (no grau recursal), decisão, despacho e juntadas", errados)
+    # O DataJud manda a audiência só como "de Instrução e Julgamento": o "julgamento" não é a sentença.
+    audiencias = [({"nome": "de Instrução e Julgamento", "complemento": "designada"}, "G1"),
+                  ({"nome": "de Instrução e Julgamento", "complemento": "realizada"}, "G1"),
+                  ({"nome": "Audiência de Instrução e Julgamento"}, "G1"), ({"nome": "de Conciliação"}, "JE")]
+    errados = [(m, t.ato_do_movimento(m, grau=g)) for m, g in audiencias if t.ato_do_movimento(m, grau=g)]
+    checar(not errados, "audiência (de instrução e julgamento, de conciliação) não é sentença", errados)
 
     print("\na sugestão pelo ato anterior")
     intim = {"quando": "2026-09-14 10:00", "nome": "Expedição de documento", "complemento": "Intimação"}

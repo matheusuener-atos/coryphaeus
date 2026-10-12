@@ -153,6 +153,7 @@ _RE_ACORDAO = re.compile(r"\b(acordao|provimento|nao-provimento|nao provimento|c
                          r"nao conhecimento|provido|improvido|negado provimento|dado provimento)")
 _RE_DECISAO = re.compile(r"\b(decisao|concessao|nao-concessao|nao concessao|antecipacao de tutela|tutela|liminar|"
                          r"deferimento|indeferimento|revogacao|suspensao|conversao|recebimento|bloqueio|penhora)")
+_RE_AUDIENCIA = re.compile(r"\baudiencia\b|^(de )?(instrucao|conciliacao|mediacao|justificacao|custodia)\b")
 _RE_DESPACHO = re.compile(r"\b(despacho|mero expediente|ato ordinatorio|proferido despacho)")
 _RE_CITACAO = re.compile(r"\bcita(cao|coes|do|da|r)\b|\bcite-se")
 _RE_JUNTADA_CONTESTACAO = re.compile(r"juntada.*contestacao|contestacao.*juntada")
@@ -176,6 +177,10 @@ def ato_do_movimento(mov: dict, *, grau: str = "") -> str:
     """O tipo de ato que uma movimentação do DataJud registra ("" quando não é um ato que abre prazo)."""
     t = _n(f"{mov.get('nome', '')} {mov.get('complemento', '')}")
     if not t:
+        return ""
+    # A audiência (o DataJud manda só "de Instrução e Julgamento") não é a
+    # sentença: o "julgamento" do nome é o da audiência.
+    if _RE_AUDIENCIA.search(t):
         return ""
     if "juntada" in t or "peticao" in t:
         if _RE_JUNTADA_EMBARGOS.search(t):

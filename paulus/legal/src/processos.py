@@ -27,11 +27,18 @@ Acompanhamento de processos pelo DataJud (docs/PLANO-PILOTO.md, L2).
   é a intimação oficial, então o pedido sai dela (pela disponibilização e
   pelo texto inteiro); a movimentação do DataJud da mesma intimação, dias
   depois, não pede de novo.
+- **DataJud indisponível** (cheio ou fora): o processo vai de novo no fim da
+  volta diária, depois de ESPERA_DE_NOVO_S; o motivo fica no processo.
+- **Perfil da vara**: o retrato do órgão julgador no DataJud e o tempo até a
+  sentença numa amostra da mesma classe (tribunais.perfil_do_orgao), pedido
+  na tela e guardado por PERFIL_VALE_DIAS. Só os códigos da vara e da classe
+  saem daqui.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import threading
 import time
@@ -49,6 +56,11 @@ JANELA_ANTES, JANELA_DEPOIS = 5, 1
 PUBLICACAO_RECENTE_DIAS = 30
 # Entre uma consulta e a próxima, na volta diária: o DataJud é público e lento.
 PAUSA_ENTRE_CONSULTAS_S = 3
+# O DataJud cheio ou fora (429, 5xx): os processos que bateram nisso vão de
+# novo no fim da volta, depois desta espera.
+ESPERA_DE_NOVO_S = 120
+# O perfil da vara muda devagar: guardado, vale 30 dias.
+PERFIL_VALE_DIAS = 30
 _trava = threading.Lock()
 
 
@@ -262,9 +274,11 @@ class Processos:
         try:
             dados = consultar(p["numero"])
         except Exception as exc:  # noqa: BLE001 - o erro fica no processo, a volta segue
+            from biblioteca import tribunais
+
             self.base.escrever("UPDATE processos SET ultimo_erro = ?, ultima_consulta = ? WHERE id = ?",
                                (str(exc)[:300], _agora(), int(id_)))
-            return {"novos": [], "erro": str(exc)}
+            return {"novos": [], "erro": str(exc), "indisponivel": isinstance(exc, tribunais.DataJudIndisponivel)}
         novos = []
         graus = dados.get("graus") or []
         with _trava:
@@ -283,10 +297,41 @@ class Processos:
                         novos.append(dict(m, id=mid, grau=grau, classe=g.get("classe", ""), orgao=g.get("orgao", "")))
             g0 = graus[0] if graus else {}
             self.base.escrever(
-                "UPDATE processos SET ultima_consulta = ?, ultimo_erro = '', classe = ?, orgao = ?, achado = ? WHERE id = ?",
+                "UPDATE processos SET ultima_consulta = ?, ultimo_erro = '', classe = ?, orgao = ?, achado = ?,"
+                " orgao_codigo = ?, classe_codigo = ? WHERE id = ?",
                 (_agora(), g0.get("classe", "") or p.get("classe") or "", g0.get("orgao", "") or p.get("orgao") or "",
-                 1 if graus else 0, int(id_)))
+                 1 if graus else 0, int(g0.get("orgao_codigo") or p.get("orgao_codigo") or 0),
+                 int(g0.get("classe_codigo") or p.get("classe_codigo") or 0), int(id_)))
         return {"novos": novos, "primeira": primeira, "graus": len(graus)}
+
+    # ------------------------------------------------------------ o perfil da vara
+    def perfil_guardado(self, p: dict) -> dict | None:
+        """O retrato da vara deste processo, se já foi tirado ({"perfil", "guardado_em", "vencido"})."""
+        if not p.get("orgao_codigo"):
+            return None
+        l = self.base.um("SELECT dados, criado_em FROM perfis_orgao WHERE chave = ?", (_chave_perfil(p),))
+        if not l:
+            return None
+        try:
+            idade = (datetime.now() - datetime.fromisoformat(l["criado_em"])).days
+        except ValueError:
+            idade = PERFIL_VALE_DIAS
+        return {"perfil": json.loads(l["dados"]), "guardado_em": l["criado_em"], "vencido": idade >= PERFIL_VALE_DIAS}
+
+    def tirar_perfil(self, p: dict, perfilar) -> dict:
+        """Pergunta ao DataJud e guarda. `perfilar(alias, orgao, classe, classe=nome)` é o tribunais.perfil_do_orgao."""
+        from biblioteca import tribunais
+
+        alias = tribunais.ler_numero(p["numero"])["alias"]
+        perfil = perfilar(alias, int(p["orgao_codigo"]), int(p.get("classe_codigo") or 0), classe=p.get("classe") or "")
+        agora = _agora()
+        self.base.escrever("INSERT OR REPLACE INTO perfis_orgao (chave, dados, criado_em) VALUES (?,?,?)",
+                           (_chave_perfil(p), json.dumps(perfil, ensure_ascii=False), agora))
+        return {"perfil": perfil, "guardado_em": agora, "vencido": False}
+
+
+def _chave_perfil(p: dict) -> str:
+    return f"{p.get('tribunal', '')}:{int(p.get('orgao_codigo') or 0)}:{int(p.get('classe_codigo') or 0)}"
 
 
 # ------------------------------------------------------------ o DJEN junto (N2)
@@ -402,49 +447,75 @@ def _consultar(numero: str) -> dict:
     return tribunais.consultar_datajud(numero, movimentos=400)
 
 
-def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S) -> dict:
-    """Uma volta: consulta cada processo acompanhado, guarda o novo e propõe os prazos."""
+def rodar(estado, consultar=None, pausa: float = PAUSA_ENTRE_CONSULTAS_S, espera_de_novo: float = ESPERA_DE_NOVO_S) -> dict:
+    """
+    Uma volta: consulta cada processo acompanhado, guarda o novo e propõe os
+    prazos. Os que pegaram o DataJud indisponível (cheio, fora) vão de novo no
+    fim, depois de `espera_de_novo` segundos (0: não vão).
+    """
     consultar = consultar or _consultar
-    feitos, novos, erros, propostos, pelo_djen = 0, 0, 0, 0, 0
+    conta = {"novos": 0, "propostos": 0, "pelo_djen": 0}
+    feitos, erros = 0, 0
     extras = _extras(estado)
     ligar_publicacoes(estado, extras)
+    indisponiveis = []
     for p in estado.processos.listar():
         if not p["acompanhar"]:
             continue
-        r = estado.processos.atualizar(p["id"], consultar)
         feitos += 1
-        if r.get("erro"):
+        r = _consultar_um(estado, p, consultar, extras, conta)
+        if r.get("indisponivel"):
+            indisponiveis.append(p)
+        elif r.get("erro"):
             erros += 1
-        for m in r.get("novos") or []:
-            novos += 1
-            ant = estado.processos.anteriores(p["id"], m.get("grau", ""), m.get("quando", ""), menos=m.get("id"))
-            s = sugerir_prazo(m, extras, ant, p)
-            if s and not s["sem_prazo"]:
-                # A mesma intimação já veio pelo DJEN (N2): o pedido é o dela.
-                pub = publicacao_perto(estado.base, p["id"], m.get("quando", ""))
-                if pub is not None:
-                    pelo_djen += 1
-                    if not pub.get("tarefa_id") and not pub.get("pedido_id") and pedir_prazo_da_publicacao(estado, pub, p, extras):
-                        propostos += 1
-                    continue
-                if _pedido_perto(estado, p["id"], m.get("quando", "")) is not None:
-                    continue
-            if s and not s["sem_prazo"] and getattr(estado, "fila", None) is not None:
-                estado.fila.pedir(
-                    f"Prazo? {rotulo_prazo(s)} · processo {p['numero_fmt']}", "agenda",
-                    acao="processos.prazo", pedido_por="Acompanhamento de processos",
-                    resumo=resumo_do_prazo(s), etiquetas=["DataJud", p["tribunal"]], prazo=s["vencimento"],
-                    dados={"processo_id": p["id"], "numero": p["numero_fmt"], "movimento": m.get("nome", ""),
-                           "complemento": m.get("complemento", ""), "quando": m.get("quando", ""),
-                           "vencimento": s["vencimento"], "passos": s["passos"], "dias": s["dias"],
-                           "ato": s["ato"], "base": s["base"], "porque": s["porque"], "certeza": s["certeza"],
-                           "opcoes": [dict(o, rotulo=rotulo_prazo(o) + " · vence em " + _dia_br(o["vencimento"])) for o in s["opcoes"]],
-                           "lembrete": s["lembrete"], "servico": p.get("servico_nome") or ""})
-                propostos += 1
         if pausa:
             time.sleep(pausa)
+    de_novo = 0
+    if indisponiveis and espera_de_novo:
+        time.sleep(espera_de_novo)
+        for p in indisponiveis:
+            de_novo += 1
+            if _consultar_um(estado, p, consultar, extras, conta).get("erro"):
+                erros += 1
+            if pausa:
+                time.sleep(pausa)
+    else:
+        erros += len(indisponiveis)
     estado.prefs.dados.setdefault("processos", {})["ultima"] = date.today().isoformat()
-    return {"consultados": feitos, "novos": novos, "erros": erros, "prazos_propostos": propostos, "pelo_djen": pelo_djen}
+    return {"consultados": feitos, "novos": conta["novos"], "erros": erros, "prazos_propostos": conta["propostos"],
+            "pelo_djen": conta["pelo_djen"], "de_novo": de_novo}
+
+
+def _consultar_um(estado, p: dict, consultar, extras, conta: dict) -> dict:
+    """Um processo da volta: o DataJud, e cada movimentação nova vira o pedido de prazo (ou fica com a do DJEN)."""
+    r = estado.processos.atualizar(p["id"], consultar)
+    for m in r.get("novos") or []:
+        conta["novos"] += 1
+        ant = estado.processos.anteriores(p["id"], m.get("grau", ""), m.get("quando", ""), menos=m.get("id"))
+        s = sugerir_prazo(m, extras, ant, p)
+        if s and not s["sem_prazo"]:
+            # A mesma intimação já veio pelo DJEN (N2): o pedido é o dela.
+            pub = publicacao_perto(estado.base, p["id"], m.get("quando", ""))
+            if pub is not None:
+                conta["pelo_djen"] += 1
+                if not pub.get("tarefa_id") and not pub.get("pedido_id") and pedir_prazo_da_publicacao(estado, pub, p, extras):
+                    conta["propostos"] += 1
+                continue
+            if _pedido_perto(estado, p["id"], m.get("quando", "")) is not None:
+                continue
+        if s and not s["sem_prazo"] and getattr(estado, "fila", None) is not None:
+            estado.fila.pedir(
+                f"Prazo? {rotulo_prazo(s)} · processo {p['numero_fmt']}", "agenda",
+                acao="processos.prazo", pedido_por="Acompanhamento de processos",
+                resumo=resumo_do_prazo(s), etiquetas=["DataJud", p["tribunal"]], prazo=s["vencimento"],
+                dados={"processo_id": p["id"], "numero": p["numero_fmt"], "movimento": m.get("nome", ""),
+                       "complemento": m.get("complemento", ""), "quando": m.get("quando", ""),
+                       "vencimento": s["vencimento"], "passos": s["passos"], "dias": s["dias"],
+                       "ato": s["ato"], "base": s["base"], "porque": s["porque"], "certeza": s["certeza"],
+                       "opcoes": [dict(o, rotulo=rotulo_prazo(o) + " · vence em " + _dia_br(o["vencimento"])) for o in s["opcoes"]],
+                       "lembrete": s["lembrete"], "servico": p.get("servico_nome") or ""})
+            conta["propostos"] += 1
+    return r
 
 
 def escolhida(dados: dict) -> dict | None:
@@ -588,7 +659,38 @@ def montar(estado, app) -> None:
         recursos_do_plano.exigir(estado, "datajud")
         if not ligado(estado):
             raise HTTPException(status_code=409, detail="o acompanhamento pelo DataJud está desligado")
-        return rodar(estado, _CONSULTAR["fn"] or _consultar, pausa=0)
+        # A pessoa está esperando: sem os dois minutos da segunda tentativa.
+        return rodar(estado, _CONSULTAR["fn"] or _consultar, pausa=0, espera_de_novo=0)
+
+    @app.get("/api/processos/{id_}/perfil")
+    def processos_perfil(id_: int, request: Request = None) -> dict:
+        """O perfil da vara já tirado (ou {"perfil": None})."""
+        return estado.processos.perfil_guardado(_um(id_, request)) or {"perfil": None}
+
+    @app.post("/api/processos/{id_}/perfil")
+    def processos_tirar_perfil(id_: int) -> dict:
+        """Tirar (ou refazer) o perfil da vara no DataJud: a pessoa pediu."""
+        from biblioteca import tribunais
+        import recursos_do_plano
+
+        p = estado.processos.obter(id_)
+        if not p:
+            raise HTTPException(status_code=404, detail="processo não encontrado")
+        recursos_do_plano.exigir(estado, "datajud")
+        if not p.get("orgao_codigo"):
+            # Processo guardado antes dos códigos (ou nunca consultado): uma consulta traz a vara.
+            r = estado.processos.atualizar(id_, _CONSULTAR["fn"] or _consultar)
+            if r.get("erro"):
+                raise HTTPException(status_code=503 if r.get("indisponivel") else 502, detail=r["erro"])
+            p = estado.processos.obter(id_)
+            if not p.get("orgao_codigo"):
+                raise HTTPException(status_code=409, detail="o DataJud não trouxe a vara deste processo")
+        try:
+            return estado.processos.tirar_perfil(p, _PERFIL["fn"] or tribunais.perfil_do_orgao)
+        except tribunais.DataJudIndisponivel as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except (PermissionError, ConnectionError, ValueError) as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from None
 
     @app.post("/api/processos/{id_}/vistos")
     def processos_vistos(id_: int, request: Request = None) -> dict:
@@ -596,5 +698,6 @@ def montar(estado, app) -> None:
         return {"marcados": estado.processos.marcar_vistos(id_)}
 
 
-# Os testes trocam a consulta ao DataJud aqui.
+# Os testes trocam a consulta ao DataJud aqui (e o perfil da vara).
 _CONSULTAR: dict = {"fn": None}
+_PERFIL: dict = {"fn": None}

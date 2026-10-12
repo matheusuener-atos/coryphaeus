@@ -1963,6 +1963,22 @@
       "Clique em Concluir serviço no cabeçalho (para voltar atrás, Reabrir serviço)."
      ],
      "evidencia": "frontend/js/10-servicos.js:116"
+    },
+    {
+     "pergunta": "Como vejo o perfil da vara de um processo?",
+     "palavras": [
+      "perfil da vara",
+      "jurimetria",
+      "tempo ate a sentenca",
+      "quanto tempo demora a sentenca",
+      "estatistica da vara"
+     ],
+     "passos": [
+      "Em Serviços, abra Processos (ou a aba Processos do serviço) e clique no processo.",
+      "Clique em Perfil da vara: o Paulus consulta o DataJud (pode levar alguns minutos numa vara grande) e guarda o retrato por 30 dias.",
+      "O tempo até a sentença vem de uma amostra de processos da mesma classe; só os códigos da vara e da classe saem deste computador."
+     ],
+     "evidencia": "frontend/js/64-processos.js:145"
     }
    ]
   },

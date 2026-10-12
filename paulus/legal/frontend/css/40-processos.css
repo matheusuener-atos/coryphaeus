@@ -21,6 +21,13 @@
   .pr-mov.nova b { color: var(--ink); }
   .pr-mov-quando { color: var(--ink3); font-size: 12px; }
   .pr-mov small { color: var(--ink3); }
+  /* O perfil da vara: uma barra por linha, proporcional à maior. */
+  .pr-barras { display: grid; gap: 6px; }
+  .pr-barra { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; font-size: 13px; }
+  .pr-barra span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-barra b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pr-barra i { grid-column: 1 / -1; display: block; height: 4px; border-radius: 2px; background: var(--ink2); opacity: .35; min-width: 2px; }
+  .pr-nota { font-size: 12px; }
 
   @media (max-width: 600px) {
     .pr-linha { grid-template-columns: minmax(0, 1fr); gap: 4px; }

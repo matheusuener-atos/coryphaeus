@@ -435,9 +435,11 @@ _declarar(BLOQUEADO, "GET /api/aprendizado/caderno", "POST /api/aprendizado/cade
 # --- L2: processos pelo DataJud (src/processos.py). Ver e marcar como visto vale
 # de fora (so os de Servicos que a pessoa ve); acompanhar, consultar e mudar sao
 # da janela do escritorio - e o que faz o numero sair para o DataJud.
-_declarar(PERMITIDO, "GET /api/processos", "GET /api/processos/{id_}", "POST /api/processos/{id_}/vistos")
+_declarar(PERMITIDO, "GET /api/processos", "GET /api/processos/{id_}", "POST /api/processos/{id_}/vistos",
+          "GET /api/processos/{id_}/perfil")
 _declarar(BLOQUEADO, "POST /api/processos", "POST /api/processos/descobrir", "PUT /api/processos/{id_}",
-          "DELETE /api/processos/{id_}", "POST /api/processos/{id_}/consultar", "POST /api/processos/acompanhar-agora")
+          "DELETE /api/processos/{id_}", "POST /api/processos/{id_}/consultar", "POST /api/processos/acompanhar-agora",
+          "POST /api/processos/{id_}/perfil")
 # --- L3: partes e conflito (src/clientes.py). Mudar as partes de um Servico segue
 # o modulo Servicos (o "faz" abre, pelo prefixo); a consulta de conflito e a
 # visao do cliente cruzam todos os clientes do escritorio: janela do escritorio.

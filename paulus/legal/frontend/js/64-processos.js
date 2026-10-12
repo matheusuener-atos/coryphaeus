@@ -109,7 +109,8 @@ function ligarProcessos(alvo, servicoId) {
     if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); return; }
     const d = await r.json();
     avisoCert(plural(d.consultados, "processo consultado", "processos consultados") + " · " + plural(d.novos, "movimentação nova", "movimentações novas") +
-      (d.prazos_propostos ? " · " + plural(d.prazos_propostos, "prazo", "prazos") + " em Aprovações" : ""), { tom: "ok" });
+      (d.prazos_propostos ? " · " + plural(d.prazos_propostos, "prazo", "prazos") + " em Aprovações" : "") +
+      (d.erros ? " · " + plural(d.erros, "sem resposta do DataJud", "sem resposta do DataJud") + " (o motivo fica no processo)" : ""), { tom: d.erros ? "erro" : "ok" });
     recarregar();
   };
 }
@@ -141,6 +142,7 @@ async function abrirProcesso(id, depois) {
     (local ? '<div class="ag-toggle' + (p.acompanhar ? " on" : "") + '" data-pr-acompanhar="1"><span class="duas-linhas"><b>Acompanhar este processo</b>' +
       "<small>entra na volta diária do DataJud</small></span><i></i></div>" : "") +
     '<div class="pr-botoes">' + (local ? '<button data-pr-consultar="1">' + ic("sync", 16) + "Consultar agora</button>" : "") +
+    (local || p.orgao_codigo ? '<button data-pr-perfil="1">' + ic("bar_chart", 16) + "Perfil da vara</button>" : "") +
     (p.novas || (d.publicacoes || []).some((u) => !u.lida) ? '<button data-pr-vistos="1">' + ic("check", 16) + "Marcar como vistas</button>" : "") +
     (local ? '<button class="perigo" data-pr-apagar="1">' + ic("delete", 16) + "Tirar da lista</button>" : "") + "</div>" +
     (pubs ? '<h4 class="pr-sub">Publicações no DJEN</h4><div class="pr-movs pr-pubs">' + pubs + "</div>" : "") +
@@ -174,10 +176,80 @@ async function abrirProcesso(id, depois) {
       setTimeout(() => abrirProcesso(id, depois), 50);
     }
   };
+  const perfil = document.querySelector("[data-pr-perfil]");
+  if (perfil) perfil.onclick = () => { if (dialogoAberto) dialogoAberto.fechar(null); setTimeout(() => abrirPerfilDaVara(id, depois), 50); };
   const apagar = document.querySelector("[data-pr-apagar]");
   if (apagar) apagar.onclick = async () => { if (await acao("/api/processos/" + id, "DELETE", null, "Processo tirado da lista.")) { if (dialogoAberto) dialogoAberto.fechar(null); } };
   await aberto;
   if (typeof depois === "function") depois();
+}
+
+/* O perfil da vara: o retrato do órgão julgador no DataJud (contagens) e o
+   tempo até a sentença numa amostra da mesma classe. Guardado 30 dias; quem
+   está de fora vê o guardado, mas não tira outro. */
+const PR_GRAUS = { G1: "1º grau", G2: "2º grau", JE: "Juizado Especial", TR: "Turma Recursal", SUP: "Tribunal superior" };
+
+function prBarras(lista, nome) {
+  const max = Math.max(1, ...lista.map((x) => x.qtd));
+  return '<div class="pr-barras">' + lista.map((x) =>
+    '<div class="pr-barra"><span>' + esc(nome ? nome(x.nome) : x.nome) + "</span><b>" + x.qtd.toLocaleString("pt-BR") + "</b>" +
+    '<i style="width:' + Math.round(100 * x.qtd / max) + '%"></i></div>').join("") + "</div>";
+}
+
+function prTempo(t) {
+  if (!t) return "";
+  const meses = (d) => (d < 60 ? d + " dias" : "cerca de " + Math.round(d / 30.4) + " meses");
+  let texto;
+  if (!t.amostra) {
+    texto = "Não achei processos de " + esc(t.classe || "mesma classe") + " distribuídos nesta vara de " + t.de + " a " + t.ate + " para medir o tempo.";
+  } else if (t.com_sentenca < 5) {
+    texto = "Olhei " + plural(t.amostra, "processo", "processos") + " de " + esc(t.classe) + " distribuídos de " + t.de + " a " + t.ate +
+      ", e só " + t.com_sentenca + " tiveram sentença: pouco para dizer um tempo.";
+  } else {
+    texto = "Olhei " + plural(t.amostra, "processo", "processos") + " de " + esc(t.classe) + " distribuídos nesta vara de " + t.de + " a " + t.ate +
+      (t.populacao > t.amostra ? " (de " + t.populacao.toLocaleString("pt-BR") + " no período)" : "") + "; " + t.com_sentenca +
+      " já tiveram sentença. Metade deles teve a sentença em até <b>" + meses(t.mediana) + "</b>; a metade do meio, entre " +
+      meses(t.q1) + " e " + meses(t.q3) + ".";
+  }
+  return '<h4 class="pr-sub">Tempo até a sentença</h4><p class="cfg-explica">' + texto + "</p>" +
+    (t.com_sentenca >= 5 ? '<p class="cfg-explica pr-nota">Os que ainda esperam a sentença ficam fora da conta, então o tempo real tende a ser maior. ' +
+      "A sentença é reconhecida pela movimentação registrada no DataJud (procedência, improcedência, homologação, extinção).</p>" : "");
+}
+
+async function abrirPerfilDaVara(id, depois) {
+  const voltar = () => setTimeout(() => abrirProcesso(id, depois), 50);
+  let r = await fetch("/api/processos/" + id + "/perfil");
+  if (!r.ok) { avisoCert(await erroDe(r), { tom: "erro" }); voltar(); return; }
+  let d = await r.json();
+  const local = acessoDeFora.local;
+  const tirar = async () => {
+    avisoCert("Consultando o DataJud… o perfil de uma vara grande pode levar alguns minutos.", { tom: "ok" });
+    const x = await fetch("/api/processos/" + id + "/perfil", { method: "POST" });
+    if (!x.ok) { avisoCert(await erroDe(x), { tom: "erro" }); return null; }
+    return x.json();
+  };
+  if (!d.perfil) {
+    if (!local) { avisoCert("O perfil desta vara ainda não foi tirado; quem está no computador do escritório pode tirar.", { tom: "ok" }); voltar(); return; }
+    d = await tirar();
+    if (!d) { voltar(); return; }
+  }
+  const p = d.perfil;
+  const html = '<div class="pr-detalhe pr-perfil"><p class="cfg-explica"><b>' + esc(p.orgao || "Vara") + "</b> · " + esc(p.tribunal) + "<br>" +
+    p.total.toLocaleString("pt-BR") + " processos desta vara no DataJud, contando os arquivados.</p>" +
+    (p.graus.length > 1 ? prBarras(p.graus, (g) => PR_GRAUS[g] || g) : "") +
+    '<h4 class="pr-sub">Distribuídos por ano</h4>' + prBarras(p.por_ano, (a) => (String(a) === String(new Date().getFullYear()) ? a + " (até agora)" : a)) +
+    '<h4 class="pr-sub">Classes mais comuns</h4>' + prBarras(p.classes) +
+    '<h4 class="pr-sub">Assuntos mais comuns</h4>' + prBarras(p.assuntos) +
+    prTempo(p.tempo) +
+    '<p class="cfg-explica pr-nota">Fonte: DataJud, API pública do CNJ, consultado em ' + esc(dataBr(String(d.guardado_em || "").slice(0, 10))) +
+    (d.vencido ? " (tem mais de 30 dias)" : "") + ". Só os códigos da vara e da classe saíram deste computador.</p></div>";
+  const fim = await dialogo({ titulo: "Perfil da vara", contexto: "Processos", html: html, confirmar: "Voltar ao processo", semCancelar: true,
+    classe: "pr-dialogo", segundo: local ? { rotulo: "Atualizar" } : null });
+  if (fim && fim.segundo) {
+    const novo = await tirar();
+    if (novo) { setTimeout(() => abrirPerfilDaVara(id, depois), 50); return; }
+  }
+  voltar();
 }
 
 document.addEventListener("click", (e) => {

@@ -1188,6 +1188,22 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "043_perfil_da_vara",
+        """
+        -- O perfil da vara pelo DataJud (src/processos.py): os codigos do
+        -- orgao julgador e da classe de cada processo, e o retrato guardado
+        -- (chave = TRIBUNAL:orgao:classe; dados = o JSON de
+        -- tribunais.perfil_do_orgao), que vale 30 dias.
+        ALTER TABLE processos ADD COLUMN orgao_codigo INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE processos ADD COLUMN classe_codigo INTEGER NOT NULL DEFAULT 0;
+        CREATE TABLE IF NOT EXISTS perfis_orgao (
+            chave     TEXT PRIMARY KEY,
+            dados     TEXT NOT NULL,
+            criado_em TEXT NOT NULL
+        );
+        """,
+    ),
 ]
 
 _RENOMEADAS = {
