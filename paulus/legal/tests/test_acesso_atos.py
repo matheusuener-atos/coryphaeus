@@ -172,6 +172,27 @@ def main() -> int:
         rr = voltar(q)
         checar(rr.headers["location"].startswith("/convite/" + codigo + "#g="), "o convite aceito pela Atos volta ao QR",
                rr.headers.get("location"))
+        # 12/10/2026: o Cloudflare de atos.dev.br barra o "Python-urllib" padrao com 403 (error code: 1010), e o
+        # login parava em "a Atos recusou o login: HTTP 403". A troca tem de ir com o agente do PAULUS.
+        import urllib.request as _ur
+        from acesso import atos_login
+        vistos = []
+
+        def _urlopen(pedido, timeout=0):
+            vistos.append(pedido)
+            raise OSError("sem rede no teste")
+
+        antes_urlopen, _ur.urlopen = _ur.urlopen, _urlopen
+        try:
+            try:
+                atos_login.trocar_na_atos("c", "v", "https://moura.paulus.ia.br/api/acesso/atos/retorno")
+            except atos_login.ErroAtos:
+                pass
+        finally:
+            _ur.urlopen = antes_urlopen
+        agente = vistos[0].get_header("User-agent", "") if vistos else ""
+        checar(agente.startswith("PAULUS") and "urllib" not in agente.lower(),
+               "a troca do codigo vai com o agente do PAULUS, nao o do Python (o Cloudflare barra)", agente)
     finally:
         prefs.update(ligado=False, hostname="")
         servico.__dict__.pop("conferir_turnstile", None)

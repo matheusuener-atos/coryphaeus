@@ -41,6 +41,10 @@ CAMINHO_VOLTA = "/api/acesso/atos/retorno"
 ESCOPOS = "openid email profile"
 VALIDADE_S = 600
 COOKIE = "paulus_atos"
+# Quem pede: o Cloudflare de atos.dev.br (Browser Integrity Check) barra com 403 ("error code: 1010") o
+# "Python-urllib" padrao, e o login de fora parava na troca do codigo com "a Atos recusou o login: HTTP 403"
+# (12/10/2026). O mesmo agente do correio_oauth.AGENTE, que ja tinha resolvido isso na trava do computador.
+AGENTE = "PAULUS (+https://paulus.ia.br)"
 
 
 class ErroAtos(RuntimeError):
@@ -65,7 +69,8 @@ def trocar_na_atos(code: str, verificador: str, volta: str) -> dict:
         "grant_type": "authorization_code", "code": code, "client_id": CLIENTE,
         "redirect_uri": volta, "code_verifier": verificador,
     }).encode("ascii")
-    pedido = urllib.request.Request(TOKEN, data=corpo, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    pedido = urllib.request.Request(TOKEN, data=corpo, headers={"Content-Type": "application/x-www-form-urlencoded",
+                                                             "Accept": "application/json", "User-Agent": AGENTE})
     try:
         with urllib.request.urlopen(pedido, timeout=15) as r:
             return json.loads(r.read().decode("utf-8"))
