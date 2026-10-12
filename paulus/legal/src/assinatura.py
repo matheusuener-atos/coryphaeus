@@ -198,7 +198,9 @@ def texto_do_selo(selo: dict, cert, codigo: str, quando: datetime) -> str:
     """
     Monta o que aparece no selo, trocando os campos entre chaves.
 
-    O texto e da pessoa; o programa so preenche {nome}, {cpf}, {data} e {hora}.
+    O texto e da pessoa; o programa so preenche {nome}, {cpf}, {oab}, {data} e
+    {hora}. A OAB vem de Meus dados (o selo chega com ela em "oab"); sem OAB
+    cadastrada, o campo sai vazio.
     O que a pessoa escolheu esconder - CPF, data, codigo - fica de fora mesmo.
     """
     nome = getattr(cert, "titular", "") or ""
@@ -211,6 +213,7 @@ def texto_do_selo(selo: dict, cert, codigo: str, quando: datetime) -> str:
             "cpf": mostrado,
             "cnpj": mostrado,
             "documento": mostrado,
+            "oab": str(selo.get("oab") or ""),
             "data": quando.strftime("%d/%m/%Y"),
             "hora": quando.strftime("%H:%M"),
         })

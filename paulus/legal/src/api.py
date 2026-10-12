@@ -4957,7 +4957,8 @@ def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
                     "porque": "é o documento que você pediu para assinar"}
     else:
         cofre = estado.cofre.para_tela()
-        posicao = (cofre.get("selo") or {}).get("posicao") or "rodape_direita"
+        # O selo comeca no rodape a direita; o canto e escolhido no documento, ao lado.
+        posicao = "rodape_direita"
         rotulo = next((p["rotulo"] for p in cofre.get("posicoes") or [] if p.get("valor") == posicao), "")
         onde = {"rodape_direita": "no rodapé da última página, à direita", "rodape_esquerda": "no rodapé da última página, à esquerda",
                 "rodape_centro": "no rodapé da última página, no meio", "topo_direita": "no alto da última página, à direita"}.get(
@@ -9030,11 +9031,14 @@ def assinar_documento(arquivo: str) -> dict:
         "certificado": cofre["certificado"],
         "instalado": cofre["instalado"],
         "origem": cofre["origem"],
-        "selo": cofre["selo"],
+        # O selo entra no rodape a direita e a pessoa o leva para onde quiser no
+        # documento: a posicao nao e mais um padrao guardado no certificado.
+        "selo": {**cofre["selo"], "posicao": "rodape_direita"},
         "posicoes": cofre["posicoes"],
         "escolhas": [{"valor": k, "rotulo": v} for k, v in assinatura.ESCOLHAS_PAGINA.items()],
         "pede_confirmacao": cofre["pedir_confirmacao"],
         "precisa_senha": not bool(estado.cofre.senha_agora()),
+        "senha_na_memoria": cofre["senha_na_memoria"],
     }
 
 
@@ -9126,12 +9130,12 @@ def assinar_agora(payload: PedidoAssinatura) -> dict:
             dados=dados,
             reversivel=False,
         )
-        return {"aguardando_aprovacao": True, "pedido": pedido.to_dict()}
+        return {"aguardando_aprovacao": True, "origem": payload.arquivo, "pedido": pedido.to_dict()}
 
     resultado = _assinar_de_fato(dados, senha)
     if resultado.erro:
         raise HTTPException(status_code=400, detail=resultado.erro)
-    return {"aguardando_aprovacao": False, **resultado.to_dict()}
+    return {"aguardando_aprovacao": False, "origem": payload.arquivo, **resultado.to_dict()}
 
 
 @app.post("/api/assinar/lote")
@@ -9219,7 +9223,7 @@ def assinar_lote(payload: PedidoLote) -> dict:
             dados={"itens": prontos, "arquivos": [d["arquivo"] for d in prontos]},
             reversivel=False,
         )
-        return {"aguardando_aprovacao": True, "pedido": pedido.to_dict(), "falhas": recusados}
+        return {"aguardando_aprovacao": True, "pedido": pedido.to_dict(), "feitos": [], "falhas": recusados}
 
     feitos, falhas = _assinar_varios(prontos, senha)
     return {"aguardando_aprovacao": False, "feitos": feitos, "falhas": recusados + falhas}
@@ -9273,7 +9277,9 @@ def _assinar_de_fato(dados: dict, senha: str, recarregar: bool = True) -> "assin
         arquivo_pfx="" if do_windows else str(estado.cofre.arquivo),
         windows=estado.cofre.windows if do_windows else None,
         senha=senha,
-        selo=estado.cofre.dados.get("selo") or {},
+        # {oab} no texto do selo: a OAB de Meus dados (a tela de 12/10/2026 tem o campo).
+        selo={**(estado.cofre.dados.get("selo") or {}),
+              "oab": str(((getattr(estado.prefs, "dados", None) or {}).get("pessoa") or {}).get("oab") or "")},
         escolha_paginas=dados.get("paginas", "ultima"),
         intervalo=dados.get("intervalo", ""),
         posicao=dados.get("posicao", "rodape_direita"),

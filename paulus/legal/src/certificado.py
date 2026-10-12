@@ -314,7 +314,8 @@ PADRAO_SELO = {
     "mostrar_cpf": True,
     "imagem": "",            # logotipo, arquivo dentro da pasta do cofre
     "desenho": "",           # assinatura desenhada, idem
-    "posicao": "rodape_direita",
+    # Sem "posicao" desde 12/10/2026: o canto e escolhido em cada documento, na
+    # tela de assinar; o selo guardado nao tem posicao padrao.
 }
 
 PADRAO_COFRE = {
@@ -547,7 +548,7 @@ class Cofre:
         return selo
 
     def restaurar_selo(self) -> dict:
-        """O selo de fabrica: texto, marcas e posicao padrao, sem rubrica nem
+        """O selo de fabrica: texto e marcas padrao, sem rubrica nem
         logotipo - os PNGs guardados saem do disco junto."""
         for campo in ("imagem", "desenho"):
             alvo = self.caminho_do_selo(campo)
@@ -614,7 +615,8 @@ class Cofre:
             "pedir_confirmacao": bool(self.dados.get("pedir_confirmacao", True)),
             "mostrar_documento": bool(self.dados.get("mostrar_documento")),
             "lote_sem_confirmar": bool(self.dados.get("lote_sem_confirmar")),
-            "selo": self.dados.get("selo") or dict(PADRAO_SELO),
+            # A "posicao" que um cofre antigo guardou nao vale mais como padrao.
+            "selo": {k: v for k, v in (self.dados.get("selo") or dict(PADRAO_SELO)).items() if k != "posicao"},
             "posicoes": [{"valor": k, "rotulo": v} for k, v in POSICOES.items()],
             "pode_guardar_senha": dpapi_disponivel(),
         }
