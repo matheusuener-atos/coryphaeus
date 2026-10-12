@@ -2652,7 +2652,7 @@ def documentos_abertos() -> dict:
 
 
 @app.get("/api/biblioteca")
-def biblioteca(termo: str = "", filtro: str = "todos", ordem: str = "modificacao",
+def biblioteca(termo: str = "", filtro: str = "todos", ordem: str = "modificado",
                limite: int = 0) -> dict:
     """
     O que o PAULUS tem aberto, ja procurado, filtrado e ordenado.

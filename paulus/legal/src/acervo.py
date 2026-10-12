@@ -38,10 +38,14 @@ FILTROS = {
     "sem-analise": "Sem análise",
 }
 
+# As chaves e os rotulos do "Ordenar por" das telas de 12/10/2026. "modificacao"
+# (a chave antiga, que js/12-telas-e-acervo.js ainda manda de padrao) e
+# "tamanho" continuam aceitos em ordenar().
 ORDENS = {
-    "modificacao": "modificação",
-    "nome": "nome",
-    "tamanho": "tamanho",
+    "modificado": "Modificado",
+    "nome": "Nome",
+    "pasta": "Pasta",
+    "analise": "Análise",
 }
 
 DIAS_DE_RECENTE = 14
@@ -258,6 +262,15 @@ def ordenar(itens: list[dict], ordem: str) -> list[dict]:
     if ordem == "nome":
         chave = lambda i: _sem_acento(i.get("nome", ""))            # noqa: E731
         ao_contrario = False
+    elif ordem == "pasta":
+        # Pela pasta e, dentro dela, pelo nome.
+        chave = lambda i: (_sem_acento(str(i.get("pasta", ""))), _sem_acento(i.get("nome", "")))  # noqa: E731
+        ao_contrario = False
+    elif ordem == "analise":
+        # Os sem análise primeiro (é o que pede atenção); dentro, o mais novo em cima.
+        ordenados = sorted(itens, key=lambda i: i.get("modificado_em", ""), reverse=True)
+        ordenados = sorted(ordenados, key=lambda i: 1 if i.get("tipo") else 0)
+        return sorted(ordenados, key=lambda i: 0 if i.get("fixado") else 1)
     elif ordem == "tamanho":
         chave = lambda i: i.get("bytes", 0)                          # noqa: E731
         ao_contrario = True
