@@ -335,7 +335,7 @@ function painelAntesDeAssinar() {
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Compartilhar depois</span>' + (podeCompartilhar ? "" : '<span class="contagem">depois de assinar</span>') + "</div>" +
     '<div class="painel-acoes semi"><button class="com-icone" id="as-baixar"' + bloqueio + ">" + ic("download", 16) + "Baixar</button>" +
     '<button class="com-icone" id="as-email"' + bloqueio + ">" + marcaDoEmail(16) + "Enviar por e-mail</button>" +
-    '<button class="com-icone adiante" id="as-whats"' + bloqueio + ">" + ic("chat", 16) + "WhatsApp</button>" +
+    '<button class="com-icone" id="as-whats"' + bloqueio + ">" + ic("chat", 16) + "WhatsApp</button>" +
     '<button class="com-icone" id="as-codigo"' + bloqueio + ">" + ic("link", 16) + "Copiar o código de verificação</button></div></div>";
   return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + (lote ? "Assinar em lote" : "Antes de assinar") + '</h3><span class="meta">' + esc(doc.nome) + " · " + plural(doc.paginas, "página") + "</span></span></div>" +
@@ -440,7 +440,10 @@ function ligarAssinar() {
     const baixar = () => baixarArquivo(f.destino, "/api/assinar/baixar?arquivo=");
     $("as-baixar").onclick = baixar;
     $("as-codigo").onclick = () => copiarTexto(f.codigo, "código " + f.codigo + " copiado");
-    $("as-whats").onclick = () => avisoCert("WhatsApp ainda não tem motor nesta máquina — por enquanto, e-mail ou o PDF baixado");
+    $("as-whats").onclick = () => formMensagemWhatsapp({
+      anexo: f.destino, texto: "Segue o documento assinado: " + nomeDe(f.destino),
+      contexto: "Assinar › " + nomeDe(f.destino) + " › WhatsApp",
+    });
     $("as-email").onclick = async () => {
       if (!mail.contas) { try { mail.contas = await (await fetch("/api/email/contas")).json(); } catch (err) { mail.contas = null; } }
       if (!mail.contas || !mail.contas.contas.length) { marcarDestino("caixa"); return mostrarEmail(); }

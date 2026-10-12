@@ -551,7 +551,7 @@ function partesDaFicha(f) {
         ["Telefone", telefoneLegivel(f.telefone)],
         ["Na folha", folha ? rotuloDoVinculo(f.vinculo) + " · " + emReais(folha) : "não entra"],
       ]) +
-        '<div class="dialogo-acoes">' + botao("data-cad-email", "mail", "Novo e-mail") + "</div>" +
+        '<div class="dialogo-acoes">' + botao("data-cad-email", "mail", "Novo e-mail") + botaoWhatsapp(f) + "</div>" +
         (typeof blocoAcessoDaPessoa === "function" ? blocoAcessoDaPessoa(f) : "") + blocoDoPapel(f),
     };
   }
@@ -566,12 +566,19 @@ function partesDaFicha(f) {
       ["Honorário", [f.honorario, f.dia_vencimento ? "vence dia " + f.dia_vencimento : ""].filter(Boolean).join(" · ")],
     ]) +
       '<div class="dialogo-acoes">' + botao("data-cad-perguntar", "forum", "Perguntar sobre") + botao("data-cad-email", "mail", "Novo e-mail") +
-      botao("data-cad-agendar", "calendar_month", "Agendar") +
+      botaoWhatsapp(f) + botao("data-cad-agendar", "calendar_month", "Agendar") +
       // L3: tudo sobre o cliente (js/65-clientes.js).
       (f.tipo === "cliente" && typeof mostrarVisaoDoCliente === "function" && acessoDeFora.local ? botao("data-cad-visao", "person", "Tudo sobre o cliente") : "") +
       "</div>" +
       blocoLigadoA(f),
   };
+}
+
+/* So aparece com telefone que tem tamanho de conversa (fixo com DDD tambem
+   passa: o WhatsApp Business roda em fixo). */
+function botaoWhatsapp(f) {
+  if (!numeroDoWhatsapp(f.telefone)) return "";
+  return '<button type="button" class="com-icone" data-cad-whatsapp="1">' + ic("chat", 16) + "WhatsApp</button>";
 }
 
 function blocoLigadoA(f) {
@@ -619,6 +626,7 @@ function ligarFichaVista(dlg, f) {
   const clique = (seletor, fn) => dlg.querySelectorAll(seletor).forEach((b) => { b.onclick = fn; });
   clique("[data-cad-perguntar]", sair(() => perguntarSobreFicha(f)));
   clique("[data-cad-email]", sair(() => novoEmailPara(f)));
+  clique("[data-cad-whatsapp]", sair(() => formMensagemWhatsapp({ telefone: f.telefone, nome: f.nome, contexto: "Cadastros › " + f.nome + " › WhatsApp" })));
   clique("[data-cad-agendar]", sair(() => agendarCom(f)));
   clique("[data-cad-acervo]", sair(() => verNoAcervo(f.nome)));
   if (typeof ligarAcessoDaPessoa === "function") ligarAcessoDaPessoa(dlg, f, () => mostrarCadastros());

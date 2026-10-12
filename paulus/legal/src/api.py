@@ -14763,10 +14763,100 @@ def _tem_janela() -> bool:
         return False
 
 
+# A janela do WhatsApp e uma so. Abrir de novo traz a mesma para a frente (e
+# carrega a conversa pedida nela); antes, cada clique criava outra janela,
+# todas com o mesmo WhatsApp. "encolhi" lembra se o programa saiu do
+# maximizado para dar lugar a ela - ao fechar, ele volta.
+_WHATS: dict = {"janela": None, "encolhi": False}
+_TRAVA_DO_WHATS = threading.Lock()
+
+
+def _janela_do_whatsapp():
+    import webview
+
+    j = _WHATS["janela"]
+    return j if j is not None and j in webview.windows else None
+
+
+def _trazer_para_frente(janela) -> None:
+    """restore tira do minimizado; on_top liga e desliga para passar na frente."""
+    try:
+        janela.restore()
+        janela.show()
+        janela.on_top = True
+        janela.on_top = False
+    except Exception:  # noqa: BLE001 - a janela esta aberta; so nao veio para a frente
+        pass
+
+
+def _quando_o_whatsapp_fechar() -> None:
+    _WHATS["janela"] = None
+    encolhi, _WHATS["encolhi"] = _WHATS["encolhi"], False
+    if not encolhi:
+        return
+    try:
+        import webview
+
+        webview.windows[0].maximize()
+    except Exception:  # noqa: BLE001 - o programa fica do tamanho que estava
+        pass
+
+
+def _abrir_ao_lado(endereco: str):
+    """
+    Cria a janela do WhatsApp a direita do programa (conexoes.lugar_ao_lado).
+    Maximizado, o programa encolhe para a esquerda e volta quando o WhatsApp
+    fecha; numa janela ja solta, o WhatsApp so encaixa ao lado dela.
+    """
+    import webview
+
+    principal = webview.windows[0]
+    x = y = 0
+    largura, altura = 1100, 800
+    try:
+        x, y, largura, altura = principal.x, principal.y, principal.width, principal.height
+    except Exception:  # noqa: BLE001 - sem a medida, abre solta no tamanho padrao
+        pass
+    lugar = conexoes.lugar_ao_lado(x, y, largura, altura)
+    if lugar["programa"]:
+        px, py, pl, pa = lugar["programa"]
+        try:
+            if avisos.janela_maximizada():
+                principal.restore()
+                _WHATS["encolhi"] = True
+            principal.move(px, py)
+            principal.resize(pl, pa)
+        except Exception:  # noqa: BLE001 - o WhatsApp abre por cima, no lado direito
+            pass
+    wx, wy, wl, wa = lugar["whatsapp"]
+    janela = webview.create_window(
+        "WhatsApp Web · Paulus", endereco,
+        x=wx, y=wy, width=wl, height=wa, min_size=(560, 520),
+    )
+    janela.events.closed += _quando_o_whatsapp_fechar
+    return janela
+
+
+def _mostrar_no_explorer(caminho: Path) -> bool:
+    """Abre a pasta com o arquivo ja escolhido - dali ele se arrasta para a conversa."""
+    if sys.platform != "win32":
+        return False
+    try:
+        # O "/select," e o caminho vao numa linha so: em lista, o Popen poria
+        # aspas em volta dos dois e o Explorer abriria a pasta Documentos.
+        subprocess.Popen(f'explorer /select,"{caminho}"')
+        return True
+    except OSError:
+        return False
+
+
 @app.post("/api/conexoes/abrir")
 def conexoes_abrir(payload: dict | None = None) -> dict:
     """
-    Abre a janela do serviço, presa a um endereço só.
+    Abre a janela do serviço, presa a um endereço só, ao lado do programa.
+
+    Com `anexo`, mostra o arquivo na pasta dele, já escolhido: o WhatsApp Web
+    não deixa outro programa pôr arquivo na conversa, então ele vai arrastado.
 
     Fora do modo desktop nao ha janela embutida - e a tela diz isso em vez de
     abrir o navegador comum fingindo que e a mesma coisa, porque a sessao nao
@@ -14775,6 +14865,10 @@ def conexoes_abrir(payload: dict | None = None) -> dict:
     endereco = str((payload or {}).get("endereco", "")) or conexoes.WHATSAPP
     if not endereco.startswith(conexoes.WHATSAPP):
         raise HTTPException(status_code=400, detail="esta janela só abre o WhatsApp Web")
+    anexo = str((payload or {}).get("anexo", "") or "")
+    alvo = Path(anexo) if anexo else None
+    if alvo is not None and not alvo.is_file():
+        raise HTTPException(status_code=400, detail="não achei esse arquivo")
 
     if not _tem_janela():
         return {
@@ -14787,13 +14881,19 @@ def conexoes_abrir(payload: dict | None = None) -> dict:
             ),
         }
 
-    import webview
-
-    webview.create_window(
-        "WhatsApp Web · Paulus", endereco,
-        width=1100, height=800, min_size=(720, 560),
-    )
-    return {"abriu": True, "endereco": endereco}
+    with _TRAVA_DO_WHATS:
+        janela = _janela_do_whatsapp()
+        if janela is None:
+            _WHATS["janela"] = _abrir_ao_lado(endereco)
+        else:
+            # So a conversa pedida recarrega; "Abrir" sem conversa so traz a
+            # janela, sem tirar a pessoa de onde ela estava.
+            if endereco != conexoes.WHATSAPP:
+                janela.load_url(endereco)
+            _trazer_para_frente(janela)
+    mostrou = _mostrar_no_explorer(alvo) if alvo is not None else False
+    return {"abriu": True, "endereco": endereco, "anexo_mostrado": mostrou,
+            "anexo": alvo.name if alvo is not None else ""}
 
 
 @app.post("/api/conexoes/mensagem")
@@ -14823,19 +14923,66 @@ def conexoes_mensagem(payload: MensagemWhats) -> dict:
         "pasta_do_anexo": str(Path(anexo).parent) if anexo else "",
         "aviso": (
             "Abro a conversa com o texto escrito. Você confere e aperta enviar."
-            + (" O anexo você arrasta da pasta que eu abri." if anexo else "")
+            + (" Junto, mostro o anexo na pasta dele: é só arrastar para a conversa." if anexo else "")
         ),
     }
 
 
+def _limpar_o_site_no_navegador() -> bool:
+    """
+    Pede ao navegador embutido que apague tudo o que e do web.whatsapp.com
+    (banco, cookies, cache) - o programa aberto prende os arquivos, e apagar a
+    pasta nao andaria. Pelo DevTools do WebView2, na janela do programa, que
+    divide o perfil com a do WhatsApp; esta, se aberta, fecha antes, para nao
+    gravar de novo o que acabou de sair. Medido em 12/10/2026: o banco some
+    em menos de meio segundo.
+    """
+    if not _tem_janela():
+        return False
+    import webview
+    from System import Func, Type
+
+    janela = _janela_do_whatsapp()
+    if janela is not None:
+        try:
+            janela.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    principal = webview.windows[0]
+    pedido = json.dumps({"origin": conexoes.WHATSAPP, "storageTypes": "all"})
+
+    def _limpar() -> None:
+        principal.native.browser.webview.CoreWebView2.CallDevToolsProtocolMethodAsync(
+            "Storage.clearDataForOrigin", pedido)
+
+    try:
+        principal.native.Invoke(Func[Type](_limpar))
+    except Exception:  # noqa: BLE001 - sobra o apagar pelo disco, que diz o que ficou
+        return False
+    pastas = estado.conexoes.pastas_da_sessao()[:2]
+    fim = time.time() + 5
+    while time.time() < fim and any(p.exists() for p in pastas):
+        time.sleep(0.25)
+    return True
+
+
 @app.post("/api/conexoes/sessao/apagar")
 def conexoes_apagar_sessao() -> dict:
-    apagou = estado.conexoes.apagar_sessao()
-    return {
-        "apagou": apagou,
-        "aviso": "A sessão foi apagada desta máquina. O WhatsApp vai pedir o código de novo."
-        if apagou else "Não havia sessão guardada.",
-    }
+    havia = estado.conexoes.sessao().existe
+    if havia:
+        _limpar_o_site_no_navegador()
+        estado.conexoes.apagar_sessao()
+    apagou = havia and not estado.conexoes.sessao().existe
+    if apagou:
+        aviso = ("A sessão foi apagada desta máquina; o WhatsApp vai pedir o código de novo. "
+                 "No celular, este computador ainda aparece em Aparelhos conectados até você "
+                 "desconectá-lo de lá.")
+    elif havia:
+        aviso = ("Não consegui apagar tudo: o navegador embutido ainda não soltou os arquivos. "
+                 "Tente de novo em alguns segundos.")
+    else:
+        aviso = "Não havia sessão guardada."
+    return {"apagou": apagou, "aviso": aviso}
 
 
 @app.get("/api/conexoes/contatos")

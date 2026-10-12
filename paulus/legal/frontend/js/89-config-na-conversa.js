@@ -591,7 +591,7 @@ function atualizarMetaDaConversa() {
   if (!fim && cfg.secao === "backup") fim = (cfg.backup || {}).ultimo ? "ligado" : "desligado";
   if (!fim && cfg.secao === "aprendizado" && cfn.lembrete != null) fim = "1 lembrete novo";
   if (!fim && cfg.secao === "vinculos" && cfn.convite) fim = "1 convite pronto";
-  if (!fim && cfg.secao === "conexoes") fim = ((cfg.cx || {}).sessao || {}).existe ? "WhatsApp Web conectado" : "WhatsApp Web não conectado";
+  if (!fim && cfg.secao === "conexoes") fim = ((cfg.cx || {}).sessao || {}).existe ? "sessão do WhatsApp Web guardada" : "WhatsApp Web sem sessão nesta máquina";
   if (!fim && (cfg.secao === "word" || cfg.secao === "acesso") && cfn.d && cfn.d.extra && cfn.d.extra.passo) fim = "passo " + Math.min(3, cfn.d.extra.passo) + " de 3";
   $("conversa-meta").textContent = "Configurações › " + (cfg.secao === "desempenho" && cfn.teste ? "Modelos" : achada[1]) + (fim ? " · " + fim : "");
 }

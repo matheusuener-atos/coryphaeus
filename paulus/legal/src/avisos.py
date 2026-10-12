@@ -67,6 +67,19 @@ def definir_janela(hwnd: int) -> None:
     _hwnd = int(hwnd or 0)
 
 
+def janela_maximizada() -> bool:
+    """Se a janela do programa esta maximizada - pelo numero dela, sem tocar
+    no `.native` do pywebview fora da thread da interface (src/desktop.py)."""
+    if sys.platform != "win32" or not _hwnd:
+        return False
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.user32.IsZoomed(_hwnd))
+    except Exception:
+        return False
+
+
 def _registrar() -> None:
     """O nome e o icone que o Windows mostra no aviso. Uma vez por processo."""
     global _registrado

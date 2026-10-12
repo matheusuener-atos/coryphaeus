@@ -1852,7 +1852,7 @@ function painelDaPrevia() {
       ? '<button id="pv-word">' + ic("description", 16) + "Abrir no Word</button>" : "") +
     '<button id="pv-assinar-2">' + ic("draw", 16) + "Assinar</button>" +
     '<button id="pv-email">' + marcaDoEmail(16) + "Enviar por e-mail</button>" +
-    '<button class="adiante" data-pv-adiante="WhatsApp">' + ic("chat", 16) + "WhatsApp</button>" +
+    '<button id="pv-whats">' + ic("chat", 16) + "WhatsApp</button>" +
     '<button id="pv-imprimir">' + ic("print", 16) + "Imprimir</button></div>" +
     '<div class="docs-toggles"><div class="' + classeGuardar + '" data-pv-guardar="1"><span>Guardar no Acervo ao sair</span><i></i></div>' +
     '<div class="ag-toggle' + (escr.senhaPdf ? " on" : "") + '" data-pv-senha="1"><span>Proteger o PDF com senha</span><i></i></div>' +
@@ -1946,6 +1946,13 @@ function ligarPrevia() {
     mail.anexos = [{ path: alvo, nome: alvo.split(/[\\/]/).pop() }];
     desenharAnexos();
   });
+  // Como o e-mail: o PDF vai para o Acervo e de la segue anexado; no
+  // WhatsApp, mostrado na pasta para arrastar (src/api.py, conexoes_abrir).
+  ligar("pv-whats", async () => {
+    const alvo = await guardarNaBiblioteca(p.id, escr.senhaPdf);
+    if (!alvo) return;
+    formMensagemWhatsapp({ anexo: alvo, texto: "Segue " + escr.doc.titulo + ".", contexto: "Editor › " + escr.doc.titulo + " › WhatsApp" });
+  });
   const pedirSenhaPdf = async () => {
     const senha = await perguntar({
       titulo: "Senha do PDF",
@@ -1968,9 +1975,6 @@ function ligarPrevia() {
   };
   const trocarSenha = raiz.querySelector("[data-pv-senha-trocar]");
   if (trocarSenha) trocarSenha.onclick = pedirSenhaPdf;
-  raiz.querySelectorAll("[data-pv-adiante]").forEach((b) => {
-    b.onclick = () => avisoCert(b.dataset.pvAdiante + " ainda não tem motor nesta máquina — por enquanto, e-mail e PDF");
-  });
   const guardar = raiz.querySelector("[data-pv-guardar]");
   if (guardar) guardar.onclick = () => { escr.guardarAoSair = !escr.guardarAoSair; guardar.classList.toggle("on", escr.guardarAoSair); };
   const editor = raiz.querySelector("[data-pv-editor]");

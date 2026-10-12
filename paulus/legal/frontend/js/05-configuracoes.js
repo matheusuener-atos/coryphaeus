@@ -773,8 +773,11 @@ function secaoConexoes() {
     estado + '<span class="cfg-botoes">' + acao + "</span></div>";
 
   const lista =
-    servico("chat", "WhatsApp Web", "a sessão fica nesta máquina; enviar é com você",
-      ponto(s.existe ? "conectado" : "não conectado", s.existe ? "ok" : ""),
+    // "Sessao guardada", nao "conectado": o banco do site existe desde que a
+    // pagina abriu, e daqui nao da para saber se o celular ainda reconhece
+    // este computador (src/conexoes.py).
+    servico("chat", "WhatsApp Web", "abre ao lado do Paulus; a sessão fica nesta máquina; enviar é com você",
+      ponto(s.existe ? "sessão guardada" : "sem sessão", s.existe ? "ok" : ""),
       '<button data-cfg-cx-preparar="1">Preparar mensagem</button><button data-cfg-cx-abrir="1">Abrir</button>') +
     servico("mail", "E-mail", contas.length ? plural(contas.length, "conta") + (atencao ? " · " + atencao + " precisa de atenção" : " · em dia") : "nenhuma conta ainda",
       contas.length ? (atencao ? ponto("atenção", "acc") : ponto("conectado", "ok")) : ponto("sem conta", ""),
@@ -830,7 +833,7 @@ function ligarConexoesCfg() {
   const abrir = document.querySelector("[data-cfg-cx-abrir]");
   if (abrir) abrir.onclick = async () => {
     const r = await (await fetch("/api/conexoes/abrir", { method: "POST", headers: CFG_JSON, body: "{}" })).json();
-    if (r.abriu) { avisoCert("janela do WhatsApp Web aberta"); return; }
+    if (r.abriu) { avisoCert("WhatsApp Web aberto ao lado do Paulus"); return; }
     avisoCert(r.motivo);
     window.open(r.endereco, "_blank");
   };
@@ -850,21 +853,26 @@ function ligarConexoesCfg() {
 }
 
 /* Preparar uma mensagem no WhatsApp Web, no pop-up: eu escrevo e abro a
-   conversa; apertar enviar e com a pessoa. */
-async function formMensagemWhatsapp() {
-  let anexo = "";
+   conversa; apertar enviar e com a pessoa. As outras telas chamam isto ja
+   preenchido (`pre`): a ficha do cliente com o telefone, o Assinar e a
+   previa do documento com o arquivo. */
+async function formMensagemWhatsapp(pre) {
+  pre = pre || {};
+  let anexo = pre.anexo || "";
   const campo = (rotulo, controle, id, longo) => '<div class="dialogo-campo"><label for="' + id + '">' + rotulo + "</label>" +
     '<div class="dialogo-caixa' + (longo ? " texto-longo" : "") + '">' + controle + "</div></div>";
+  const telefone = pre.telefone ? exibirCampo("telefone", pre.telefone) : "";
   dialogo({
-    titulo: "Preparar uma mensagem", contexto: "Configurações › Conexões › WhatsApp Web",
+    titulo: pre.nome ? "Mensagem para " + pre.nome : "Preparar uma mensagem", contexto: pre.contexto || "Configurações › Conexões › WhatsApp Web",
     classe: "dialogo-cadastro", larga: true,
     html: '<div class="dialogo-form"><div class="dialogo-duas">' +
       campo("Contato", '<select id="cx-contato"><option value="">escolher do cadastro…</option></select>', "cx-contato") +
-      campo("Telefone", '<input type="text" id="cx-telefone" placeholder="(62) 99999-8888"' + atributosDoCampo("telefone") + '>', "cx-telefone") + "</div>" +
-      campo("Mensagem", '<textarea id="cx-texto" rows="5" placeholder="escreva a mensagem…"></textarea>', "cx-texto", true) +
-      '<div class="cfg-botoes"><button type="button" id="cx-anexar">' + ic("attach_file", 16) + "Anexar da biblioteca</button></div>" +
-      '<div id="cx-anexo"></div>' +
-      '<p class="dialogo-dica">Eu abro a conversa com o texto já escrito; apertar enviar é com você.</p></div>',
+      campo("Telefone", '<input type="text" id="cx-telefone" placeholder="(62) 99999-8888" value="' + esc(telefone) + '"' + atributosDoCampo("telefone") + '>', "cx-telefone") + "</div>" +
+      campo("Mensagem", '<textarea id="cx-texto" rows="5" placeholder="escreva a mensagem…">' + esc(pre.texto || "") + "</textarea>", "cx-texto", true) +
+      '<div class="cfg-botoes"><button type="button" id="cx-anexar">' + ic("attach_file", 16) + (anexo ? "Trocar o anexo" : "Anexar do Acervo") + "</button></div>" +
+      '<div id="cx-anexo">' + (anexo ? '<p class="cfg-explica">anexo: ' + esc(anexo.split(/[\\/]/).pop()) + "</p>" : "") + "</div>" +
+      '<p class="dialogo-dica">Eu abro a conversa ao lado com o texto já escrito' + (anexo ? " e mostro o anexo na pasta, para você arrastar" : "") +
+      "; apertar enviar é com você.</p></div>",
     rodape: '<span class="dialogo-aviso" id="cx-aviso"></span>',
     cancelar: "Cancelar", confirmar: "Preparar no WhatsApp",
     aoConfirmar: async () => {
@@ -882,7 +890,7 @@ async function formMensagemWhatsapp() {
       if (!r.ok) { $("cx-aviso").textContent = await erroDe(r); return; }
       const d = await r.json();
       if (dialogoAberto) dialogoAberto.fechar({ ok: true });
-      conversaPronta(d);
+      abrirConversaPronta(d, anexo);
     },
   });
   $("cx-anexar").onclick = async () => {
@@ -892,7 +900,7 @@ async function formMensagemWhatsapp() {
     lugar.innerHTML = '<div class="cfg-linhas">' +
       (d.arquivos.length
         ? d.arquivos.slice(0, 20).map((a) => '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(a.nome) + '</b></span><button type="button" data-cx-anexo="' + esc(a.path) + '">Escolher</button></div>').join("")
-        : '<p class="cfg-explica">A biblioteca está vazia.</p>') + "</div>";
+        : '<p class="cfg-explica">O Acervo está vazio.</p>') + "</div>";
     lugar.querySelectorAll("[data-cx-anexo]").forEach((b) => {
       b.onclick = () => { anexo = b.dataset.cxAnexo; lugar.innerHTML = '<p class="cfg-explica">anexo: ' + esc(anexo.split(/[\\/]/).pop()) + "</p>"; };
     });
@@ -907,6 +915,8 @@ async function formMensagemWhatsapp() {
       op.value = numero;
       op.dataset.nome = x.nome;
       op.textContent = x.nome + " · " + numero;
+      // Vindo da ficha, o contato ja chega escolhido.
+      if (pre.telefone && x.numero && x.numero === numeroDoWhatsapp(pre.telefone)) op.selected = true;
       contato.appendChild(op);
     });
     contato.onchange = () => {
@@ -915,11 +925,39 @@ async function formMensagemWhatsapp() {
       // A borda acompanha o numero escolhido.
       mostrarProblemaDoCampo(campoTel);
     };
+    // O select fica escondido atras do botao de escolha (js/16-dialogos.js),
+    // que so troca o rotulo no "change".
+    if (contato.selectedIndex > 0) contato.dispatchEvent(new Event("change"));
   } catch (err) { /* sem cadastro com telefone, o campo fica manual */ }
 }
 
-/* A conversa preparada: o endereco, onde esta o anexo (ele vai a mao) e o
-   botao que abre. */
+/* So os digitos, com o 55 do Brasil - para comparar com o `numero` que o
+   servidor devolve (conexoes.numero_whatsapp, que e quem confere de
+   verdade). Vazio quando nao tem tamanho de telefone. */
+function numeroDoWhatsapp(tel) {
+  const bruto = String(tel || "").trim();
+  const d = bruto.replace(/\D/g, "");
+  if (d.length === 10 || d.length === 11) return "55" + d;
+  if (d.startsWith("55") && (d.length === 12 || d.length === 13)) return d;
+  return bruto.startsWith("+") && d.length >= 8 && d.length <= 15 ? d : "";
+}
+
+/* Com a janela embutida, a conversa abre direto ao lado (e o anexo aparece
+   na pasta); sem ela, o pop-up mostra o endereco para abrir no navegador. */
+async function abrirConversaPronta(d, anexo) {
+  try {
+    const a = await (await fetch("/api/conexoes/abrir", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ endereco: d.endereco, anexo: anexo || "" }) })).json();
+    if (a.abriu) {
+      avisoCert(a.anexo_mostrado ? "conversa aberta ao lado — o anexo está selecionado na pasta: arraste para a conversa e aperte enviar"
+        : "conversa aberta ao lado com o texto escrito — confira e aperte enviar", { tom: "ok" });
+      return;
+    }
+  } catch (err) { /* cai no pop-up abaixo */ }
+  conversaPronta(d);
+}
+
+/* A conversa preparada, fora do programa: o endereco, onde esta o anexo (ele
+   vai a mao) e o botao que abre no navegador. */
 function conversaPronta(d) {
   dialogo({
     titulo: "Conversa pronta", contexto: "Configurações › Conexões › WhatsApp Web",
@@ -927,10 +965,9 @@ function conversaPronta(d) {
     html: '<p class="cfg-texto">' + esc(d.aviso) + "</p>" + '<div class="cfg-endereco">' + esc(d.endereco) + "</div>" +
       (d.anexo ? '<p class="cfg-explica">Anexo: ' + esc(d.anexo) + " — em " + esc(d.pasta_do_anexo) + "</p>" : ""),
     cancelar: "Fechar", confirmar: "Abrir a conversa",
-    aoConfirmar: async () => {
+    aoConfirmar: () => {
       if (dialogoAberto) dialogoAberto.fechar({ ok: true });
-      const a = await (await fetch("/api/conexoes/abrir", { method: "POST", headers: CFG_JSON, body: JSON.stringify({ endereco: d.endereco }) })).json();
-      if (!a.abriu) window.open(d.endereco, "_blank");
+      window.open(d.endereco, "_blank");
     },
   });
 }

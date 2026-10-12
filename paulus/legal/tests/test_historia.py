@@ -374,6 +374,28 @@ def test_conexoes(tmp: Path) -> None:
     checar(cx.apagar_sessao() is True, "apagar apaga")
     checar(not pasta.exists(), "e a pasta some de verdade")
 
+    # Onde o WebView2 guarda de verdade: o banco do site no perfil comum.
+    banco = tmp / "sessoes" / "EBWebView" / "Default" / "IndexedDB" / "https_web.whatsapp.com_0.indexeddb.leveldb"
+    outro = tmp / "sessoes" / "EBWebView" / "Default" / "IndexedDB" / "http_127.0.0.1_8000.indexeddb.leveldb"
+    banco.mkdir(parents=True)
+    outro.mkdir(parents=True)
+    (banco / "000003.log").write_bytes(b"x" * 2048)
+    checar(cx.sessao().existe is True, "reconhece a sessao no perfil do WebView2 (sessoes/EBWebView)")
+    checar(cx.sessao().tamanho_kb == 2, "e mede so o banco do WhatsApp")
+    checar(cx.apagar_sessao() is True and not banco.exists(), "apagar tira o banco do WhatsApp")
+    checar(outro.exists(), "e deixa o do programa, que divide o mesmo perfil")
+    checar(cx.apagar_sessao() is False, "apagar de novo diz que nao havia")
+
+    lado = CX.lugar_ao_lado(0, 0, 1920, 1040)
+    checar(lado["programa"] == (0, 0, 1100, 1040) and lado["whatsapp"] == (1100, 0, 820, 1040),
+           "na tela larga, o programa fica a esquerda e o WhatsApp a direita, na mesma altura", lado)
+    lado = CX.lugar_ao_lado(100, 50, 1366, 728)
+    checar(lado["programa"] == (100, 50, 760, 728) and lado["whatsapp"] == (860, 50, 606, 728),
+           "no notebook de 1366, o programa fica com o minimo dele e o WhatsApp com o resto", lado)
+    lado = CX.lugar_ao_lado(0, 0, 1200, 800)
+    checar(lado["programa"] is None and lado["whatsapp"] == (380, 0, 820, 800),
+           "sem espaco para os dois, o WhatsApp vem por cima, no lado direito", lado)
+
     cx.anotar("(62) 99999-8888", "Priscila", str(tmp / "doc.pdf"))
     guardado = cx.itens[0]
     checar(guardado["para"] == "5562999998888", "o registro guarda o numero normalizado")
