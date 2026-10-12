@@ -912,6 +912,12 @@ export class ContaIA {
   async fetch(request) {
     const d = await request.json();
     const c = (await this.state.storage.get("conta")) || null;
+    // A cortesia vale pelo e-mail do dono agora (IA_CORTESIA), nao pelo de quando a conta foi ativada: a conta
+    // ativada antes de o e-mail entrar na lista ficava "sem plano" ate ativar de novo.
+    if (c && c.dono && c.dono.email && this.env && "IA_CORTESIA" in this.env) {
+      const cortesias = String(this.env.IA_CORTESIA || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+      c.cortesia = cortesias.includes(await sha256(String(c.dono.email).trim().toLowerCase()));
+    }
     const [resposta, nova] = this.fazer(d.acao, c, d, d.numeros || numeros(this.env || {}));
     const conta = nova || c;
     // O painel admin precisa saber que contas existem (um Durable Object nao

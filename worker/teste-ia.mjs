@@ -2,7 +2,7 @@
 //   node worker/teste-ia.mjs
 // O DeepInfra e o Mercado Pago sao de mentira; o Durable Object roda aqui,
 // com a mesma classe, sobre um Map.
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import worker from "./index.js";
 import { atenderIA, ContaIA, medidor, usoDoFim } from "./ia.js";
 
@@ -666,6 +666,27 @@ function aviso(dataId, tipo, ts = Date.now()) {
     headers: { "x-signature": `ts=${ts},v1=${v1}`, "x-request-id": requestId },
     body: "{}",
   });
+}
+
+// A cortesia vale pelo e-mail do dono agora, e nao pelo de quando a conta foi ativada
+// (12/10/2026: a conta ativada antes de o e-mail entrar na lista respondia "sem plano").
+{
+  const dados = new Map();
+  const hash = createHash("sha256").update("master@atos.dev.br").digest("hex");
+  const o = new ContaIA({ storage: { get: async (k) => structuredClone(dados.get(k)), put: async (k, v) => { dados.set(k, structuredClone(v)); } } },
+    { IA_CORTESIA: hash });
+  o.agora = () => relogio;
+  dados.set("conta", { id: "c-cortesia", criada: new Date(relogio).toISOString(), dono: { email: "Master@atos.dev.br" }, cortesia: false,
+    consentimento: { aceito: true }, segredos: [], extra: 0, reservas: {}, recargas: [], cobrancas: [], uso: [] });
+  const pedir = async (acao, d) => (await o.fetch(new Request("https://x/", { method: "POST", body: JSON.stringify({ acao, ...d }) }))).json();
+  const r = await pedir("reservar", { entrada: 100, saida: 100 });
+  checar(r.motivo !== "sem_plano" && dados.get("conta").cortesia === true,
+    "a cortesia vale pelo e-mail do dono agora: a conta ativada antes da lista nao fica sem plano", r);
+  const o2 = new ContaIA({ storage: { get: async (k) => structuredClone(dados.get(k)), put: async (k, v) => { dados.set(k, structuredClone(v)); } } },
+    { IA_CORTESIA: "" });
+  o2.agora = () => relogio;
+  await o2.fetch(new Request("https://x/", { method: "POST", body: JSON.stringify({ acao: "reservar", entrada: 1, saida: 1 }) }));
+  checar(dados.get("conta").cortesia === false, "e sai da lista: a cortesia acaba");
 }
 
 console.log(falhas ? `\n  ${falhas} falha(s)` : "\n  nuvem: todos os testes passaram");
