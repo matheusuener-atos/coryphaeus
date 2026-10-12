@@ -31,7 +31,7 @@ const CFN_PE = {
   plano: ["nenhuma mudança", "Verificar agora", "refresh", '[data-cfg-atu="verificar"]'],
   desempenho: ["sem documentos, nomes de clientes nem conversas", "Gerar diagnóstico", "", "[data-cfg-diagnostico]"],
   lixeira: ["", "Esvaziar a lixeira", "close", "[data-cfg-lixo-esvaziar]"],
-  vinculos: ["o convite vai por e-mail", "Convidar pela internet", "mail", ""],
+  vinculos: ["o convite é um link", "Convidar pela internet", "mail", ""],
   acesso: ["nada é criado antes de você confirmar", "Criar a conta", "check", "[data-cx-criar-conta], [data-acesso-nova]"],
   conexoes: ["esperando o QR · a mensagem fica pronta no chat", "Abrir WhatsApp Web", "", ""],
   word: ["depois, o Word abre sozinho com o PAVLVS", "Instalar no Word", "download", '[data-word-acao="instalar"]'],

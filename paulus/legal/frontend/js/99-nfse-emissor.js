@@ -51,7 +51,7 @@
       (cert.avisos || []).map((a) => '<p class="nfv-alerta">' + ic("error", 16) + esc(a) + "</p>").join("") +
       (cert.instalado ? '<div class="cfg-botoes"><button class="com-icone" data-nfse-acao="remover-certificado">' + ic("close", 16) + "Tirar o certificado</button></div>" : ""));
     const chaves = '<div class="cfg-cartao nfv-chaves"><div class="cfg-cartao-corpo"><div class="cfg-campos">' +
-      liga('data-nfse-acao="ligar"', "Emitir NFS-e pelo Paulus", "desligada, o “Emitir nota” some do Financeiro e dos Serviços", n.ligado) +
+      liga('data-nfse-acao="ligar"', "Emitir NFS-e pelo Paulus", "desligada, o botão de emitir some do Financeiro e dos Serviços", n.ligado) +
       liga('data-nfv-pref="ao_receber"', "Preparar a nota ao receber", "quando um recebimento entra no Financeiro, o rascunho da nota vai para Aprovações", pref("ao_receber", false)) +
       liga('data-nfv-pref="por_email"', "Mandar também por e-mail", "PDF e XML anexos, para o e-mail fiscal do cliente, depois do seu sim", pref("por_email", false)) +
       "</div></div></div>";
@@ -266,7 +266,10 @@
     nfCarregarNotas = async function () {   // eslint-disable-line no-func-assign
       if (nf.aba === "recebidas") return carregarNf.apply(this, arguments);
       if (typeof cfg !== "undefined" && !cfg.nfse && typeof carregarNfse === "function") await carregarNfse();
+      // A disponibilidade (js/93): sem ela o Emitir nota nao aparece e a aba vazia leva a Configurar.
+      const disp = typeof nfseEstaDisponivel === "function" ? nfseEstaDisponivel(true) : null;
       try { const r = await fetch("/api/nfse/notas"); nfv.notas = r.ok ? ((await r.json()).notas || []) : []; } catch (e) { nfv.notas = []; }
+      try { nf.disp = (await disp) || {}; } catch (e) { nf.disp = {}; }
     };
     cabecalhoNotas = function () {   // eslint-disable-line no-func-assign
       const pr = ((typeof cfg !== "undefined" && cfg.nfse) || {}).producao || {};
@@ -275,7 +278,7 @@
       const aba = (v, r) => '<button class="' + (v === nf.aba ? "ativa" : "") + '" data-nf-aba="' + v + '" role="tab" aria-selected="' + (v === nf.aba) + '"><span>' + r + "</span>" + (v === "clientes" ? SAI : "") + "</button>";
       $("nav-tela").innerHTML = '<div class="visoes nf-abas" role="tablist">' + aba(nf.aba === "emitir" ? "emitir" : "emitidas", "Emitidas") + aba("recebidas", "Recebidas") + aba("clientes", "Clientes") + "</div>";
       $("acoes-tela").innerHTML = nf.aba === "recebidas" ? "" : '<button class="com-icone" data-nfv-testar="1">' + ic("lan", 16) + "Testar comunicação</button>" +
-        (nf.aba === "emitidas" ? '<button class="com-icone primario" data-nf-ir-emitir="1">' + ic("add", 16) + "Emitir nota</button>" : "");
+        (nf.aba === "emitidas" && nf.disp && nf.disp.pode_emitir ? '<button class="com-icone primario" data-nf-ir-emitir="1">' + ic("add", 16) + "Emitir nota</button>" : "");
       document.querySelectorAll("[data-nf-aba]").forEach((b) => {
         b.onclick = async () => {
           if (b.dataset.nfAba === "clientes") { if (typeof mostrarCadastros === "function") mostrarCadastros("clientes"); return; }
@@ -293,7 +296,16 @@
       cabecalhoNotas();
       if (nf.aba === "recebidas") { cascaNotas(blocoRecebidas()); ligarNotas(); return; }
       const n = (typeof cfg !== "undefined" && cfg.nfse) || {};
-      cascaNotas('<div class="nfv">' + (nf.aba === "emitir" ? abaEmitir(n) : telaTodas()) + "</div>");
+      const disp = nf.disp || {};
+      // Sem emissao e sem nota nenhuma: o estado vazio que leva a Configurar (js/93, estadoVazioEmitidas).
+      if (nf.aba !== "emitir" && !disp.pode_emitir && !(nfv.notas || []).length && typeof estadoVazioEmitidas === "function") {
+        cascaNotas(estadoVazioEmitidas(disp)); ligarNotas(); return;
+      }
+      const aviso = nf.aba !== "emitir" && !disp.pode_emitir ? '<div class="nf-aviso">' + ic("info", 16) + "<span>" +
+        (disp.ligado ? "A emissão está ligada, mas ainda não dá para emitir: " + esc((disp.motivos || []).join("; ") || "falta configurar") + "."
+          : "A emissão pelo Paulus está desligada. As notas abaixo continuam aqui para consultar.") +
+        '</span><button type="button" class="sv-ligacao" data-nf-configurar="1">Configurar a nota fiscal</button></div>' : "";
+      cascaNotas('<div class="nfv">' + aviso + (nf.aba === "emitir" ? abaEmitir(n) : telaTodas()) + "</div>");
       ligarNotas();
       if (typeof melhorarSelect === "function") document.querySelectorAll("#nf-tela .nfv select").forEach((s) => { if (!s.dataset.melhorado) melhorarSelect(s); });
       if (typeof melhorarData === "function") document.querySelectorAll('#nf-tela .nfv input[type="date"]').forEach((x) => { if (!x.dataset.melhorado) melhorarData(x); });

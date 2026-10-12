@@ -55,6 +55,12 @@
     const doServidor = (c.planos || []).map((p) => Object.assign({}, PLANOS_DO_SITE.find((s) => s.id === p.id) || {}, p));
     const planos = doServidor.length >= 2 ? doServidor : PLANOS_DO_SITE;
     const atual = (c.plano || {}).id;
+    // Com a assinatura em dia nao se assina de novo: o atual trava e a troca e na Conta Atos (sem cobranca em dobro).
+    const ativa = (c.assinatura || {}).situacao === "authorized";
+    // O anual e o valor_anual da conta (pago de uma vez); sem ele, o do site.
+    const precoAno = (p) => Number(p.valor_anual) || p.valor * (12 - MESES_GRATIS);
+    const ref = planos.find((p) => p.recomendado) || planos[0] || {};
+    const mesesGratis = ref.valor ? Math.max(0, Math.round(12 - precoAno(ref) / ref.valor)) : 0;
     const estado = {
       periodo: c.periodo === "anual" ? "anual" : "mensal",
       plano: ((planos.find((p) => p.recomendado && p.id !== atual) || planos.find((p) => p.id !== atual) || planos[0]) || {}).id,
@@ -63,7 +69,8 @@
     function coluna(p) {
       const on = p.id === estado.plano;
       const anual = estado.periodo === "anual";
-      const precoMes = anual ? (p.valor * (12 - MESES_GRATIS)) / 12 : p.valor;
+      const precoMes = anual ? precoAno(p) / 12 : p.valor;
+      const travado = ativa && p.id === atual;
       const itens = [p.ia].concat(p.itens || []).filter(Boolean).map((x) => {
         const [texto, tag] = Array.isArray(x) ? x : [x, ""];
         return '<li><span class="pln-ok">' + CHECK + "</span><span>" + esc(texto) + "</span>" + (tag ? '<em class="pln-breve">' + esc(tag) + "</em>" : "") + "</li>";
@@ -72,15 +79,17 @@
         (p.recomendado ? '<span class="pln-faixa">Recomendado</span>' : "") +
         '<header class="pln-cab"><b>' + esc(p.nome) + "</b>" + (p.id === atual ? '<span class="pln-atual">atual</span>' : "") + '<i class="ia-radio"></i></header>' +
         '<div class="pln-preco"><b>' + esc(reais(precoMes)) + "</b><span>por mês</span></div>" +
-        (anual ? '<p class="pln-ano">' + esc(reais(p.valor * (12 - MESES_GRATIS))) + " por ano, em até 12×</p>" : "") +
+        (anual ? '<p class="pln-ano">' + esc(reais(precoAno(p))) + " por ano, de uma vez</p>" : "") +
         '<p class="pln-frase">' + esc(p.frase || "") + "</p>" +
         '<div class="pln-numeros"><div><b>' + esc(milhoes(p.tokens)) + "</b><small>créditos de IA por mês</small></div>" +
         "<div><b>" + esc(pessoas(p.pessoas)) + "</b><small>" + esc(p.pessoasNota || "") + "</small></div></div>" +
         (p.herda ? '<div class="pln-herda"><span>Tudo do plano ' + esc(p.herda) + ", e mais</span></div>" : "") +
         '<ul class="pln-lista">' + itens + "</ul>" +
         '<footer class="pln-pe">' + (p.rodape ? '<span class="pln-marca">' + esc(p.rodape) + "</span>" : "") +
-        '<button type="button" class="' + (on ? "primario pln-assinar" : "pln-escolher") + '" ' + (on ? 'data-pln-assinar="1"' : 'data-pln-escolher="' + esc(p.id) + '"') + ">" +
-        esc((on ? "Assinar " : "Escolher ") + p.nome) + "</button></footer></article>";
+        (travado
+          ? '<button type="button" class="pln-escolher" disabled title="É o seu plano, em dia">Plano atual</button>'
+          : '<button type="button" class="' + (on ? "primario pln-assinar" : "pln-escolher") + '" ' + (on ? 'data-pln-assinar="1"' : 'data-pln-escolher="' + esc(p.id) + '"') + ">" +
+            esc((on ? (ativa ? "Trocar para " : "Assinar ") : "Escolher ") + p.nome) + "</button>") + "</footer></article>";
     }
 
     function desenhar(corpo) {
@@ -88,14 +97,13 @@
         '<div class="pln-topo">' +
         '<div class="pln-periodo" role="radiogroup" aria-label="Período">' +
           '<button type="button" class="' + (estado.periodo === "mensal" ? "ativa" : "") + '" data-pln-periodo="mensal">Por mês</button>' +
-          '<button type="button" class="' + (estado.periodo === "anual" ? "ativa" : "") + '" data-pln-periodo="anual">Por ano <em>' + MESES_GRATIS + " meses grátis</em></button>" +
+          '<button type="button" class="' + (estado.periodo === "anual" ? "ativa" : "") + '" data-pln-periodo="anual">Por ano' + (mesesGratis ? " <em>" + mesesGratis + (mesesGratis === 1 ? " mês grátis" : " meses grátis") + "</em>" : "") + "</button>" +
         "</div></div>" +
         '<div class="pln-grade" role="radiogroup" aria-label="Plano">' + planos.map(coluna).join("") + "</div>" +
         '<p class="pln-nota">Uma pergunta sobre documentos gasta, em média, 3.500 créditos. A cota é do mês, liberada por semana. ' +
-        "Pague no Pix (um mês ou o ano, sem renovação) ou no cartão (o mensal renova sozinho; o anual, em até 12×)." +
-        (((c.assinatura || {}).situacao === "authorized")
-          ? " Com a assinatura ativa, o upgrade cobra só a diferença proporcional, considerando quantas janelas de créditos do plano atual você já usou."
-          : "") + "</p>";
+        (ativa
+          ? "Para trocar de plano, cancele a assinatura de agora na Conta Atos (o período pago vale até o fim) e assine o outro quando ele acabar. Assim não há cobrança em dobro."
+          : "O pagamento é na Atos, com a Conta Atos: no cartão, com o mensal renovando todo mês, ou no Pix. O anual é pago de uma vez, sem parcelamento.") + "</p>";
     }
 
     let relogio = 0, conferindo = false;
@@ -146,7 +154,15 @@
     veu.addEventListener("click", (e) => {
       const per = e.target.closest("[data-pln-periodo]");
       if (per) { estado.periodo = per.dataset.plnPeriodo; desenhar(corpo); return; }
-      if (e.target.closest("[data-pln-assinar]")) { abrirPagamento(); esperar(corpo); return; }
+      if (e.target.closest("[data-pln-assinar]")) {
+        // Com a assinatura em dia, a troca e na Conta Atos (js/75-nuvem.js), nunca um segundo pagamento.
+        if (ativa && typeof trocarPlanoNaAtos === "function") {
+          fecharJanela();
+          trocarPlanoNaAtos(c, (planos.find((p) => p.id === estado.plano) || {}).nome || "outro plano");
+          return;
+        }
+        abrirPagamento(); esperar(corpo); return;
+      }
       const col = e.target.closest("[data-pln-escolher], [data-pln-plano]");
       if (col && !e.target.closest(".pln-espera")) { estado.plano = col.dataset.plnEscolher || col.dataset.plnPlano; desenhar(corpo); return; }
       if (e.target.closest("[data-pln-verificar]")) { conferir(true); return; }

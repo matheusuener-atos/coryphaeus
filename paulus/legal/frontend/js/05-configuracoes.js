@@ -996,7 +996,7 @@ function cartaoEscritorioCfg() {
   const e = (cfg.rascunho || {}).escritorio || {};
   const maquina = '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>' + esc(p.nome || "Você") + "</b>" +
     "<small>responsável · este computador é o Paulus do escritório" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
-    '<p class="cfg-explica">A equipe não instala o Paulus. Cada pessoa recebe o convite por e-mail, vincula a conta Atos a esse e-mail e entra neste Paulus pelo túnel, de onde estiver. O que cada uma vê e faz se escolhe em Permissões.</p>';
+    '<p class="cfg-explica">A equipe não instala o Paulus. Cada pessoa recebe um link de convite (copiado ou pelo WhatsApp) e entra neste Paulus pelo túnel com a Conta Atos do e-mail convidado, de onde estiver. O que cada uma vê e faz se escolhe em Permissões.</p>';
   return cartaoCfg("O escritório", metaCfg("acesso pelo túnel"), maquina);
 }
 

@@ -166,6 +166,10 @@
         reserva + avancado("Modelos deste computador", "baixar e trocar", modelosLocais, "modelos")) +
       cartaoCfg("Limites da IA", metaCfg("o que o assistente faz sem pedir"), limites) +
       cartaoCfg("Modelo de voz", metaCfg("transcreve as gravações, aqui mesmo"), cartaoDaVozCfg()) +
+      // As chaves que moravam na secao antiga e nao tinham outro lugar (pedido de 12/10/2026).
+      (typeof cartaoChavesConversa === "function" ? cartaoChavesConversa() : "") +
+      (typeof cartaoChavesAparelho === "function" ? cartaoChavesAparelho() : "") +
+      cartaoCfg("O que já foi lido", metaCfg("entendido uma vez, consultado sempre"), blocoDoQueJaFoiLido()) +
       (typeof cartaoNuvem === "function" && cartaoNuvem()
         ? avancado("Usar a minha própria chave de IA", "OpenAI, Anthropic ou Google", chaveEnxuta(cartaoNuvem()), "chave")
         : "");

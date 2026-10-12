@@ -352,7 +352,7 @@ function htmlDaFicha() {
       '<button type="button" data-fcn-papel="colaborador"' + (!socio ? ' class="ativa"' : "") + ">Colaborador</button></span>";
     const pode = podeDoPapel(socio);
     const local = (fcn.modulos || []).length > 0;
-    corpo = fcnCampo("nome", "Nome") + fcnCampo("funcao", "Função") + fcnCampo("email", "E-mail", { placeholder: "o convite vai para este e-mail" }) +
+    corpo = fcnCampo("nome", "Nome") + fcnCampo("funcao", "Função") + fcnCampo("email", "E-mail", { placeholder: "com ele a pessoa entra" }) +
       '<div class="fcn-par">' + fcnCampo("documento", "CPF", { meia: true, placeholder: "000.000.000-00", mono: true }) +
       fcnCampo("telefone", "Telefone", { meia: true, placeholder: "(94) 99999-8888", mono: true }) + "</div>" +
       '<div class="fcn-caixa">' + fcnInterruptor("folha", "Entra na folha", "vira a folha do Financeiro, todo mês") +
