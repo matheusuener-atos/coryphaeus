@@ -140,5 +140,16 @@ checar(r.status === 503, "sem ID_SEGREDO: desligado (503)");
 r = await pedir("entrar", { email: "ana@escritorio.adv.br", senha: "novasenha2026" }, { origem: "https://golpe.example" });
 checar(r.status === 403, "de outra origem: recusado");
 
+// Desde 11/10/2026 o Worker nao atende mais /api/id/*: a conta e a Conta Atos (com a segunda etapa dela).
+{
+  const worker = (await import("./index.js")).default;
+  for (const rota of ["entrar", "cadastrar", "confirmar", "esqueci", "redefinir"]) {
+    const resp = await worker.fetch(new Request("https://paulus.ia.br/api/id/" + rota, { method: "POST", headers: { "content-type": "application/json", origin: "https://paulus.ia.br" },
+      body: JSON.stringify({ email: "ana@escritorio.adv.br", senha: "novasenha2026" }) }), {}, { waitUntil() {} });
+    const d = await resp.json();
+    checar(resp.status === 410 && d.codigo === "conta_atos", "/api/id/" + rota + ": 410, a conta e a Conta Atos", { status: resp.status, d });
+  }
+}
+
 console.log(falhas ? "\n  identidade: " + falhas + " falha(s)" : "\n  identidade: todos os testes passaram");
 process.exit(falhas ? 1 : 0);

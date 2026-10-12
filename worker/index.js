@@ -37,7 +37,7 @@ import { atenderIA, ehRotaDaIA } from "./ia.js";
 import { atenderConta, ehRotaDaConta } from "./conta.js";
 import { atenderAdmin, ehRotaDoAdmin, comPlanosDoPainel, enviarCampanhas, enviarEmail } from "./admin.js";
 import { depoisPendentes } from "./nfse/api.js";
-import { atenderIdentidade, ehRotaDaIdentidade } from "./identidade.js";
+import { ehRotaDaIdentidade } from "./identidade.js";
 import { atenderAtos, checkoutDaAtos, ehRotaDaAtos } from "./atos.js";
 
 // O medidor da nuvem do PAULUS (worker/ia.js): um Durable Object por conta.
@@ -89,13 +89,11 @@ export default {
         return json({ erro: "falha no servidor da nuvem" }, 500);
       }
     }
-    // A conta PAVLVS por e-mail e senha (worker/identidade.js): a alternativa ao Google.
+    // O login proprio do PAVLVS por e-mail e senha (/api/id/*, worker/identidade.js) saiu em 11/10/2026: a conta e a
+    // Conta Atos, e entrar por aqui pularia a segunda etapa (2FA, chave de acesso) e as regras dela. Os tokens ja
+    // emitidos continuam conferidos (tunel.js) ate vencer; nada novo sai daqui.
     if (ehRotaDaIdentidade(url)) {
-      try {
-        return await atenderIdentidade(request, env, url, { dentroDoLimite, enviarEmail });
-      } catch (erro) {
-        return json({ erro: "falha no servidor da conta" }, 500);
-      }
+      return json({ erro: "a conta do PAVLVS agora é a Conta Atos: entre em atos.dev.br", codigo: "conta_atos", proximo: "https://atos.dev.br/entrar/" }, 410);
     }
     // A Minha conta (worker/conta.js): a sessao do site, o plano, o pagamento e o escritorio.
     if (ehRotaDaConta(url)) {
