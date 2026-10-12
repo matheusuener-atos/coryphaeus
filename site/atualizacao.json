@@ -1,22 +1,17 @@
 {
-  "versao": "0.9.33",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.33/PAULUS-0.9.33-instalador.exe",
-  "sha256": "3bded755ffbbfb938b697720239a0e433a097d813daeb86aed641a70abe16e2f",
-  "tamanho": 102596028,
-  "publicada": "2026-10-09",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.33",
+  "versao": "0.9.34",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.34/PAULUS-0.9.34-instalador.exe",
+  "sha256": "217a650fbe1380def04fcdf085edb5a1dd8ed7235280db0f6daf5c8c83c5053f",
+  "tamanho": 102741142,
+  "publicada": "2026-10-12",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.34",
   "novidades": [
-    "Trava sem trocar de conta: ela só protege o computador do servidor, e entra de novo a conta dele do jeito dela (a Conta Google pelo Entrar com Google, a Conta Atos pela senha); quem precisa de fora entra pelo túnel, com o e-mail autorizado. Saem a tela de trocar de conta, a rota /api/vinculo/trocar/",
-    "Trava em seções (09/10/2026): CONTA DESTE SERVIDOR com a linha da conta (Conta Google ou Conta Atos) e \"Trocar de conta\"; o Entrar com Google e, em OU COM A SENHA, o cartão com \"Manter aberto\"; ENQUANTO ISSO, o túnel como interruptor, que liga e desliga com o código do Google Authenticator (ou uma c",
-    "Trava: trocar de conta e o túnel com o código do titular. POST /api/vinculo/trocar/autorizar confere o Google Authenticator (ou uma chave de recuperação) de quem configurou o acesso de fora e libera por 10 min entrar com outra conta (finalidade \"trocar\"), que passa a ser a deste servidor; POST /api/",
-    "Acesso à distância, os últimos detalhes: a disponibilidade do endereço só pela borda (verde livre, vermelha ocupado ou inválido; o texto fica para o leitor de tela), o passo 1 feito mostra o endereço que de fato conectou, \"Guardei os códigos\" à esquerda e \"Baixar .txt\" à direita, e o passo 3 abre já",
-    "Pós-instalador sem legado: saem o caminho de entrar num escritório por código (Escritório, \"Quem é você\", Códigos), o passo Modelo de IA, o de Módulos, a janela antiga de entrar pelo e-mail, o vínculo pendente guardado nesta máquina com o modo limitado (o cartão de espera do Assistente, os destinos ",
-    "Acesso à distância no desenho de 09/10/2026: ACESSAR À DISTÂNCIA fora, o interruptor Ligado/Desligado (ligado por padrão) no primeiro cartão, cada passo num cartão e só o da vez aberto (\"Usar este endereço\" encolhe o passo 1 com o endereço, que volta a ser escolhido num clique), a confirmação com o ",
-    "Pós-instalador em seções (desenho de 09/10/2026): o rótulo fora, acima do cartão; no cartão os campos, o botão e a nota; fora, os links de ir e voltar. Boas-vindas, Sua conta (SUA CONTA com o Google e OU COM E-MAIL E SENHA), Criar conta, código, Trocar a senha, Assinatura, Seus dados (grade de quatr",
-    "Conexões: quando o retorno do Google dá erro (permissão não marcada, conta recusada, limite do plano), a espera do consentimento para e a tela diz o motivo, em vez de seguir \"aguardando\" para sempre; sem conta Google, a nota pede para escolher a conta. Sua conta: \"Trocar de conta\" na linha Vinculado",
-    "Títulos de texto na Garamond (400, a única que vem com o app): a fala de boas-vindas do Assistente, o nome do plano em Seus dados, os títulos de tela e de cartão (E-mail, Acervo, Serviços, Notas fiscais, Cadastros, diálogos, conversa, plano e consumo, celular), com o tamanho um pouco maior pela letr",
-    "Pós-instalador numa escala tipográfica só: rótulo de seção mono 12px .18em nos cartões como no lado editorial (\"O que autorizar\" e os passos do acesso), rótulo de campo 11px .14em, valor dos dados 14px, subtítulo de linha 12px 400, notas e ajuda 13px 400, e o Voltar do rodapé 13px como o Continuar e",
-    "Seus dados: o cartão Plano em destaque, com o nome e \"plano atual\", o valor do período contratado (R$ por mês ou por ano; Cortesia sem cobrança) e embaixo quando renova ou até quando está pago, com \"Fazer upgrade ↗\"; /api/assinatura passa a trazer valor, periodo e pago_ate",
-    "Atualizações no pós-instalador: o cartão com o título ATUALIZAÇÕES alinhado ao texto das linhas, um fio entre elas, e \"o Paulus procura versão nova todo dia\" quando a verificação está ligada"
+    "DataJud: chave nova lida na wiki do CNJ, nova tentativa quando o DataJud esta cheio e o perfil da vara",
+    "O escritorio de fora vira app instalavel (PWA): cada <nome>.paulus.ia.br tem manifesto (/manifest.webmanifest, escopo no proprio endereco, standalone, related_applications para si) e service worker (/sw.js, sem cache; troca a pagina de erro do tunel por \"o escritorio nao respondeu\"). js/instalar-app",
+    "PAULUS instalado: o dinheiro é na Atos. Modelos › Nuvem e Plano e consumo abrem a Atos para comprar créditos (a recarga no plano da conta), assinar (checkout, de uma vez no anual, sem parcelamento), trocar de plano e cancelar (a Conta Atos, com o texto de como é), ver as faturas e trocar o cartão; a",
+    "Entrar com Atos no PAULUS: a troca do código pelo token (e a revogação) se identifica como \"PAULUS (+https://paulus.ia.br)\". O Cloudflare (Browser Integrity Check) barra com 403 o \"Python-urllib\" padrão antes de o pedido chegar a atos.dev.br ou paulus.ia.br, e o login parava em \"o servidor de login ",
+    "Só a Conta Atos: o PAULUS e o site entram só por ela; o Google vira um jeito de entrar na Atos e, aqui, só os serviços (Gmail, Agenda, Drive, Meet). Servidor: o vínculo é sempre da Atos (o do Google de antes destrava pela Atos e passa a dizer atos); assistente, trava e Configurações só com \"Entrar c",
+    "Entrar com Atos, de fora: acesso/atos_login.py (cliente pavlvs-escritorio, PKCE, nonce, cookie que amarra a volta ao navegador, troca direto em atos.dev.br) e /api/acesso/atos/iniciar e /retorno; a volta do Google e a da Atos seguem pelo mesmo _entrou (convite, navegador confiado, código do celular,",
+    "Entrar com Atos no PAULUS instalado: a Conta Atos entra como o Google, pelo navegador (correio_oauth, provedor \"atos\": atos.dev.br/entrar, cliente público pavlvs-app, PKCE S256, volta em 127.0.0.1). Sai o formulário de e-mail e senha do assistente, da trava e de Configurações, e saem as rotas /api/v"
   ]
 }
