@@ -98,16 +98,6 @@ class AcessoDeFora:
 
     # ------------------------------------------------------------ tunel
 
-
-    def so_google(self) -> bool:
-        """
-        Ligado, de fora TODA entrada e pelo Google (+ codigo do celular) - a
-        regra de 28/09/2026. Desde 07/10/2026 o padrao e desligado: e-mail e
-        senha valem por inteiro (com o mesmo codigo do celular e o "Esqueci a
-        senha"), e o Google continua como opcao onde esta configurado.
-        """
-        return bool(self.preferencias().get("so_google", False))
-
     def conferir_turnstile(self, token: str, ip: str = "") -> str:
         """
         O anti-robo de um login de fora, conferido no Worker (o segredo do
