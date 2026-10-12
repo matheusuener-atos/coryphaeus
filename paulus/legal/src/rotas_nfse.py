@@ -164,6 +164,43 @@ def montar(estado, app, dados_dir) -> None:
         estado.nfse.remover_certificado()
         return estado.nfse.para_tela()
 
+    @app.post("/api/nfse/certificado/do-assinador")
+    def nfse_certificado_do_assinador() -> dict:
+        """
+        "Usar este certificado também nas notas" (Configurações › Certificado
+        digital): o .pfx da Assinatura passa a ser o da nota. Copia o arquivo e
+        usa a senha que a Assinatura já tem aberta; o do Windows não serve, porque
+        a conexão com a Sefin precisa da chave e ele não a entrega.
+        """
+        cofre = estado.cofre
+        if not cofre.instalado:
+            raise HTTPException(status_code=400, detail="não há certificado na Assinatura")
+        if cofre.origem == "windows":
+            raise HTTPException(status_code=400, detail="o certificado do Windows não serve para a nota fiscal: "
+                                "a conexão com a Sefin precisa do arquivo .pfx, e a chave do Windows não sai de lá")
+        senha = cofre.senha_agora()
+        if not senha:
+            raise HTTPException(status_code=400, detail="abra o certificado da Assinatura com a senha antes")
+        alvo = cofre.arquivo
+        try:
+            estado.nfse.instalar_certificado(alvo.name, alvo.read_bytes(), senha,
+                                             bool(cofre.dados.get("senha_protegida")))
+        except (OSError, ValueError) as exc:
+            _erro(exc)
+        return estado.nfse.para_tela()
+
+    @app.post("/api/nfse/certificado/windows")
+    def nfse_certificado_windows() -> dict:
+        """
+        O "Usar um já instalado no Windows" da nota fiscal. A emissão fala com a
+        Sefin por TLS com a chave do certificado, e o Python só faz isso com o
+        .pfx: a chave de um certificado do Windows não sai de lá. Responde o
+        motivo em vez de fingir que ficou pronto.
+        """
+        raise HTTPException(status_code=400, detail="a nota fiscal precisa do certificado em arquivo (.pfx): "
+                            "a chave do certificado do Windows não sai de lá para a conexão com a Sefin. "
+                            "Use “Escolher no computador” com o .pfx")
+
     @app.post("/api/nfse/municipio/consultar")
     def nfse_municipio_consultar() -> dict:
         try:
@@ -220,9 +257,20 @@ def montar(estado, app, dados_dir) -> None:
         return nota
 
     @app.get("/api/nfse/notas")
-    def nfse_notas(estados: str = "", mes: str = "") -> dict:
+    def nfse_notas(estados: str = "", mes: str = "", de: str = "", ate: str = "") -> dict:
+        """
+        As notas do escritório. `mes` (AAAA-MM) filtra pela competência; `de` e
+        `ate` (AAAA-MM-DD) pelo período da tela Notas fiscais: a emitida pela
+        data de emissão, a que ainda não saiu pela competência.
+        """
         lista = [e for e in estados.split(",") if e] or None
-        return {"notas": estado.nfse.notas.listar(lista, mes)}
+        notas = estado.nfse.notas.listar(lista, mes, limite=5000 if (de or ate) else 300)
+        if de or ate:
+            def dia(n: dict) -> str:
+                return str(n.get("emitida_em") or ((n.get("competencia") or "")[:7] + "-01" if n.get("competencia") else ""))[:10]
+
+            notas = [n for n in notas if dia(n) and (not de or dia(n) >= de[:10]) and (not ate or dia(n) <= ate[:10])]
+        return {"notas": notas}
 
     @app.post("/api/nfse/notas")
     def nfse_nota_criar(payload: NovaNota) -> dict:
@@ -370,6 +418,33 @@ def montar(estado, app, dados_dir) -> None:
         nome = f"NFS-e {nota['numero_nfse'] or nota['id']}.xml"
         return Response(caminho.read_bytes(), media_type="application/xml",
                         headers={"Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
+
+    @app.post("/api/nfse/notas/{id_}/enviar-email")
+    def nfse_nota_enviar_email(id_: int) -> dict:
+        """
+        "Enviar ao cliente" (tela Notas fiscais): o PDF e o XML da nota emitida
+        por e-mail ao tomador. Não manda nada: o e-mail vai para Aprovações,
+        como o que o Paulus propõe ao emitir. Sem e-mail do tomador ou sem
+        conta de e-mail, diz o que falta.
+        """
+        from nfse import fluxo
+        from nfse.notas import EMITIDA
+
+        nota = estado.nfse.notas.obter(id_)
+        if not nota:
+            raise HTTPException(status_code=404, detail="nota não encontrada")
+        if nota["estado"] != EMITIDA or not nota.get("xml_nfse") or not Path(nota["xml_nfse"]).exists():
+            raise HTTPException(status_code=400, detail="só a nota emitida vai ao cliente por e-mail")
+        try:
+            anexos = fluxo.guardar_no_acervo(estado, nota)
+        except OSError as exc:
+            _erro(ValueError(f"não consegui preparar o PDF e o XML: {exc}"))
+        feito = fluxo.propor_email(estado, nota, anexos)
+        if "Aprovações" not in feito:
+            # "sem e-mail do tomador: ...", "sem conta de e-mail no Paulus: ..."
+            raise HTTPException(status_code=400, detail=feito.split(":")[0])
+        estado.nfse.notas.passo(id_, EMITIDA, EMITIDA, "titular", feito)
+        return {"proposta": feito, "nota": _nota_para_tela(estado.nfse.notas.obter(id_))}
 
     @app.post("/api/nfse/notas/{id_}/cancelar")
     def nfse_nota_cancelar(id_: int, payload: Motivo) -> dict:

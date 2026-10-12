@@ -322,7 +322,7 @@ _declarar(BLOQUEADO,
           "DELETE /api/documentos/{id_}", "DELETE /api/documentos/modelos/{id_}",
           # o que abre programa ou janela no Windows local, ou le caminho do disco
           "POST /api/biblioteca/abrir-pasta", "POST /api/externo/perguntar", "POST /api/externo/mostrar",
-          "POST /api/anexar/caminhos", "POST /api/arquivos/abrir", "POST /api/arquivos/salvar",
+          "POST /api/anexar/caminhos", "POST /api/arquivos/abrir", "POST /api/arquivos/salvar", "GET /api/arquivos/bruto",
           "POST /api/trabalhos/{id_}/exportar", "GET /api/impressoras", "POST /api/documentos/{id_}/imprimir",
           "POST /api/certificado/windows/abrir",
           # assinar e o certificado
@@ -482,6 +482,11 @@ _declarar(BLOQUEADO, "GET /api/nfse/notas/{id_}/danfse", "POST /api/nfse/notas/{
           "POST /api/nfse/notas/{id_}/substituir", "POST /api/nfse/notas/{id_}/situacao")
 # --- Tela Notas fiscais (js/93-notas-fiscais.js): o XML da NFS-e emitida, para baixar.
 _declarar(BLOQUEADO, "GET /api/nfse/notas/{id_}/xml")
+# --- Telas do App de 12/10/2026 (js/99-nfse-emissor.js, js/99-certificado-conexoes.js): o
+# "Enviar ao cliente" (o e-mail vai para Aprovacoes), o certificado da Assinatura usado
+# tambem nas notas e o "ja instalado no Windows" (que responde por que nao serve).
+_declarar(BLOQUEADO, "POST /api/nfse/notas/{id_}/enviar-email", "POST /api/nfse/certificado/do-assinador",
+          "POST /api/nfse/certificado/windows")
 # --- N6 (NFS-e): o relatorio do mes, a exportacao e o envio ao contador (vai para Aprovacoes).
 _declarar(BLOQUEADO, "GET /api/nfse/contador", "POST /api/nfse/contador/exportar", "POST /api/nfse/contador/enviar")
 # --- N7 (NFS-e): honorarios recorrentes (criam o rascunho e o pedido; nunca emitem).

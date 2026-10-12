@@ -8411,10 +8411,16 @@ def organizar_opcoes() -> dict:
 
 
 @app.get("/api/pastas")
-def navegar_pastas(caminho: str = "", arquivos: bool = False) -> dict:
+def navegar_pastas(caminho: str = "", arquivos: bool = False, tipos: str = "") -> dict:
     """Um nivel do seletor de pastas. Sem caminho, mostra unidades e atalhos.
-    Com `arquivos`, lista tambem os documentos que o programa sabe ler."""
-    dados = pastas.listar(caminho, sufixos=SUPPORTED_SUFFIXES if arquivos else None)
+    Com `arquivos`, lista tambem os documentos que o programa sabe ler; com
+    `tipos` (".pfx,.p12"), so esses - o certificado e a planilha da nota fiscal,
+    que nao sao documentos do Acervo, e os que /api/arquivos/bruto entrega."""
+    sufixos = SUPPORTED_SUFFIXES if arquivos else None
+    if arquivos and tipos:
+        pedidos = {("." + t.strip().lower().lstrip(".")) for t in tipos.split(",") if t.strip()}
+        sufixos = (pedidos & (SUPPORTED_SUFFIXES | _BRUTO_SUFIXOS)) or sufixos
+    dados = pastas.listar(caminho, sufixos=sufixos)
     dados["migalhas"] = pastas.migalhas(caminho)
     if not caminho:
         # As pastas que o proprio PAULUS le, no topo: e por elas que se
@@ -9416,6 +9422,35 @@ def arquivos_salvar(payload: dict) -> dict:
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"não consegui salvar: {exc}") from exc
     return {"nome": destino.name, "pasta": str(destino.parent)}
+
+
+# O que o "procurar no computador" da nota fiscal (js/99-nfse-emissor.js) pode
+# trazer do disco: o certificado A1 e a planilha oficial das tabelas. Nada mais.
+_BRUTO_SUFIXOS = {".pfx", ".p12", ".xlsx"}
+_BRUTO_MAX = 20 * 1024 * 1024
+
+
+@app.get("/api/arquivos/bruto")
+def arquivos_bruto(caminho: str):
+    """
+    Os bytes de um arquivo escolhido no navegador de pastas do Paulus, para a
+    tela entregar ao campo de arquivo como se tivesse sido solto ali. So na
+    janela do escritorio, so .pfx, .p12 e .xlsx, ate 20 MB.
+    """
+    from fastapi.responses import Response
+
+    alvo = Path(caminho or "")
+    if not caminho or alvo.suffix.lower() not in _BRUTO_SUFIXOS:
+        raise HTTPException(status_code=400, detail="daqui só se lê o certificado (.pfx ou .p12) ou a planilha (.xlsx)")
+    if not alvo.is_file():
+        raise HTTPException(status_code=404, detail="arquivo não encontrado")
+    if alvo.stat().st_size > _BRUTO_MAX:
+        raise HTTPException(status_code=400, detail="arquivo grande demais")
+    try:
+        conteudo = alvo.read_bytes()
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail=f"não consegui ler: {exc}") from exc
+    return Response(conteudo, media_type="application/octet-stream", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/arquivos/pagina")

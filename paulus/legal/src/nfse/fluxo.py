@@ -233,26 +233,34 @@ def pasta_da_nota(estado, nota: dict) -> Path:
     return alvo
 
 
+def guardar_no_acervo(estado, nota: dict) -> list[str]:
+    """O XML e o PDF (DANFSe) da nota emitida na pasta dela no Acervo; devolve
+    os caminhos, o PDF primeiro. Gravar de novo troca pelos mesmos bytes."""
+    base_nome = _nome_arquivo(f"NFS-e {nota['numero_nfse']} - {nota.get('tomador_nome') or ''} - "
+                              f"{(nota.get('competencia') or '')[:7]}" + (" (produção restrita)" if nota["ambiente"] != "producao" else ""))
+    anexos: list[str] = []
+    pasta = pasta_da_nota(estado, nota)
+    destino = pasta / f"{base_nome}.xml"
+    destino.write_bytes(Path(nota["xml_nfse"]).read_bytes())
+    anexos.append(str(destino))
+    gerar_pdf = getattr(estado.nfse, "danfse_para", None)
+    if gerar_pdf:
+        pdf = gerar_pdf(nota)
+        if pdf:
+            alvo_pdf = pasta / f"{base_nome}.pdf"
+            alvo_pdf.write_bytes(pdf)
+            anexos.insert(0, str(alvo_pdf))
+    return anexos
+
+
 def depois_de_emitir(estado, nota: dict) -> None:
     """Acervo, registro, lançamento, e-mail, aviso e auditoria. Cada parte que
     falha fica escrita nos passos da nota; nenhuma desfaz a nota emitida."""
     notas = estado.nfse.notas
     ambiente = "produção" if nota["ambiente"] == "producao" else "produção restrita"
-    base_nome = _nome_arquivo(f"NFS-e {nota['numero_nfse']} - {nota.get('tomador_nome') or ''} - "
-                              f"{(nota.get('competencia') or '')[:7]}" + (" (produção restrita)" if nota["ambiente"] != "producao" else ""))
     anexos: list[str] = []
     try:
-        pasta = pasta_da_nota(estado, nota)
-        destino = pasta / f"{base_nome}.xml"
-        destino.write_bytes(Path(nota["xml_nfse"]).read_bytes())
-        anexos.append(str(destino))
-        gerar_pdf = getattr(estado.nfse, "danfse_para", None)
-        if gerar_pdf:
-            pdf = gerar_pdf(nota)
-            if pdf:
-                alvo_pdf = pasta / f"{base_nome}.pdf"
-                alvo_pdf.write_bytes(pdf)
-                anexos.insert(0, str(alvo_pdf))
+        anexos = guardar_no_acervo(estado, nota)
         notas.passo(nota["id"], EMITIDA, EMITIDA, "Paulus", "no Acervo: " + ", ".join(Path(a).name for a in anexos))
         if hasattr(estado, "recarregar_em_segundo_plano"):
             estado.recarregar_em_segundo_plano()

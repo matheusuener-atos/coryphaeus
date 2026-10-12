@@ -92,6 +92,11 @@ class Notas:
         n["estado_rotulo"] = ESTADOS.get(n["estado"], n["estado"])
         n["valor"] = reais(int(n.get("centavos") or 0))
         n["editavel"] = n["estado"] in EDITAVEIS
+        # A tela Notas fiscais (js/99-nfse-emissor.js) mostra o servico e filtra
+        # o periodo pela data de emissao: a descricao do rascunho e a hora em
+        # que a Sefin processou (ou a da DPS), vazia enquanto nao foi emitida.
+        n["servico"] = str(n["rascunho"].get("descricao") or "")
+        n["emitida_em"] = str(n.get("dh_proc") or n.get("dh_emi") or "") if n.get("numero_nfse") else ""
         return n
 
     def obter(self, id_: int) -> dict | None:
