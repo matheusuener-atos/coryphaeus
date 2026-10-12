@@ -28,6 +28,7 @@
   .pr-barra b { font-weight: 600; font-variant-numeric: tabular-nums; }
   .pr-barra i { grid-column: 1 / -1; display: block; height: 4px; border-radius: 2px; background: var(--ink2); opacity: .35; min-width: 2px; }
   .pr-nota { font-size: 12px; }
+  .pr-perfil .pr-barras { margin-top: 10px; }
 
   @media (max-width: 600px) {
     .pr-linha { grid-template-columns: minmax(0, 1fr); gap: 4px; }
