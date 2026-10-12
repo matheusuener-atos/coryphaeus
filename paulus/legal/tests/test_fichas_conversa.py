@@ -146,12 +146,18 @@ def test_tela() -> None:
           doc: document.querySelector('#lado-ferramenta [data-fcn=documento]').value,
           end: document.querySelector('#lado-ferramenta [data-fcn=endereco]').value,
           notas: [...document.querySelectorAll('#lado-ferramenta .fcn-rotulo em')].map(x => x.textContent),
+          docInvalido: document.querySelector('#lado-ferramenta [data-fcn=documento]').getAttribute('aria-invalid'),
+          docLeitor: [...document.querySelectorAll('#lado-ferramenta .so-leitor')].map(x => x.textContent.toLowerCase()),
           largura: document.getElementById('lateral').getBoundingClientRect().width})""")
         checar(tela["frase"].startswith("Achei Congregação Cristã no Brasil em 3 documentos") and "ligada a 2 documentos" in tela["frase"],
                "a conversa diz onde achou, e quantos entram na ficha (os que têm dado)", tela["frase"])
         checar(len(tela["docs"]) == 3 and tela["nome"] == "CONGREGAÇÃO CRISTÃ NO BRASIL", "onde aparece, e o nome como está nos documentos", tela)
         checar(tela["doc"] == "298.077.192-91" and tela["end"].startswith("Av. Paulo São, 1193"), "o CPF e o endereço lidos perto do nome", tela)
-        checar("lido em 3 documentos" in tela["notas"] and "confira: é um CPF, não um CNPJ" in tela["notas"], "de onde veio, e o que conferir", tela["notas"])
+        # Desde 09/10/2026 o que conferir e a borda vermelha do campo, sem texto na tela; a frase fica para o
+        # leitor de tela (marcarCampo, js/00-base.js).
+        checar("lido em 3 documentos" in tela["notas"] and tela["docInvalido"] == "true"
+               and "confira: é um cpf, não um cnpj" in tela["docLeitor"],
+               "de onde veio, e o que conferir (o campo vermelho)", (tela["notas"], tela["docInvalido"], tela["docLeitor"]))
         checar(410 <= tela["largura"] <= 430, "a ficha na coluna de 420", tela["largura"])
         caixa = pag.evaluate("""() => ({ph: document.getElementById('pedido').placeholder,
           fora: [...document.querySelectorAll('#lado-ferramenta input, #lado-ferramenta .escolha-botao')].filter(x => x.getBoundingClientRect().right > document.getElementById('lateral').getBoundingClientRect().right - 8).length,

@@ -49,6 +49,11 @@ class ClienteLento:
         time.sleep(self.segundos)
         return self.texto
 
+    def ask_json(self, *a, **k):
+        # O editor sem trecho selecionado pede o que trocar ou o que acrescentar no fim (api.py, documentos_assistente).
+        time.sleep(self.segundos)
+        return {"trocas": [], "acrescentar": self.texto}
+
 
 def test_leitor_unico() -> None:
     print("\num leitor de SSE só")

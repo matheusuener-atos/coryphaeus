@@ -359,6 +359,13 @@ def test_pergunta_nomeia_um_documento() -> None:
            "“contrato” é palavra de tipo, não nome de arquivo")
     checar(citado("compare a procuração do Matheus com a da Priscila") == "",
            "duas nomeadas é ambíguo demais para escolher sozinho")
+    # 12/10/2026: o nome inteiro tem borda. "document.pdf" no Acervo casava
+    # dentro de "abra o documento" e passava na frente do anexo.
+    com_curto = acervo + [SimpleNamespace(name="document.pdf")]
+    checar(intencao.documento_citado("Quero que você abra o documento", com_curto) == "",
+           "“document.pdf” não casa dentro de “documento”")
+    checar(intencao.documento_citado("abra o document.pdf", com_curto) == "document.pdf",
+           "mas casa quando a frase diz o nome")
     checar(citado("") == "" and intencao.documento_citado("x", None) == "",
            "texto vazio e acervo vazio não quebram")
 

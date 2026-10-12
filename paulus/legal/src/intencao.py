@@ -978,8 +978,10 @@ def documento_citado(texto: str, documentos=None) -> str:
     nomes = [n for n in (_nome_de(d) for d in documentos or []) if n]
 
     # Primeira passada: o nome do arquivo aparece inteiro na frase. É o caso
-    # do "Sobre “X”:" que a tela escreve, e não tem como dar falso positivo.
-    inteiros = [n for n in nomes if _plano(Path(n).stem) in plano]
+    # do "Sobre “X”:" que a tela escreve. Inteiro de verdade, com borda dos
+    # dois lados (12/10/2026): um "document.pdf" no Acervo casava dentro de
+    # "abra o documento" e passava na frente do arquivo anexado.
+    inteiros = [n for n in nomes if re.search(r"(?<![a-z0-9])" + re.escape(_plano(Path(n).stem)) + r"(?![a-z0-9])", plano)]
     if inteiros:
         # Com "contrato.pdf" e "contrato (1).pdf", os dois casam: fica o mais
         # específico, que é o nome mais longo.
@@ -991,11 +993,13 @@ def documento_citado(texto: str, documentos=None) -> str:
 
     # Segunda: todas as palavras próprias do nome aparecem na frase. Pega
     # "qual o valor da viagem 000434?" sem pegar "quanto custou a viagem?".
+    # Palavra inteira, como na primeira passada: "document" nao e "documento".
+    palavras = set(re.findall(r"[a-z0-9]+", plano))
     achados = []
     for nome in nomes:
         proprias = [p for p in re.findall(r"[a-z0-9]{3,}", _plano(Path(nome).stem))
                     if p not in GENERICAS and p not in ENFEITE]
-        if proprias and all(p in plano for p in proprias):
+        if proprias and all(p in palavras for p in proprias):
             achados.append(nome)
     return achados[0] if len(achados) == 1 else ""
 

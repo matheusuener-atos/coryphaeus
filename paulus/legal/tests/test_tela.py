@@ -449,6 +449,9 @@ def main() -> int:
                     "as etapas na ordem nova, so com o nome",
                     pagina.evaluate(etapas),
                 )
+                # Ainda sem conta, seja qual for a deste computador: o teste roda com os dados reais, e o PAULUS
+                # de quem desenvolve ja esta vinculado (12/10/2026).
+                pagina.evaluate("() => { vinc.estado = {vinculado: false, fase: ''}; }")
                 pagina.evaluate("() => document.querySelector('[data-bv=continuar]').click()")
                 pagina.wait_for_timeout(600)
                 # Entrar e obrigatorio (08/10/2026): o passo Sua conta tem o login e nao tem
@@ -458,7 +461,10 @@ def main() -> int:
                     and pagina.evaluate("() => !!document.querySelector('[data-bv-atos]')")
                     and pagina.evaluate("() => !document.querySelector('[data-bv=pular]') && !document.querySelector('[data-bv=continuar]')"),
                     "Comecar leva ao passo Sua conta: o login, sem pular e sem Continuar antes de entrar",
-                    pagina.evaluate(etapa),
+                    pagina.evaluate("""() => ({etapa: (document.querySelector('.bv-etapa.atual') || {}).textContent,
+                      atos: !!document.querySelector('[data-bv-atos]'), pular: !!document.querySelector('[data-bv=pular]'),
+                      continuar: !!document.querySelector('[data-bv=continuar]'),
+                      vinculada: !!document.querySelector('.bv-conta-vinculada')})"""),
                 )
                 # Entrou (como o formulario deixa), ainda sem assinatura: o Continuar aparece.
                 pagina.evaluate("""async () => {
