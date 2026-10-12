@@ -66,7 +66,7 @@ class Mensagem:
     cc: str = ""                  # quem mais recebeu (o "responder a todos")
     assunto: str = ""
     quando: str = ""              # ISO
-    quando_curto: str = ""        # "09:12", "ontem", "3 set"
+    quando_curto: str = ""        # "hoje 09:12", "ontem 18:12", "3 set 14:40"
     lido: bool = False
     respondido: bool = False
     tem_anexo: bool = False
@@ -153,18 +153,22 @@ def _texto_cabecalho(bruto) -> str:
 
 
 def _quando_curto(quando: datetime | None) -> str:
+    """O dia e a hora da chegada, como a lista da caixa mostra (telas de
+    12/10/2026): "hoje 10:05", "ontem 18:12", "10 out 14:40"; de mais de
+    300 dias, a data inteira."""
     if not quando:
         return ""
     agora = datetime.now(quando.tzinfo)
     dia = quando.date()
+    hora = quando.strftime("%H:%M")
     if dia == agora.date():
-        return quando.strftime("%H:%M")
+        return f"hoje {hora}"
     if dia == (agora - timedelta(days=1)).date():
-        return "ontem"
+        return f"ontem {hora}"
     if (agora.date() - dia).days < 300:
         meses = ["jan", "fev", "mar", "abr", "mai", "jun",
                  "jul", "ago", "set", "out", "nov", "dez"]
-        return f"{dia.day} {meses[dia.month - 1]}"
+        return f"{dia.day} {meses[dia.month - 1]} {hora}"
     return dia.strftime("%d/%m/%Y")
 
 
