@@ -743,7 +743,7 @@ function linhaAssinatura(segundos, citados, pergunta, quem, como, fontes) {
   // Pelos fatos ja conferidos, sem o modelo: a linha nao diz que ele escreveu.
   if (como && como.caminho === "nivel0" && como.molde) quem = "sem modelo";
   // A profundidade escolhida (js/92-entrevista.js): o nível na frente do modelo.
-  if (como && como.profundidade && como.profundidade.nome) quem = como.profundidade.nome + " · " + (quem || estado.modelo || "assistente local");
+  if (como && como.profundidade && como.profundidade.nome) quem = ((typeof NOME_DO_NIVEL !== "undefined" && NOME_DO_NIVEL[como.profundidade.id || como.profundidade.nivel]) || como.profundidade.nome) + " · " + (quem || estado.modelo || "assistente local");
   const meta = [segundos ? segundosBR(segundos) : "", quem || estado.modelo || "assistente local"].filter(Boolean).join(" · ");
   // O aviso da nuvem (worker/ia.js): ex., na primeira semana do Plus, o Opus libera no 8º dia.
   const aviso = como && como.nuvem && como.nuvem.aviso ? '<p class="ass-aviso">' + ic("schedule", 14) + "<span>" + esc(como.nuvem.aviso) + ".</span></p>" : "";

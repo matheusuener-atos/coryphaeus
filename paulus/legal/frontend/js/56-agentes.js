@@ -94,7 +94,9 @@ function cascaAgentes(html) {
 }
 
 function desenharAgentes() {
-  if ($("conversa-titulo").textContent !== "Agentes") return;
+  // Na edicao o cabecalho diz "Novo agente" ou o nome: quem diz se a tela ainda e esta e o destino ativo.
+  const naTela = $("conversa-titulo").textContent === "Agentes" || Boolean(document.querySelector('.trilho-item.ativo[data-destino="agentes"]'));
+  if (!naTela) return;
   if (agt.vista === "agente") return desenharAgente();
   if (agt.vista === "editar") return desenharEdicao();
   return desenharListaDeAgentes();

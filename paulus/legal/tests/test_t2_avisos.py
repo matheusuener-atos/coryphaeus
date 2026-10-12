@@ -440,11 +440,15 @@ def test_tela(api, ids) -> None:
             vez = pag.evaluate("""() => ({titulo: document.getElementById('chamada-vez').textContent,
               sub: document.getElementById('sub-vez').textContent,
               campo: document.getElementById('cartao-campo').offsetParent !== null,
-              pisca: document.querySelector('.trilho [data-destino=aprovacoes]').classList.contains('pisca-avisos')})""")
+              pisca: document.querySelector('.trilho [data-destino=aprovacoes]').classList.contains('pisca-avisos'),
+              sino: ((s) => !!s && s.offsetParent !== null && s.classList.contains('com-conta') && Number((s.querySelector('.sino-conta') || {}).textContent) > 0)(document.getElementById('recentes-sino'))})""")
             checar("novos avisos" in vez["titulo"] and vez["sub"].endswith("Clique aqui para visualizar."), "e então os avisos, com 'Clique aqui para visualizar.' na frase de baixo", vez["titulo"])
             checar(vez["sub"].startswith(atrasados[0]["titulo"]), "a frase de baixo começa pelo atrasado mais antigo", vez["sub"])
             checar(f"e mais {len(atrasados) - 1} atrasado" in vez["sub"], "e diz quantos mais estão atrasados", vez["sub"])
-            checar(vez["campo"] and vez["pisca"], "a caixa de pedido fica, e Aprovações pisca", vez)
+            # Desde a entrega de 12/10 o aviso mora só no sino da linha das recentes, com a conta
+            # (js/53-avisos.js piscarAprovacoes, js/01-conversas.js desenharRecentes): o trilho
+            # (escondido atrás da barra do alto) não pisca mais.
+            checar(vez["campo"] and vez["sino"] and not vez["pisca"], "a caixa de pedido fica, e Aprovações pisca", vez)
             sonda = pag.evaluate(SONDA_DE_ERRO)
             checar(sonda["cores"] and not sonda["achados"], "sem vinho na chamada dos avisos", sonda["achados"][:4])
             pag.screenshot(path=str(CAPTURAS / "t2-inicio.png"))
@@ -488,7 +492,8 @@ def test_tela(api, ids) -> None:
               r = t.querySelector('span:not(.ic)').getBoundingClientRect(),
               acoes = [...document.querySelectorAll('#av-painel .avp-linha[data-sel] .avp-acoes')].map(a => Math.round(a.getBoundingClientRect().right));
               return {folga: Math.round(p.top - c.bottom), rotulo: Math.round(r.left - ic.left - ic.width) + (ic.width > 24 ? 999 : 0), direitas: [...new Set(acoes)].length}; }""")
-            checar(medidas["folga"] >= 20, "o painel abaixo da caixa de pedido, sem encostar", medidas)
+            # A entrega de 12/10 pôs o painel a 16 px da caixa (.av-painel-inicio, margin 16px auto 0); antes, 28.
+            checar(medidas["folga"] >= 12, "o painel abaixo da caixa de pedido, sem encostar", medidas)
             checar(medidas["rotulo"] <= 14, "na coluna dos tipos, o nome logo ao lado do ícone", medidas)
             checar(medidas["direitas"] == 1, "as ações das linhas alinhadas na mesma coluna", medidas)
             checar(central["linhas"] >= 8 and "selecione vários" in central["pe"], "a lista agrupada e o pé com a conta", central)

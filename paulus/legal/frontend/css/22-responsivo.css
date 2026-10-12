@@ -52,6 +52,8 @@
     .conversa-topo { flex-wrap: wrap; row-gap: 10px; }
     .conversa-acoes { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
     .acoes-tela { flex-wrap: wrap; }
+    /* As abas da tela (ex.: as cinco da Pasta) descem de linha em vez de vazar. */
+    .visoes { flex-wrap: wrap; max-width: 100%; }
     .conversa-acoes button, .tabela-linha button, .dialogo-pe button, .acesso-pe button { min-height: 44px; }
     /* Tabela vira lista: sem cabecalho de coluna, e o que eram colunas
        corre na linha, uma embaixo da outra quando nao cabe. */

@@ -135,7 +135,7 @@ A **conferência** acha recebimento sem nota, nota sem recebimento, valor
 divergente, retenção configurada e não aplicada, competência de outro mês e
 certificado vencendo.
 
-- **Exportar para o contador:** um .zip no Acervo (Notas fiscais/Contador)
+- **Exportar** (para o contador): um .zip no Acervo (Notas fiscais/Contador)
   com todos os XMLs do mês (DPS, NFS-e, pedidos e eventos), uma planilha e um
   leia-me.
 - **Mandar ao contador:** o mesmo .zip, por e-mail, depois do sim em

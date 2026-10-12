@@ -114,18 +114,22 @@ def main() -> int:
 
         print("\na pílula e o menu")
         pag.wait_for_selector("#pilula-profundidade", timeout=20000)
-        checar(pag.inner_text("#pilula-profundidade").strip().endswith("Advogado"), "a pílula, no padrão Advogado",
+        # Desde a entrega de 12/10 os níveis se chamam Baixo/Médio/Alto/Max/Ultra na tela (js/92-entrevista.js,
+        # NOME_DO_NIVEL); os ids continuam estagiario/bacharel/advogado/juiz/ministro. Advogado = "Alto".
+        checar(pag.inner_text("#pilula-profundidade").strip().endswith("Alto"), "a pílula, no padrão Advogado",
                pag.inner_text("#pilula-profundidade"))
         pag.click("#pilula-profundidade")
         pag.wait_for_selector("#menu-profundidade")
         nomes = pag.evaluate("() => [...document.querySelectorAll('.mp-nivel .mp-texto > b')].map(x => x.childNodes[0].textContent.trim())")
-        checar(nomes == ["Estagiário", "Bacharel", "Advogado", "Juiz", "Ministro"], "os cinco níveis, na ordem", nomes)
+        ids = pag.evaluate("() => [...document.querySelectorAll('[data-prof-nivel]')].map(x => x.dataset.profNivel)")
+        checar(nomes == ["Baixo", "Médio", "Alto", "Max", "Ultra"] and ids == ["estagiario", "bacharel", "advogado", "juiz", "ministro"],
+               "os cinco níveis, na ordem", [nomes, ids])
         tecnico = pag.inner_text("#menu-profundidade")
         checar("da franquia" in tecnico and "revisa" in tecnico and "Entender antes de trabalhar" in tecnico,
                "o técnico discreto, o consumo e o 'entender antes'")
         pag.screenshot(path=str(CAPTURAS / "menu-profundidade.png"))
         pag.click('[data-prof-nivel="juiz"]')
-        checar(pag.inner_text("#pilula-profundidade").strip().endswith("Juiz"), "escolhido o Juiz")
+        checar(pag.inner_text("#pilula-profundidade").strip().endswith("Max"), "escolhido o Juiz")
         checar(pag.evaluate("() => localStorage.getItem('paulus.profundidade')") == "juiz", "a escolha fica guardada")
         checar(pag.evaluate("() => profundidadeDoEnvio().profundidade") == "juiz", "e vai com a pergunta")
 
@@ -209,7 +213,7 @@ def main() -> int:
         texto = pag.inner_text("#centro")
         checar("CLÁUSULA 2ª – DO PREÇO" in texto and "CONTRATO DE ARRENDAMENTO RURAL" in texto, "o documento compilado")
         assinatura = pag.locator(".resposta .ass-meta").last.inner_text()
-        checar(assinatura.find("Juiz") >= 0, "a assinatura diz o nível", assinatura)
+        checar(assinatura.find("Max") >= 0, "a assinatura diz o nível (Max, o nome que a pessoa vê)", assinatura)
         checar("revisão" in pag.inner_text(".proposta.trabalho-pronto"), "o Juiz revisou o documento inteiro")
         checar(pag.locator(".proposta.entrevista button:enabled").count() == 0, "o cartão respondido trava")
         pag.screenshot(path=str(CAPTURAS / "trabalho-pronto.png"), full_page=True)

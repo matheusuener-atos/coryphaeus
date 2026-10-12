@@ -56,7 +56,7 @@ function abrirTela(nome, opcoes) {
 const bib = {
   // O atalho "Google Drive": as copias do Drive (js/36) e o filtro que inclui as subpastas.
   driveCopias: [], pastaComSub: false,
-  documentos: [], todos: [], termo: "", filtro: "todos", ordem: "modificacao",
+  documentos: [], todos: [], termo: "", filtro: "todos", ordem: "modificado",
   escolhidos: new Set(), limite: 60, contas: null, pasta: "", pastaFiltro: "",
   aberto: null, visao: "documentos", largo: false, sugestoes: null,
 };

@@ -53,8 +53,16 @@
       if (r.ok) d = await r.json();
     } catch (err) { /* sem servidor: a conta abaixo */ }
     await new Promise((ok) => setTimeout(ok, 900));
+    if (!d.depois) {
+      // Sem a resposta do servidor nao ha numero medido: nada de economia estimada.
+      compactando.delete(t.id);
+      bloco.classList.remove("compactando");
+      desenhar();
+      if (typeof avisoNaJanela === "function") avisoNaJanela("Não consegui compactar a conversa agora.", { icone: "error" });
+      return;
+    }
     const antes = d.antes || u.contexto || 0;
-    const depois = d.depois || Math.round(antes * 0.24);
+    const depois = d.depois;
     const economia = Math.max(0, antes - depois);
     u.contexto = depois;
     u.compactada = { economia: economia, sozinha: Boolean(sozinha), em: Date.now() };

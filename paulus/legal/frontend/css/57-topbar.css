@@ -94,7 +94,8 @@ html.com-topbar :is(.lado-contexto, .lado-ferramenta) > :not([hidden]):not(:not(
 /* Com a barra, o alto das telas nao precisa mais abrir espaco para os botoes. */
 html.com-topbar .conversa-topo { padding-right: 28px; }
 
-@media (max-width: 600px) { .topbar { display: none; } }
+/* No celular a navegacao e a barra de baixo (52-celular.css): a linha do grupo some junto. */
+@media (max-width: 600px) { .topbar, .topbar-sub { display: none; } }
 
 /* Com a resposta andando, o progresso mora no cartao da conversa: o bloco
    Progresso do painel lateral repetia as mesmas etapas e sai. */

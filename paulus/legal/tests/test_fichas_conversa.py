@@ -179,7 +179,7 @@ def test_tela() -> None:
         checar("como cliente, ligado a 2 documentos" in nota, "a conversa diz o que foi feito", nota)
 
         # a despesa fixa, com o contrato anexo
-        pag.click("#nova")
+        pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(500)
         pag.evaluate("() => { estado.escopo = ['Contrato de locação - sala 204.pdf']; }")
         pag.fill("#pedido", "cadastra o aluguel como despesa fixa, o contrato tá anexo")
@@ -203,7 +203,7 @@ def test_tela() -> None:
                "salvar grava fornecedor e “lançar todo mês”", aluguel)
 
         # a equipe
-        pag.click("#nova")
+        pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(500)
         pag.fill("#pedido", "a Larissa Costa começa segunda como estagiária, salário de 1.800. coloca ela na equipe e convida pro PAULUS — o e-mail é larissa.costa@gmail.com")
         pag.click("#enviar")

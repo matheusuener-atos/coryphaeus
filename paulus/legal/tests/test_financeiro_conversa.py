@@ -156,7 +156,7 @@ def test_tela() -> None:
         pag.wait_for_timeout(900)
         pag.screenshot(path=str(CAPTURAS / "t4-financeiro.png"))
 
-        pag.click("#nova")
+        pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(500)
         nome_mes = fpc.rotulo_do_mes(MES)
         pag.fill("#pedido", f"gera o relatório financeiro de {nome_mes} e compara com {fpc.rotulo_do_mes(ANTES)}")

@@ -212,7 +212,9 @@ def main() -> int:
                 pag.click("[data-pr-tela]")
                 pag.wait_for_selector(".pr-linha", timeout=15000)
                 texto = pag.inner_text("#pr-tela")
-                checar(n1 in texto and n2 in texto and "1 nova" in texto and "Acompanhar pelo DataJud" in texto,
+                # Desde a entrega de 12/10 a chave se chama "Consultar o DataJud todo dia" (cartão Acompanhamento).
+                checar(n1 in texto and n2 in texto and "1 nova" in texto and "Consultar o DataJud todo dia" in texto
+                       and pag.locator("#pr-tela [data-pr-ligar]").count() == 1,
                        "a tela Processos: a lista, a nova e a chave", texto[:200])
                 pag.screenshot(path=str(TMP / "l2-lista.png"))
                 pag.click(f".pr-linha:has-text('{n1}')")

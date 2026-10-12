@@ -304,21 +304,26 @@ def main() -> int:
                 pag.wait_for_timeout(800)
                 pag.evaluate("() => mostrarConfig('acesso')")
                 pag.wait_for_selector("#apt", timeout=15000)
-                texto = pag.inner_text("#apt")
-                checar("Para o escritório: ligado" in texto and "Liberadas: Helena" in texto and "Helena" in pag.inner_text(".apt-relatorio"),
-                       "o cartão mostra o estado, quem está liberado e o relatório", texto[:200])
+                # 12/10: três cartões - "Escrever no aparelho" (o estado no ponto do cabeçalho e
+                # "Quem pode" em fichas), "Só no escritório" (#apt-so, as marcas) e o relatório.
+                cartao = "[data-cartao='escrever-no-aparelho']"
+                cabeca = pag.inner_text(cartao + " .cfg-cartao-cabeca")
+                quem = pag.inner_text("#apt .apt-quem")
+                checar("ligado" in cabeca and "desligado" not in cabeca and "Helena" in quem and "Helena" in pag.inner_text(".apt-relatorio"),
+                       "o cartão mostra o estado, quem está liberado e o relatório", (cabeca, quem[:120]))
                 pag.fill("#apt-pasta", "Clientes\\Fusão")
                 pag.click("[data-apt-pasta]")
-                pag.wait_for_selector(".apt-marca", timeout=10000)
-                checar("Clientes\\Fusão" in pag.inner_text(".apt-marcas") and
+                pag.wait_for_selector("#apt-so [data-apt-tirar]", timeout=10000)
+                checar("Clientes\\Fusão" in pag.inner_text("#apt-so") and
                        any(m["tipo"] == "pasta" for m in aparelho.so_no_escritorio().marcas()), "marcar uma pasta pela tela")
                 pag.locator("#apt").scroll_into_view_if_needed()
                 pag.screenshot(path=str(TMP / "d5-cartao.png"))
                 pag.click("[data-apt-tirar='0']")
-                pag.wait_for_function("() => !document.querySelector('.apt-marca')", timeout=10000)
+                pag.wait_for_function("() => !document.querySelector('#apt-so [data-apt-tirar]')", timeout=10000)
                 checar(not aparelho.so_no_escritorio().marcas(), "tirar a marca pela tela")
                 pag.click("[data-apt-ligar='0']")
-                pag.wait_for_function("() => /Para o escritório: desligado/.test(document.getElementById('apt').textContent)", timeout=10000)
+                pag.wait_for_function("() => { const c = document.querySelector(\"[data-cartao='escrever-no-aparelho'] .cfg-cartao-cabeca\");"
+                                      " return c && /desligado/.test(c.textContent) && !!document.querySelector(\"[data-apt-ligar='1']\"); }", timeout=10000)
                 checar(not api.estado.prefs.dados["aparelho"]["ligado"], "desligar pela tela desliga a chave")
                 checar(not erros, "nenhum erro de JavaScript", erros[:3])
                 print(f"  (foto em {TMP})")

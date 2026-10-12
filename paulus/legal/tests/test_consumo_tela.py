@@ -186,18 +186,31 @@ def main() -> int:
                 pag.click('.dialogo [data-dialogo="cancelar"]')
                 pag.wait_for_timeout(400)
 
+                # 12/10: a janela Planos é a de js/99-planos.js (.pln-col, "Por mês | Por ano").
                 pag.click("#acoes-tela [data-pc-upgrade]")
-                pag.wait_for_selector(".pc-planos", timeout=10000)
-                cols = pag.evaluate("() => [...document.querySelectorAll('.pc-plano-col button')].map(x => [x.textContent, x.disabled])")
-                checar(cols == [["Reduzir para o Advogado", False],
-                                ["Plano atual", True], ["Passar ao anual · R$ 3.000/ano", False],
-                                ["Mudar para o Escritório Plus", False]],
-                       "os planos em três colunas, com o atual travado e a troca pela Atos", cols)
-                checar("Conta Atos" in pag.inner_text(".pc-dialogo-planos") and "Mercado Pago" not in pag.inner_text(".pc-dialogo-planos"),
-                       "a troca, com a assinatura ativa, é na Conta Atos")
+                pag.wait_for_selector(".pln-grade .pln-col", timeout=10000)
+                cols = pag.evaluate("() => [...document.querySelectorAll('.pln-col')].map(c => [c.dataset.plnPlano, !!c.querySelector('.pln-atual')])")
+                checar(cols == [["advogado", False], ["escritorio", True], ["plus", False]],
+                       "os planos em três colunas, com o atual marcado", cols)
+                # o plano atual, com a assinatura em dia, não se assina de novo (cobrança em dobro)
+                pag.click('.pln-col[data-pln-plano="escritorio"]')
+                pag.wait_for_timeout(200)
+                assinar = pag.evaluate("() => { const b = document.querySelector('.pln-col[data-pln-plano=\"escritorio\"] [data-pln-assinar]');"
+                                       " return b ? [b.textContent, b.disabled] : null; }")
+                checar(assinar is None or assinar[1], "o plano atual travado: não abre o pagamento do mesmo plano de novo", assinar)
+                # o anual mostra o preço anual do plano (valor_anual da conta: R$ 3.000)
+                pag.click('[data-pln-periodo="anual"]')
+                pag.wait_for_timeout(200)
+                anual = pag.inner_text('.pln-col[data-pln-plano="escritorio"]')
+                checar("R$ 3.000" in anual and "12×" not in anual, "Por ano: o preço anual do plano, sem prometer parcelamento", anual[:200])
+                texto_planos = pag.inner_text("#veu-dialogo .dialogo")
+                checar("Conta Atos" in texto_planos and "Mercado Pago" not in texto_planos,
+                       "a troca, com a assinatura ativa, é na Conta Atos", texto_planos[-400:])
                 pag.wait_for_timeout(700)
                 pag.screenshot(path=str(CAPTURAS / f"consumo-{tema}-planos.png"))
-                pag.click('.dialogo [data-dialogo="confirmar"]')
+                # o rodapé (Fechar) fica escondido nesta janela (css/58-assistente-modelo.css): Esc fecha
+                pag.keyboard.press("Escape")
+                pag.wait_for_function("() => !document.querySelector('#veu-dialogo .pln-grade')", timeout=10000)
                 pag.wait_for_timeout(400)
 
                 pag.click(".pc-secao [data-pc-limites]")

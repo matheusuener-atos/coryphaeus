@@ -223,6 +223,21 @@ def test_api(base: str, api) -> dict:
 
 # ------------------------------------------------------------------ tela
 
+def _depois_da_edicao(pag, seletor: str, nome: str, entrada: str) -> None:
+    """
+    Depois de Criar/Salvar/Cancelar no formulario, a tela tem de sair dele
+    sozinha. Se nao sair, registra a falha e segue pela entrada direta, para
+    o resto do teste ainda conferir o que vem depois.
+    """
+    try:
+        pag.wait_for_selector(seletor, timeout=8000)
+        checar(True, nome)
+    except Exception:  # noqa: BLE001 - o tempo esgotado do Playwright
+        checar(False, nome, "a tela ficou no formulário (título: " + pag.inner_text("#conversa-titulo") + ")")
+        pag.evaluate(entrada)
+        pag.wait_for_selector(seletor, timeout=8000)
+
+
 def test_tela(base: str, api, conversa: str) -> None:
     print("\nna tela (Edge pelo Playwright)")
     try:
@@ -250,20 +265,23 @@ def test_tela(base: str, api, conversa: str) -> None:
         pag.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="load")
         pag.wait_for_function("() => typeof mostrarAgentes === 'function' && typeof acessoDeFora !== 'undefined'")
         pag.evaluate("() => acessoDeFora.pronto")
-        pag.wait_for_selector('.trilho [data-destino="agentes"]')
+        pag.wait_for_selector('.trilho [data-destino="agentes"]', state="attached")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(1200)
 
         # a lista, pelo trilho
-        pag.click('.trilho [data-destino="agentes"]')
+        pag.evaluate("() => document.querySelector('.trilho [data-destino=\"agentes\"]').click()")  # a barra do alto clica o mesmo botao
         pag.wait_for_selector("[data-agt-linha]", timeout=10000)
         linhas = pag.evaluate("() => [...document.querySelectorAll('[data-agt-linha]')].map(l => l.textContent)")
         checar(any("Revisor de contratos" in x and "desativado" in x and "exemplo do Paulus" in x for x in linhas)
                and any("Triagem de consumidor" in x for x in linhas), "a lista mostra os exemplos: desativados, versão, origem", linhas)
         checar(all("usado 0×" in x for x in linhas), "e a medida de cada um no cartão (A4): usado N×")
         # A22: a equipe em cartões, o nível, os pontos de teste e os passos
-        checar(pag.inner_text(".agt-equipe .est-titulo h1") == "Monte a sua equipe", "A22: o título do mock")
-        nivel = pag.inner_text(".agt-equipe .est-nivel")
-        checar("Sem equipe" in nivel and pag.inner_text(".agt-equipe .est-anel") == "0",
+        # 12/10: sem abertura em texto (sem h1 + parágrafo); o título fica no cabeçalho
+        # e o nível sobe para as ações do cabeçalho, à direita.
+        checar(pag.inner_text("#conversa-titulo").strip() == "Agentes" and not pag.query_selector(".agt-equipe h1"),
+               "A22: o título no cabeçalho, sem a abertura em texto", pag.inner_text("#conversa-titulo"))
+        nivel = pag.inner_text("#acoes-tela .est-nivel")
+        checar("Sem equipe" in nivel and pag.inner_text("#acoes-tela .est-anel") == "0",
                "nenhum agente pronto (os exemplos vêm desativados): “Sem equipe”", nivel)
         pontos = pag.evaluate("() => [...document.querySelectorAll('[data-agt-linha]')].map(c => c.querySelectorAll('.agt-pontos i.nao').length)")
         checar(pontos and all(n == 3 for n in pontos), "um ponto por teste, vazio enquanto não rodou", pontos)
@@ -291,10 +309,11 @@ def test_tela(base: str, api, conversa: str) -> None:
         pag.fill('[data-agt-teste-pergunta="0"]', "qual índice reajusta o aluguel da Clínica?")
         pag.fill('[data-agt-teste-deve="0"]', "IGP-M")
         # A conferencia roda 350 ms depois da ultima tecla: espera a que ja
-        # conhece o teste (antes dele, ela avisa "sem testes").
-        pag.wait_for_function("() => { const v = document.querySelector('[data-agt-valido]'); "
-                              "return v && !v.textContent.toLowerCase().includes('sem testes'); }", timeout=8000)
-        checar(pag.is_enabled("[data-agt-salvar]"), "formulário preenchido: pronto para salvar")
+        # conhece o teste. Desde 12/10 a conferencia nao vira faixa (o botao
+        # fica desligado e o motivo vai no title): a espera le o que ela conferiu.
+        pag.wait_for_function("() => agt.validacao && agt.validacao.valido && JSON.stringify(agt.validacao).includes('IGP-M')", timeout=8000)
+        checar(pag.is_enabled("[data-agt-salvar]") and not pag.get_attribute("[data-agt-salvar]", "title"),
+               "formulário preenchido: pronto para salvar")
         texto_ferr = pag.inner_text(".agt-form")
         checar("pedindo a sua confirmação" in texto_ferr, "as ferramentas dizem que cada uma pede confirmação")
         pag.evaluate("() => { document.querySelector('#agt-tela .sv-principal').scrollTop = 0; }")
@@ -306,15 +325,18 @@ def test_tela(base: str, api, conversa: str) -> None:
         md = pag.input_value("#agt-md")
         checar(md.startswith("---\nnome: Conferente de locação"), "a visão do markdown traz o AGENTE.md do formulário", md[:60])
         pag.fill("#agt-md", md.replace("capacidades:\n- perguntar", "capacidades:\n- perguntar\nferramenta:\n- apagar_tudo"))
-        pag.wait_for_selector("[data-agt-erro]", timeout=8000)
-        erro = pag.inner_text("[data-agt-erro]")
+        # 12/10: sem faixa de erro; o motivo vai no title do Salvar, que fica desligado
+        pag.wait_for_function("() => { const b = document.querySelector('[data-agt-salvar]'); "
+                              "return b && b.disabled && (b.title || '').includes('Ainda não dá para salvar'); }", timeout=8000)
+        erro = pag.get_attribute("[data-agt-salvar]", "title") or ""
         checar("não faz parte do formato" in erro and "ferramentas" in erro and not pag.is_enabled("[data-agt-salvar]"),
-               "markdown com erro: o motivo em português, e Salvar travado", erro[:160])
+               "markdown com erro: o motivo em português (no title do Salvar), e Salvar travado", erro[:160])
         pag.screenshot(path=str(CAPTURAS / "a3-markdown-erro.png"))
         pag.fill("#agt-md", md)
-        pag.wait_for_selector("[data-agt-valido]", timeout=8000)
+        pag.wait_for_function("() => { const b = document.querySelector('[data-agt-salvar]'); return b && !b.disabled; }", timeout=8000)
         pag.click("[data-agt-salvar]")
-        pag.wait_for_selector("[data-agt-testar]", timeout=8000)
+        _depois_da_edicao(pag, "[data-agt-testar]", "Criar agente abre o agente criado",
+                          "() => mostrarAgentes({ slug: 'conferente-de-locacao' })")
         criado = ag.obter("conferente-de-locacao")
         checar(criado is not None and not criado.problema and not criado.ativo and criado.testes[0]["deve_conter"] == ["IGP-M"],
                "criar pelo formulário gera um AGENTE.md válido, desativado", criado.ficha() if criado else None)
@@ -329,10 +351,12 @@ def test_tela(base: str, api, conversa: str) -> None:
         pag.click("[data-agt-editar]")
         pag.wait_for_selector("#agt-instrucoes")
         pag.fill("#agt-instrucoes", "## Como trabalhar\nCite a cláusula, a página e o índice.")
-        pag.wait_for_selector("[data-agt-valido]", timeout=8000)
+        pag.wait_for_function("() => agt.validacao && agt.validacao.valido && JSON.stringify(agt.validacao).includes('e o índice')"
+                              " && !document.querySelector('[data-agt-salvar]').disabled", timeout=8000)
         checar("Salvar versão 2" in pag.inner_text("[data-agt-salvar]"), "editar diz qual versão vai gravar")
         pag.click("[data-agt-salvar]")
-        pag.wait_for_selector('[data-agt-versao="1"]', timeout=8000)
+        _depois_da_edicao(pag, '[data-agt-versao="1"]', "Salvar versão 2 volta ao agente, com a versão 1 em Versões",
+                          "() => mostrarAgentes({ slug: 'conferente-de-locacao' })")
         pag.click('[data-agt-versao="1"]')
         pag.wait_for_selector("[data-agt-leitura]")
         antiga = pag.inner_text("[data-agt-leitura]")
@@ -350,7 +374,7 @@ def test_tela(base: str, api, conversa: str) -> None:
                [pag.input_value("#agt-nome"), pag.input_value("#agt-palavras")])
         checar(len(ag.listar()) == antes, "e nada foi salvo antes de confirmar")
         pag.click("[data-agt-cancelar] >> nth=0")
-        pag.wait_for_selector("[data-agt-linha]")
+        _depois_da_edicao(pag, "[data-agt-linha]", "Cancelar volta à lista de agentes", "() => mostrarAgentes()")
         checar(len(ag.listar()) == antes, "cancelar não salva")
         checar(not erros, "sem erro de JavaScript", erros[:3])
 
@@ -367,7 +391,7 @@ def test_tela(base: str, api, conversa: str) -> None:
         checar(pag.input_value("#agt-nome") == "Prazos da Clínica Bem Viver" and len(ag.listar()) == antes,
                "e abre o formulário preenchido, sem salvar")
         pag.click("[data-agt-cancelar] >> nth=0")
-        pag.wait_for_selector("[data-agt-linha]")
+        _depois_da_edicao(pag, "[data-agt-linha]", "Cancelar (vindo do menu da conversa) volta à lista de agentes", "() => mostrarAgentes()")
 
         # o celular, de fora: a lista e o teste; criar e editar nao
         cel = ctx.new_page()

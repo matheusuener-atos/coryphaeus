@@ -83,12 +83,12 @@ def test_tela(base: str, api) -> None:
         pag.goto(base + "/entrar-local?chave=" + api.estado.acesso.chave, wait_until="load")
         pag.wait_for_function("() => typeof mostrarBibliotecaContexto === 'function' && typeof acessoDeFora !== 'undefined'")
         pag.evaluate("() => acessoDeFora.pronto")
-        pag.wait_for_selector('.trilho [data-destino="contexto"]')
+        pag.wait_for_selector('.trilho [data-destino="contexto"]', state="attached")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(1000)
         checar(pag.evaluate("() => !!document.querySelector('#menu [data-destino=\"contexto\"]')"), "o menu tem a Biblioteca")
 
         # pelo trilho: a Estante
-        pag.click('.trilho [data-destino="contexto"]')
+        pag.evaluate("() => document.querySelector('.trilho [data-destino=\"contexto\"]').click()")  # a barra do alto clica o mesmo botao
         pag.wait_for_selector("#bib-tela .est-linha", timeout=15000)
         pag.wait_for_timeout(600)
         titulo = pag.evaluate("() => document.getElementById('conversa-titulo').textContent")
@@ -96,9 +96,14 @@ def test_tela(base: str, api) -> None:
         # N13: a quarta aba, "Jurisprudência". A "Comunidade" (L9) saiu na entrega de 07/10/2026.
         checar(titulo == "Biblioteca" and abas == ["Estante", "Leis e súmulas", "Tribunais e fontes", "Jurisprudência"],
                "a tela Biblioteca abre na Estante, com as quatro abas", (titulo, abas))
-        checar(pag.inner_text(".est-titulo h1") == "Sua estante está crescendo", "o título do mock")
-        nivel = pag.inner_text(".est-nivel")
-        checar("Estante de bolso" in nivel and "faltam 2 para o próximo" in nivel and pag.inner_text(".est-anel") == "1",
+        # 12/10: sem abertura em texto; a aba vira migalha ao lado do título ("Biblioteca / Estante")
+        # e o nível sobe para as ações do cabeçalho.
+        checar(pag.evaluate("() => (document.getElementById('bib-migalha') || {}).textContent") == "Estante"
+               and not pag.query_selector("#bib-tela h1"),
+               "o cabeçalho diz Biblioteca / Estante, sem o título grande", pag.evaluate("() => (document.getElementById('bib-migalha') || {}).textContent"))
+        # o "faltam N" fica escondido no cabeçalho de 36 px (css/36-biblioteca.css); o title diz por extenso
+        nivel = pag.inner_text("#acoes-tela .est-nivel") + " · " + (pag.get_attribute("#acoes-tela .est-nivel", "title") or "")
+        checar("Estante de bolso" in nivel and "Mais 2 áreas com obra" in nivel and pag.inner_text("#acoes-tela .est-anel") == "1",
                "o nível conta só as áreas com obra do escritório (1): a lei e as súmulas não contam", nivel)
         linhas = pag.evaluate("() => [...document.querySelectorAll('.est-linha')].map(l => ({area: l.querySelector('.est-area b').textContent,"
                               " chip: l.querySelector('.est-chip').textContent, itens: [...l.querySelectorAll('.est-item')].map(i => i.lastElementChild.textContent)}))")

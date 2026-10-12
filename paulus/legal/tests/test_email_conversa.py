@@ -262,7 +262,7 @@ def test_tela() -> None:
                "o encaminhar leva o anexo da mensagem", anexo)
 
         # responder, numa conversa nova
-        pag.click("#nova")
+        pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(600)
         pag.fill("#pedido", "responda a Priscila confirmando o acordo da parcela de setembro")
         pag.click("#enviar")
@@ -341,7 +341,7 @@ def test_tela() -> None:
 
         # o e-mail novo, com quem recebe achado na ficha
         api.estado.cadastros.salvar({"tipo": "cliente", "nome": "Priscila Almeida", "email": "priscila.almeida@riofresco.coop.br"})
-        pag.click("#nova")
+        pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(600)
         pag.fill("#pedido", "escreva um e-mail para a Priscila pedindo o comprovante da parcela de setembro")
         pag.click("#enviar")

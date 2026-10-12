@@ -147,7 +147,7 @@ def test_tela() -> None:
         pag.wait_for_timeout(800)
 
         def pedir(frase: str, secao: str) -> None:
-            pag.click("#nova")
+            pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
             pag.wait_for_timeout(400)
             pag.fill("#pedido", frase)
             pag.click("#enviar")
@@ -168,7 +168,8 @@ def test_tela() -> None:
         checar(t["frase"].startswith("Abri Meus dados ao lado com as duas mudanças") and t["linhas"] == 3, "a frase e as três linhas", t)
         checar(t["tel"] == "(94) 99123-4567" and t["novos"] == 2 and t["atencao"], "o telefone novo, os dois selos e a OAB marcada", t)
         checar(t["pe"] == "2 mudanças · 1 campo pede atenção" and abs(t["largura"] - 460) < 30, "o rodapé e a coluna de 460", t)
-        checar(t["meta"] == "Configurações › Meus dados · 2 mudanças por salvar" and t["titulo"] == "Troque meu telefone", "o título e o caminho", t)
+        # A seção "perfil" se chama "Dados e informações" desde a entrega de 12/10 (js/99-meus-dados.js).
+        checar(t["meta"] == "Configurações › Dados e informações · 2 mudanças por salvar" and t["titulo"] == "Troque meu telefone", "o título e o caminho", t)
         checar((e.prefs.dados.get("pessoa") or {}).get("telefone") == "(94) 98806-7392" and not e.prefs.dados.get("timbre_no_pdf"), "nada gravado antes do clique")
         pag.screenshot(path=str(CAPTURAS / "t5-meus-dados.png"))
         pag.click("#centro .cfc-acoes button:nth-child(2)")  # Salvar só o telefone

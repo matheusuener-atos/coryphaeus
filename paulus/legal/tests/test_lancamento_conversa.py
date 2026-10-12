@@ -150,7 +150,7 @@ def test_tela() -> None:
         checar(tarefas and tarefas[0].get("prazo") == (venc - timedelta(days=1)).isoformat(), "o lembrete na Agenda, um dia antes", tarefas)
 
         # o recebimento, com o comprovante
-        pag.click("#nova")
+        pag.evaluate("() => document.getElementById('nova').click()")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(500)
         pag.evaluate("() => { estado.escopo = ['Comprovante Rio Fresco.pdf']; }")
         pag.fill("#pedido", "a Rio Fresco pagou a parcela de setembro, 6.036 com os juros. o comprovante tá anexo")

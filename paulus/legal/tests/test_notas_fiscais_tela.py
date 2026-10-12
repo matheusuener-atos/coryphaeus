@@ -95,17 +95,21 @@ def main() -> int:
 
             print("\nsem a emissão configurada")
             pag.evaluate("() => aplicarTema('claro')")
-            pag.click('.trilho [data-destino="notas"]')
-            pag.wait_for_selector(".nf-vazio", timeout=20000)
-            checar(pag.locator('.trilho [data-destino="notas"].ativo').count() == 1, "o item do menu acende")
-            vazio = pag.inner_text(".nf-vazio")
-            checar("Configurar a nota fiscal" in vazio and "registrada no Financeiro" in vazio and "sem convênio" in vazio,
-                   "estado vazio: configurar e o caminho do município sem convênio", vazio)
+            pag.evaluate("() => document.querySelector('.trilho [data-destino=\"notas\"]').click()")  # a barra do alto clica o mesmo botao
+            # 12/10 (js/99-nfse-emissor.js): Emitidas e a lista com filtros (.nfv-emitidas), mesmo vazia.
+            pag.wait_for_selector("#nf-tela .nfv-emitidas, #nf-tela .nf-vazio", timeout=20000)
             pag.wait_for_timeout(400)
+            checar(pag.locator('.trilho [data-destino="notas"].ativo').count() == 1, "o item do menu acende")
+            vazio = pag.inner_text("#nf-tela")
+            checar("Configurar a nota fiscal" in vazio and "registrada no Financeiro" in vazio and "sem convênio" in vazio,
+                   "estado vazio: configurar e o caminho do município sem convênio", vazio[:300])
             pag.screenshot(path=str(CAPTURAS / "notas-vazio-claro.png"))
-            pag.click(".nf-vazio [data-nf-configurar]")
-            pag.wait_for_function("() => typeof cfg !== 'undefined' && cfg.secao === 'nfse'", timeout=20000)
-            checar(True, "Configurar a nota fiscal abre Configurações › Nota fiscal")
+            if pag.locator("#nf-tela [data-nf-configurar]").count():
+                pag.click("#nf-tela [data-nf-configurar] >> nth=0")
+                pag.wait_for_function("() => typeof cfg !== 'undefined' && cfg.secao === 'nfse'", timeout=20000)
+                checar(True, "Configurar a nota fiscal abre Configurações › Nota fiscal")
+            else:
+                checar(False, "Configurar a nota fiscal abre Configurações › Nota fiscal", "a tela Notas fiscais não tem mais o botão")
 
             print("\nRecebidas sem a conta da nuvem")
             pag.evaluate("() => mostrarNotasFiscais('recebidas')")
@@ -127,18 +131,30 @@ def main() -> int:
                 pag.wait_for_timeout(500)
                 linhas = pag.locator(".nf-tabela tbody tr").count()
                 checar(linhas == 3, "as três notas na lista (duas emitidas e um rascunho)", linhas)
+                # 12/10: as colunas na ordem da de Recebidas, e "Cliente" passou a "Tomador"
                 cab = pag.evaluate("() => [...document.querySelectorAll('.nf-tabela th')].map(x => x.textContent)")
-                checar(cab[:6] == ["Nº", "Cliente", "Competência", "Valor", "Situação", "Ambiente"], "as colunas", cab)
+                checar(cab[:6] == ["Competência", "Nº", "Tomador", "Valor", "Situação", "Ambiente"], "as colunas", cab)
                 texto = pag.inner_text(".nf-tabela")
                 checar("ACME Ltda" in texto and "testes" in texto and "Emitida" in texto, "cliente, ambiente e situação", texto[:300])
-                checar(pag.locator("#acoes-tela [data-nf-emitir]").count() == 1, "o botão Emitir nota")
-                checar(pag.locator(".nf-tabela [data-nota-cancelar]").count() == 2 and pag.locator(".nf-tabela [data-nota-substituir]").count() == 2,
-                       "Cancelar e Substituir nas emitidas")
+                checar(pag.locator("#acoes-tela [data-nf-ir-emitir]").count() == 1, "o botão Emitir nota")
+                # Cancelar e Substituir moram no "..." de cada nota emitida
+                cancelar = substituir = 0
+                for i in range(pag.locator('.nf-tabela tr.nfv-nota[data-estado="emitida"]').count()):
+                    pag.locator('.nf-tabela tr.nfv-nota[data-estado="emitida"] [data-nfv-menu]').nth(i).click()
+                    pag.wait_for_selector(".nfv-menu", timeout=5000)
+                    cancelar += pag.locator(".nfv-menu [data-nota-cancelar]").count()
+                    substituir += pag.locator(".nfv-menu [data-nota-substituir]").count()
+                    pag.evaluate("() => document.querySelectorAll('.nfv-menu').forEach(m => m.remove())")
+                checar(cancelar == 2 and substituir == 2, "Cancelar e Substituir nas emitidas (no menu “...” da nota)", (cancelar, substituir))
                 pag.screenshot(path=str(CAPTURAS / f"notas-emitidas-{tema}.png"), full_page=True)
 
-                pag.evaluate("v => { const s = document.getElementById('nf-situacao'); s.value = v; s.dispatchEvent(new Event('change')); }", "rascunho")
-                checar(pag.locator(".nf-tabela tbody tr").count() == 1, "o filtro por situação")
-                pag.evaluate("v => { const s = document.getElementById('nf-situacao'); s.value = v; s.dispatchEvent(new Event('change')); }", "")
+                trocar = ("v => { const s = document.querySelector('#nf-tela select[data-nfv-filtro-sel=\"situacao\"]');"
+                          " s.value = v; s.dispatchEvent(new Event('change', { bubbles: true })); }")
+                pag.evaluate(trocar, "rascunho")
+                pag.wait_for_timeout(300)
+                checar(pag.locator(".nf-tabela tbody tr.nfv-nota").count() == 1, "o filtro por situação")
+                pag.evaluate(trocar, "todas")
+                pag.wait_for_timeout(300)
 
                 nid = emitidas[0]["id"]
                 r = pag.request.get(f"{base}/api/nfse/notas/{nid}/danfse")
@@ -146,17 +162,30 @@ def main() -> int:
                 r = pag.request.get(f"{base}/api/nfse/notas/{nid}/xml")
                 checar(r.status == 200 and b"<" in r.body() and "attachment" in r.headers.get("content-disposition", ""),
                        "o XML responde como anexo", r.status)
-                with pag.expect_download() as baixa:
-                    pag.click(f'.nf-tabela [data-nf-xml="{nid}"]')
-                checar(baixa.value.suggested_filename.endswith(".xml"), "o botão XML baixa o arquivo", baixa.value.suggested_filename)
+                # "Baixar XML" no menu da nota abre o endereço do XML (window.open); o endereço baixa como anexo
+                pag.evaluate("() => { window._abertos = []; window._openAntes = window._openAntes || window.open;"
+                             " window.open = (u) => { window._abertos.push(u); return null; }; }")
+                pag.click(f'.nf-tabela tr.nfv-nota[data-nfv-nota="{nid}"] [data-nfv-menu]')
+                pag.wait_for_selector('.nfv-menu [data-nfv-a="xml"]', timeout=5000)
+                pag.click('.nfv-menu [data-nfv-a="xml"]')
+                pag.wait_for_timeout(300)
+                url_xml = pag.evaluate("() => window._abertos[0] || ''")
+                pag.evaluate("() => { document.querySelectorAll('.nfv-menu').forEach(m => m.remove()); window.open = window._openAntes; }")
+                r = pag.request.get(base + url_xml) if url_xml.startswith("/") else None
+                checar(url_xml.startswith(f"/api/nfse/notas/{nid}/xml") and r is not None and r.status == 200
+                       and "attachment" in r.headers.get("content-disposition", "") and ".xml" in r.headers.get("content-disposition", ""),
+                       "o botão XML baixa o arquivo", url_xml)
 
-                pag.click(f'.nf-tabela [data-nf-abrir="{nid}"]')
-                pag.wait_for_selector(".dialogo .nota-cartao", timeout=10000)
-                checar("Emitida" in pag.inner_text(".dialogo .nota-estado"), "o cliente abre o cartão da nota")
+                # a nota abre na própria lista (sem pop-up), com os dados e as ações
+                pag.click(f'.nf-tabela tr.nfv-nota[data-nfv-nota="{nid}"] .nfv-tomador')
+                pag.wait_for_selector(f'.nfv-detalhe[data-nfv-nota-det="{nid}"]', timeout=10000)
+                det = pag.inner_text(f'.nfv-detalhe[data-nfv-nota-det="{nid}"]')
+                linha = pag.inner_text(f'.nf-tabela tr.nfv-nota[data-nfv-nota="{nid}"]')
+                checar("ACME Ltda" in det and "Emitida" in linha and "Baixar PDF" in det, "o cliente abre a nota (na lista)", det[:200])
                 pag.wait_for_timeout(500)
                 pag.screenshot(path=str(CAPTURAS / f"notas-cartao-{tema}.png"))
-                pag.click('.dialogo [data-dialogo="cancelar"]')
-                pag.wait_for_timeout(300)
+                pag.click(f'.nf-tabela tr.nfv-nota[data-nfv-nota="{nid}"] .nfv-tomador')
+                pag.wait_for_timeout(400)
 
                 if tem_dpapi:
                     pag.click('[data-nf-aba="recebidas"]')

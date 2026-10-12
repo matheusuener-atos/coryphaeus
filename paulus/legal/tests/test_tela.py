@@ -365,10 +365,20 @@ def main() -> int:
                 destinos: [...new Set(ids)],
               };
             }""")
-            checar(casca["largura"] == 64, f"o trilho tem 64 px (achou {casca['largura']})")
-            checar(not casca["vaza"], "o trilho cabe na tela sem transbordar")
+            # Desde 12/10/2026 a barra do alto (js/99-topbar.js) leva os
+            # destinos; o trilho fica montado e escondido, e quem navega
+            # continua sendo ele (cada item da barra clica o botao do trilho).
+            topo = pagina.evaluate("""() => {
+              const b = document.getElementById('topbar');
+              const r = b ? b.getBoundingClientRect() : null;
+              return {altura: r ? Math.round(r.height) : 0,
+                      coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
+                      itens: b ? b.querySelectorAll('[data-tb-destino], [data-tb-abre]').length : 0};
+            }""")
+            checar(topo["altura"] == 56, f"a barra do alto tem 56 px (achou {topo['altura']})")
+            checar(casca["largura"] == 0, f"o trilho fica escondido atras da barra (achou {casca['largura']} px)")
             checar(casca["fechado"], "o menu comeca fechado")
-            checar(casca["coluna"] == 64, "a coluna de conteudo comeca onde o trilho termina")
+            checar(topo["coluna"] == 0, "a coluna de conteudo ocupa a janela de lado a lado", topo)
 
             # mouse.move, e nao hover(): o menu aberto cobre o trilho, e o
             # hover() do Playwright espera o ponteiro alcancar o alvo.
@@ -642,12 +652,13 @@ def main() -> int:
               const e = document.getElementById('compositor');
               return !!e && !e.hidden && e.getBoundingClientRect().height > 0;
             }"""
-            # A coluna de toda tela e a do Financeiro: 1080 px (--fio), centrada
-            # na pagina de 1280. So o cabecalho usa os 1280. Com painel ao lado
-            # (Organizar, um documento aberto), coluna e painel somam a pagina.
+            # Desde as telas de 12/10/2026 o conteudo ocupa a largura do
+            # cabecalho (--pagina, 1280), da seta de voltar ao ultimo botao, sem
+            # a coluna de 1080 no meio. Folga de 10 px: o sumario de
+            # Configuracoes deixa o recuo do item para fora, de proposito.
             fora_da_coluna = """() => {
               const c = document.getElementById('centro');
-              const fio = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fio'));
+              const fio = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pagina')) + 10;
               const painel = c.querySelector('.acervo-painel');
               if (painel && painel.getBoundingClientRect().width > 0) return [];
               const largos = [];
@@ -699,7 +710,7 @@ def main() -> int:
                 fora = pagina.evaluate(fora_da_coluna)
                 if fora:
                     largas.append(f"{d['nome']} ({fora[0]})")
-            checar(not largas, "toda tela sem painel cabe na coluna do Financeiro", "; ".join(largas))
+            checar(not largas, "toda tela cabe na largura do cabecalho", "; ".join(largas))
 
             print("\no campo de pergunta")
             # O compositor e da conversa. Nas outras vinte telas ele so ocupava
@@ -1106,7 +1117,9 @@ def main() -> int:
             print("\nlimpar o cache e animacoes reduzidas (A13)")
             # Limpar cache pergunta antes, e o que custa caro para refazer (a
             # classificacao pelo modelo) so sai quando a pessoa marca.
-            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('assistente'); }")
+            # Desde 12/10/2026 o Acervo e indice (e o Limpar cache) mora em
+            # Configuracoes > Biblioteca.
+            pagina.evaluate("() => { cfg.recarregar = true; return mostrarConfig('aprendizado'); }")
             pagina.wait_for_timeout(2500)
             checar(pagina.evaluate("() => !!document.querySelector('[data-cfg-cache]')"),
                    "o botao Limpar cache deixou de ser um aviso de em breve")
@@ -1174,7 +1187,7 @@ def main() -> int:
                     "o lembrete aparece na lista com o titulo que foi escrito",
                 )
                 checar(
-                    pagina.evaluate("() => /\\d+ de \\d+ caracteres/.test(document.getElementById('cfg-tela').textContent)"),
+                    pagina.evaluate("() => /[\\d.]+ de [\\d.]+ caracteres/.test(document.getElementById('cfg-tela').textContent)"),
                     "e a faixa de numeros diz quanto disso vai em cada pergunta",
                 )
                 checar(
@@ -1329,8 +1342,8 @@ def main() -> int:
                     "sem barra ao lado: ficha, equipe, e prazos e anotacoes lado a lado na pagina",
                 )
                 checar(
-                    pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-abertura > .sv-resumo-topo + .sv-ficha')"),
-                    "a etapa no status e o resumo da IA no topo, antes da ficha",
+                    pagina.evaluate("() => document.querySelectorAll('.sv-status .sv-linha-etapa').length === 1 && !!document.querySelector('.sv-abertura > .sv-ficha + .sv-resumo-topo')"),
+                    "a etapa no status, e a ficha no topo com o resumo da IA logo abaixo (12/10)",
                 )
                 pagina.evaluate("() => document.querySelector('[data-sv-aba=trilha]').click()")
                 pagina.wait_for_selector("#sv-tela .sv-historico", timeout=5000)
@@ -1343,7 +1356,7 @@ def main() -> int:
                 checar(pagina.evaluate("() => !document.querySelector('.sv-historico')"), "a aba Arquivos traz so os arquivos")
                 pagina.evaluate("() => document.querySelector('[data-sv-voltar]').click()")
                 pagina.wait_for_selector("#sv-tela .sv-grade", timeout=20000)
-                checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Serviços", "a seta volta para as pastas")
+                checar(pagina.evaluate("() => document.getElementById('conversa-titulo').textContent") == "Processos", "a seta volta para as pastas (o destino se chama Processos desde 12/10)")
             finally:
                 pagina.evaluate(f"async () => {{ const r = await (await fetch('/api/servicos/{id_servico}', {{ method: 'DELETE' }})).json(); if (r.lixeira) await fetch('/api/lixeira/' + r.lixeira, {{ method: 'DELETE' }}); }}")
                 pagina.wait_for_timeout(300)

@@ -138,7 +138,7 @@
     const lista = todas.filter((x) => {
       const cliente = x.tomador_nome || (x.rascunho && x.rascunho.tomador && x.rascunho.tomador.nome) || "";
       const comp = x.competencia || (x.rascunho && x.rascunho.competencia) || "";
-      return noPeriodo(x, comp) && (filtro.situacao === "todas" || x.estado === filtro.situacao) &&
+      return noPeriodo(x, comp) && (filtro.situacao === "todas" || x.estado === filtro.situacao || ({ autorizada: "emitida", aguardando: "aguardando_aprovacao" })[filtro.situacao] === x.estado) &&
         (!q || [cliente, x.tomador_documento, x.numero_nfse, x.servico].join(" ").toLowerCase().includes(q));
     });
     const soma = lista.filter((x) => x.estado !== "cancelada" && x.estado !== "substituida").reduce((s, x) => s + reaisNum(x.valor), 0);
@@ -446,7 +446,7 @@ async function irProcurarArq(caminho) {
   const lista = document.getElementById("pa-lista"), mig = document.getElementById("pa-migalhas");
   if (!lista) return;
   let d;
-  try { d = await (await fetch("/api/pastas?arquivos=1&caminho=" + encodeURIComponent(caminho))).json(); }
+  try { d = await (await fetch("/api/pastas?arquivos=1&caminho=" + encodeURIComponent(caminho) + (procurarArq.aceita.length ? "&tipos=" + encodeURIComponent(procurarArq.aceita.join(",")) : ""))).json(); }
   catch (err) { d = { erro: "não consegui abrir: " + err }; }
   mig.innerHTML = '<button type="button" data-pa-ir="">Este computador</button>' +
     (d.migalhas || []).map((m) => '<span class="lc-sep">›</span><button type="button" data-pa-ir="' + esc(m.caminho) + '">' + esc(m.nome) + "</button>").join("");
