@@ -7,9 +7,9 @@
    deste computador"); indice, codigos de lei e o que ja foi lido saem daqui.
 
    Substitui secaoAssistente() de js/05-configuracoes.js e completa
-   carregarSecao() com o plano e os modelos. As escolhas que o servidor ainda
-   nao guarda (quando usar a nuvem, o mascaramento) ficam no localStorage com
-   a chave paulus.ia.* - ver DIFERENCAS-POR-TELA.md. */
+   carregarSecao() com o plano e os modelos. Nao ha escolha de quando usar a
+   nuvem (regra de 12/10/2026): a IA do plano responde, e este computador so
+   entra de reserva - sem internet, sem credito ou com o limite atingido. */
 (function () {
   if (typeof CFG_SECOES === "undefined" || typeof secaoAssistente !== "function") return;
 
@@ -70,13 +70,14 @@
     const ligado = Boolean(s.ollama);
     // Quando usar a nuvem: "Nunca" e a nuvem desligada no servidor (/api/nuvem); ligada, vale o que a pessoa escolheu aqui.
     const nv = (typeof nuvemTela !== "undefined" && nuvemTela.dados) || {};
-    const quando = nv.ligado ? (ler("quando", "sempre") === "pedir" ? "pedir" : "sempre") : "nunca";
+    // Regra de 12/10/2026: a nuvem do plano responde; este computador so de reserva.
+    const naNuvem = Boolean(nv.ligada);
     const pct = tok.limite ? Math.min(100, (tok.usados / tok.limite) * 100) : 0;
 
     const ficha = fichaCfg([
       ["Plano", plano.nome || "—"],
       ["Créditos do mês", tok.limite ? mil(tok.usados) + " de " + mil(tok.limite) : "—"],
-      ["Responde por", quando === "nunca" ? "este computador" : (nv.ligada ? "nuvem Paulus" : "nuvem Paulus (falta ativar)"), nv.ligada || quando === "nunca" ? "" : "cfg-mudo"],
+      ["Responde por", naNuvem ? "nuvem do seu plano" : "este computador (a nuvem não está ativada)", naNuvem ? "" : "cfg-mudo"],
       ["Reserva", ligado ? (r.modelo || "—") : "desligada", ligado ? "" : "cfg-mudo"],
     ]);
 
@@ -97,11 +98,6 @@
       '<p class="cfg-explica">É o ponto de partida. Em cada pergunta dá para trocar pela pílula ao lado do campo.</p>' +
       '<div class="cfg-campos">' + liga("perguntar", "Perguntar antes quando faltar informação", "em vez de supor, o Paulus faz uma ou duas perguntas e só então escreve", true) + "</div>";
 
-    const cartaoQuando = escolhas("quando", quando, [
-      { id: "sempre", nome: "Sempre que precisar", texto: "As perguntas vão para a nuvem; sem internet, este computador responde.", selo: "recomendado" },
-      { id: "pedir", nome: "Só quando eu pedir", texto: "Responde aqui; a nuvem entra quando você escolher na pergunta." },
-      { id: "nunca", nome: "Nunca", texto: "Tudo gerado neste computador." },
-    ]);
 
     /* A nuvem e confiavel por si (DeepInfra: SOC 2 e ISO 27001, retencao zero,
        conforme trust.deepinfra.com em 11/10/2026); o mascaramento e uma
@@ -162,7 +158,6 @@
     return aberturaCfg() +
       cartaoCfg("Seu plano", metaCfg("a nuvem Paulus"), cartaoPlano) +
       cartaoCfg("Quanto o Paulus trabalha", metaCfg("profundidade padrão das respostas"), cartaoProfundidade) +
-      cartaoCfg("Quando usar a nuvem", metaCfg("para onde vão as perguntas"), cartaoQuando) +
       cartaoCfg("O que sai deste computador", metaCfg("segurança da nuvem e mascaramento"), cartaoPrivacidade) +
       cartaoCfg("Neste computador", pontoCfg(ligado ? "reserva pronta" : "reserva desligada", ""),
         reserva + avancado("Modelos deste computador", "baixar e trocar", modelosLocais, "modelos")) +
@@ -210,26 +205,6 @@
   }
 
 
-  /* "Quando usar a nuvem" liga e desliga a nuvem de verdade (POST /api/nuvem/configurar):
-     antes a escolha ficava so no navegador e a nuvem continuava desligada. */
-  async function ligarNuvemPeloQuando(valor) {
-    const ligar = valor !== "nunca";
-    let r;
-    try {
-      r = await fetch("/api/nuvem/configurar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ligado: ligar }) });
-    } catch (e) { r = null; }
-    if (!r || !r.ok) {
-      const msg = r && typeof erroDe === "function" ? await erroDe(r) : "não consegui falar com o servidor";
-      if (typeof avisoCert === "function") avisoCert("A nuvem não ligou: " + msg + ".", { tom: "erro" });
-    } else if (typeof avisoCert === "function") {
-      avisoCert(ligar ? (valor === "pedir" ? "Nuvem ligada: cada pergunta começa aqui e vai à nuvem quando você escolher" : "Nuvem ligada") : "Nuvem desligada: tudo é gerado neste computador", { tom: "ok" });
-    }
-    if (typeof nuvemTela !== "undefined") nuvemTela.aqui = valor === "pedir";
-    if (typeof carregarNuvemNaConfig === "function") await carregarNuvemNaConfig();
-    if (typeof desenharPilulaProfundidade === "function") desenharPilulaProfundidade();
-    desenharConfig();
-  }
-
   /* Os cliques desta secao, por delegacao (a tela se redesenha inteira). */
   document.addEventListener("click", (e) => {
     if (typeof cfg === "undefined" || cfg.secao !== "assistente") return;
@@ -239,7 +214,6 @@
       gravar(chave, valor);
       if (chave === "profundidade" && typeof prof !== "undefined") { prof.escolhido = valor; try { localStorage.setItem("paulus.profundidade", valor); } catch (x) { /* */ } if (typeof desenharPilulaProfundidade === "function") desenharPilulaProfundidade(); }
       esc_.parentElement.querySelectorAll("[data-ia-escolha]").forEach((b) => { const on = b === esc_; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); });
-      if (chave === "quando") { ligarNuvemPeloQuando(valor); return; }
       if (typeof avisoCert === "function") avisoCert("guardado");
       return;
     }

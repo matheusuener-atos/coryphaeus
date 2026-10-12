@@ -285,9 +285,9 @@ PADRAO: dict = {
     # tokens por dia e por mes do escritorio e, por pessoa da equipe (conta_id
     # -> {diario, mensal}). 0 = sem limite.
     "limites_ia": {"diario": 0, "mensal": 0, "pessoas": {}},
-    # V5 (docs/PLANO-NUVEM.md): o PAULUS (nuvem) vem primeiro; sem o sim do
-    # titular (consentimento, com a versao do termo) nada liga.
-    "nuvem": {"ligado": False, "provedor": "paulus", "modelo": "", "mascarar": True, "consentimento": {},
+    # V5 (docs/PLANO-NUVEM.md): o PAULUS (nuvem) vem primeiro. Desde 12/10/2026 o sim vem
+    # com a assinatura (nuvem.sim_pela_assinatura); `sim_retirado` guarda quem o tirou.
+    "nuvem": {"ligado": False, "provedor": "paulus", "modelo": "", "mascarar": True, "consentimento": {}, "sim_retirado": False,
               "pedir_cada_envio": False, "tarefas": {"conversa": True, "resumos": True, "redacao": True}},
     # N1 (src/nfse/): o emissor de NFS-e pelo Padrao Nacional - desligado de
     # fabrica. A configuracao fiscal mora na base (com historico) e o

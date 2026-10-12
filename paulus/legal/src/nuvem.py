@@ -142,6 +142,12 @@ def config(estado) -> dict:
 
 def ligada(estado) -> bool:
     c = config(estado)
+    # Regra de 12/10/2026: a IA do plano PAVLVS e o padrao. Com a conta da nuvem ativada
+    # (o segredo desta instalacao) e o sim, ela vale sem interruptor; este computador so
+    # responde de reserva - sem internet, sem credito ou com o limite do plano atingido
+    # (Envio.preparar e habilidades/perguntar.py). O "ligado" so vale para a chave propria.
+    if (c.get("provedor") or "paulus") == "paulus":
+        return bool(chave(estado, "paulus") and consentido(estado))
     return bool(c.get("ligado") and c.get("provedor") in PROVEDORES and c.get("modelo") and chave(estado, c["provedor"])
                 and consentido(estado))
 
@@ -207,9 +213,26 @@ def consentir(estado, quem: str) -> dict:
         _paulus(estado, "POST", "/api/ia/consentimento", {"aceito": True, "versao": TERMO_VERSAO, "quem": quem})
     registro = {"versao": TERMO_VERSAO, "quem": quem, "quando": datetime.now().isoformat(timespec="seconds"),
                 "provedor": c.get("provedor") or ""}
-    estado.prefs.atualizar({"nuvem": {"consentimento": registro}})
+    estado.prefs.atualizar({"nuvem": {"consentimento": registro, "sim_retirado": False}})
     _historico_do_sim(estado, dict(registro, acao="sim"))
     return registro
+
+
+def sim_pela_assinatura(estado, quem: str) -> bool:
+    """
+    O sim da nuvem do PAVLVS vem com a assinatura (regra de 12/10/2026): quem assinou o plano
+    contratou a IA dele, e nao precisa dar o sim de novo em Configuracoes. Fica registrado com a
+    origem, e quem retirou o sim (Configuracoes) nao volta a ter um sozinho. Devolve se ha o sim.
+    """
+    c = config(estado)
+    if (c.get("provedor") or "paulus") != "paulus" or not chave(estado, "paulus"):
+        return consentido(estado)
+    if consentido(estado):
+        return True
+    if c.get("sim_retirado"):
+        return False
+    consentir(estado, (quem or "titular") + " (pela assinatura do plano)")
+    return True
 
 
 def retirar(estado, quem: str) -> None:
@@ -219,7 +242,8 @@ def retirar(estado, quem: str) -> None:
         except ErroNuvem:
             pass  # sem internet agora: aqui já desliga, e o Worker sem o sim do app não importa
     # As preferencias se fundem (config._fundir): {} nao apagaria o sim; a versao vazia apaga.
-    estado.prefs.atualizar({"nuvem": {"consentimento": {"versao": "", "quem": "", "quando": "", "provedor": ""}, "ligado": False}})
+    estado.prefs.atualizar({"nuvem": {"consentimento": {"versao": "", "quem": "", "quando": "", "provedor": ""}, "ligado": False,
+                                      "sim_retirado": True}})
     _historico_do_sim(estado, {"acao": "retirado", "quem": quem, "quando": datetime.now().isoformat(timespec="seconds")})
 
 
@@ -319,10 +343,12 @@ def ativar_paulus(estado, id_token: str, nome: str = "") -> dict:
     guardar_chave(estado, "paulus", segredo)
     estado.prefs.atualizar({"nuvem": {"provedor": "paulus", "modelo": config(estado).get("modelo") if config(estado).get("provedor") == "paulus"
                                       and config(estado).get("modelo") else PROVEDORES["paulus"]["padrao"]}})
-    # Quem já deu o sim nesta versão leva o sim ao Worker da conta nova.
+    # Quem já deu o sim nesta versão leva o sim ao Worker da conta nova; quem não deu, o dá pela assinatura.
     c = config(estado).get("consentimento") or {}
     if consentido(estado):
         _paulus(estado, "POST", "/api/ia/consentimento", {"aceito": True, "versao": TERMO_VERSAO, "quem": c.get("quem", "")})
+    else:
+        sim_pela_assinatura(estado, nome)
     _CONTA_CACHE.update(quando=0.0, dados=None)
     import plano
 
@@ -769,7 +795,7 @@ class Envio:
         self.trabalho = trabalho
         self.pessoa = pessoa
         c = config(estado)
-        self.provedor = c.get("provedor") or "anthropic"
+        self.provedor = c.get("provedor") or "paulus"
         self.modelo = c.get("modelo") or PROVEDORES.get(self.provedor, {}).get("padrao", "")
         self.mascarar = bool(c.get("mascarar", True))
         self.id = uuid.uuid4().hex[:12]
@@ -806,8 +832,12 @@ class Envio:
     def preparar(self, pergunta: str, contexto: str, regra: str, hits, historico=None) -> dict | None:
         """O pacote, ou None com o motivo de ficar neste computador."""
         if not ligada(self.estado):
-            self.motivo = ("o titular ainda não deu o sim para a nuvem (Configurações › Modelos)" if not consentido(self.estado)
-                           else "a nuvem está desligada (ou sem chave) em Configurações › Modelos")
+            if self.provedor == "paulus":
+                self.motivo = ("o sim para a nuvem foi retirado em Configurações › Assistente e modelo" if config(self.estado).get("sim_retirado")
+                               else "a conta da nuvem do PAVLVS não está ativada neste computador")
+            else:
+                self.motivo = ("o titular ainda não deu o sim para a nuvem (Configurações › Modelos)" if not consentido(self.estado)
+                               else "a nuvem está desligada (ou sem chave) em Configurações › Modelos")
             return None
         if not usa(self.estado, "conversa"):
             self.motivo = "a conversa está desligada da nuvem em Configurações › Modelos"

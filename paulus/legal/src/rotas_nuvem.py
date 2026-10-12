@@ -112,6 +112,12 @@ def montar(estado, app, dados_dir) -> None:
     @app.get("/api/nuvem/situacao")
     def nuvem_situacao() -> dict:
         """O que a caixa da pergunta precisa, de dentro e de fora: nada de chave nem de conta."""
+        # A conta ativada antes da regra de 12/10/2026, sem o sim: o sim vem da assinatura (uma vez).
+        if not nuvem.consentido(estado):
+            try:
+                nuvem.sim_pela_assinatura(estado, _nome_de_quem(estado))
+            except nuvem.ErroNuvem:
+                pass  # sem internet agora: fica no computador e tenta na proxima vez
         c = nuvem.config(estado)
         prov = c.get("provedor") or "paulus"
         return {"ligada": nuvem.usa(estado, "conversa"), "provedor": prov,
