@@ -1,17 +1,12 @@
 {
-  "versao": "0.9.34",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.34/PAULUS-0.9.34-instalador.exe",
-  "sha256": "217a650fbe1380def04fcdf085edb5a1dd8ed7235280db0f6daf5c8c83c5053f",
-  "tamanho": 102741142,
+  "versao": "0.9.35",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.35/PAULUS-0.9.35-instalador.exe",
+  "sha256": "2d176093bd50291e246e514af90497ff6b28418e8f6a9476c6b81e28ad3e8cce",
+  "tamanho": 102749476,
   "publicada": "2026-10-12",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.34",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.35",
   "novidades": [
-    "DataJud: chave nova lida na wiki do CNJ, nova tentativa quando o DataJud esta cheio e o perfil da vara",
-    "O escritorio de fora vira app instalavel (PWA): cada <nome>.paulus.ia.br tem manifesto (/manifest.webmanifest, escopo no proprio endereco, standalone, related_applications para si) e service worker (/sw.js, sem cache; troca a pagina de erro do tunel por \"o escritorio nao respondeu\"). js/instalar-app",
-    "PAULUS instalado: o dinheiro é na Atos. Modelos › Nuvem e Plano e consumo abrem a Atos para comprar créditos (a recarga no plano da conta), assinar (checkout, de uma vez no anual, sem parcelamento), trocar de plano e cancelar (a Conta Atos, com o texto de como é), ver as faturas e trocar o cartão; a",
-    "Entrar com Atos no PAULUS: a troca do código pelo token (e a revogação) se identifica como \"PAULUS (+https://paulus.ia.br)\". O Cloudflare (Browser Integrity Check) barra com 403 o \"Python-urllib\" padrão antes de o pedido chegar a atos.dev.br ou paulus.ia.br, e o login parava em \"o servidor de login ",
-    "Só a Conta Atos: o PAULUS e o site entram só por ela; o Google vira um jeito de entrar na Atos e, aqui, só os serviços (Gmail, Agenda, Drive, Meet). Servidor: o vínculo é sempre da Atos (o do Google de antes destrava pela Atos e passa a dizer atos); assistente, trava e Configurações só com \"Entrar c",
-    "Entrar com Atos, de fora: acesso/atos_login.py (cliente pavlvs-escritorio, PKCE, nonce, cookie que amarra a volta ao navegador, troca direto em atos.dev.br) e /api/acesso/atos/iniciar e /retorno; a volta do Google e a da Atos seguem pelo mesmo _entrou (convite, navegador confiado, código do celular,",
-    "Entrar com Atos no PAULUS instalado: a Conta Atos entra como o Google, pelo navegador (correio_oauth, provedor \"atos\": atos.dev.br/entrar, cliente público pavlvs-app, PKCE S256, volta em 127.0.0.1). Sai o formulário de e-mail e senha do assistente, da trava e de Configurações, e saem as rotas /api/v"
+    "Perfil da vara: a classe pr-perfil ganha regra (respiro antes das barras); test_frontend volta a passar",
+    "Entrar com Atos de fora: a troca do codigo em atos.dev.br/oauth/token vai com o agente do PAULUS. O Cloudflare da Atos barrava o \"Python-urllib\" padrao com 403 (error code: 1010) e a tela dizia \"a Atos recusou o login: HTTP 403\" - o correio_oauth ja tinha a correcao, o atos_login nao. test_acesso_at"
   ]
 }
