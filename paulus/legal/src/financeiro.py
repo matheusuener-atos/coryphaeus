@@ -320,7 +320,8 @@ class Financeiro:
             "saldo": entrou - saiu,
             "saldo_texto": curto(entrou - saiu),
             "resultado_mes": entrou_mes - saiu_mes,
-            "resultado_mes_texto": ("+" if entrou_mes >= saiu_mes else "") + curto(entrou_mes - saiu_mes),
+            # "+ R$ 1.200" / "− R$ 300": o sinal separado, como a ficha da tela mostra.
+            "resultado_mes_texto": ("+ " if entrou_mes >= saiu_mes else "− ") + curto(abs(entrou_mes - saiu_mes)),
             "a_receber": a_receber,
             "a_receber_texto": curto(a_receber),
             "a_receber_quantos": self._contar("tipo = 'recebimento' AND liquidado_em = ''"),
