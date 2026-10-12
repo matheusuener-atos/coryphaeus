@@ -80,6 +80,8 @@ def _declarar(politica: str, *rotas: str) -> None:
 _declarar(PUBLICO,
           "GET /", "GET /css/{arquivo}", "GET /js/{arquivo}", "GET /img/{arquivo}", "GET /img/marcas/{arquivo}",
           "GET /fontes.css", "GET /fontes/{arquivo}", "GET /favicon.ico",
+          # o app instalavel do escritorio (12/10/2026): o manifesto e o service worker
+          "GET /manifest.webmanifest", "GET /sw.js",
           "GET /api/acesso/eu", "GET /api/acesso/entrar/config", "POST /api/acesso/entrar",
           "POST /api/acesso/entrar/codigo",
           # o convite (E4): quem foi convidado ainda nao tem conta
@@ -106,7 +108,11 @@ SEM_SESSAO = {("GET", "/"), ("GET", "/fontes.css"), ("GET", "/css/00-tokens.css"
               # entrar com Atos (09/10/2026)
               ("POST", "/api/acesso/atos/iniciar"), ("GET", "/api/acesso/atos/retorno"),
               # "Paulus está te esperando." e a frase de baixo (js/entrada-saudacao.js)
-              ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js")}
+              ("GET", "/api/saudacao/entrada"), ("GET", "/js/entrada-saudacao.js"),
+              # o app instalavel (12/10/2026): o pedido de instalar ja aparece na
+              # tela de entrar, e o navegador pede o manifesto e o icone sem cookie
+              ("GET", "/js/instalar-app.js"), ("GET", "/css/instalar-app.css"), ("GET", "/manifest.webmanifest"), ("GET", "/sw.js"),
+              ("GET", "/img/paulus-icone-512.png")}
 
 
 # O que a pagina do cliente carrega antes de ele entrar (frontend/cliente.html).

@@ -1296,6 +1296,46 @@ def favicon() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "img" / "paulus.ico", media_type="image/x-icon")
 
 
+@app.get("/manifest.webmanifest")
+def manifesto_do_app(request: Request) -> JSONResponse:
+    """
+    O app instalavel do escritorio (12/10/2026): cada <nome>.paulus.ia.br e um
+    app proprio, com o endereco dele como escopo - e la que ficam a sessao e o
+    tunel. O resto de paulus.ia.br continua site. O navegador pede o manifesto
+    sem cookie, entao a rota passa sem sessao; nada do escritorio vai nele,
+    so o nome do endereco. Quem o liga e o js/instalar-app.js, so de fora.
+    """
+    host = (request.url.hostname or "").lower()
+    nome = host[: -len(".paulus.ia.br")] if host.endswith(".paulus.ia.br") else ""
+    if not re.fullmatch(r"[a-z0-9-]{1,24}", nome):
+        nome = ""
+    manifesto = {
+        "id": "/",
+        "name": f"PAVLVS · {nome}" if nome else "PAVLVS",
+        "short_name": "PAVLVS",
+        "description": "O PAVLVS do escritório, pelo acesso de fora.",
+        "lang": "pt-BR",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#131312",
+        "theme_color": "#131312",
+        "icons": [{"src": "/img/paulus-icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}],
+    }
+    if nome:
+        # getInstalledRelatedApps (js/instalar-app.js): o proprio app, para a
+        # pagina aberta no navegador saber que ele ja esta instalado.
+        manifesto["related_applications"] = [{"platform": "webapp", "url": f"https://{host}/manifest.webmanifest"}]
+    return JSONResponse(manifesto, media_type="application/manifest+json", headers=SEM_CACHE)
+
+
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    # Na raiz, para o escopo ser o endereco inteiro do escritorio. Nao guarda
+    # nada do escritorio: so troca a pagina de erro do tunel por uma explicada.
+    return FileResponse(FRONTEND_DIR / "sw.js", media_type="text/javascript", headers=SEM_CACHE)
+
+
 @app.get("/fontes.css")
 def fontes_css() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "fontes.css", media_type="text/css")

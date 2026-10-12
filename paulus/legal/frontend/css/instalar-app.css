@@ -1,0 +1,37 @@
+/* O pedido de instalar o app do escritorio (js/instalar-app.js, 12/10/2026).
+   Ligado pela tela de entrar de fora e pelo programa; so aparece de fora. */
+.app-inst-fundo, .app-inst-fundo * { box-sizing: border-box; }
+.app-inst-fundo { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0,0,0,.45); padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); opacity: 0; transition: opacity .2s; }
+.app-inst-fundo.aberta { opacity: 1; }
+@media (min-width: 700px) { .app-inst-fundo { align-items: center; } }
+:root {
+  --ai-f: #161616;
+  --ai-t: #f2f1ec;
+  --ai-t2: #a8a69e;
+  --ai-fio: rgba(242,241,236,.14);
+  --ai-b: #262626;
+  --ai-bs: #2e2e2e;
+}
+[data-tema="claro"] {
+  --ai-f: #efeee9;
+  --ai-t: #1c1c1a;
+  --ai-t2: #55544f;
+  --ai-fio: rgba(28,28,26,.14);
+  --ai-b: #e2e1db;
+  --ai-bs: #dad9d2;
+}
+.app-inst { width: 100%; max-width: 420px; background: var(--ai-f); color: var(--ai-t); border: 1px solid var(--ai-fio); border-radius: 16px;
+  padding: 20px; font: 400 14px/1.5 'Manrope', system-ui, sans-serif; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.app-inst-topo { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.app-inst-topo img { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+.app-inst h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.app-inst p { margin: 0 0 8px; color: var(--ai-t2); }
+.app-inst p b { color: var(--ai-t); font-weight: 600; }
+.app-inst-botoes { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.app-inst-botoes button { font: inherit; font-weight: 500; height: 36px; padding: 0 16px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--ai-fio); background: transparent; color: var(--ai-t); }
+.app-inst-botoes .app-inst-sim { background: var(--ai-b); }
+.app-inst-botoes .app-inst-nao { background: transparent; }
+@media (hover: hover) { .app-inst-botoes button:hover { background: var(--ai-bs); } }
+@media (prefers-reduced-motion: reduce) { .app-inst-fundo { transition: none; } }
