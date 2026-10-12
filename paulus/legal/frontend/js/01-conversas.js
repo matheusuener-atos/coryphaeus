@@ -188,7 +188,6 @@ $("nova").onclick = () => {
   desenharAtividade([]);
   carregarTrabalhos();
   marcarDestino("conversa");
-  fecharFlutuante();
   atualizarPostura();
   $("pedido").focus();
 };

@@ -140,7 +140,7 @@ def test_css_completo() -> None:
     essenciais = [
         ".doc-linha", ".doc-marca", ".doc-acoes", ".etiqueta",
         ".cfg-menu", ".cfg-hab", ".catalogo", ".bib-topo",
-        ".trilho", ".menu-flutuante", ".lateral",
+        ".trilho", ".topbar", ".lateral",
         ".cartao-campo", ".pilula", ".enviar",
         ".menu-conversa", ".cartao-agora", ".chamada",
     ]

@@ -344,23 +344,16 @@ def main() -> int:
                 "abre no tema escuro, o padrao (pedido do dono, 29/09/2026)",
             )
 
-            # A casca do desenho (docs/ui/01-shell.md): trilho de 64 px que
-            # cabe em 900 px de altura, e um menu que abre por passagem do
-            # mouse POR CIMA do conteudo - a coluna nao pode se mexer.
+            # A casca: desde 12/10/2026 a barra do alto leva os destinos e o
+            # menu lateral (o que abria passando o mouse no trilho) nao existe.
             print("\ncasca em tela de 900 px")
             casca = pagina.evaluate("""() => {
               const t = document.querySelector('.trilho');
-              const m = document.getElementById('menu-flutuante');
               const ids = [...document.querySelectorAll('[data-destino]')].map(e => e.dataset.destino);
               return {
                 largura: Math.round(t.getBoundingClientRect().width),
                 vaza: t.scrollHeight > t.clientHeight + 1,
-                // Fechado e a faixa na largura do trilho e o menu sem receber
-                // clique: ela fica montada o tempo todo e abre crescendo, com o
-                // menu de largura fixa dentro, para nao refazer o layout dos
-                // itens a cada quadro nem deixar a conversa aparecer atraves.
-                fechado: getComputedStyle(m.querySelector('.menu-faixa')).width === '64px'
-                  && getComputedStyle(m).pointerEvents === 'none',
+                semMenu: !document.getElementById('menu-flutuante') && !document.querySelector('.menu-item'),
                 coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
                 destinos: [...new Set(ids)],
               };
@@ -377,19 +370,17 @@ def main() -> int:
             }""")
             checar(topo["altura"] == 56, f"a barra do alto tem 56 px (achou {topo['altura']})")
             checar(casca["largura"] == 0, f"o trilho fica escondido atras da barra (achou {casca['largura']} px)")
-            checar(casca["fechado"], "o menu comeca fechado")
+            checar(casca["semMenu"], "o menu lateral nao existe mais")
             checar(topo["coluna"] == 0, "a coluna de conteudo ocupa a janela de lado a lado", topo)
 
-            # mouse.move, e nao hover(): o menu aberto cobre o trilho, e o
-            # hover() do Playwright espera o ponteiro alcancar o alvo.
+            # A borda esquerda, onde o trilho ficava, nao abre nada.
             pagina.mouse.move(32, 450)
             pagina.wait_for_timeout(450)
-            aberto = pagina.evaluate("""() => ({
-              opacidade: getComputedStyle(document.getElementById('menu-flutuante')).opacity,
-              coluna: Math.round(document.getElementById('conversa-col').getBoundingClientRect().left),
-            })""")
-            checar(aberto["opacidade"] == "1", "passar o mouse no trilho abre o menu")
-            checar(aberto["coluna"] == casca["coluna"], "e o conteudo nao se desloca")
+            lado = pagina.evaluate("""() => [...document.querySelectorAll('body *')].filter((e) => {
+              const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+              return r.left <= 0 && r.width >= 200 && r.width < 400 && r.height > 400 && cs.display !== 'none' && cs.visibility !== 'hidden';
+            }).map((e) => e.id || e.className).slice(0, 3)""")
+            checar(not lado, "passar o mouse na borda esquerda nao abre menu lateral", lado)
             pagina.mouse.move(760, 460)
             pagina.wait_for_timeout(450)
 

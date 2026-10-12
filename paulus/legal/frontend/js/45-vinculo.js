@@ -385,7 +385,7 @@ acessoDeFora.pronto.then(async () => {
 */
 function mostrarBotaoSair() {
   const ver = Boolean(acessoDeFora.local);
-  ["sair-servidor", "sair-servidor-menu"].forEach((id) => {
+  ["sair-servidor"].forEach((id) => {
     const b = document.getElementById(id);
     if (!b) return;
     b.hidden = !ver;

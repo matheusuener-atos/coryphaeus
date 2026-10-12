@@ -83,23 +83,14 @@ async function carregarMenu() {
   }
   DESTINOS = d.grupos.flatMap((g) => g.destinos);
 
-  const noTrilho = new Set(Array.from(document.querySelectorAll(".trilho [data-destino]")).map((b) => b.dataset.destino));
-  const antigos = DESTINOS.filter((x) => !noTrilho.has(x.id) && !ABSORVIDOS.has(x.id));
-  $("menu-antigos").innerHTML = antigos.map((x) =>
-    '<button class="menu-item' + (x.pronta ? "" : " adiante") + '" data-destino="' + esc(x.id) +
-    '" title="' + esc(x.resolve) + '"><span class="caixa-ic">' + ic(ICONE_ANTIGO[x.id] || "grid_view") + "</span>" +
-    '<span class="rotulo-botao">' + esc(x.nome) + "</span></button>").join("");
-  $("ver-antigos").hidden = !antigos.length;
-
   const semMotor = DESTINOS.filter((x) => !x.pronta).map((x) => x.id);
   semMotor.forEach((id) => {
     document.querySelectorAll('[data-destino="' + id + '"]').forEach((b) => b.classList.add("adiante"));
   });
 
   document.querySelectorAll("[data-destino]").forEach((b) => {
-    b.onclick = () => { fecharFlutuante(); abrirDestino(b.dataset.destino); };
+    b.onclick = () => abrirDestino(b.dataset.destino);
   });
-  document.querySelectorAll("[data-nova]").forEach((b) => { b.onclick = () => $("nova").click(); });
 }
 
 function marcarDestino(id) {

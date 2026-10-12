@@ -21,7 +21,7 @@
   .bv-grade .bv-cheia { grid-column: 1 / -1; }
 
   /* modo limitado: a casca inteira, com o que depende da rede apagado */
-  body.vinculo-pendente .trilho-item.presa, body.vinculo-pendente .menu-item.presa { opacity: .4; pointer-events: none; }
+  body.vinculo-pendente .trilho-item.presa { opacity: .4; pointer-events: none; }
   .cartao-agora.espera .cabeca .nome { color: var(--ink); }
   .agora-codigo { display: flex; gap: 6px; }
   .cartao-agora.espera .acoes { display: flex; gap: 8px; flex-wrap: wrap; }

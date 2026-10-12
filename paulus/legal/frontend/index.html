@@ -25,6 +25,8 @@
     /* A primeira abertura: o assistente de configuracao so se desenha depois
        de ler as preferencias e a assinatura. Ate la, o fundo dele cobre a
        janela, para a tela de baixo nao piscar antes (23-boas-vindas.js tira). */
+    // A barra do alto (js/99-topbar.js) leva os destinos: o trilho fica escondido desde a primeira pintura.
+    document.documentElement.classList.add("com-topbar");
     try {
       if (localStorage.getItem("paulus.boasvindas") !== "1") document.documentElement.classList.add("bv-cedo");
     } catch (e) { /* sem memoria do navegador: o assistente decide sozinho */ }
@@ -168,56 +170,6 @@
     <button type="button" data-cel="avisos" aria-label="Avisos"><span class="ic">inbox</span><i class="cel-ponto" hidden></i></button>
     <button type="button" data-cel="mais" aria-label="Mais"><span class="cel-menu" aria-hidden="true"><i></i><i></i><i></i></span></button>
   </nav>
-
-  <div class="menu-flutuante" id="menu-flutuante">
-   <!-- A faixa e o que cresce de 64 para 260 px. A gaveta fica FORA dela: se
-        ficasse dentro, o corte que esconde os nomes cortaria a gaveta junto. -->
-   <div class="menu-faixa">
-    <nav class="menu" id="menu" aria-label="Menu">
-      <!-- Uma palavra so. O recuo e calculado para que o "P" caia exatamente
-           sobre o "P" do trilho - ver o CSS. -->
-      <div class="menu-cabeca"><span>P<span class="menu-marca-resto">AVLVS</span></span></div>
-      <button class="menu-item" data-nova="1"><span class="caixa-ic"><span class="ic">add</span></span><span class="rotulo-botao">Nova conversa</span></button>
-      <button class="menu-item" id="buscar-tudo-menu"><span class="caixa-ic"><span class="ic">search</span></span><span class="rotulo-botao">Buscar em tudo</span></button>
-      <span class="menu-divisa"></span>
-      <button class="menu-item" data-destino="conversa"><span class="caixa-ic"><span class="ic">forum</span></span><span class="rotulo-botao">Assistente</span></button>
-      <button class="menu-item" data-destino="servicos"><span class="caixa-ic"><span class="ic">work</span></span><span class="rotulo-botao">Processos</span></button>
-      <button class="menu-item" data-destino="gravacoes"><span class="caixa-ic"><span class="ic">mic</span></span><span class="rotulo-botao">Gravações</span></button>
-      <button class="menu-item" data-destino="calendario"><span class="caixa-ic"><span class="ic">calendar_month</span></span><span class="rotulo-botao">Agenda</span></button>
-      <button class="menu-item" data-destino="foco"><span class="caixa-ic"><span class="ic">self_improvement</span></span><span class="rotulo-botao">Foco e bem-estar</span></button>
-      <span class="menu-divisa"></span>
-      <button class="menu-item" data-destino="biblioteca"><span class="caixa-ic"><span class="ic">inventory_2</span></span><span class="rotulo-botao">Acervo</span></button>
-      <button class="menu-item" data-destino="contexto"><span class="caixa-ic"><span class="ic">menu_book</span></span><span class="rotulo-botao">Biblioteca</span></button>
-      <button class="menu-item" data-destino="editor"><span class="caixa-ic"><span class="ic">description</span></span><span class="rotulo-botao">Editor de documentos</span></button>
-      <button class="menu-item" data-destino="assinar"><span class="caixa-ic"><span class="ic">draw</span></span><span class="rotulo-botao">Assinatura</span></button>
-      <span class="menu-divisa"></span>
-      <button class="menu-item" data-destino="caixa"><span class="caixa-ic"><span class="ic">mail</span></span><span class="rotulo-botao">E-mail</span></button>
-      <button class="menu-item" data-destino="financeiro"><span class="caixa-ic"><span class="ic">payments</span></span><span class="rotulo-botao">Financeiro</span></button>
-      <button class="menu-item" data-destino="cadastros"><span class="caixa-ic"><span class="ic">contacts</span></span><span class="rotulo-botao">Cadastros</span></button>
-      <button class="menu-item" data-destino="aprovacoes"><span class="caixa-ic"><span class="ic">verified</span></span><span class="rotulo-botao">Aprovações</span><span class="conta" hidden></span></button>
-      <button class="menu-item" data-destino="agentes"><span class="caixa-ic"><span class="ic">school</span></span><span class="rotulo-botao">Agentes</span></button>
-      <button class="menu-item" data-destino="consumo"><span class="caixa-ic"><span class="ic">speed</span></span><span class="rotulo-botao">Plano e consumo</span></button>
-      <button class="menu-item" data-destino="notas"><span class="caixa-ic"><span class="ic">receipt_long</span></span><span class="rotulo-botao">Notas fiscais</span></button>
-
-      <!-- As conversas moram no Assistente ("Ver mais"), nao aqui. Os destinos
-           antigos que o desenho fundiu em visoes de outros abrem numa gaveta
-           ao lado - catorze destinos de 40 px nao deixam espaco para mais em
-           900 px de altura. -->
-      <div class="menu-rolagem">
-        <button class="menu-secao-botao" id="ver-antigos" title="Telas que ainda nao entraram no desenho novo" hidden><span>Ainda sem lugar no desenho</span><span class="ic ic-16">chevron_right</span></button>
-      </div>
-
-      <span class="menu-divisa"></span>
-      <button class="menu-item" id="tema-menu"><span class="caixa-ic"><span class="ic" id="tema-menu-icone">dark_mode</span></span><span class="rotulo-botao" id="tema-rotulo">Tema escuro</span></button>
-      <button class="menu-item" data-destino="config"><span class="caixa-ic"><span class="ic">settings</span></span><span class="rotulo-botao">Configurações</span></button>
-      <button class="menu-item" id="sair-servidor-menu" hidden><span class="caixa-ic"><span class="ic">logout</span></span><span class="rotulo-botao">Sair</span></button>
-    </nav>
-   </div>
-    <div class="menu-gaveta" id="gaveta-antigos" hidden>
-      <div class="gaveta-cabeca">Ainda sem lugar no desenho</div>
-      <div id="menu-antigos"></div>
-    </div>
-  </div>
 
   <section class="conversa-col vazia" id="conversa-col">
     <!-- A barra de titulo: a linha dos botoes da janela, em toda tela. E nela

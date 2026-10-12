@@ -149,59 +149,6 @@ function ordenarTrilho() {
 }
 ordenarTrilho();
 
-/* A intencao antes do gesto. O menu nao abre no primeiro pixel em que o
-   ponteiro toca o trilho - quem so passa por ele a caminho da borda da janela
-   nao quer uma cortina correndo -, e nao fecha no primeiro pixel fora dele,
-   que e o que fazia a barra piscar num movimento torto de volta. */
-const MENU_ABRE_MS = 70;
-const MENU_FECHA_MS = 140;
-const menuIntencao = { abre: 0, fecha: 0 };
-
-function esquecerIntencao() {
-  clearTimeout(menuIntencao.abre);
-  clearTimeout(menuIntencao.fecha);
-  menuIntencao.abre = 0;
-  menuIntencao.fecha = 0;
-}
-function abrirFlutuante() {
-  esquecerIntencao();
-  $("menu-flutuante").classList.add("aberto");
-}
-function fecharFlutuante() {
-  esquecerIntencao();
-  $("menu-flutuante").classList.remove("aberto");
-  fecharGavetas();
-  fecharMenu();
-}
-
-$("trilho").addEventListener("mouseenter", () => {
-  clearTimeout(menuIntencao.fecha);
-  menuIntencao.fecha = 0;
-  if ($("menu-flutuante").classList.contains("aberto") || menuIntencao.abre) return;
-  menuIntencao.abre = setTimeout(abrirFlutuante, MENU_ABRE_MS);
-});
-$("trilho").addEventListener("mouseleave", () => {
-  if ($("menu-flutuante").classList.contains("aberto")) return;
-  clearTimeout(menuIntencao.abre);
-  menuIntencao.abre = 0;
-});
-/* Fecha quando o ponteiro esta fora do trilho e do menu. Nao e mouseleave
-   porque o menu abre DEBAIXO do ponteiro sem receber mouseenter - um
-   movimento rapido para o conteudo nunca geraria o mouseleave. */
-document.addEventListener("mousemove", (e) => {
-  if (!$("menu-flutuante").classList.contains("aberto")) return;
-  // Nas telas de desenho o menu fica aberto para ser visto (Menu flutuante).
-  if (window.__menuFixo) return;
-  /* As bordas de redimensionar da janela sem moldura ficam POR CIMA de tudo,
-     inclusive dos seis pixels da esquerda do trilho. Sem contar com elas
-     aqui, encostar o mouse na beirada fechava o menu. */
-  if (e.target && e.target.closest && e.target.closest("#menu-flutuante, #trilho, #bordas-janela")) {
-    clearTimeout(menuIntencao.fecha);
-    menuIntencao.fecha = 0;
-    return;
-  }
-  if (!menuIntencao.fecha) menuIntencao.fecha = setTimeout(fecharFlutuante, MENU_FECHA_MS);
-});
 
 /* ------------------------------------------------------- troca de tela */
 /*
@@ -433,20 +380,8 @@ document.addEventListener("click", (e) => {
   }).observe($("centro"), { childList: true, subtree: true });
 })();
 
-/* A gaveta ao lado do menu: as telas antigas que ainda nao tem lugar. */
-function fecharGavetas() {
-  $("gaveta-antigos").hidden = true;
-}
-function alternarGaveta(id) {
-  const alvo = $(id);
-  const abrir = alvo.hidden;
-  fecharGavetas();
-  alvo.hidden = !abrir;
-}
-$("ver-antigos").onclick = () => alternarGaveta("gaveta-antigos");
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") fecharFlutuante();
   if (!(e.ctrlKey || e.metaKey)) return;
   const tecla = e.key.toLowerCase();
   if (tecla === "k") {
@@ -589,13 +524,12 @@ async function carregarUsuario() {
 }
 
 
-/* A marca (o P do trilho e o PAVLVS do menu) leva de volta ao Assistente,
+/* A marca (o P do trilho) leva de volta ao Assistente,
    como o logo de um site leva a pagina inicial. */
 function voltarPelaMarca() {
-  if (typeof fecharFlutuante === "function" && !window.__menuFixo) fecharFlutuante();
   if (typeof voltarAoAssistente === "function") voltarAoAssistente();
 }
-document.querySelectorAll("#trilho-logo, .menu-cabeca").forEach((m) => {
+document.querySelectorAll("#trilho-logo").forEach((m) => {
   m.setAttribute("role", "link");
   m.setAttribute("tabindex", "0");
   m.setAttribute("aria-label", "Ir para o início");

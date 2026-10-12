@@ -2,7 +2,7 @@
    ao programa. 56 px, PAVLVS em Garamond 20 a esquerda, os destinos em texto a
    direita, os botoes da janela no canto, fio fino embaixo. O trilho e o menu
    que abre sobre ele saem. */
-html.com-topbar .trilho, html.com-topbar .menu-flutuante { display: none !important; }
+html.com-topbar .trilho { display: none !important; }
 html.com-topbar .sc-host:has(> .corpo), html.com-topbar body:has(> .corpo) { display: flex; flex-direction: column; }
 html.com-topbar .corpo { flex: 1 1 auto; min-height: 0; }
 

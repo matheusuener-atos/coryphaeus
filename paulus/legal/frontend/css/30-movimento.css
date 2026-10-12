@@ -22,7 +22,7 @@
     --curva-suave: cubic-bezier(.4, 0, .2, 1);
   }
 
-  :where(button, [role="button"], .as-radio, .menu-item, .trilho-item, summary) {
+  :where(button, [role="button"], .as-radio, .trilho-item, summary) {
     transition:
       background-color var(--dur-rapida) var(--curva-suave),
       border-color var(--dur-rapida) var(--curva-suave),

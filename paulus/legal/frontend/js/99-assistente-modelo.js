@@ -68,13 +68,15 @@
     const niveis = (((cfg.ia || {}).painel || {}).profundidade || []);
     if (typeof renomearNiveis === "function") renomearNiveis(niveis);
     const ligado = Boolean(s.ollama);
-    const quando = ler("quando", "sempre");
+    // Quando usar a nuvem: "Nunca" e a nuvem desligada no servidor (/api/nuvem); ligada, vale o que a pessoa escolheu aqui.
+    const nv = (typeof nuvemTela !== "undefined" && nuvemTela.dados) || {};
+    const quando = nv.ligado ? (ler("quando", "sempre") === "pedir" ? "pedir" : "sempre") : "nunca";
     const pct = tok.limite ? Math.min(100, (tok.usados / tok.limite) * 100) : 0;
 
     const ficha = fichaCfg([
       ["Plano", plano.nome || "—"],
       ["Créditos do mês", tok.limite ? mil(tok.usados) + " de " + mil(tok.limite) : "—"],
-      ["Responde por", quando === "nunca" ? "este computador" : "nuvem Paulus"],
+      ["Responde por", quando === "nunca" ? "este computador" : (nv.ligada ? "nuvem Paulus" : "nuvem Paulus (falta ativar)"), nv.ligada || quando === "nunca" ? "" : "cfg-mudo"],
       ["Reserva", ligado ? (r.modelo || "—") : "desligada", ligado ? "" : "cfg-mudo"],
     ]);
 
@@ -208,6 +210,26 @@
   }
 
 
+  /* "Quando usar a nuvem" liga e desliga a nuvem de verdade (POST /api/nuvem/configurar):
+     antes a escolha ficava so no navegador e a nuvem continuava desligada. */
+  async function ligarNuvemPeloQuando(valor) {
+    const ligar = valor !== "nunca";
+    let r;
+    try {
+      r = await fetch("/api/nuvem/configurar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ligado: ligar }) });
+    } catch (e) { r = null; }
+    if (!r || !r.ok) {
+      const msg = r && typeof erroDe === "function" ? await erroDe(r) : "não consegui falar com o servidor";
+      if (typeof avisoCert === "function") avisoCert("A nuvem não ligou: " + msg + ".", { tom: "erro" });
+    } else if (typeof avisoCert === "function") {
+      avisoCert(ligar ? (valor === "pedir" ? "Nuvem ligada: cada pergunta começa aqui e vai à nuvem quando você escolher" : "Nuvem ligada") : "Nuvem desligada: tudo é gerado neste computador", { tom: "ok" });
+    }
+    if (typeof nuvemTela !== "undefined") nuvemTela.aqui = valor === "pedir";
+    if (typeof carregarNuvemNaConfig === "function") await carregarNuvemNaConfig();
+    if (typeof desenharPilulaProfundidade === "function") desenharPilulaProfundidade();
+    desenharConfig();
+  }
+
   /* Os cliques desta secao, por delegacao (a tela se redesenha inteira). */
   document.addEventListener("click", (e) => {
     if (typeof cfg === "undefined" || cfg.secao !== "assistente") return;
@@ -217,7 +239,7 @@
       gravar(chave, valor);
       if (chave === "profundidade" && typeof prof !== "undefined") { prof.escolhido = valor; try { localStorage.setItem("paulus.profundidade", valor); } catch (x) { /* */ } if (typeof desenharPilulaProfundidade === "function") desenharPilulaProfundidade(); }
       esc_.parentElement.querySelectorAll("[data-ia-escolha]").forEach((b) => { const on = b === esc_; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); });
-      if (chave === "quando") desenharConfig();
+      if (chave === "quando") { ligarNuvemPeloQuando(valor); return; }
       if (typeof avisoCert === "function") avisoCert("guardado");
       return;
     }

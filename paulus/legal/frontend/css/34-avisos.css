@@ -182,5 +182,4 @@
     content: ""; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%;
     background: var(--acc); animation: pisca-avisos 1.6s ease-in-out infinite;
   }
-  .menu-item.pisca-avisos::after { top: 50%; right: 12px; margin-top: -3.5px; }
   @keyframes pisca-avisos { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }

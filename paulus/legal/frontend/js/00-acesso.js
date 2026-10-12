@@ -123,16 +123,6 @@ function quemCriou(nome, conta) {
       const cfg = trilho.querySelector('[data-destino="config"]');
       if (cfg && cfg.nextSibling) trilho.insertBefore(bt, cfg.nextSibling); else trilho.appendChild(bt);
     }
-    // O mesmo no menu aberto: o avatar no lugar do icone, e o nome como rotulo.
-    const menu = document.getElementById("menu-flutuante");
-    if (menu && !document.getElementById("menu-conta")) {
-      const mi = document.createElement("button");
-      mi.type = "button"; mi.className = "menu-item menu-conta"; mi.id = "menu-conta";
-      mi.innerHTML = '<span class="caixa-ic"><span class="cad-avatar">' + esc(iniciais(p.nome)) + '</span></span><span class="rotulo-botao">' + esc(p.nome) + "</span>";
-      mi.addEventListener("click", minhaContaDeFora);
-      const cfgM = menu.querySelector('[data-destino="config"]');
-      if (cfgM && cfgM.parentNode) cfgM.parentNode.insertBefore(mi, cfgM.nextSibling); else menu.appendChild(mi);
-    }
   }
 
   /* A conta de quem esta de fora. O titular troca a propria senha e derruba

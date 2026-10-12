@@ -47,7 +47,6 @@
     .trilho-item { width: 44px; height: 44px; }
     .trilho-item .conta { top: 4px; right: 4px; }
     /* O menu que abre ao passar o mouse nao existe no toque. */
-    .menu-flutuante { display: none; }
     .barra-titulo { padding: 0 12px; }
     .conversa-topo { flex-wrap: wrap; row-gap: 10px; }
     .conversa-acoes { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }

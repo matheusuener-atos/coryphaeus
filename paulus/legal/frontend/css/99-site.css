@@ -57,8 +57,6 @@ button:hover:not(:disabled) { border-color: var(--site-line3); }
    onde ha espaco, PAVLVS em Garamond 400 com o espacamento do topo do site. */
 .trilho-logo { font-size: 0; color: transparent; }
 .trilho-logo img { display: block; width: 30px; height: 30px; border-radius: 8px; }
-.menu-cabeca { padding-left: 15px; }
-.menu-cabeca span { font: 400 20px/1 var(--serif); letter-spacing: .12em; }
 .bv-marca { font: 400 20px/1 var(--serif); letter-spacing: .12em; }
 
 /* ---------- rotulos (kickers): Fira Code 11, .18em, maiusculas ---------- */
@@ -96,12 +94,9 @@ button:where(:not(.primario):not(.enviar):not(.botao-icone):not(.dialogo-fechar)
 /* A marca respira antes da lista: 10 px a mais no trilho e no menu, juntos,
    para os itens continuarem um sobre o outro. Clicar nela volta ao inicio. */
 .trilho-logo { margin-bottom: 18px !important; cursor: pointer; }
-.menu-flutuante .menu-cabeca { margin-bottom: 18px !important; cursor: pointer; }
 @media (min-width: 601px) and (max-height: 900px) {
     .trilho-logo { margin-bottom: 18px !important; }
-  .menu-flutuante .menu-cabeca { margin-bottom: 14px !important; }
 }
-.menu-cabeca:hover span { color: var(--ink); }
 /* Os itens do trilho nao encolhem: em janela baixa ele rola, como o menu,
    e cada icone continua na mesma altura do seu item no menu. */
 .trilho > * { flex-shrink: 0; }

@@ -10,8 +10,6 @@ function aplicarTema(tema) {
   const rotulo = escuro ? "Tema claro" : "Tema escuro";
   $("tema-icone").textContent = icone;
   $("tema").title = rotulo;
-  $("tema-menu-icone").textContent = icone;
-  $("tema-rotulo").textContent = rotulo;
   try { localStorage.setItem("paulus.tema", tema); } catch (err) { /* sem memoria, tudo bem */ }
 }
 
@@ -21,7 +19,6 @@ function alternarTema() {
   aplicarTema(document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro");
 }
 $("tema").onclick = alternarTema;
-$("tema-menu").onclick = alternarTema;
 
 function esc(t) {
   const d = document.createElement("div");

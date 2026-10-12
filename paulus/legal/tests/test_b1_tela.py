@@ -85,7 +85,7 @@ def test_tela(base: str, api) -> None:
         pag.evaluate("() => acessoDeFora.pronto")
         pag.wait_for_selector('.trilho [data-destino="contexto"]', state="attached")  # o trilho fica atras da barra do alto (12/10)
         pag.wait_for_timeout(1000)
-        checar(pag.evaluate("() => !!document.querySelector('#menu [data-destino=\"contexto\"]')"), "o menu tem a Biblioteca")
+        checar(pag.evaluate("() => !!document.querySelector('#topbar-sub [data-tb-destino=\"contexto\"]')"), "a barra do alto tem a Biblioteca (em Documentos)")
 
         # pelo trilho: a Estante
         pag.evaluate("() => document.querySelector('.trilho [data-destino=\"contexto\"]').click()")  # a barra do alto clica o mesmo botao

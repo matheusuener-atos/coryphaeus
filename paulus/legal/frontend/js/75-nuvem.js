@@ -24,6 +24,7 @@ async function carregarNuvem() {
   } catch (err) {
     nuvemTela.situacao = null;
   }
+  if (!nuvemTela.carregada) { nuvemTela.carregada = true; nuvemTela.aqui = nuvemComecaAqui(); }
   desenharPilulaNuvem();
   return nuvemTela.situacao;
 }
@@ -443,12 +444,17 @@ function desenharPilulaNuvem() {
   b.innerHTML = ic(vai ? "cloud_upload" : "desktop_windows", 18) + '<span class="rotulo-botao">' + (vai ? "Nuvem" : "Aqui") + "</span>";
 }
 
-/* O que vai junto da pergunta. "Aqui" vale para uma pergunta só. */
+/* "Só quando eu pedir" (Configurações › Assistente e modelo): cada pergunta começa aqui. */
+function nuvemComecaAqui() {
+  try { return localStorage.getItem("paulus.ia.quando") === "pedir"; } catch (e) { return false; }
+}
+
+/* O que vai junto da pergunta. A troca na pílula vale para uma pergunta só. */
 function nuvemDoEnvio() {
   const s = nuvemTela.situacao;
   if (!s || !s.ligada) return {};
   const aqui = nuvemTela.aqui;
-  nuvemTela.aqui = false;
+  nuvemTela.aqui = nuvemComecaAqui();
   desenharPilulaNuvem();
   return aqui ? {} : { nuvem: true };
 }

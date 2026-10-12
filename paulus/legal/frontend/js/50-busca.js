@@ -233,6 +233,4 @@ async function abrirDadoBsc(x) {
 (function () {
   const b = document.getElementById("buscar-tudo");
   if (b) b.onclick = (e) => { e.stopPropagation(); abrirBusca(); };
-  const m = document.getElementById("buscar-tudo-menu");
-  if (m) m.onclick = (e) => { e.stopPropagation(); abrirBusca(); };
 })();

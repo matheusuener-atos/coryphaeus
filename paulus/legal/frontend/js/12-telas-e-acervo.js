@@ -34,7 +34,6 @@ function abrirTela(nome, opcoes) {
   const migalha = document.getElementById("bib-migalha");
   if (migalha) migalha.remove();
   mostrarLateral(false);
-  fecharFlutuante();
   carregarTrabalhos();
 }
 
