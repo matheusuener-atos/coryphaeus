@@ -8,8 +8,8 @@
     width: 460px; max-width: 100%; box-sizing: border-box; display: grid; gap: 16px; padding: 34px 40px 30px;
     border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card);
   }
-  .ec-cartao h2 { margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
-  .ec-lide { margin: -6px 0 4px; font: 600 16px/1.5 var(--sans); color: var(--ink2); text-wrap: pretty; }
+  .ec-cartao h2 { margin: 0; font: 400 32px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
+  .ec-lide { margin: -6px 0 4px; font: 400 14px/1.65 var(--sans); color: var(--ink2); text-wrap: pretty; }
   .ec-campo { display: grid; gap: 6px; min-width: 0; }
   /* Os campos do passo sao o campo padrao (04-acervo.css); so a largura muda, porque o cartao ja mede. */
   .ec-tela .ec-campo input, .ec-tela .ec-campo textarea { width: 100%; max-width: none; }
@@ -30,7 +30,8 @@
   .ec-quem:hover:not(:disabled) { background: var(--fill); border-color: var(--ink); color: var(--ink); }
   .ec-quem span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ec-quem .em-avatar { width: 20px; height: 20px; border-radius: 50%; font-size: 10px; }
-  .ec-lista { display: grid; margin: 0 -40px; border-top: 1px solid var(--ink-a1); }
+  /* A lista fecha com o mesmo fio que a abre, de borda a borda do cartao. */
+  .ec-lista { display: grid; margin: 0 -40px; border-top: 1px solid var(--ink-a1); border-bottom: 1px solid var(--ink-a1); }
   .ec-conta { display: flex; align-items: center; border-bottom: 1px solid var(--ink-a08); cursor: pointer; transition: background-color .15s; }
   .ec-conta:hover { background: var(--sub); }
   .ec-conta-botao {
@@ -56,7 +57,7 @@
   /* O expansor (sem marcador, seta expand_more que gira) vem da regra unificada em 05-paineis-e-botoes.css; aqui so a letra. */
   .ec-ajuda summary { font: 500 13px var(--sans); color: var(--ink2); }
   .ec-ajuda summary:hover { color: var(--ink); }
-  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; font: 600 16px/1.5 var(--sans); color: var(--ink2); }
+  .ec-ajuda p { margin: 8px 0 0; padding-left: 12px; font: 400 14px/1.65 var(--sans); color: var(--ink2); }
   .ec-servidor { display: flex; align-items: center; gap: 8px; font: 500 12px var(--sans); color: var(--ink3); }
   .ec-servidor span:not(.ic) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Servidor e porta lado a lado; a porta tem largura fixa e o campo nao pode ter piso maior que ela. */

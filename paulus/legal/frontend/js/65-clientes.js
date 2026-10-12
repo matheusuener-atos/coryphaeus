@@ -79,7 +79,7 @@ async function carregarPartesSugeridas(s) {
       const p = lista[Number(b.dataset.cliAceitar)];
       const r = await guardarPartes(s, (s.partes || []).concat([{ nome: p.nome, documento: p.documento || "", papel: p.papel }]));
       if (!r) return;
-      await avisarConflitos((r.conflitos || []).filter((c) => c.parte === p.nome), "Serviços › " + s.nome);
+      await avisarConflitos((r.conflitos || []).filter((c) => c.parte === p.nome), "Processos › " + s.nome);
       recarregarServico();
     };
   });
@@ -132,14 +132,14 @@ document.addEventListener("click", async (e) => {
     if (await guardarPartes(s, (s.partes || []).filter((_, k) => k !== i))) recarregarServico();
     return;
   }
-  const r = await dialogo({ titulo: "Parte contrária", contexto: "Serviços › " + s.nome,
+  const r = await dialogo({ titulo: "Parte contrária", contexto: "Processos › " + s.nome,
     texto: "O nome como aparece nos documentos; o CPF ou o CNPJ, se tiver, deixa a conferência de conflito certa.",
     campos: [{ chave: "nome", rotulo: "Nome", placeholder: "Empresa X Ltda.", obrigatorio: true },
       { chave: "documento", rotulo: "CPF ou CNPJ", placeholder: "opcional" }], confirmar: "Anotar" });
   if (!r || !r.ok) return;
   const d = await guardarPartes(s, (s.partes || []).concat([{ nome: r.valores.nome, documento: r.valores.documento || "", papel: "contraria" }]));
   if (!d) return;
-  await avisarConflitos((d.conflitos || []).filter((c) => c.parte === r.valores.nome.trim()), "Serviços › " + s.nome);
+  await avisarConflitos((d.conflitos || []).filter((c) => c.parte === r.valores.nome.trim()), "Processos › " + s.nome);
   recarregarServico();
 });
 
@@ -165,9 +165,9 @@ function htmlDaVisao(v) {
       ? '<section class="sv-secao cli-bloco"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("check", 16) +
         "Conflitos resolvidos</span></div>" + listaDeConflitos(v.conflitos_resolvidos, true) + "</section>" : "");
   return conflitos + '<div class="sv-duas">' +
-    blocoDoCliente("Serviços", "work", v.servicos.map((s) => linhaDoCliente(s.nome, s.status, ' data-cli-servico="' + s.id + '"')).join(""), "Nenhum Serviço deste cliente.") +
-    blocoDoCliente("Processos", "gavel", v.processos.map((p) => linhaDoCliente(p.numero_fmt, [p.classe, p.servico_nome, p.novas ? p.novas + " novas" : ""].filter(Boolean).join(" · "),
-      ' data-cli-processo="' + p.id + '"')).join(""), "Nenhum processo acompanhado nos Serviços dele.") + "</div>" +
+    blocoDoCliente("Processos", "work", v.servicos.map((s) => linhaDoCliente(s.nome, s.status, ' data-cli-servico="' + s.id + '"')).join(""), "Nenhum processo deste cliente.") +
+    blocoDoCliente("Processos judiciais", "gavel", v.processos.map((p) => linhaDoCliente(p.numero_fmt, [p.classe, p.servico_nome, p.novas ? p.novas + " novas" : ""].filter(Boolean).join(" · "),
+      ' data-cli-processo="' + p.id + '"')).join(""), "Nenhum processo judicial acompanhado para ele.") + "</div>" +
     '<div class="sv-duas">' +
     blocoDoCliente("Prazos e compromissos", "event",
       v.prazos.map((t) => linhaDoCliente(t.titulo, [t.prazo ? "vence " + dataBR(t.prazo) : "sem data", t.lista].filter(Boolean).join(" · "))).join("") +

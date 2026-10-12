@@ -72,7 +72,7 @@
   .acesso-disp[data-tom="ok"] { color: var(--okt); }
   .acesso-disp[data-tom="nao"] { color: var(--acc); }
   .acesso-final { display: grid; gap: 4px; }
-  .acesso-final code { font: 600 16px/1.35 var(--mono); color: var(--ink); word-break: break-all; }
+  .acesso-final code { font: 600 14px/1.65 var(--mono); color: var(--ink); word-break: break-all; }
   .acesso-final small { font-size: 12px; color: var(--ink3); }
   /* No assistente (js/23-boas-vindas.js): as tres etapas numa lista so, separadas por fio,
      com o cabecalho em mono como os rotulos das outras colunas, e os botoes no trilho com pastilha.
@@ -238,17 +238,20 @@
   .bsc-caixa { width: 100%; max-width: 680px; max-height: 70vh; display: flex; flex-direction: column; background: var(--cartao-fundo);
     color: var(--ink); border: 1px solid var(--ink-a25); border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); overflow: hidden; }
   .bsc-topo { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--ink-a1); color: var(--ink3); }
-  .bsc-topo input { flex: 1; min-width: 0; max-width: 100%; border: 0; outline: none; background: transparent; color: var(--ink); font: 400 16px var(--sans); }
+  .bsc-topo input { flex: 1; min-width: 0; max-width: 100%; border: 0; outline: none; background: transparent; color: var(--ink); font: 400 14px/1.65 var(--sans); }
   .bsc-caixa kbd { display: inline-block; min-width: 18px; padding: 1px 6px; border: 1px solid var(--ink-a25); border-radius: 5px;
     font: 500 11px var(--sans); color: var(--ink2); text-align: center; }
-  .bsc-lista { flex: 1; overflow-y: auto; padding: 6px; }
-  .bsc-grupo { padding: 10px 10px 4px; font: 600 12px var(--sans); color: var(--ink3); }
+  .bsc-lista { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px; }
+  /* O rotulo do grupo segue o .rotulo da data: Fira Code 12, maiusculas. */
+  .bsc-grupo { padding: 12px 10px 6px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
   .bsc-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-radius: 8px; background: none;
     color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
   .bsc-item > .ic:first-child { color: var(--ink3); flex: none; }
   .bsc-item.sel { background: var(--fill2); }
   .bsc-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  /* So o destino pesa; o caminho ate ele fica na tinta do meio. */
   .bsc-texto b { font-weight: 600; }
+  .bsc-caminho { font-weight: 500; color: var(--ink2); }
   .bsc-desc { color: var(--ink3); }
   .bsc-vazio { margin: 0; padding: 18px 12px; color: var(--ink3); font-size: 13px; }
   .bsc-pe { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--ink-a1); font-size: 12px; color: var(--ink3); }

@@ -67,7 +67,7 @@
 
   /* Onde a transcricao, o resumo e o contexto ao vivo vao ficar. */
   .gv-adiante { display: grid; gap: 6px; padding: 28px 18px; color: var(--ink2); font-size: 13px; line-height: 1.55; }
-  .gv-adiante b { color: var(--ink); font: 600 16px/1.3 var(--sans); display: inline-flex; align-items: center; gap: 8px; }
+  .gv-adiante b { color: var(--ink); font: 400 16px/1.3 var(--serif); display: inline-flex; align-items: center; gap: 8px; }
   .gv-adiante p { margin: 0; }
   .gv-adiante .ic { color: var(--ink3); }
   .gv-transcricao { flex: 1; min-height: 0; }
@@ -182,7 +182,7 @@
   .gcv-sug-tipo.sugestao { background: var(--okbg); color: var(--okt); }
   .gcv-sug-base { font: 500 12px var(--sans); color: var(--ink3); }
   .gcv-sug-cabeca .botao-icone { width: 26px; height: 26px; color: var(--ink3); }
-  .gcv-sug-texto { margin: 0; font: 600 16px/1.5 var(--sans); color: var(--ink); }
+  .gcv-sug-texto { margin: 0; font: 400 14px/1.65 var(--sans); color: var(--ink); }
   .gcv-sug-fonte { display: flex; align-items: center; gap: 6px; font: 500 12px var(--sans); color: var(--ink2); }
   .gcv-sug-fonte .ic { color: var(--ink3); }
   .gcv-abrir { margin-top: 8px; }

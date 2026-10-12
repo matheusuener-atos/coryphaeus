@@ -258,18 +258,20 @@ function desenharEstante() {
   const artigos = artigosComentados();
   const lendo = mat.enviando.length
     ? '<p class="est-lendo">lendo ' + (mat.enviando.length === 1 ? "“" + esc(mat.enviando[0]) + "”" : plural(mat.enviando.length, "arquivo")) + "…</p>" : "";
-  const html =
-    '<div class="est">' +
-    '<header class="est-cabeca"><div class="est-titulo"><h1>Sua estante está crescendo</h1>' +
-    "<p>Cada livro que você me entrega vira fonte nas respostas, com autor e página. Veja o que já sei e onde ainda falta.</p>" + lendo + "</div>" +
-    '<div class="est-acoes"><div class="est-nivel" title="' + esc(nivel.longo) + '">' +
+  // O nivel e o Entregar sobem para a linha das abas, a direita.
+  const acoes =
+    '<div class="est-acoes"><div class="est-nivel" title="' + esc(nivel.nome + " · " + nivel.longo) + '">' +
     '<span class="est-anel" style="--graus:' + nivel.graus + 'deg"><b>' + nivel.feitas + "</b></span>" +
     "<span><b>" + esc(nivel.nome) + "</b><small>" + esc(nivel.curto) + "</small></span></div>" +
     (((est.chaves || {}).biblioteca || {}).pacote
       ? '<button type="button" class="com-icone est-pacote" data-est-pacote="1" title="Um material que outro Paulus exportou">' +
         ic("download", 16) + "Importar pacote</button>" : "") +
     '<button type="button" class="primario com-icone" data-est-entregar="1"' + (mat.enviando.length ? " disabled" : "") + ">" +
-    ic("add", 18) + "Entregar um livro</button></div></header>" +
+    ic("add", 18) + "Entregar um livro</button></div>";
+  $("acoes-tela").innerHTML = acoes;
+  const html =
+    '<div class="est">' +
+    (lendo ? '<header class="est-cabeca"><div class="est-titulo">' + lendo + "</div></header>" : "") +
     '<div class="est-corpo">' +
     '<section class="est-estantes"><div class="est-estantes-cabeca"><span>Estantes por área</span>' +
     '<span class="est-legenda"><span><i class="lei"></i>lei em casa</span><span><i class="obra" style="background:' + CORES_AREA[0] + '"></i>obra do escritório</span></span></div>' +
@@ -293,8 +295,8 @@ function desenharEstante() {
 function ligarEstante(areas, passos) {
   const raiz = $("bib-tela");
   if (!raiz) return;
-  raiz.querySelectorAll("[data-est-entregar]").forEach((b) => { b.onclick = () => escolherMaterial(); });
-  const pacote = raiz.querySelector("[data-est-pacote]");
+  [raiz, $("acoes-tela")].forEach((r) => r.querySelectorAll("[data-est-entregar]").forEach((b) => { b.onclick = () => escolherMaterial(); }));
+  const pacote = $("acoes-tela").querySelector("[data-est-pacote]");
   if (pacote) pacote.onclick = () => importarPacote();
   raiz.querySelectorAll("[data-est-sel]").forEach((b) => {
     b.onclick = () => { est.sel = est.sel === b.dataset.estSel ? "" : b.dataset.estSel; desenharEstante(); };

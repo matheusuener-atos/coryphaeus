@@ -50,13 +50,13 @@
   .est-cabeca { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap; }
   .est-titulo { display: grid; gap: 6px; min-width: 0; }
   .est-titulo h1 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 40px; line-height: 1.02; letter-spacing: -.015em; color: var(--ink); white-space: nowrap; }
-  .est-titulo p { margin: 0; font-size: 16px; color: var(--ink2); max-width: 560px; text-wrap: pretty; }
+  .est-titulo p { margin: 0; font: 400 14px/1.65 var(--sans); color: var(--ink2); max-width: 560px; text-wrap: pretty; }
   .est-titulo .est-lendo { font-size: 13px; color: var(--ink3); }
   .est-acoes { display: flex; align-items: center; gap: 14px; flex: none; margin-left: auto; }
-  .est-acoes > button { height: 36px; border-radius: 999px; }
-  .est-acoes > button.primario { background: var(--ink); color: var(--surf); border-color: var(--ink); }
-  .est-acoes > button.primario:hover:not(:disabled) { opacity: .88; background: var(--ink); color: var(--surf); }
-  .est-acoes > button.est-pacote { background: transparent; border: 1px solid var(--ink-a2); }
+  .est-cabeca .est-acoes > button { height: 36px; border-radius: 999px; }
+  .est-cabeca .est-acoes > button.primario { background: var(--ink); color: var(--surf); border-color: var(--ink); }
+  .est-cabeca .est-acoes > button.primario:hover:not(:disabled) { opacity: .88; background: var(--ink); color: var(--surf); }
+  .est-cabeca .est-acoes > button.est-pacote { background: transparent; border: 1px solid var(--ink-a2); }
   .est-nivel { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 4px; border: 1px solid var(--ink-a1); border-radius: 999px; }
   .est-nivel > span:last-child { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
   .est-nivel b { font-size: 13px; font-weight: 600; line-height: 1; }
@@ -65,10 +65,33 @@
     background: conic-gradient(var(--okt) var(--graus, 0deg), var(--fill2) 0); transition: background .5s ease; }
   .est-anel b { width: 20px; height: 20px; border-radius: 50%; background: var(--cartao-fundo); display: flex; align-items: center; justify-content: center;
     font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  /* Na linha das abas: o nivel e os botoes com o raio e a altura do cabecalho. */
+  #acoes-tela .est-acoes { gap: 8px; margin-left: 8px; }
+  #acoes-tela .est-acoes > button, #acoes-tela .est-nivel { border-radius: 8px; }
+  /* O nivel no cabecalho: o mesmo fundo das abas ao lado, sem fio; o anel
+     menor e o "faltam" so no title, para a linha nao pesar. */
+  #acoes-tela .est-nivel { height: 36px; gap: 8px; padding: 0 12px 0 8px; border: none; background: var(--fill); cursor: default; }
+  /* O Entregar no cabecalho e o botao primario de todas as telas (o da Agenda). */
+  /* Janela estreita: o titulo nao some - o nivel fica so com o anel, e o Entregar so com o +. */
+  @media (max-width: 1180px) {
+    #acoes-tela .est-nivel { padding: 0 6px; }
+    #acoes-tela .est-nivel > span:last-child { display: none; }
+  }
+  @media (max-width: 1000px) {
+    #acoes-tela .est-acoes > button[data-est-entregar] { font-size: 0; gap: 0; padding: 0 8px; }
+    #acoes-tela .est-acoes > button[data-est-entregar] .ic { font-size: 18px; }
+  }
+  #acoes-tela .est-nivel small { display: none; }
+  #acoes-tela .est-nivel b { font: 500 13px var(--sans); color: var(--ink); }
+  #acoes-tela .est-anel { width: 20px; height: 20px; }
+  #acoes-tela .est-anel b { width: 15px; height: 15px; font: 600 10px var(--mono); background: var(--fill); }
 
   .est-corpo { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
-  .est-estantes { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); overflow: hidden; }
-  .est-estantes-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--ink-a1); font-weight: 600; font-size: 14px; }
+  /* O cartao e o das tabelas (.tabela-cartao): fundo de cartao e a mesma sombra; as cabecas sao a .tabela-barra. */
+  .est-estantes { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); overflow: hidden; }
+  .est-estantes-cabeca { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 49px; box-sizing: border-box; padding: 8px 16px; border-bottom: 1px solid var(--ink-a1); background: var(--cartao-fundo); font: 600 13px var(--sans); color: var(--ink); }
+  /* As secoes de baixo do cartao abrem com o fio de cima, como o rodape das tabelas. */
+  .est-estantes > section .est-estantes-cabeca { border-top: 1px solid var(--ink-a1); }
   .est-legenda { display: flex; align-items: center; gap: 16px; font-size: 12px; font-weight: 400; color: var(--ink3); }
   .est-legenda > span { display: flex; align-items: center; gap: 6px; }
   .est-legenda i { display: block; width: 12px; height: 12px; border-radius: 4px; background: var(--fill2); }
@@ -105,7 +128,6 @@
   .est-faixa-nota { max-width: 300px; text-wrap: pretty; }
   @keyframes est-surge { 0% { opacity: 0; transform: translateY(8px) scale(.96); } 100% { opacity: 1; transform: none; } }
 
-  .est-lado { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
   .est-lado-cabeca { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; font-size: 14px; }
   .est-lado-cabeca small { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--ink3); }
   .est-passos { display: grid; gap: 10px; }
@@ -134,7 +156,7 @@
   @media (max-width: 600px) {
     .est-tela .sv-principal { padding: 20px 16px 28px; }
     .est-cabeca { flex-direction: column; align-items: stretch; gap: 16px; }
-    .est-titulo h1 { font-size: 32px; white-space: normal; }
+    .est-titulo h1 { font: 400 32px/1.25 var(--serif); white-space: normal; }
     .est-acoes { justify-content: space-between; flex-wrap: wrap; gap: 12px; }
     .est-acoes > button { min-height: 44px; height: 44px; }
     .est-estantes-cabeca { flex-direction: column; align-items: flex-start; }
@@ -146,3 +168,21 @@
     .est-faixa-nota { max-width: none; width: 100%; }
     .est-passo-pe button { min-height: 44px; height: 44px; }
   }
+
+  /* O cabecalho da Biblioteca: "Biblioteca / Leis e súmulas", na mesma linha. */
+  .conversa-nome:has(> .bib-migalha) { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .bib-migalha { font: 500 15px var(--sans); color: var(--ink3); white-space: nowrap; }
+  .bib-migalha:empty { display: none; }
+  .bib-migalha::before { content: "/"; margin-right: 10px; color: var(--ink-a2, var(--ink3)); }
+
+  /* A coluna da direita e um cartao so, como o da esquerda: cada secao abre
+     com a barra (.tabela-barra) e os itens viram linhas, sem cartao proprio. */
+  .est-lado { min-width: 0; display: flex; flex-direction: column; gap: 0; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card); overflow: hidden; }
+  .est-lado > section { display: grid; gap: 0; padding: 0; border: none; border-radius: 0; }
+  .est-lado > section + section, .est-lado > section + p { border-top: 1px solid var(--ink-a1); }
+  .est-lado .est-lado-cabeca { align-items: center; min-height: 49px; box-sizing: border-box; padding: 8px 16px; border-bottom: 1px solid var(--ink-a1); font: 600 13px var(--sans); color: var(--ink); }
+  .est-lado .est-passo { border: none; border-radius: 0; background: none; padding: 14px 16px; }
+  .est-lado .est-passo + .est-passo { border-top: 1px solid var(--ink-a08); }
+  .est-lado .est-artigos > small, .est-lado .est-artigos > :not(.est-lado-cabeca) { padding: 14px 16px; }
+  .est-lado .est-artigos > .est-art-lista { padding-top: 0; }
+  .est-lado > p.cfg-explica { margin: 0; padding: 12px 16px; font: 500 12px/1.5 var(--sans); color: var(--ink3); }

@@ -104,11 +104,15 @@ function cabecalhoAssinatura() {
    certificado tiver protecao forte. No canto, a janela do proprio Windows. */
 const cw = { lista: null, escolhido: "" };
 
-async function abrirCertificadosDoWindows() {
+/* opcoes (NFS-e, js/99-nfse-emissor.js): contexto do dialogo, rota que
+   recebe a escolha e aoUsar(dados) no lugar de redesenhar a Assinatura. */
+async function abrirCertificadosDoWindows(opcoes) {
+  const o = opcoes || {};
   cw.lista = null;
   cw.escolhido = "";
+  cw.rota = o.rota || "/api/certificado/windows/usar";
   const escolha = dialogo({
-    titulo: "Certificados instalados no Windows", contexto: "Assinatura › Certificado", classe: "dialogo-anexar", confirmar: "Usar este certificado",
+    titulo: "Certificados instalados no Windows", contexto: o.contexto || "Assinatura › Certificado", classe: "dialogo-anexar", confirmar: "Usar este certificado",
     html: '<div class="anx cw">' +
       '<div class="anx-lista" id="cw-lista"><p class="anx-vazio">lendo os certificados do Windows…</p></div>' +
       '<div class="cw-senha" id="cw-senha" hidden><label for="cw-senha-campo">Crie uma senha do Paulus para usar este certificado</label>' +
@@ -135,6 +139,7 @@ async function abrirCertificadosDoWindows() {
   }
   desenharCertificadosDoWindows();
   const r = await escolha;
+  if (r && r.ok && r.dados && o.aoUsar) { o.aoUsar(r.dados); return; }
   if (r && r.ok && r.dados) {
     cert.dados = r.dados;
     desenharAssinatura();
@@ -192,7 +197,7 @@ async function usarCertificadoDoWindows() {
   const erro = $("cw-erro");
   botao.disabled = true;
   botao.textContent = "Preparando…";
-  const r = await fetch("/api/certificado/windows/usar", {
+  const r = await fetch(cw.rota || "/api/certificado/windows/usar", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ impressao: cw.escolhido, senha: senha.value }),
   });
@@ -312,10 +317,7 @@ function painelDoSelo() {
     marca(s.mostrar_cpf !== false, "CPF ou CNPJ", "mostrar_cpf") +
     marca(s.mostrar_data !== false, "Data e hora", "mostrar_data") +
     marca(true, "Emissor do certificado", "") +
-    marca(s.mostrar_codigo !== false, "Código de verificação", "mostrar_codigo") + "</div>" +
-    '<div class="ag-chave"><span>Posição padrão na página</span><select id="selo-posicao">' +
-    (d.posicoes || []).map((p) => '<option value="' + esc(p.valor) + '"' + (s.posicao === p.valor ? " selected" : "") + ">" + esc(p.rotulo) + "</option>").join("") +
-    "</select></div></div>" +
+    marca(s.mostrar_codigo !== false, "Código de verificação", "mostrar_codigo") + "</div></div>" +
     '<div class="painel-chaves">' +
     '<div class="chave-valor"><span>Assinaturas este mês</span><b>' + esteMes + "</b></div>" +
     '<div class="chave-valor"><span>Última</span><b>' + (reg[0] ? esc(quandoCurto(reg[0].quando)) + " · " + esc(reg[0].documento) : "nenhuma ainda") + "</b></div>" +
@@ -341,6 +343,7 @@ function previaSelo(d) {
     .replace(/\{cpf\}/g, s.mostrar_cpf === false ? "" : doc)
     .replace(/\{cnpj\}/g, s.mostrar_cpf === false ? "" : doc)
     .replace(/\{data\}/g, data)
+    .replace(/\{oab\}/g, ((typeof cfg !== "undefined" && cfg.rascunho && cfg.rascunho.pessoa && cfg.rascunho.pessoa.oab) || "OAB"))
     .replace(/\{hora\}/g, hora);
 
   const linhas = corpo.split("\n").filter((l) => l.trim());
@@ -362,7 +365,23 @@ function painelSelo() {
   if (cert.aba === "escrever") {
     alvo.innerHTML =
       '<div class="ag-campo"><label>O que aparece no selo</label><textarea id="selo-texto">' + esc(s.texto || "") + "</textarea></div>" +
-      '<p class="as-explica">Use <b>{nome}</b>, <b>{cpf}</b>, <b>{data}</b> e <b>{hora}</b> para eu preencher sozinho. O nome sai do certificado.</p>';
+      '<div class="ag-chips selo-campos" aria-label="Inserir no texto">' +
+      [["nome", "Nome"], ["cpf", "CPF"], ["oab", "OAB"], ["data", "Data"], ["hora", "Hora"]].map(([k, r]) =>
+        '<button type="button" data-selo-campo="' + k + '" title="Inserir ' + r.toLowerCase() + ' onde está o cursor">' + ic("add", 14) + r.toUpperCase() + "</button>").join("") + "</div>";
+    const area = $("selo-texto");
+    const atualizar = () => { const previa = $("selo-previa"); if (previa) previa.innerHTML = previaSelo(Object.assign({}, cert.dados, { selo: Object.assign({}, s, { texto: area.value }) })); };
+    area.oninput = atualizar;
+    alvo.querySelectorAll("[data-selo-campo]").forEach((b) => {
+      b.onmousedown = (e) => e.preventDefault();
+      b.onclick = () => {
+        const marca = "{" + b.dataset.seloCampo + "}";
+        const i = area.selectionStart ?? area.value.length, f = area.selectionEnd ?? i;
+        area.value = area.value.slice(0, i) + marca + area.value.slice(f);
+        area.focus();
+        area.selectionStart = area.selectionEnd = i + marca.length;
+        atualizar();
+      };
+    });
   } else if (cert.aba === "desenhar") {
     alvo.innerHTML =
       '<p class="as-explica">Desenhe a rubrica com o mouse ou o dedo, sobre a linha.</p>' +
@@ -529,7 +548,7 @@ function ligarCertificado() {
 
   $("selo-salvar").onclick = async () => {
     const texto = $("selo-texto");
-    const novo = { posicao: $("selo-posicao").value };
+    const novo = {};
     if (texto) novo.texto = texto.value;
     document.querySelectorAll("[data-selo]").forEach((m) => { novo[m.dataset.selo] = m.classList.contains("on"); });
     const r = await (await fetch("/api/certificado/selo", {
@@ -543,7 +562,7 @@ function ligarCertificado() {
   $("selo-restaurar").onclick = async () => {
     const ok = await confirmar({
       titulo: "Restaurar o selo padrão?", contexto: "Assinatura › Selo",
-      texto: "O texto, as marcas e a posição voltam ao padrão, e a rubrica desenhada e a imagem enviada são apagadas. O certificado e as assinaturas já feitas não mudam.",
+      texto: "O texto e as marcas voltam ao padrão, e a rubrica desenhada e a imagem enviada são apagadas. O certificado e as assinaturas já feitas não mudam.",
       confirmar: "Restaurar",
     });
     if (!ok) return;

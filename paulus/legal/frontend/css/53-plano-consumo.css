@@ -123,7 +123,7 @@
   .pc-plano-col:first-child { border-left: 0; }
   .pc-plano-col.atual { background: var(--fill); }
   .pc-plano-nome { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .pc-plano-nome span { font: 400 22px/1 var(--serif); color: var(--ink); }
+  .pc-plano-nome span { font: 400 20px/1 var(--serif); color: var(--ink); }
   .pc-plano-nome em { font-style: normal; }
   .pc-plano-tok { display: grid; gap: 2px; }
   .pc-plano-tok b { font: 500 20px var(--sans); font-variant-numeric: tabular-nums; }
@@ -141,12 +141,16 @@
   .pc-pag-linha .duas-linhas small { color: var(--ink3); }
   .pc-pag-linha > b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  .pc-extrato { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  /* As duas listas num cartao proprio, em colunas com fio no meio; o total e a nota ficam fora, embaixo. */
+  .pc-extrato { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); overflow: hidden; }
+  .pc-extrato > div { padding: 14px 16px; min-width: 0; }
+  .pc-extrato > div + div { border-left: 1px solid var(--ink-a1); }
   .pc-extrato .sv-kicker { display: block; padding-bottom: 8px; }
+  .pc-extrato .pc-texto { margin: 0; }
   .pc-extrato-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; padding: 8px 0; border-top: 1px solid var(--ink-a08); font-size: 13px; }
   .pc-extrato-linha b { min-width: 56px; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
   .pc-extrato-pct { min-width: 40px; text-align: right; color: var(--ink3); font-variant-numeric: tabular-nums; }
-  .pc-extrato-total { padding-top: 12px; border-top: 1px solid var(--ink-a1); max-width: none; }
+  .pc-extrato-total { padding-top: 4px; max-width: none; }
 
   @media (max-width: 600px) {
     .pc-secao .sv-secao-cabeca { flex-wrap: wrap; row-gap: 4px; }
@@ -159,7 +163,8 @@
     .pc-ficha-plano, .pc-ficha { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
     .pc-limite-linha { grid-template-columns: 1fr 1fr; }
     .pc-limite-linha .duas-linhas { grid-column: 1 / -1; }
-    .pc-extrato { grid-template-columns: 1fr; gap: 16px; }
+    .pc-extrato { grid-template-columns: 1fr; }
+    .pc-extrato > div + div { border-left: 0; border-top: 1px solid var(--ink-a1); }
     .pc-plano-col { border-left: 0; border-top: 1px solid var(--ink-a1); }
     .pc-plano-col:first-child { border-top: 0; }
     .pc-grande b { font-size: 40px; }

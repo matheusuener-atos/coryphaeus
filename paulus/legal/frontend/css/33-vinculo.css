@@ -27,7 +27,7 @@
      (js/entrada-saudacao.js): o jeito da saudacao do assistente - o bloco nasce apagado e
      aparece devagar; ao trocar de passo, a frase sai e a nova entra. */
   .trava-marca h1 { margin: 0; font: 400 40px/1.08 var(--serif); letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
-  .trava-marca p { margin: 0; font: 400 16px/1.6 var(--sans); color: var(--ink2); text-wrap: pretty; }
+  .trava-marca p { margin: 0; font: 400 14px/1.65 var(--sans); color: var(--ink2); text-wrap: pretty; }
   .trava-marca > * { transition: opacity .7s ease, transform .7s ease; }
   .trava-marca.abrindo > * { opacity: 0; }
   .trava-marca.saindo > p { opacity: 0; transform: translateY(4px); }

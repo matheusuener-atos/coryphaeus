@@ -28,13 +28,19 @@
   /* O que chegou no painel recolhido: o .conta do trilho (01-casca.css),
      preso no canto do botao com um anel na cor do fundo. */
   .docs-foco-conta { position: absolute; top: -6px; right: -6px; box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
-  /* O tracejado vem da receita do .ac-incluir (09-agenda.css); aqui so o lugar na faixa das abas. */
-  .docs-aba-novo { flex: none; align-self: center; display: inline-flex; width: auto; gap: 6px; margin: 0 0 4px 6px; white-space: nowrap; }
+  /* O Novo e uma guia como as dos documentos: mesmo recorte, sem o x; o nome em cinza ate abrir. */
+  /* Todas as guias com a mesma altura; as que nao estao em foco tem a moldura pontilhada. */
+  .docs-abas > .docs-aba { height: 40px; box-sizing: border-box; }
+  .docs-abas > .docs-aba:not(.ativa) { border: 1px dashed var(--ink-a15); border-bottom: none; }
+  .docs-abas > .docs-aba:not(.ativa):hover:not(:disabled) { border: 1px dashed var(--ink-a35); border-bottom: none; }
+  .docs-aba.docs-aba-novo { flex: none; color: var(--ink3); }
+  .docs-aba.docs-aba-novo .ic { color: inherit; }
+  .docs-aba.docs-aba-novo:hover:not(:disabled) { color: var(--ink); }
   .docs-corpo .acervo-principal { padding: 12px 0 14px; gap: 10px; }
 
   /* as abas dos documentos abertos */
   .docs-abas {
-    flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 8px 20px 0; overflow-x: auto;
+    flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 8px 20px 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
     background: var(--bg); border-bottom: 1px solid var(--ink-a1);
   }
   .docs-aba {
@@ -45,6 +51,8 @@
   .docs-aba:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink2); }
   .docs-aba.ativa, .docs-aba.ativa:hover:not(:disabled) { background: var(--cartao-fundo); border-color: var(--ink-a1); border-bottom-color: var(--cartao-fundo); color: var(--ink); font-weight: 600; }
   .docs-aba-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Os documentos abertos encolhem (nome com reticencias) para o Novo e o Foco caberem sempre na faixa. */
+  .docs-aba[data-docs-aba] { flex: 0 1 auto; min-width: 96px; }
   .docs-aba small { font: 500 12px var(--sans); color: var(--ink3); }
   /* O x e um icone dentro do botao da aba, e `button .ic` (05-paineis) deixa
      icone de botao sem clique - o clique atravessava para a aba e nada
@@ -161,7 +169,7 @@
   /* a pre-visualizacao: miniaturas e a pagina */
   .docs-previa { flex: 1; min-height: 0; display: flex; }
   .docs-miniaturas {
-    width: 84px; flex: none; border-right: 1px solid var(--ink-a1); padding: 14px 0; overflow: auto;
+    width: 84px; flex: none; border-right: 1px solid var(--ink-a1); padding: 14px 0; overflow: auto; scrollbar-width: none;
     display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--cartao-fundo);
   }
   .docs-mini {
@@ -176,6 +184,17 @@
   .docs-pv-rolagem { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 20px 24px; display: flex; justify-content: center; align-items: flex-start; }
   .docs-pv-rolagem .pv-paginas { width: 100%; max-width: 760px; }
   .docs-pv-rolagem .pv-paginas.duas { max-width: none; }
+  .docs-abas::-webkit-scrollbar { display: none; }
+  /* As faixas comecam e terminam onde o conteudo comeca e termina: sem recuo
+     proprio, a primeira aba e o primeiro botao alinham com a seta do cabecalho. */
+  #docs > .docs-abas { padding-left: 0; padding-right: 0; }
+  #docs > .docs-barra { padding-left: 10px; padding-right: 10px; background: var(--cartao-fundo); border-left: 1px solid var(--ink-a1); border-right: 1px solid var(--ink-a1); }
+  /* As barras fecham numa caixa: laterais em toda a altura e a ultima com os cantos de baixo redondos. */
+  #docs > .docs-barra:not(:has(+ .docs-barra)) { border-radius: 0 0 10px 10px; margin-bottom: 8px; }
+  /* A pagina que nao desenhou (sem o servidor): a folha em branco com o numero, nunca o icone de imagem quebrada. */
+  /* A rolagem do PDF fica dentro do cartao: o recuo de tela cheia (do #centro) nao vale aqui. */
+  .conversa-col.tela-cheia .docs-cartao > .docs-pv-rolagem[data-rola-borda] { padding: 20px 24px !important; width: auto !important; max-width: none !important; margin: 0 !important; box-sizing: border-box; }
+  .docs-pagina-vazia { width: 100%; max-width: 560px; box-sizing: border-box; aspect-ratio: 210 / 297; display: flex; align-items: flex-start; justify-content: center; padding-top: 28px; border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); background: var(--papel); font: 500 13px var(--sans); color: var(--ink3); }
   .docs-pagina { width: 100%; height: auto; display: block; border: 1px solid var(--papel-linha); box-shadow: var(--elev-papel); background: var(--papel); }
 
   /* a grade da planilha dentro do cartao: a grade em si e de 07-escrita.css;
@@ -226,7 +245,8 @@
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px;
     background: none; text-align: left; font: 500 13px var(--sans); color: var(--ink2);
   }
-  .docs-acoes-lista button span { flex: 1; }
+  #docs-painel .docs-acoes-lista button > span:not(.ic) { flex: 1 1 auto; min-width: 0; width: auto; max-width: none; }
+  #docs-painel .docs-acoes-lista button > .ic { flex: none; }
   .docs-acoes-lista button .ic { color: var(--ink3); }
   .docs-acoes-lista button:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
   .docs-acoes-lista button.adiante { opacity: .5; }

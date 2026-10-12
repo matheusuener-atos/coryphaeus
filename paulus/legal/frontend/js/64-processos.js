@@ -22,23 +22,73 @@ function linhaDoProcesso(p, comServico) {
     '<span class="pr-estado">' + (p.acompanhar ? ic("task_alt", 14) + " " : "") + estado_ + "</span></div>";
 }
 
-function htmlDosProcessos(d, servicoId) {
-  const lista = (d.processos || []).map((p) => linhaDoProcesso(p, !servicoId)).join("");
+/* A tela inteira (Processos › Andamentos no DataJud), no desenho de Configuracoes:
+   resumo com pontos de estado e um cartao para cada coisa. A aba do Servico
+   continua compacta (htmlDosProcessos com servicoId). */
+function telaDosProcessos(d) {
+  const ps = d.processos || [];
   const local = acessoDeFora.local;
-  const cab = local
-    ? '<div class="pr-cab"><div class="ag-toggle' + (d.acompanhar ? " on" : "") + '" data-pr-ligar="1">' +
-      '<span class="duas-linhas"><b>Acompanhar pelo DataJud</b><small>uma vez por dia; só o número de cada processo acompanhado sai deste computador, ' +
-      "para a API pública do CNJ" + (d.ultima ? " · última volta em " + esc(d.ultima.slice(0, 10).split("-").reverse().join("/")) : "") + "</small></span><i></i></div>" +
-      '<div class="pr-botoes"><button data-pr-novo="1">' + ic("add", 16) + "Adicionar número</button>" +
-      (servicoId ? "" : '<button data-pr-descobrir="1">' + ic("search", 16) + "Achar nos documentos</button>") +
-      (d.acompanhar && !servicoId ? '<button data-pr-rodar="1">' + ic("sync", 16) + "Consultar todos agora</button>" : "") + "</div></div>"
-    : "";
-  return cab + (lista ? '<div class="pr-lista">' + lista + "</div>"
-    : '<p class="cfg-explica">' + (servicoId ? "Nenhum processo neste Serviço." : "Nenhum processo ainda.") +
-      (local ? " “Achar nos documentos” traz os números que a leitura já validou; eles entram sem acompanhar." : "") + "</p>") +
-    '<p class="cfg-explica">Movimentação nova aparece nos avisos. Intimação, citação ou publicação vira um pedido em Aprovações com a conta do prazo ' +
-    "pelo ato que ela comunica — a sentença, o acórdão, a decisão ou o despacho de antes, no ramo do processo; sem reconhecer o ato, 15 dias úteis. " +
-    "É sugestão: confira o ato e a data da ciência.</p>";
+  const novas = ps.reduce((n, p) => n + (p.novas || 0), 0);
+  const acompanhados = ps.filter((p) => p.acompanhar).length;
+  const ultima = d.ultima ? d.ultima.slice(0, 10).split("-").reverse().join("/") : "";
+  const st = (t, classe) => '<b class="cfg-st ' + classe + '">' + esc(t) + "</b>";
+  const item = (rot, v) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rot + "</span>" + v + "</div>";
+  const ficha = '<div class="sv-ficha cfg-ficha">' +
+    item("Acompanhamento", d.acompanhar ? st("Ativado", "ok") : st("Desativado", "cfg-mudo")) +
+    item("Processos", ps.length ? st(acompanhados + " de " + ps.length + " acompanhados", acompanhados ? "ok" : "cfg-mudo") : st("Nenhum ainda", "cfg-mudo")) +
+    item("Movimentações novas", novas ? st(novas === 1 ? "1 nova" : novas + " novas", "acc") : st("Nenhuma", "cfg-mudo")) +
+    item("Última consulta", ultima ? "<b>" + esc(ultima) + "</b>" : st("Nunca", "cfg-mudo")) + "</div>";
+
+  const liga = local ? cartaoCfg("Acompanhamento", metaCfg("uma vez por dia"),
+    '<div class="ag-toggle' + (d.acompanhar ? " on" : "") + '" data-pr-ligar="1">' +
+    '<span class="duas-linhas"><b>Consultar o DataJud todo dia</b><small>Só o número de cada processo acompanhado sai deste computador, para a API pública do CNJ.</small></span><i></i></div>' +
+    (d.acompanhar ? '<div class="cfg-botoes cfg-botoes-fim"><button class="com-icone" data-pr-rodar="1">' + ic("sync", 16) + "Consultar todos agora</button></div>" : "")) : "";
+
+  const acoes = local ? '<div class="cfg-acoes-topo"><button class="com-icone" data-pr-descobrir="1">' + ic("search", 16) + "Achar nos documentos</button>" +
+    '<button class="primario com-icone" data-pr-novo="1">' + ic("add", 16) + "Adicionar número</button></div>" : "";
+  const lista = ps.length ? '<div class="pr-lista">' + ps.map((p) => linhaDoProcesso(p, true)).join("") + "</div>"
+    : '<p class="apt-vazio">' + ic("gavel", 18) + "<span>Nenhum processo ainda." + (local ? " “Achar nos documentos” traz os números que a leitura já validou." : "") + "</span></p>";
+  const processos = cartaoCfg("Processos", metaCfg(ps.length ? (ps.length === 1 ? "1 processo" : ps.length + " processos") : "nenhum"), lista);
+
+  const prazo = cartaoCfg("Quando chega uma intimação", metaCfg("o prazo é sugestão"),
+    '<p class="cfg-explica">Movimentação nova aparece nos avisos. Intimação, citação ou publicação vira um pedido em Aprovações, com o prazo contado pelo ato que ela comunica. ' +
+    "Sem reconhecer o ato, o Paulus sugere 15 dias úteis. Confira sempre o ato e a data da ciência.</p>");
+  return '<div class="cfg-secao pr-secao">' + ficha + liga + acoes + processos + prazo + "</div>";
+}
+
+function htmlDosProcessos(d, servicoId) {
+  if (!servicoId) return telaDosProcessos(d);
+  // A aba do Servico traz o que faz sentido da tela Andamentos no DataJud:
+  // o resumo, os processos deste servico (com acompanhar, achar e adicionar) e o que acontece numa intimacao.
+  const ps = d.processos || [];
+  const local = acessoDeFora.local;
+  const novas = ps.reduce((n, p) => n + (p.novas || 0), 0);
+  const acompanhados = ps.filter((p) => p.acompanhar).length;
+  const ultima = d.ultima ? d.ultima.slice(0, 10).split("-").reverse().join("/") : "";
+  const st = (t, classe) => '<b class="cfg-st ' + classe + '">' + esc(t) + "</b>";
+  const item = (rot, val) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rot + "</span>" + val + "</div>";
+  const ficha = '<div class="sv-ficha cfg-ficha">' +
+    item("Acompanhamento", d.acompanhar ? st("Ativado", "ok") : st("Desativado", "cfg-mudo")) +
+    item("Processos deste serviço", ps.length ? st(acompanhados + " de " + ps.length + " acompanhados", acompanhados ? "ok" : "cfg-mudo") : st("Nenhum ainda", "cfg-mudo")) +
+    item("Movimentações novas", novas ? st(novas === 1 ? "1 nova" : novas + " novas", "acc") : st("Nenhuma", "cfg-mudo")) +
+    item("Última consulta", ultima ? "<b>" + esc(ultima) + "</b>" : st("Nunca", "cfg-mudo")) + "</div>";
+
+  const cab = '<div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("gavel", 16) + "Processos</span>" +
+    '<span class="sv-secao-meta">' + (ps.length ? (ps.length === 1 ? "1 processo" : ps.length + " processos") : "nenhum") + "</span></div>";
+  const liga = local ? '<div class="pr-aba-liga"><div class="ag-toggle' + (d.acompanhar ? " on" : "") + '" data-pr-ligar="1">' +
+    '<span class="duas-linhas"><b>Consultar o DataJud todo dia</b><small>' + (d.acompanhar ? "Vale para todos os processos do escritório." : "Só o número de cada processo sai deste computador, para a API pública do CNJ.") + "</small></span><i></i></div></div>" : "";
+  const lista = ps.length ? '<div class="pr-lista pr-aba-lista">' + ps.map((p) => linhaDoProcesso(p, false)).join("") + "</div>"
+    : '<p class="apt-vazio pr-aba-vazio">' + ic("gavel", 18) + "<span>Nenhum processo neste serviço ainda." + (local ? " “Achar nos documentos” traz os números que a leitura já validou." : "") + "</span></p>";
+  const botoes = local ? '<div class="cfg-botoes pr-aba-novo"><button type="button" class="com-icone" data-pr-descobrir="1">' + ic("search", 16) + "Achar nos documentos</button>" +
+    '<button type="button" class="com-icone" data-pr-novo="1">' + ic("add", 16) + "Adicionar número</button>" +
+    (d.acompanhar ? '<button type="button" class="com-icone" data-pr-rodar="1">' + ic("sync", 16) + "Consultar agora</button>" : "") + "</div>" : "";
+  const processos = '<section class="sv-secao">' + cab + liga + lista + botoes + "</section>";
+
+  const intimacao = '<section class="sv-secao"><div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic("notifications", 16) + "Quando chega uma intimação</span>" +
+    '<span class="sv-secao-meta">o prazo é sugestão</span></div>' +
+    '<p class="sv-dica pr-aba-dica">Movimentação nova aparece nos avisos. Intimação, citação ou publicação vira um pedido em Aprovações, com o prazo contado pelo ato que ela comunica. ' +
+    "Sem reconhecer o ato, o Paulus sugere 15 dias úteis. Confira sempre o ato e a data da ciência.</p></section>";
+  return ficha + processos + intimacao;
 }
 
 async function carregarProcessos(alvo, servicoId) {
@@ -58,8 +108,9 @@ async function carregarProcessos(alvo, servicoId) {
 async function mostrarProcessos() {
   abrirTela("Processos", { cheia: true });
   marcarDestino("servicos");
-  $("conversa-meta").textContent = "acompanhados pelo DataJud";
-  $("acoes-tela").innerHTML = '<button class="com-icone" data-pr-voltar="1">' + ic("arrow_back", 16) + "Serviços</button>";
+  $("conversa-titulo").textContent = "Andamentos no DataJud";
+  $("conversa-meta").textContent = "os processos do escritório, consultados no CNJ";
+  $("acoes-tela").innerHTML = '<button class="com-icone" data-pr-voltar="1">' + ic("arrow_back", 16) + "Processos</button>";
   const voltar = document.querySelector("[data-pr-voltar]");
   if (voltar) voltar.onclick = () => mostrarServicos("pastas");
   $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal sv-principal"><div class="sv-medida">' +

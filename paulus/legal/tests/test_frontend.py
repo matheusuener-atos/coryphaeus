@@ -56,6 +56,9 @@ SEM_ESTILO = {
     "pywebview-drag-region",
     # nome de variavel do JS dentro de class="msg " + classe
     "classe",
+    # Ganchos das telas de 12/10/2026 sem regra propria: o visual e o da peca
+    # base (.sv-ficha, .cfg-servico, .cfg-cartao, .sv-paginas).
+    "apr-ficha", "mdd-cert", "nfv-resumo", "nfv-cert-resumo", "sv-paginas-conta",
 }
 
 _falhas: list[str] = []

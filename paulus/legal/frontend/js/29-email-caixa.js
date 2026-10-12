@@ -195,20 +195,23 @@ function exResumoMiolo() {
   const hora = pronto ? (m.quando || "").slice(11, 16) : "";
   const andando = m && (m.estado === "resumindo" || m.estado === "na_fila");
   const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
+  // Os valores com o ponto de estado das outras telas (cfg-st): vermelho pede atencao, verde esta em dia.
+  const st = (txt, classe, extra) => '<b class="cfg-st ' + classe + (extra ? " " + extra : "") + '">' + txt + "</b>";
   const prazo = g && g.prazos.length ? g.prazos[0] : null;
   const quem = g && g.remetentes.length ? g.remetentes[0] : null;
-  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Resumo da IA</h2>' +
+  // A faixa de numeros primeiro; o resumo do assistente embaixo dela.
+  return '<div class="sv-ficha cfg-ficha">' +
+    item("Conta", '<div class="ex-conta-casa">' + exBotaoConta(mail.conta) + "</div>") +
+    item("Pedem resposta", !g ? st("…", "cfg-mudo") : g.pedem_resposta ? st(plural(g.pedem_resposta, "mensagem", "mensagens"), "acc") : st("Nenhuma", "ok")) +
+    item("Prazo mais perto", prazo
+      ? '<b class="cfg-st acc"><button type="button" class="sv-ficha-pasta corta" data-ex-ir="' + esc(prazo.uid) + '" title="' + esc(prazo.assunto) + '">' + esc(dataCurta(prazo.prazo)) + " · " + esc(prazo.assunto) + "</button></b>"
+      : st(g ? "Nenhum" : "…", g ? "ok" : "cfg-mudo")) +
+    item("Quem mais escreveu", quem ? st(esc(quem.nome) + (quem.quantas > 1 ? " · " + quem.quantas : ""), "cfg-mudo", "corta") : st(g ? "Ninguém" : "…", "cfg-mudo")) +
+    "</div>" +
+    '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Resumo</h2>' +
     '<small class="sv-resumo-quando">' + (hora ? "escrito às " + esc(hora) + " · " : "") + "leu só remetente e assunto de " + plural(n, "mensagem", "mensagens") + "</small>" +
     '<button type="button" class="sv-ligacao" data-ex-resumo-de-novo="1"' + (andando ? " disabled" : "") + ">" + ic("refresh", 15) + "atualizar resumo</button></div>" +
-    exTextoDoResumo(m) + "</div>" +
-    '<div class="sv-ficha">' +
-    item("Conta", '<div class="ex-conta-casa">' + exBotaoConta(mail.conta) + "</div>") +
-    item("Pedem resposta", "<b>" + (g ? g.pedem_resposta + " de " + n : "…") + "</b>") +
-    item("Prazo mais perto", prazo
-      ? '<button type="button" class="sv-ficha-pasta corta" data-ex-ir="' + esc(prazo.uid) + '" title="' + esc(prazo.assunto) + '">' + esc(dataCurta(prazo.prazo)) + " · " + esc(prazo.assunto) + "</button>"
-      : "<b>" + (g ? "nenhum nos assuntos" : "…") + "</b>") +
-    item("Quem mais escreveu", '<b class="corta">' + (quem ? esc(quem.nome) + (quem.quantas > 1 ? " · " + quem.quantas : "") : g ? "—" : "…") + "</b>") +
-    "</div>";
+    exTextoDoResumo(m) + "</div>";
 }
 
 function exCabecalhosParaResumo() {
@@ -391,7 +394,7 @@ function exRodape() {
   const k = mail.caixa;
   return '<div class="tabela-rodape"><span>' + k.mostrando + " de " + k.total + "</span>" +
     (k.tem_mais ? '<button class="mais" id="mail-mais">Carregar mais</button>' : "") +
-    '<span class="cresce"></span><span>As mensagens ficam no seu servidor · eu leio só o que você abre</span></div>';
+    "</div>";
 }
 
 function exTabela() {
@@ -1553,7 +1556,7 @@ function exDesenhar() {
   const antes = document.querySelector("#email.ex-tela .sv-principal");
   const topo = antes ? antes.scrollTop : 0;
   const miolo = mail.conta
-    ? '<div class="sv-medida">' + exAbertura() + exTabela() + '<div class="ex-regras">' + ecRegras() + "</div></div>"
+    ? '<div class="sv-medida">' + exAbertura() + exTabela() + "</div>"
     : exSemConta();
   $("centro").innerHTML = '<div class="acervo sem-painel ex-tela" id="email"><div class="acervo-principal sv-principal">' + miolo + "</div></div>";
   ligarEmail();

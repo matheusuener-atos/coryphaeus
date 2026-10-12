@@ -132,9 +132,10 @@ function verComoOCliente() {
   const pessoas = (acp.dados && acp.dados.pessoas) || [];
   const veu = document.createElement("div");
   veu.className = "acp-previa-veu";
-  veu.innerHTML = '<div class="acp-previa" role="dialog" aria-modal="true" aria-label="Ver como o cliente">' +
-    '<div class="acp-previa-cabeca"><b>Ver como o cliente</b><small>' + esc(s.nome) + "</small>" +
-    '<button type="button" class="botao-icone" data-acp-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
+  veu.innerHTML = '<div class="acp-previa" role="dialog" aria-modal="true" aria-label="Visualizar como cliente">' +
+    // O cabecalho dos pop-ups do sistema (dialogo, js/16): titulo, contexto embaixo e o X.
+    '<div class="dialogo-cabeca acp-previa-cabeca"><span class="dialogo-titulos"><h2>Visualizar como cliente</h2><span class="dialogo-contexto">' + esc(s.nome) + "</span></span>" +
+    '<button type="button" class="dialogo-fechar" data-acp-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
     '<div class="acp-celular"><div class="acp-tela" id="acp-tela"></div></div></div>';
   document.body.appendChild(veu);
   const fechar = () => { document.removeEventListener("keydown", teclas, true); veu.remove(); };
@@ -189,7 +190,7 @@ function htmlDaAbaDoCliente(d) {
   const titulo = (icone, texto, extra) => '<div class="sv-secao-cabeca"><span class="sv-secao-titulo">' + ic(icone, 16) + esc(texto) + "</span>" + (extra || "") + "</div>";
   if (!d.disponivel) {
     return '<section class="sv-secao">' + titulo("person", "Área do cliente") +
-      '<p class="sv-dica">' + esc(d.motivo_plano || "A área do cliente não faz parte do seu plano.") + "</p>" + regrasDoCliente() + "</section>";
+      '<p class="sv-dica acp-plano">' + esc(d.motivo_plano || "A área do cliente não faz parte do seu plano.") + "</p></section>" + regrasDoCliente();
   }
   const pessoas = d.pessoas.map((p) =>
     '<div class="acp-pessoa"><span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + "</span>" +
@@ -286,7 +287,7 @@ function menuDaPessoaCliente(botao, id) {
     } },
     "-",
     { rotulo: "Parar de compartilhar", icone: "visibility_off", perigo: true, acao: async () => {
-      if (!(await confirmar({ titulo: "Parar de compartilhar?", contexto: "Serviços › " + sv.aberto.nome,
+      if (!(await confirmar({ titulo: "Parar de compartilhar?", contexto: "Processos › " + sv.aberto.nome,
         texto: p.nome + " deixa de ver esta pasta na hora. O que ele já baixou fica com ele. Dá para compartilhar de novo depois.", confirmar: "Parar", perigo: true }))) return;
       const r = await fetch("/api/servicos/" + sv.aberto.id + "/cliente/parar", { method: "POST", headers: SV_JSON, body: JSON.stringify({ pessoa_id: id }) });
       if (!r.ok) { avisoCert(await erroDe(r)); return; }
@@ -307,7 +308,7 @@ async function dialogoCompartilhar() {
   sug = sug || { nome: "", email: "", cadastro_id: null };
   const ja = ((acp.dados && acp.dados.pessoas) || []).length;
   const v = await dialogo({
-    titulo: "Compartilhar com o cliente", contexto: "Serviços › " + s.nome, larga: true,
+    titulo: "Compartilhar com o cliente", contexto: "Processos › " + s.nome, larga: true,
     campos: [
       { rotulo: "Nome", chave: "nome", valor: ja ? "" : sug.nome, icone: "person", max: 80, placeholder: "João da Silva" },
       { rotulo: "E-mail", chave: "email", valor: ja ? "" : sug.email, icone: "mail", tipo: "email", max: 200, obrigatorio: true, placeholder: "cliente@exemplo.com",

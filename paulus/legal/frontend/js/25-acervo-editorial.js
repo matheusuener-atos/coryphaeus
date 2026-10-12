@@ -41,11 +41,14 @@ function abreAcervo(d) {
   const clientes = new Set(todos.map((x) => x.cliente).filter(Boolean)).size;
   const prazos = (bib.sugestoes || []).length;
   const item = (rotulo, valor) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" + valor + "</div>";
-  return '<div class="sv-ficha">' +
-    item("Documentos", "<b>" + d.total + "</b>") +
-    item("Clientes", "<b>" + clientes + "</b>") +
-    item("Sem análise", '<b class="' + (d.sem_analise ? "ae-acc" : "") + '">' + (d.sem_analise || "nenhum") + "</b>") +
-    item("Prazos a conferir", '<button type="button" class="sv-ficha-pasta" data-visao-acervo="prazos">' + (prazos ? plural(prazos, "data") + " →" : "nenhum") + "</button>") +
+  // O mesmo resumo das Configuracoes: o valor por extenso e o ponto do estado.
+  const sem = d.sem_analise || 0;
+  return '<div class="sv-ficha cfg-ficha">' +
+    item("Documentos", '<b class="cfg-st ' + (d.total ? "ok" : "cfg-mudo") + '">' + (d.total ? plural(d.total, "documento") : "Nenhum ainda") + "</b>") +
+    item("Clientes", '<b class="cfg-st ' + (clientes ? "ok" : "cfg-mudo") + '">' + (clientes ? plural(clientes, "cliente") : "Nenhum identificado") + "</b>") +
+    item("Sem análise", '<b class="cfg-st ' + (sem ? "acc" : "ok") + '">' + (sem ? plural(sem, "a ler", "a ler") : "Todos analisados") + "</b>") +
+    item("Prazos a conferir", '<button type="button" class="sv-ficha-pasta" data-visao-acervo="prazos"><b class="cfg-st ' + (prazos ? "acc" : "ok") + '">' +
+      (prazos ? plural(prazos, "data", "datas") + " para conferir" : "Nada a conferir") + "</b></button>") +
     "</div>";
 }
 
@@ -243,6 +246,13 @@ function sumarioDoMisto() {
   let html = linha('data-ac-filtro="todos"', !bib.pastaFiltro, "Todo o acervo", bib.todos.length, 0, false);
   html += blocoDoDrive((attr, on, rotulo, n) => linha(attr, on, rotulo, n, 0, true));
   raizesDoAcervo().forEach((r) => {
+    // A raiz sem subpasta (Administrativo › Administrativo) vira uma linha só, com o "..." dela.
+    if (r.pastas.length === 1 && !r.pastas[0].folha) {
+      const p = r.pastas[0];
+      html += '<div class="am-pasta-unica">' + linha('data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"', bib.pastaFiltro === p.pasta, r.nome, p.n, p.sem, false) +
+        '<button type="button" class="mais-linha" data-ac-raiz="' + esc(r.caminho) + '" title="Mais" aria-label="Mais">' + ic("more_horiz", 16) + "</button></div>";
+      return;
+    }
     html += cabecaDaRaiz(r);
     r.pastas.forEach((p) => { html += linha('data-ac-pasta="' + esc(p.pasta) + '" title="' + esc(p.pasta) + '"', bib.pastaFiltro === p.pasta, p.folha || r.nome, p.n, p.sem, true); });
   });

@@ -1,0 +1,170 @@
+/* A barra do alto (js/99-topbar.js): a .bv-cabeca do Pos-instalador levada
+   ao programa. 56 px, PAVLVS em Garamond 20 a esquerda, os destinos em texto a
+   direita, os botoes da janela no canto, fio fino embaixo. O trilho e o menu
+   que abre sobre ele saem. */
+html.com-topbar .trilho, html.com-topbar .menu-flutuante { display: none !important; }
+html.com-topbar .sc-host:has(> .corpo), html.com-topbar body:has(> .corpo) { display: flex; flex-direction: column; }
+html.com-topbar .corpo { flex: 1 1 auto; min-height: 0; }
+
+.topbar {
+  flex: none; position: relative; z-index: 6;
+  display: flex; align-items: center; gap: 24px; height: 56px; padding: 0 28px;
+  background: var(--bg); border-bottom: 1px solid var(--ink-a1);
+}
+.topbar-marca {
+  flex: none; height: 56px; padding: 0; border: none; border-radius: 0; background: none; box-shadow: none;
+  font: 400 20px/1 var(--serif); letter-spacing: .12em; color: var(--ink); cursor: pointer;
+}
+.topbar-marca-grupo { flex: none; display: flex; align-items: baseline; gap: 10px; height: 56px; }
+.topbar-marca-grupo .topbar-marca { height: auto; align-self: center; }
+.topbar-relogio { font: 400 12px/1 var(--mono); color: var(--ink3); font-variant-numeric: tabular-nums; align-self: center; padding-top: 10px; }
+.topbar-marca:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+.topbar-nav { margin-left: 0 !important; flex: none; min-width: 0; display: flex; align-items: center; gap: 24px; }
+.topbar-item {
+  display: inline-flex; align-items: center; gap: 2px; height: 56px; padding: 0; border: none; border-radius: 0;
+  background: none; box-shadow: none; font: 500 13px var(--sans); color: var(--ink3); white-space: nowrap; cursor: pointer;
+}
+.topbar-item .ic { color: inherit; transition: rotate .2s ease; }
+.topbar-item:hover:not(:disabled), .topbar-grupo.aberto > .topbar-item { background: none; border: none; color: var(--ink); }
+.topbar-item.ativo, .topbar-grupo.ativo > .topbar-item { color: var(--ink); }
+.topbar-grupo.aberto > .topbar-item .ic { rotate: 180deg; }
+.topbar-grupo { position: relative; }
+
+/* A busca: o campo da barra, centrado no espaco entre a marca e os destinos. E um botao com
+   cara de campo - abre o Buscar em tudo, que e onde se digita. */
+.topbar-busca {
+  flex: 0 1 300px; min-width: 150px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 11px;
+  border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--fill); box-shadow: none;
+  font: 400 13px var(--sans); color: var(--ink3); text-align: left; cursor: text;
+}
+.topbar-busca:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a25); color: var(--ink2); }
+.topbar-busca-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-busca kbd { flex: none; white-space: nowrap; line-height: 1.3; padding: 2px 6px; border-radius: 6px; background: var(--bg); border: 1px solid var(--ink-a1); font: 400 11px var(--mono); color: var(--ink3); }
+.topbar-tema { flex: none; margin-left: -10px; margin-right: -22px; }
+
+/* A segunda linha: a barra estica 44 px e mostra os destinos do grupo lado a
+   lado, alinhados a direita como a linha de cima. Abre e recolhe pela altura
+   (0fr -> 1fr), na curva do resto do programa; a linha troca esmaecendo. */
+.topbar-sub {
+  flex: none; position: relative; z-index: 5; display: grid; grid-template-rows: 0fr;
+  background: var(--bg); border-bottom: 1px solid transparent;
+  transition: grid-template-rows .3s cubic-bezier(.55,0,.45,1), border-color .3s ease;
+}
+.topbar-sub.aberta { grid-template-rows: 1fr; border-bottom-color: var(--ink-a1); transition: grid-template-rows .42s cubic-bezier(.16,1,.3,1), border-color .2s ease; }
+.topbar-sub-dentro { min-height: 0; overflow: hidden; display: grid; }
+.topbar-sub-linha {
+  grid-area: 1 / 1; display: flex; align-items: center; justify-content: flex-end; gap: 4px; height: 44px; padding: 0 22px;
+  opacity: 0; visibility: hidden; translate: 0 -4px;
+  transition: opacity .14s ease, translate .2s ease, visibility 0s linear .2s;
+}
+.topbar-sub-linha.vista { opacity: 1; visibility: visible; translate: 0 0; transition: opacity .2s ease .06s, translate .3s cubic-bezier(.16,1,.3,1) .06s, visibility 0s; }
+html.sem-animacao .topbar-sub, html.sem-animacao .topbar-sub-linha { transition: none; }
+.topbar-opcao {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: none; border-radius: 8px;
+  background: none; box-shadow: none; font: 500 13px var(--sans); color: var(--ink2); text-align: left; white-space: nowrap; cursor: pointer;
+}
+.topbar-opcao .ic { color: var(--ink3); }
+.topbar-opcao:hover:not(:disabled) { background: var(--fill); border: none; color: var(--ink); }
+.topbar-opcao.ativo { background: var(--fill); color: var(--ink); }
+.topbar-opcao.ativo .ic { color: var(--ink); }
+/* Aprovacoes: no lugar do numero, uma bolinha branca em cima do icone. */
+.topbar-conta { display: none !important; }
+.topbar-opcao .ic { position: relative; }
+.topbar-opcao.com-pendente .ic::after {
+  content: ""; position: absolute; top: -1px; right: -2px; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ink); box-shadow: 0 0 0 2px var(--bg);
+}
+.topbar-avatar { width: 20px; height: 20px; font-size: 9px; flex: none; }
+#topbar-sair { margin-left: 8px; }
+html.sem-animacao .topbar-item .ic { transition: none; }
+
+/* Os botoes da janela saem do canto da tela e entram no fim da barra. */
+.topbar .botoes-janela { position: static; display: flex; align-items: center; gap: 2px; margin-right: -12px; flex: none; }
+.topbar .botoes-janela[hidden] { display: none; }
+html.com-janela.com-topbar .bv-cabeca { padding-right: 28px; }
+/* A barrinha de arrastar com o relogio, no alto da coluna, sai: quem arrasta
+   a janela agora e a barra. */
+html.com-topbar .conversa-col > .barra-titulo { display: none; }
+/* A faixa de arrastar do alto do painel lateral (32 px, onde ficavam os botoes
+   da janela) sai: o painel comeca no topo. */
+html.com-topbar .lado-arrasto { display: none; }
+html.com-topbar .lado-contexto, html.com-topbar .lado-ferramenta { top: 0; }
+/* O fio de cima do primeiro bloco dobrava com o fio da barra. */
+html.com-topbar :is(.lado-contexto, .lado-ferramenta) > :not([hidden]):not(:not([hidden]) ~ *) { border-top-color: transparent; }
+/* Com a barra, o alto das telas nao precisa mais abrir espaco para os botoes. */
+html.com-topbar .conversa-topo { padding-right: 28px; }
+
+@media (max-width: 600px) { .topbar { display: none; } }
+
+/* Com a resposta andando, o progresso mora no cartao da conversa: o bloco
+   Progresso do painel lateral repetia as mesmas etapas e sai. */
+html.com-topbar #lat-progresso { display: none !important; }
+/* O modelo nas Propriedades e um dado, nao um estado: etiqueta neutra. */
+#prop-modelo.etiqueta.ok { background: var(--fill); color: var(--ink); }
+#prop-modelo.etiqueta.ok::before { background: var(--ink3); }
+
+/* Consumo da conversa (js/99-consumo.js): as linhas de Propriedades, numeros
+   em monoespaco; a barra fina divide entrada (tinta cheia) e saida (meio). */
+.lat-consumo .mono { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* A barra de contexto: quanto da janela do modelo a conversa ocupa. Perto de
+   encher (80%), a tinta fica cheia; o botao a direita compacta na hora. */
+/* Contexto e uma linha como as de cima (rotulo e valor na mesma grade); a
+   barra vem embaixo, na largura inteira, com o botao de compactar na ponta. */
+.propriedades .lat-contexto { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 6px; padding-top: 0 !important; margin-top: -4px; }
+.lat-contexto-linha { display: flex; align-items: center; gap: 8px; }
+.lat-contexto-linha .lat-contexto-barra { flex: 1; min-width: 0; }
+.lat-compactar { flex: none; width: 26px; height: 26px; padding: 0; margin: -6px -4px -6px 0; display: inline-flex; align-items: center; justify-content: center; color: var(--ink2); }
+.lat-compactar:disabled { opacity: .4; }
+.propriedades .lat-contexto-barra { display: block !important; height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+.lat-contexto-barra i { display: block; height: 100%; border-radius: inherit; background: var(--ink2); transition: width .6s cubic-bezier(.16,1,.3,1), background-color .3s ease; }
+.lat-contexto-barra.perto i { background: var(--ink); }
+#lat-consumo.compactando .lat-contexto-barra i { animation: ctx-pulsa 1s ease-in-out infinite; }
+@keyframes ctx-pulsa { 50% { opacity: .45; } }
+html.sem-animacao .lat-contexto-barra i { transition: none; animation: none; }
+.lat-consumo-nota { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink3); }
+#lat-consumo.fechado .lat-consumo { display: none; }
+#lat-consumo.fechado .lado-seta { rotate: -90deg; }
+
+/* A FAIXA DE AVISO vira uma linha da barra: 44 px embaixo dela, no desenho da
+   linha dos grupos - fundo da tela, fio fino embaixo, conteudo a esquerda,
+   alinhado com o PAVLVS.
+   Abre e fecha pela altura, como antes. */
+html.com-topbar .faixa-janela {
+  order: 0; z-index: 4; justify-content: flex-start; gap: 10px; padding: 0 28px;
+  background: var(--bg); color: var(--ink); border-bottom: 1px solid transparent;
+  font: 500 13px var(--sans);
+}
+html.com-topbar .faixa-janela.visivel { height: 44px; border-bottom-color: var(--ink-a1); }
+html.com-topbar .faixa-janela > .ic { color: var(--ink2); }
+html.com-topbar .faixa-janela > button {
+  height: 28px; padding: 0 10px; border-radius: 8px; background: var(--fill); text-decoration: none; font: 500 12px var(--sans); color: var(--ink);
+}
+html.com-topbar .faixa-janela > button:hover:not(:disabled) { background: var(--fill2); opacity: 1; }
+
+/* O resumo das secoes (a ficha de quatro colunas): o valor pode quebrar em
+   duas linhas em vez de cortar com reticencias. */
+.cfg-tela .sv-ficha-item b, .cfg-tela .sv-ficha-item > span:last-child { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: pretty; }
+
+/* O cabecalho das telas cheias (Configuracoes e as outras): a barra do alto ja
+   diz onde se esta, entao ele perde o respiro de 40 px e o subtitulo e vira
+   uma linha baixa - voltar, titulo e as acoes. */
+html.com-topbar .conversa-col.tela-cheia > .conversa-topo { padding-top: 28px !important; padding-bottom: 20px !important; min-height: 0; }
+/* Os botoes do cabecalho terminam onde termina o conteudo da pagina (o rolador da borda, abaixo). */
+html.com-topbar .conversa-col.tela-cheia > .conversa-topo { padding-right: var(--margem-pagina, 44px); }
+html.com-topbar .conversa-col.tela-cheia > .conversa-topo :is(.conversa-sub, .sub-titulo, small.tela-sub, .conversa-nome > small, .conversa-nome > .meta) { display: none; }
+
+/* A rolagem na borda: o rolador da tela cheia vai ate a borda da janela (a
+   margem da pagina sai por fora e volta por dentro), e a barra de rolagem
+   fica na lateral de verdade. */
+.conversa-col.tela-cheia [data-rola-borda] {
+  margin-left: calc(-1 * var(--rb-esq, 0px)) !important; margin-right: calc(-1 * var(--rb-dir, 0px)) !important;
+  /* O recuo devolve exatamente a margem da pagina (menos os 6 px da barra), para o conteudo ficar no mesmo lugar rolando ou nao. */
+  padding-left: var(--rb-esq, 0px) !important; padding-right: max(0px, calc(var(--rb-dir, 0px) - 6px)) !important;
+  scrollbar-gutter: stable;
+}
+/* Os pais do rolador nao rolam nem cortam (senao a margem negativa vira uma
+   rolagem de lado); quem corta e a coluna, na borda da janela. */
+/* overflow visivel devolve o min-height:auto do flex: o min-height 0 segura
+   a altura, e quem rola continua sendo so o rolador. */
+.conversa-col.tela-cheia :is(.conversa-principal, .fluxo, .centro, .acervo):has([data-rola-borda]) { overflow: visible !important; min-height: 0 !important; }
+.conversa-col.tela-cheia > .conversa-corpo:has([data-rola-borda]) { overflow-x: clip; }

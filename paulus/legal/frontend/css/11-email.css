@@ -23,13 +23,13 @@
   .em-nota { font: 500 12px var(--sans); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .em-vazio { padding: 28px 18px; display: grid; gap: 6px; }
   .em-vazio.grande { max-width: 520px; }
-  .em-vazio h4 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .em-vazio h4 { margin: 0; font: 400 16px/1.3 var(--serif); }
   .em-vazio p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .em-vazio-acao { padding-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
   .em-vazio-acao button { display: inline-flex; align-items: center; gap: 6px; }
   /* depois de mandar para aprovacao: o que foi pedido, em ficha curta */
   .em-espera { padding: 28px 18px; max-width: 560px; display: grid; gap: 14px; }
-  .em-espera h4 { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 16px/1.3 var(--sans); }
+  .em-espera h4 { margin: 0; display: flex; align-items: center; gap: 8px; font: 400 16px/1.3 var(--serif); }
   .em-espera h4 .ic { color: var(--ink3); }
   .em-espera p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .em-espera-ficha { display: grid; margin: 0; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--cartao-fundo); }

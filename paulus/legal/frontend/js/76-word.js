@@ -31,20 +31,21 @@ function secaoWord() {
   const i = w.instalacao || {};
   const cert = i.certificado || {};
   const instalado = Boolean(i.instalado && i.registrado && cert.confiado);
+  const nCon = (w.conexoes || []).length;
   const ficha = fichaCfg([
-    ["PAVLVS no Word", w.ligado ? "ligado" : "desligado", w.ligado ? "ok" : ""],
-    ["Neste computador", i.carregado ? "abriu no Word" : (instalado ? "instalado, falta abrir" : "não instalado"), i.carregado ? "ok" : ""],
-    ["Words conectados", String((w.conexoes || []).length)],
+    ["PAVLVS no Word", w.ligado ? "Ativado" : "Desativado", w.ligado ? "cfg-st ok" : "cfg-st cfg-mudo"],
+    ["Neste computador", i.carregado ? "Funcionando no Word" : (instalado ? "Instalado, falta abrir o Word" : "Não instalado"), i.carregado ? "cfg-st ok" : (instalado ? "cfg-st acc" : "cfg-st cfg-mudo")],
+    ["Outros Words", nCon ? (nCon === 1 ? "1 conectado" : nCon + " conectados") : "Nenhum conectado", nCon ? "cfg-st ok" : "cfg-st cfg-mudo"],
   ]);
 
-  const ligar = cartaoCfg("Ligar", "",
+  const ligar = cartaoCfg("PAVLVS no Word", "",
     '<div class="ag-toggle' + (w.ligado ? " on" : "") + '" data-word-acao="ligar" role="switch" tabindex="0" aria-checked="' + w.ligado + '">' +
-    '<span class="duas-linhas"><b>O PAVLVS dentro do Word</b><small>o painel no Word confere citações, insere lei e qualificação e responde sobre o documento; ' +
-    "o texto do documento vai só para este Paulus</small></span><i></i></div>");
+    '<span class="duas-linhas"><b>Usar o PAVLVS dentro do Word</b><small>Um painel ao lado do documento confere as citações, insere artigos de lei e a qualificação das partes e responde perguntas sobre o texto. ' +
+    "O documento é lido só por este Paulus e não vai para nenhum outro lugar.</small></span><i></i></div>");
 
   let corpo;
   if (!w.ligado) {
-    corpo = '<p class="cfg-explica">Ligue acima para instalar.</p>';
+    corpo = '<p class="cfg-explica">Ative o PAVLVS no Word acima para instalar neste computador.</p>';
   } else {
     const carregou = i.carregou;
     corpo = (i.word_no_computador ? "" : '<p class="cfg-explica"><b>Não achei o Word neste computador.</b> Instale o Microsoft Office para usar o PAVLVS aqui; em outro computador, o Word usa pelo acesso externo.</p>') +

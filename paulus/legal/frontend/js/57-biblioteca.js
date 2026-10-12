@@ -57,6 +57,7 @@ function cabecalhoBib() {
   $("nav-tela").innerHTML = '<div class="visoes bib-abas">' + abasDaBib().map(([v, r, resto]) =>
     '<button class="' + (v === bibc.aba ? "ativa" : "") + '" data-bib-aba="' + v + '"><span>' + r + '<span class="bib-aba-resto">' + resto + "</span></span></button>").join("") + "</div>";
   $("acoes-tela").innerHTML = "";
+  migalhaDaBib();
   document.querySelectorAll("[data-bib-aba]").forEach((b) => {
     b.onclick = async () => {
       bibc.aba = b.dataset.bibAba;
@@ -116,9 +117,24 @@ function aoMudarNaBiblioteca() {
   return desenharBib();
 }
 
-function aberturaBib(titulo, texto) {
-  return '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>' + esc(titulo) + "</h2></div>" +
-    '<p class="sv-resumo-corpo">' + esc(texto) + "</p></header>";
+/* O nome da aba sobe para o cabecalho, ao lado do titulo: "Biblioteca / Leis e súmulas".
+   O texto de abertura saiu - as abas e o conteudo ja dizem o que e. */
+function aberturaBib() {
+  return "";
+}
+
+function migalhaDaBib() {
+  const nome = $("conversa-titulo");
+  if (!nome) return;
+  let m = document.getElementById("bib-migalha");
+  const aba = ABAS_BIB.find(([v]) => v === bibc.aba);
+  if (!m) {
+    m = document.createElement("span");
+    m.id = "bib-migalha";
+    m.className = "bib-migalha";
+    nome.insertAdjacentElement("afterend", m);
+  }
+  m.textContent = aba ? aba[1] + aba[2] : "";
 }
 
 /* ---------------------------------------------------- leis e súmulas */
@@ -175,8 +191,11 @@ function abaLeisBib() {
 
   return aberturaBib("Leis e súmulas", "A Constituição, os códigos e as súmulas do STJ vêm com o Paulus, no texto oficial. " +
       "Tudo fica nesta máquina e é consultado sem internet.") +
-    fichaCfg([["Códigos", String(instalados.length)], ["Artigos", artigos.toLocaleString("pt-BR")], ["Súmulas", enunciados.toLocaleString("pt-BR")],
-      ["Acervo de", n.montado_em ? dataCurtaMat(n.montado_em) : "—"]]) +
+    fichaCfg([
+      ["Códigos", instalados.length ? plural(instalados.length, "código") + " em casa" : "Nenhum instalado", instalados.length ? "cfg-st ok" : "cfg-st cfg-mudo"],
+      ["Artigos", artigos ? artigos.toLocaleString("pt-BR") + " artigos" : "Nenhum", artigos ? "cfg-st ok" : "cfg-st cfg-mudo"],
+      ["Súmulas", enunciados ? enunciados.toLocaleString("pt-BR") + " enunciados" : "Nenhuma", enunciados ? "cfg-st ok" : "cfg-st cfg-mudo"],
+      ["Atualizado em", n.montado_em ? dataCurtaMat(n.montado_em) : "Ainda não montado", n.falta ? "cfg-st acc" : (n.montado_em ? "cfg-st ok" : "cfg-st cfg-mudo")]]) +
     falta + consultar + codigos + sumulas + doutrina;
 }
 

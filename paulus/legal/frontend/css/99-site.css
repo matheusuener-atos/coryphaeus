@@ -63,13 +63,19 @@ button:hover:not(:disabled) { border-color: var(--site-line3); }
 
 /* ---------- rotulos (kickers): Fira Code 11, .18em, maiusculas ---------- */
 .sv-kicker, .pc-rotulo, .gcv-kicker, .emc-kicker, .bv-rotulo, .trava-etiqueta, .anx-caminho-rotulo, .avp-gaveta,
-.conversa-col.vazia .compositor .sv-kicker, .pc-dia-cabeca, .bv-selo {
+.pc-dia-cabeca, .bv-selo {
   font: 400 12px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink3);
 }
+/* Na tela inicial, os rotulos (Conversas recentes, Acontecendo agora, Avisos)
+   seguem o .rotulo da data logo acima: Fira Code 500 12, .1em. */
+.conversa-col.vazia .compositor .sv-kicker, .avp-cabeca .sv-kicker { font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
 
 /* ---------- titulos: Garamond 400, sem peso ---------- */
 h1, h2, h3 { font-weight: 400; }
-#conversa-titulo { font-weight: 400; }
+/* A Garamond mede largura fracionada e a caixa ajustada ao texto ficava 0,02 px
+   menor que ele: o corte punha reticencias num titulo que cabia. Com a coluna
+   inteira, as reticencias so aparecem quando o titulo passa mesmo da largura. */
+.conversa-topo #conversa-titulo { font: 400 24px/1.15 var(--serif); justify-self: stretch; }
 
 /* ---------- cartoes e campos: raio 10 e o fio do site ---------- */
 .cartao, .cfg-cartao, .sv-secao, .fin-cartao, .ag-cartao, .as-cartao, .bv-cartao, .lc-cartao, .tabela-cartao, .dialogo {
@@ -82,3 +88,20 @@ h1, h2, h3 { font-weight: 400; }
 button:where(:not(.primario):not(.enviar):not(.botao-icone):not(.dialogo-fechar):not([class*="icone"])) {
   padding-top: 4px; padding-bottom: 4px; line-height: 18px; min-height: 28px;
 }
+
+/* Nas telas de desenho o app mora dentro do componente: a caixa dele tem a
+   altura da janela, como o body do programa, e quem rola e a coluna. */
+.sc-host:has(> .corpo) { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* A marca respira antes da lista: 10 px a mais no trilho e no menu, juntos,
+   para os itens continuarem um sobre o outro. Clicar nela volta ao inicio. */
+.trilho-logo { margin-bottom: 18px !important; cursor: pointer; }
+.menu-flutuante .menu-cabeca { margin-bottom: 18px !important; cursor: pointer; }
+@media (min-width: 601px) and (max-height: 900px) {
+    .trilho-logo { margin-bottom: 18px !important; }
+  .menu-flutuante .menu-cabeca { margin-bottom: 14px !important; }
+}
+.menu-cabeca:hover span { color: var(--ink); }
+/* Os itens do trilho nao encolhem: em janela baixa ele rola, como o menu,
+   e cada icone continua na mesma altura do seu item no menu. */
+.trilho > * { flex-shrink: 0; }

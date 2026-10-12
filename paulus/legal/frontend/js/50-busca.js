@@ -27,11 +27,11 @@ function localBsc() { return typeof acessoDeFora === "undefined" || acessoDeFora
 function acoesBsc() {
   const a = [
     { titulo: "Nova conversa", caminho: "Assistente", icone: "add", sinonimos: "perguntar chat pedido", fazer: () => $("nova").click() },
-    { titulo: "Calcular prazo", caminho: "Agenda › To-do", icone: "schedule", descricao: "dias úteis, feriados e recesso",
+    { titulo: "Calcular prazo", caminho: "Agenda › Tarefas", icone: "schedule", descricao: "dias úteis, feriados e recesso",
       sinonimos: "prazo processual cpc intimacao vencimento", fazer: () => calcularPrazo() },
-    { titulo: "Publicações do DJEN", caminho: "Agenda › To-do", icone: "gavel", descricao: "intimações pela OAB, todo dia", local: true,
+    { titulo: "Publicações do DJEN", caminho: "Agenda › Tarefas", icone: "gavel", descricao: "intimações pela OAB, todo dia", local: true,
       sinonimos: "diario oficial dje djen intimacao publicacoes oab", fazer: () => abrirPublicacoesBsc() },
-    { titulo: "Feriados do escritório", caminho: "Agenda › To-do › Publicações", icone: "today", local: true,
+    { titulo: "Feriados do escritório", caminho: "Agenda › Tarefas › Publicações", icone: "today", local: true,
       sinonimos: "feriado municipal suspensao prazo", fazer: () => editarFeriados() },
     { titulo: "Fazer backup", caminho: "Configurações › Backup", icone: "archive", local: true,
       sinonimos: "copia seguranca restaurar", fazer: () => mostrarConfig("backup") },
@@ -111,11 +111,13 @@ function abrirBusca() {
   veu.className = "bsc-veu";
   veu.id = "bsc-veu";
   veu.innerHTML = '<div class="bsc-caixa" role="dialog" aria-label="Buscar em tudo">' +
-    '<div class="bsc-topo">' + ic("search", 18) + '<input id="bsc-campo" type="text" placeholder="Buscar em tudo: telas, ações, clientes, serviços, documentos…" autocomplete="off" spellcheck="false">' +
+    '<div class="bsc-topo">' + ic("search", 18) + '<input id="bsc-campo" type="text" placeholder="Buscar em tudo: telas, ações, clientes, processos, documentos…" autocomplete="off" spellcheck="false">' +
     '<kbd class="bsc-esc">Esc</kbd></div><div class="bsc-lista" id="bsc-lista"></div>' +
     '<div class="bsc-pe"><span><kbd>↑</kbd><kbd>↓</kbd> para navegar</span><span><kbd>↵</kbd> para abrir</span></div></div>';
   document.body.appendChild(veu);
+  // rAF nao roda em aba em segundo plano; o setTimeout garante que a caixa aparece.
   requestAnimationFrame(() => veu.classList.add("aberta"));
+  setTimeout(() => veu.classList.add("aberta"), 60);
   veu.addEventListener("mousedown", (e) => { if (e.target === veu) fecharBusca(); });
   const campo = document.getElementById("bsc-campo");
   campo.addEventListener("input", () => { bsc.sel = 0; desenharBusca(); pedirDadosBsc(campo.value); });
@@ -176,7 +178,7 @@ function desenharBusca(soSelecao) {
   lista.innerHTML = bsc.itens.map((x, i) => {
     const cabeca = x.grupo !== grupo ? '<div class="bsc-grupo">' + esc((grupo = x.grupo) === "Ações" && !palavras.length ? "Ações rápidas" : x.grupo) + "</div>" : "";
     return cabeca + '<button type="button" class="bsc-item' + (i === bsc.sel ? " sel" : "") + '" data-bsc="' + i + '">' + (x.marca ? marca(x.marca, 18) : ic(x.icone || "arrow_forward", 18)) +
-      '<span class="bsc-texto"><b>' + (x.caminho ? esc(x.caminho) + " › " : "") + esc(x.titulo) + "</b>" +
+      '<span class="bsc-texto">' + (x.caminho ? '<span class="bsc-caminho">' + esc(x.caminho) + " › </span>" : "") + "<b>" + esc(x.titulo) + "</b>" +
       (x.descricao ? '<span class="bsc-desc"> — ' + esc(x.descricao) + "</span>" : "") + "</span>" +
       (i === bsc.sel ? ic("arrow_forward", 16) : "") + "</button>";
   }).join("");

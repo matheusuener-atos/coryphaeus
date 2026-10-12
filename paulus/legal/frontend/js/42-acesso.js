@@ -162,15 +162,17 @@ function secaoAcesso() {
   const contas = acessoCfg.contas || [];
   const prontas = contas.filter((c) => c.pronta).length;
   const ligado = Boolean(((cfg.prefs || {}).preferencias || {}).acesso_remoto && cfg.prefs.preferencias.acesso_remoto.ligado);
+  const nSes = acessoCfg.sessoes.length;
   const ficha = fichaCfg([
-    ["Acesso externo", ligado ? "ligado" : "desligado", ligado ? "ok" : ""],
-    ["Contas prontas", prontas + " de " + contas.length],
-    ["Sessões abertas", String(acessoCfg.sessoes.length)],
+    ["Acesso externo", ligado ? "Ativado" : "Desativado", ligado ? "cfg-st ok" : "cfg-st cfg-mudo"],
+    ["Contas prontas", contas.length ? prontas + " de " + contas.length + " prontas" : "Nenhuma conta ainda",
+      contas.length && prontas === contas.length ? "cfg-st ok" : (contas.length ? "cfg-st acc" : "cfg-st cfg-mudo")],
+    ["Sessões abertas", nSes ? (nSes === 1 ? "1 aparelho conectado" : nSes + " aparelhos conectados") : "Nenhuma agora", nSes ? "cfg-st ok" : "cfg-st cfg-mudo"],
   ]);
   const tunel = typeof cartaoTunel === "function" ? cartaoTunel() : "";
   // D5: escrever no aparelho - o que o titular controla (js/62-aparelho-titular.js).
   const aparelho = typeof cartaoAparelhoTitular === "function" ? cartaoAparelhoTitular() : "";
-  return aberturaCfg() + ficha + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSegurancaPadrao() + cartaoSessoes() + aparelho + cartaoAuditoria();
+  return aberturaCfg() + ficha + (typeof cartaoEscritorioCfg === "function" ? cartaoEscritorioCfg() : "") + cartaoComoFunciona() + tunel + cartaoContas() + cartaoSegurancaPadrao() + cartaoSessoes() + aparelho + cartaoAuditoria();
 }
 
 /* Os niveis de seguranca (acesso/contas.py NIVEIS): o escritorio escolhe,

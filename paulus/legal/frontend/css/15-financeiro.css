@@ -13,7 +13,15 @@
   .fin-meta-ponto.ok i { background: var(--verde); }
   .fin-meta-ponto.acc { color: var(--acc); }
   .fin-meta-ponto.acc i { background: var(--acc); }
-  .fin-mes-sel { display: inline-flex; align-items: center; }
+  .fin-mes-sel { display: inline-flex; align-items: center; height: 36px; box-sizing: border-box; padding: 0 2px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--botao-fundo); }
+  #acoes-tela .fin-mes-sel > button.fin-mes-passo { width: 30px; height: 30px; min-height: 0; padding: 0; border: none; border-radius: 6px; background: none; display: inline-flex; align-items: center; justify-content: center; color: var(--ink2); }
+  #acoes-tela .fin-mes-sel > button.fin-mes-passo:hover:not(:disabled) { background: var(--fill); color: var(--ink); }
+  #acoes-tela .fin-mes-sel > button.fin-mes-passo:disabled { opacity: .35; }
+  .fin-mes-nome { display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; color: var(--ink3); }
+  .fin-mes-nome .ic { pointer-events: none; }
+  .fin-mes-sel .fin-mes-nome select, .fin-mes-sel .fin-mes-nome > .escolha-botao { height: 30px; border: none; background: none; padding: 0 4px; font: 500 13px var(--sans); color: var(--ink); }
+  .fin-mes-sel .fin-mes-nome > .escolha-botao:hover:not(:disabled) { background: var(--fill); }
+  #acoes-tela .fin-mes-sel .fin-mes-nome > .escolha-botao { width: auto; min-width: 0; flex: none; gap: 6px; box-shadow: none; }
   .fin-mes-sel select, label.fin-mes-sel > .escolha-botao { width: auto; flex: none; }
   .fin-tela .sv-medida { gap: 18px; }
   .fin-valor { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -98,7 +106,7 @@
   .fin-parecer.solto { gap: 12px; }
   .fin-parecer p { margin: 0; max-width: 860px; font-size: 14px; line-height: 1.65; color: var(--ink2); }
   .fin-parecer p.fin-parecer-lead { color: var(--ink); }
-  .fin-parecer p.fin-lead { font-size: 16px; color: var(--ink); }
+  .fin-parecer p.fin-lead { font-size: 14px; line-height: 1.65; color: var(--ink); }
   .fin-parecer small { font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .fin-numeros-crus { white-space: pre-wrap; font: 400 12px/1.5 var(--mono); color: var(--ink2); padding: 10px 12px; border: 1px solid var(--ink-a1); background: var(--cartao-fundo); border-radius: 8px; }
 
@@ -133,6 +141,8 @@
   /* .fin-status e a etiqueta com ponto: receita e cores em 04-acervo.css:20
      (pago = ok, vence = atencao, atrasado = prazo). */
   .fin-acoes { display: flex; gap: 4px; justify-content: flex-end; }
+  /* Na tabela de lancamentos a situacao e neutra: fundo e texto do sistema; so o ponto leva a cor. */
+  .fin-tabela .fin-status.pago, .fin-tabela .fin-status.vence, .fin-tabela .fin-status.atrasado { background: var(--fill); color: var(--ink2); }
   .fin-acoes button { white-space: nowrap; }
   .fin-somas { margin-left: auto; display: flex; gap: 14px; }
   .fin-somas b { font-variant-numeric: tabular-nums; color: var(--ink); }

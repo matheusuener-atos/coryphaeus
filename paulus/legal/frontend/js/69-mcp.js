@@ -13,7 +13,7 @@ function escopoDaConexao(c) {
   if (e.tudo) return "o Acervo inteiro";
   const partes = [];
   if ((e.pastas || []).length) partes.push(plural(e.pastas.length, "pasta"));
-  if ((e.servicos || []).length) partes.push(plural(e.servicos.length, "Serviço", "Serviços"));
+  if ((e.servicos || []).length) partes.push(plural(e.servicos.length, "processo", "processos"));
   if ((e.clientes || []).length) partes.push(plural(e.clientes.length, "cliente"));
   return partes.join(" e ");
 }

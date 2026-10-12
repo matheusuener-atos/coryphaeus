@@ -220,7 +220,7 @@ function secaoNfse() {
   /* Depois de configurar */
   const contador = cartaoCfg("Notas do mês e contador", metaCfg("relatório, XMLs e conferência"),
     '<p class="cfg-explica">O relatório do mês soma as notas, aponta recebimento sem nota e nota sem recebimento, e monta o .zip para o contador.</p>' +
-    '<div class="word-acoes"><button data-nfse-acao="relatorio">' + ic("description", 16) + "Abrir o relatório do mês</button></div>");
+    '<div class="cfg-botoes"><button class="com-icone" data-nfse-acao="relatorio">' + ic("description", 16) + "Abrir o relatório do mês</button></div>");
   const recsLinhas = (n.recorrencias || []).map((x) => linhaNfse((x.servico_nome || x.cliente_nome || "—") + " · dia " + x.dia + " · " + x.valor,
     x.ativo ? "ligada" + (x.ultimo_mes ? " · último mês feito " + x.ultimo_mes : "") : "desligada") +
     (x.ativo ? '<div class="word-acoes"><button data-nfse-rec-desligar="' + x.id + '">Desligar</button></div>' : "")).join("");

@@ -791,8 +791,8 @@ function cartaoAguardando(d) {
   const pastas = (d.pastas || []).length;
   const passo = (feito, texto) => '<li class="' + (feito ? "feito" : "espera") + '">' + ic(feito ? "check_circle" : "schedule", 18) + "<span>" + texto + "</span></li>";
   return '<div class="org-confirma">' +
-    '<span class="org-confirma-selo">' + ic("check", 30) + "</span>" +
-    "<h3>Está quase pronto — só falta a confirmação</h3>" +
+    '<span class="org-confirma-selo">' + ic("check", 24) + "</span>" +
+    "<h3>Quase pronto: falta só a sua confirmação</h3>" +
     "<p>Li, classifiquei e montei o plano sem nenhum problema. Nada foi " + (copiar ? "copiado" : "movido") +
     " ainda: falta só o seu sim. Confira e aprove em Aprovações.</p>" +
     '<ul class="org-confirma-passos">' +

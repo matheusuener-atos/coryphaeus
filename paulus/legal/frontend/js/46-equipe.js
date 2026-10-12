@@ -192,11 +192,11 @@ function cartaoDaEquipeCfg() {
       etiquetaDeAcesso(f.email) + '<span class="cfg-botoes">' + acao + "</span></div>";
   }).join("");
   const novo = typeof linhaDoConviteNoLado === "function" ? linhaDoConviteNoLado() : "";
-  return cartaoCfg("A equipe", metaCfg(plural(eqp.equipe.length + (novo ? 1 : 0), "pessoa")),
-    (linhas || novo ? '<div class="cfg-linhas">' + linhas + novo + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>') +
-    '<div class="acesso-pe"><button class="primario com-icone" data-eqp-cfg-novo="1">' + ic("send", 16) + "Convidar pela internet</button>" +
-    '<button class="com-icone" data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe</button>" +
-    '<p class="cfg-explica">A equipe mora em Cadastros › Equipe (folha, serviços). O acesso ao Paulus se liga a cada pessoa pelo e-mail da Conta Atos.</p></div>');
+  // Os botoes ficam fora do cartao, acima dele, alinhados a direita.
+  return '<div class="cfg-acoes-topo"><button class="com-icone" data-cfg-equipe="1">' + ic("groups", 16) + "Cadastros › Equipe" + ic("arrow_forward", 16) + "</button>" +
+    '<button class="primario com-icone" data-eqp-cfg-novo="1">' + ic("send", 16) + "Convidar</button></div>" +
+    cartaoCfg("A equipe", metaCfg(plural(eqp.equipe.length + (novo ? 1 : 0), "pessoa")),
+    (linhas || novo ? '<div class="cfg-linhas">' + linhas + novo + "</div>" : '<p class="cfg-texto">Ninguém na equipe ainda.</p>'));
 }
 
 function ligarEquipeCfg() {

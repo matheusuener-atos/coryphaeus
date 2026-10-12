@@ -71,7 +71,7 @@ function abaJurisprudenciaBib() {
       '<p class="cfg-explica">Por palavras, na ementa, na tese e nas informações complementares, sem modelo. A ementa é a oficial; confira o inteiro teor no STJ antes de citar.</p>' +
       lista + "</section>"
     : "";
-  return aberturaBib("Jurisprudência do STJ", "Os acórdãos do STJ guardados neste computador, para procurar sem internet e para ligar aos artigos que eles citam.") +
+  return aberturaBib() +
     painel + busca;
 }
 

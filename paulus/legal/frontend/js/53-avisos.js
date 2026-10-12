@@ -88,6 +88,8 @@ async function carregarAvisosDoDia(forcar) {
     avs.pedindo = false;
   }
   desenharAvisos();
+  // A conta do sino, na linha das recentes.
+  if ($("conversa-col").classList.contains("vazia") && typeof desenharRecentes === "function") desenharRecentes();
 }
 
 function rotuloDaAcao(x) {
@@ -136,8 +138,10 @@ function tomDoAviso(a) {
 
 /* Enquanto houver aviso, o item Aprovacoes do trilho pisca (ate os avisos
    morarem la). */
+/* O aviso mora so no sino do Assistente (pedido de 11/10): o trilho nao
+   pisca mais. A funcao fica, sempre apagando, para quem ainda a chama. */
 function piscarAprovacoes() {
-  const pisca = Boolean(avs.ligado && (avs.avisos || []).length);
+  const pisca = false;
   document.querySelectorAll('[data-destino="aprovacoes"]').forEach((b) => b.classList.toggle("pisca-avisos", pisca));
 }
 
@@ -554,12 +558,22 @@ function desenharPainelNaInicio() {
   if (caixa.hidden || !caixa.querySelector("[data-av-painel]")) {
     caixa.hidden = false;
     caixa.innerHTML = '<div class="avp-cartao" data-av-painel="inicio">' +
-      '<div class="avp-cabeca"><span class="sv-kicker">Avisos</span><span class="avp-conta" data-avp-conta="1"></span><span class="vazio-flex"></span>' +
+      '<div class="avp-cabeca"><button type="button" class="botao-icone avp-alternar-nav' + (avs.painel.semNav ? "" : " ligado") + '" data-avp-nav="1" aria-pressed="' + !avs.painel.semNav + '" title="' + (avs.painel.semNav ? "Mostrar as categorias" : "Ocultar as categorias") + '">' + ic("view_sidebar", 16) + "</button>" +
+      '<span class="sv-kicker">Avisos</span><span class="avp-conta" data-avp-conta="1"></span><span class="vazio-flex"></span>' +
       barraDoPainel() +
       '<button type="button" class="botao-icone" data-avp-fechar="1" title="Voltar às conversas" aria-label="Voltar às conversas">' + ic("close", 16) + "</button></div>" +
-      '<div class="avp" data-avp-corpo="1"></div><div class="avp-rodape"><span class="avp-pe" data-avp-pe="1"></span></div></div>';
+      '<div class="avp' + (avs.painel.semNav ? " sem-nav" : "") + '" data-avp-corpo="1"></div><div class="avp-rodape"><span class="avp-pe" data-avp-pe="1"></span></div></div>';
     ligarBarraDoPainel(caixa);
     caixa.querySelector("[data-avp-fechar]").onclick = fecharAvisosNaInicio;
+    /* Mostrar ou ocultar a coluna das categorias: vale ate o programa fechar. */
+    caixa.querySelector("[data-avp-nav]").onclick = (ev) => {
+      const b = ev.currentTarget;
+      avs.painel.semNav = !avs.painel.semNav;
+      caixa.querySelector("[data-avp-corpo]").classList.toggle("sem-nav", avs.painel.semNav);
+      b.classList.toggle("ligado", !avs.painel.semNav);
+      b.setAttribute("aria-pressed", String(!avs.painel.semNav));
+      b.title = avs.painel.semNav ? "Mostrar as categorias" : "Ocultar as categorias";
+    };
     if (animacoesLigadas()) entraConteudo(caixa.firstElementChild);
   }
   desenharPainelDeAvisos(caixa.firstElementChild);

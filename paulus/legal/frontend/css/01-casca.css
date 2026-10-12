@@ -254,7 +254,7 @@
     display: flex; align-items: center; height: 34px; padding-left: 15.2px; margin-bottom: 8px; flex: none;
   }
   .menu-cabeca img { display: none; }
-  .menu-cabeca span { font: 500 20px/1 var(--sans); letter-spacing: .02em; white-space: nowrap; }
+  .menu-cabeca span { font: 400 20px/1 var(--serif); letter-spacing: .02em; white-space: nowrap; }
   .menu-item {
     position: relative; display: flex; align-items: center; gap: 13px; height: 36px; flex: none; width: 100%;
     border: none; border-radius: 8px; background: none; padding: 0 12px;

@@ -27,6 +27,13 @@ function guardar(chave, valor) {
 prof.escolhido = lerGuardado("paulus.profundidade", "");
 prof.perguntar = lerGuardado("paulus.perguntar_antes", "1") !== "0";
 
+/* Os nomes que a pessoa ve (pedido de 11/10/2026): o servidor ainda manda os
+   cargos; aqui eles viram Baixo, Medio, Alto, Max e Ultra. */
+const NOME_DO_NIVEL = { estagiario: "Baixo", bacharel: "Médio", advogado: "Alto", juiz: "Max", ministro: "Ultra" };
+function renomearNiveis(lista) {
+  (lista || []).forEach((n) => { const id = n.id || n.nivel; if (NOME_DO_NIVEL[id]) n.nome = NOME_DO_NIVEL[id]; });
+  return lista;
+}
 function nivelAtual() {
   const id = prof.escolhido || prof.padrao;
   // O nivel guardado que o plano nao tem mais (bloqueado) volta ao padrao.
@@ -40,7 +47,7 @@ function nivelAtual() {
 function desenharPilulaProfundidade() {
   const s = (typeof nuvemTela !== "undefined" && nuvemTela.situacao) || null;
   const p = s && s.profundidade;
-  if (p && p.niveis) { prof.niveis = p.niveis; prof.padrao = p.padrao || "advogado"; }
+  if (p && p.niveis) { prof.niveis = renomearNiveis(p.niveis); prof.padrao = p.padrao || "advogado"; }
   let b = document.getElementById("pilula-profundidade");
   if (!s || !s.ligada || !prof.niveis.length) { if (b) b.remove(); fecharMenuProfundidade(); return; }
   if (!b) {

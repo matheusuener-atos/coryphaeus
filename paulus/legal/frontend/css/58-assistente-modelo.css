@@ -1,0 +1,635 @@
+/* Configuracoes › Assistente e modelo, versao nuvem (js/99-assistente-modelo.js). */
+
+/* As escolhas de uma so: linhas de cartao com o circulo a esquerda, o custo a
+   direita. A escolhida ganha o fio cheio. */
+.ia-opcoes { display: grid; gap: 6px; }
+.ia-opcao {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px;
+    background: var(--bg); box-shadow: none; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+}
+.ia-opcao:hover:not(:disabled) { border-color: var(--ink-a25); background: var(--bg); color: var(--ink); }
+.ia-opcao.on { border-color: var(--ink); }
+.ia-opcao .duas-linhas { flex: 1; min-width: 0; }
+.ia-opcao b { font: 600 14px var(--sans); }
+.ia-opcao small { font: 400 13px/1.5 var(--sans); color: var(--ink2); white-space: normal; }
+.ia-radio { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-a25); position: relative; }
+.ia-opcao.on .ia-radio { border-color: var(--ink); }
+.ia-opcao.on .ia-radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--ink); }
+.ia-lado { flex: none; font: 400 12px var(--mono); color: var(--ink3); font-variant-numeric: tabular-nums; }
+.ia-selo { margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 500 11px var(--sans); color: var(--ink2); vertical-align: 1px; }
+.ia-opcao.travada { opacity: .5; cursor: not-allowed; }
+
+/* O plano: nome, creditos em monoespaco e a barra fina do mes. */
+.ia-plano { display: grid; gap: 10px; }
+.ia-plano-linha { display: flex; align-items: baseline; gap: 12px; }
+.ia-plano-linha b { flex: 1; font: 400 20px/1.2 var(--serif); }
+.ia-plano-linha .mono { font: 400 12px var(--mono); color: var(--ink2); font-variant-numeric: tabular-nums; }
+.ia-barra { height: 4px; border-radius: 2px; background: var(--fill2); overflow: hidden; }
+.ia-barra i { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
+
+.ia-reserva { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; margin-bottom: 4px; }
+
+/* O avancado: uma linha que abre, no fim do cartao. */
+.ia-avancado { margin-top: 12px; border-top: 1px solid var(--ink-a08); }
+.ia-avancado > summary { display: flex; align-items: center; gap: 12px; padding: 12px 0 2px; list-style: none; cursor: pointer; }
+.ia-avancado > summary::-webkit-details-marker { display: none; }
+.ia-avancado > summary .duas-linhas { flex: 1; min-width: 0; }
+.ia-avancado > summary b { font: 600 13px var(--sans); }
+.ia-avancado > summary small { font: 400 12px var(--sans); color: var(--ink3); white-space: normal; }
+.ia-avancado > summary .ic { color: var(--ink3); transition: rotate .2s ease; }
+.ia-avancado[open] > summary .ic { rotate: 180deg; }
+.ia-avancado-corpo { padding-top: 14px; display: grid; gap: 14px; }
+/* Fora de cartao, o avancado da chave fica como um cartao leve. */
+.cfg-tela .sv-medida > .ia-avancado, .cfg-corpo .ia-avancado:not(.cfg-cartao .ia-avancado) {
+    margin-top: 0; padding: 4px 18px 14px; border: 1px solid var(--ink-a1); border-radius: 12px;
+}
+html.sem-animacao .ia-avancado > summary .ic { transition: none; }
+
+/* Os selos de seguranca da nuvem: etiquetas neutras, em monoespaco. */
+.ia-selos { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 2px; }
+.ia-selos span { padding: 3px 8px; border: 1px solid var(--ink-a1); border-radius: 6px; font: 400 11px var(--mono); letter-spacing: .04em; color: var(--ink2); }
+
+/* O Baixar dos modelos de voz: icone e texto na mesma linha, altura dos
+   botoes do sistema (32 px), sem quebrar. */
+.cfg-voz .cfg-modelo > button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; white-space: nowrap; align-self: center; }
+.cfg-voz .cfg-modelo > button .ic { font-size: 16px; width: 16px; height: 16px; }
+
+/* "Usar a minha propria chave": o avancado fora dos cartoes tem a cara de um
+   cartao da tela (mesmo fundo, fio e sombra), e o cartao da nuvem que mora
+   dentro dele perde a propria caixa - nada de cartao dentro de cartao. */
+.cfg-secao > .ia-avancado {
+    margin-top: 0; padding: 4px 20px 16px; border: 1px solid var(--ink-a1) !important; border-radius: 12px;
+    background: var(--cartao-fundo); box-shadow: var(--elev-card);
+}
+.cfg-secao > .ia-avancado > summary { padding: 14px 0 10px; }
+.cfg-secao > .ia-avancado > summary b { font: 600 14px var(--sans); }
+.ia-avancado .cfg-cartao { border: none !important; background: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
+.ia-avancado .cfg-cartao > .cfg-cartao-cabeca { padding: 0 0 10px; border-bottom: 1px solid var(--ink-a08); margin-bottom: 12px; }
+.ia-avancado .cfg-cartao > .cfg-cartao-cabeca > span { font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
+.ia-avancado .cfg-cartao > .cfg-cartao-corpo { padding: 0 !important; }
+.ia-avancado-corpo { border-top: 1px solid var(--ink-a08); }
+
+/* Dentro do avancado da chave: menos ar entre as linhas e o seletor de
+   provedor numa largura de controle, nao meia tela. */
+.ia-avancado .cfg-cartao-corpo { display: grid; gap: 10px; }
+.ia-avancado .cfg-cartao-corpo select { max-width: 260px; justify-self: end; }
+.ia-avancado .cfg-cartao-corpo p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
+.ia-avancado .linha-form { display: flex; align-items: center; gap: 8px; width: 100%; }
+.ia-avancado .linha-form > input { flex: 1 1 auto; min-width: 0; width: auto; max-width: none; }
+.ia-avancado .linha-form > button { flex: none; white-space: nowrap; }
+
+/* Abertura da secao: o texto numa linha so e o mesmo respiro (24 px) ate o
+   primeiro cartao que os cartoes tem entre si. */
+.cfg-tela [data-cfg-aberta="assistente"] .sv-resumo-topo { padding-bottom: 8px; }
+
+/* A chave propria: provedor, chave e termo como linhas de formulario com o
+   mesmo respiro, sem o fio que espremia a linha da chave contra o provedor. */
+.ia-avancado .cfg-linhas { display: grid; gap: 14px; }
+.ia-avancado .cfg-servico { padding: 0 !important; border-bottom: none !important; }
+.ia-avancado .linha-form { padding: 0; border: none; margin: 0; }
+.ia-avancado .cfg-linhas > * + * { border-top: none !important; }
+
+/* A janela Planos (js/99-planos.js): a pagina paulus.ia.br/assinatura dentro
+   do programa. Tres colunas, o escolhido com fio claro e fundo um tom acima;
+   o verde e o do site (--okt / --okbg) - Recomendado, os checks e o
+   "tudo do plano X, e mais". */
+.veu-dialogo .dialogo:has(.pln-grade), .veu-dialogo .dialogo:has(.pln-espera) { width: min(1240px, calc(100vw - 48px)) !important; max-width: none !important; }
+.veu-dialogo .dialogo:has(.pln-grade) { max-height: calc(100vh - 48px); }
+.veu-dialogo .dialogo:has(.pln-grade) .dialogo-corpo { overflow-y: auto; }
+.veu-dialogo .dialogo:has(.pln-grade) .dialogo-pe { display: none; }
+.pln-topo { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.pln-kicker { flex: 1; font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+.pln-periodo { display: flex; gap: 2px; padding: 4px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+.pln-periodo button { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: none; box-shadow: none; font: 500 13px var(--sans); color: var(--ink2); cursor: pointer; }
+.pln-periodo button:hover:not(:disabled) { background: none; border: none; color: var(--ink); }
+.pln-periodo button.ativa { background: var(--fill2); color: var(--ink); font-weight: 600; }
+.pln-periodo em { font: 600 12px var(--mono); font-style: normal; color: var(--okt); }
+.pln-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+@media (max-width: 900px) { .pln-grade { grid-template-columns: minmax(0, 1fr); } }
+.pln-col { position: relative; display: flex; flex-direction: column; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--bg); cursor: pointer; outline: none; }
+.pln-col:hover { border-color: var(--ink-a25); }
+.pln-col.on { border-color: var(--ink-a25); background: var(--cartao-fundo); }
+.pln-col:focus-visible { box-shadow: 0 0 0 2px var(--ink); }
+.pln-faixa { position: absolute; top: -1px; right: 16px; padding: 3px 10px; border-radius: 0 0 6px 6px; background: var(--okt); color: var(--bg); font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.pln-cab { display: flex; align-items: center; gap: 8px; padding: 26px 22px 0; }
+.pln-cab b { flex: 1; font: 600 16px var(--sans); }
+.pln-atual { padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 500 11px var(--sans); color: var(--ink2); }
+.pln-col .ia-radio { width: 16px; height: 16px; }
+.pln-col.on .ia-radio { border-color: var(--ink); }
+.pln-col.on .ia-radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--ink); }
+.pln-preco { display: flex; align-items: baseline; gap: 8px; padding: 14px 22px 0; }
+.pln-preco b { font: 600 40px/1 var(--sans); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.pln-preco span { font: 400 13px var(--sans); color: var(--ink2); }
+.pln-ano { margin: 6px 22px 0; font: 400 12px var(--sans); color: var(--ink3); }
+.pln-frase { margin: 12px 22px 18px; font: 400 14px/1.5 var(--sans); color: var(--ink2); }
+.pln-numeros { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--ink-a1); border-bottom: 1px solid var(--ink-a1); }
+.pln-numeros > div { display: grid; gap: 2px; padding: 14px 22px; }
+.pln-numeros > div + div { border-left: 1px solid var(--ink-a1); }
+.pln-numeros b { font: 600 15px var(--sans); }
+.pln-numeros small { font: 400 12px var(--sans); color: var(--ink3); }
+.pln-herda { display: flex; justify-content: center; padding: 12px 0; border-bottom: 1px solid var(--ink-a08); }
+.pln-herda span { padding: 3px 10px; border-radius: 6px; background: var(--okt); color: var(--bg); font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.pln-lista { flex: 1; margin: 0; padding: 0; list-style: none; }
+.pln-lista li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 22px; border-bottom: 1px solid var(--ink-a08); font: 400 13px/1.5 var(--sans); color: var(--ink); }
+.pln-ok { flex: none; display: inline-flex; margin-top: 4px; color: var(--okt); }
+.pln-breve { margin-left: 6px; font: 400 11px var(--mono); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); white-space: nowrap; }
+.pln-pe { display: grid; gap: 10px; padding: 18px 22px 22px; }
+.pln-marca { font: 400 12px var(--mono); color: var(--ink3); }
+.pln-pe button { height: 42px; border-radius: 8px; font: 600 14px var(--sans); }
+.pln-escolher { background: none; border: 1px solid var(--ink-a25); color: var(--ink); }
+.pln-escolher:hover:not(:disabled) { background: var(--fill); border-color: var(--ink-a25); }
+.pln-assinar { background: var(--ink) !important; border-color: var(--ink) !important; color: var(--bg) !important; }
+.pln-nota { margin: 16px 0 0; font: 400 12px/1.6 var(--sans); color: var(--ink3); text-align: center; text-wrap: pretty; }
+.pln-espera { display: grid; justify-items: center; gap: 10px; padding: 48px 12px 32px; text-align: center; }
+.pln-espera b { font: 400 24px/1.2 var(--serif); }
+.pln-espera p { margin: 0; max-width: 440px; font: 400 14px/1.65 var(--sans); color: var(--ink2); }
+.pln-giro { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ink-a1); border-top-color: var(--ink); animation: pln-gira .9s linear infinite; }
+@keyframes pln-gira { to { rotate: 360deg; } }
+html.sem-animacao .pln-giro { animation-duration: 1.6s; }
+
+/* Configuracoes usa a largura toda da coluna: sem a medida de 1080 px, que
+   deixava uma faixa vazia dos dois lados. O texto corrido continua com a
+   medida de leitura dentro dos cartoes. */
+.cfg-tela .sv-medida { max-width: none !important; }
+.cfg-tela .cfg-corpo { grid-template-columns: 240px minmax(0, 1fr); gap: 40px; }
+.cfg-tela .cfg-explica, .cfg-tela .cfg-texto, .cfg-tela .sv-resumo-corpo { max-width: 78ch; }
+
+/* Sem o "Planos" repetido: o Por mes | Por ano fica sozinho, a direita, numa
+   linha so; e os paragrafos da coluna ganham o recuo de 22 px (o corpo do
+   dialogo zerava a margem deles). */
+.pln-topo { justify-content: flex-end; }
+.pln-periodo button { white-space: nowrap; }
+#veu-dialogo .pln-col .pln-frase { margin: 12px 22px 18px; }
+#veu-dialogo .pln-col .pln-ano { margin: 6px 22px 0; }
+#veu-dialogo .pln-nota-upgrade { margin-top: 6px; color: var(--ink2); }
+
+/* A nota do pe em letra miuda, um paragrafo so; e a janela sem rolagem de
+   lado (a grade cabe na largura). */
+#veu-dialogo .pln-nota { margin: 14px auto 0; max-width: 900px; font: 400 11px/1.55 var(--sans); color: var(--ink3); }
+.veu-dialogo .dialogo:has(.pln-grade) .dialogo-corpo { overflow-x: hidden; }
+
+/* O aviso do Ollama ausente: o quadro do Drive ausente, dentro do avancado. */
+.ia-sem-ollama { justify-items: center; text-align: center; padding: 18px 12px 6px; }
+.ia-sem-ollama .cfg-botoes { justify-content: center; }
+
+/* Planos, mais compacto (pedido de 11/10/2026): a janela na medida do site,
+   tipos e respiros menores, a lista mais justa. */
+.veu-dialogo .dialogo:has(.pln-grade), .veu-dialogo .dialogo:has(.pln-espera) { width: min(980px, calc(100vw - 48px)) !important; }
+.pln-grade { gap: 12px; }
+.pln-topo { margin-bottom: 10px; }
+.pln-periodo button { height: 28px; padding: 0 12px; font-size: 12px; }
+.pln-faixa { font-size: 10px; padding: 2px 8px; }
+.pln-cab { padding: 18px 16px 0; }
+.pln-cab b { font-size: 14px; }
+.pln-preco { padding: 10px 16px 0; gap: 6px; }
+.pln-preco b { font-size: 28px; }
+.pln-preco span { font-size: 12px; }
+#veu-dialogo .pln-col .pln-ano { margin: 4px 16px 0; font-size: 11px; }
+#veu-dialogo .pln-col .pln-frase { margin: 8px 16px 12px; font-size: 12.5px; }
+.pln-numeros > div { padding: 10px 16px; }
+.pln-numeros b { font-size: 13px; }
+.pln-numeros small { font-size: 11px; }
+.pln-herda { padding: 8px 0; }
+.pln-herda span { font-size: 10px; padding: 2px 8px; }
+.pln-lista li { padding: 6px 16px; font-size: 12px; gap: 8px; }
+.pln-ok { margin-top: 3px; }
+.pln-breve { font-size: 10px; }
+.pln-pe { padding: 12px 16px 16px; gap: 8px; }
+.pln-pe button { height: 36px; font-size: 13px; }
+#veu-dialogo .pln-col .pln-frase { min-height: calc(2 * 1.5em); line-height: 1.5; }
+
+/* A lhama do Ollama num quadrado branco de cantos redondos. */
+.ia-sem-ollama .ia-marca-ollama { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 14px; background: var(--google-fundo) !important; border: none; box-shadow: none; }
+.ia-marca-ollama img { height: 34px; width: auto; display: block; }
+
+/* Os botoes do avancado da chave no tamanho dos outros botoes da tela (28 px,
+   recuo 18, canto 7); o campo da chave acompanha a altura. */
+.ia-avancado .linha-form > button, .ia-avancado .cfg-cartao-corpo button.com-icone { height: 28px; padding: 0 18px; border-radius: 7px; font-size: 13px; }
+.ia-avancado .linha-form > input { height: 32px; border-radius: 8px; }
+
+/* Meus dados › Socios: cada socio um bloco com o avatar, o nome e os campos. */
+.mdd-socio { display: grid; gap: 12px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--ink-a08); }
+.mdd-socio-cab { display: flex; align-items: center; gap: 12px; }
+.mdd-socio-cab b { flex: 1; min-width: 0; font: 600 14px var(--sans); }
+.mdd-socio-cab .cad-avatar { width: 36px; height: 36px; font-size: 13px; }
+
+/* Conexoes: o Vincular conta Google no botao do pos-instalacao (.bv-acesso
+   .acesso-pe, 31-acesso.css) - 40 px, trilho com pastilha por dentro. */
+[data-cx-vincular-google] { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; height: auto !important; padding: 3px 25px !important; border-radius: 11px !important; background: var(--surf) !important; border: 1px solid var(--ink-a1) !important; box-shadow: none !important; font: 600 13px var(--sans); color: var(--ink); }
+[data-cx-vincular-google]::before { content: ""; position: absolute; inset: 3px; border-radius: 8px; background: var(--fill2); z-index: -1; transition: background .12s; }
+[data-cx-vincular-google]:hover:not(:disabled) { border-color: var(--ink-a2) !important; }
+[data-cx-vincular-google]:hover:not(:disabled)::before { background: var(--pastilha-sobre); }
+[data-cx-vincular-google] svg { width: 18px; height: 18px; }
+/* Fotografar e assistentes de fora: sem o fio de cima do primeiro bloco. */
+[data-cartao="fotografar-e-assistentes-de-fora"] > .cfg-cartao-corpo > .cfg-sub:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+
+/* Nota fiscal no molde do emissor do site (js/99-nfse-emissor.js). */
+.nfv { display: grid; gap: 16px; }
+.nfv-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nfv-barra .visoes { margin-right: auto; }
+.nfv-barra .visoes button, .nfv-filtros .visoes button { white-space: nowrap; }
+.nfv-amb { padding: 5px 10px; border: 1px solid var(--ink-a1); border-radius: 8px; font: 500 12px var(--mono); color: var(--warnt); white-space: nowrap; }
+.nfv .cfg-cartao-cabeca > span:first-child { font: 500 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--ink3); }
+.nfv-cert-linha { display: flex; align-items: center; gap: 8px; }
+.nfv-cert-linha input[type="password"] { flex: 1; min-width: 0; max-width: 100%; height: 32px; }
+.nfv-arquivo { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--ink-a1); border-radius: 8px; background: var(--botao-fundo); font: 500 13px var(--sans); color: var(--ink); cursor: pointer; white-space: nowrap; max-width: 260px; }
+.nfv-arquivo span { overflow: hidden; text-overflow: ellipsis; }
+.nfv-arquivo input { display: none; }
+.nfv-arquivo:hover { background: var(--fill); }
+.nfv-kvs { display: grid; }
+.nfv-kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--ink-a08); }
+.nfv-kv:first-child { border-top: none; }
+.nfv-kv span { font: 400 13px var(--sans); color: var(--ink3); }
+.nfv-kv b { font: 500 13px var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.nfv-kv b.erro { color: var(--acc); }
+.nfv-alerta { display: flex; align-items: center; gap: 8px; margin: 0; font: 400 13px var(--sans); color: var(--warnt); }
+.nfv-duas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .nfv-duas { grid-template-columns: minmax(0, 1fr); } }
+.nfv-tabela { display: grid; }
+.nfv-linha { display: grid; grid-template-columns: 110px minmax(0, 1.6fr) minmax(0, 1fr) 120px 150px; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--ink-a08); font: 400 13px var(--sans); }
+.nfv-linha.nfv-cab { border-top: none; padding-top: 0; font-size: 12px; color: var(--ink3); }
+.nfv-linha b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nfv-linha .mono { font: 400 12px var(--mono); color: var(--ink2); }
+.nfv-dir { text-align: right; }
+.nfv-sit { display: inline-flex; align-items: center; gap: 6px; font: 400 12px var(--mono); color: var(--ink2); }
+.nfv-sit i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink3); }
+.nfv-sit.emitida i, .nfv-sit.autorizada i { background: var(--okt); }
+.nfv-sit.rascunho i, .nfv-sit.pendente i { background: var(--warnt); }
+.nfv-sit.cancelada { color: var(--ink3); }
+.nfv-linha.nfv-cli { grid-template-columns: minmax(0, 1.4fr) 170px minmax(0, 1.4fr) auto; }
+.nfv-falta { color: var(--warnt); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nfv-ok { color: var(--okt); font-size: 12px; }
+.nfv-vazio { margin: 0; padding: 20px 0 6px; text-align: center; font: 400 13px var(--sans); color: var(--ink3); }
+.nfv-filtros { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nfv-busca { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--ink-a1); border-radius: 10px; background: var(--campo-fundo); color: var(--ink3); }
+.nfv-busca input { flex: 1; min-width: 0; max-width: 100%; border: none; background: none; outline: none; font: 400 13px var(--sans); color: var(--ink); height: 100%; padding: 0; }
+.nfv-grade { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.nfv-grade .nfv-largo { grid-column: 1 / -1; }
+.nfv-arquivo { max-width: none; flex: none; }
+.nfv-arquivo span { overflow: visible; }
+.nfv-chaves .cfg-campos { gap: 0 !important; }
+.nfv-chaves .ag-toggle { padding: 12px 0; border-top: 1px solid var(--ink-a08); }
+.nfv-chaves .ag-toggle:first-child { border-top: none; padding-top: 0; }
+.nfv-chaves .ag-toggle:last-child { padding-bottom: 0; }
+/* Tabelas da Nota fiscal: o Cliente leva o espaco; colunas fixas so no que e
+   curto; abaixo de 640 px a linha empilha. */
+.nfv-linha { grid-template-columns: 76px minmax(120px, 2fr) 74px minmax(90px, auto) minmax(104px, auto); }
+.nfv-linha.nfv-cli { grid-template-columns: minmax(140px, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; }
+.nfv-linha > * { min-width: 0; }
+@container (max-width: 640px) { .nfv-linha, .nfv-linha.nfv-cli { grid-template-columns: minmax(0, 1fr) auto; } .nfv-linha.nfv-cab { display: none; } }
+.nfv-tabela { container-type: inline-size; }
+/* Os botoes com icone de 90-nfse.js (word-acoes) sem a classe com-icone:
+   icone e rotulo lado a lado, como os outros. */
+.nfv .word-acoes > button, .nfv .cfg-botoes > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* O relatorio do mes da nota fiscal. */
+.veu-dialogo .dialogo.dialogo-nota:has(.nfr) { width: min(720px, calc(100vw - 48px)) !important; max-width: none !important; }
+.dialogo:has(.nfr) .dialogo-corpo { overflow-x: hidden; }
+.dialogo:has(.nfr) .dialogo-pe { flex-wrap: nowrap; gap: 8px; }
+.dialogo:has(.nfr) .dialogo-pe button:not(.botao-icone) { white-space: nowrap; }
+.nfr { display: grid; gap: 16px; }
+.nfr-contagem { display: flex; gap: 18px; font: 400 13px var(--sans); color: var(--ink2); }
+.nfr-contagem b { font-weight: 600; color: var(--ink); }
+.nfr-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; background: var(--ink-a08); }
+.nfr-kv { display: grid; gap: 2px; padding: 10px 14px; background: var(--cartao-fundo); }
+.nfr-kv span { font: 400 12px var(--sans); color: var(--ink3); }
+.nfr-kv b { font: 500 14px var(--mono); font-variant-numeric: tabular-nums; color: var(--ink2); }
+.nfr-kv.forte b { color: var(--ink); font-weight: 600; }
+.nfr-recebido { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--ink-a1); border-radius: 10px; overflow: hidden; background: var(--ink-a08); }
+.nfr-ok { display: flex; align-items: center; gap: 8px; margin: 0; font: 400 13px var(--sans); color: var(--okt); }
+.nfr-avisos { font: 400 13px/1.5 var(--sans); }
+.nfr-avisos ul { margin: 6px 0 0; padding-left: 18px; }
+.nfr-notas { display: grid; }
+.nfr-nota { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--ink-a08); font: 400 13px var(--sans); }
+.nfr-nota b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nfr-nota .mono { font: 400 12px var(--mono); color: var(--ink2); }
+
+/* A zona de arrastar arquivo, dentro do cartao. */
+.arq-zona { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px dashed var(--ink-a2); border-radius: 10px; background: var(--campo-fundo); color: var(--ink3); transition: border-color .15s, background .15s; }
+.arq-zona.sobre { border-color: var(--ink-a25); background: var(--fill); }
+.arq-zona.tem { border-style: solid; border-color: var(--ink-a25); }
+.arq-zona b { font: 600 13px var(--sans); color: var(--ink); }
+.arq-zona small { font: 400 12px var(--sans); color: var(--ink3); }
+.arq-zona small .sv-ligacao { font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.nfv-cert-linha { margin-top: 2px; }
+#pa-migalhas { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+#pa-migalhas button { white-space: nowrap; }
+/* Os botoes herdados de 90-nfse.js (word-acoes) na medida dos outros
+   botoes da Nota fiscal: mesma altura, recuo e raio do .com-icone. */
+.nfv .word-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.nfv .word-acoes > button { height: 32px; padding: 0 12px; border-radius: 8px; font: 500 13px var(--sans); }
+.nfv .word-acoes > button .ic { flex: none; }
+.arq-zona { cursor: pointer; }
+.arq-zona:hover { border-color: var(--ink-a25); background: var(--fill); }
+.arq-zona:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.arq-zona .arq-link { color: var(--ink); text-decoration: none; }
+/* A linha da senha na largura toda do cartao: o campo estica, o botao fica no fim. */
+.nfv-cert-linha { display: flex; width: 100%; gap: 8px; }
+.nfv-cert-linha input[type="password"] { flex: 1 1 auto; width: auto; max-width: none; min-width: 0; }
+.nfv-cert-linha > button { flex: none; height: 32px; }
+/* O certificado da NFS-e no desenho da Assinatura (.as-solta, 14-assinar.css). */
+.arq-zona.nfv-solta { display: grid; justify-items: center; gap: 6px; padding: 22px 18px; text-align: center; border: 1px dashed var(--ink-a15); border-radius: 12px; background: none; }
+.arq-zona.nfv-solta:hover, .arq-zona.nfv-solta.sobre { border-color: var(--ink-a25); background: var(--fill); }
+.arq-zona.nfv-solta.tem { border-style: solid; }
+.nfv-solta > span[data-arq-nome] { font: 500 14px var(--sans); color: var(--ink); }
+.nfv-solta small { font: 500 12px var(--sans); color: var(--ink3); }
+.nfv-solta .as-solta-acoes { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+.nfv-solta .as-solta-acoes button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; white-space: nowrap; }
+
+/* Folga para os dois botoes nao quebrarem linha por arredondamento de fonte. */
+.as-solta-acoes { box-sizing: content-box; padding-inline: 12px; max-width: calc(100% - 24px); }
+/* Na Nota fiscal o texto dos cartoes vai na largura toda do cartao. */
+#cfg-tela .nfv .cfg-cartao-corpo > :is(p, .cfg-explica, .cfg-texto) { max-width: none; }
+
+/* A lista de notas no padrao da lista de conversas. */
+.nfv-lista { margin: -16px -18px; }
+.nfv-lista .lc-linha:last-child { border-bottom: none; }
+.nfv-nome.lc-nome-linha { grid-template-columns: minmax(0, 1.6fr) 120px 90px minmax(0, 110px); }
+.nfv-valor { justify-content: flex-end; font-variant-numeric: tabular-nums; color: var(--ink2); }
+.nfv-menu .ic { margin-right: 8px; color: var(--ink2); }
+.nfv-menu button { display: flex; align-items: center; }
+.nfv-nota:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+/* Os dois botoes do certificado numa linha; empilham so em caixa estreita. */
+.as-solta { container-type: inline-size; }
+.as-solta .as-solta-acoes { flex-wrap: nowrap; }
+@container (max-width: 520px) { .as-solta .as-solta-acoes { flex-direction: column; align-items: center; } }
+
+/* A nota aberta na lista, sem pop-up. */
+.nfv-detalhe { display: grid; gap: 12px; padding: 4px 16px 16px 44px; border-bottom: 1px solid var(--ink-a08); background: var(--sub); }
+.nfv-detalhe .cfg-botoes { flex-wrap: wrap; gap: 8px; }
+.nfv-detalhe .cfg-botoes button.perigo { color: var(--acc); }
+.lc-linha.nfv-nota:has(+ .nfv-detalhe) { background: var(--sub); border-bottom-color: transparent; }
+
+/* Lista de notas mais limpa: cliente e, embaixo, numero e mes; a direita o
+   valor e a situacao em texto com ponto - sem icones nem etiquetas. */
+.nfv-nota { display: grid !important; grid-template-columns: minmax(0, 1fr) 120px 110px 32px; gap: 16px; padding: 12px 16px; }
+.nfv-quem { display: grid; gap: 2px; min-width: 0; }
+.nfv-quem b { font: 500 14px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nfv-quem small { font: 400 12px var(--mono); color: var(--ink3); }
+.nfv-nota .nfv-valor { text-align: right; font: 500 13px var(--sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+.nfv-nota .nfv-sit { font: 400 12px var(--sans); color: var(--ink2); }
+.nfv-nota[data-estado="cancelada"] .nfv-quem b, .nfv-nota[data-estado="cancelada"] .nfv-valor { color: var(--ink3); }
+.nfv-nota .lc-mais { opacity: 0; transition: opacity .12s; }
+.nfv-nota:hover .lc-mais, .nfv-nota:focus-within .lc-mais, .nfv-nota:has(+ .nfv-detalhe) .lc-mais { opacity: 1; }
+.nfv-detalhe { padding: 4px 16px 16px; }
+.nfv-detalhe, .lc-linha.nfv-nota:has(+ .nfv-detalhe) { background: var(--fill); }
+
+/* Ultimas notas: o "Ver todas" no pe do cartao. */
+.nfv-ver-todas { display: flex; justify-content: center; padding-top: 14px; margin-top: 16px; }
+/* A tela das notas emitidas. */
+.nfv-todas-cab { display: flex; align-items: center; gap: 10px; }
+.nfv-todas-cab h2 { margin: 0; font: 400 22px/1.2 var(--serif); }
+.nfv-filtros .nfv-filtro { width: 200px; flex: none; }
+.nfv-filtros .nfv-filtro select { height: 36px; }
+.nfv-tela-todas .cfg-cartao-cabeca > span:first-child { letter-spacing: .2em; }
+
+/* Notas emitidas: datas, paginas. */
+.nfv-datas { display: flex; align-items: center; gap: 8px; flex: none; }
+.nfv-datas .ag-campo { width: 150px; }
+.nfv-datas > span { font: 400 13px var(--sans); color: var(--ink3); }
+.nfv-paginas { display: flex; align-items: center; gap: 10px; padding-top: 14px; margin-top: 16px; border-top: 1px solid var(--ink-a08); }
+.nfv-paginas .cresce { flex: 1; }
+.nfv-pag-conta, .nfv-pag-num { font: 400 12px var(--mono); color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nfv-por-pag { width: 150px; }
+.nfv-por-pag select { height: 32px; }
+.nfv-tela-todas .nfv-filtros, .nfv .nfv-filtros:has(.nfv-datas) { flex-wrap: nowrap; }
+.nfv-filtros:has(.nfv-datas) .nfv-busca { min-width: 160px; }
+.nfv-filtros:has(.nfv-datas) .nfv-filtro { width: 180px; }
+.nfv-cal { width: 132px; height: 36px; justify-content: space-between; }
+.nfv-cal.vazio .escolha-rotulo { color: var(--ink3); }
+@media (max-width: 1100px) { .nfv .nfv-filtros:has(.nfv-datas) { flex-wrap: wrap; } }
+.nfv-datas .nfv-cal { width: 128px !important; flex: none; }
+.nfv-filtros:has(.nfv-datas) .nfv-busca { flex: 1 1 auto; }
+.nfv-filtros:has(.nfv-datas) .nfv-filtro { width: 170px; }
+
+/* O pe das ultimas notas: a faixa inteira e o link, colada na lista. */
+button.nfv-ver-todas { display: flex; align-items: center; justify-content: space-between; width: calc(100% + 36px); margin: 16px -18px -16px; padding: 0 18px; height: 44px;
+    border: none; border-top: 1px solid var(--ink-a08); border-radius: 0 0 12px 12px; background: none; box-shadow: none; font: 500 13px var(--sans); color: var(--ink2); cursor: pointer; }
+button.nfv-ver-todas:hover:not(:disabled) { background: var(--fill); color: var(--ink); border-color: var(--ink-a08); }
+button.nfv-ver-todas .ic { transition: translate .15s; }
+button.nfv-ver-todas:hover .ic { translate: 3px 0; }
+.nfv-amb-sub { color: var(--warnt); }
+.nfv-amb-sub.prod { color: var(--okt); }
+/* Clientes leva a Cadastros: o icone pequeno, alinhado ao texto. */
+.nfv-barra [data-nfv-aba="clientes"] { display: inline-flex; align-items: center; gap: 6px; }
+.nfv-barra [data-nfv-aba="clientes"] .ic { font-size: 14px !important; width: 14px; height: 14px; line-height: 1; color: var(--ink3); }
+.nfv-barra [data-nfv-aba="clientes"]:hover .ic { color: var(--ink); }
+.nfv-barra .nfv-sai { flex: none; color: var(--ink3); }
+.nfv-barra [data-nfv-aba="clientes"]:hover .nfv-sai { color: var(--ink); }
+
+/* Notas fiscais (Escritorio): titulo primeiro, as guias logo depois, a esquerda. */
+.conversa-col:has(#nf-tela) #conversa-topo > .conversa-nome { order: 1; flex: none; }
+.conversa-col:has(#nf-tela) #conversa-topo > #nav-tela { order: 2; margin-left: 16px; margin-right: auto; }
+.conversa-col:has(#nf-tela) #conversa-topo > #conversa-acoes { order: 3; }
+/* Guias a direita, depois Emitir nota, depois Testar comunicacao. */
+.conversa-col:has(#nf-tela) #conversa-topo > #nav-tela { margin-left: auto; margin-right: 0; }
+.conversa-col:has(#nf-tela) #conversa-acoes { display: flex; gap: 8px; }
+.conversa-col:has(#nf-tela) #acoes-tela { display: flex; gap: 8px; }
+/* Todas as telas cheias: a seta e o titulo a esquerda; as guias (#nav-tela) a direita, antes das acoes. */
+.conversa-col.tela-cheia #conversa-topo > #voltar { order: 0; }
+.conversa-col.tela-cheia #conversa-topo > .conversa-nome { order: 1; flex: 1 0 auto; min-width: max-content; }
+.conversa-col.tela-cheia #conversa-topo > #nav-tela { order: 2; margin-left: auto; margin-right: 0; }
+.conversa-col.tela-cheia #conversa-topo > #conversa-acoes { order: 3; }
+/* Uma altura so no cabecalho: as abas, os botoes e o nivel da Estante, 36 px. */
+.conversa-col.tela-cheia #acoes-tela > button, .conversa-col.tela-cheia #acoes-tela > * > button, .conversa-col.tela-cheia #acoes-tela .busca-tela { height: 36px; min-height: 36px; box-sizing: border-box; }
+.conversa-col.tela-cheia #acoes-tela .visoes > button, .conversa-col.tela-cheia #nav-tela .visoes > button { height: auto; min-height: 0; }
+.conversa-col:has(#nf-tela) [data-nf-ir-emitir] { order: -1; }
+
+/* Emitidas no molde de Recebidas (cartao sv-secao + nf-tabela). */
+.nfv-emitidas .nfv-filtros { padding: 12px 16px 4px; }
+.nfv-tabela-em tbody tr.nfv-nota { cursor: pointer; }
+.nfv-tabela-em tbody tr.nfv-nota:hover td, .nfv-tabela-em tr.nfv-nota.aberta td { background: var(--fill); }
+.nfv-tabela-em tr.nfv-nota[data-estado="cancelada"] td:not(:nth-child(5)) { color: var(--ink3); }
+.nfv-tabela-em .nfv-tomador { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.nfv-tabela-em .nf-acoes { width: 1%; text-align: right; }
+.nfv-tabela-em .lc-mais { opacity: 0; }
+.nfv-tabela-em tr.nfv-nota:hover .lc-mais, .nfv-tabela-em tr.nfv-nota.aberta .lc-mais, .nfv-tabela-em tr.nfv-nota:focus-within .lc-mais { opacity: 1; }
+.nfv-tabela-em tr.nfv-det-linha > td { padding: 0 !important; border-bottom: 1px solid var(--ink-a08); }
+.nfv-tabela-em .nfv-detalhe { background: var(--fill); padding: 6px 16px 16px; border-bottom: none; }
+.nfv-emitidas .nfv-paginas { padding: 10px 16px 12px; }
+.nfv-emitidas > .nfv-vazio { padding: 24px 16px; }
+/* A tabela de Emitidas: linhas de tabela (nao a grade da lista antiga), e a
+   rolagem dela so de lado - senao o "rolagem na borda" a toma pela da tela. */
+.nfv-tabela-em tr.nfv-nota { display: table-row !important; padding: 0; }
+.nfv-emitidas .nf-rolagem { overflow-y: hidden; }
+.nfv-emitidas .nfv-filtros { display: grid !important; grid-template-columns: 190px minmax(0, 1fr) 210px; gap: 10px; align-items: center; height: auto; }
+.nfv-emitidas .nfv-filtros > .nfv-busca { grid-column: 1 / -1; }
+.nfv-emitidas .nfv-filtros > .nfv-filtro { width: auto; }
+.nfv-emitidas .nfv-datas { display: grid !important; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.nfv-tabela-em th, .nfv-tabela-em td { padding-left: 12px !important; padding-right: 12px !important; }
+.nfv-tabela-em th:first-child, .nfv-tabela-em td:first-child { padding-left: 16px !important; }
+.nfv-tabela-em .nfv-tomador { max-width: 200px; }
+.nfv-tabela-em td:first-child, .nfv-tabela-em td.nf-num, .nfv-tabela-em td.nf-valor { white-space: nowrap; }
+@media (max-width: 760px) { .nfv-emitidas .nfv-filtros { grid-template-columns: minmax(0, 1fr); } }
+.nfv-emitidas .nfv-datas > * { min-width: 0; width: 100% !important; max-width: none !important; }
+.nfv-emitidas .nfv-datas > span { width: auto !important; }
+.nfv-tabela-em .nfv-tomador { max-width: 180px; }
+/* Emitidas sem a barra de lado: colunas fixas, o Tomador corta com reticencias. */
+.nfv-tabela-em { table-layout: fixed; width: 100%; }
+.nfv-tabela-em th:nth-child(1) { width: 18%; }
+.nfv-tabela-em th:nth-child(2) { width: 15%; }
+.nfv-tabela-em th:nth-child(4) { width: 15%; }
+.nfv-tabela-em th:nth-child(5) { width: 14%; }
+.nfv-tabela-em th:nth-child(6) { width: 12%; }
+.nfv-tabela-em th:nth-child(7) { width: 48px; }
+.nfv-tabela-em td { overflow: hidden; text-overflow: ellipsis; }
+.nfv-tabela-em .nfv-tomador { max-width: none; }
+.nfv-tabela-em tr.nfv-det-linha > td { overflow: visible; }
+/* Recebidas: Download e XML com icone e texto centrados na vertical. */
+.nf-tabela td { vertical-align: middle; }
+.nf-tabela .nf-acoes { white-space: nowrap; }
+.nf-tabela .nf-acoes > div, .nf-tabela .nf-acoes { line-height: 1; }
+.nf-tabela .nf-acoes button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; vertical-align: middle; line-height: 1; }
+.nf-tabela .nf-acoes button .ic { display: block; }
+
+/* O certificado digital em Conexoes. */
+.cfx-cert .as-cartao { border: none; background: none; padding: 0; box-shadow: none; }
+.cfx-cert .as-cartao-topo { display: none; }
+.cfx-cert .as-rolagem { overflow: visible; max-height: none; padding: 0; }
+.cfx-selo-corpo #selo-painel { display: grid; gap: 10px; min-height: 186px; align-content: start; }
+.cfx-selo-corpo #selo-painel .selo-solta { min-height: 186px; }
+.cfx-selo-corpo #selo-painel .ag-chips.selo-campos { margin-top: 0; }
+.cfx-selo-corpo #selo-painel .as-explica { margin: 0; }
+.ag-chips.selo-campos { margin-top: 8px; }
+.ag-chips.selo-campos button { height: 26px; padding: 0 10px; gap: 4px; font: 500 11px var(--mono); letter-spacing: .08em; }
+.cfx-abas { align-self: flex-start; justify-self: start; width: auto; margin-bottom: 4px; }
+.cfx-abas button { display: inline-flex; align-items: center; gap: 6px; }
+.cfx-selo .cfg-cartao-corpo { container-type: inline-size; }
+.cfx-selo-corpo { display: grid; grid-template-columns: minmax(290px, 4fr) minmax(0, 5fr) minmax(220px, 3fr); grid-template-rows: auto; gap: 14px 20px; align-items: start; }
+.cfx-selo-corpo .as-selo-caixa { grid-column: 1; grid-row: 1; align-self: stretch; margin: 0; padding: 20px 16px; min-height: 150px; align-items: center; background: var(--google-fundo); border-color: var(--papel-linha); }
+.cfx-selo-corpo .as-selo-escala { transform: none; zoom: 1.15; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.08); }
+.cfx-selo-corpo .as-painel-miolo { grid-column: 2; grid-row: 1; padding: 0; gap: 10px; }
+.cfx-selo-corpo .as-abas-selo button { flex-direction: row; gap: 6px; padding: 6px 10px; min-height: 0; }
+.cfx-selo-corpo .selo-solta { padding: 14px; min-height: 0; gap: 4px; }
+.cfx-selo-corpo .selo-tela-caixa canvas { max-height: 120px; }
+.cfx-selo-corpo .painel-bloco, .cfx-selo-corpo .painel-bloco:first-child { grid-column: 3; grid-row: 1; padding: 0 0 0 20px; border-top: none; border-left: 1px solid var(--ink-a1); align-self: stretch; gap: 8px; }
+.cfx-selo-corpo .painel-bloco .as-duas-colunas { grid-template-columns: minmax(0, 1fr); }
+.cfx-selo-corpo .painel-chaves { grid-column: 1; grid-row: 2; padding: 0; border-top: none; }
+.cfx-assinaturas { padding: 0; border-top: none; }
+.cfx-selo-corpo .as-painel-rodape { grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 10px 0 0; }
+@container (min-width: 661px) and (max-width: 900px) {
+    .cfx-selo-corpo { grid-template-columns: minmax(280px, 1fr) minmax(0, 1fr); }
+    .cfx-selo-corpo .painel-bloco, .cfx-selo-corpo .painel-bloco:first-child { grid-column: 1 / -1; grid-row: 2; padding: 12px 0 0; border-left: none; border-top: 1px solid var(--ink-a1); }
+    .cfx-selo-corpo .painel-bloco .as-duas-colunas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cfx-selo-corpo .as-painel-rodape { grid-row: 3; }
+}
+@container (max-width: 660px) {
+    .cfx-selo-corpo { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+    .cfx-selo-corpo > * , .cfx-selo-corpo .painel-bloco:first-child { grid-column: 1 !important; grid-row: auto !important; }
+    .cfx-selo-corpo .as-selo-escala { zoom: 1; }
+}
+.cfx-usos { display: grid; gap: 8px; }
+.cfx-aponta { display: flex; align-items: center; gap: 12px; }
+.cfx-aponta > .ic { color: var(--ink2); }
+.cfx-aponta .duas-linhas { flex: 1; min-width: 0; }
+.cfx-aponta button { white-space: nowrap; }
+
+/* Configuracoes: a sidebar fixa nao forca rolagem quando a secao e curta. */
+.cfg-tela .sv-principal { padding-bottom: 32px; }
+/* A ficha das secoes com estado: um ponto na cor do estado antes do valor. */
+.cfg-ficha .sv-ficha-item b.cfg-st { display: flex; align-items: center; gap: 8px; }
+/* No E-mail a Conta e um botao de 32 px: os outros valores ficam na mesma altura, centrados na linha dele. */
+#ex-resumo .sv-ficha-item > :last-child { min-height: 32px; display: flex; align-items: center; }
+#ex-resumo .sv-ficha-item b.cfg-st > .sv-ficha-pasta { padding: 0; min-height: 0; height: auto; }
+.cfg-ficha .sv-ficha-item b.cfg-st::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--ink3); }
+.cfg-ficha .sv-ficha-item b.cfg-st.ok { color: var(--ink); }
+.cfg-ficha .sv-ficha-item b.cfg-st.ok::before { background: var(--okt); }
+.cfg-ficha .sv-ficha-item b.cfg-st.acc::before { background: var(--acc); }
+.cfg-ficha .sv-ficha-item > .sv-ficha-pasta { height: auto; min-height: 0; padding: 0; justify-self: start; display: flex; align-items: center; line-height: inherit; }
+
+/* Acoes de uma secao fora do cartao, acima dele, a direita. */
+.cfg-acoes-topo { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-bottom: -4px; }
+.cfg-acoes-topo button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Um .cfg-sub logo no inicio do cartao nao precisa do fio de cima. */
+.cfg-cartao-corpo > .cfg-sub:first-child { border-top: none; padding-top: 0; }
+/* Os interruptores agrupados (Biblioteca › Como a biblioteca trabalha). */
+.cfg-grupos-chaves { display: grid; gap: 18px; }
+.cfg-grupo-chaves { display: grid; gap: 10px; }
+.cfg-grupo-chaves + .cfg-grupo-chaves { padding-top: 16px; border-top: 1px solid var(--ink-a08); }
+#cfg-leis-botoes:empty { display: none; }
+
+/* A amostra do tema: o fundo nao passa por baixo da borda (sumia a linha clara no canto). */
+.cfg-tema > span:first-child { border-color: transparent; box-shadow: inset 0 0 0 1px var(--ink-a1); }
+.cfg-tema.claro > span:first-child, .cfg-tema.escuro > span:first-child, .cfg-tema.auto > span:first-child { background-origin: border-box; background-repeat: no-repeat; background-clip: border-box; }
+
+/* Caderno de falhas: numeros com icone no lugar dos emojis. */
+.apr-n { display: inline-flex; align-items: center; gap: 6px; }
+.apr-n.ok .ic, .apr-n.ok svg { color: var(--okt); }
+.apr-n.ruim .ic, .apr-n.ruim svg { color: var(--acc); }
+.apr-n svg { flex: none; }
+small .apr-n { vertical-align: -3px; gap: 3px; }
+.apr-conta-linha b.apr-n { justify-content: flex-end; }
+
+/* Servicos: a busca e os filtros numa barra acima dos cartoes. */
+.sv-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.sv-filtros .busca-tela { flex: 1 1 260px; max-width: 420px; width: auto; }
+.sv-filtros .nfv-filtro { margin: 0; }
+.busca-tela input[type=search], .busca-tela input:not([type]) { flex: 1; min-width: 0; max-width: 100%; height: 100%; padding: 0; border: none; border-radius: 0; background: none; box-shadow: none; outline: none; font: 400 13px var(--sans); color: var(--ink); -webkit-appearance: none; appearance: none; }
+/* Agenda › Tarefas: lista sem nome. */
+.ag-sem-nome { color: var(--ink3); font-style: italic; }
+
+/* Andamentos no DataJud: a tela no desenho de Configuracoes. */
+.pr-secao { display: flex; flex-direction: column; gap: 16px; }
+.pr-secao > * { flex: none; }
+.pr-secao .pr-lista { border-top: none; }
+.pr-secao .pr-linha:last-child { border-bottom: none; }
+
+/* Novo/Editar processo: a equipe em linhas, com a responsavel marcada. */
+.dialogo-servico .sv-d-pessoas { max-height: 240px; border: 1px solid var(--ink-a1); border-radius: 10px; padding: 4px; }
+.dialogo-servico .sv-d-pessoa { display: flex; align-items: center; gap: 10px; }
+.dialogo-servico .sv-d-pessoa .duas-linhas { flex: 1; min-width: 0; }
+.dialogo-servico .sv-d-pessoa .duas-linhas small { font-weight: 400; color: var(--ink3); }
+.dialogo-servico .sv-d-papel { flex: none; display: inline-flex; }
+.sv-d-dica { display: block; margin-top: 6px; }
+
+/* Servicos: periodo e paginas. */
+.sv-paginas { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--ink-a08); font-size: 13px; color: var(--ink3); }
+.sv-paginas-nums { display: flex; align-items: center; gap: 4px; }
+.sv-paginas-nums button:not(.botao-icone) { min-width: 32px; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--ink2); font: 500 13px var(--sans); }
+.sv-paginas-nums button.ativa { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.sv-paginas-reti { padding: 0 4px; }
+.sv-paginas-por { display: inline-flex; align-items: center; gap: 6px; }
+.sv-paginas-por select { height: 30px; }
+
+/* Processos: o conteudo na largura do cabecalho (voltar ate o ultimo botao). */
+#sv-tela:not(.sv-pasta-aberta) .acervo-principal > :is(.sv-filtros, #sv-lista, .barra-selecao) { max-width: none; }
+
+/* Telas cheias: o conteudo ocupa a largura do cabecalho (da seta de voltar ao ultimo botao). */
+.conversa-col.tela-cheia .sv-medida, .conversa-col.tela-cheia :is(#agenda, #sv-tela, #gv-tela, #be-tela) > .acervo-principal > * { max-width: none; }
+
+/* Processos na aba do Servico. */
+.pr-aba-liga { padding: 12px 16px; border-bottom: 1px solid var(--ink-a08); }
+.pr-aba-lista { border-top: none; padding: 0 12px; }
+.pr-aba-vazio, .pr-aba-dica { margin: 12px 16px 8px; }
+.pr-aba-lista + .pr-aba-dica { border-top: 1px solid var(--ink-a08); margin: 0; padding: 12px 16px 8px; }
+
+/* Sem rolagem (pagina curta), o rolador nao ganha o recuo da borda: some o recuo lateral para ficar na largura do cabecalho. */
+.conversa-col.tela-cheia .sv-principal:not([data-rola-borda]) { padding-left: 0; padding-right: 0; }
+.pr-aba-novo { padding: 12px 16px 0; }
+.pr-aba { display: flex; flex-direction: column; gap: 16px; }
+.pr-aba > * { flex: none; }
+.pr-aba-vazio { margin: 12px 16px 0; }
+.pr-aba-novo { padding: 12px 16px 10px; justify-content: flex-end; }
+
+/* Aba Cliente: os cartoes um embaixo do outro, sem encavalar. */
+.acp-aba { display: flex; flex-direction: column; gap: 16px; }
+.acp-aba > * { flex: none; }
+.acp-aba .acp-plano { margin: 12px 16px 8px; }
+.acp-regras ol { margin: 12px 16px 6px; padding-left: 20px; display: grid; gap: 8px; font-size: 13px; line-height: 1.55; color: var(--ink2); }
+
+/* O detalhe do processo: mais largo, com as movimentacoes legiveis. */
+.dialogo.pr-dialogo { width: min(880px, calc(100vw - 48px)); max-width: none; }
+.pr-dialogo .pr-movs { max-height: 52vh; }
+
+/* Gravacoes: a tabela rola com a pagina (sem rolagem dentro dela). */
+#gv-tela.sem-painel .gv-lista { overflow: visible; max-height: none; flex: none; }
+#gv-tela.sem-painel .gv-lista .tabela-corpo { overflow: visible; max-height: none; flex: none; }
+#gv-tela.sem-painel .acervo-principal > .sv-filtros { margin-bottom: 0; }
+.gv-principal { display: flex; flex-direction: column; gap: 16px; overflow-x: hidden; }
+.gv-principal > * { flex: none; }
+
+/* Agenda: a grade das horas rola so na vertical; os botoes da lista de tarefas viram icones. */
+.ag-rolagem { overflow-x: hidden; }
+.ag-tar-acoes { display: flex; gap: 4px; }

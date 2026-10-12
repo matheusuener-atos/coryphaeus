@@ -55,14 +55,26 @@
   /* ------------------------------------------------ o painel da tela inicial */
   /* Abaixo da caixa de pedido, com o mesmo respiro da lista de conversas
      que ele substitui - nunca encostado na caixa. */
-  .av-painel-inicio { width: 100%; margin-top: 28px; }
+  /* Na medida da caixa de pedido (1080), alinhado a ela. */
+  .av-painel-inicio { width: 100%; max-width: var(--fio); margin: 16px auto 0; align-self: center; }
   .avp-rodape { display: flex; align-items: center; min-height: 48px; padding: 8px 16px; border-top: 1px solid var(--ink-a1); }
   .avp-cartao { display: grid; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 12px; box-shadow: var(--elev-card); overflow: hidden; }
   .avp-cabeca { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--ink-a1); }
   .avp-conta { font: 500 12px var(--sans); color: var(--ink3); }
   .avp-busca { width: 266px; height: 34px; }
   .avp-periodos { flex: none; }
-  .avp { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
+  .avp { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; transition: grid-template-columns .42s cubic-bezier(.16,1,.3,1); }
+  /* O botao do canto esquerdo da cabeca oculta a coluna das categorias; a
+     lista ocupa a largura toda. Ligado (coluna a vista), fica marcado. */
+  /* A coluna recolhe andando: a largura vai de 250 a 0 na curva do menu, e
+     o conteudo dela esmaece antes, para nao aparecer espremido. */
+  .avp > .avp-nav { overflow: hidden; min-width: 0; transition: opacity .22s ease, border-color .3s ease, visibility 0s; }
+  .avp > .avp-nav > * { min-width: 250px; }
+  .avp.sem-nav { grid-template-columns: 0px minmax(0, 1fr); transition-duration: .32s; transition-timing-function: cubic-bezier(.55,0,.45,1); }
+  .avp.sem-nav > .avp-nav { opacity: 0; visibility: hidden; border-right-color: transparent; transition: opacity .16s ease, border-color .2s ease, visibility 0s linear .32s; }
+  html.sem-animacao .avp, html.sem-animacao .avp > .avp-nav { transition: none; }
+  .avp-alternar-nav { margin-left: -6px; color: var(--ink3); }
+  .avp-alternar-nav.ligado { color: var(--ink); }
   .avp-nav { display: grid; align-content: start; border-right: 1px solid var(--ink-a08); padding: 0 0 12px; }
   .avp-tipo {
     display: flex; align-items: center; gap: 10px; width: 100%; height: 45px; padding: 0 16px; border: none; border-radius: 0;

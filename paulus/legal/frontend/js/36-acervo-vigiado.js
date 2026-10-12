@@ -127,10 +127,13 @@ function raizesDoAcervo() {
   const vigiadas = ((bib.vigiadas || {}).pastas) || [];
   const raizes = new Map(vigiadas.map((v) => [v.caminho, Object.assign({}, v, { mapa: new Map() })]));
   bib.todos.forEach((x) => {
-    const chave = x.raiz || x.pasta;
+    // Sem a raiz informada, as subpastas de um mesmo nome de topo (Clientes ›
+    // Priscila, Clientes › Fornecedor A) ficam juntas numa raiz só.
+    const topo = (x.pasta_curta || x.pasta).split(" › ")[0];
+    const chave = x.raiz || "topo:" + topo;
     let r = raizes.get(chave);
     if (!r) {
-      r = { caminho: chave, nome: (x.pasta_curta || x.pasta).split(" › ")[0], programa: false, mapa: new Map() };
+      r = { caminho: x.raiz || topo, nome: topo, programa: false, mapa: new Map() };
       raizes.set(chave, r);
     }
     const folha = (x.pasta_curta || "").split(" › ").slice(1).join(" › ");

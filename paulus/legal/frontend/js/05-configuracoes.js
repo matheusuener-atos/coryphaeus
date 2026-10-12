@@ -28,6 +28,7 @@ const CFG_SECOES = [
   ["modelos", "Modelos", "Os modelos de linguagem desta máquina: baixe, troque o padrão, meça cada um e diga qual faz cada tarefa. O motor é o Ollama, aqui mesmo."],
   ["desempenho", "Desempenho", "Medido nesta máquina a cada dois segundos. O gráfico mostra o último minuto."],
   ["conexoes", "Conexões", "Os serviços que saem desta máquina. Nada sai sem a sua aprovação, a não ser o que você liberar em Limites da IA ou ligar aqui, como a Agenda sincronizada com o Google."],
+  ["certificado", "Certificado digital", "O certificado A1 do escritório, o selo que vai nos PDFs e onde ele é usado. O arquivo e a senha ficam nesta máquina e nunca são enviados."],
   ["nfse", "Nota fiscal", "Emitir NFS-e pelo Padrão Nacional com o certificado A1 do escritório. Desligado de fábrica; cada nota passa por Aprovações, e o Paulus aplica a configuração do escritório sem fazer planejamento tributário."],
   ["word", "Word", "O PAVLVS dentro do Word: o painel confere citações, insere lei e qualificação e responde sobre o documento. Desligado de fábrica; o texto do documento vai só para este Paulus."],
   ["acesso", "Acesso externo", "Usar o Paulus deste computador de casa ou do celular. Desligado de fábrica: só o escritório liga, e só daqui."],
@@ -127,6 +128,8 @@ async function carregarSecao() {
     cfg.cx = cx; cfg.contas = contas; cfg.cert = cert; cfg.acoes = (acoes && acoes.acoes) || [];
     await carregarGoogle();
     await carregarChaves();
+  } else if (cfg.secao === "certificado") {
+    cfg.cert = await pega("/api/certificado");
   } else if (cfg.secao === "aprendizado") {
     await carregarChaves();
     const [hab, ctx, material, mapa] = await Promise.all([pega("/api/habilidades"), pega("/api/contextos"), pega("/api/material"),
@@ -179,6 +182,7 @@ function desenharConfig() {
   else if (cfg.secao === "modelos") secao = secaoModelos();
   else if (cfg.secao === "desempenho") secao = secaoDesempenho();
   else if (cfg.secao === "conexoes") secao = secaoConexoes();
+  else if (cfg.secao === "certificado" && typeof secaoCertificado === "function") secao = secaoCertificado();
   else if (cfg.secao === "vinculos") secao = secaoVinculos();
   else if (cfg.secao === "aprendizado") secao = secaoAprendizado();
   else if (cfg.secao === "aparencia") secao = secaoAparencia();
@@ -198,8 +202,8 @@ function desenharConfig() {
   const topo = antes && antes.dataset.cfgAberta === cfg.secao ? antes.scrollTop : 0;
   $("centro").innerHTML = '<div class="acervo sem-painel cfg-tela" id="cfg-tela">' +
     '<div class="acervo-principal sv-principal" data-cfg-aberta="' + cfg.secao + '"><div class="sv-medida"><div class="cfg-corpo">' +
-    '<nav class="cfg-menu">' + menu + '<span class="cfg-risco"></span>' +
-    '<button class="cfg-item cfg-item-manual" data-cfg-manual="1">' + ic("description", 16) + "Manual do sistema</button></nav>" +
+    // "Manual do sistema" saiu do sumario (11/10/2026).
+    '<nav class="cfg-menu">' + menu + "</nav>" +
     '<div class="cfg-secao">' + secao + "</div></div></div></div></div>";
   const rolagem = document.querySelector("#cfg-tela .sv-principal");
   if (rolagem) rolagem.scrollTop = topo;
@@ -207,7 +211,7 @@ function desenharConfig() {
   atualizarPostura();
   if (cfg.secao === "desempenho") comecarMedicao();
   if (cfg.secao === "plano") ligarAtualizacao($("cfg-tela"));
-  if (cfg.secao === "assistente") blocoLeis();
+  if (cfg.secao === "assistente" || cfg.secao === "aprendizado") blocoLeis();
   if (cfg.secao === "feedback" && typeof blocoCaderno === "function") blocoCaderno();
 }
 
@@ -305,7 +309,7 @@ function secaoPerfil() {
     // Vinculado a conta Google (E5): o e-mail e o do Google, so para ler; o de
     // contato vai no secundario.
     (vinculoGoogle.email
-      ? campoCfg("pessoa.email", "E-mail Google (a conta vinculada)", vinculoGoogle.email, "", ' readonly title="muda em Escritório e equipe › Conta Google"') + "</div>" +
+      ? campoCfg("pessoa.email", "E-mail da conta Atos", vinculoGoogle.email, "", ' readonly title="o e-mail vinculado à sua conta Atos"') + "</div>" +
         campoCfg("pessoa.email_secundario", "E-mail secundário (opcional)", p.email_secundario, "outro e-mail de contato", atributosDoCampo("email"))
       : campoCfg("pessoa.email", "E-mail", p.email, "", atributosDoCampo("email")) + "</div>") +
     campoCfg("pessoa.endereco", "Endereço profissional", p.endereco) + "</div>";
@@ -319,8 +323,7 @@ function secaoPerfil() {
     '<button data-cfg-marca="logo">' + ic("upload", 16) + (logo.tem ? "Trocar logo" : "Enviar logo") + "</button>" +
     (logo.tem ? '<button data-cfg-marca-tirar="logo">' + ic("close", 16) + "Remover</button>" : "") +
     '<span class="cfg-explica">vai no alto do papel timbrado</span></div></div>' +
-    // O CNPJ digitado preenche o nome com a razao social da Receita (js/39-campos.js).
-    '<div class="cfg-campos" data-cnpj-grupo="1">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos", marcaCnpj("razao_social")) +
+    '<div class="cfg-campos">' + campoCfg("escritorio.nome", "Nome do escritório", e.nome, "como aparece nos recibos") +
     '<div class="ag-duas">' + campoCfg("escritorio.cnpj", "CNPJ", formatarCnpj(e.cnpj || ""), "00.000.000/0001-00", atributosDoCampo("cnpj")) + campoCfg("escritorio.oab", "OAB da sociedade", e.oab, "GO 0000") + "</div>" +
     campoCfg("escritorio.rodape", "Rodapé dos documentos", e.rodape, "OAB/GO 00000 · Goiânia · GO") + "</div>" +
     '<p class="cfg-explica">O nome entra nos recibos da folha. CNPJ, OAB e rodapé ficam guardados; nenhum documento os usa ainda.</p>';
@@ -557,13 +560,13 @@ function secaoAssistente() {
   const voz = ((cfg.voz || {}).modelos || []).find((m) => m.nome === (cfg.voz || {}).modelo);
   const ficha = fichaCfg([
     ["Modelo", r.modelo || "nenhum"],
-    ["Ollama", ligado ? "conectado" : "desligado", ligado ? "sv-valor-concluido" : "cfg-mudo"],
-    ["Índice", plural(s.contratos || 0, "documento") + " · " + plural(s.trechos || 0, "trecho")],
+    ["Ollama", ligado ? "conectado" : "desligado", ligado ? "" : "cfg-mudo"],
+    ["Índice", plural(s.contratos || 0, "documento") + " · " + plural(s.trechos || 0, "trecho").replace(/^(\d+)/, (n) => Number(n).toLocaleString("pt-BR"))],
     ["Voz", voz ? voz.rotulo : "—"],
   ]);
 
   return aberturaCfg() + ficha +
-    cartaoCfg("Modelo de linguagem", pontoCfg(ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ligado ? "ok" : ""), modelo) +
+    cartaoCfg("Modelo de linguagem", pontoCfg(ligado ? "Ollama conectado" : (s.mensagem || "Ollama desligado"), ""), modelo) +
     cartaoCfg("Limites da IA", metaCfg("o que o assistente faz sem pedir"), limites) +
     cartaoCfg("Modelo de voz", metaCfg("transcreve as gravações"), cartaoDaVozCfg()) +
     (typeof cartaoChavesConversa === "function" ? cartaoChavesConversa() : "") +
@@ -588,8 +591,13 @@ async function blocoLeis() {
         : '<button data-cfg-baixar-lei="' + esc(c.codigo) + '" title="' + esc(c.fonte) + '">' + ic("download", 16) + "Baixar do Planalto</button>") +
       "</div>").join("") + "</div>" +
     '<p class="cfg-explica">' + esc(d.como_baixar) + "</p>" +
-    '<div class="cfg-botoes"><button data-cfg-lei-pasta="1">' + ic("folder_open", 16) + "Importar de uma pasta</button>" +
-    '<button data-cfg-lei-arquivo="1">' + ic("upload", 16) + 'Escolher um arquivo</button></div><div id="lei-saida"></div></div>';
+    '<div id="lei-saida"></div></div>';
+  // Os botoes de importar: a direita, no fim do cartao (abaixo do MCP, quando ele esta junto).
+  const botoesLei = '<div class="cfg-botoes cfg-botoes-fim"><button class="com-icone" data-cfg-lei-arquivo="1">' + ic("upload", 16) + "Escolher um arquivo</button>" +
+    '<button class="com-icone" data-cfg-lei-pasta="1">' + ic("folder_open", 16) + "Importar de uma pasta</button></div>";
+  const lugarLei = $("cfg-leis-botoes");
+  if (lugarLei) lugarLei.innerHTML = botoesLei; else alvo.insertAdjacentHTML("beforeend", botoesLei);
+  const raizLei = alvo.closest(".cfg-cartao") || alvo;
 
   alvo.querySelectorAll("[data-cfg-tirar-lei]").forEach((b) => {
     b.onclick = async () => {
@@ -611,7 +619,7 @@ async function blocoLeis() {
       blocoLeis();
     };
   });
-  alvo.querySelector("[data-cfg-lei-pasta]").onclick = async () => {
+  raizLei.querySelector("[data-cfg-lei-pasta]").onclick = async () => {
     const pasta = await escolherPastaDoSistema("Pasta com os códigos salvos do Planalto");
     if (!pasta) return;
     const saida = $("lei-saida");
@@ -620,7 +628,7 @@ async function blocoLeis() {
     if (!r.ok) { saida.innerHTML = '<p class="cfg-explica">' + esc(await erroDe(r)) + "</p>"; return; }
     mostrarResultadoDaImportacao(await r.json());
   };
-  alvo.querySelector("[data-cfg-lei-arquivo]").onclick = async () => {
+  raizLei.querySelector("[data-cfg-lei-arquivo]").onclick = async () => {
     const caminho = await perguntar({ titulo: "Importar um código do Planalto", contexto: "Configurações › Códigos de lei", campo: { rotulo: "Caminho do arquivo HTML salvo", placeholder: "C:\\Users\\você\\Downloads\\L10406compilada.htm", icone: "description" }, confirmar: "Importar" });
     if (!caminho) return;
     const saida = $("lei-saida");
@@ -797,7 +805,6 @@ function secaoConexoes() {
   return aberturaCfg() +
     cartaoCfg("Serviços", "", lista) +
     cartaoGoogle() +
-    cartaoUmbrel() +
     cartaoCfg("O que saiu desta máquina", metaCfg("últimas 24 horas"), registro);
 }
 
@@ -977,11 +984,20 @@ function conversaPronta(d) {
 function secaoVinculos() {
   const p = (cfg.rascunho || {}).pessoa || {};
   const e = (cfg.rascunho || {}).escritorio || {};
+  // "Conta Google deste Paulus" saiu (11/10/2026); "O escritório" foi para Acesso externo.
+  void p; void e;
+  return aberturaCfg() + (typeof cartaoDaEquipeCfg === "function" ? cartaoDaEquipeCfg() : "");
+}
+
+/* O escritorio e o tunel: a equipe entra neste Paulus de fora. Mora em
+   Configuracoes › Acesso externo. */
+function cartaoEscritorioCfg() {
+  const p = (cfg.rascunho || {}).pessoa || {};
+  const e = (cfg.rascunho || {}).escritorio || {};
   const maquina = '<div class="cfg-maquina">' + ic("desktop_windows", 18) + '<span class="duas-linhas"><b>' + esc(p.nome || "Você") + "</b>" +
-    "<small>responsável · o servidor do escritório" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
-    '<p class="cfg-explica">A equipe não instala o Paulus: cada pessoa recebe um convite, entra com a conta Google dela e liga o Google Authenticator no próprio celular. O que cada uma vê e faz se escolhe em Permissões.</p>';
-  return aberturaCfg() + (typeof cartaoDoVinculo === "function" ? cartaoDoVinculo() : "") +
-    cartaoCfg("O escritório", metaCfg("servidor"), maquina) + (typeof cartaoDaEquipeCfg === "function" ? cartaoDaEquipeCfg() : "");
+    "<small>responsável · este computador é o Paulus do escritório" + (e.nome ? " · " + esc(e.nome) : "") + "</small></span></div>" +
+    '<p class="cfg-explica">A equipe não instala o Paulus. Cada pessoa recebe o convite por e-mail, vincula a conta Atos a esse e-mail e entra neste Paulus pelo túnel, de onde estiver. O que cada uma vê e faz se escolhe em Permissões.</p>';
+  return cartaoCfg("O escritório", metaCfg("acesso pelo túnel"), maquina);
 }
 
 /* O que a camada de inteligencia ja entendeu do acervo, e quanto isso esta
@@ -1060,11 +1076,13 @@ function secaoAprendizado() {
       '<div class="cfg-habs">' + habs + "</div>"
     : '<p class="cfg-texto">Não consegui ler o catálogo de habilidades.</p>';
 
+  const nMat = ((cfg.material || {}).itens || []).length;
+  const cheio = ctx.limite && ctx.caracteres >= ctx.limite;
   const ficha = fichaCfg([
-    ["Material", String(((cfg.material || {}).itens || []).length)],
-    ["Lembretes", String(itens.length)],
-    ["Em uso", ctx.caracteres + " de " + ctx.limite + " caracteres"],
-    ["Habilidades", String(total)],
+    ["Material", nMat ? (nMat === 1 ? "1 obra" : nMat + " obras") : "Nenhuma obra", nMat ? "cfg-st ok" : "cfg-st cfg-mudo"],
+    ["Lembretes", itens.length ? (itens.length === 1 ? "1 lembrete" : itens.length + " lembretes") : "Nenhum ainda", itens.length ? "cfg-st ok" : "cfg-st cfg-mudo"],
+    ["Espaço dos lembretes", Number(ctx.caracteres || 0).toLocaleString("pt-BR") + " de " + Number(ctx.limite || 0).toLocaleString("pt-BR") + " caracteres", cheio ? "cfg-st acc" : "cfg-st ok"],
+    ["Habilidades", total ? total + " prontas para usar" : "Nenhuma", total ? "cfg-st ok" : "cfg-st cfg-mudo"],
   ]);
 
   // A estante (o que eu sei, por área) e o material de consulta moram na
@@ -1072,7 +1090,7 @@ function secaoAprendizado() {
   // as habilidades.
   const estante = cartaoCfg("A estante", metaCfg("na tela Biblioteca"),
     '<p class="cfg-explica">Os livros, manuais e tabelas que eu consulto, por área, com a ficha de cada um, ficam na Biblioteca, no menu.</p>' +
-    '<div class="cfg-botoes"><button class="com-icone" data-cfg-estante="1">' + ic("menu_book", 16) + "Abrir a Biblioteca</button></div>");
+    '<div class="cfg-botoes"><button class="com-icone" data-cfg-estante="1">' + ic("menu_book", 16) + "Abrir a Biblioteca" + ic("arrow_forward", 16) + "</button></div>");
   return aberturaCfg() + ficha +
     estante +
     cartaoChavesBiblioteca() +
@@ -1126,23 +1144,21 @@ function secaoAparencia() {
     atalho("Fechar menus e painéis soltos", ["Esc"]) +
     atalho("Aprovar marcados, em Aprovações", ["Ctrl", "Enter"]) +
     atalho("Começar o ciclo de foco ou ir para a pausa", ["Ctrl", "Shift", "F"]) +
-    atalho("Assinar o documento aberto", ["Ctrl", "Shift", "S"]) + "</div>" +
-    '<p class="cfg-explica">Valem em qualquer tela, também com o cursor num campo. O editor de documentos salva sozinho, sem Ctrl+S.</p>';
+    atalho("Assinar o documento aberto", ["Ctrl", "Shift", "S"]) + "</div>";
 
   // Os avisos do Windows (src/avisos.py). A mesma chave que o interruptor da
   // tela de Foco muda; aqui ela segue o rascunho, como o resto da tela.
   const av = cfg.avisos || {};
   const r = cfg.rascunho || {};
   const avisos = av.disponivel
-    ? ligaCfg("avisos_windows", "Avisar no Windows", "a notificação no canto da tela e o Paulus piscando na barra de tarefas", Boolean(r.avisos_windows)) +
+    ? ligaCfg("avisos_windows", "Avisar no Windows", "notificação no canto da tela e o ícone piscando na barra de tarefas", Boolean(r.avisos_windows)) +
       /* Um interruptor por tipo, recuado sob o geral: desligar o geral cala todos. */
       (r.avisos_windows
         ? '<div class="cfg-avisos-tipos">' + (av.tipos || []).map((t) =>
             ligaCfg("avisos_tipos." + t.chave, t.rotulo, t.explica, ((r.avisos_tipos || {})[t.chave]) !== false)).join("") + "</div>"
         : "") +
-      '<p class="cfg-explica">Resposta, aprovação e transcrição só avisam quando o Paulus não está na frente. ' +
-      "Lembretes e o alerta de pausa, só no horário de trabalho" + (av.horario ? " (" + esc(av.horario) + ")" : "") + ".</p>" +
-      '<div class="cfg-botoes"><button data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Mandar um aviso de teste</button></div>"
+      '<p class="cfg-explica">Só avisa quando o Paulus não está na frente' + (av.horario ? "; lembretes, só no horário de trabalho (" + esc(av.horario) + ")" : "") + ".</p>" +
+      '<div class="cfg-botoes cfg-botoes-fim"><button class="com-icone" data-cfg-aviso-teste="1">' + ic("notifications", 16) + "Testar aviso</button></div>"
     : '<p class="cfg-texto">Os avisos só existem no Windows.</p>';
 
   // "Perguntar ao Paulus" no botao direito do Explorer (src/menu_explorer.py):
@@ -1198,7 +1214,7 @@ function secaoFeedback() {
     '<button class="primario com-icone" data-cfg-fb-enviar="1">' + marcaDoEmail(16) + "Escrever e-mail</button></div>";
   // L1: o caderno de falhas (js/63-aprendizado.js), só na janela do escritório.
   const caderno = typeof cartaoCaderno === "function" ? cartaoCaderno() : "";
-  return aberturaCfg() + caderno + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever);
+  return aberturaCfg() + cartaoCfg("Escrever", metaCfg("vai para " + FEEDBACK_PARA), escrever) + caderno;
 }
 
 /* Todo feedback vai para o endereço do projeto - o mesmo das páginas públicas. */
@@ -1243,8 +1259,10 @@ async function enviarFeedback() {
 /* --------------------------------------------------------------- versao */
 
 function secaoPlano() {
+  // "Desenvolvimento aberto" saiu (11/10/2026): sem a ideia de codigo aberto no sistema.
   return aberturaCfg() +
-    cartaoCfg("Versão e atualização", "", blocoAtualizacao());
+    cartaoCfg("Versão", "", blocoAtualizacao()) +
+    cartaoCfg("Atualizações", metaCfg("como a versão nova chega"), blocoAtualizacaoAuto());
 }
 
 /* ------------------------------------------------------------- lixeira */

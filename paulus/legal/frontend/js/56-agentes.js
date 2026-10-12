@@ -283,9 +283,17 @@ function desenharListaDeAgentes() {
   const so = agentesSoLeitura();
   $("conversa-titulo").textContent = "Agentes";
   $("nav-tela").innerHTML = "";
-  $("acoes-tela").innerHTML = "";
   const nivel = nivelDosAgentes(lista);
   const podeCriar = !so && agt.ligado;
+  // O nivel e os botoes sobem para a linha do titulo, a direita, como na Estante.
+  $("acoes-tela").innerHTML = '<div class="est-acoes"><div class="est-nivel" title="' + esc(nivel.longo) + '">' +
+    '<span class="est-anel" style="--graus:' + nivel.graus + 'deg"><b>' + nivel.feitos + "</b></span>" +
+    "<span><b>" + esc(nivel.nome) + "</b><small>" + esc(nivel.curto) + "</small></span></div>" +
+    (podeCriar
+      ? '<button type="button" class="com-icone est-pacote" data-agt-importar="1" title="Um AGENTE.md de fora">' + ic("upload", 16) + "Importar</button>" +
+        '<button type="button" class="com-icone est-pacote" data-agt-da-conversa="1">' + ic("forum", 18) + "De uma conversa</button>" +
+        '<button type="button" class="primario com-icone" data-agt-novo="1">' + ic("add", 18) + "Novo agente</button>"
+      : "") + "</div>";
   const feitos = Object.values(agt.feitos || {});
   const chaves = new Set(feitos.map((p) => p.chave));
   const passos = feitos.map((p) => ({ p: p, feito: true }))
@@ -295,16 +303,7 @@ function desenharListaDeAgentes() {
   if (so) avisos.push('<div class="agt-aviso" data-agt-so-leitura="1">' + ic("lan", 18) + "<span>" + esc(FRASE_AGENTES_SO_NO_ESCRITORIO) + " Daqui dá para ver cada agente e rodar os testes dele.</span></div>");
   const html =
     '<div class="est agt-equipe">' +
-    '<header class="est-cabeca"><div class="est-titulo"><h1>Monte a sua equipe</h1>' +
-    "<p>Cada agente é um especialista que você ensina uma vez, com o jeito do escritório. Ele entra na conversa quando o pedido combina com ele.</p></div>" +
-    '<div class="est-acoes"><div class="est-nivel" title="' + esc(nivel.longo) + '">' +
-    '<span class="est-anel" style="--graus:' + nivel.graus + 'deg"><b>' + nivel.feitos + "</b></span>" +
-    "<span><b>" + esc(nivel.nome) + "</b><small>" + esc(nivel.curto) + "</small></span></div>" +
-    (podeCriar
-      ? '<button type="button" class="com-icone est-pacote" data-agt-importar="1" title="Um AGENTE.md de fora">' + ic("upload", 16) + "Importar</button>" +
-        '<button type="button" class="com-icone est-pacote" data-agt-da-conversa="1">' + ic("forum", 18) + "De uma conversa</button>" +
-        '<button type="button" class="primario com-icone" data-agt-novo="1">' + ic("add", 18) + "Novo agente</button>"
-      : "") + "</div></header>" +
+
     avisos.join("") +
     '<div class="est-corpo">' +
     '<section class="est-estantes"><div class="est-estantes-cabeca"><span>Sua equipe</span>' +
@@ -340,10 +339,11 @@ function ligarListaDeAgentes(passos) {
   raiz.querySelectorAll("[data-agt-testar]").forEach((b) => { b.onclick = () => testarAgente(b.dataset.agtTestar); });
   const fechar = raiz.querySelector("[data-agt-fechar]");
   if (fechar) fechar.onclick = () => { agt.sel = ""; desenharListaDeAgentes(); };
-  raiz.querySelectorAll("[data-agt-novo]").forEach((b) => { b.onclick = () => novoAgente(); });
-  const conv = raiz.querySelector("[data-agt-da-conversa]");
+  const topoAcoes = $("acoes-tela");
+  [raiz, topoAcoes].forEach((r) => r && r.querySelectorAll("[data-agt-novo]").forEach((b) => { b.onclick = () => novoAgente(); }));
+  const conv = topoAcoes.querySelector("[data-agt-da-conversa]");
   if (conv) conv.onclick = () => escolherConversaParaAgente();
-  const imp = raiz.querySelector("[data-agt-importar]");
+  const imp = topoAcoes.querySelector("[data-agt-importar]");
   if (imp) imp.onclick = () => importarAgente();
   raiz.querySelectorAll("[data-agt-passo]").forEach((b) => {
     b.onclick = async () => {
@@ -736,12 +736,20 @@ function desenharEdicao() {
     avisos.push('<div class="agt-aviso">' + ic("history", 18) + "<span>Salvar guarda a versão " + agt.versaoBase + " como anterior (dá para ler em Versões) e grava a " +
       (agt.versaoBase + 1) + ". O formulário reescreve o cabeçalho: comentários escritos no markdown só ficam se você salvar pelo Markdown.</span></div>");
   }
-  const topo = migalhaDeAgentes("data-agt-cancelar", criando ? "Agentes" : (f.nome || agt.editando)) +
-    '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>' + titulo + "</h2>" +
-    '<span class="visoes agt-modos"><button data-agt-modo="formulario" class="' + (agt.modo === "formulario" ? "ativa" : "") + '">Formulário</button>' +
-    '<button data-agt-modo="markdown" class="' + (agt.modo === "markdown" ? "ativa" : "") + '">Markdown</button></span></div></header>';
+  /* O desenho das Configuracoes: o sumario das partes a esquerda, e a direita
+     o titulo em serifa, uma linha do que e, e um cartao por parte. Formulario
+     e Markdown sobem para o cabecalho, ao lado do Cancelar. */
+  $("acoes-tela").insertAdjacentHTML("afterbegin", '<span class="visoes agt-modos"><button data-agt-modo="formulario" class="' + (agt.modo === "formulario" ? "ativa" : "") + '">Formulário</button>' +
+    '<button data-agt-modo="markdown" class="' + (agt.modo === "markdown" ? "ativa" : "") + '">Markdown</button></span>');
+  const abertura = '<header class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>' + titulo + "</h2></div>" +
+    '<p class="sv-resumo-corpo">' + (criando
+      ? "Um especialista que você ensina uma vez, com o jeito do escritório. Ele entra na conversa quando o pedido combina com ele."
+      : "Salvar grava a versão " + (agt.versaoBase + 1) + " e guarda a " + agt.versaoBase + " em Versões.") + "</p></header>";
   const corpo = agt.modo === "markdown" ? blocoMarkdown() : blocoFormulario(f);
-  cascaAgentes(topo + avisos.join("") + corpo + '<div id="agt-validacao" class="agt-validacao">' + htmlDaValidacao() + "</div>");
+  // Sem o sumario lateral: o titulo, a linha do que e e o formulario num cartao so.
+  // O titulo da edicao fica no cabecalho da tela (Novo agente / o nome); aqui so o formulario.
+  $("conversa-titulo").textContent = criando ? "Novo agente" : (f.nome || agt.editando);
+  cascaAgentes('<div class="agt-edicao">' + avisos.join("") + corpo + '<div id="agt-validacao" class="agt-validacao" hidden></div></div>');
   ligarEdicao();
 }
 
@@ -792,7 +800,20 @@ function blocoFormulario(f) {
     "</div>";
 }
 
+/* Sem faixa de aviso: o que falta vai no title do botao Criar/Salvar, que fica desligado ate valer. */
+function motivoDaValidacao() {
+  const v = agt.validacao;
+  if (!v) return "conferindo…";
+  return v.valido ? "" : "Ainda não dá para salvar: " + String(v.erro || "").split("; ").join(" · ");
+}
+
 function htmlDaValidacao() {
+  const salvar = $("acoes-tela") && $("acoes-tela").querySelector("[data-agt-salvar]");
+  if (salvar) salvar.title = motivoDaValidacao();
+  return "";
+}
+
+function htmlDaValidacaoAntiga() {
   const v = agt.validacao;
   if (!v) return '<p class="nota">conferindo…</p>';
   if (!v.valido) {
@@ -824,7 +845,16 @@ function ligarEdicao() {
     salvar.disabled = !(agt.validacao && agt.validacao.valido);
   }
   const raiz = $("centro");
-  raiz.querySelectorAll("[data-agt-modo]").forEach((b) => { b.onclick = () => trocarModo(b.dataset.agtModo); });
+  $("acoes-tela").querySelectorAll("[data-agt-modo]").forEach((b) => { b.onclick = () => trocarModo(b.dataset.agtModo); });
+  // O sumario rola ate a parte, como nas Configuracoes, e marca a escolhida.
+  const rolagem = raiz.querySelector(".sv-principal");
+  raiz.querySelectorAll("[data-agt-parte]").forEach((b) => {
+    b.onclick = () => {
+      const alvo = raiz.querySelector('[data-cartao="' + b.dataset.agtParte + '"]');
+      raiz.querySelectorAll("[data-agt-parte]").forEach((x) => x.classList.toggle("ativa", x === b));
+      if (alvo && rolagem) rolagem.scrollTo({ top: alvo.offsetTop - 16, behavior: animacoesLigadas() ? "smooth" : "auto" });
+    };
+  });
   const md = $("agt-md");
   if (md) md.oninput = () => { agt.markdown = md.value; validarDepois(); };
   raiz.querySelectorAll("[data-agt-campo], [data-agt-ferr], [data-agt-teste-pergunta], [data-agt-teste-deve]").forEach((el) => {
@@ -885,7 +915,7 @@ async function validarEdicao() {
   const caixa = $("agt-validacao");
   if (caixa) caixa.innerHTML = htmlDaValidacao();
   const salvar = $("acoes-tela").querySelector("[data-agt-salvar]");
-  if (salvar) salvar.disabled = !v.valido;
+  if (salvar) { salvar.disabled = !v.valido; salvar.title = motivoDaValidacao(); }
 }
 
 async function trocarModo(modo) {

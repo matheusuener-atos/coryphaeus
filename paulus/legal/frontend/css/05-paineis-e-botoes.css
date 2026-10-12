@@ -3,8 +3,8 @@
      ainda nao construido. */
 
   .adiante-tela { max-width: 620px; display: grid; gap: 12px; }
-  .adiante-tela h2 { font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); margin: 0; }
-  .adiante-tela > p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--ink2); }
+  .adiante-tela h2 { font: 400 32px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); margin: 0; }
+  .adiante-tela > p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink2); }
   .precisa { border-top: 1px solid var(--ink-a1); padding-top: 16px; margin-bottom: 0; }
   .precisa .rotulo { display: block; margin-bottom: 10px; }
   .precisa ul { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 13px; }
@@ -23,7 +23,7 @@
   /* O avatar do assistente na fila: o .cad-avatar (32 px) com a marca da
      casa - o "P" em Garamond sobre a tinta, o mesmo do trilho. E a unica
      excecao ao avatar de iniciais. */
-  .avatar-p { background: var(--ink); color: var(--bg); font: 500 15px/1 var(--sans); }
+  .avatar-p { background: var(--ink); color: var(--bg); font: 500 17px/1 var(--serif); }
   .espera { font: 500 12px var(--sans); color: var(--ink3); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .acoes-linha.direita { justify-content: flex-end; }
   .papeis { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -119,7 +119,7 @@
      as outras areas de texto sao o campo do sistema (04-acervo.css). */
   .cartao-campo textarea {
     display: block; width: 100%; min-height: 0;
-    font: 400 16px/1.65 var(--sans); resize: none;
+    font: 400 14px/1.65 var(--sans); resize: none;
     border: none; border-radius: 0; background: none; box-shadow: none; outline: none;
     padding: 0; max-height: 190px; color: var(--ink);
   }
@@ -286,11 +286,12 @@
   button.primario:hover:not(:disabled) { background: var(--primario-hover); border-color: var(--primario-hover); color: var(--primario-ink); }
   /* Destrutivo e sucesso vem DEPOIS do primario: sao a mesma especificidade,
      e um botao que ganhe as duas classes tem de sair vinho ou verde. */
-  button.perigo { color: var(--acc); border-color: var(--accln); }
-  button.perigo:hover:not(:disabled) { border-color: var(--acc); background: var(--accbg2); color: var(--acc); }
+  /* Neutros no repouso (o fio do sistema); a cor so no texto e, ao passar, no fio. */
+  button.perigo { color: var(--acc); border-color: var(--ink-a1); }
+  button.perigo:hover:not(:disabled) { border-color: var(--accln); background: var(--accbg2); color: var(--acc); }
   /* Aprovar e o sim que faz: o par verde, no mesmo desenho do perigo. */
-  button.sucesso { background: var(--okbg); border-color: var(--verde); color: var(--okt); }
-  button.sucesso:hover:not(:disabled) { background: var(--okbg); border-color: var(--okt); color: var(--okt); }
+  button.sucesso { background: var(--botao-fundo); border-color: var(--ink-a1); color: var(--okt); }
+  button.sucesso:hover:not(:disabled) { background: var(--okbg); border-color: var(--verde); color: var(--okt); }
   button.fantasma, .dialogo-cancelar, .ver-mais { border-color: transparent; background: none; color: var(--ink2); }
   button.fantasma:hover:not(:disabled), .dialogo-cancelar:hover:not(:disabled), .ver-mais:hover:not(:disabled) { background: var(--fill); border-color: transparent; color: var(--ink); }
   button.largo { width: 100%; }

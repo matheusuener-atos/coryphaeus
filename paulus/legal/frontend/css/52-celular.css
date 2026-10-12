@@ -118,7 +118,7 @@
       order: 5; margin: 0 12px 10px; padding: 14px 8px 8px 14px; gap: 10px; border-radius: 16px;
       border-color: var(--ink-a12); background: var(--campo-fundo); box-shadow: none;
     }
-    .conversa-col.vazia .cartao-campo textarea { font: 400 16px/1.5 var(--sans); }
+    .conversa-col.vazia .cartao-campo textarea { font: 400 14px/1.65 var(--sans); }
     .conversa-col.vazia .cartao-campo textarea::placeholder { color: var(--ink3); }
     .conversa-col.vazia .cartao-campo .pilulas { gap: 6px; }
     .conversa-col.vazia .cartao-campo :is(.pilula-anexar, .pilula-inicio, .escopo:empty) { display: none; }
@@ -144,7 +144,7 @@
     .cel-mais.aberto { opacity: 1; pointer-events: auto; }
     .cel-mais-corpo { display: grid; gap: 16px; align-content: start; }
     .cel-perfil { display: grid; gap: 8px; padding: 0 4px 8px; justify-items: end; text-align: right; }
-    .cel-perfil b { font: 400 44px/1.05 var(--serif); color: var(--ink); letter-spacing: -.01em; }
+    .cel-perfil b { font: 600 14px/1.65 var(--sans); color: var(--ink); letter-spacing: -.01em; }
     .cel-perfil span { font: 400 13px var(--sans); color: var(--ink3); letter-spacing: .02em; }
     .cel-grupo { display: grid; }
     .cel-grupo button {
@@ -153,7 +153,7 @@
     }
     .cel-grupo button:hover:not(:disabled) { background: none; border: none; border-bottom: 1px solid var(--ink-a06); }
     .cel-grupo button:active { opacity: .6; }
-    .cel-grupo button > span:first-child { flex: 1; min-width: 0; font: 400 16px var(--sans); color: var(--cel-item); letter-spacing: -.005em; }
+    .cel-grupo button > span:first-child { flex: 1; min-width: 0; font: 400 14px/1.65 var(--sans); color: var(--cel-item); letter-spacing: -.005em; }
     .cel-grupo .ic { flex: none; font-size: 16px; width: 16px; height: 16px; color: var(--cel-seta); }
 
     /* Entre as telas da barra: esmaecimento curto. */

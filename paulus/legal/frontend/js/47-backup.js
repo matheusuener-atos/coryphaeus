@@ -29,22 +29,30 @@ function secaoBackup() {
   const pronto = b.pasta && b.tem_senha;
   const meta = and.fazendo ? pontoCfg("fazendo o backup", "acc") : b.ultimo_erro ? pontoCfg("falhou", "acc")
     : b.ultimo ? pontoCfg("em dia", "ok") : metaCfg(pronto ? "ainda não fez" : "desligado");
-  const estado = '<div class="cfg-linhas">' +
-    chaveCfg("Último backup", b.ultimo ? quandoBackup(b.ultimo) : "nunca", b.ultimo_erro ? "" : (b.ultimo ? "ok" : "")) +
-    chaveCfg("Pasta", b.pasta || "não escolhida") +
-    chaveCfg("Senha", b.tem_senha ? "definida" : "não definida") + "</div>" +
+  // 1. A situacao: o que ja esta guardado e o botao de agora.
+  const st = (txt, classe) => '<b class="cfg-st ' + classe + '">' + esc(txt) + "</b>";
+  const situacao = '<div class="sv-ficha cfg-ficha">' +
+    '<div class="sv-ficha-item"><span class="sv-kicker">Último backup</span>' + (b.ultimo_erro ? st("Falhou", "acc") : b.ultimo ? st(quandoBackup(b.ultimo), "ok") : st("Nenhum ainda", "cfg-mudo")) + "</div>" +
+    '<div class="sv-ficha-item"><span class="sv-kicker">Automático</span>' + (b.automatico ? st("Todo dia", "ok") : st("Desligado", "cfg-mudo")) + "</div>" +
+    '<div class="sv-ficha-item"><span class="sv-kicker">Guardados</span>' + ((b.backups || []).length ? st((b.backups.length === 1 ? "1 cópia" : b.backups.length + " cópias") + " na pasta", "ok") : st("Nenhuma cópia", "cfg-mudo")) + "</div></div>" +
     (b.ultimo_erro ? '<p class="acesso-erro">' + esc(b.ultimo_erro) + "</p>" : "") +
-    // Na coluna da conversa (js/89): a pasta sugerida e a senha aqui mesmo.
-    (typeof blocoDoBackupNoLado === "function" ? blocoDoBackupNoLado() : "") +
     (and.fazendo ? '<p class="cfg-explica">Fazendo o backup… ' + (and.total ? and.feitos + " de " + and.total + " arquivos" : "") + "</p>" : "") +
+    (pronto ? "" : '<p class="cfg-explica">Para começar, escolha a pasta e crie a senha no cartão abaixo.</p>') +
+    '<div class="cfg-botoes"><button class="primario com-icone" data-bkp-agora="1"' + (pronto && !and.fazendo ? "" : " disabled") + ">" + ic("archive", 16) + "Fazer backup agora</button></div>";
+
+  // 2. A configuracao: onde, com que senha e quando.
+  const linha = (icone, nome, sub, botao) => '<div class="cfg-servico"><span class="caixa-tipo">' + ic(icone, 18) + '</span><span class="duas-linhas"><b>' + nome + "</b><small>" + esc(sub) + "</small></span>" +
+    '<span class="cfg-botoes">' + botao + "</span></div>";
+  const config = '<div class="cfg-linhas">' +
+    linha("folder_open", "Onde guardar", b.pasta || "Nenhuma pasta escolhida. Prefira um HD externo ou uma pasta do Google Drive ou do OneDrive.",
+      '<button class="com-icone" data-bkp-pasta="1">' + (b.pasta ? "Trocar" : "Escolher pasta") + "</button>") +
+    linha("key", "Senha do backup", b.tem_senha ? "Criada. Guarde-a fora deste computador." : "Sem senha ainda. Ela tranca o arquivo do backup.",
+      '<button class="com-icone" data-bkp-senha="1">' + (b.tem_senha ? "Trocar" : "Criar senha") + "</button>") + "</div>" +
+    (typeof blocoDoBackupNoLado === "function" ? blocoDoBackupNoLado() : "") +
     '<div class="acesso-energia">' +
-    ligaCfg("", "Backup automático", "uma vez por dia, com o Paulus aberto; ficam os " + (b.manter || 10) + " mais novos", Boolean(b.automatico))
+    ligaCfg("", "Fazer sozinho todo dia", "uma vez por dia, enquanto o Paulus estiver aberto; ficam as " + (b.manter || 10) + " cópias mais novas", Boolean(b.automatico))
       .replace('class="ag-toggle', 'data-bkp-auto="1" class="ag-toggle') + "</div>" +
-    '<div class="cfg-botoes"><button class="com-icone" data-bkp-pasta="1">' + ic("folder_open", 16) + (b.pasta ? "Trocar a pasta" : "Escolher a pasta") + "</button>" +
-    '<button class="com-icone" data-bkp-senha="1">' + ic("key", 16) + (b.tem_senha ? "Trocar a senha" : "Definir a senha") + "</button>" +
-    '<button class="primario com-icone" data-bkp-agora="1"' + (pronto && !and.fazendo ? "" : " disabled") + ">" + ic("archive", 16) + "Fazer backup agora</button></div>" +
-    '<p class="cfg-explica">Guarde a senha fora deste computador: sem ela, ninguém abre o backup — nem você. ' +
-    "Uma pasta sincronizada (Google Drive para computador, OneDrive) ou um HD externo protege contra perder o computador.</p>";
+    '<p class="cfg-explica"><b>Sem a senha, ninguém abre o backup, nem você.</b> Anote-a num lugar seguro fora deste computador.</p>';
 
   const lista = (b.backups || []).length
     ? '<div class="cfg-linhas">' + b.backups.map((x) =>
@@ -63,7 +71,7 @@ function secaoBackup() {
             '<button data-bkp-restaurar="' + esc(x.caminho) + '">Restaurar</button></div>').join("") + "</div>"
         : '<p class="cfg-texto">Nenhum backup do Paulus nessa pasta.</p>')
     : "";
-  return aberturaCfg() + cartaoCfg("Backup", meta, estado) +
+  return aberturaCfg() + cartaoCfg("Backup", meta, situacao) + cartaoCfg("Onde e como guardar", metaCfg(pronto ? "configurado" : "falta configurar"), config) +
     cartaoCfg("Restaurar", metaCfg("de um backup"), pendente + lista +
       '<div class="cfg-botoes"><button class="com-icone" data-bkp-outra="1">' + ic("folder_open", 16) + "Procurar backups em outra pasta</button></div>" + outros +
       '<p class="cfg-explica">Num computador novo: instale o Paulus, abra esta tela e procure a pasta do backup. ' +

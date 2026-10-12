@@ -150,9 +150,9 @@ function avaliacaoDaResposta(indice) {
 
 function cartaoCaderno() {
   if (!acessoDeFora.local) return "";
-  return cartaoCfg("Caderno de falhas", metaCfg("as 👎 das respostas, neste computador"),
-    '<div class="cfg-sub">' + interruptor("aprendizado", "avaliar", "Avaliar as respostas",
-      "👍 e 👎 embaixo de cada resposta; a 👎 pergunta o motivo e a resposta certa. Nada sai deste computador") + "</div>" +
+  return cartaoCfg("Caderno de falhas", metaCfg("respostas marcadas como ruins"),
+    '<div class="cfg-sub">' + interruptor("aprendizado", "avaliar", "Avaliar as respostas", "@@SUB@@").replace("@@SUB@@",
+      'Mostra <span class="apr-n ok">' + SVG_BOM + 'Boa</span> e <span class="apr-n ruim">' + SVG_RUIM + "Ruim</span> embaixo de cada resposta. Ao marcar ruim, o Paulus pergunta o motivo e qual seria a resposta certa. Nada sai deste computador.") + "</div>" +
     '<div id="apr-caderno"><p class="nota">abrindo o caderno…</p></div>');
 }
 
@@ -179,20 +179,24 @@ function htmlDoCaderno(d) {
   const motivos = Object.entries(d.por_motivo || {}).sort((a, b) => b[1] - a[1])
     .map(([k, v]) => '<span class="apr-chip">' + esc(k) + " · " + v + "</span>").join("");
   const caminhos = Object.entries(d.por_caminho || {}).map(([k, v]) =>
-    '<div class="apr-conta-linha"><span>' + esc(k) + "</span><b>👍 " + v.bom + "</b><b>👎 " + v.ruim + "</b></div>").join("");
+    '<div class="apr-conta-linha"><span>' + esc(k) + '</span><b class="apr-n ok">' + SVG_BOM + v.bom + '</b><b class="apr-n ruim">' + SVG_RUIM + v.ruim + "</b></div>").join("");
   const falhas = (d.falhas || []).filter((f) => aprender.verResolvidas || !f.resolvida);
-  return '<div class="apr-resumo"><p><b>Últimos ' + d.dias + " dias:</b> " + (total
-    ? plural(total, "resposta avaliada", "respostas avaliadas") + " · 👍 " + (c.bom || 0) + " · 👎 " + (c.ruim || 0) +
-      " · " + plural(d.casos || 0, "caso de teste", "casos de teste") + " do caderno"
-    : "nenhuma resposta avaliada ainda.") + "</p>" +
+  const dias = d.dias || 30;
+  const num = (icone, rot, n, classe) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rot + '</span><b class="apr-n ' + classe + '">' + ic(icone, 16) + n + "</b></div>";
+  return '<div class="apr-resumo">' + (total
+    ? '<div class="sv-ficha cfg-ficha apr-ficha">' +
+      num("rate_review", "Avaliadas · " + dias + " dias", total, "") +
+      num(SVG_BOM, "Boas", c.bom || 0, "ok") +
+      num(SVG_RUIM, "Ruins", c.ruim || 0, "ruim") +
+      num("task_alt", "Casos de teste", d.casos || 0, "") + "</div>"
+    : '<p class="cfg-explica">Nenhuma resposta avaliada nos últimos ' + dias + " dias.</p>") +
     (motivos ? '<div class="apr-chips">' + motivos + "</div>" : "") +
-    (caminhos ? '<div class="apr-contas"><div class="apr-conta-linha apr-conta-cab"><span>Caminho</span><b>bom</b><b>ruim</b></div>' + caminhos + "</div>" : "") +
+    (caminhos ? '<div class="apr-contas"><div class="apr-conta-linha apr-conta-cab"><span>Por caminho</span><b>Boas</b><b>Ruins</b></div>' + caminhos + "</div>" : "") +
     "</div>" +
-    '<label class="apr-ver"><input type="checkbox" data-apr-ver-resolvidas="1"' + (aprender.verResolvidas ? " checked" : "") + "> mostrar as resolvidas</label>" +
+    '<label class="apr-ver"><input type="checkbox" data-apr-ver-resolvidas="1"' + (aprender.verResolvidas ? " checked" : "") + "> Mostrar também as resolvidas</label>" +
     (falhas.length ? '<div class="apr-falhas">' + falhas.map(linhaDaFalha).join("") + "</div>"
       : '<p class="cfg-explica">Nenhuma falha em aberto.</p>') +
-    '<p class="cfg-explica">Os casos de teste vão para <code>data/medicao/conjunto-real.jsonl</code>, junto das correções do cartão do documento; ' +
-    "<code>tools/medir.py</code> mede cada troca de modelo contra eles.</p>";
+    '<p class="cfg-explica">Uma falha pode virar caso de teste. Sempre que o modelo muda, o Paulus confere se ele ainda erra nesses casos.</p>';
 }
 
 async function blocoCaderno() {

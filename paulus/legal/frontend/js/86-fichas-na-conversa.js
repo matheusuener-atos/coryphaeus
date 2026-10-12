@@ -352,7 +352,7 @@ function htmlDaFicha() {
       '<button type="button" data-fcn-papel="colaborador"' + (!socio ? ' class="ativa"' : "") + ">Colaborador</button></span>";
     const pode = podeDoPapel(socio);
     const local = (fcn.modulos || []).length > 0;
-    corpo = fcnCampo("nome", "Nome") + fcnCampo("funcao", "Função") + fcnCampo("email", "E-mail Google", { placeholder: "nome@gmail.com" }) +
+    corpo = fcnCampo("nome", "Nome") + fcnCampo("funcao", "Função") + fcnCampo("email", "E-mail", { placeholder: "o convite vai para este e-mail" }) +
       '<div class="fcn-par">' + fcnCampo("documento", "CPF", { meia: true, placeholder: "000.000.000-00", mono: true }) +
       fcnCampo("telefone", "Telefone", { meia: true, placeholder: "(94) 99999-8888", mono: true }) + "</div>" +
       '<div class="fcn-caixa">' + fcnInterruptor("folha", "Entra na folha", "vira a folha do Financeiro, todo mês") +
@@ -504,7 +504,7 @@ async function salvarFichaDaConversa(botao) {
   if (v.tipo === "despesa" && !fcnCentavos(v.valor)) { errado("valor", "falta o valor"); return; }
   const local = (fcn.modulos || []).length > 0;
   const convidar = (v.tipo === "socio" || v.tipo === "colaborador") && v.convidar && local;
-  if (convidar && !/@/.test(v.email || "")) { errado("email", "o convite precisa do e-mail Google"); return; }
+  if (convidar && !/@/.test(v.email || "")) { errado("email", "o convite precisa do e-mail da pessoa"); return; }
   diz("");
   botao.disabled = true;
   const r = await fetch("/api/cadastros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dados: dadosDaFicha() }) }).catch(() => null);

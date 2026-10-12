@@ -14,9 +14,11 @@
   /* o sumario: a caixa de sumario do sistema (a mesma da arvore do Acervo e
      das listas da Agenda); a secao aberta em negrito */
   .cfg-menu {
-    position: sticky; top: 0; display: grid; gap: 1px; align-content: start; padding: 8px;
-    border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo); box-shadow: var(--elev-card);
+    position: sticky; top: 0; display: grid; gap: 1px; align-content: start; padding: 4px 0 0; margin-left: -10px;
+    border: none; border-radius: 0; background: none; box-shadow: none;
   }
+  /* Sem caixa: o sumario e uma coluna de texto, e o primeiro item cai na
+     linha do titulo da secao (o recuo de 10 px do item fica para fora). */
   .cfg-item {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px;
     background: transparent; text-align: left; font: 500 13px var(--sans); color: var(--ink2); cursor: pointer;

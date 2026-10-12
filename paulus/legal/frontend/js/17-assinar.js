@@ -119,7 +119,7 @@ function listaDePdfs() {
      Ctrl+clique): sem nada marcado, a linha e so o documento. */
   return '<div class="tabela-cartao' + (n ? "" : " sem-selecao") + '"><div class="tabela-barra">' + barra + "</div>" +
     '<div class="tabela-corpo">' + (linhas || '<div class="ag-vazio"><h4>Nenhum PDF no acervo ainda</h4><p>Inclua a pasta onde eles estão, ou escolha um arquivo direto no computador — eu subo uma cópia para o Acervo e assino a cópia.</p></div>') + "</div>" +
-    '<div class="tabela-rodape"><button class="com-icone" id="assina-escolher">' + ic("folder_open", 16) + "Escolher PDFs no computador</button>" +
+    '<div class="tabela-rodape"><button class="com-icone" id="assina-escolher">' + ic("folder_open", 16) + "Escolher PDFs</button>" +
     '<input type="file" id="assina-arquivo" accept=".pdf" multiple hidden><span class="cresce"></span><span>a assinatura é feita nesta máquina com o seu certificado</span></div></div>';
 }
 
@@ -255,12 +255,11 @@ function visorParaAssinar() {
     '<button class="voltar" id="pdf-antes" title="Página anterior">' + ic("chevron_left", 18) + "</button>" +
     '<span class="docs-pagina-num">Pág. <b id="pdf-num">' + assina.pagina + "</b> / " + doc.paginas + "</span>" +
     '<button class="voltar" id="pdf-depois" title="Próxima página">' + ic("chevron_right", 18) + "</button>" +
-    '<span class="divisa-v"></span><span>' + (assina.feito && !assina.feito.aguardando_aprovacao ? "o documento assinado" : "lido da sua máquina") + "</span>" +
+    (assina.feito && !assina.feito.aguardando_aprovacao ? '<span class="divisa-v"></span><span>o documento assinado</span>' : "") +
     /* O convite e o aviso de pagina ficam na barra, e nao sobre a folha: em
        cima do documento eles cobriam justamente o cabecalho dele. */
     '<span class="as-adicionar" id="pdf-adicionar"' + (pondo ? "" : " hidden") + '><span class="divisa-v"></span>' +
-    '<button class="primario com-icone" id="assina-add-pagina">' + ic("add", 16) + "Adicionar assinatura</button>" +
-    "<small>ou clique na página</small></span>" +
+    '<button class="primario com-icone" id="assina-add-pagina">' + ic("add", 16) + "Adicionar assinatura</button></span>" +
     '<span class="as-nesta" id="pdf-nesta" hidden><span class="divisa-v"></span><span>Sem assinatura nesta página</span><button class="em-ligacao forte" id="assina-por-aqui">pôr aqui também</button></span>' +
     '<span class="cresce"></span>' + seloDeSituacao() + "</div>" +
     '<div class="docs-previa"><div class="docs-miniaturas" id="pdf-minis">' + minis.join("") + (doc.paginas > total ? '<small class="as-mais">+' + (doc.paginas - total) + "</small>" : "") + "</div>" +
@@ -336,7 +335,7 @@ function painelAntesDeAssinar() {
     '<div class="painel-acoes semi"><button class="com-icone" id="as-baixar"' + bloqueio + ">" + ic("download", 16) + "Baixar</button>" +
     '<button class="com-icone" id="as-email"' + bloqueio + ">" + marcaDoEmail(16) + "Enviar por e-mail</button>" +
     '<button class="com-icone" id="as-whats"' + bloqueio + ">" + ic("chat", 16) + "WhatsApp</button>" +
-    '<button class="com-icone" id="as-codigo"' + bloqueio + ">" + ic("link", 16) + "Copiar o código de verificação</button></div></div>";
+    '<button class="com-icone" id="as-codigo"' + bloqueio + ">" + ic("link", 16) + "Copiar código</button></div></div>";
   return '<aside class="acervo-painel"><div class="rolagem as-painel">' +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + (lote ? "Assinar em lote" : "Antes de assinar") + '</h3><span class="meta">' + esc(doc.nome) + " · " + plural(doc.paginas, "página") + "</span></span></div>" +
     (lote ? '<div class="painel-bloco" id="as-lote-bloco">' + blocoDoLote() + "</div>" : "") +
@@ -716,7 +715,7 @@ function oQueFalta() {
     return { icone: "workspace_premium", titulo: "Falta o certificado", texto: "Instale o certificado ou digite a senha dele em Certificado digital.", botao: '<button class="primario com-icone" data-as-visao="certificado">' + ic("workspace_premium", 16) + "Abrir o certificado</button>" };
   }
   if (!assina.selo) {
-    return { icone: "draw", titulo: "Falta adicionar a assinatura", texto: "Diga onde o selo entra: clique em Adicionar assinatura, ou direto na página. Depois dá para arrastar, mudar o tamanho e replicar nas outras páginas.", botao: '<button class="primario com-icone" id="assina-add-pronto">' + ic("add", 16) + "Adicionar assinatura</button>" };
+    return { icone: "draw", titulo: "Falta adicionar a assinatura", texto: "Clique na página onde o selo entra. Depois dá para arrastar e mudar o tamanho.", botao: "" };
   }
   if (!paginasEscolhidas().length) {
     return { icone: "info", titulo: "Falta dizer as páginas", texto: "O intervalo não tem nenhuma página deste documento. Escreva, por exemplo, 1-3 ou 7.", botao: "" };
@@ -749,7 +748,8 @@ function atualizarPronto() {
     caixa.className = "as-pronto falta";
     caixa.innerHTML = '<div class="as-pronto-cabeca">' + ic(falta.icone, 18) + "<span>" + falta.titulo + "</span></div>" +
       "<p>" + falta.texto + "</p>" +
-      '<div class="as-pronto-acoes">' + falta.botao + '<button class="com-icone" id="assina-agora" disabled title="' + esc(falta.titulo) + '">' + ic("draw", 16) + "Assinar agora</button></div>";
+      // O Assinar agora desligado ja esta no cabecalho; aqui so o que resolve a falta.
+      (falta.botao ? '<div class="as-pronto-acoes">' + falta.botao + "</div>" : "");
   } else {
     caixa.className = "as-pronto pronto";
     caixa.innerHTML = '<div class="as-pronto-cabeca">' + ic("task_alt", 18) + "<span>Tudo pronto para assinar</span></div>" +
@@ -761,8 +761,6 @@ function atualizarPronto() {
   }
   const agora = $("assina-agora");
   if (agora && !agora.disabled) agora.onclick = assinarAgora;
-  const add = $("assina-add-pronto");
-  if (add) add.onclick = () => adicionarSelo();
   const previa = $("assina-previa");
   if (previa) previa.onclick = () => { const alvos = paginasEscolhidas(); if (alvos.length) { assina.pagina = alvos[0]; carregarPagina(); } };
   caixa.querySelectorAll("[data-as-visao]").forEach((b) => { b.onclick = () => mostrarCertificado(); });
@@ -1167,8 +1165,6 @@ function prontoNoLote(caixa, falta) {
   }
   const agora = $("assina-agora");
   if (agora) agora.onclick = assinarAgora;
-  const add = $("assina-add-pronto");
-  if (add) add.onclick = () => adicionarSelo();
   const pular = $("lote-pular-aqui");
   if (pular) pular.onclick = pularNoLote;
   const seguir = $("lote-seguir");
@@ -1500,3 +1496,15 @@ async function mostrarLoteAssinado(desfecho) {
   if (feitos.length) perguntarComoSalvar();
   return true;
 }
+
+/* A barra das miniaturas aparece ao rolar e recolhe ao parar. */
+(function () {
+  const tempos = new WeakMap();
+  document.addEventListener("scroll", (e) => {
+    const el = e.target;
+    if (!el || !el.classList || !el.classList.contains("docs-miniaturas")) return;
+    el.classList.add("rolando");
+    clearTimeout(tempos.get(el));
+    tempos.set(el, setTimeout(() => el.classList.remove("rolando"), 700));
+  }, true);
+})();

@@ -186,7 +186,7 @@ function cabecalhoAgenda() {
 
   $("acoes-tela").innerHTML =
     '<div class="visoes">' +
-    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "To-do"]].map(([v, r]) => {
+    [["mes", "Mês"], ["semana", "Semana"], ["tarefas", "Tarefas"]].map(([v, r]) => {
       const classe = v === ag.visao ? "ativa" : "";
       return '<button class="' + classe + '" data-visao="' + v + '">' + r + "</button>";
     }).join("") + "</div>" +
@@ -468,26 +468,30 @@ function vistaSemanaAgenda() {
   }).join("") + "</div>";
 
   const semHora = dias.map((d) => (g.dias[iso(d)] || []).filter((x) => !x.hora));
-  let diaTodo = "";
-  if (semHora.some((l) => l.length)) {
-    diaTodo = '<div class="ag-dia-todo"><div class="ag-rotulo-hora">dia todo</div>' + dias.map((d, i) => {
-      const k = iso(d);
-      return "<div>" + semHora[i].map((x) => blocoDaSemana(x, k)).join("") + "</div>";
-    }).join("") + "</div>";
-  }
-
+  /* O que é do dia todo não fica numa faixa à parte: vira uma coluna que
+     cobre a grade inteira do dia, e o que tem hora nesse dia fica por cima,
+     num cartão menor, na hora certa. */
+  const diaTodo = "";
+  const linhas = HORA_FIM - HORA_INICIO + 1;
   let grade = '<div class="ag-rolagem"><div class="ag-semana">';
   for (let h = HORA_INICIO; h <= HORA_FIM; h++) {
-    grade += '<div class="ag-rotulo-hora">' + String(h).padStart(2, "0") + ":00</div>";
-    dias.forEach((d) => {
+    const r = h - HORA_INICIO + 1;
+    grade += '<div class="ag-rotulo-hora" style="grid-row:' + r + ';grid-column:1">' + String(h).padStart(2, "0") + ":00</div>";
+    dias.forEach((d, i) => {
       const k = iso(d);
       const fds = d.getDay() === 0 || d.getDay() === 6;
       const naHora = (g.dias[k] || []).filter((x) => x.hora && Number(x.hora.split(":")[0]) === h);
-      const classe = "ag-hora-cel" + (fds ? " ag-fds" : "");
-      grade += '<div class="' + classe + '" data-ag-hora="' + k + "T" + String(h).padStart(2, "0") + ':00">' +
+      const classe = "ag-hora-cel" + (fds ? " ag-fds" : "") + (semHora[i].length ? " ag-sobre-dia" : "");
+      grade += '<div class="' + classe + '" style="grid-row:' + r + ";grid-column:" + (i + 2) + '" data-ag-hora="' + k + "T" + String(h).padStart(2, "0") + ':00">' +
         naHora.map((x) => blocoDaSemana(x, k)).join("") + "</div>";
     });
   }
+  dias.forEach((d, i) => {
+    if (!semHora[i].length) return;
+    const k = iso(d);
+    grade += '<div class="ag-dia-inteiro" style="grid-row:1 / span ' + linhas + ";grid-column:" + (i + 2) + '"><div class="ag-dia-inteiro-topo">' +
+      semHora[i].map((x) => blocoDaSemana(x, k)).join("") + "</div></div>";
+  });
   grade += "</div></div>";
 
   const resto = [];
@@ -527,7 +531,8 @@ function blocoDaSemana(x, dia) {
 
 function vistaTarefas() {
   const c = ag.tar.contagens || {};
-  const listas = ag.tar.listas.slice();
+  // A lista pode vir como nome solto ("Cooperativa") ou como { nome, abertas }.
+  const listas = ag.tar.listas.map((l) => (typeof l === "string" ? { nome: l, abertas: 0 } : l));
   if (ag.tar.lista && !listas.some((l) => l.nome === ag.tar.lista)) listas.push({ nome: ag.tar.lista, abertas: 0 });
 
   const somaComps = { meu_dia: c.compromissos_hoje || 0, planejadas: c.compromissos_planejados || 0 };
@@ -552,7 +557,7 @@ function vistaTarefas() {
       ? listas.map((l, i) => {
           const classe = "ag-lista-item" + (l.nome === ag.tar.lista ? " ativa" : "");
           return '<button class="' + classe + '" data-ag-lista="' + esc(l.nome) + '" title="' + esc(l.nome) + '">' + corDaLista(i) +
-            '<span class="ag-nome">' + esc(l.nome) + "</span>" + contaDaLista(l.abertas || 0, false) + "</button>";
+            '<span class="ag-nome' + (String(l.nome || "").trim() ? "" : " ag-sem-nome") + '">' + esc(String(l.nome || "").trim() || "Sem nome") + "</span>" + contaDaLista(l.abertas || 0, false) + "</button>";
         }).join("")
       : '<span class="ac-secao">nenhuma ainda</span>') +
     '<button class="ac-incluir" data-ag-nova-lista="1">' + ic("add", 16) + "Nova lista</button></div>";
@@ -581,10 +586,10 @@ function vistaTarefas() {
     '<div class="tabela-barra"><b>Tarefas e compromissos</b><span class="nota-barra">' +
     esc(ag.tar.lista || (f ? f.rotulo : "Tarefas")) + " · " +
     (ag.tar.filtro === "concluidas" ? plural(feitas.length, "concluída") : plural(nAbertas, "item", "itens")) + "</span>" +
-    '<span class="direita"><button data-ag-calcular-prazo="1" title="Prazo processual em dias úteis, com feriados e recesso">' +
-    ic("schedule", 16) + "Calcular prazo</button>" +
-    '<button data-ag-sugestoes="1" title="Datas que o assistente leu nos contratos abertos">' +
-    ic("auto_awesome", 16) + "Prazos lidos nos documentos</button></span></div>" +
+    '<span class="direita ag-tar-acoes"><button class="botao-icone" data-ag-calcular-prazo="1" title="Calcular prazo processual (dias úteis, feriados e recesso)" aria-label="Calcular prazo">' +
+    ic("schedule", 18) + "</button>" +
+    '<button class="botao-icone" data-ag-sugestoes="1" title="Prazos lidos nos documentos" aria-label="Prazos lidos nos documentos">' +
+    ic("auto_awesome", 18) + "</button></span></div>" +
     (ag.tar.escolhidas.size
       ? '<div class="barra-selecao ag-selecao">' + barraDeSelecao(ag.tar.escolhidas.size, true,
         '<button data-ag-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
@@ -639,6 +644,7 @@ function linhaDoCompromisso(k) {
 }
 
 function contaDaLista(n, acc) {
+  if (!n) return "";
   const classe = "ag-conta" + (acc && n ? " ag-acc" : "");
   return '<span class="' + classe + '">' + n + "</span>";
 }

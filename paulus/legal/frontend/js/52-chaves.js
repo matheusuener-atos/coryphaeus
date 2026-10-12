@@ -10,14 +10,14 @@
 */
 
 const CHAVES_BIBLIOTECA = [
-  ["hibrida", "Busca por sentido no material", "o material é procurado pela palavra e pelo sentido, e o livro é cortado por capítulo"],
-  ["triagem", "Triagem ao entrar", "lei conhecida vai para as leis em casa; o resto ganha a ficha (autor, obra, ano)"],
-  ["anotacoes", "Código anotado", "cada artigo citado por uma obra mostra o que ela diz, com a página"],
-  ["camadas", "Resposta em camadas", "lei, doutrina e regra da casa separadas na resposta; opinião de autor nunca sai como texto de lei"],
-  ["defasagem", "Aviso de obra antiga", "avisa quando a obra é anterior à redação atual do artigo que ela comenta"],
-  ["mapa", "O que eu sei", "diz no fim da resposta quando a biblioteca não tem nada da área da pergunta"],
-  ["leitura", "Glossário e teses", "o modelo de leitura lê cada obra em segundo plano; só fica o que a frase do livro confirma"],
-  ["pacote", "Pacote .paulus-material", "exportar o que é seu e importar o de outro advogado, por arquivo, sem rede"],
+  ["hibrida", "Buscar pelo sentido, não só pela palavra", "Encontra o trecho mesmo quando o livro usa outras palavras. Cada livro é dividido por capítulo."],
+  ["triagem", "Organizar o que entra", "Lei conhecida vai direto para os códigos de lei. O resto ganha uma ficha com autor, obra e ano."],
+  ["anotacoes", "Código anotado", "Em cada artigo citado, mostra o que as obras da biblioteca dizem sobre ele, com a página."],
+  ["camadas", "Separar lei, doutrina e regra da casa", "A resposta mostra cada fonte no seu lugar. Opinião de autor nunca aparece como texto de lei."],
+  ["defasagem", "Avisar quando a obra estiver desatualizada", "Avisa se a obra é anterior à redação atual do artigo que ela comenta."],
+  ["mapa", "Dizer quando falta material", "No fim da resposta, avisa se a biblioteca não tem nada sobre a área da pergunta."],
+  ["leitura", "Montar glossário e teses", "Lê cada obra com calma em segundo plano e guarda só o que o próprio texto do livro confirma."],
+  ["pacote", "Trocar material com outro advogado", "Exporta o que é seu e importa o de outra pessoa num arquivo .paulus-material, sem internet."],
 ];
 
 async function ligarChave(bloco, chave, ligada) {
@@ -78,11 +78,49 @@ function cartaoChavesAparelho() {
     (cfg.chaves.aparelho.fila ? '<div class="cfg-botoes"><button data-ver-fila="1">' + ic("list", 16) + "Ver a fila agora</button></div>" : ""));
 }
 
+const GRUPOS_BIBLIOTECA = [
+  ["Ao procurar", ["hibrida", "mapa"]],
+  ["Ao guardar material", ["triagem", "leitura", "pacote"]],
+  ["Na resposta", ["camadas", "anotacoes", "defasagem"]],
+];
+
 function cartaoChavesBiblioteca() {
   if (!cfg.chaves) return "";
+  const por = Object.fromEntries(CHAVES_BIBLIOTECA.map((x) => [x[0], x]));
+  const grupos = GRUPOS_BIBLIOTECA.map(([nome, chaves]) => '<div class="cfg-grupo-chaves"><span class="sv-kicker">' + esc(nome) + "</span>" +
+    chaves.filter((x) => por[x]).map((x) => interruptor("biblioteca", x, por[x][1], por[x][2])).join("") + "</div>").join("");
   return cartaoCfg("Como a biblioteca trabalha", metaCfg("liga e desliga na hora"),
-    '<div class="cfg-sub">' + CHAVES_BIBLIOTECA.map(([k, t, s]) => interruptor("biblioteca", k, t, s)).join("") + "</div>" +
+    '<div class="cfg-grupos-chaves">' + grupos + "</div>" +
     '<p class="cfg-explica">Nada da biblioteca sai desta máquina: nem o texto das obras, nem as perguntas. O glossário e as teses usam o modelo de leitura escolhido em Modelos.</p>');
+}
+
+/* Fotografar mora em Biblioteca › Acervo e índice; o MCP, em Biblioteca ›
+   Códigos de lei (pedido de 11/10/2026). cartaoUmbrel junta os dois. */
+function interruptorFotografar() {
+  if (!cfg.chaves) return "";
+  return '<div class="cfg-sub">' + interruptor("umbrel", "captura", "Fotografar documento", "no celular, pelo acesso externo, a câmera vira um PDF no Acervo; de fora, passa antes por Aprovações") + "</div>";
+}
+
+function corpoMcp() {
+  if (!cfg.chaves) return "";
+  const m = cfg.mcp || { conexoes: [], ferramentas: [] };
+  const ligado = Boolean((cfg.chaves.umbrel || {}).mcp);
+  const conexoes = (m.conexoes || []).map((c) =>
+    '<div class="cfg-lei"><span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc(c.ferramentas.join(", ")) +
+    (typeof escopoDaConexao === "function" && escopoDaConexao(c) ? " · lê " + esc(escopoDaConexao(c)) : "") +
+    " · criada em " + esc(c.criada_em) + (c.ultimo_uso ? " · usada em " + esc(c.ultimo_uso) + " (" + plural(c.chamadas || 0, "chamada") + ")" : " · ainda não usada") +
+    '</small></span><button data-mcp-revogar="' + esc(c.id) + '">Revogar</button></div>').join("");
+  return '<div class="cfg-sub">' +
+    interruptor("umbrel", "mcp", "Assistente externo (MCP)", "o Claude ou outro assistente deste computador pede ao Paulus o texto oficial de um artigo, súmulas e temas do STJ - e, se você liberar numa conexão, documentos do escritório") + "</div>" +
+    (ligado
+      ? '<p class="cfg-explica"><b>O que sai:</b> o que cada conexão tem liberado, para o assistente conectado - e dali para a empresa dele. ' +
+        "As ferramentas públicas (leis do Planalto, súmulas e temas do STJ) não levam nada do escritório. As do escritório (documentos, busca nos trechos, " +
+        "cartão, posição da casa) só leem, só no escopo que você escolher, e nunca os casos marcados “só no escritório”. " +
+        "<b>Nunca sai:</b> cadastros, financeiro, e-mail, agenda. Só atende este computador (nunca pelo acesso externo), e cada chamada fica no registro de acessos.</p>" +
+        '<p class="cfg-explica">Endereço: <code>' + esc(m.endereco || "") + "</code></p>" +
+        (conexoes ? '<div class="cfg-linhas">' + conexoes + "</div>" : '<p class="nota">Nenhuma conexão ainda.</p>') +
+        '<div class="cfg-botoes"><button data-mcp-criar="1">' + ic("add", 16) + "Nova conexão</button></div>"
+      : "");
 }
 
 function cartaoUmbrel() {
@@ -94,10 +132,10 @@ function cartaoUmbrel() {
     (typeof escopoDaConexao === "function" && escopoDaConexao(c) ? " · lê " + esc(escopoDaConexao(c)) : "") +
     " · criada em " + esc(c.criada_em) + (c.ultimo_uso ? " · usada em " + esc(c.ultimo_uso) + " (" + plural(c.chamadas || 0, "chamada") + ")" : " · ainda não usada") +
     '</small></span><button data-mcp-revogar="' + esc(c.id) + '">Revogar</button></div>').join("");
-  return cartaoCfg("Fotografar e assistentes de fora", metaCfg("desligados de fábrica"),
+  return cartaoCfg("Fotografar e assistente externo", metaCfg("desligados de fábrica"),
     '<div class="cfg-sub">' +
     interruptor("umbrel", "captura", "Fotografar documento", "no celular, pelo acesso externo, a câmera vira um PDF no Acervo; de fora, passa antes por Aprovações") +
-    interruptor("umbrel", "mcp", "Assistentes de fora (MCP)", "o Claude ou outro assistente deste computador pede ao Paulus o texto oficial de um artigo, súmulas e temas do STJ - e, se você liberar numa conexão, documentos do escritório") + "</div>" +
+    interruptor("umbrel", "mcp", "Assistente externo (MCP)", "o Claude ou outro assistente deste computador pede ao Paulus o texto oficial de um artigo, súmulas e temas do STJ - e, se você liberar numa conexão, documentos do escritório") + "</div>" +
     (ligado
       ? '<p class="cfg-explica"><b>O que sai:</b> o que cada conexão tem liberado, para o assistente conectado - e dali para a empresa dele. ' +
         "As ferramentas públicas (leis do Planalto, súmulas e temas do STJ) não levam nada do escritório. As do escritório (documentos, busca nos trechos, " +

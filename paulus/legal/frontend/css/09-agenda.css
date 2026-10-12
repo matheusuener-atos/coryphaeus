@@ -113,10 +113,27 @@
   .ag-dia-todo > div { min-height: 30px; padding: 2px 0; display: grid; gap: 3px; align-content: start; }
   .ag-dia-todo > .ag-rotulo-hora { padding: 8px 8px 0 0; }
   .ag-rolagem { flex: 1; min-height: 0; overflow: auto; }
-  .ag-semana { display: grid; grid-auto-rows: 52px; column-gap: 4px; padding-bottom: 8px; }
+  .ag-semana { position: relative; display: grid; grid-auto-rows: 52px; column-gap: 4px; padding-bottom: 8px; }
   .ag-rotulo-hora { padding: 4px 8px 0 0; font: 500 12px var(--sans); color: var(--ink3); text-align: right; white-space: nowrap; border-top: 1px solid transparent; }
   .ag-hora-cel { min-height: 0; padding: 3px 0; display: flex; gap: 3px; border-top: 1px solid var(--ink-a08); cursor: pointer; }
   .ag-hora-cel:hover { background: var(--fill); border-radius: 8px; }
+  /* Dia todo: a coluna inteira do dia, de cima a baixo, por baixo das horas.
+     Os cartões com hora desse dia ficam por cima, menores. */
+  .ag-dia-inteiro {
+    position: relative; z-index: 1; pointer-events: none; margin: 3px 0;
+    display: flex; flex-direction: column; gap: 2px; padding: 2px;
+    border-radius: 10px; background: var(--fill); box-shadow: inset 0 0 0 1px var(--ink-a08);
+  }
+  .ag-dia-inteiro-topo { position: sticky; top: 2px; display: flex; flex-direction: column; gap: 2px; }
+  .ag-dia-inteiro-topo > .ag-bloco { flex: none; pointer-events: auto; background: transparent; }
+  .ag-dia-inteiro-topo > .ag-bloco:hover { background: var(--act); }
+  .ag-hora-cel.ag-sobre-dia { padding: 3px 6px; }
+  .ag-hora-cel.ag-sobre-dia:hover { background: transparent; }
+  .ag-sobre-dia > .ag-bloco {
+    position: relative; z-index: 2; padding: 3px 7px; background: var(--bg);
+    box-shadow: 0 0 0 1px var(--ink-a1), 0 1px 3px var(--ink-a08);
+  }
+  .ag-sobre-dia > .ag-bloco:hover { background: var(--fill); }
   .ag-bloco {
     flex: 1; min-width: 0; padding: 5px 8px; border-radius: 8px; background: var(--fill);
     display: grid; gap: 1px; align-content: start; overflow: hidden; cursor: pointer;
@@ -231,17 +248,16 @@
   .ag-lista-item .ag-conta.ag-acc { color: var(--acc); }
   /* Acrescentar algo (nova lista, nova pasta, proxima etapa): um botao de
      verdade - fio tracejado, o mais e o nome -, e nao a ligacao fraca de
-     antes. A mesma receita no Acervo (.ac-incluir), na Agenda, no + das abas
-     dos Documentos (.docs-aba-novo) e no Anexar do e-mail (.em-anexar-vazio);
+     antes. A mesma receita no Acervo (.ac-incluir), na Agenda, e no Anexar do e-mail (.em-anexar-vazio);
      cada um guarda na sua tela so o que muda de lugar. */
-  .ac-incluir, .ag-incluir, .docs-aba-novo, .em-anexar-vazio {
+  .ac-incluir, .ag-incluir, .em-anexar-vazio {
     display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 2px; padding: 7px 13px;
     border: 1px dashed var(--ink-a15); border-radius: 8px; background: none;
     font: 500 12px var(--sans); color: var(--ink2); text-align: left; cursor: pointer;
   }
-  .ac-incluir:hover:not(:disabled), .ag-incluir:hover:not(:disabled), .docs-aba-novo:hover:not(:disabled), .em-anexar-vazio:hover:not(:disabled) { border: 1px dashed var(--ink-a35); background: var(--fill); color: var(--ink); }
-  .ac-incluir .ic, .ag-incluir .ic, .docs-aba-novo .ic, .em-anexar-vazio .ic { color: var(--ink3); flex: none; }
-  .ac-incluir:hover .ic, .ag-incluir:hover .ic, .docs-aba-novo:hover .ic, .em-anexar-vazio:hover .ic { color: var(--ink); }
+  .ac-incluir:hover:not(:disabled), .ag-incluir:hover:not(:disabled), .em-anexar-vazio:hover:not(:disabled) { border: 1px dashed var(--ink-a35); background: var(--fill); color: var(--ink); }
+  .ac-incluir .ic, .ag-incluir .ic, .em-anexar-vazio .ic { color: var(--ink3); flex: none; }
+  .ac-incluir:hover .ic, .ag-incluir:hover .ic, .em-anexar-vazio:hover .ic { color: var(--ink); }
   .ag-cor { display: block; width: 7px; height: 7px; border-radius: 2px; background: var(--ink); flex: none; }
   .ag-cor.ag-c1 { background: var(--verde); }
   .ag-cor.ag-c2 { background: var(--acc); }
@@ -297,7 +313,7 @@
   .ag-linha-comp .ag-comp-quando { color: var(--ink); font-weight: 600; }
   .ag-linha-comp.ag-passou .ag-texto b, .ag-linha-comp.ag-passou .ag-comp-marca { color: var(--ink3); }
   .ag-vazio { padding: 28px 18px; display: grid; gap: 6px; }
-  .ag-vazio h4 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .ag-vazio h4 { margin: 0; font: 400 16px/1.3 var(--serif); }
   .ag-vazio p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
 
   .ag-chave input, .ag-chave select, .ag-chave .escolha-botao { max-width: 60%; text-align: right; font-variant-numeric: tabular-nums; }

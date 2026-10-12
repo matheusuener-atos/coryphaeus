@@ -82,6 +82,10 @@ const faixaJanela = { base: null, passageiro: false, relogio: 0 };
 
 /* So a opcao do programa desliga o movimento - ver 22-responsivo.css. */
 function animacoesLigadas() {
+  /* Janela escondida (ou a previa de desenho, que roda sem pintar): o relogio
+     das animacoes nao anda, e uma entrada que comeca em opacidade 0 deixava a
+     tela em branco. Sem quadros, sem animacao - o conteudo entra pronto. */
+  if (document.hidden || !document.timeline || document.timeline.currentTime === 0) return false;
   return !document.documentElement.classList.contains("sem-animacao");
 }
 
@@ -186,6 +190,8 @@ $("trilho").addEventListener("mouseleave", () => {
    movimento rapido para o conteudo nunca geraria o mouseleave. */
 document.addEventListener("mousemove", (e) => {
   if (!$("menu-flutuante").classList.contains("aberto")) return;
+  // Nas telas de desenho o menu fica aberto para ser visto (Menu flutuante).
+  if (window.__menuFixo) return;
   /* As bordas de redimensionar da janela sem moldura ficam POR CIMA de tudo,
      inclusive dos seis pixels da esquerda do trilho. Sem contar com elas
      aqui, encostar o mouse na beirada fechava o menu. */
@@ -582,3 +588,18 @@ async function carregarUsuario() {
   } catch (err) { /* sem preferencias, fica o padrao */ }
 }
 
+
+/* A marca (o P do trilho e o PAVLVS do menu) leva de volta ao Assistente,
+   como o logo de um site leva a pagina inicial. */
+function voltarPelaMarca() {
+  if (typeof fecharFlutuante === "function" && !window.__menuFixo) fecharFlutuante();
+  if (typeof voltarAoAssistente === "function") voltarAoAssistente();
+}
+document.querySelectorAll("#trilho-logo, .menu-cabeca").forEach((m) => {
+  m.setAttribute("role", "link");
+  m.setAttribute("tabindex", "0");
+  m.setAttribute("aria-label", "Ir para o início");
+  m.title = "Ir para o início";
+  m.addEventListener("click", voltarPelaMarca);
+  m.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); voltarPelaMarca(); } });
+});

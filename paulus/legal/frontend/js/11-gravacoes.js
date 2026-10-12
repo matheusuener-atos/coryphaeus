@@ -40,7 +40,7 @@ async function mostrarGravacoes(visao) {
   atualizarPostura();
   try {
     const pedidos = [
-      fetch("/api/gravacoes?termo=" + encodeURIComponent(gv.termo)).then((r) => r.json()),
+      fetch("/api/gravacoes").then((r) => r.json()),
       fetch("/api/voz").then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ];
     if (gv.visao === "gravacao") pedidos.push(fetch("/api/gravacoes/" + gv.aberta.id).then((r) => (r.ok ? r.json() : null)));
@@ -71,6 +71,19 @@ async function abrirGravacao(id) {
   await mostrarGravacoes("gravacao");
   // C5: o resumo pedido antes de sair (ou de recarregar) continua daqui.
   if (typeof superficiesNovas === "function" && superficiesNovas() && iaGuardada("resumo_gravacao." + id)) pedirResumoDaGravacao(true);
+}
+
+/* So a tabela e as paginas: a barra de filtros (e o cursor da busca) fica onde esta. */
+function redesenharListaGv() {
+  const lugar = $("gv-lista-lugar");
+  if (!lugar || gv.visao !== "lista") return desenharGravacoes();
+  const tmp = document.createElement("div");
+  tmp.innerHTML = corpoDaListaGv();
+  const novo = tmp.querySelector("#gv-lista-lugar");
+  if (novo) lugar.innerHTML = novo.innerHTML;
+  const busca = $("gv-busca"), pos = busca ? busca.selectionStart : null;
+  ligarGravacoes();
+  if (busca && document.activeElement !== busca) { busca.focus(); if (pos != null) busca.setSelectionRange(pos, pos); }
 }
 
 function desenharGravacoes() {
@@ -165,9 +178,7 @@ function cabecalhoGravacoes() {
   nav.innerHTML = "";
   titulo.textContent = "Gravações";
   meta.textContent = plural(gv.lista.length, "gravação", "gravações") + " · reuniões, atendimentos, audiências e notas de voz · o áudio fica nesta máquina";
-  $("acoes-tela").innerHTML =
-    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="gv-busca" placeholder="Buscar gravações…" value="' + esc(gv.termo) + '"></label>' +
-    '<button class="primario com-icone" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button>";
+  $("acoes-tela").innerHTML = '<button class="primario com-icone" data-gv-nova="1">' + ic("mic", 16) + "Nova gravação</button>";
 }
 
 function metaAoVivo() {
@@ -197,8 +208,63 @@ function linhaAoVivoGv() {
     '<span class="fin-status gv-viva">' + (v.estado === "pausada" ? "pausada · ao vivo" : "gravando · ao vivo") + '</span><span></span></div>';
 }
 
+/* Como em Processos (js/10-servicos.js): busca na hora, periodo pelo calendario do sistema e paginas. */
+function gravacoesVisiveisGv() {
+  const sem = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const termo = sem(gv.busca).trim();
+  return gv.lista.filter((g) => {
+    if (gv.tipo && g.tipo !== gv.tipo) return false;
+    if (termo) {
+      const alvo = sem([g.titulo, g.participantes, g.notas, g.cliente_nome, g.servico_nome].join(" "));
+      if (!termo.split(/\s+/).every((p) => alvo.includes(p))) return false;
+    }
+    if (gv.de || gv.ate) {
+      const d = String(g.criado_em || g.quando || "").slice(0, 10);
+      if (!d || (gv.de && d < gv.de) || (gv.ate && d > gv.ate)) return false;
+    }
+    return true;
+  });
+}
+
+function aplicarPeriodoGv(p) {
+  const h = new Date(), a = h.getFullYear(), m = h.getMonth();
+  const isoD = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const faixa = { tudo: ["", ""], mes: [new Date(a, m, 1), h], anterior: [new Date(a, m - 1, 1), new Date(a, m, 0)], "3m": [new Date(a, m - 2, 1), h], ano: [new Date(a, 0, 1), h] }[p];
+  gv.periodo = p;
+  if (faixa) { gv.de = faixa[0] ? isoD(faixa[0]) : ""; gv.ate = faixa[1] ? isoD(faixa[1]) : ""; }
+  gv.pagina = 1;
+}
+
+function barraDeFiltrosGv() {
+  const per = (v, r) => '<option value="' + v + '"' + ((gv.periodo || "tudo") === v ? " selected" : "") + ">" + r + "</option>";
+  const dataBR = (x) => (x ? x.split("-").reverse().join("/") : "");
+  const botaoData = (k, rot) => '<button type="button" class="escolha-botao data-botao nfv-cal' + (gv[k] ? "" : " vazio") + '" data-gv-cal="' + k + '" aria-label="' + rot + '">' +
+    '<span class="escolha-rotulo">' + esc(gv[k] ? dataBR(gv[k]) : rot) + "</span>" + ic("calendar_month", 18) + "</button>";
+  return '<div class="sv-filtros"><label class="busca-tela">' + ic("search", 18) + '<input type="text" id="gv-busca" placeholder="Buscar por título, participante, cliente ou serviço" value="' + esc(gv.busca || "") + '" autocomplete="off"></label>' +
+    '<div class="ag-campo nfv-filtro"><select id="gv-periodo" aria-label="Gravado em">' + per("tudo", "Todo o período") + per("mes", "Este mês") + per("anterior", "Mês passado") + per("3m", "Últimos 3 meses") + per("ano", "Este ano") + per("outro", "Outro período") + "</select></div>" +
+    '<div class="nfv-datas">' + botaoData("de", "De") + "<span>até</span>" + botaoData("ate", "Até") + "</div></div>";
+}
+
+function paginasGv(total) {
+  const por = gv.porPagina || 20;
+  const n = Math.max(1, Math.ceil(total / por));
+  if (!gv.pagina || gv.pagina > n) gv.pagina = Math.min(gv.pagina || 1, n);
+  if (total <= 20) return "";
+  const ini = (gv.pagina - 1) * por + 1, fim = Math.min(total, gv.pagina * por);
+  const nums = [];
+  for (let i = 1; i <= n; i++) if (i === 1 || i === n || Math.abs(i - gv.pagina) <= 1) nums.push(i); else if (nums[nums.length - 1] !== "…") nums.push("…");
+  return '<div class="sv-paginas"><span class="sv-paginas-conta">' + ini + "–" + fim + " de " + total + "</span>" +
+    '<div class="sv-paginas-nums"><button class="botao-icone" data-gv-pagina="' + (gv.pagina - 1) + '"' + (gv.pagina <= 1 ? " disabled" : "") + ' aria-label="Página anterior">' + ic("chevron_left", 18) + "</button>" +
+    nums.map((i) => i === "…" ? '<span class="sv-paginas-reti">…</span>' : '<button class="' + (i === gv.pagina ? "ativa" : "") + '" data-gv-pagina="' + i + '">' + i + "</button>").join("") +
+    '<button class="botao-icone" data-gv-pagina="' + (gv.pagina + 1) + '"' + (gv.pagina >= n ? " disabled" : "") + ' aria-label="Próxima página">' + ic("chevron_right", 18) + "</button></div>" +
+    '<label class="sv-paginas-por">por página <select id="gv-por-pagina">' + [20, 50, 100].map((x) => "<option" + (x === por ? " selected" : "") + ">" + x + "</option>").join("") + "</select></label></div>";
+}
+
 function corpoDaListaGv() {
-  const lista = gv.tipo ? gv.lista.filter((g) => g.tipo === gv.tipo) : gv.lista;
+  const visiveis = gravacoesVisiveisGv();
+  const pag = paginasGv(visiveis.length);
+  const por = gv.porPagina || 20;
+  const lista = visiveis.slice((gv.pagina - 1) * por, gv.pagina * por);
   const chips = [["", "Todas · " + gv.lista.length]].concat(gv.tipos.map((t) => [t.valor, GV_PLURAIS[t.valor] || t.rotulo])).map(([v, r]) => {
     const classe = v === gv.tipo ? "on" : "";
     return '<button class="' + classe + '" data-gv-tipo="' + v + '">' + r + "</button>";
@@ -218,20 +284,20 @@ function corpoDaListaGv() {
   }).join("");
   let vazio = "";
   if (!linhas && !linhaAoVivoGv()) {
-    vazio = '<p class="rel-vazio">' + (gv.termo ? "Nada com “" + esc(gv.termo) + "”. Procurei no título, nos participantes, nas notas, no cliente e no serviço." :
+    vazio = '<p class="rel-vazio">' + ((gv.busca || "").trim() || gv.de || gv.ate ? "Nada com esses filtros. Procurei no título, nos participantes, nas notas, no cliente e no serviço." :
       (gv.tipo ? "Nenhuma gravação deste tipo." : "Nenhuma gravação ainda. Grave pelo microfone em Nova gravação ou importe um áudio — tudo fica nesta máquina, e a transcrição entra quando houver um modelo de voz local.")) + "</p>";
   }
   const barra = gv.escolhidas.size
     ? barraDeSelecao(gv.escolhidas.size, true, '<button class="botao-icone perigo" data-gv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-gv-sel-limpar")
     : '<div class="ag-chips">' + chips + "</div>";
-  return '<div class="acervo-principal">' + cartaoDoGravadorGv(true) + '<div class="tabela-cartao gv-lista">' +
+  return '<div class="acervo-principal sv-principal gv-principal">' + barraDeFiltrosGv() + cartaoDoGravadorGv(true) + '<div id="gv-lista-lugar"><div class="tabela-cartao gv-lista">' +
     '<div class="tabela-barra">' + barra +
     '<div class="direita"><input type="file" id="gv-importar" hidden accept="audio/*,.webm,.ogg,.opus,.mp3,.m4a,.wav,.aac,.flac,.mp4">' +
     '<button data-gv-importar="1">' + ic("upload", 16) + "Importar áudio</button></div></div>" +
     '<div class="tabela-cabecalho colunas-gravacoes"><span></span><span>Gravação</span><span>Participantes</span><span>Duração</span><span>Status</span><span></span></div>' +
     '<div class="tabela-corpo">' + linhaAoVivoGv() + linhas + vazio + "</div>" +
-    '<div class="tabela-rodape"><span>' + lista.length + " de " + gv.lista.length + " · " + duracaoLongaGv(gv.totalSegundos) + ' gravados</span>' +
-    '<span class="direita">' + esc(notaDaVoz()) + "</span></div></div></div>";
+    '<div class="tabela-rodape"><span>' + visiveis.length + " de " + gv.lista.length + " · " + duracaoLongaGv(gv.totalSegundos) + ' gravados</span>' +
+    '<span class="direita">' + esc(notaDaVoz()) + "</span></div></div>" + pag + "</div></div>";
 }
 
 /* ------------------------------------------------ o tocador na linha */
@@ -462,7 +528,7 @@ function cartaoDosDetalhesGv() {
     '<div class="mencao gv-sugestoes" data-gv-sugestoes="1" hidden></div></div>' +
     '<div class="ag-campo gv-forma-inteira"><label>Tipo</label><div class="ag-chips">' + tipos + "</div></div>" +
     '<div class="ag-campo"><label>Cliente</label><select data-gv-form="cadastro_id">' + clientes + "</select></div>" +
-    '<div class="ag-campo"><label>Serviço</label><select data-gv-form="servico_id">' + servicos + "</select></div>" +
+    '<div class="ag-campo"><label>Processo</label><select data-gv-form="servico_id">' + servicos + "</select></div>" +
     "</div></div>";
 }
 
@@ -976,7 +1042,7 @@ function vigiarVoz() {
       const baixava = Boolean((gv.voz || {}).baixando);
       gv.voz = voz;
       if (gv.visao === "lista") {
-        const d = await (await fetch("/api/gravacoes?termo=" + encodeURIComponent(gv.termo))).json();
+        const d = await (await fetch("/api/gravacoes")).json();
         gv.lista = d.gravacoes || [];
         gv.totalSegundos = d.total_segundos || 0;
         desenharGravacoes();
@@ -1117,7 +1183,7 @@ function painelDaGravacao() {
     ? '<button type="button" class="sv-ligacao" data-gv-resumo="1"' + (gv.resumindo ? " disabled" : "") + ">" + ic("refresh", 15) +
       (gv.resumindo ? "escrevendo…" : (g.resumo ? "atualizar resumo" : "fazer um resumo")) + "</button>"
     : "";
-  const resumo = '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo da IA</span><span class="contagem">' +
+  const resumo = '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span class="gv-titulo-ic"><span class="sv-faisca">' + ic("auto_awesome", 16) + '</span>Resumo</span><span class="contagem">' +
     esc(g.resumo ? "escrito " + quandoCurtoSv(g.resumo_em) : (transcrita ? "a fazer" : "depende da transcrição")) + "</span></div>" +
     (g.resumo
       ? '<p class="gv-resumo-curto">' + esc(g.resumo) + '</p><button class="em-ligacao forte" data-gv-aba="resumo">Ver o resumo inteiro</button>'
@@ -1133,9 +1199,9 @@ function painelDaGravacao() {
   const onde = g.servico_nome ? "Pasta do serviço" : "Nesta máquina";
   const arquivado = '<div class="painel-bloco"><div class="painel-bloco-cabeca">Arquivado em</div>' +
     '<div class="gv-arquivado">' + ic(g.servico_nome ? "folder" : "inventory_2", 18) + '<div class="duas-linhas"><b>' + esc(onde) + "</b><small>" +
-    esc([g.servico_nome ? "Serviços › " + g.servico_nome : "", g.mb + " MB", g.origem === "importada" ? "importada" : "gravada aqui"].filter(Boolean).join(" · ")) + "</small></div>" +
+    esc([g.servico_nome ? "Processos › " + g.servico_nome : "", g.mb + " MB", g.origem === "importada" ? "importada" : "gravada aqui"].filter(Boolean).join(" · ")) + "</small></div>" +
     (g.existe ? '<button class="mais-linha" data-gv-baixar="1" title="Baixar o áudio">' + ic("download", 16) + "</button>" : "") + "</div>" +
-    '<div class="gv-arquivado">' + ic("work", 18) + '<div class="gv-ligar"><label>Serviço</label><select data-gv-ligar="servico_id">' + servicos + "</select>" +
+    '<div class="gv-arquivado">' + ic("work", 18) + '<div class="gv-ligar"><label>Processo</label><select data-gv-ligar="servico_id">' + servicos + "</select>" +
     (g.servico_id ? '<button class="em-ligacao" data-gv-abrir-servico="' + g.servico_id + '">abrir a pasta do serviço</button>' : "<small>ligar move o áudio para a pasta do serviço</small>") + "</div></div>" +
     '<div class="gv-arquivado">' + ic("person", 18) + '<div class="gv-ligar"><label>Cliente</label><select data-gv-ligar="cadastro_id">' + clientes + "</select></div></div></div>";
   const detalheDaTranscricao = transcrita
@@ -1160,8 +1226,27 @@ function ligarGravacoes() {
   const busca = $("gv-busca");
   if (busca) {
     let t;
-    busca.oninput = () => { clearTimeout(t); const v = busca.value; t = setTimeout(() => { gv.termo = v.trim(); mostrarGravacoes("lista"); }, 280); };
+    busca.oninput = () => { clearTimeout(t); t = setTimeout(() => { gv.busca = busca.value; gv.pagina = 1; redesenharListaGv(); }, 120); };
   }
+  const periodo = $("gv-periodo");
+  if (periodo && typeof melhorarSelect === "function" && !periodo.dataset.melhorado) melhorarSelect(periodo);
+  if (periodo) periodo.onchange = () => { aplicarPeriodoGv(periodo.value); desenharGravacoes(); };
+  document.querySelectorAll("[data-gv-cal]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      if (typeof calendarioAberto !== "undefined" && calendarioAberto) { fecharCalendario(); return; }
+      const k = b.dataset.gvCal;
+      calendarioPopover(b, { valor: gv[k], limpar: true, aoEscolher: (data) => {
+        gv[k] = data || "";
+        if (gv.de && gv.ate && gv.de > gv.ate) { const x = gv.de; gv.de = gv.ate; gv.ate = x; }
+        gv.periodo = gv.de || gv.ate ? "outro" : "tudo"; gv.pagina = 1;
+        desenharGravacoes();
+      } });
+    };
+  });
+  document.querySelectorAll("[data-gv-pagina]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); gv.pagina = Number(b.dataset.gvPagina); desenharGravacoes(); }; });
+  const porPag = $("gv-por-pagina");
+  if (porPag) porPag.onchange = () => { gv.porPagina = Number(porPag.value); gv.pagina = 1; desenharGravacoes(); };
   clique("[data-gv-voltar]", () => mostrarGravacoes("lista"));
   clique("[data-gv-nova]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });
   clique("[data-gv-vivo]", () => { gv.aba = "vivo"; mostrarGravacoes("vivo"); });

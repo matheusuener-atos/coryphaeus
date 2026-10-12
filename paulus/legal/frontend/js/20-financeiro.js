@@ -134,10 +134,17 @@ function cabecalhoFinanceiro() {
 }
 
 function seletorDeMes() {
-  return '<label class="fin-mes-sel" title="Mês"><select id="fin-mes">' +
-    (fin.dados.meses || []).map((m) => '<option value="' + esc(m.valor) + '"' + (m.valor === fin.mes ? " selected" : "") + ">" +
+  // O mes no cabecalho: as setas andam um mes; o nome abre a lista. Na altura dos outros botoes do topo.
+  const meses = fin.dados.meses || [];
+  const i = meses.findIndex((m) => m.valor === fin.mes);
+  const antes = i >= 0 && i < meses.length - 1 ? meses[i + 1].valor : "";
+  const depois = i > 0 ? meses[i - 1].valor : "";
+  const seta = (alvo, icone, rotulo) => '<button type="button" class="fin-mes-passo" data-fin-mes="' + esc(alvo) + '" title="' + rotulo + '" aria-label="' + rotulo + '"' + (alvo ? "" : " disabled") + ">" + ic(icone, 18) + "</button>";
+  return '<div class="fin-mes-sel" role="group" aria-label="Mês">' + seta(antes, "chevron_left", "Mês anterior") +
+    '<label class="fin-mes-nome">' + ic("calendar_month", 16) + '<select id="fin-mes">' +
+    meses.map((m) => '<option value="' + esc(m.valor) + '"' + (m.valor === fin.mes ? " selected" : "") + ">" +
       esc(m.valor === mesDeHoje() ? "Este mês" : maiuscula(m.rotulo)) + "</option>").join("") +
-    "</select></label>";
+    "</select></label>" + seta(depois, "chevron_right", "Mês seguinte") + "</div>";
 }
 
 /* Uma secao da pagina, no cabecalho de Servicos: titulo curto em sans, a
@@ -733,7 +740,10 @@ function ligarFinanceiro(raiz) {
   if (!noDialogo) {
     clique("[data-fin-visao]", (b) => { fin.visao = b.dataset.finVisao; mostrarFinanceiro(); });
     const seletor = $("fin-mes");
+    // A lista de meses e a do sistema (melhorarSelect), nao a do Windows.
+    if (seletor && typeof melhorarSelect === "function" && !seletor.dataset.melhorado) melhorarSelect(seletor);
     if (seletor) seletor.onchange = () => { fin.mes = seletor.value; mostrarFinanceiro(); };
+    document.querySelectorAll("[data-fin-mes]").forEach((b) => { b.onclick = () => { if (!b.dataset.finMes) return; fin.mes = b.dataset.finMes; mostrarFinanceiro(); }; });
     ligarSelecao(document.querySelector("#financeiro .tabela-corpo"), {
       linhas: ".tabela-linha[data-sel]", escolhidos: fin.escolhidos, aoMudar: desenharFinanceiro, apagar: (ids) => apagarLancamentosEmLote(ids),
     });

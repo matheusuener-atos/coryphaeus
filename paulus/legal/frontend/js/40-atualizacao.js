@@ -42,15 +42,16 @@ function blocoAtualizacao() {
   const r = cfg.rascunho || {};
   const a = r.atualizacoes || {};
   if (!d) return '<p class="cfg-texto">Não consegui ler a situação da atualização.</p>';
-  const chaves = '<div class="cfg-chaves">' +
-    chaveCfg("Versão", d.atual) +
-    chaveCfg("Última verificação", d.ultima_consulta ? d.ultima_consulta.slice(8, 10) + "/" + d.ultima_consulta.slice(5, 7) + " às " + d.ultima_consulta.slice(11, 16) : "ainda não verificou") +
-    "</div>";
-  const liga = '<div class="cfg-sub">' +
-    ligaCfg("atualizacoes.verificar", "Verificar atualizações uma vez por dia", "lê paulus.ia.br/atualizacao.json; nada seu vai junto", a.verificar !== false) +
-    ligaCfg("atualizacoes.avisar_antes", "Avisar antes de instalar", "desligado, a versão nova baixa sozinha e se instala quando você fechar o Paulus", a.avisar_antes !== false) +
-    "</div>";
+  void a;
   const an = d.anuncio;
+  const nova = Boolean(an && an.nova);
+  const st = (t, classe) => '<b class="cfg-st ' + classe + '">' + esc(t) + "</b>";
+  const chaves = '<div class="sv-ficha cfg-ficha">' +
+    '<div class="sv-ficha-item"><span class="sv-kicker">Versão instalada</span><b>Paulus ' + esc(d.atual || "—") + "</b></div>" +
+    '<div class="sv-ficha-item"><span class="sv-kicker">Situação</span>' +
+      (d.erro ? st("Não foi possível verificar", "acc") : nova ? st("Versão " + an.versao + " disponível", "acc") : d.ultima_consulta ? st("Em dia", "ok") : st("Ainda não verificado", "cfg-mudo")) + "</div>" +
+    '<div class="sv-ficha-item"><span class="sv-kicker">Última verificação</span><b' + (d.ultima_consulta ? "" : ' class="cfg-mudo"') + ">" +
+      (d.ultima_consulta ? d.ultima_consulta.slice(8, 10) + "/" + d.ultima_consulta.slice(5, 7) + " às " + d.ultima_consulta.slice(11, 16) : "Nunca") + "</b></div></div>";
   const b = d.baixando || {};
   let estado;
   if (an && an.nova) {
@@ -76,11 +77,22 @@ function blocoAtualizacao() {
       (an.publicada ? "<small> · publicada em " + esc(an.publicada.slice(8, 10) + "/" + an.publicada.slice(5, 7)) + "</small>" : "") +
       novidades + acao + "</div>";
   } else {
-    estado = '<p class="cfg-explica">' + (d.erro ? esc(d.erro) : (d.ultima_consulta ? "Você está na versão mais nova." : "")) + "</p>";
+    estado = d.erro ? '<p class="cfg-explica">' + esc(d.erro) + "</p>" : "";
   }
-  return chaves + liga + estado +
-    '<div class="cfg-botoes"><button data-cfg-atu="verificar">' + ic("refresh", 16) + "Verificar agora</button>" +
-    '<button data-cfg-novidades="1">' + ic("article", 16) + "Novidades da versão</button></div>";
+  return chaves + estado +
+    '<div class="cfg-botoes cfg-botoes-fim"><button class="com-icone" data-cfg-novidades="1">' + ic("article", 16) + "O que mudou nesta versão</button>" +
+    '<button class="com-icone" data-cfg-atu="verificar">' + ic("refresh", 16) + "Verificar agora</button></div>";
+}
+
+/* O segundo cartao: como as atualizacoes chegam. */
+function blocoAtualizacaoAuto() {
+  const a = (cfg.rascunho || {}).atualizacoes || {};
+  return '<div class="cfg-sub">' +
+    ligaCfg("atualizacoes.verificar", "Procurar versão nova todo dia", "O Paulus consulta paulus.ia.br uma vez por dia. Nenhum dado seu vai junto.", a.verificar !== false) +
+    ligaCfg("atualizacoes.avisar_antes", "Perguntar antes de instalar", a.avisar_antes !== false
+      ? "Você decide quando instalar a versão nova."
+      : "A versão nova é baixada sozinha e instalada na próxima vez que você fechar o Paulus.", a.avisar_antes !== false) +
+    "</div>";
 }
 
 async function acaoAtualizacao(qual) {

@@ -45,7 +45,7 @@ function vistaPublicacoes() {
       "<small>" + esc([p.tribunal, p.orgao, "disponibilizado em " + dataBr(p.data)].filter(Boolean).join(" · ")) + "</small></span>" +
       (p.tarefa_id ? '<span class="etiqueta ok">prazo criado</span>' : (p.pedido_id ? '<span class="etiqueta">prazo em Aprovações</span>' : "")) + (aberta ? ic("expand_more", 18).replace('class="ic', 'class="ic pub-seta-aberta') : ic("expand_more", 18)) + "</button>" +
       (aberta ? '<div class="pub-corpo"><p class="pub-texto">' + esc(p.texto || "").replace(/\n/g, "<br>") + "</p>" +
-        (p.processo_id ? '<p class="cfg-explica">Processo cadastrado em Serviços › Processos: esta publicação entra no aviso dele' +
+        (p.processo_id ? '<p class="cfg-explica">Processo cadastrado em Processos: esta publicação entra no aviso dele' +
           (p.pedido_id && !p.tarefa_id ? ", e o prazo já espera em Aprovações." : ".") + "</p>" : "") +
         '<div class="cfg-botoes">' + (p.tarefa_id || p.pedido_id ? "" : '<button class="primario com-icone" data-pub-prazo="' + p.id + '">' + ic("event", 16) + "Criar prazo</button>") +
         (p.processo_id ? '<button data-pub-processo="' + p.processo_id + '">' + ic("gavel", 16) + "Abrir o processo</button>"

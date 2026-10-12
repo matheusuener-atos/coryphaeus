@@ -363,9 +363,9 @@ async function abrirRelatorioNfse(mes) {
   const escolha = await dialogo({
     titulo: "Notas fiscais de " + mes.slice(5, 7) + "/" + mes.slice(0, 4), contexto: "Nota fiscal › contador", larga: true, classe: "dialogo-nota",
     html: htmlDoRelatorioNfse(d),
-    rodape: '<button type="button" data-nfse-mes="' + mesAnteriorNfse(mes, -1) + '">‹ Mês anterior</button>' +
-      '<button type="button" data-nfse-mes="' + mesAnteriorNfse(mes, 1) + '">Mês seguinte ›</button>',
-    confirmar: "Exportar para o contador", segundo: { rotulo: "Mandar ao contador" }, cancelar: "Fechar",
+    rodape: '<button type="button" class="botao-icone" title="Mês anterior" aria-label="Mês anterior" data-nfse-mes="' + mesAnteriorNfse(mes, -1) + '">' + ic("chevron_left", 18) + "</button>" +
+      '<button type="button" class="botao-icone" title="Mês seguinte" aria-label="Mês seguinte" data-nfse-mes="' + mesAnteriorNfse(mes, 1) + '">' + ic("chevron_right", 18) + "</button>",
+    confirmar: "Exportar", segundo: { rotulo: "Mandar ao contador" }, semCancelar: true,
   });
   if (!escolha) return;
   const url = escolha.segundo ? "/api/nfse/contador/enviar" : "/api/nfse/contador/exportar";

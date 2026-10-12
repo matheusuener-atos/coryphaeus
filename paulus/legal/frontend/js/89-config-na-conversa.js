@@ -31,7 +31,7 @@ const CFN_PE = {
   plano: ["nenhuma mudança", "Verificar agora", "refresh", '[data-cfg-atu="verificar"]'],
   desempenho: ["sem documentos, nomes de clientes nem conversas", "Gerar diagnóstico", "", "[data-cfg-diagnostico]"],
   lixeira: ["", "Esvaziar a lixeira", "close", "[data-cfg-lixo-esvaziar]"],
-  vinculos: ["o convite sai depois do vínculo com o Google", "Convidar pela internet", "mail", ""],
+  vinculos: ["o convite vai por e-mail", "Convidar pela internet", "mail", ""],
   acesso: ["nada é criado antes de você confirmar", "Criar a conta", "check", "[data-cx-criar-conta], [data-acesso-nova]"],
   conexoes: ["esperando o QR · a mensagem fica pronta no chat", "Abrir WhatsApp Web", "", ""],
   word: ["depois, o Word abre sozinho com o PAVLVS", "Instalar no Word", "download", '[data-word-acao="instalar"]'],
@@ -848,7 +848,7 @@ function linhaDoConviteNoLado() {
   const ja = typeof eqp !== "undefined" && (eqp.equipe || []).some((f) => (f.email || "").toLowerCase() === (c.email || "").toLowerCase() && c.email);
   if (ja) return "";
   return '<div class="cfg-servico cfn-convite"><span class="cad-avatar">' + esc(iniciaisDoRemetente(c.nome)) + "</span>" +
-    '<span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc([c.email || "falta o e-mail Google", "colaborador"].join(" · ")) + "</small></span>" +
+    '<span class="duas-linhas"><b>' + esc(c.nome) + "</b><small>" + esc([c.email || "falta o e-mail", "colaborador"].join(" · ")) + "</small></span>" +
     '<span class="cfn-novo">novo</span></div>';
 }
 

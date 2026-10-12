@@ -44,7 +44,17 @@
   }
 
   /* O cartão do titular em Acesso externo (js/62-aparelho-titular.js, D5). */
-  .apt { display: grid; gap: 12px; }
+  .apt { display: grid; gap: 14px; }
+  .apt-quem { display: grid; gap: 8px; }
+  .apt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .apt-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px dashed var(--ink-a15); font: 500 13px var(--sans); color: var(--ink3); }
+  .apt-chip.on { border-style: solid; color: var(--ink); background: var(--fill); }
+  .apt-dica { font-size: 12px; color: var(--ink3); }
+  .apt-limites { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .apt-lim { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--ink-a1); border-radius: 10px; }
+  .apt-lim .sv-kicker { display: inline-flex; align-items: center; gap: 6px; }
+  .apt-lim p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+  .apt-vazio { display: flex; align-items: center; gap: 10px; margin: 0; padding: 14px; border: 1px dashed var(--ink-a15); border-radius: 10px; font-size: 13px; color: var(--ink3); }
   .apt-linha, .apt-marca { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .apt-sub { margin: 8px 0 0; font: 600 13px var(--sans); color: var(--ink); }
   .apt-marcas { display: grid; border-top: 1px solid var(--ink-a08); }
@@ -61,5 +71,6 @@
 
   @media (max-width: 600px) {
     .apt-linha { flex-wrap: wrap; }
+    .apt-limites { grid-template-columns: minmax(0, 1fr); }
     .apt-rel-cab, .apt-rel-linha { grid-template-columns: minmax(0, 1fr) repeat(3, 48px); gap: 6px; }
   }

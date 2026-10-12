@@ -75,7 +75,11 @@ function recuperarAbas() {
   escr.abasLidas = true;
   try {
     const d = JSON.parse(localStorage.getItem("paulus.docs.abas") || "null");
-    if (d && Array.isArray(d.abas)) { escr.abas = d.abas; escr.atual = d.atual; }
+    if (d && Array.isArray(d.abas)) {
+      // Uma aba sem id (criacao que falhou) nao abre nada: fica de fora.
+      escr.abas = d.abas.filter((a) => a && a.id !== undefined && a.id !== null && a.id !== "");
+      escr.atual = escr.abas.some((a) => a.id === d.atual) ? d.atual : null;
+    }
   } catch (err) { escr.abas = []; }
 }
 
@@ -140,6 +144,8 @@ async function carregarDocumentoAtual() {
     const r = await fetch("/api/planilha/" + aba.id);
     if (!r.ok) { fecharAba(aba.id); return carregarDocumentoAtual(); }
     const pl = await r.json();
+    // Resposta vazia (o documento sumiu ou o servidor nao respondeu): a aba sai e a tela abre, sem quebrar.
+    if (!pl || pl.id === undefined || !Array.isArray(pl.abas)) { fecharAba(aba.id); return carregarDocumentoAtual(); }
     if (!escr.pl || escr.pl.id !== pl.id) { escr.aba = 0; escr.celula = "A1"; escr.ancora = null; escr.filtro = null; escr.notaFormula = ""; }
     escr.pl = pl;
     aba.titulo = pl.titulo;
@@ -150,6 +156,7 @@ async function carregarDocumentoAtual() {
   const r = await fetch("/api/documentos/" + aba.id);
   if (!r.ok) { fecharAba(aba.id); return carregarDocumentoAtual(); }
   const doc = await r.json();
+  if (!doc || doc.id === undefined) { fecharAba(aba.id); return carregarDocumentoAtual(); }
   if (!escr.doc || escr.doc.id !== doc.id) { escr.sugestao = null; escr.pendente = null; escr.antes = null; escr.notas = null; escr.paginacao = null; }
   escr.doc = doc;
   aba.titulo = doc.titulo;
@@ -311,7 +318,7 @@ async function renomearDocumento(aba) {
   lembrarAbas();
   $("conversa-titulo").textContent = aba.titulo;
   const botao = document.querySelector('[data-docs-aba="' + aba.id + '"] .docs-aba-nome');
-  if (botao) botao.textContent = aba.titulo;
+  if (botao) botao.textContent = aba.titulo || (aba.tipo === "planilha" ? "Planilha sem nome" : "Documento sem nome");
 }
 
 function glifoDaAba(aba) {
@@ -322,8 +329,10 @@ function glifoDaAba(aba) {
 function abasDosDocumentos() {
   const abas = escr.abas.map((a) => {
     const classe = "docs-aba" + (a.id === escr.atual ? " ativa" : "");
-    return '<button class="' + classe + '" data-docs-aba="' + esc(String(a.id)) + '" title="' + esc(a.titulo) + '">' +
-      glifoDaAba(a) + '<span class="docs-aba-nome">' + esc(a.titulo) + "</span>" +
+    // Sem titulo (acabou de ser criado ou o nome foi apagado): a guia diz o que e, nunca fica vazia.
+    const nome = (a.titulo || "").trim() || (a.tipo === "planilha" ? "Planilha sem nome" : "Documento sem nome");
+    return '<button class="' + classe + '" data-docs-aba="' + esc(String(a.id)) + '" title="' + esc(nome) + '">' +
+      glifoDaAba(a) + '<span class="docs-aba-nome">' + esc(nome) + "</span>" +
       (a.tipo === "pdf" ? "<small>só leitura</small>" : "") +
       '<span class="ic ic-16 docs-fechar" data-docs-fechar="' + esc(String(a.id)) + '" title="Fechar">close</span></button>';
   }).join("");
@@ -334,8 +343,8 @@ function abasDosDocumentos() {
   return '<div class="docs-abas">' +
     '<button class="docs-aba' + ativa + '" data-docs-lista="1" title="Todos os documentos e planilhas">' + ic("list", 16) + '<span class="docs-aba-nome">Arquivos</span></button>' +
     abas +
-    '<button class="docs-aba-novo" data-docs-novo="' + (planilha ? "planilha" : "texto") + '">' +
-    (planilha ? "Nova planilha" : "Novo documento") + ic("add", 16) + "</button>" +
+    '<button class="docs-aba docs-aba-novo" data-docs-novo="' + (planilha ? "planilha" : "texto") + '" title="' + (planilha ? "Nova planilha" : "Novo documento") + '">' +
+    ic("add", 16) + '<span class="docs-aba-nome">' + (planilha ? "Nova planilha" : "Novo documento") + "</span></button>" +
     (escr.atual !== null ? botaoDoFoco() : "") + "</div>";
 }
 
@@ -741,6 +750,7 @@ async function criarDocumento(tipo) {
   });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   const novo = await r.json();
+  if (novo.id === undefined || novo.id === null) { avisoCert("não consegui criar o documento agora"); return; }
   abrirAba({ id: novo.id, titulo: novo.titulo, tipo: ehTexto ? "texto" : "planilha" });
   mostrarDocumentos(ehTexto ? "editor" : "planilha");
 }
@@ -834,22 +844,22 @@ function barrasDoPdf(aba) {
     '<button data-pdf-andar="-1" title="Anterior">' + ic("chevron_left", 18) + "</button>" +
     '<span class="docs-pagina-num">Pág. <b id="pdf-num">' + (aba.pagina || 1) + "</b>" + (aba.paginas ? " / " + aba.paginas : "") + "</span>" +
     '<button data-pdf-andar="1" title="Próxima">' + ic("chevron_right", 18) + "</button>" +
-    '<span class="docs-nota-direita">só leitura · o arquivo do Acervo, desenhado</span></div>';
+    "</div>";
 }
 
 function visorDoPdf(aba) {
   return '<div class="docs-cartao"><div class="docs-status"><span>' + esc(aba.nome) + '</span><span class="cresce"></span><span>PDF</span></div>' +
     '<div class="docs-pv-rolagem"><img class="docs-pagina" id="pdf-img" alt="página ' + (aba.pagina || 1) + '" src="/api/biblioteca/pagina?nome=' +
-    encodeURIComponent(aba.nome) + "&numero=" + (aba.pagina || 1) + '&largura=1000"></div></div>';
+    encodeURIComponent(aba.nome) + "&numero=" + (aba.pagina || 1) + '&largura=1000">' +
+    '<div class="docs-pagina-vazia" id="pdf-vazia" hidden>Página ' + (aba.pagina || 1) + "</div></div></div>";
 }
 
 function painelDoPdf(aba) {
   return '<aside class="acervo-painel" id="docs-painel"><div class="rolagem docs-painel">' + regioesDeFerramenta() +
     '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(aba.titulo) + '</h3><span class="meta">PDF do Acervo · só leitura</span></span></div>' +
-    '<div class="painel-acoes"><button class="primario" id="doc-editar-copia-2">' + ic("edit", 16) + "Abrir para editar</button>" +
-    '<button data-doc-no-acervo="1">' + ic("inventory_2", 16) + "Ver no Acervo</button></div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>O que dá para fazer</span></div>' +
-    "<p>Ler e conferir, página a página. Para mexer no texto, “Abrir para editar” cria uma cópia editável — o PDF original continua intacto no Acervo.</p></div>" +
+    '<div class="painel-acoes"><button data-doc-no-acervo="1">' + ic("inventory_2", 16) + "Ver no Acervo</button></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Para editar</span></div>' +
+    "<p>“Abrir para editar”, no alto, cria uma cópia editável. O PDF original continua como está no Acervo.</p></div>" +
     "</div></aside>";
 }
 
@@ -862,9 +872,16 @@ function ligarPdf(aba) {
       aba.pagina = n;
       lembrarAbas();
       $("pdf-num").textContent = n;
+      $("pdf-vazia").textContent = "Página " + n;
       $("pdf-img").src = "/api/biblioteca/pagina?nome=" + encodeURIComponent(aba.nome) + "&numero=" + n + "&largura=1000";
     };
   });
+  const img = $("pdf-img"), vazia = $("pdf-vazia");
+  if (img && vazia) {
+    img.onerror = () => { img.hidden = true; vazia.hidden = false; };
+    img.onload = () => { img.hidden = false; vazia.hidden = true; };
+    if (img.complete && !img.naturalWidth) img.onerror();
+  }
   ["doc-editar-copia", "doc-editar-copia-2"].forEach((id) => { const b = $(id); if (b) b.onclick = () => importarPdf(aba); });
   const ver = raiz.querySelector("[data-doc-no-acervo]");
   if (ver) ver.onclick = () => { bib.termo = aba.nome; marcarDestino("biblioteca"); mostrarBiblioteca(); };
@@ -1076,7 +1093,8 @@ function revestirFolha() {
 function aplicarPaginacao(mapa) {
   const folha = $("ed-folha");
   const tela = $("ed-quebras");
-  if (!folha || !tela || !mapa) return;
+  // Sem o mapa do servidor (resposta vazia), a folha fica como esta - nunca derruba a tela.
+  if (!folha || !tela || !mapa || !Array.isArray(mapa.de_bloco)) return;
   escr.paginacao = mapa;
   if (mapa.formato) escr.doc.formato = mapa.formato;
   if (mapa.folha) escr.doc.folha = mapa.folha;

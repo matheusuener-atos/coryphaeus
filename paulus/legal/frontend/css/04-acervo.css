@@ -70,7 +70,7 @@
   .visoes { position: relative; display: flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 8px; }
   .visoes button {
     position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: none; border-radius: 8px; background: transparent; box-shadow: none;
-    font: 500 13px var(--sans); color: var(--ink2);
+    font: 500 13px var(--sans); color: var(--ink2); white-space: nowrap;
   }
   .visoes button:hover:not(:disabled) { background: transparent; border: none; color: var(--ink); }
   .visoes button.ativa { background: var(--surf); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px var(--sh-a12); }
@@ -108,7 +108,8 @@
   .alca-painel:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); background: var(--botao-sobre); }
   .painel-cabeca { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px 12px; }
   .titulo-painel { display: grid; gap: 3px; min-width: 0; flex: 1; }
-  .titulo-painel h3 { font: 600 16px/1.3 var(--sans); letter-spacing: 0; margin: 0; overflow-wrap: anywhere; }
+  .titulo-painel h3 { font: 600 15px/1.35 var(--sans); letter-spacing: 0; margin: 0; overflow-wrap: anywhere; text-wrap: pretty; }
+  .titulo-painel .sv-kicker { margin-bottom: 2px; }
   .titulo-painel .meta { font: 500 12px var(--sans); color: var(--ink3); }
   .painel-acoes { padding: 0 18px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
   .painel-acoes button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -126,7 +127,7 @@
   .chave-valor b { font: 600 12px var(--sans); color: var(--ink); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; font-variant-numeric: tabular-nums; }
   .chave-valor b.ok { color: var(--okt); }
   .painel-vazio { padding: 28px 18px; display: grid; gap: 6px; }
-  .painel-vazio h3 { font: 600 16px/1.3 var(--sans); margin: 0; }
+  .painel-vazio h3 { font: 600 15px/1.35 var(--sans); margin: 0; }
   .painel-vazio p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
   .ligacao-painel { text-align: left; justify-self: start; }
   .historico-painel { display: grid; gap: 8px; font-size: 13px; color: var(--ink2); }
@@ -195,7 +196,16 @@
   }
   .colunas-documentos { grid-template-columns: 20px minmax(0, 1fr) 110px 170px 28px; }
   .colunas-conferir { grid-template-columns: 20px minmax(0, 1fr) 150px 84px; }
-  .colunas-prazos { grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) 100px 150px 150px; }
+  .colunas-prazos { grid-template-columns: minmax(180px, 1fr) 132px 112px 176px; }
+  /* Cartao estreito (painel aberto em janela pequena): a linha vira duas -
+     o prazo em cima, inteiro; data, status e acoes embaixo. */
+  .pz-tela .tabela-cartao { container-type: inline-size; }
+  @container (max-width: 640px) {
+    .pz-tela .tabela-cabecalho.colunas-prazos { display: none; }
+    .pz-tela .tabela-linha.colunas-prazos { grid-template-columns: auto auto minmax(0, 1fr); row-gap: 8px; }
+    .pz-tela .tabela-linha.colunas-prazos > .nome-doc { grid-column: 1 / -1; }
+    .pz-tela .tabela-linha.colunas-prazos > .acoes-linha { justify-self: end; }
+  }
 
   .marcar {
     width: 16px; height: 16px; flex: none; border-radius: 4px; border: 1.5px solid var(--ink-a3);
@@ -274,8 +284,12 @@
   .chip-pasta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* O x do chip mora com o da .escopo-pilula, em 05-paineis-e-botoes.css. */
   .nota-direita { margin-left: auto; font: 500 12px var(--sans); color: var(--ink3); }
-  .cartao-cabeca { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
-  .texto-cabeca { display: grid; gap: 3px; flex: 1; min-width: 0; }
+  .cartao-cabeca { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 12px 16px; border-bottom: 1px solid var(--ink-a1); }
+  /* O texto nunca vira coluna estreita: as acoes descem para a linha de baixo. */
+  .texto-cabeca { display: grid; gap: 3px; flex: 1 1 280px; min-width: 0; }
+  .cartao-cabeca > .direita { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .org-estimativa { flex-wrap: wrap; row-gap: 8px; }
+  .org-estimativa .org-tempo { flex: 1 1 260px; min-width: 0; }
   .texto-cabeca b { font: 600 14px var(--sans); }
   .texto-cabeca small { font: 500 12px var(--sans); color: var(--ink3); }
   .cartao-cabeca .direita { display: flex; align-items: center; gap: 8px; }
@@ -301,6 +315,17 @@
   .campo-painel .com-botao input[type=text] { flex: 1; max-width: 100%; }
 
   .pz-tela .sv-ficha { flex: none; }
+  /* Prazos: as acoes da linha cabem na coluna, e a celula de status nao estica. */
+  .pz-tela .colunas-prazos .acoes-linha { display: flex; gap: 6px; justify-content: flex-end; }
+  .pz-tela .colunas-prazos .pilula-estado { justify-self: start; }
+  .pz-tela .tabela-barra { flex-wrap: wrap; row-gap: 8px; }
+  /* A lista nao se espreme: cresce com as linhas e quem rola e a coluna. */
+  .pz-tela .acervo-principal { overflow-y: auto; }
+  .pz-tela .tabela-cartao { flex: none; }
+  .pz-tela .tabela-corpo { flex: none; overflow: visible; }
+  .pz-tela .colunas-prazos .duas-linhas small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pz-tela .tabela-barra .direita { margin-left: auto; }
+  .pz-tela .acervo-painel .folha-clausula p { font-size: 13px; }
 
   /* Organizar, fase Ler: o que a varredura achou, para marcar o que ler. */
   .colunas-ler { grid-template-columns: 20px minmax(0, 1fr) 90px 72px; }
@@ -333,14 +358,17 @@
   .org-nota:empty { display: none; }
   /* O pedido foi para a fila: confirmacao de verdade, no meio do cartao. */
   .org-confirma { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 36px 24px; text-align: center; }
+  /* O selo e um anel fino com o check, nao uma bola cheia: o pedido ainda
+     espera o sim, entao ele confirma sem comemorar. */
   .org-confirma-selo {
-    display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 50%;
-    background: var(--verde); color: var(--surf);
-    animation: org-selo .5s cubic-bezier(.2,.9,.3,1.3) both;
+    display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%;
+    border: 1.5px solid var(--okt); background: var(--okbg, transparent); color: var(--okt);
+    animation: org-selo .35s cubic-bezier(.2,.7,.3,1);
   }
+  .org-confirma-selo .ic { font-size: 24px; width: 24px; height: 24px; }
   @keyframes org-selo { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
-  .org-confirma h3 { margin: 0; font: 600 16px/1.3 var(--sans); letter-spacing: 0; color: var(--ink); }
-  .org-confirma > p { margin: 0; max-width: 520px; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+  .org-confirma h3 { margin: 4px 0 0; font: 600 18px/1.3 var(--sans); letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+  .org-confirma > p { margin: 0; max-width: 480px; font-size: 14px; line-height: 1.6; color: var(--ink2); text-wrap: pretty; }
   /* Os passos por dentro sao a lista de etapas de 02-conversa.css (.etapa). */
   .org-confirma-passos {
     list-style: none; margin: 4px 0 0; padding: 12px 16px; display: grid; gap: 10px; min-width: 340px; text-align: left;
@@ -413,6 +441,8 @@
   }
   input[type=text]:focus, input[type=password]:focus, input[type=email]:focus, input[type=number]:focus, select:focus, .escolha-botao:focus, textarea:focus { border-color: var(--ink); outline: none; box-shadow: none; }
   input::placeholder, textarea::placeholder { color: var(--ink3); }
+  /* Dentro de um cartao o campo fica no fundo de campo (--campo-fundo, o tom da pagina): a caixa se destaca do cartao. */
+  :is(.cfg-cartao, .tabela-cartao, .sv-secao, .dialogo, .acervo-painel, .ag-ficha, .est-estantes, .est-lado) :is(input[type=text], input[type=password], input[type=email], input[type=number], input[type=date], input[type=time], select, textarea, .escolha-botao):not(:disabled) { background: var(--campo-fundo); }
   /* A AREA DE TEXTO: o mesmo campo, com altura minima de 96 px e alca vertical.
      A caixa de pedido (.cartao-campo textarea, 05-paineis-e-botoes.css) e o
      unico caso a parte. */

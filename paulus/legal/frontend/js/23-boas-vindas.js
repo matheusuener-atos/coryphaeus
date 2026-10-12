@@ -44,7 +44,7 @@ const NOMES_BV = {
    sempre. */
 const MODULOS_BV = [
   // [id, icone, nome, descricao, destinos no trilho, grupo] - a mesma ordem e os mesmos grupos do trilho (Aplicacao / index.html).
-  ["servicos", "work", "Serviços", "Processos, prazos e a trilha de cada caso", ["servicos"], "Dia a dia"],
+  ["servicos", "work", "Processos", "Prazos, equipe e a trilha de cada caso", ["servicos"], "Dia a dia"],
   ["gravacoes", "mic", "Gravações", "Audiências e reuniões com transcrição", ["gravacoes"], "Dia a dia"],
   ["agenda", "calendar_month", "Agenda", "Compromissos, prazos e lembretes", ["calendario"], "Dia a dia"],
   ["foco", "self_improvement", "Foco e bem-estar", "Pausas e blocos de concentração", ["foco"], "Dia a dia"],

@@ -246,24 +246,33 @@ function atualizarPostura() {
    desenho nao tem. "Ver mais" abre a lista inteira aqui mesmo, embaixo. */
 function desenharRecentes() {
   const alvo = $("recentes");
-  // Com os avisos no lugar da lista (js/53-avisos.js), as recentes saem.
-  if (typeof avs !== "undefined" && avs.naInicio) { alvo.hidden = true; return; }
+  /* O sino abre a linha: os avisos do dia, com a conta dos que faltam ver.
+     Clicar abre (ou recolhe) o cartao de avisos embaixo, no lugar da lista. */
+  const temAvisos = typeof avs !== "undefined";
+  const avisosAbertos = temAvisos && avs.naInicio;
+  const faltam = temAvisos ? (avs.avisos || []).filter((a) => !a.visto).length : 0;
+  const sino = temAvisos
+    ? '<button class="sino-avisos' + (avisosAbertos ? " aberto" : "") + (faltam ? " com-conta" : "") + '" id="recentes-sino" aria-expanded="' + avisosAbertos + '" title="' +
+      (faltam ? plural(faltam, "aviso") + " para ver" : "Nenhum aviso para ver") + '">' + ic("notifications", 16) +
+      (faltam ? '<span class="sino-conta">' + faltam + "</span>" : "") + '</button><i class="recentes-divisa" aria-hidden="true"></i>'
+    : "";
   const lista = (estado.recentes || []).slice(0, 3);
-  if (!lista.length) { alvo.hidden = true; alvo.innerHTML = ""; return; }
+  if (!lista.length && !temAvisos) { alvo.hidden = true; alvo.innerHTML = ""; return; }
   /* Aberta e a lista estar a vista - e nao uma classe na coluna, que era o
      criterio antigo e deixou de existir: com ele o botao so sabia abrir. */
-  const aberta = !$("lista-conversas").hidden;
+  const aberta = !avisosAbertos && !$("lista-conversas").hidden;
   alvo.hidden = false;
   /* Com a lista aberta, "Ver mais" sai: o botao de recolher ja esta na barra
      da propria lista, e dois botoes para a mesma coisa, um em cima do outro,
      so confundem. Ele volta quando a lista recolhe. */
-  alvo.innerHTML = '<span class="sv-kicker">Conversas recentes</span>' +
+  alvo.innerHTML = sino + (lista.length ? '<span class="sv-kicker">Conversas recentes</span>' : "") +
     lista.map((t) =>
       '<button class="recente" data-abre="' + esc(t.id) + '">' + ic("forum", 15) +
       "<span>" + esc(t.titulo) + "</span></button>").join("") +
-    (aberta ? "" : '<button class="ver-mais" id="recentes-mais" title="Ver todas as conversas">Ver mais' + ic("chevron_right", 16) + "</button>");
+    (aberta || !lista.length ? "" : '<button class="ver-mais" id="recentes-mais" title="Ver todas as conversas">Ver mais' + ic("chevron_right", 16) + "</button>");
   alvo.querySelectorAll("[data-abre]").forEach((b) => { b.onclick = () => abrirTrabalho(b.dataset.abre); });
-  if (!aberta) $("recentes-mais").onclick = () => alternarListaDeConversas(true);
+  if (!aberta && $("recentes-mais")) $("recentes-mais").onclick = () => { if (avisosAbertos) fecharAvisosNaInicio(); alternarListaDeConversas(true); };
+  if ($("recentes-sino")) $("recentes-sino").onclick = () => { if (avs.naInicio) fecharAvisosNaInicio(); else { abrirAvisosNaInicio(""); desenharRecentes(); } };
   if (aberta) desenharListaDeConversas();
 }
 

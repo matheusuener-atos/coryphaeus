@@ -348,6 +348,7 @@ function blocoLimites(d) {
    Estagiário, que escreve direto. A conta "~N×" é aproximada (src/profundidade.py). */
 function blocoProfundidade(d) {
   const niveis = d.painel.profundidade || [];
+  niveis.forEach((n) => { if (PC_NIVEL_NOME[n.nivel]) n.nome = PC_NIVEL_NOME[n.nivel]; });
   if (!niveis.length) return "";
   const usados = niveis.filter((n) => n.tokens);
   const meta = usados.length ? plural(usados.reduce((s, n) => s + n.pedidos, 0), "pedido") + " com profundidade neste ciclo" : "nenhum pedido ainda";
@@ -360,7 +361,7 @@ function blocoProfundidade(d) {
       '<span class="pc-limite-uso">' + (n.pedidos ? esc(tokCurto(n.tokens)) + " em " + plural(n.pedidos, "pedido") +
         " · ~" + esc(tokCurto(n.media)) + " por pedido" : "sem uso no ciclo") + "</span></div>").join("") + "</div>" +
     '<p class="sv-dica">Quem escolhe o nível é quem pergunta, na caixa da pergunta. Níveis mais altos entendem melhor o pedido, ' +
-    "planejam, revisam e reescrevem — e por isso gastam mais tokens por pedido. O “~N×” compara com o Estagiário e é aproximado; " +
+    "planejam, revisam e reescrevem — e por isso gastam mais tokens por pedido. O “~N×” compara com o Baixo e é aproximado; " +
     "o que vale é o que o plano conta.</p></section>";
 }
 
@@ -465,7 +466,9 @@ function blocoPlano(d, c) {
 }
 
 /* O que cada plano tem, em frases curtas, para a comparacao (os recursos do Worker). */
-const PC_NIVEL_NOME = { estagiario: "Estagiário", bacharel: "Bacharel", advogado: "Advogado", juiz: "Juiz", ministro: "Ministro" };
+/* Os nomes dos niveis (pedido de 11/10/2026): Baixo, Medio, Alto, Max e
+   Ultra, no lugar dos cargos. Os ids continuam os do servidor. */
+const PC_NIVEL_NOME = { estagiario: "Baixo", bacharel: "Médio", advogado: "Alto", juiz: "Max", ministro: "Ultra" };
 function itensDoPlano(p) {
   const r = p.recursos || {};
   const itens = [(p.modelos_info || []).map((m) => m.nome + " (" + m.empresa + ")").join(" + "),

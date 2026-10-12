@@ -103,8 +103,8 @@
     --elev-float: 0 14px 30px -12px var(--sh-a35);
 
     /* Acento e vinho, sempre em oklch: prazo, atraso, destrutivo, citacao. */
-    --acc: oklch(42% 0.13 25);
-    --accbg: oklch(95% 0.02 25);
+    --acc: oklch(44% 0.09 25);
+    --accbg: oklch(95.5% 0.01 25);
     --accbg2: oklch(97.5% 0.01 25);
     --accbg3: oklch(98.5% 0.005 25);
     --accln: oklch(80% 0.06 25);
@@ -118,10 +118,10 @@
     --destaque: var(--ink);
     --destaque-fundo: var(--fill);
     --destaque-linha: var(--ink-a2);
-    --okt: oklch(38% 0.1 150);
-    --okbg: oklch(95% 0.03 150);
-    --warnt: oklch(45% 0.1 70);
-    --warnbg: oklch(96% 0.05 85);
+    --okt: oklch(40% 0.06 150);
+    --okbg: oklch(95.5% 0.012 150);
+    --warnt: oklch(46% 0.07 70);
+    --warnbg: oklch(96% 0.02 85);
     --logo: none;
     --amostra-escura: #171716;
     /* A logo oficial e sempre escura, nos dois temas (assistente de
@@ -132,8 +132,8 @@
     --be-p: 0%;
 
     /* Iguais nos dois temas: pontos cheios e glifos de formato de arquivo. */
-    --verde: oklch(60% 0.15 150);
-    --ambar: oklch(75% 0.15 80);
+    --verde: oklch(62% 0.1 150);
+    --ambar: oklch(74% 0.1 80);
     --glifo-pdf: oklch(58% 0.19 35);
     --glifo-word: oklch(48% 0.14 255);
     --glifo-excel: oklch(50% 0.13 150);
@@ -236,16 +236,16 @@
     --sh-a45: rgba(0,0,0,.99);
     --veu: rgba(0,0,0,.55);
 
-    --acc: oklch(74% 0.12 25);
-    --accbg: oklch(27% 0.05 25);
+    --acc: oklch(74% 0.08 25);
+    --accbg: oklch(26% 0.018 25);
     --accbg2: oklch(22% 0.03 25);
     --accbg3: #1f1d1c;
-    --accln: oklch(40% 0.08 25);
-    --accln2: oklch(50% 0.1 25);
-    --okt: oklch(78% 0.12 150);
-    --okbg: oklch(28% 0.05 150);
-    --warnt: oklch(82% 0.12 80);
-    --warnbg: oklch(30% 0.06 85);
+    --accln: oklch(38% 0.04 25);
+    --accln2: oklch(48% 0.06 25);
+    --okt: oklch(78% 0.07 150);
+    --okbg: oklch(26% 0.016 150);
+    --warnt: oklch(82% 0.07 80);
+    --warnbg: oklch(27% 0.018 85);
     --logo: invert(1) hue-rotate(180deg);
 
     color-scheme: dark;

@@ -19,6 +19,6 @@
   .eo-travou { margin: 0; text-align: center; font: 500 12px/1.5 var(--sans); color: var(--ink3); }
   .eo-erro { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 500 12px/1.45 var(--sans); color: var(--acc); }
   .eo-erro .ic { flex: none; margin-top: 1px; }
-  .eo-texto { margin: -6px 0 2px; font: 600 16px/1.5 var(--sans); color: var(--ink2); }
+  .eo-texto { margin: -6px 0 2px; font: 400 14px/1.65 var(--sans); color: var(--ink2); }
   .eo-denovo { display: grid; gap: 16px; }
-  .eo-denovo h2 { margin: 0; font: 400 36px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+  .eo-denovo h2 { margin: 0; font: 400 32px/1.15 var(--serif); letter-spacing: -.01em; color: var(--ink); }

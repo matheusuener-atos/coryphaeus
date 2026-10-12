@@ -35,9 +35,6 @@
   --pcl-veu: #10100f;
   --pcl-veu-ink: #f2f1ec;
   --pcl-veu-ink2: #a8a69e;
-  /* A .topo do site: o fio --line2 e o vidro fosco da barra presa no alto. */
-  --pcl-fio-fino: rgba(28, 28, 26, .08);
-  --pcl-topo: rgba(246, 245, 241, .92);
   color-scheme: light;
 }
 /* O escuro e o padrao (o do site); o claro so quando o aparelho do cliente pede. */
@@ -64,8 +61,6 @@
   --pcl-veu: #10100f;
   --pcl-veu-ink: #f2f1ec;
   --pcl-veu-ink2: #a8a69e;
-  --pcl-fio-fino: rgba(242, 241, 236, .06);
-  --pcl-topo: rgba(19, 19, 18, .92);
   color-scheme: dark;
 }
 [data-tema="escuro"] body.pcl-corpo {
@@ -263,7 +258,15 @@ body.pcl-corpo .pcl-barra-site + .pcl-pagina { min-height: calc(100vh - 57px); m
 .pcl-btn-icone .ic { font-size: 18px; vertical-align: 0; }
 .pcl-topo .pcl-marca { display: none; }
 @media (max-width: 640px) { .pcl-barra-dentro { padding: 0 16px; } }
-/* A .topo do site: fio --line2 (--pcl-fio-fino), recuo de 28 px (16 abaixo de 900), presa no alto com o vidro fosco (--pcl-topo). */
+/* Os tres tokens da .topo do site: fio --line2, recuo de 28 px (16 abaixo de 900), presa no alto com o vidro fosco. */
+.pcl-pagina {
+  --pcl-fio-fino: rgba(242, 241, 236, .06);
+  --pcl-topo: rgba(19, 19, 18, .92);
+}
+[data-tema="claro"] .pcl-pagina {
+  --pcl-fio-fino: rgba(28, 28, 26, .08);
+  --pcl-topo: rgba(246, 245, 241, .92);
+}
 .pcl-barra-site { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--pcl-fio-fino); background: var(--pcl-topo); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .pcl-barra-dentro { padding: 0 28px; }
 @media (max-width: 900px) { .pcl-barra-dentro { padding: 0 16px; } }

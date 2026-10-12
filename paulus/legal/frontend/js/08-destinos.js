@@ -16,7 +16,7 @@
 
 const NOVOS_DESTINOS = {
   servicos: {
-    id: "servicos", nome: "Serviços", pronta: true, abre: "servicos",
+    id: "servicos", nome: "Processos", pronta: true, abre: "servicos",
     resolve: "Pastas de trabalho por cliente, com equipe, prazos, arquivos e a trilha do que aconteceu.",
     precisa: ["o Assistente abrindo um serviço a partir de um pedido (“abra um serviço para…”)"],
   },

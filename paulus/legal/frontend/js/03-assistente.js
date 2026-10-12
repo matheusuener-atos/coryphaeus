@@ -952,7 +952,17 @@ function topoDoPlano(etapas, atual, andando) {
   const parar = rodando ? '<button class="agr-parar" data-parar-resposta="1" title="Parar a resposta"><i></i>Parar</button>' : "";
   return '<div class="cabeca trab-cabeca"><b class="quem">' + (rodando ? "Trabalhando" : "Parado") +
     (total ? " · etapa " + atual + " de " + total : "") + "</b>" +
-    '<span class="agr-tempo" id="cronometro"></span>' + parar + retomar + "</div>" + faixasDasEtapas(etapas, null);
+    tempoDoPlano(rodando) + parar + retomar + "</div>" + faixasDasEtapas(etapas, null);
+}
+
+/* O tempo no cartao, como no de Acontecendo agora ("17 s de ~26 s"): com a
+   conversa reaberta no meio, vem do andamento do servidor e anda sozinho
+   (o setInterval das [data-agr-tempo]); ao vivo, o cronometro desta pagina. */
+function tempoDoPlano(rodando) {
+  const a = rodando && estado.trabalho && estado.trabalho.andamento;
+  if (!a) return '<span class="agr-tempo" id="cronometro"></span>';
+  return '<span class="agr-tempo" id="cronometro" data-agr-tempo="1" data-decorrido="' + (a.decorrido_s || 0) + '" data-fase-s="' + (a.fase_s || 0) +
+    '" data-previsao="' + (a.previsao_s || 0) + '" data-fase="' + esc(a.fase || "") + '" data-recebido="' + Date.now() + '">' + esc(tempoDoTrabalho(a)) + "</span>";
 }
 
 function cartaoPlano(etapas, atual, andando) {
@@ -2699,9 +2709,9 @@ async function carregarAgora() {
     const gravando = cartaoDaGravacaoAgora();
     if (gravando) cartoes.push(gravando);
   }
-  for (const t of d.executando) cartoes.push(cartaoDoTrabalhoAgora(t));
+  for (const t of d.executando || []) cartoes.push(cartaoDoTrabalhoAgora(t));
 
-  for (const t of d.esperando) {
+  for (const t of d.esperando || []) {
     cartoes.push(
       '<div class="cartao-agora chama"><div class="cabeca"><i class="ponto-acc"></i>' +
       '<span class="nome">Esperando você</span></div>' +
@@ -2720,7 +2730,7 @@ async function carregarAgora() {
      acervo em dia: e a unica das duas que a pessoa talvez queira retomar. */
   const sub = $("sub-chamada");
   const base = sub.dataset.base || sub.textContent;
-  const docs = d.biblioteca.documentos;
+  const docs = (d.biblioteca || {}).documentos || 0;
   let situacao = "";
   if (d.pausados) {
     situacao = (d.pausados === 1 ? "Uma conversa ficou pela metade" : plural(d.pausados, "conversa") + " ficaram pela metade") +

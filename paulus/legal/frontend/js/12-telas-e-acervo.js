@@ -30,6 +30,9 @@ function abrirTela(nome, opcoes) {
   $("conversa-col").classList.toggle("tela-cheia", Boolean(o.cheia));
   $("acoes-tela").innerHTML = "";
   $("nav-tela").innerHTML = "";
+  // A migalha da Biblioteca ("/ Leis e súmulas") so vale la.
+  const migalha = document.getElementById("bib-migalha");
+  if (migalha) migalha.remove();
   mostrarLateral(false);
   fecharFlutuante();
   carregarTrabalhos();
@@ -712,7 +715,7 @@ function linhasDePrazos() {
   const abertos = prazos.sugestoes
     .filter((s) => !prazos.ignorados.has(s.titulo))
     .map((s) => ({
-      id: "s:" + s.titulo, tipo: "sugestao", arquivo: s.arquivo, titulo: "Conferir prazo",
+      id: "s:" + s.titulo, tipo: "sugestao", arquivo: s.arquivo || "", titulo: s.titulo || "Conferir prazo", trecho: s.trecho || "", pagina: s.pagina || 0,
       prazo: s.prazo, lista: s.lista, cliente: s.cliente, estado: "confirmar", bruto: s,
     }));
   const confirmados = prazos.tarefas.map((t) => ({
@@ -733,10 +736,8 @@ function desenharPrazos() {
 
   const linhas = lista.length ? lista.map((p) =>
     '<div class="tabela-linha colunas-prazos' + (prazos.aberto === p.id ? " aberta" : "") + '" data-prazo="' + esc(p.id) + '">' +
-    '<span class="nome-doc">' + glifo(p.arquivo) + '<span class="duas-linhas"><b>' + esc(p.arquivo) + "</b><small>" +
-    esc(p.cliente || p.lista || "") + "</small></span></span>" +
-    '<span class="duas-linhas"><b>' + esc(p.titulo) + "</b><small>" +
-    (p.tipo === "sugestao" ? "data lida na classificação" : "tarefa criada") + (p.lista ? " · " + esc(p.lista) : "") + "</small></span>" +
+    '<span class="nome-doc">' + glifo(p.arquivo) + '<span class="duas-linhas"><b>' + esc(p.tipo === "sugestao" ? p.titulo : p.arquivo.replace(/\.[^.]+$/, "")) + "</b><small>" +
+    esc([p.tipo === "sugestao" ? p.arquivo : "tarefa criada", p.cliente].filter(Boolean).join(" · ")) + "</small></span></span>" +
     '<span class="quando-doc">' + dataLonga(p.prazo) + "</span>" +
     (p.estado === "confirmar"
       ? '<span class="pilula-estado prazo"><i></i>Confirmar</span><span class="acoes-linha">' +
@@ -750,22 +751,24 @@ function desenharPrazos() {
 
   // A faixa de indicadores e a mesma das telas vizinhas (Documentos,
   // Organizar): um cartao em faixa no alto da coluna.
-  const item = (rotulo, valor, classe) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" +
-    '<b class="' + (classe || "") + '">' + valor + "</b></div>";
+  // O mesmo resumo das Configuracoes e dos Documentos: valor por extenso e o ponto do estado.
+  const item = (rotulo, valor, estado) => '<div class="sv-ficha-item"><span class="sv-kicker">' + rotulo + "</span>" +
+    '<b class="cfg-st ' + estado + '">' + valor + "</b></div>";
+  const naAgenda = prazos.tarefas.length;
   $("centro").innerHTML =
     '<div class="acervo pz-tela"><div class="acervo-principal">' +
-    '<div class="sv-ficha">' +
-    item("Nos próximos 90 dias", todas.length ? plural(todas.length, "prazo") : "nenhum") +
-    item("Aguardando confirmação", abertas.length || "nenhum", abertas.length ? "ae-acc" : "") +
-    item("Já na Agenda", prazos.tarefas.length || "nenhum") +
-    item("Documentos com data", docs.size || "nenhum") + "</div>" +
+    '<div class="sv-ficha cfg-ficha">' +
+    item("Próximos 90 dias", todas.length ? plural(todas.length, "prazo") : "Nenhum prazo", todas.length ? "ok" : "cfg-mudo") +
+    item("A confirmar", abertas.length ? plural(abertas.length, "aguardando", "aguardando") : "Nada pendente", abertas.length ? "acc" : "ok") +
+    item("Na Agenda", naAgenda ? plural(naAgenda, "confirmado", "confirmados") : "Nenhum ainda", naAgenda ? "ok" : "cfg-mudo") +
+    item("Documentos com data", docs.size ? plural(docs.size, "documento") : "Nenhum", docs.size ? "ok" : "cfg-mudo") + "</div>" +
     '<div class="tabela-cartao"><div class="tabela-barra"><span class="visoes">' +
     '<button class="' + (prazos.soAbertos ? "ativa" : "") + '" data-so="1">Em aberto · ' + abertas.length + "</button>" +
     '<button class="' + (prazos.soAbertos ? "" : "ativa") + '" data-so="0">Todos · ' + todas.length + "</button></span>" +
     '<span class="nota-barra">Datas lidas na última tomada de vista</span>' +
     '<span class="direita">' + (abertas.length
       ? '<button class="primario" id="prazos-todos">' + ic("event_upcoming", 16) + "Levar todos para a Agenda</button>" : "") + "</span></div>" +
-    '<div class="tabela-cabecalho colunas-prazos"><span>Documento</span><span>Prazo</span><span>Data</span><span>Status</span><span>Ação</span></div>' +
+    '<div class="tabela-cabecalho colunas-prazos"><span>Prazo e documento</span><span>Data</span><span>Status</span><span></span></div>' +
     '<div class="tabela-corpo">' + linhas + "</div>" +
     '<div class="tabela-rodape"><span>' + plural(todas.length, "prazo") + " em " + plural(docs.size, "documento") +
     '</span><span class="cresce"></span><span>Datas extraídas pelo modelo · confira no contrato antes de agir</span></div>' +
@@ -782,17 +785,16 @@ function painelDePrazo(todas) {
   const outros = todas.filter((x) => x.arquivo === p.arquivo && x.id !== p.id);
   const confirmado = p.estado === "confirmado";
   return '<aside class="acervo-painel"><div class="rolagem">' +
-    '<div class="painel-cabeca"><span class="titulo-painel"><h3>' + esc(p.titulo) + " — " + esc(p.arquivo) + '</h3><span class="meta">' +
-    esc(p.cliente || p.lista || "") + (p.cliente || p.lista ? " · " : "") + "vence " + dataLonga(p.prazo) + "</span></span>" +
+    '<div class="painel-cabeca"><span class="titulo-painel"><span class="sv-kicker">' + (confirmado ? "Prazo confirmado" : "Prazo a confirmar") + "</span>" +
+    "<h3>" + esc(p.titulo) + '</h3><span class="meta">vence ' + dataLonga(p.prazo) + (p.cliente ? " · " + esc(p.cliente) : "") + "</span></span>" +
     '<button class="voltar" id="prazos-fechar" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
     '<div class="painel-acoes">' + (confirmado
       ? '<button data-agenda="1">' + ic("event", 16) + "Ver na Agenda</button>"
       : '<button class="primario" data-confirmar="' + esc(p.id) + '">' + ic("check", 16) + "Confirmar prazo</button>" +
         '<button data-ignorar="' + esc(p.id) + '">' + ic("visibility_off", 16) + "Ignorar</button>") +
     '<button data-abrir-doc="' + esc(p.arquivo) + '">' + ic("inventory_2", 16) + "Abrir no Acervo</button></div>" +
-    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>De onde veio</span><span class="contagem">tomada de vista</span></div>' +
-    '<div class="folha-clausula"><small>Data lida na classificação</small><p>' + esc(p.arquivo) + " · " +
-    (p.lista ? esc(p.lista) + " · " : "") + dataLonga(p.prazo) + "</p></div>" +
+    '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>De onde veio</span><span class="contagem">' + (p.pagina ? "página " + p.pagina : "tomada de vista") + "</span></div>" +
+    '<div class="folha-clausula"><small>Trecho do documento</small><p>' + esc(p.trecho || ("Data lida: " + dataLonga(p.prazo))) + "</p></div>" +
     '<div class="arquivo-painel">' + glifo(p.arquivo) + "<span>" + esc(p.arquivo) + '</span><button data-abrir-doc="' + esc(p.arquivo) + '">abrir</button></div></div>' +
     '<div class="painel-bloco"><div class="painel-bloco-cabeca"><span>Como calculei</span></div>' +
     "<p>A data é a que o modelo leu no documento ao classificá-lo — data de assinatura ou de vencimento — e ainda cai nos próximos 90 dias. " +

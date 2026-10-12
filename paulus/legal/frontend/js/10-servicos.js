@@ -14,18 +14,22 @@ const SV_JSON = { "Content-Type": "application/json" };
 const sv = {
   visao: "pastas", filtro: "andamento", termo: "", lista: [], contagem: {}, status: [], clientes: [],
   aberto: null, acervo: null, aba: "geral",
+  pagina: 1, porPagina: 12, periodo: "tudo", de: "", ate: "", busca: "",
   pedindo: false, salvando: false, escolhidos: new Set(), conversando: null, arquivosAbertos: false,
 };
 
 async function mostrarServicos(visao) {
   if (visao) sv.visao = visao;
   if (sv.visao === "trabalho" && !sv.aberto) sv.visao = "pastas";
-  abrirTela("Serviços", { cheia: true });
+  abrirTela("Processos", { cheia: true });
   marcarDestino("servicos");
-  $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
+  // Buscando ou filtrando na lista: a barra fica onde esta (sem o esqueleto), so os cartoes mudam.
+  sv.focoBusca = document.activeElement && document.activeElement.id === "sv-busca";
+  const soCartoes = sv.visao === "pastas" && document.querySelector("#sv-tela .sv-filtros");
+  if (!soCartoes) $("centro").innerHTML = '<div class="acervo sem-painel"><div class="acervo-principal">' + esqueleto("lista") + '</div></div>';
   atualizarPostura();
   try {
-    const pedidos = [fetch("/api/servicos?filtro=" + encodeURIComponent(sv.filtro) + "&termo=" + encodeURIComponent(sv.termo)).then((r) => r.json())];
+    const pedidos = [fetch("/api/servicos?filtro=" + encodeURIComponent(sv.filtro)).then((r) => r.json())];
     if (sv.visao === "trabalho") {
       pedidos.push(fetch("/api/servicos/" + sv.aberto.id).then((r) => (r.ok ? r.json() : null)));
       pedidos.push(sv.acervo ? Promise.resolve(null) : fetch("/api/biblioteca").then((r) => r.json()));
@@ -53,10 +57,10 @@ async function mostrarServicos(visao) {
   desenharServicos();
 }
 
-async function abrirServico(id) {
+async function abrirServico(id, aba) {
   sv.aberto = { id: id };
   sv.arquivosAbertos = false;
-  sv.aba = "geral";
+  sv.aba = aba || "geral";
   await mostrarServicos("trabalho");
 }
 
@@ -83,7 +87,11 @@ function desenharServicos() {
     const classe = "acervo sv-tela sem-painel";
     html = '<div class="' + classe + '" id="sv-tela">' + corpoDasPastas() + "</div>";
   }
+  const buscando = sv.focoBusca || (document.activeElement && document.activeElement.id === "sv-busca");
+  const campoAntes = $("sv-busca");
+  const pos = campoAntes && buscando ? campoAntes.selectionStart : null;
   $("centro").innerHTML = html;
+  if (buscando) { const b = $("sv-busca"); if (b) { b.focus(); const p = pos == null ? b.value.length : Math.min(pos, b.value.length); b.setSelectionRange(p, p); } sv.focoBusca = false; }
   if (conteudoNovo("servicos:" + sv.visao + ":" + (sv.aberto ? sv.aberto.id : "") + ":" + (sv.aba || "") + ":" + sv.filtro)) {
     entraConteudo($("centro").firstElementChild);
     entraLista($("centro"), ".sv-pasta, .tabela-linha, .sv-linha-etapa, .sv-prazo-linha");
@@ -127,33 +135,85 @@ function cabecalhoServicos() {
     return;
   }
   nav.innerHTML = "";
-  titulo.textContent = "Serviços";
+  titulo.textContent = "Processos";
   titulo.classList.remove("renomeavel");
   titulo.removeAttribute("title");
   renomeadorDoTitulo = null;
   const c = sv.contagem;
   meta.textContent = (c.andamento || 0) + " em andamento · " + (c.aguardando || 0) + " aguardando cliente · " + (c.concluidos || 0) + " concluídos";
-  $("acoes-tela").innerHTML =
-    '<label class="busca-tela">' + ic("search", 18) + '<input type="text" id="sv-busca" placeholder="Buscar serviços…" value="' + esc(sv.termo) + '"></label>' +
+  // A busca e os filtros moram numa barra no corpo (corpoDasPastas); o cabecalho fica com o titulo e as acoes.
+  // O mesmo filtro de periodo das Notas fiscais (js/99-nfse-emissor.js): o select do sistema e o calendario do sistema.
+  const per = (v, r) => '<option value="' + v + '"' + (sv.periodo === v ? " selected" : "") + ">" + r + "</option>";
+  const dataBR = (x) => (x ? x.split("-").reverse().join("/") : "");
+  const botaoData = (k, rot) => '<button type="button" class="escolha-botao data-botao nfv-cal' + (sv[k] ? "" : " vazio") + '" data-sv-cal="' + k + '" aria-label="' + rot + '">' +
+    '<span class="escolha-rotulo">' + esc(sv[k] ? dataBR(sv[k]) : rot) + "</span>" + ic("calendar_month", 18) + "</button>";
+  sv.barraFiltros = '<div class="sv-filtros"><label class="busca-tela">' + ic("search", 18) + '<input type="text" id="sv-busca" placeholder="Buscar por nome, cliente ou descrição" value="' + esc(sv.busca) + '" autocomplete="off"></label>' +
     '<div class="visoes">' + botao("filtro", "andamento", "Em andamento") + botao("filtro", "todos", "Todos") + botao("filtro", "concluidos", "Concluídos") + "</div>" +
+    '<div class="ag-campo nfv-filtro"><select id="sv-periodo" aria-label="Aberto em">' +
+      per("tudo", "Todo o período") + per("mes", "Este mês") + per("anterior", "Mês passado") + per("3m", "Últimos 3 meses") + per("ano", "Este ano") + per("outro", "Outro período") + "</select></div>" +
+    '<div class="nfv-datas">' + botaoData("de", "De") + "<span>até</span>" + botaoData("ate", "Até") + "</div>" +
+    "</div>";
+  $("acoes-tela").innerHTML =
     // L2: os processos acompanhados pelo DataJud (js/64-processos.js).
-    (typeof mostrarProcessos === "function" ? '<button class="com-icone" data-pr-tela="1">' + ic("gavel", 16) + "Processos</button>" : "") +
+    (typeof mostrarProcessos === "function" ? '<button class="com-icone" data-pr-tela="1">' + ic("gavel", 16) + "Andamentos no DataJud" + ic("arrow_forward", 16) + "</button>" : "") +
     '<button class="primario com-icone" data-sv-novo="1">' + ic("add", 16) + "Novo serviço</button>";
 }
 
 /* --------------------------------------------------------- as pastas */
 
+/* A busca e o periodo filtram aqui mesmo, a cada tecla: a lista ja veio do servidor. */
+function servicosVisiveis() {
+  const termo = (sv.busca || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const de = sv.de || "", ate = sv.ate || "";
+  return sv.lista.filter((x) => {
+    if (termo) {
+      const alvo = [x.nome, x.cliente_nome, x.descricao].join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!termo.split(/\s+/).every((p) => alvo.includes(p))) return false;
+    }
+    if (de || ate) {
+      const d = String(x.criado_em || x.aberto_em || "").slice(0, 10);
+      if (!d) return false;
+      if (de && d < de) return false;
+      if (ate && d > ate) return false;
+    }
+    return true;
+  });
+}
+
+function paginasDosServicos(total) {
+  const n = Math.max(1, Math.ceil(total / sv.porPagina));
+  if (sv.pagina > n) sv.pagina = n;
+  if (total <= 12) return "";
+  const ini = (sv.pagina - 1) * sv.porPagina + 1, fim = Math.min(total, sv.pagina * sv.porPagina);
+  const nums = [];
+  for (let i = 1; i <= n; i++) if (i === 1 || i === n || Math.abs(i - sv.pagina) <= 1) nums.push(i); else if (nums[nums.length - 1] !== "…") nums.push("…");
+  return '<div class="sv-paginas"><span class="sv-paginas-conta">' + ini + "–" + fim + " de " + total + "</span>" +
+    '<div class="sv-paginas-nums"><button class="botao-icone" data-sv-pagina="' + (sv.pagina - 1) + '"' + (sv.pagina <= 1 ? " disabled" : "") + ' aria-label="Página anterior">' + ic("chevron_left", 18) + "</button>" +
+    nums.map((i) => i === "…" ? '<span class="sv-paginas-reti">…</span>' : '<button class="' + (i === sv.pagina ? "ativa" : "") + '" data-sv-pagina="' + i + '">' + i + "</button>").join("") +
+    '<button class="botao-icone" data-sv-pagina="' + (sv.pagina + 1) + '"' + (sv.pagina >= n ? " disabled" : "") + ' aria-label="Próxima página">' + ic("chevron_right", 18) + "</button></div>" +
+    '<label class="sv-paginas-por">por página <select id="sv-por-pagina">' + [12, 24, 48, 96].map((x) => '<option' + (x === sv.porPagina ? " selected" : "") + ">" + x + "</option>").join("") + "</select></label></div>";
+}
+
+function gradeDosServicos() {
+  const vis = servicosVisiveis();
+  const pag = paginasDosServicos(vis.length);
+  const pagina = vis.slice((sv.pagina - 1) * sv.porPagina, sv.pagina * sv.porPagina);
+  const novo = sv.filtro !== "concluidos" ? '<button class="sv-novo" data-sv-novo="1">' + ic("add", 20) + "<b>Novo serviço</b><small>ou peça ao Assistente: “abra um serviço para…”</small></button>" : "";
+  const filtrando = Boolean((sv.busca || "").trim() || sv.de || sv.ate);
+  const vazio = vis.length ? "" : (filtrando && sv.lista.length
+    ? '<div class="sv-vazio"><h3>Nada com esses filtros</h3><p>Procurei no nome, no cliente e na descrição' + (sv.de || sv.ate ? ", dentro do período escolhido" : "") + '. <button class="sv-ligacao" data-sv-limpar-filtros="1">Limpar filtros</button></p></div>'
+    : vazioDosServicos());
+  return '<div class="sv-grade">' + novo + vazio + pagina.map(cartaoDoServico).join("") + "</div>" + pag;
+}
+
 function corpoDasPastas() {
-  const cartoes = sv.lista.map(cartaoDoServico).join("");
   for (const id of [...sv.escolhidos]) if (!sv.lista.some((s) => String(s.id) === id)) sv.escolhidos.delete(id);
   const barra = sv.escolhidos.size
     ? '<div class="barra-selecao">' + barraDeSelecao(sv.escolhidos.size, false,
       '<button data-sv-sel-concluir="1">' + ic("task_alt", 16) + "Concluir</button><span class=\"divisa-v\"></span>" +
       '<button class="botao-icone perigo" data-sv-sel-apagar="1" title="Apagar" aria-label="Apagar">' + ic("delete", 18) + "</button>", "data-sv-sel-limpar") + "</div>"
     : "";
-  return '<div class="acervo-principal">' + barra + '<div class="sv-grade">' + (sv.lista.length ? "" : vazioDosServicos()) + cartoes +
-    '<button class="sv-novo" data-sv-novo="1">' + ic("add", 20) + "<b>Novo serviço</b><small>ou peça ao Assistente: “abra um serviço para…”</small></button>" +
-    "</div></div>";
+  return '<div class="acervo-principal">' + (sv.barraFiltros || "") + barra + '<div id="sv-lista">' + gradeDosServicos() + "</div></div>";
 }
 
 function vazioDosServicos() {
@@ -267,7 +327,7 @@ function corpoDoTrabalho() {
   let miolo;
   if (sv.aba === "arquivos") miolo = cartaoDosArquivos(s) + cartaoDasGravacoesDoServico(s);
   else if (sv.aba === "trilha") miolo = cartaoDoHistorico(s);
-  else if (sv.aba === "processos") miolo = '<section class="sv-secao"><div id="pr-servico"><p class="nota">abrindo…</p></div></section>';
+  else if (sv.aba === "processos") miolo = '<div id="pr-servico" class="pr-aba"><p class="nota">abrindo…</p></div>';
   // A Area do cliente (js/94-area-cliente.js): quem ve, o resumo, a conversa, a atividade.
   else if (sv.aba === "cliente") miolo = typeof secaoDoClienteNaPasta === "function" ? secaoDoClienteNaPasta() : "";
   else {
@@ -295,7 +355,7 @@ function resumoNoTopo(s) {
       esc(s.descricao || "Ainda sem resumo. O assistente lê o que está gravado na pasta — etapas, prazos, anotações e o nome dos arquivos — e escreve onde o serviço está e o que falta.") + "</p>";
   }
   const quando = s.resumo_em && s.resumo ? '<small class="sv-resumo-quando">escrito ' + esc(quandoCurtoSv(s.resumo_em)) + "</small>" : "";
-  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Resumo da IA</h2>' + quando +
+  return '<div class="sv-resumo-topo"><div class="sv-resumo-cabeca"><h2>Resumo</h2>' + quando +
     '<button type="button" class="sv-ligacao" data-sv-resumo-atualizar="1"' + (sv.pedindo ? " disabled" : "") + ">" +
     ic("refresh", 15) + (s.resumo ? "atualizar resumo" : "fazer um resumo") + "</button></div>" + corpo + "</div>";
 }
@@ -307,13 +367,14 @@ function aberturaDoServico(s) {
   const aberto = (s.criado_em || "").slice(0, 10);
   const pasta = s.pasta_caminho
     ? item("Pasta no Acervo", '<button type="button" class="sv-ficha-pasta corta" data-sv-pasta-windows="1" title="Abrir a pasta no Windows">' +
-      esc("Serviços › " + (s.pasta || s.nome)) + "</button>")
+      esc("Processos › " + (s.pasta || s.nome)) + "</button>")
     : "";
-  return '<header class="sv-abertura">' + resumoNoTopo(s) + '<div class="sv-ficha">' +
+  // A ficha (cliente, status, aberto em) vem primeiro; o resumo, logo abaixo.
+  return '<header class="sv-abertura"><div class="sv-ficha">' +
     item("Cliente", '<b class="corta">' + esc(s.cliente_nome || "sem cliente") + "</b>") +
     item("Status", '<b class="' + classe + '">' + esc(s.status_rotulo + " · " + s.progresso + "%") + "</b>") +
     item("Aberto em", "<b>" + (aberto ? dataCurta(aberto) + " " + aberto.slice(0, 4) : "—") + "</b>") +
-    pasta + "</div></header>";
+    pasta + "</div>" + resumoNoTopo(s) + "</header>";
 }
 
 /* Quem trabalha no serviço, como a assinatura de uma matéria: avatar, nome
@@ -561,7 +622,7 @@ function cartaoDosArquivos(s) {
   return '<div class="tabela-cartao sv-arquivos" id="sv-arquivos"><div class="tabela-barra"><b>Arquivos</b><span class="nota-barra">' + esc(conta) + "</span>" +
     '<div class="direita"><button data-sv-ligar="1">' + ic("add", 16) + "Adicionar</button></div></div>" +
     '<div class="tabela-corpo">' + (linhas || '<p class="nota">Nenhum arquivo ainda. Adicionar copia o documento para a pasta ' +
-      esc("Serviços › " + (s.pasta || s.nome)) + ' no Acervo — o original fica onde está. O que for posto nessa pasta pelo Windows entra aqui sozinho.</p>') + "</div>" +
+      esc("Processos › " + (s.pasta || s.nome)) + ' no Acervo — o original fica onde está. O que for posto nessa pasta pelo Windows entra aqui sozinho.</p>') + "</div>" +
     verMais + "</div>";
 }
 
@@ -569,7 +630,7 @@ function cartaoDosArquivos(s) {
    traz o áudio para a pasta do serviço. Clicar na linha abre o tocador, como
    na lista de Gravações. */
 function cartaoDasGravacoesDoServico(s) {
-  const lista = s.gravacoes || [];
+  const lista = Array.isArray(s.gravacoes) ? s.gravacoes : [];
   const linhas = lista.map((g) => {
     const aberta = gv.expandida === g.id;
     const classe = "tabela-linha colunas-sv-gravacoes" + (aberta ? " aberta" : "");
@@ -759,7 +820,7 @@ function editarAnotacao(el, i) {
 
 async function tirarAnotacao(i) {
   const a = sv.aberto.anotacoes[i];
-  if (!(await confirmar({ titulo: "Remover esta anotação?", contexto: "Serviços › " + sv.aberto.nome,
+  if (!(await confirmar({ titulo: "Remover esta anotação?", contexto: "Processos › " + sv.aberto.nome,
     texto: "“" + a.texto.slice(0, 140) + (a.texto.length > 140 ? "…" : "") + "”", confirmar: "Remover", perigo: true }))) return;
   if (await guardarNaPasta("/api/servicos/" + sv.aberto.id + "/anotacoes/" + i, "DELETE")) avisoCert("anotação removida");
 }
@@ -854,7 +915,7 @@ async function dialogoDaEquipe() {
   }, 0);
 
   const r = await dialogo({
-    titulo: "Equipe do serviço", contexto: "Serviços › " + s.nome, classe: "dialogo-servico", larga: true,
+    titulo: "Equipe do processo", contexto: "Processos › " + s.nome, classe: "dialogo-servico", larga: true,
     depois: html, confirmar: "Guardar equipe",
   });
   if (!r || !r.ok || convidado) return;
@@ -1017,14 +1078,23 @@ async function dialogoDoServico(s) {
   const status = s ? s.status : "andamento";
   const opcoesCliente = '<option value="">sem cliente</option>' + clientes.map((c) =>
     '<option value="' + c.id + '"' + (s && c.id === s.cadastro_id ? " selected" : "") + ">" + esc(c.nome) + "</option>").join("");
-  const opcoesStatus = sv.status.map((x) =>
-    '<option value="' + x.valor + '"' + (x.valor === status ? " selected" : "") + ">" + esc(x.rotulo) + "</option>").join("");
+  const opcoesStatus = sv.status.map((x) => {
+    const v = x.valor ?? x.id, r = x.rotulo ?? x.nome;
+    return '<option value="' + esc(v) + '"' + (v === status ? " selected" : "") + ">" + esc(r) + "</option>";
+  }).join("");
+  // A equipe: uma linha por pessoa, com caixa de marcar; a primeira marcada e a responsavel.
+  const acesso = sv.acessoEquipe || {};
   const chips = pessoas.length
-    ? pessoas.map((p) => {
-      const classe = equipe.includes(p.id) ? "on" : "";
-      return '<button type="button" class="' + classe + '" data-sv-chip="' + p.id + '">' + esc(p.nome) + "</button>";
-    }).join("")
-    : '<span class="ag-vazio-chip">ninguém na equipe em Cadastros ainda</span>';
+    ? '<div class="sv-d-pessoas">' + pessoas.map((p) => {
+      const on = equipe.includes(p.id);
+      const sub = (p.tipo === "socio" ? "sócio" : "colaborador") +
+        (acesso[p.id] === "convidado" ? " · convite enviado" : (acesso[p.id] === "pendente" ? " · falta o autenticador" : (!acesso[p.id] ? " · sem acesso ao Paulus" : "")));
+      return '<div class="sv-d-pessoa' + (on ? " on" : "") + '" data-sv-chip="' + p.id + '" role="checkbox" tabindex="0" aria-checked="' + on + '">' +
+        '<span class="marcar' + (on ? " on" : "") + '">' + ic("check", 12) + "</span>" +
+        '<span class="cad-avatar">' + esc(iniciaisDoRemetente(p.nome)) + '</span><span class="duas-linhas"><b>' + esc(p.nome) + "</b><small>" + esc(sub) + "</small></span>" +
+        '<span class="sv-d-papel"></span></div>';
+    }).join("") + "</div>"
+    : '<p class="dialogo-dica">Ninguém cadastrado em Cadastros › Equipe ainda.</p>';
   const html =
     '<div class="dialogo-duas">' +
     '<div class="dialogo-campo"><label for="sv-d-cliente">Cliente</label><div class="dialogo-caixa">' +
@@ -1034,8 +1104,9 @@ async function dialogoDoServico(s) {
     '<div class="dialogo-campo"><label for="sv-d-descricao">O que está sendo feito</label><div class="dialogo-caixa texto-longo">' +
     '<textarea id="sv-d-descricao" rows="3" data-dialogo-chave="descricao" placeholder="Aviso de não renovação, renegociação do contrato e aditivo com novo prazo.">' +
     esc(s ? s.descricao || "" : "") + "</textarea></div></div>" +
-    '<div class="dialogo-campo"><label>Equipe — a primeira pessoa é a responsável</label>' +
-    '<div class="ag-chips" id="sv-d-equipe">' + chips + "</div>" +
+    '<div class="dialogo-campo"><label>Quem cuida deste processo</label>' +
+    '<div id="sv-d-equipe">' + chips + "</div>" +
+    (pessoas.length ? '<small class="dialogo-dica sv-d-dica">Marque quem trabalha nele. A primeira pessoa marcada é a responsável; em outra marcada, clique em “tornar responsável”.</small>' : "") +
     '<input type="hidden" id="sv-d-equipe-ids" data-dialogo-chave="equipe" value="' + equipe.join(",") + '"></div>';
 
   // Os botões da equipe entram depois que o diálogo existe.
@@ -1043,25 +1114,43 @@ async function dialogoDoServico(s) {
     const lugar = document.getElementById("sv-d-equipe");
     const ids = document.getElementById("sv-d-equipe-ids");
     if (!lugar || !ids) return;
-    lugar.querySelectorAll("[data-sv-chip]").forEach((b) => {
-      b.onclick = () => {
+    const atuais = () => (ids.value ? ids.value.split(",").map(Number) : []);
+    const pintar = () => {
+      const lista = atuais();
+      lugar.querySelectorAll("[data-sv-chip]").forEach((b) => {
         const id = Number(b.dataset.svChip);
-        const atuais = ids.value ? ids.value.split(",").map(Number) : [];
-        const novos = atuais.includes(id) ? atuais.filter((x) => x !== id) : atuais.concat([id]);
-        ids.value = novos.join(",");
-        b.classList.toggle("on", novos.includes(id));
-      };
-    });
+        const on = lista.includes(id);
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-checked", on);
+        const m = b.querySelector(".marcar");
+        if (m) m.classList.toggle("on", on);
+        const papel = b.querySelector(".sv-d-papel");
+        papel.innerHTML = !on ? "" : lista[0] === id ? '<span class="etiqueta ok">Responsável</span>'
+          : '<button type="button" class="sv-ligacao" data-sv-resp="' + id + '">tornar responsável</button>';
+      });
+    };
+    lugar.onclick = (e) => {
+      const resp = e.target.closest("[data-sv-resp]");
+      if (resp) { e.stopPropagation(); const id = Number(resp.dataset.svResp); ids.value = [id].concat(atuais().filter((x) => x !== id)).join(","); pintar(); return; }
+      const b = e.target.closest("[data-sv-chip]");
+      if (!b) return;
+      const id = Number(b.dataset.svChip);
+      const lista = atuais();
+      ids.value = (lista.includes(id) ? lista.filter((x) => x !== id) : lista.concat([id])).join(",");
+      pintar();
+    };
+    lugar.onkeydown = (e) => { const b = e.target.closest("[data-sv-chip]"); if (b && (e.key === " " || e.key === "Enter")) { e.preventDefault(); b.click(); } };
+    pintar();
   }, 0);
 
   const r = await dialogo({
-    titulo: s ? "Editar serviço" : "Novo serviço",
-    contexto: s ? "Serviços › " + s.nome : "Serviços",
+    titulo: s ? "Editar processo" : "Novo processo",
+    contexto: s ? "Processos › " + s.nome : "Processos",
     campo: { rotulo: "Nome", valor: s ? s.nome : "", placeholder: "Renovação Fornecedor A", icone: "folder", max: 80 },
     classe: "dialogo-servico",
     larga: true,
-    depois: html + '<p class="dialogo-dica">' + (s ? "A trilha da pasta guarda a mudança." : "Arquivos, prazos e anotações entram depois, dentro da pasta.") + "</p>",
-    confirmar: s ? "Guardar" : "Abrir serviço",
+    depois: html + '<p class="dialogo-dica">' + (s ? "A mudança fica registrada no histórico do processo." : "Arquivos, prazos e anotações você adiciona depois, dentro do processo.") + "</p>",
+    confirmar: s ? "Guardar" : "Abrir processo",
   });
   if (!r || !r.ok) return;
   const v = r.valores || {};
@@ -1097,6 +1186,46 @@ async function renomearServico(s, novo) {
   return true;
 }
 
+/* Os atalhos preenchem o De e o Ate (como nas Notas fiscais). */
+function aplicarPeriodoSv(p) {
+  const h = new Date(), a = h.getFullYear(), m = h.getMonth();
+  const isoD = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const faixa = { tudo: ["", ""], mes: [new Date(a, m, 1), h], anterior: [new Date(a, m - 1, 1), new Date(a, m, 0)], "3m": [new Date(a, m - 2, 1), h], ano: [new Date(a, 0, 1), h] }[p];
+  sv.periodo = p;
+  if (faixa) { sv.de = faixa[0] ? isoD(faixa[0]) : ""; sv.ate = faixa[1] ? isoD(faixa[1]) : ""; }
+  sv.pagina = 1;
+}
+
+/* So a grade e as paginas: a barra (e o campo de busca com o cursor) fica onde esta. */
+function redesenharGrade() {
+  const lugar = $("sv-lista");
+  if (!lugar) return desenharServicos();
+  lugar.innerHTML = gradeDosServicos();
+  ligarGrade();
+  ligarServicosDaGrade();
+}
+
+function ligarGrade() {
+  const lugar = $("sv-lista");
+  if (!lugar) return;
+  lugar.querySelectorAll("[data-sv-pagina]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); sv.pagina = Number(b.dataset.svPagina); redesenharGrade(); const r = document.querySelector("#sv-tela .acervo-principal"); if (r) r.scrollTop = 0; }; });
+  const por = $("sv-por-pagina");
+  if (por) por.onchange = () => { sv.porPagina = Number(por.value); sv.pagina = 1; redesenharGrade(); };
+  const limpar = lugar.querySelector("[data-sv-limpar-filtros]");
+  if (limpar) limpar.onclick = () => { sv.busca = ""; sv.periodo = "tudo"; sv.de = ""; sv.ate = ""; sv.pagina = 1; desenharServicos(); };
+}
+
+/* Os cliques dos cartoes, de novo, depois de redesenhar so a grade. */
+function ligarServicosDaGrade() {
+  const lugar = $("sv-lista");
+  if (!lugar) return;
+  lugar.querySelectorAll("[data-sv-novo]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); dialogoDoServico(null); }; });
+  lugar.querySelectorAll("[data-sv-abrir]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); abrirServico(Number(b.dataset.svAbrir)); }; });
+  if (typeof ligarSelecao === "function") ligarSelecao(lugar.querySelector(".sv-grade"), {
+    linhas: ".sv-pasta[data-sel]", escolhidos: sv.escolhidos, aoMudar: desenharServicos, apagar: (ids) => apagarServicosEmLote(ids),
+  });
+}
+
 /* ------------------------------------------------------------ ligar */
 
 function ligarServicos() {
@@ -1106,9 +1235,26 @@ function ligarServicos() {
   const busca = $("sv-busca");
   if (busca) {
     let t;
-    busca.oninput = () => { clearTimeout(t); const v = busca.value; t = setTimeout(() => { sv.termo = v.trim(); mostrarServicos("pastas"); }, 280); };
+    busca.oninput = () => { clearTimeout(t); t = setTimeout(() => { sv.busca = busca.value; sv.pagina = 1; redesenharGrade(); }, 120); };
   }
-  clique("[data-sv-filtro]", (b) => { sv.filtro = b.dataset.svFiltro; mostrarServicos("pastas"); });
+  const periodo = $("sv-periodo");
+  if (periodo && typeof melhorarSelect === "function" && !periodo.dataset.melhorado) melhorarSelect(periodo);
+  if (periodo) periodo.onchange = () => { aplicarPeriodoSv(periodo.value); desenharServicos(); };
+  document.querySelectorAll("[data-sv-cal]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      if (typeof calendarioAberto !== "undefined" && calendarioAberto) { fecharCalendario(); return; }
+      const k = b.dataset.svCal;
+      calendarioPopover(b, { valor: sv[k], limpar: true, aoEscolher: (data) => {
+        sv[k] = data || "";
+        if (sv.de && sv.ate && sv.de > sv.ate) { const t = sv.de; sv.de = sv.ate; sv.ate = t; }
+        sv.periodo = sv.de || sv.ate ? "outro" : "tudo"; sv.pagina = 1;
+        desenharServicos();
+      } });
+    };
+  });
+  ligarGrade();
+  clique("[data-sv-filtro]", (b) => { sv.filtro = b.dataset.svFiltro; sv.pagina = 1; mostrarServicos("pastas"); });
   clique("[data-sv-aba]", (b) => { sv.aba = b.dataset.svAba; desenharServicos(); });
   clique("[data-sv-voltar]", () => { sv.visao = "pastas"; mostrarServicos("pastas"); });
   clique("[data-sv-novo]", () => dialogoDoServico(null));
@@ -1193,15 +1339,15 @@ function menuDoServico(botao, s) {
       if (r.ok) abrirPastaNoWindows((await r.json()).pasta_caminho);
     } },
     { rotulo: "Editar", acao: () => dialogoDoServico(s) },
-    { rotulo: "Marcar", sub: sv.status.filter((x) => x.valor !== s.status)
-      .map((x) => ({ rotulo: x.rotulo, acao: () => mudarStatusDoServico(s.id, x.valor) })) },
+    { rotulo: "Marcar", sub: sv.status.filter((x) => (x.valor ?? x.id) !== s.status)
+      .map((x) => ({ rotulo: x.rotulo ?? x.nome, acao: () => mudarStatusDoServico(s.id, x.valor ?? x.id) })) },
     "-",
     { rotulo: "Apagar", perigo: true, acao: () => apagarServico(s) },
   ]);
 }
 
 async function apagarServico(s) {
-  if (!(await confirmar({ titulo: "Apagar este serviço?", contexto: "Serviços › " + s.nome, texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
+  if (!(await confirmar({ titulo: "Apagar este processo?", contexto: "Processos › " + s.nome, texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda. " + LIXEIRA_TEXTO, confirmar: "Apagar", perigo: true }))) return;
   const r = await fetch("/api/servicos/" + s.id, { method: "DELETE" });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
   if (sv.aberto && sv.aberto.id === s.id) sv.aberto = null;
@@ -1211,7 +1357,7 @@ async function apagarServico(s) {
 
 function apagarServicosEmLote(ids) {
   return apagarEmLote(ids, (id) => "/api/servicos/" + id, {
-    rotulo: "serviço", contexto: "Serviços", texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda.",
+    rotulo: "processo", contexto: "Processos", texto: "A trilha e as anotações vão junto. Os arquivos ficam no Acervo; os prazos, na Agenda.",
     depois: () => { sv.escolhidos.clear(); if (sv.aberto && ids.includes(String(sv.aberto.id))) sv.aberto = null; mostrarServicos("pastas"); },
   });
 }
@@ -1284,7 +1430,7 @@ function adicionarArquivosAoServico() {
   const s = sv.aberto;
   if (!s) return;
   abrirAnexar({
-    titulo: "Adicionar à pasta", contexto: "Serviços › " + s.nome, verbo: "Adicionar",
+    titulo: "Adicionar à pasta", contexto: "Processos › " + s.nome, verbo: "Adicionar",
     aoCaminhos: async (caminhos) => {
       if (!caminhos.length) return;
       avisoNaJanela("Copiando " + plural(caminhos.length, "arquivo") + " para a pasta do serviço…", { icone: "sync", girar: true, dura: 0 });
