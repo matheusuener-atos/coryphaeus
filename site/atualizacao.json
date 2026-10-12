@@ -1,22 +1,11 @@
 {
-  "versao": "0.9.36",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.36/PAULUS-0.9.36-instalador.exe",
-  "sha256": "8e4aaac09c841efa824276abba78abde8a3b7cfafb0578d92fe5abf61898e792",
-  "tamanho": 102795046,
+  "versao": "0.9.37",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.37/PAULUS-0.9.37-instalador.exe",
+  "sha256": "27f3d842f279fa55dbef850e1470df9ff0d8ad4798b6f8c60568ff76030e3ed7",
+  "tamanho": 102791894,
   "publicada": "2026-10-12",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.36",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.37",
   "novidades": [
-    "Sem o menu lateral, e a nuvem que liga de verdade. O menu flutuante (o que abria passando o mouse no trilho) sai inteiro: marcacao, CSS, a intencao do mouse em 02-casca, a gaveta das telas antigas e os botoes que moravam nele (tema, buscar, sair, a conta de fora); o trilho fica no DOM so para a barr",
-    "Telas do App de 12/10/2026: as decisoes do dono. Assistente e modelo volta a ter as chaves que ficaram sem lugar (Como a conversa trabalha, A fila do modelo e O que ja foi lido, a da camada de inteligencia). Planos: o anual e o valor_anual da conta, pago de uma vez (sem \"12x\"), os meses gratis saem ",
-    "Telas do App de 12/10/2026 (etapas 6-7): conferencia tela a tela e o que ela achou. Agentes: Criar, Salvar e Cancelar voltavam ao formulario porque a guarda de desenharAgentes so aceitava o titulo \"Agentes\" e a edicao poe \"Novo agente\" ou o nome no cabecalho; agora vale o destino ativo. Celular: as ",
-    "Acesso de fora: o campo do /api/acesso/tunel passa de so_google a so_atos (desde 09/10 toda entrada de fora e pela Conta Atos; nenhuma tela lia o nome antigo), e sai o metodo so_google() do servico de acesso, que ninguem chamava. A preferencia acesso_remoto.so_google fica no arquivo (a migracao de 0",
-    "Acervo: as ordens no formato da tela de 12/10 (modificado, nome, pasta, analise, com os rotulos Modificado, Nome, Pasta e Analise). Ordenar por pasta (e pelo nome dentro dela) e por analise (os sem analise primeiro, o mais novo em cima) passa a existir; a chave antiga modificacao, que js/12, js/03 e",
-    "Financeiro: o resultado do mes na ficha com o sinal separado, como a tela de 12/10 mostra (\"+ R$ 1.200\", \"− R$ 300\"); antes era \"+R$ 1.200\" e \"-R$ 300\". O numero ja era so o pago no mes, o fechamento ja contava ate o fim do mes e o fluxo ja vinha em centavos com os textos",
-    "E-mail: quando_curto de cada mensagem da caixa no formato da lista nova, com a hora da chegada (\"hoje 10:05\", \"ontem 18:12\", \"10 out 14:40\"; mais de 300 dias, a data inteira). Antes vinha \"10:05\", \"ontem\" ou \"10 out\", sem a hora fora de hoje",
-    "Selo da assinatura no formato das telas de 12/10: o texto aceita {oab}, preenchido com a OAB de Meus dados (sem OAB cadastrada sai vazio, nao fica a marca), como a previa da tela ja mostrava; e a posicao deixa de ser um padrao guardado no certificado, porque o canto e escolhido em cada documento (o ",
-    "Notas fiscais no formato das telas do App de 12/10: a nota traz o servico (a descricao do rascunho) e emitida_em (a hora da Sefin, vazia antes de sair), e GET /api/nfse/notas aceita de/ate para o periodo da tela (a emitida pela data de emissao, a que nao saiu pela competencia). Rotas que a tela cham",
-    "Telas do App de 12/10/2026 (etapas 1-5): a entrega juntada ao frontend em tres vias, com base no b322c69 (de onde ela partiu). 61 arquivos juntaram sozinhos, 29 foram copiados (sem commit novo desde a base), 11 sao novos (57-topbar.css, 58-assistente-modelo.css, os sete js/99-*.js e as marcas do Oll",
-    "WhatsApp Web ao lado do PAULUS: uma janela so, encaixada a direita (o programa maximizado encolhe e volta quando ela fecha); abrir de novo traz a mesma e carrega a conversa pedida. O anexo agora aparece selecionado no Explorer para arrastar (a tela prometia \"eu abro a pasta\" e so mostrava o caminho)",
-    "Nome de documento citado na frase so casa como palavra inteira: um \"document.pdf\" no Acervo casava dentro de \"abra o documento\" e passava na frente do arquivo anexado (o cartao de abrir e o escopo saiam com o arquivo errado). As quatro falhas antigas da bateria voltam a passar: test_ferramentas (por"
+    "A IA da nuvem do plano e o padrao (regra de 12/10/2026): com a conta da nuvem do PAVLVS ativada nesta instalacao, ela responde sem interruptor - o \"ligado\" das preferencias so vale para a chave propria. O sim ao termo vem com a assinatura (nuvem.sim_pela_assinatura, registrado com a origem \"pela ass"
   ]
 }
