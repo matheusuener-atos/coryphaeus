@@ -306,6 +306,28 @@ console.log("só a Atos (ou a cortesia) dá plano");
   checar(!(await medidor(env, idN).pedir("resumo")).plano_vigente, "e quem não pagou, não");
 }
 
+console.log("a assinatura de R$ 0,00 concedida pela equipe da Atos");
+{
+  const ate = iso(relogio + 31 * DIA);
+  const plus = { plano: "plus", metadados: { plano: "plus", tokens_por_ciclo: 40000000, pessoas: 15 }, ate, periodo: "mes", pago_por: "concedida",
+    assinatura: { id: "atos-x-assinatura-1", status: "authorized", proxima: ate, preco: "pavlvs.plus.mes", concedida: true, centavos: 0 } };
+  let r = await entregar(evento("direito.atualizado", "pv-casa", { versao: 1, ...plus }));
+  let c = await contaDe("pv-casa");
+  let s = await resumoDe("pv-casa");
+  checar(r.status === 200 && r.d.aplicado && c.cobrador === "atos" && c.plano === "plus" && c.assinatura.situacao === "authorized" && c.assinatura.valor === 0 && c.assinatura.concedida === true
+    && c.periodo === "mensal" && c.pago_ate === ate && s.plano_vigente && s.ciclo && s.ciclo.tokens === 40000000,
+    "o plano Plus liberado como uma assinatura paga, mas com o valor 0 e marcada como concedida", { assinatura: c.assinatura, periodo: c.periodo, ciclo: s.ciclo });
+  // A Atos renova (mais um mes) e, depois, a equipe encerra: a situacao vira cancelada, valendo ate o fim do mes concedido.
+  const ate2 = iso(relogio + 62 * DIA);
+  r = await entregar(evento("direito.atualizado", "pv-casa", { versao: 2, ...plus, ate: ate2, assinatura: { ...plus.assinatura, proxima: ate2 } }));
+  c = await contaDe("pv-casa");
+  checar(r.d.aplicado && c.pago_ate === ate2 && c.assinatura.valor === 0, "a renovação da Atos estende o pago até, sem valor", c.assinatura);
+  r = await entregar(evento("direito.atualizado", "pv-casa", { versao: 3, ...plus, ate: ate2, assinatura: { ...plus.assinatura, status: "canceled", proxima: null } }));
+  c = await contaDe("pv-casa");
+  checar(r.d.aplicado && c.assinatura.situacao === "cancelled" && c.assinatura.valor === 0 && c.pago_ate === ate2 && (await resumoDe("pv-casa")).plano_vigente,
+    "encerrada: cancelada, o mês concedido vale até o fim", c.assinatura);
+}
+
 console.log("pelo Worker inteiro");
 {
   const ev = evento("direito.atualizado", "pv-ivo", retrato(1, { ate: iso(relogio + 30 * DIA), periodo: "mes" }));

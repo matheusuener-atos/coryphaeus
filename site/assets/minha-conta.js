@@ -61,7 +61,7 @@
     var assin = '<div class="mc-corpo">' + (tem ? '<div class="mc-plano-nome"><h2>' + esc(a.nome) + '</h2><span class="mc-tag">' + (a.periodo === "anual" ? "anual" : "mensal") + "</span></div>" : "") +
       '<dl class="mc-fatos"><div><dt>Situação</dt><dd><span class="mc-bolinha ' + s[1] + '"></span>' + esc(s[0]) + "</dd></div>" +
       (tem && c.ate ? "<div><dt>" + (a.situacao === "cancelada" ? "Vale até" : "Ciclo até") + "</dt><dd>" + dt(c.ate) + "</dd></div>" : "") +
-      "<div><dt>Cobrança</dt><dd>" + (a.situacao === "cortesia" ? "sem cobrança" : "pela Conta Atos") + "</dd></div></dl>" +
+      "<div><dt>Cobrança</dt><dd>" + (a.situacao === "cortesia" ? "sem cobrança" : a.concedida ? "R$ 0,00/mês, concedida pela Atos" : "pela Conta Atos") + "</dd></div></dl>" +
       (tem ? "" : '<p class="mc-p">' + (a.situacao === "vencida" ? "O plano venceu. " : "") + "Sem a assinatura, o Paulus abre com todos os arquivos, sem a IA. Escolha um plano na aba Plano.</p>") + "</div>" +
       '<div class="mc-pe">' + (titular() ? '<button type="button" class="mini" data-aba="plano">' + (tem ? "Ver os planos" : "Assinar") + "</button>" : "") +
       (a.situacao === "cortesia" ? "" : '<a class="mini" href="' + esc(d.atos.assinaturas) + '"' + FORA + ">Conta Atos" + ic("arrow_outward") + "</a>") + "</div>";

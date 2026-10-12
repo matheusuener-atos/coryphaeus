@@ -1145,8 +1145,10 @@ export class ContaIA {
     // Os nomes de periodo que as telas ja conhecem: a assinatura no cartao e o "mensal"; o ano, "anual"; o mes no Pix, "avulso".
     conta.periodo = as && situacao === "authorized" ? "mensal" : r.periodo === "ano" ? "anual" : r.periodo === "mes" ? "avulso" : conta.periodo || "avulso";
     const plano = planoDe(n, conta.plano);
-    conta.assinatura = { id: "atos-" + (as ? as.id : versao), situacao, valor: conta.periodo === "anual" ? plano.valor_anual : plano.valor,
-      periodo: conta.periodo, desde: (conta.assinatura || {}).desde || iso(agora), cobrador: "atos" };
+    // A assinatura concedida pela equipe da Atos (R$ 0,00 por mes, sem cobranca; a Atos renova): o valor e 0, nao o do plano.
+    const concedida = Boolean(as && as.concedida);
+    conta.assinatura = { id: "atos-" + (as ? as.id : versao), situacao, valor: concedida ? 0 : conta.periodo === "anual" ? plano.valor_anual : plano.valor,
+      periodo: conta.periodo, desde: (conta.assinatura || {}).desde || iso(agora), cobrador: "atos", ...(concedida ? { concedida: true } : {}) };
     conta.pago_ate = fim ? iso(fim) : null;
     const c = this.cicloAberto(conta, agora);
     if (c && fim < Date.parse(c.fim)) {
@@ -1385,7 +1387,7 @@ export class ContaIA {
       // Quem cobra esta conta: o PAVLVS (o Mercado Pago dele) ou a Atos (atos.dev.br; worker/atos.js).
       cobrador: conta.cobrador || "pavlvs",
       consentimento: conta.consentimento || null,
-      assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde, periodo: a.periodo || "mensal" } : null,
+      assinatura: a ? { id: a.id, situacao: a.situacao, valor: a.valor, desde: a.desde, periodo: a.periodo || "mensal", concedida: Boolean(a.concedida) } : null,
       plano_vigente: vigente,
       plano,
       modelos: catalogo(modelosDoPlano(plano)),

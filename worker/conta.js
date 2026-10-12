@@ -201,6 +201,8 @@ async function montar(env, s, agora) {
     assinatura: {
       plano: plano.id, nome: plano.nome, periodo, situacao: situacaoDe(r), desde: String(a.desde || r.criada || "").slice(0, 10),
       cortesia: Boolean(r.cortesia),
+      // A assinatura de R$ 0,00 por mes concedida pela equipe da Atos (worker/ia.js, direitoDaAtos).
+      concedida: Boolean(a.concedida),
       ciclo: { de: c ? c.inicio.slice(0, 10) : "", ate: c ? c.fim.slice(0, 10) : "", tokens: c ? c.tokens : 0, usados: c ? c.usados : 0,
         recargas: recargasNoCiclo, extra: (r.tokens || {}).da_recarga || 0 },
     },

@@ -65,7 +65,7 @@
     "Computador tirado": "Computer removed", "Conta Google desvinculada": "Google account unlinked", "Acesso tirado": "Access removed",
     // Ligado ao servidor (07/10): estados da assinatura, entrar e sair, cartao, Pix, plano, escritorio e Google.
     "Cortesia": "Courtesy", "Cancelada": "Cancelled", "Vencida": "Expired", "Pausada no Mercado Pago": "Paused at Mercado Pago", "Esperando o Mercado Pago": "Waiting for Mercado Pago",
-    "Cobrança": "Billing", "sem cobrança": "no charge", "nenhuma": "none", "Próximo Pix": "Next Pix", "Pago até": "Paid until", "Termina em": "Ends on", "Créditos de recarga": "Top-up credits",
+    "Cobrança": "Billing", "sem cobrança": "no charge", "R$ 0,00/mês, concedida pela Atos": "R$ 0.00/month, granted by Atos", "nenhuma": "none", "Próximo Pix": "Next Pix", "Pago até": "Paid until", "Termina em": "Ends on", "Créditos de recarga": "Top-up credits",
     "Nenhuma fatura ainda.": "No invoices yet.", "Não há um ciclo aberto agora.": "There's no open cycle right now.",
     "Não há um ciclo aberto agora. O plano venceu: assine de novo na aba Plano.": "There's no open cycle right now. The plan expired: subscribe again in the Plan tab.",
     "Não há consumo para mostrar neste período.": "No usage to show for this period.", "Por dia": "Per day",
