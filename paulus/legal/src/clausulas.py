@@ -87,7 +87,7 @@ senão "": {codigos}."""
 
 
 def planejar(estado, *, trabalho, pedido: str, briefing: str, nivel, pessoa=None, parar=None) -> dict | None:
-    """O plano das seções, conferido (`conferir_plano`), ou None se a nuvem não respondeu."""
+    """O plano das seções, conferido (`conferir_plano`), ou {"erro": frase} se a nuvem não respondeu."""
     import elaboracao
     import leis as leis_mod
     import nuvem
@@ -102,8 +102,9 @@ def planejar(estado, *, trabalho, pedido: str, briefing: str, nivel, pessoa=None
         bruto, _uso = nuvem.chamada(estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="plano", pergunta=pedido,
                                     mascara=nuvem.Mascara() if nuvem.config(estado).get("mascarar", True) else None,
                                     json_mode=True, max_tokens=2500, parar=parar, modelo=modelo, profundidade=nivel.id)
-    except nuvem.ErroNuvem:
-        return None
+    except nuvem.ErroNuvem as exc:
+        # A frase da nuvem (sem plano, sem créditos, sem internet...) vai para a tela.
+        return {"erro": str(exc)}
     instalados = {i["codigo"] for i in (getattr(estado, "leis", None).instalados() if getattr(estado, "leis", None) else [])
                   if i.get("instalado")}
     return conferir_plano(_ler_json(bruto), instalados, pedido)

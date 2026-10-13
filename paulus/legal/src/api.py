@@ -6421,11 +6421,12 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
             estado.trabalhos.salvar(trabalho)
             yield _sse("parado", {"segundos": round(time.time() - inicio, 1), "titulo": trabalho.titulo, "escreveu": False})
             return
-        if not plano:
+        if not plano or plano.get("erro"):
             trabalho.etapas[-1].estado = "falhou"
             trabalho.estado = "falhou"
             estado.trabalhos.salvar(trabalho)
-            yield _sse("erro", {"mensagem": "a nuvem não respondeu ao planejar as cláusulas; tente de novo"})
+            motivo = (plano or {}).get("erro") or ""
+            yield _sse("erro", {"mensagem": "a nuvem não respondeu ao planejar as cláusulas" + (": " + motivo if motivo else "; tente de novo")})
             return
         estado_e["plano"] = plano
         estado_e["fase"] = "preparo"
