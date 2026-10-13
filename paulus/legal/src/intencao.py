@@ -277,6 +277,19 @@ ENFEITE = {
     "vc", "que", "preciso", "quero", "gostaria", "de", "e", "ai", "entao",
     "so", "ja", "hoje", "olha", "escuta", "faz", "favorzinho",
 }
+# A abertura de conversa antes do pedido de cadastro: "Isso mesmo, eu quero
+# que você cadastre...". Só confirmação e sujeito; verbo nenhum entra aqui,
+# para "eu cadastrei" ou "vamos ver se cadastra" não virarem pedido.
+ABERTURA = ENFEITE | {
+    "isso", "mesmo", "eu", "nos", "agora", "tambem", "ok", "certo", "sim", "beleza", "perfeito", "otimo",
+    "exato", "exatamente", "entao", "bom", "oi", "ola", "paulus", "pavlvs", "combinado", "certinho",
+}
+
+
+def _abertura(plano_antes: str) -> bool:
+    """Tudo o que vem antes do verbo é gentileza ou abertura curta de conversa."""
+    palavras = re.findall(r"[a-z0-9]+", plano_antes)
+    return len(palavras) <= 14 and all(p in ABERTURA for p in palavras)
 
 
 # "abra um serviço para a Cooperativa: renovação do contrato" - a pasta de
@@ -499,10 +512,62 @@ def _nome_proprio(nome: str) -> str:
                     for i, p in enumerate(nome.split()))
 
 
+NAO_COMECA_NOME = {"em", "que", "de", "para", "pra", "com", "onde", "no", "na", "nos", "nas", "do", "dos", "das",
+                   "ao", "aos", "pelo", "pela", "se", "por", "qual", "quais", "cujo", "cuja", "entre", "sobre"}
+
+
 def _nome_valido(nome: str) -> bool:
     palavras = nome.split()
+    if not palavras:
+        return False
+    import fichas_pela_conversa
+
+    # "Vendedores e Compradores", "as partes": papel de contrato não é nome.
+    if all(fichas_pela_conversa._e_palavra_de_papel(p) or _plano(p) in PARTICULAS | {"as", "os"} for p in palavras):
+        return False
     return (bool(re.search(r"[A-Za-zÀ-ÿ]{2}", nome)) and len(palavras) <= 10 and len(nome) <= 90
             and _plano(palavras[0]) not in ENFEITE | {"o", "a", "um", "uma", "cliente", "cadastro"})
+
+
+def _intencao_de_varios(pessoas: list[dict], porque: str, papeis=None, do_documento: bool = False) -> Intencao:
+    n = len(pessoas)
+    return Intencao(tipo="cadastros", titulo=f"{n} pessoa{'s' if n != 1 else ''}" if n else "As partes do documento",
+                    campos={"pessoas": pessoas, "papeis": list(papeis or []), "do_documento": do_documento},
+                    porque=porque)
+
+
+def ler_cadastros_varios(texto: str, plano: str) -> Intencao | None:
+    """
+    Várias fichas de uma vez (caso real de 13/10/2026):
+
+      - "Isso mesmo, eu quero que você cadastre os seguintes qualificados:
+        Vendedores: OBEDI ..., e seu conjuge SWEDY ...; Comprador: HUGO ..."
+        -> as pessoas qualificadas na frase (2 ou mais);
+      - só a qualificação colada, sem verbo -> a mesma proposta;
+      - "cadastre as partes" / "os vendedores" / "os qualificados deste
+        contrato" -> as pessoas estão no documento aberto ou anexado
+        (`do_documento`; quem lê o documento é a conversa, src/api.py).
+
+    Com uma pessoa só, segue o cadastro de sempre (ler_cadastro).
+    """
+    import fichas_pela_conversa
+
+    texto = _nfc(texto)
+    so = fichas_pela_conversa.so_qualificacao(texto)
+    if so:
+        return _intencao_de_varios(so, "a qualificação de " + str(len(so)) + " pessoas, como em contrato")
+    m = RE_PEDIDO_CADASTRO.search(plano) or RE_SO_CADASTRE.search(plano)
+    if m and _abertura(plano[: m.start()]):
+        pessoas = fichas_pela_conversa.ler_qualificacoes(texto)
+        if len(pessoas) >= 2:
+            return _intencao_de_varios(pessoas, _porque(m.group(1), "cliente") + " e " + str(len(pessoas)) +
+                                       " pessoas qualificadas")
+        if pessoas:
+            return None
+    partes = fichas_pela_conversa.pedido_de_partes(texto)
+    if partes and _abertura(plano[: partes["inicio"]]) and not fichas_pela_conversa.ler_qualificacoes(texto):
+        return _intencao_de_varios([], "“cadastre” e as partes do documento", papeis=partes["papeis"], do_documento=True)
+    return None
 
 
 def ler_cadastro(texto: str, plano: str) -> Intencao | None:
@@ -523,8 +588,19 @@ def ler_cadastro(texto: str, plano: str) -> Intencao | None:
         so_verbo = True
     if not m:
         return None
-    antes = re.findall(r"[a-z0-9]+", plano[: m.start()])
-    if not all(palavra in ENFEITE for palavra in antes):
+    if not _abertura(plano[: m.start()]):
+        return None
+    # "Preciso que você crie um contato em que os qualificados deste
+    # instrumento são ambos vendedores..." (13/10/2026): "contato" por
+    # "contrato", pedido de redigir. O que vem depois da coisa é oração
+    # ("em que", "onde", "no qual"), e não nome; e papel de contrato na frase
+    # com "contato" é contrato.
+    if not so_verbo and re.match(r"\s*(?:em que|onde|no qual|na qual|nos quais|nas quais|em qual|pelo qual|pela qual|"
+                                 r"cujo|cuja|que|entre)\b", plano[m.end():]):
+        return None
+    if not so_verbo and m.group(2) == "contato" and re.search(
+            r"\b(vendedor\w*|comprador\w*|locador\w*|locatari\w*|outorgant\w*|contratant\w*|partes|qualificad\w*|"
+            r"imovel|clausula\w*|item|instrumento|objeto)\b", plano):
         return None
     # "cadastre uma reunião", "crie o cadastro do serviço": outra coisa.
     if _tem(plano, COISAS_AGENDA + COISAS_TAREFA + COISAS_PRAZO) or re.search(r"\bservicos?\b", plano):
@@ -575,6 +651,10 @@ def ler_cadastro(texto: str, plano: str) -> Intencao | None:
     corte = RE_CORTA_NOME.search(resto)
     nome = _sem_conectores_no_fim(resto[: corte.start()] if corte else resto)
     nome = _nome_proprio(nome)
+    # O nome nunca começa por preposição ou conector: "crie um contato em
+    # que..." dava a ficha de "Em". Nome assim derruba o cadastro.
+    if nome and _plano(nome.split()[0]) in NAO_COMECA_NOME:
+        return None
     if not _nome_valido(nome):
         nome = ""
     campos["nome"] = nome
@@ -1131,6 +1211,13 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     plano = _plano(texto)
     if not plano:
         return Intencao(tipo="documentos")
+
+    # Várias fichas de uma vez - a qualificação das partes, no jeito de
+    # contrato (antes de tudo: o texto colado tem endereço, valor de RG e
+    # palavras que os outros leitores tomariam por outra coisa).
+    varios = ler_cadastros_varios(texto, plano)
+    if varios:
+        return varios
 
     # "Você consegue me dizer qual o valor do contrato?" é pedido, com
     # gentileza na frente - não pergunta sobre o programa.

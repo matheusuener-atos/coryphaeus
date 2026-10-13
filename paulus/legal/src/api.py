@@ -1275,6 +1275,9 @@ class Pergunta(BaseModel):
     # A pilula "Modo criativo": a pergunta nao le documento nenhum - o Paulus
     # responde pelo que ele mesmo sabe, na nuvem (`_responder_criativo`).
     criativo: bool = False
+    # O documento aberto no editor ao lado da conversa (id em Documentos):
+    # "cadastre as partes" le a qualificacao dele (`_responder_cadastros`).
+    editor: int = 0
 
 
 class Busca(BaseModel):
@@ -3947,7 +3950,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # palavras" e so continuar conversando). Outra pergunta, claramente outra
     # coisa, segue o caminho de sempre - e as perguntas ficam para depois.
     pendente = entrevista_mod.aberta(trabalho.contexto)
-    if agente is None and (payload.entrevista is not None or (
+    # "Cadastre os seguintes qualificados: ..." com a entrevista aberta e
+    # outro assunto; so a qualificacao colada, sem verbo, ainda pode ser a
+    # resposta dela ("quem sao as partes?").
+    cadastro_explicito = bool(pendente) and _pede_varios_cadastros(pergunta)
+    if agente is None and not cadastro_explicito and (payload.entrevista is not None or (
             pendente and not payload.retomar and (not payload.apenas or pendente.get("fase") == "preparo")
             and not entrevista_mod.parece_outro_assunto(pergunta, pendente.get("pedido", "")))):
         return _seguir_entrevista(trabalho, payload, pergunta, pendente, request, dono, nivel_prof)
@@ -4108,6 +4115,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         if lido.campos.get("documento"):
             lido.campos["anexados"] = list(payload.apenas or []) or list(explicito or [])
         return _responder_email(trabalho, lido, pergunta, request)
+    # Varias fichas de uma vez: a qualificacao das partes (na frase, colada
+    # sozinha, ou no documento aberto/anexado). O cartao lista as pessoas e
+    # so grava no sim (/fazer "cadastros").
+    if lido.tipo == "cadastros":
+        return _responder_cadastros(trabalho, lido, pergunta, payload, citado, explicito)
     # `Conversa - Cadastro`, `- Equipe`, `- Despesa fixa`: a ficha na coluna,
     # preenchida com o que o Acervo (ou o anexo) diz. Com um agente, o cartao
     # de sempre (a ferramenta dele).
@@ -4838,6 +4850,15 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
                 resumo += " e o lembrete na Agenda"
             onde = "financeiro"
             campos["nome"] = l["descricao"]
+        elif payload.tipo == "cadastros":
+            # Varias fichas de uma vez, confirmadas no cartao (so as marcadas).
+            # O mesmo CPF/CNPJ nao vira ficha nova: a que existe e completada.
+            lote = _cadastrar_varios(campos.get("pessoas"))
+            novo = lote["fichas"][0]["id"] if lote["fichas"] else 0
+            feito = lote
+            resumo = lote["resumo"]
+            onde = "cadastros"
+            campos["nome"] = f"{len(lote['fichas'])} pessoa{'s' if len(lote['fichas']) != 1 else ''}"
         elif payload.tipo == "ficha":
             # A ficha salva pela coluna (`Conversa - Cadastro`, `- Equipe`,
             # `- Despesa fixa`): quem gravou foi POST /api/cadastros; aqui ela
@@ -5013,6 +5034,176 @@ def _responder_assinatura(trabalho, lido, pergunta: str) -> StreamingResponse:
 def _documentos_citados(nomes) -> list:
     abertos = {d.name: d for d in estado.searcher.documents}
     return [abertos[n] for n in (nomes or []) if n in abertos]
+
+
+def _pede_varios_cadastros(pergunta: str) -> bool:
+    """O pedido explicito de cadastrar varias pessoas (com o verbo) - nao so a qualificacao colada."""
+    import fichas_pela_conversa as fpc
+
+    lido = intencao.ler_cadastros_varios(pergunta, intencao._plano(pergunta))
+    return bool(lido) and fpc.so_qualificacao(pergunta) is None
+
+
+def _qualificacao_dos_documentos(payload, citado=None, explicito=None) -> tuple[list[dict], str]:
+    """
+    As pessoas qualificadas no documento desta conversa: o aberto no editor ao
+    lado, o anexado, o que a frase nomeia, o que esta em foco - nessa ordem;
+    o primeiro que tem qualificacao. (pessoas, nome do documento).
+    """
+    import fichas_pela_conversa as fpc
+
+    fontes: list[tuple[str, str]] = []
+    if getattr(payload, "editor", 0):
+        item = estado.documentos.obter(int(payload.editor))
+        if item and item.get("tipo") == "texto" and not str(item.get("corpo") or "").lstrip().startswith("{"):
+            fontes.append((item.get("titulo") or "o documento do editor",
+                           documento.para_texto(documento.ler_html(item.get("corpo") or ""))))
+    abertos = {d.name: d for d in estado.searcher.documents}
+    vistos: set[str] = set()
+    for nome in list(getattr(payload, "apenas", None) or []) + list(explicito or []) + list(citado or []):
+        d = abertos.get(nome)
+        if d and nome not in vistos and (getattr(d, "text", "") or ""):
+            vistos.add(nome)
+            fontes.append((d.name, d.text))
+    for nome, texto in fontes:
+        pessoas = fpc.ler_qualificacoes(texto)
+        if pessoas:
+            return pessoas, nome
+    return [], ""
+
+
+def _fichas_por_documento() -> dict[str, dict]:
+    """As fichas pelo CPF/CNPJ (so os digitos): o mesmo documento nao ganha duas."""
+    import campos_br
+
+    saida: dict[str, dict] = {}
+    for f in estado.cadastros.listar():
+        digitos = campos_br.so_digitos(f.get("documento"))
+        if digitos and digitos not in saida:
+            saida[digitos] = f
+    return saida
+
+
+def _responder_cadastros(trabalho, lido, pergunta: str, payload, citado=None, explicito=None) -> StreamingResponse:
+    """
+    Varias fichas de uma vez (caso real de 13/10/2026): a qualificacao das
+    partes, lida por regra (fichas_pela_conversa.ler_qualificacoes) da frase
+    ou do documento aberto/anexado. A conversa diz quantas achou; o cartao
+    lista as pessoas, deixa desmarcar e so grava no sim.
+    """
+    import campos_br
+    import fichas_pela_conversa as fpc
+
+    campos = dict(lido.campos)
+    pessoas = list(campos.get("pessoas") or [])
+    origem = ""
+    papeis = list(campos.get("papeis") or [])
+    if campos.get("do_documento"):
+        todas, origem = _qualificacao_dos_documentos(payload, citado, explicito)
+        if not todas:
+            return _so_dizer(trabalho, "Não achei a qualificação das partes no documento aberto nem nos anexados. "
+                                       "Abra o contrato no editor ou anexe-o e peça de novo — ou cole a qualificação aqui.")
+        pessoas = fpc.do_papel(todas, papeis)
+        if not pessoas:
+            pedidos = " e ".join(p.replace("(a)", "") + "es" if p.endswith("or(a)") else p.replace("(a)", "") + "s"
+                                 for p in papeis)
+            achados = ", ".join(sorted({p["papel"] for p in todas if p.get("papel")})) or "sem papel"
+            return _so_dizer(trabalho, f"Na qualificação de “{origem}” não achei {pedidos}. "
+                                       f"Achei {len(todas)} pessoa{'s' if len(todas) != 1 else ''} ({achados}).")
+    existentes = _fichas_por_documento()
+    ja = 0
+    for p in pessoas:
+        ficha = existentes.get(campos_br.so_digitos(p.get("documento")))
+        p["ja_existe"] = {"id": ficha["id"], "nome": ficha["nome"]} if ficha else None
+        ja += 1 if ficha else 0
+    n = len(pessoas)
+    texto = (f"Achei {n} pessoa{'s' if n != 1 else ''} para cadastrar" +
+             (f" na qualificação de “{origem}”" if origem else "") +
+             ". Confira abaixo e desmarque quem não quiser; nada é gravado antes do seu sim.")
+    if ja:
+        texto += (f" {ja} já {'está' if ja == 1 else 'estão'} em Cadastros com o mesmo CPF/CNPJ: "
+                  "nessa ficha, só completo o que estiver vazio.")
+    proposta = {"tipo": "cadastros", "titulo": f"{n} pessoa{'s' if n != 1 else ''}",
+                "campos": {"pessoas": pessoas, "origem": origem}, "porque": lido.porque, "pergunta": pergunta}
+
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa("Ler a qualificação", estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta)
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+CAMPOS_DO_CADASTRO_EM_LOTE = ("documento", "telefone", "email", "endereco", "observacao")
+
+
+def _cadastrar_varios(pessoas) -> dict:
+    """
+    Grava as fichas confirmadas no cartao. Quem ja tem ficha com o mesmo
+    CPF/CNPJ nao ganha outra: a ficha dela so recebe o que estava vazio.
+    Confere todos os documentos antes de gravar o primeiro.
+    """
+    import cadastros as cadastros_mod
+    import campos_br
+
+    lista = [p for p in (pessoas or [])[:60] if isinstance(p, dict) and " ".join(str(p.get("nome") or "").split())]
+    if not lista:
+        raise ValueError("nenhuma pessoa marcada para cadastrar")
+    for p in lista:
+        erro = campos_br.problema("cpf-cnpj", p.get("documento")) if str(p.get("documento") or "").strip() else ""
+        if erro:
+            raise ValueError(f"o documento de {' '.join(str(p['nome']).split())} não confere ({erro}) — desmarque ou corrija")
+    existentes = _fichas_por_documento()
+    fichas: list[dict] = []
+    for p in lista:
+        nome = " ".join(str(p.get("nome") or "").split())
+        dados = {k: " ".join(str(p.get(k) or "").split()) for k in CAMPOS_DO_CADASTRO_EM_LOTE}
+        cep = re.sub(r"\D", "", str(p.get("end_cep") or ""))
+        cep = cep if len(cep) == 8 else ""
+        digitos = campos_br.so_digitos(dados["documento"])
+        antiga = existentes.get(digitos) if digitos else None
+        if antiga:
+            ficha = estado.cadastros.obter(antiga["id"]) or antiga
+            base = {c: ficha.get(c, "") for c in cadastros_mod.CAMPOS}
+            mudou = [k for k in CAMPOS_DO_CADASTRO_EM_LOTE if dados[k] and not str(base.get(k) or "").strip()]
+            for k in mudou:
+                base[k] = dados[k]
+            if cep and not str(ficha.get("end_cep") or "").strip():
+                base["end_cep"] = cep
+                mudou.append("end_cep")
+            if mudou:
+                estado.cadastros.salvar(base, ficha["id"])
+            fichas.append({"id": ficha["id"], "nome": ficha["nome"], "acao": "completada" if mudou else "igual"})
+            continue
+        dados.update({"tipo": "cliente", "nome": nome})
+        if cep:
+            dados["end_cep"] = cep
+        novo = estado.cadastros.salvar(dados)
+        if digitos:
+            existentes[digitos] = {"id": novo, "nome": nome}
+        fichas.append({"id": novo, "nome": nome, "acao": "criada"})
+
+    criadas = [f for f in fichas if f["acao"] == "criada"]
+    completadas = [f for f in fichas if f["acao"] == "completada"]
+    iguais = [f for f in fichas if f["acao"] == "igual"]
+    juntar = lambda xs: ", ".join(xs[:-1]) + " e " + xs[-1] if len(xs) > 1 else (xs[0] if xs else "")  # noqa: E731
+    partes = []
+    if criadas:
+        partes.append(f"Cadastrei {len(criadas)} pessoa{'s' if len(criadas) != 1 else ''} em Cadastros")
+    if completadas:
+        partes.append(("completei " if partes else "Completei ") + "a ficha de " + juntar([f["nome"] for f in completadas]) +
+                      ", que já existia com o mesmo CPF/CNPJ")
+    if iguais:
+        partes.append(juntar([f["nome"] for f in iguais]) + (" já estava" if len(iguais) == 1 else " já estavam") +
+                      " em Cadastros com o mesmo CPF/CNPJ, sem nada a completar")
+    resumo = "; ".join(partes)
+    return {"fichas": fichas, "criadas": len(criadas), "completadas": len(completadas), "iguais": len(iguais),
+            "resumo": resumo[:1].upper() + resumo[1:]}
 
 
 def _responder_ficha(trabalho, lido, pergunta: str, citados=None) -> StreamingResponse:

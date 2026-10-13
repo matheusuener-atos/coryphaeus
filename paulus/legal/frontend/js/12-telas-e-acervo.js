@@ -920,6 +920,8 @@ function cartaoProposta(d) {
   if (d.tipo === "email") return cartaoDeEmail(d);
   // Os cadastros pela conversa (js/86-fichas-na-conversa.js): a ficha na coluna.
   if (d.tipo === "ficha") return cartaoDeFicha(d);
+  // Varias pessoas de uma vez: a qualificacao das partes (js/86-fichas-na-conversa.js).
+  if (d.tipo === "cadastros") return cartaoDeCadastros(d);
   // O lancamento pela conversa (js/87-lancamento-na-conversa.js).
   if (d.tipo === "lancamento") return cartaoDeLancamento(d);
   // O financeiro e o relatorio do mes (js/88-financeiro-na-conversa.js).
@@ -1403,6 +1405,7 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "criar_agente") return ligarCriarAgente(caixa, d);
   if (d.tipo === "email") return ligarEmailNaProposta(caixa, d);
   if (d.tipo === "ficha") return ligarFichaNaProposta(caixa, d);
+  if (d.tipo === "cadastros") return ligarCadastrosNaProposta(caixa, d);
   if (d.tipo === "lancamento") return ligarLancamentoNaProposta(caixa, d);
   if (d.tipo === "financeiro" || d.tipo === "relatorio") return ligarFinanceiroNaProposta(caixa, d);
   if (d.tipo === "config") return ligarConfigNaProposta(caixa, d);

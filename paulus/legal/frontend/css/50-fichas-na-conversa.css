@@ -26,6 +26,15 @@
   .fcn-linha.fcn-titulos { min-height: 32px; padding-top: 6px; padding-bottom: 6px; font-size: 12px; color: var(--ink3); border-top: none; }
   .fcn-eq { grid-template-columns: minmax(0, 1.6fr) minmax(0, .6fr) minmax(0, 1fr) minmax(0, .6fr); }
   .fcn-desp { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, .5fr) minmax(0, .55fr) minmax(0, .45fr); }
+  /* Varias pessoas de uma vez (a qualificacao das partes): marcar, nome e papel, CPF, endereco. */
+  .fcn-cdv { grid-template-columns: 18px minmax(0, 1.3fr) auto minmax(0, 1fr) auto; cursor: pointer; }
+  .fcn-tabela > .fcn-cdv:first-child, .fcn-tabela > .fcn-cdv-feito:first-child { border-top: none; }
+  .fcn-cdv-end { font-size: 12px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcn-cdv-feito { grid-template-columns: minmax(0, 1fr) auto; min-height: 48px; }
+  @media (max-width: 640px) {
+    .fcn-cdv { grid-template-columns: 18px minmax(0, 1fr); }
+    .fcn-cdv > .fcn-mono, .fcn-cdv > .fcn-cdv-end, .fcn-cdv > .fcn-selo { grid-column: 2; }
+  }
   .fcn-linha.nova { background: var(--fill); }
   .fcn-quem { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .fcn-quem > span:not(.emc-avatar) { display: grid; gap: 1px; min-width: 0; }

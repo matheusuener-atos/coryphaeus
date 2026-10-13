@@ -510,7 +510,7 @@ function cartaoGuardado(m, ultima) {
   if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
         p.tipo === "entrevista" || p.tipo === "levar_ao_editor" || p.tipo === "preparo" || p.tipo === "clausula" ||
         p.tipo === "editor_criado" || (p.tipo === "mudar_documento" && ultima) ||
-        (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) || p.tipo === "config" ||
+        (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "cadastros" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) || p.tipo === "config" ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
   propostasGuardadas.push(p);
   return '<div class="proposta-caixa" data-proposta-guardada="' + (propostasGuardadas.length - 1) + '">' +
@@ -1716,7 +1716,9 @@ async function enviar(opcoes) {
       // `apenas` e `tudo` podem vir do cartão "onde eu procuro?", que refaz
       // a pergunta com a escolha feita ali.
       body: JSON.stringify(Object.assign({ pergunta: pedido, retomar: Boolean(o.retomar), documentos: Boolean(o.documentos),
-        inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade) }, envio,
+        inteiro: Boolean(o.inteiro), prioridade: Boolean(o.prioridade),
+        // O documento aberto no editor ao lado: "cadastre as partes" le a qualificacao dele.
+        editor: editorNaConversaAberto() && dupla.doc ? Number(dupla.doc.id) || 0 : 0 }, envio,
         typeof agenteDoEnvio === "function" ? agenteDoEnvio() : {}, onde,
         // N15: a pílula "Nuvem" (js/75-nuvem.js) vale para esta pergunta só.
         typeof nuvemDoEnvio === "function" ? nuvemDoEnvio() : {},

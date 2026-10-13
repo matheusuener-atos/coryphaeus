@@ -565,6 +565,88 @@ function mostrarConviteNaConversa(v, link) {
   rolar();
 }
 
+/* ------------------------------------- varias pessoas de uma vez (13/10) */
+/*
+   A qualificacao das partes ("Vendedores: OBEDI ..., e seu conjuge SWEDY
+   ...; Comprador: HUGO ...") vira um cartao com as pessoas: nome, CPF, papel
+   e endereco. Desmarcar tira a pessoa; "Cadastrar as 4" grava pelo /fazer
+   "cadastros" - quem ja tem ficha com o mesmo CPF so ganha o que faltava.
+*/
+
+function enderecoCurto(endereco) {
+  const e = String(endereco || "");
+  return e.length > 52 ? e.slice(0, 50).replace(/[\s,]+$/, "") + "…" : e;
+}
+
+function cartaoDeCadastros(d) {
+  const pessoas = (d.campos || {}).pessoas || [];
+  const linhas = pessoas.map((p, i) => {
+    const marcada = !p.aviso;
+    const detalhe = [p.papel, p.rg ? "RG " + p.rg : ""].filter(Boolean).join(" · ");
+    const selo = p.aviso ? '<span class="fcn-selo ambar" title="' + esc(p.aviso) + '">confira o documento</span>'
+      : p.ja_existe ? '<span class="fcn-selo">já em Cadastros</span>' : "";
+    return '<label class="fcn-linha fcn-cdv"><input type="checkbox" data-cdv="' + i + '"' + (marcada ? " checked" : "") + ">" +
+      '<span class="fcn-quem"><span><b>' + esc(p.nome) + "</b><small>" + esc(detalhe || "sem papel") + "</small></span></span>" +
+      '<span class="fcn-mono">' + esc(p.documento || "sem CPF") + "</span>" +
+      '<small class="fcn-cdv-end" title="' + esc(p.endereco || "") + '">' + esc(enderecoCurto(p.endereco) || "sem endereço") + "</small>" +
+      selo + "</label>";
+  }).join("");
+  const origem = (d.campos || {}).origem;
+  return '<div class="proposta" data-cdv-cartao="1"><div class="proposta-topo"><span class="rotulo">vou cadastrar</span>' +
+    "<b>" + esc(plural(pessoas.length, "pessoa")) + "</b></div>" +
+    '<div class="fcn-tabela">' + linhas + "</div>" +
+    '<p class="explica">' + (origem ? "Li a qualificação de “" + esc(origem) + "”. " : "") +
+    "Cada pessoa vira uma ficha de cliente; RG, estado civil, profissão, cônjuge e papel vão para a observação. " +
+    "Nada é gravado antes do seu sim.</p>" +
+    '<div class="linha-form"><button class="primario" data-cdv-fazer="1"></button>' +
+    '<button data-prop="nao">Deixa pra lá</button></div></div>';
+}
+
+function ligarCadastrosNaProposta(caixa, d) {
+  const pessoas = (d.campos || {}).pessoas || [];
+  const fazer = caixa.querySelector("[data-cdv-fazer]");
+  const nao = caixa.querySelector('[data-prop="nao"]');
+  if (!fazer) return;
+  const marcadas = () => [...caixa.querySelectorAll("[data-cdv]")].filter((c) => c.checked).map((c) => pessoas[Number(c.dataset.cdv)]);
+  const contar = () => {
+    const n = marcadas().length;
+    fazer.textContent = n > 1 ? "Cadastrar as " + n : n === 1 ? "Cadastrar 1 pessoa" : "Marque quem cadastrar";
+    fazer.disabled = !n;
+  };
+  caixa.querySelectorAll("[data-cdv]").forEach((c) => { c.onchange = contar; });
+  contar();
+  if (nao) nao.onclick = () => { caixa.innerHTML = '<p class="explica">Tudo bem — não cadastrei ninguém.</p>'; };
+  fazer.onclick = async () => {
+    const escolhidas = marcadas();
+    if (!escolhidas.length) return;
+    fazer.disabled = true;
+    const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "cadastros", campos: { pessoas: escolhidas } }),
+    });
+    if (!r.ok) {
+      contar();
+      caixa.querySelector(".proposta").insertAdjacentHTML("beforeend", '<p class="explica">Não consegui: ' + esc(await erroDe(r)) + "</p>");
+      return;
+    }
+    const feito = await r.json();
+    const fichas = (feito.registro || {}).fichas || [];
+    caixa.innerHTML = '<div class="proposta"><div class="proposta-topo"><span class="rotulo">feito</span><b>' + esc(feito.resumo) + "</b></div>" +
+      '<div class="fcn-tabela">' + fichas.map((f) =>
+        '<div class="fcn-linha fcn-cdv-feito"><span class="fcn-quem"><span><b>' + esc(f.nome) + "</b><small>" +
+        esc(f.acao === "criada" ? "ficha nova" : f.acao === "completada" ? "ficha completada" : "já estava em Cadastros") + "</small></span></span>" +
+        '<button type="button" data-cdv-abrir="' + esc(String(f.id)) + '">Abrir em Cadastros</button></div>').join("") + "</div></div>";
+    caixa.querySelectorAll("[data-cdv-abrir]").forEach((b) => {
+      b.onclick = async () => {
+        marcarDestino("cadastros");
+        await mostrarCadastros();
+        if (typeof verFicha === "function") verFicha(Number(b.dataset.cdvAbrir));
+      };
+    });
+    carregarStatus();
+  };
+}
+
 /* ------------------------------ a correcao escrita, com a ficha aberta */
 
 function fichaAbertaNoLado() {
@@ -576,6 +658,10 @@ function fichaAbertaNoLado() {
 async function pedidoNaFicha(pedido) {
   if (!fichaAbertaNoLado()) return false;
   if (/^\s*(cadastr|coloc|lanc|lanç|registr|adicion|inclu|crie|abra|gere|como est)/i.test(pedido)) return false;
+  // Varias pessoas (a qualificacao das partes) ou o pedido de cadastrar no
+  // meio da frase: e outra coisa, nao a correcao desta ficha.
+  if (/\b(cadastr|qualificad|vendedor|comprador|partes\b)/i.test(pedido) ||
+      (pedido.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g) || []).length >= 2) return false;
   const r = await fetch("/api/fichas/corrigir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto: pedido }) }).catch(() => null);
   const campos = r && r.ok ? (await r.json()).campos || {} : {};
   const v = fcn.v;

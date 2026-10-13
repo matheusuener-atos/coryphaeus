@@ -381,3 +381,326 @@ def corrigir(texto: str) -> dict:
     if m:
         saida["nome"] = m.group(1).strip()
     return saida
+
+
+# ------------------------------------- a qualificacao das partes (varias fichas)
+#
+# "Vendedores: OBEDI LOURENÇO SANTOS, portador do RG nº 4091179 PC/PA e CPF nº
+#  752.043.042-15, e seu conjuge SWEDY PEREIRA SANTOS, ..., ambos residentes e
+#  domiciliados à Avenida Araguaia, ..., doravante denominados em conjunto como
+#  VENDEDORES;" - o jeito de contrato brasileiro. Cada pessoa vira uma ficha
+# de cliente; o que nao tem campo proprio (RG, nacionalidade, estado civil,
+# profissao, conjuge, papel) vai para a observacao. Tudo por regra; nada e
+# gravado sem o sim no cartao.
+
+# O comeco do rotulo (sem acento, minusculo) e como ele aparece na ficha.
+PAPEIS = (
+    ("promitente vendedor", "promitente vendedor(a)"), ("promitente comprador", "promitente comprador(a)"),
+    ("vendedor", "vendedor(a)"), ("comprador", "comprador(a)"), ("adquirente", "adquirente"),
+    ("outorgante", "outorgante"), ("outorgad", "outorgado(a)"), ("locador", "locador(a)"),
+    ("locatari", "locatário(a)"), ("contratante", "contratante"), ("contratad", "contratado(a)"),
+    ("cedente", "cedente"), ("cessionari", "cessionário(a)"), ("doador", "doador(a)"),
+    ("donatari", "donatário(a)"), ("permutante", "permutante"), ("fiador", "fiador(a)"),
+    ("credor", "credor(a)"), ("devedor", "devedor(a)"), ("mutuante", "mutuante"), ("mutuari", "mutuário(a)"),
+    ("comodante", "comodante"), ("comodatari", "comodatário(a)"), ("interveniente", "interveniente"),
+    ("anuente", "anuente"), ("requerente", "requerente"), ("herdeir", "herdeiro(a)"),
+    ("inventariante", "inventariante"),
+)
+# Palavras que dizem "as pessoas do contrato" sem dizer o papel: nunca nome.
+PARTES_EM_GERAL = {"partes", "parte", "qualificados", "qualificadas", "qualificado", "qualificada", "pessoas",
+                   "envolvidos", "envolvidas", "signatarios", "signatarias", "contratantes"}
+
+
+def papel_do_rotulo(rotulo: str) -> str:
+    """ "Vendedores" -> "vendedor(a)". Vazio quando o rotulo nao e papel de contrato."""
+    p = re.sub(r"\((?:a|as|s|es|os)\)", "", _plano(rotulo)).strip(" :")
+    p = " ".join(p.split())
+    if not p or len(p) > 40:
+        return ""
+    for comeco, nome in PAPEIS:
+        if p.startswith(comeco) and len(p) <= len(comeco) + 6:
+            return nome
+    return ""
+
+
+RE_ROTULO_PAPEL = re.compile(r"(?:^|(?<=[\n;.]))[ \t]*(?:\d+[.)-]?[ \t]*)?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ() /]{2,40}?)[ \t]*:", re.M)
+_MAI = "A-ZÀ-ÖØ-Þ"
+RE_NOME_CAIXA_ALTA = re.compile(
+    r"(?<![\w/])([" + _MAI + r"][" + _MAI + r"'’]+(?:[ \t]+(?:D[AEO]S?|E|[" + _MAI + r"][" + _MAI + r"'’]+))+)(?![\w/])")
+RE_DEPOIS_DO_NOME = re.compile(
+    r"\s*[,(]|\s+(?:portador|brasileir|inscrit|casad|solteir|divorciad|vi[uú]v|resident|pessoa|maior|nascid)", re.I)
+RE_NOME_MISTO = re.compile(
+    r"\s*([" + _MAI + r"][\wÀ-ÿ'’]+(?:\s+(?:d[aeo]s?|e|[" + _MAI + r"][\wÀ-ÿ'’]+)){1,8})")
+RE_CONJUGE = re.compile(r",?\s*\be\s+(?:seu|sua)\s+(?:c[oô]njuge|esposa|esposo|marido|mulher|companheir[oa]|convivente)\s*",
+                        re.I)
+RE_RESIDENCIA = re.compile(
+    r"\b(?:(ambos|ambas|todos|todas)\s*,?\s*)?(resident[ea]s?)\s+e\s+domiciliad[oa]s?\s*,?\s*"
+    r"(?:(?:à|a|na|no|em|nesta|neste)\s+)?(.+?)\s*"
+    r"(?=,\s*(?:doravante|neste\s+ato|portador|inscrit|com\s+(?:o\s+)?(?:cpf|rg))|;|\n\s*\n|$)", re.I | re.S)
+RE_RG = re.compile(
+    r"(?:\b(?i:r\.?\s?g\.?)(?![\w])|(?i:carteira de identidade|c[ée]dula de identidade))"
+    r"[^\d\n]{0,20}?(\d[\d.\-]*\d)"
+    r"(?:[ \t]*[-–]?[ \t]*((?!CPF|CNPJ)[A-Z]{2,6}(?:[ \t]*/[ \t]*[A-Z]{2}|-[A-Z]{2})?)(?![\w]))?")
+RE_DOC_ROTULADO = re.compile(r"(?i:\b(?:cpf|cnpj)(?:/mf)?)[^\d\n]{0,25}?(" + RE_DOC.pattern + r")")
+RE_CEP = re.compile(r"(?<!\d)(\d{2}\.?\d{3}-\d{3})(?!\d)|(?i:cep)[:\s]*(\d{8})(?!\d)")
+RE_NACIONALIDADE = re.compile(r"\b(brasileir[oa]|portugu[eê]s[a]?|argentin[oa]|paraguai[oa]|uruguai[oa]|estrangeir[oa]|"
+                              r"naturalizad[oa])\b", re.I)
+RE_ESTADO_CIVIL = re.compile(r"\b(casad[oa]|solteir[oa]|divorciad[oa]|vi[uú]v[oa]|separad[oa](?:\s+judicialmente)?|"
+                             r"em\s+uni[aã]o\s+est[aá]vel|convivente)\b", re.I)
+RE_FIM_DA_CABECA = re.compile(r"(?i)\b(?:portador|inscrit|r\.?g\.?(?![\w])|cpf|cnpj|resident|domiciliad|nascid|"
+                              r"filh[oa]s?\b|doravante|com sede|pessoa jur)")
+NAO_E_NOME = {"cpf", "cnpj", "rg", "ssp", "qualificacao", "clausula", "contrato", "instrumento", "objeto", "imovel"}
+
+
+def _nome_da_qualificacao(bruto: str) -> str:
+    nome = " ".join((bruto or "").split()).strip(" .,;:-–—")
+    if nome.isupper():
+        nome = _nome_proprio(nome.lower())
+    return nome
+
+
+def _e_palavra_de_papel(palavra: str) -> bool:
+    p = _plano(palavra)
+    return p in PARTES_EM_GERAL or bool(papel_do_rotulo(p))
+
+
+def _grupos(texto: str) -> list[tuple[str, int, int, int]]:
+    """(papel, onde o rotulo comeca, onde o grupo comeca, onde acaba) - sem rotulo, um grupo so."""
+    rotulos = [(m, papel_do_rotulo(m.group(1))) for m in RE_ROTULO_PAPEL.finditer(texto)]
+    rotulos = [(m, p) for m, p in rotulos if p]
+    if not rotulos:
+        return [("", 0, 0, len(texto))]
+    saida = []
+    for i, (m, papel) in enumerate(rotulos):
+        fim = rotulos[i + 1][0].start() if i + 1 < len(rotulos) else len(texto)
+        saida.append((papel, m.start(), m.end(), fim))
+    return saida
+
+
+def _fim_do_grupo(texto: str, ini: int, fim: int) -> int:
+    """O grupo acaba no "doravante denominados ...;" ou no paragrafo seguinte ao primeiro CPF."""
+    trecho = texto[ini:fim]
+    m = re.search(r"(?i)doravante[^;\n]*?(?:[;\n]|\.(?:\s|$))", trecho)
+    if m:
+        fim = min(fim, ini + m.end())
+        trecho = texto[ini:fim]
+    doc = RE_DOC.search(trecho)
+    if doc:
+        quebra = re.search(r"\n[ \t]*\n", trecho[doc.end():])
+        if quebra:
+            fim = min(fim, ini + doc.end() + quebra.start())
+    return fim
+
+
+def _inicios(texto: str, ini: int, fim: int, residencias) -> list[tuple[int, int]]:
+    """Onde comeca cada pessoa do grupo: (inicio, fim do nome)."""
+    saida = []
+    for m in RE_NOME_CAIXA_ALTA.finditer(texto, ini, fim):
+        if any(a <= m.start() < b for a, b in residencias):
+            continue
+        palavras = [_plano(p) for p in m.group(1).split() if _plano(p) not in PARTICULAS]
+        if not palavras or any(p in NAO_E_NOME or _e_palavra_de_papel(p) for p in palavras):
+            continue
+        if not RE_DEPOIS_DO_NOME.match(texto, m.end()):
+            continue
+        saida.append((m.start(), m.end()))
+    if saida:
+        return saida
+    # Nome em maiuscula e minuscula ("Obedi Lourenço Santos, portador..."):
+    # no comeco do grupo e depois de "e seu cônjuge".
+    pontos = [ini] + [c.end() for c in RE_CONJUGE.finditer(texto, ini, fim)]
+    for p in pontos:
+        m = RE_NOME_MISTO.match(texto, p, fim)
+        if m and RE_DEPOIS_DO_NOME.match(texto, m.end()):
+            saida.append((m.start(1), m.end(1)))
+    return saida
+
+
+def _documento(trecho: str) -> tuple[str, str]:
+    """(o CPF/CNPJ com a mascara, o aviso quando nao confere)."""
+    m = RE_DOC_ROTULADO.search(trecho)
+    bruto = m.group(1) if m else (RE_DOC.search(trecho).group(0) if RE_DOC.search(trecho) else "")
+    if not bruto:
+        return "", ""
+    try:
+        return campos_br.formatar_documento(bruto), ""
+    except ValueError as exc:
+        return bruto, str(exc)
+
+
+def _profissao(cabeca: str) -> str:
+    for item in cabeca.split(","):
+        item = " ".join(item.split()).strip(" .;:")
+        if not item or RE_NACIONALIDADE.fullmatch(item) or RE_ESTADO_CIVIL.fullmatch(item):
+            continue
+        if re.search(r"\d", item) or _plano(item) in {"maior", "capaz", "maior e capaz"}:
+            continue
+        if len(item.split()) <= 4 and re.fullmatch(r"[A-Za-zÀ-ÿ\s'’-]{3,40}", item):
+            return item.lower() if not item.islower() and item.isupper() else item
+    return ""
+
+
+def _ler(texto: str) -> tuple[list[dict], int, int]:
+    """As pessoas, onde a qualificacao comeca e onde acaba."""
+    texto = _nfc(texto)
+    pessoas: list[dict] = []
+    inicio, fim_total = -1, -1
+    for papel, rot, ini, fim in _grupos(texto):
+        fim = _fim_do_grupo(texto, ini, fim)
+        residencias = [(m.start(), m.end()) for m in RE_RESIDENCIA.finditer(texto, ini, fim)]
+        inicios = _inicios(texto, ini, fim, residencias)
+        if not inicios:
+            continue
+        grupo = []
+        for i, (a, b) in enumerate(inicios):
+            seg_fim = inicios[i + 1][0] if i + 1 < len(inicios) else fim
+            seg = texto[a:seg_fim]
+            conjuge_depois = RE_CONJUGE.search(seg)
+            casado_com_o_seguinte = bool(conjuge_depois and i + 1 < len(inicios)
+                                         and not seg[conjuge_depois.end():].strip())
+            if casado_com_o_seguinte:
+                seg = seg[:conjuge_depois.start()]
+            residencia = RE_RESIDENCIA.search(seg)
+            proprio = seg[:residencia.start()] if residencia else seg
+            documento, aviso = _documento(proprio)
+            rg = RE_RG.search(proprio)
+            corte = RE_FIM_DA_CABECA.search(proprio, b - a)
+            cabeca = proprio[b - a:corte.start() if corte else len(proprio)]
+            nacionalidade = RE_NACIONALIDADE.search(proprio)
+            civil = RE_ESTADO_CIVIL.search(proprio)
+            nome = _nome_da_qualificacao(texto[a:b])
+            grupo.append({
+                "tipo": "cliente", "nome": nome, "documento": documento, "aviso": aviso,
+                "pessoa": "juridica" if (parece_pj(nome) or campos_br.e_cnpj(documento)) else "fisica",
+                "endereco": "", "end_cep": "", "papel": papel,
+                "rg": " ".join(x for x in (rg.group(1), rg.group(2) or "") if x) if rg else "",
+                "nacionalidade": nacionalidade.group(1).lower() if nacionalidade else "",
+                "estado_civil": " ".join(civil.group(1).lower().split()) if civil else "",
+                "profissao": _profissao(cabeca), "conjuge": "",
+                "_casado_com_o_seguinte": casado_com_o_seguinte,
+                "_residencia": residencia,
+            })
+        # O conjuge, dos dois lados.
+        for i, p in enumerate(grupo):
+            if p.pop("_casado_com_o_seguinte") and i + 1 < len(grupo):
+                p["conjuge"] = grupo[i + 1]["nome"]
+                grupo[i + 1]["conjuge"] = p["nome"]
+        # O endereco: o de cada um; "ambos residentes" (ou o plural) vale para o grupo.
+        comum = ""
+        for p in grupo:
+            r = p.pop("_residencia")
+            if not r:
+                continue
+            endereco = " ".join(r.group(3).split()).strip(" .,;")
+            p["endereco"] = endereco
+            if r.group(1) or _plano(r.group(2)).endswith("s"):
+                comum = endereco
+        for p in grupo:
+            if not p["endereco"] and comum:
+                p["endereco"] = comum
+        if not grupo:
+            continue
+        comeco = rot if rot != ini else inicios[0][0]
+        inicio = comeco if inicio < 0 else min(inicio, comeco)
+        fim_total = max(fim_total, fim)
+        pessoas.extend(grupo)
+
+    vistos: set[str] = set()
+    saida = []
+    for p in pessoas:
+        if not (p["documento"] or p["rg"]) or not p["nome"]:
+            continue
+        chave = campos_br.so_digitos(p["documento"]) or _plano(p["nome"])
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        cep = RE_CEP.search(p["endereco"])
+        if cep:
+            digitos = campos_br.so_digitos(cep.group(1) or cep.group(2))
+            p["end_cep"] = digitos if len(digitos) == 8 else ""
+        p["observacao"] = " · ".join(x for x in (
+            p["papel"], p["nacionalidade"], p["estado_civil"], p["profissao"],
+            ("RG " + p["rg"]) if p["rg"] else "", ("cônjuge de " + p["conjuge"]) if p["conjuge"] else "") if x)
+        saida.append(p)
+    return saida, max(inicio, 0), fim_total
+
+
+def ler_qualificacoes(texto: str) -> list[dict]:
+    """
+    As pessoas qualificadas no texto, no padrao de contrato brasileiro. Cada
+    uma: tipo ("cliente"), nome (em forma propria), pessoa (fisica/juridica),
+    documento (CPF/CNPJ com a mascara; `aviso` quando nao confere), endereco,
+    end_cep (8 digitos ou vazio), observacao (papel · nacionalidade · estado
+    civil · profissao · RG · conjuge) e as pecas dela (papel, rg, conjuge...).
+    So entra quem tem nome e CPF/CNPJ ou RG; o mesmo CPF entra uma vez.
+    """
+    return _ler(texto)[0]
+
+
+# O que pode vir antes da qualificacao colada sozinha: o titulo dela.
+CABECA_DA_QUALIFICACAO = {"qualificacao", "qualificacoes", "das", "da", "partes", "as", "os", "seguintes", "qualificados",
+                          "qualificadas", "pessoas", "segue", "seguem", "dados", "e"}
+
+
+def so_qualificacao(texto: str) -> list[dict] | None:
+    """
+    A mensagem e SO a qualificacao de duas ou mais pessoas, sem outro pedido
+    ("Vendedores: OBEDI ...; Comprador: HUGO ...;")? As pessoas; senao None.
+    """
+    if "?" in (texto or ""):
+        return None
+    pessoas, inicio, fim = _ler(texto)
+    if len(pessoas) < 2:
+        return None
+    texto = _nfc(texto)
+    antes = re.findall(r"[a-z]+", _plano(texto[:inicio]))
+    depois = re.findall(r"[a-z0-9]+", _plano(texto[fim:])) if fim >= 0 else []
+    if any(p not in CABECA_DA_QUALIFICACAO for p in antes) or depois:
+        return None
+    return pessoas
+
+
+RE_VERBO_PARTES = re.compile(r"\b(cadastr(?:e|a|ar)|registr(?:e|a|ar)|inclu(?:a|i|ir)|adicion(?:e|a|ar)|salv(?:e|a|ar)|"
+                             r"coloc(?:a|ar)|coloque|ponha)\b")
+SALTAR_NO_PEDIDO = {"as", "os", "a", "o", "todas", "todos", "tambem", "ai", "aqui", "para", "pra", "mim", "e", "ou",
+                    "como", "em", "no", "nos", "na", "nas", "cadastros", "cadastro", "sistema", "clientes", "fichas",
+                    "de", "do", "da", "dos", "das", "deste", "desta", "dessa", "desse", "neste", "nesta", "nesse",
+                    "nessa", "contrato", "instrumento", "documento", "escritura", "minuta", "aberto", "aberta",
+                    "anexo", "anexado", "anexada", "ao", "lado", "seguintes", "duas", "dois", "tres", "quatro", "cada",
+                    "uma", "um", "promitentes", "promitente"}
+
+
+def pedido_de_partes(texto: str) -> dict | None:
+    """
+    "Cadastre as partes", "cadastre os vendedores e os compradores", "inclua
+    os qualificados deste contrato": as pessoas estao no documento, e nao na
+    frase. {"papeis": [...] (vazio = todas), "inicio": onde o verbo comeca}.
+    """
+    plano = _plano(texto)
+    m = RE_VERBO_PARTES.search(plano)
+    if not m:
+        return None
+    papeis: list[str] = []
+    todas = False
+    for palavra in re.findall(r"[a-z/]+", plano[m.end():])[:16]:
+        if palavra in PARTES_EM_GERAL:
+            todas = True
+            continue
+        papel = papel_do_rotulo(palavra)
+        if papel:
+            if papel not in papeis:
+                papeis.append(papel)
+            continue
+        if palavra in SALTAR_NO_PEDIDO or palavra == "e/ou":
+            continue
+        break
+    if not (todas or papeis):
+        return None
+    return {"papeis": [] if todas and not papeis else papeis, "inicio": m.start()}
+
+
+def do_papel(pessoas: list[dict], papeis) -> list[dict]:
+    """So as pessoas dos papeis pedidos (vazio: todas). "contratantes" pede as duas pontas."""
+    if not papeis:
+        return list(pessoas)
+    return [p for p in pessoas if p.get("papel") in papeis]

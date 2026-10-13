@@ -98,6 +98,15 @@ RE_CONSULTA = re.compile(r"\b(?:quero|gostaria(?: de)?|preciso(?: de)?|precisamo
 RE_ANALISE_E_DIGA = re.compile(r"\be\s+(?:me\s+)?(?:diga|informe|responda|mostre|fale)\b", re.IGNORECASE)
 
 
+RE_CONTATO_POR_CONTRATO = re.compile(
+    r"(\b(?:" + _PRODUZIR + r")\s+(?:um|o|novo|nosso|meu)?\s*)contato\b"
+    r"(?=\s+(?:em que|onde|no qual|na qual|entre|de compra|de venda|de loca|de presta|com (?:as |a )?cl[aá]usula))",
+    re.IGNORECASE)
+RE_PAPEL_DE_CONTRATO = re.compile(
+    r"\b(?:vendedor\w*|comprador\w*|locador\w*|locat[aá]ri\w*|outorgant\w*|contratant\w*|partes|qualificad\w*|"
+    r"im[oó]ve\w*|cl[aá]usula\w*|instrumento|objeto)\b", re.IGNORECASE)
+
+
 def e_trabalho(pergunta: str) -> bool:
     """
     O pedido é de produzir ou retrabalhar uma peça (contrato, petição,
@@ -107,6 +116,10 @@ def e_trabalho(pergunta: str) -> bool:
     texto = " ".join(str(pergunta or "").split())
     if not texto or len(texto) > 4000:
         return False
+    # "crie um contato em que os qualificados... são vendedores" (13/10/2026):
+    # "contato" por "contrato" - seguido de oração ou de papel de contrato.
+    if RE_PAPEL_DE_CONTRATO.search(texto):
+        texto = RE_CONTATO_POR_CONTRATO.sub(r"\1contrato", texto)
     if RE_SO_RESUMO.search(texto) or RE_CONSULTA.search(texto):
         return False
     if RE_ANALISE_E_DIGA.search(texto) and not RE_PRODUZIR.search(texto):
