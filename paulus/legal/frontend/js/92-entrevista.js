@@ -69,6 +69,28 @@ function desenharPilulaProfundidade() {
   b.innerHTML = ic("gavel", 18) + '<span class="rotulo-botao">' + esc(n ? n.nome : "Profundidade") + "</span>";
 }
 
+/* O resumo de uma linha do seletor (pedido de 13/10/2026): o do servidor
+   (src/profundidade.py) e longo para uma linha so; ele vai inteiro para o
+   title, junto com as etapas e o consumo. Cada frase aqui diz so o que as
+   etapas do nivel fazem. */
+const RESUMO_CURTO = {
+  estagiario: "Rápido, direto ao essencial",
+  bacharel: "Mais estrutura e análise",
+  advogado: "Planeja antes de redigir",
+  juiz: "Planeja, redige e revisa",
+  ministro: "Riscos, revisão e consequências",
+};
+/* A frase do plano ainda chega com o cargo (src/recursos_do_plano.py). */
+function semCargo(frase) {
+  return String(frase || "").replace(/\b(Estagiário|Estagiario|Bacharel|Advogado|Juiz|Ministro)\b/g, (c) => {
+    const id = c.toLowerCase().replace("á", "a");
+    return NOME_DO_NIVEL[id] || c;
+  });
+}
+function consumoCurto(n) {
+  return "~" + String(n.consumo).replace(".", ",") + "×";
+}
+
 function abrirMenuProfundidade() {
   fecharMenuProfundidade();
   const b = document.getElementById("pilula-profundidade");
@@ -78,32 +100,43 @@ function abrirMenuProfundidade() {
   menu.id = "menu-profundidade";
   menu.className = "menu-profundidade";
   menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Profundidade");
+  const total = prof.niveis.length;
   menu.innerHTML = '<div class="mp-cabeca"><b>Quanto o Paulus trabalha este pedido</b>' +
-    "<small>Você escolhe o esforço; o modelo e as etapas são por conta do programa.</small></div>" +
-    prof.niveis.map((n, i) =>
-      '<button type="button" role="menuitemradio" class="mp-nivel' + (atual && atual.id === n.id ? " on" : "") + (n.bloqueado ? " travado" : "") +
-      '" aria-checked="' + Boolean(atual && atual.id === n.id) + '"' + (n.bloqueado ? ' aria-disabled="true" title="' + esc(n.no_plano || "") + '"' : "") +
-      ' data-prof-nivel="' + esc(n.id) + '">' +
-      '<span class="mp-degrau" aria-hidden="true">' + "▮".repeat(i + 1) + '<span class="mp-vazio">' + "▮".repeat(4 - i) + "</span></span>" +
-      '<span class="mp-texto"><b>' + esc(n.nome) + (n.id === prof.padrao ? ' <em>padrão</em>' : "") + "</b>" +
-      "<span>" + esc(n.resumo) + "</span>" +
-      (n.bloqueado ? '<small class="mp-plano">' + ic("key", 13) + " " + esc(n.no_plano || "Não faz parte do seu plano.") + "</small>" : "") +
-      '<small class="mp-tecnico">' + esc((n.detalhes || []).join(" · ")) + " · consome ~" +
-      esc(String(n.consumo).replace(".", ",")) + "× da franquia</small></span></button>").join("") +
-    '<label class="mp-perguntar"><input type="checkbox" data-prof-perguntar="1"' + (prof.perguntar ? " checked" : "") + ">" +
-    "<span><b>Entender antes de trabalhar</b><small>Em pedidos de trabalho (contrato, petição, parecer…), o Paulus " +
-    "pergunta o que muda o resultado antes de redigir. Pergunta simples não ganha perguntas.</small></span></label>";
+    "<small>Você escolhe o esforço; o modelo e as etapas são do programa. À direita, o consumo da franquia.</small></div>" +
+    prof.niveis.map((n, i) => {
+      const on = Boolean(atual && atual.id === n.id);
+      const plano = n.bloqueado ? semCargo(n.no_plano || "Não faz parte do seu plano.") : "";
+      // O técnico (chamadas, etapas, tokens) fica no title: o corpo é nome, resumo e consumo.
+      const titulo = [n.resumo, (n.detalhes || []).join(" · "), "consome " + consumoCurto(n) + " da franquia", plano]
+        .filter(Boolean).join("\n");
+      return '<button type="button" role="menuitemradio" class="mp-nivel' + (on ? " on" : "") + (n.bloqueado ? " travado" : "") +
+        '" aria-checked="' + on + '"' + (n.bloqueado ? ' aria-disabled="true"' : "") + ' title="' + esc(titulo) + '"' +
+        ' data-prof-nivel="' + esc(n.id) + '">' +
+        '<span class="mp-degrau" aria-hidden="true">' +
+        Array.from({ length: total }, (_, k) => "<i" + (k <= i ? ' class="cheio"' : "") + "></i>").join("") + "</span>" +
+        '<span class="mp-texto"><b>' + esc(n.nome) + (n.id === prof.padrao ? ' <em>padrão</em>' : "") + "</b>" +
+        (n.bloqueado ? '<small class="mp-plano">' + esc(plano) + "</small>" : "<span>" + esc(RESUMO_CURTO[n.id] || n.resumo) + "</span>") +
+        "</span>" +
+        '<span class="mp-consumo">' + (n.bloqueado ? ic("key", 14) : esc(consumoCurto(n))) + "</span>" +
+        '<span class="mp-marca" aria-hidden="true">' + (on ? ic("check", 16) : "") + "</span></button>";
+    }).join("") +
+    '<label class="mp-perguntar" title="Em pedidos de trabalho (contrato, petição, parecer…), o Paulus pergunta o que muda o resultado ' +
+    'antes de redigir. Pergunta simples não ganha perguntas."><input type="checkbox" data-prof-perguntar="1"' + (prof.perguntar ? " checked" : "") + ">" +
+    "<span><b>Entender antes de trabalhar</b><small>Em contrato, petição e parecer, pergunta o que muda o resultado.</small></span></label>";
   document.body.appendChild(menu);
   const r = b.getBoundingClientRect();
-  const largura = Math.min(420, window.innerWidth - 16);
+  // A caixa da pergunta inteira: o menu abre fora dela, sem cobrir o que se escreve.
+  const caixa = (b.closest(".cartao-campo") || b).getBoundingClientRect();
+  const largura = Math.min(440, window.innerWidth - 16);
   menu.style.width = largura + "px";
   menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - largura - 8)) + "px";
   // Abre para o lado com mais espaço (a caixa da pergunta pode estar no alto
   // ou no pé da tela); sem espaço para tudo, rola por dentro.
-  const acima = r.top - 16, abaixo = window.innerHeight - r.bottom - 16;
-  menu.style.maxHeight = Math.max(200, Math.min(640, Math.max(acima, abaixo))) + "px";
+  const acima = caixa.top - 16, abaixo = window.innerHeight - caixa.bottom - 16;
+  menu.style.maxHeight = Math.max(200, Math.max(acima, abaixo)) + "px";
   const altura = menu.offsetHeight;
-  menu.style.top = (acima >= altura || acima >= abaixo ? Math.max(8, r.top - altura - 8) : r.bottom + 8) + "px";
+  menu.style.top = (acima >= altura || acima >= abaixo ? Math.max(8, caixa.top - altura - 8) : caixa.bottom + 8) + "px";
   prof.aberto = true;
   b.setAttribute("aria-expanded", "true");
   menu.querySelectorAll("[data-prof-nivel]").forEach((x) => {
@@ -117,8 +150,28 @@ function abrirMenuProfundidade() {
       if (p) p.focus();
     };
   });
-  const caixa = menu.querySelector("[data-prof-perguntar]");
-  caixa.onchange = () => { prof.perguntar = caixa.checked; guardar("paulus.perguntar_antes", caixa.checked ? "1" : "0"); };
+  const marca = menu.querySelector("[data-prof-perguntar]");
+  marca.onchange = () => { prof.perguntar = marca.checked; guardar("paulus.perguntar_antes", marca.checked ? "1" : "0"); };
+  // Setas, Home e End andam pelos níveis e pela caixa do pé; Enter e espaço escolhem (o próprio botão).
+  menu.addEventListener("keydown", (e) => {
+    const itens = [...menu.querySelectorAll(".mp-nivel, [data-prof-perguntar]")];
+    const i = itens.indexOf(document.activeElement);
+    let j = -1;
+    if (e.key === "ArrowDown") j = i < 0 ? 0 : (i + 1) % itens.length;
+    else if (e.key === "ArrowUp") j = i < 0 ? itens.length - 1 : (i - 1 + itens.length) % itens.length;
+    else if (e.key === "Home") j = 0;
+    else if (e.key === "End") j = itens.length - 1;
+    if (j < 0) return;
+    e.preventDefault();
+    itens[j].focus();
+  });
+  // A barra de rolagem (só em tela baixa) aparece ao rolar e some ao parar.
+  let parado = 0;
+  menu.addEventListener("scroll", () => {
+    menu.classList.add("rolando");
+    clearTimeout(parado);
+    parado = setTimeout(() => menu.classList.remove("rolando"), 700);
+  });
   const primeiro = menu.querySelector(".mp-nivel.on") || menu.querySelector(".mp-nivel");
   if (primeiro) primeiro.focus();
 }

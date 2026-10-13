@@ -124,9 +124,24 @@ def main() -> int:
         ids = pag.evaluate("() => [...document.querySelectorAll('[data-prof-nivel]')].map(x => x.dataset.profNivel)")
         checar(nomes == ["Baixo", "Médio", "Alto", "Max", "Ultra"] and ids == ["estagiario", "bacharel", "advogado", "juiz", "ministro"],
                "os cinco níveis, na ordem", [nomes, ids])
-        tecnico = pag.inner_text("#menu-profundidade")
-        checar("da franquia" in tecnico and "revisa" in tecnico and "Entender antes de trabalhar" in tecnico,
-               "o técnico discreto, o consumo e o 'entender antes'")
+        # Desde 13/10 o corpo é nome, resumo de uma linha e consumo curto; o técnico (etapas, tokens) vai no title.
+        corpo = pag.inner_text("#menu-profundidade")
+        titulos = " ".join(pag.evaluate("() => [...document.querySelectorAll('.mp-nivel')].map(x => x.title)"))
+        consumos = pag.evaluate("() => [...document.querySelectorAll('.mp-nivel .mp-consumo')].map(x => x.textContent.trim())")
+        checar("da franquia" in titulos and "revisa" in titulos and "tokens" in titulos and "tokens" not in corpo
+               and "Entender antes de trabalhar" in corpo, "o técnico no title, o 'entender antes' no pé")
+        checar(consumos == ["~1×", "~1,5×", "~2,5×", "~4×", "~6×"], "o consumo curto à direita", consumos)
+        medidas = pag.evaluate("""() => { const m = document.getElementById('menu-profundidade'), r = m.getBoundingClientRect();
+            const c = document.getElementById('cartao-campo').getBoundingClientRect();
+            const linhas = [...m.querySelectorAll('.mp-nivel')].map(x => x.getBoundingClientRect().height);
+            const deg = [...m.querySelectorAll('.mp-degrau')].map(x => x.getBoundingClientRect().right);
+            const nome = [...m.querySelectorAll('.mp-texto')].map(x => x.getBoundingClientRect().left);
+            return {rola: m.scrollHeight > m.clientHeight + 1, cobre: r.bottom > c.top && r.top < c.bottom,
+                    alta: Math.max(...linhas), invade: deg.some((d, i) => d > nome[i])}; }""")
+        checar(not medidas["rola"] and not medidas["cobre"] and medidas["alta"] <= 52 and not medidas["invade"],
+               "cabe sem rolar, fora da caixa da pergunta, uma linha por nível, degraus sem invadir o nome", medidas)
+        pag.keyboard.press("ArrowDown")
+        checar(pag.evaluate("() => document.activeElement.dataset.profNivel") == "juiz", "a seta anda pelos níveis")
         pag.screenshot(path=str(CAPTURAS / "menu-profundidade.png"))
         pag.click('[data-prof-nivel="juiz"]')
         checar(pag.inner_text("#pilula-profundidade").strip().endswith("Max"), "escolhido o Juiz")
