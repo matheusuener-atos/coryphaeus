@@ -208,7 +208,7 @@ _declarar(PERMITIDO,
           # o editor inteligente (docs/PLANO-EDITOR.md): o agente edita como
           # sugestão, aceitar e recusar, as rodadas e a nota de cada uma, e o
           # documento da conversa (listar, reabrir para mexer de novo)
-          "POST /api/documentos/{id_}/editar", "POST /api/documentos/{id_}/sugestoes",
+          "POST /api/documentos/{id_}/editar", "POST /api/documentos/{id_}/sugestoes", "POST /api/documentos/{id_}/conferencia",
           "GET /api/documentos/{id_}/rodadas", "POST /api/documentos/{id_}/rodadas/{numero}/avaliar",
           "POST /api/documentos/{id_}/reabrir", "GET /api/trabalhos/{id_}/documentos", "POST /api/trabalhos/{id_}/lado",
           "GET /api/planilha/{id_}", "POST /api/planilha/{id_}/celula", "POST /api/planilha/{id_}/faixa",

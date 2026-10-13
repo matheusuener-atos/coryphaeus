@@ -27,7 +27,9 @@ teste cria é apagado no fim.
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
 import urllib.parse
 from datetime import date
 from pathlib import Path
@@ -35,6 +37,20 @@ from pathlib import Path
 RAIZ = Path(__file__).parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
 sys.path.insert(0, str(RAIZ / "tests"))
+
+# A pasta de dados do teste, e nao a desta maquina: a conversa, as fichas e os
+# rascunhos criados aqui iam para o banco do escritorio, e o teste dependia do
+# que houvesse no Acervo de verdade. O Acervo do teste e o da demonstracao
+# (tools/demo/criar_demo.py): os .docx ficticios e o manual em PDF.
+if "PAULUS_DADOS" not in os.environ:
+    _DADOS = Path(tempfile.mkdtemp(prefix="paulus-ferramentas-"))
+    os.environ["PAULUS_DADOS"] = str(_DADOS)
+    os.environ.setdefault("PAULUS_SEM_AVISOS", "1")
+    sys.path.insert(0, str(RAIZ / "tools" / "demo"))
+    import criar_demo  # noqa: E402
+
+    criar_demo.escrever_documentos(_DADOS / "test_contracts")
+    (_DADOS / "test_contracts" / criar_demo.MANUAL_NOME).write_bytes(criar_demo.manual_em_pdf())
 
 import ferramentas  # noqa: E402
 import intencao  # noqa: E402

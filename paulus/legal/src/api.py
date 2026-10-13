@@ -11449,6 +11449,9 @@ class GravarDocumento(BaseModel):
     # de passar por cima (docs/PLANO-EDITOR.md, E2). Sem ela, como antes.
     revisao: int | None = None
     versao: bool | None = None
+    # Só no Histórico: o corpo vira uma versão, e o documento fica como está
+    # (o que estava na tela quando outra janela gravou antes dela).
+    so_historico: bool = False
 
 
 class PedidoAoAssistente(BaseModel):
@@ -11718,6 +11721,9 @@ def documentos_gravar(id_: int, payload: GravarDocumento):
     from fastapi.responses import JSONResponse
 
     item = _documento_ou_404(id_)
+    if payload.so_historico:
+        numero = estado.documentos.guardar_no_historico(id_, payload.corpo, payload.nota or "guardado da tela")
+        return {"id": id_, "versao": numero, "nova_versao": True, "revisao": int(item.get("revisao") or 0)}
     if item.get("situacao") == "concluido" and payload.corpo and payload.corpo != item.get("corpo"):
         raise HTTPException(status_code=409, detail="este documento foi concluído; para mexer de novo, reabra-o")
     try:
@@ -12791,6 +12797,58 @@ def _modelo_do_editor(trabalho, pessoa, nivel, caminhos, so_aqui: bool = False):
     return chamar, onde
 
 
+RE_PEDIDO_DE_LEI = re.compile(r"(?i)\b(?:lei|art\.?|artigo|fundament|c[oó]digo|legisla|cpc|cdc|clt|inquilinato|"
+                               r"constitui|cite|citar|base\s+legal)")
+RE_PEDIDO_DA_CASA = re.compile(r"(?i)\b(?:da\s+casa|do\s+escrit[oó]rio|nossa\s+cl[aá]usula|nosso\s+modelo|"
+                               r"modelo\s+(?:do|de)\s+escrit[oó]rio|padr[aã]o\s+do\s+escrit[oó]rio|que\s+usamos|"
+                               r"de\s+sempre)")
+
+
+def _apoio_do_editor(pedido: str, titulo: str = "") -> tuple[str, str]:
+    """
+    O que o agente de edição lê além do documento (E7): o texto oficial dos
+    artigos - os que o pedido cita, ou os do assunto quando o pedido fala de
+    lei - e as cláusulas do escritório que o pedido chama ("a cláusula de
+    foro da casa"). Nada disso vai quando o pedido não pede.
+    """
+    artigos: list[str] = []
+    if RE_PEDIDO_DE_LEI.search(pedido or ""):
+        try:
+            from inteligencia.extratores import regras_leis
+            import leis as leis_mod
+
+            for a in regras_leis.achar(pedido):
+                d = a["dados"]
+                codigo = leis_mod.CODIGO_DO_INSTRUMENTO.get(d.get("instrument_id") or "")
+                if d.get("kind") == "article" and codigo:
+                    achado = estado.leis.artigo(codigo, str(d.get("article")))
+                    if achado:
+                        artigos.append(f"{achado['citacao']}: {' '.join(achado['texto'].split())[:1500]}")
+            if not artigos:
+                for achado in estado.leis.procurar_assunto(f"{pedido} {titulo}", limite=3):
+                    if not achado.get("revogado"):
+                        artigos.append(f"{achado['citacao']}: {' '.join(achado['texto'].split())[:1200]}")
+        except Exception:  # noqa: BLE001 - sem a base de leis, o agente segue sem citar
+            artigos = []
+    casa: list[str] = []
+    try:
+        clausulas = estado.clausulas.listar()
+    except Exception:  # noqa: BLE001
+        clausulas = []
+    if clausulas:
+        plano = unicodedata.normalize("NFD", (pedido or "").lower())
+        plano = "".join(c for c in plano if unicodedata.category(c) != "Mn")
+        pede_da_casa = bool(RE_PEDIDO_DA_CASA.search(pedido or ""))
+        for c in clausulas:
+            titulo_c = unicodedata.normalize("NFD", str(c.get("titulo") or "").lower())
+            titulo_c = "".join(x for x in titulo_c if unicodedata.category(x) != "Mn")
+            palavras = [p for p in re.findall(r"[a-z]{4,}", titulo_c) if p not in ("clausula", "para", "sobre")]
+            if palavras and (sum(1 for p in palavras if p in plano) >= min(2, len(palavras)) or
+                             (pede_da_casa and any(p in plano for p in palavras))):
+                casa.append(f"“{c.get('titulo')}”: {' '.join(str(c.get('texto') or '').split())[:2500]}")
+    return "\n".join(artigos[:4]), "\n".join(casa[:3])
+
+
 def _rodadas(id_: int) -> list[dict]:
     return estado.base.buscar("SELECT * FROM rodadas_do_editor WHERE documento_id = ? ORDER BY numero", (id_,))
 
@@ -12806,6 +12864,29 @@ def _memoria_do_documento(id_: int) -> str:
         resumo = "; ".join(feito.get("resumos") or [])[:300] or "nada aplicado"
         linhas.append(f"rodada {r['numero']}: pediu “{(r.get('pedido') or '')[:160]}” → {resumo}")
     return "\n".join(linhas)
+
+
+class PedidoDeConferencia(BaseModel):
+    corpo: str | None = None        # o que está na tela (sem ele, o gravado)
+
+
+@app.post("/api/documentos/{id_}/conferencia")
+def documentos_conferencia(id_: int, payload: PedidoDeConferencia) -> dict:
+    """
+    A conferência jurídica do documento (src/conferencia_juridica.py): o que
+    um revisor confere antes de sair - numeração, referências, termos, valor e
+    extenso, datas, CPF/CNPJ, lacunas, artigos de lei, conversa no corpo. Cada
+    aviso com o bloco, para a tela levar ao lugar.
+    """
+    import blocos as blocos_mod
+    import conferencia_juridica
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+    blocos = blocos_mod.ler(payload.corpo if payload.corpo is not None else item["corpo"])
+    avisos = conferencia_juridica.conferir(blocos, fichas=estado.cadastros.listar(), leis=estado.leis)
+    return {"avisos": avisos, "impedem": sum(1 for a in avisos if a["grau"] == "impede")}
 
 
 @app.get("/api/documentos/{id_}/rodadas")
@@ -12893,6 +12974,7 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
                   or {}).get("n") or 0) + 1
     inicio_blocos = blocos_mod.ler(item["corpo"])
     titulo = item.get("titulo") or "documento"
+    artigos, casa = _apoio_do_editor(pedido, titulo)
     parar = threading.Event()
 
     def gerar() -> Iterator[str]:
@@ -12912,7 +12994,9 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
             for tipo, dados in agente_mod.rodar(chamar, inicio_blocos, pedido, rodada=numero, titulo=titulo,
                                                 selecao=payload.selecao, nivel=nivel.id,
                                                 regras=estado.contextos.bloco(["Regras de redação"]),
-                                                memoria=_memoria_do_documento(id_), parar=parar.is_set):
+                                                memoria=_memoria_do_documento(id_), parar=parar.is_set,
+                                                fichas=estado.cadastros.listar(), leis=estado.leis,
+                                                artigos=artigos, casa=casa):
                 if tipo == "fim":
                     r = dados["rodada"]
                 elif tipo == "etapa":

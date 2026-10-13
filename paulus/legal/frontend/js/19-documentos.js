@@ -1521,28 +1521,40 @@ function mostrarPaginaDoCursor() {
 function marcarSujo() {
   const estadoTexto = $("ed-estado");
   if (estadoTexto) { estadoTexto.textContent = "salvando…"; estadoTexto.classList.add("salvando"); }
+  escr.sujo = true;
   clearTimeout(escr.relogio);
   escr.relogio = setTimeout(gravarDocumento, 1400);
+}
+
+/* O que vai para o servidor: sem o cartao da alteracao (e da tela, nao do
+   documento) e sem o pisca da mudanca que acabou de entrar. */
+function htmlDaFolhaCheia() {
+  const copia = $("ed-folha").cloneNode(true);
+  copia.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+  copia.querySelectorAll(".ei-pisca").forEach((el) => {
+    el.classList.remove("ei-pisca");
+    if (!el.classList.length) el.removeAttribute("class");
+  });
+  return copia.innerHTML;
 }
 
 async function gravarDocumento(nota) {
   const folha = $("ed-folha");
   if (!folha || !escr.doc) return;
   clearTimeout(escr.relogio);
+  escr.sujo = false;
 
-  /* O cartao da alteracao e da tela, nao do documento. */
-  const copia = folha.cloneNode(true);
-  copia.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+  const corpo = htmlDaFolhaCheia();
   const titulo = $("ed-titulo") ? $("ed-titulo").value : escr.doc.titulo;
 
   const r = await fetch("/api/documentos/" + escr.doc.id, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: copia.innerHTML, titulo: titulo, nota: nota || "" }),
+    body: JSON.stringify({ corpo: corpo, titulo: titulo, nota: nota || "" }),
   });
   if (!r.ok) { avisoCert(await erroDe(r)); return; }
 
   const d = await r.json();
-  escr.doc.corpo = copia.innerHTML;
+  escr.doc.corpo = corpo;
   escr.doc.titulo = titulo;
   escr.doc.versao = d.versao;
   escr.doc.contagem = d.contagem || escr.doc.contagem;
@@ -1562,9 +1574,10 @@ function trechoSelecionado() {
   return sel && sel.toString().trim() ? sel.toString().trim() : "";
 }
 
-/* O pedido vira alteracao no documento, marcada, com o cartao de manter ou
-   descartar ancorado no proprio texto - o comentario do assistente do
-   desenho. Nada entra no contrato sem o sim. */
+/* O pedido vai ao agente de edição (js/95-editor-inteligente.js e
+   src/agente_de_edicao.py), o mesmo do editor ao lado da conversa: cada
+   mudança no lugar certo, marcada para aceitar ou recusar - e não mais um
+   parágrafo no fim do documento. Nada entra no contrato sem o sim. */
 async function pedirNoEditor(pedido) {
   if (!pedido || escr.ocupada) return;
   if (escr.modoFolha) return pedirNaFolha(pedido);
@@ -1574,47 +1587,82 @@ async function pedirNoEditor(pedido) {
   redesenharFalas("ed-fala");
 
   const folha = $("ed-folha");
-  escr.antes = folha.innerHTML;
-  const trecho = trechoSelecionado();
-  // C5: o documento que pediu. A resposta chega um minuto depois, e a pessoa
-  // pode ter trocado de aba: a sugestao so entra neste.
-  const docId = escr.doc.id, docTitulo = escr.doc.titulo;
+  const achado = selecaoDaFolha(folha);
+  nomearBlocos(folha);
+  // C5: o documento que pediu. A pessoa pode trocar de aba enquanto o Paulus
+  // escreve: as mudanças só entram neste (o servidor grava nele de todo jeito).
+  const docId = escr.doc.id;
 
   try {
-    const r = await fetch("/api/documentos/" + docId + "/assistente", {
+    const r = await fetch("/api/documentos/" + docId + "/editar", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido: pedido, trecho: trecho }),
+      body: JSON.stringify(Object.assign({ pedido: pedido, corpo: folha.innerHTML, selecao: achado ? achado.selecao : null },
+        typeof profundidadeDoEnvio === "function" ? profundidadeDoEnvio() : {})),
     });
     if (!r.ok) throw new Error(await erroDe(r));
-    const s = await r.json();
-    if (!escr.doc || escr.doc.id !== docId || !$("ed-folha")) {
-      guardarSugestaoPendente(docId, s);
-      conversa.push({ autor: "paulus", html: esc("A sugestão é de “" + docTitulo + "”, que não está aberto agora: ela ficou esperando lá e aparece marcada quando você abrir o documento.") });
-      return;
+    let fim = null, resposta = "", perdeu = false;
+    for await (const ev of eventosSSE(r)) {
+      const d = ev.dados;
+      if (ev.tipo === "remendo") {
+        const f = $("ed-folha");
+        // Outra aba aberta: a mudança fica só no servidor, que grava o documento inteiro no fim.
+        if (!f || !escr.doc || escr.doc.id !== docId) { perdeu = true; continue; }
+        const feito = aplicarRemendosNaFolha(f, d.remendos);
+        (d.sids || []).forEach((sid) => { ei.mudancas[sid] = { resumo: d.resumo }; });
+        if (feito.primeiros[0]) piscarNaFolha(feito.primeiros[0]);
+      } else if (ev.tipo === "token") {
+        resposta += d.t || "";
+      } else if (ev.tipo === "concluir") {
+        resposta = "Para concluir um documento do Editor, use a pré-visualização: ele não é rascunho de conversa.";
+      } else if (ev.tipo === "fim") {
+        fim = d;
+      } else if (ev.tipo === "erro") {
+        throw new Error(d.texto || "não consegui");
+      }
     }
-    const antes = escr.antes;
-    aplicarNoEditor(s);
-    conversa.push({
-      autor: "paulus",
-      html: esc(s.sobre
-        ? "Troquei o trecho que você selecionou. A alteração está marcada no documento — mantenha ou descarte ali mesmo."
-        : "Escrevi no fim do documento. A alteração está marcada — confira antes de manter."),
-      trecho: s.sugestao.slice(0, 180),
-      acoes: [
-        { icone: "visibility", rotulo: "Ver o que mudei", acao: () => {
-          const m = $("ed-folha").querySelector(".ed-novo");
-          if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
-          else avisoCert("essa alteração já foi mantida e virou parte do texto");
-        } },
-        { icone: "undo", rotulo: "Desfazer", acao: () => desfazerNoEditor(antes) },
-      ],
-    });
+    if (!fim) throw new Error("a resposta parou no meio");
+    conversa.push({ autor: "paulus", html: textoDaRespostaDoEditor(fim.texto || resposta, fim) });
+    await depoisDaRodadaNaFolha(docId, perdeu);
   } catch (err) {
     conversa.push({ autor: "paulus", html: esc("Não consegui: " + (err.message || err)) });
   } finally {
     escr.ocupada = false;
     redesenharFalas("ed-fala");
   }
+}
+
+/* O fim da rodada na folha. O servidor já gravou o documento inteiro, por
+   cima do que a tela gravou no meio (o remendo que já estava lá não entra de
+   novo): a folha só precisa ficar igual a ele, sem perder o que foi digitado. */
+async function depoisDaRodadaNaFolha(docId, perdeu) {
+  if (!$("ed-folha") || !escr.doc || escr.doc.id !== docId) return;
+  if (!perdeu) {
+    // A folha recebeu cada mudança ao vivo: grava como está, com o que foi digitado no meio.
+    marcarSujo();
+    pedirPaginacao();
+    return;
+  }
+  // A pessoa voltou a este documento no meio da resposta: a folha veio do
+  // servidor antes do fim e ficou sem as primeiras mudanças - gravá-la por
+  // cima apagaria essas mudanças. Ela passa a ser o que o servidor gravou; o
+  // que foi digitado e ainda não tinha sido salvo fica no Histórico.
+  const digitou = Boolean(escr.sujo);
+  clearTimeout(escr.relogio);
+  escr.sujo = false;
+  if (digitou) {
+    await fetch("/api/documentos/" + docId, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corpo: htmlDaFolhaCheia(), nota: "o que estava na tela quando o Paulus terminou", so_historico: true }),
+    }).catch(() => null);
+  }
+  const novo = await fetch("/api/documentos/" + docId).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  if (!novo || !$("ed-folha") || !escr.doc || escr.doc.id !== docId) return;
+  $("ed-folha").innerHTML = novo.corpo || "<p><br></p>";
+  escr.doc.corpo = novo.corpo;
+  pedirPaginacao();
+  const alvo = $("ed-estado");
+  if (alvo) { alvo.classList.remove("salvando"); alvo.textContent = "Salvo às " + new Date().toTimeString().slice(0, 5); }
+  if (digitou) avisoCert("O que você escreveu enquanto eu terminava ficou no Histórico: a folha mostra o documento com as minhas mudanças");
 }
 
 function aplicarNoEditor(s) {

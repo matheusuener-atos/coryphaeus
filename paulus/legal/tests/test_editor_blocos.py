@@ -160,6 +160,14 @@ def teste_remendos() -> None:
     novo = B.ler('<p data-b="n">primeiro</p>') + copy.deepcopy(antes)
     lista = B.remendos(antes, novo)
     checar(lista and lista[0]["ids"] == ["a"] and "primeiro" in lista[0]["html"], "inserção no começo ancora no seguinte")
+    # A tela já gravou com os remendos (aplicados ao vivo): não é conflito, e
+    # a inserção não entra duas vezes.
+    de_novo, conflitos = B.aplicar_remendos(copy.deepcopy(novo), lista)
+    checar(B.html(de_novo) == B.html(novo) and not conflitos, "remendo que já está no documento não duplica nem é conflito",
+           [b.texto for b in de_novo])
+    lista = B.remendos(antes, depois)
+    de_novo, conflitos = B.aplicar_remendos(copy.deepcopy(depois), lista)
+    checar(B.html(de_novo) == B.html(depois) and not conflitos, "nem a troca e a lista já aplicadas")
 
 
 def teste_achar() -> None:

@@ -154,6 +154,73 @@ def teste_rodada() -> None:
         "dias sem oposição do LOCADOR, a locação prorrogar-se-á por prazo indeterminado.") + 1,
         "a cláusula nova depois do último bloco da do prazo")
 
+    print("número igual não é o mesmo dado (a regra 2, conferida pelo programa)")
+    checar(AG._quantidades("30 (trinta) meses, 3 (três) aluguéis e 1 mês; R$ 2.400,00, art. 30 e 30 de abril")
+           == {(30, "mes"), (3, "aluguel"), (1, "mes")}, "as quantidades com unidade, e só elas")
+    ops = {"operacoes": [
+        {"op": "substituir", "bloco": "b0b0008", "de": "30 (trinta) meses", "para": "24 (vinte e quatro) meses"},
+        {"op": "substituir", "bloco": "b0b0009", "de": "30 (trinta) dias", "para": "24 (vinte e quatro) dias"}]}
+    eventos, r = rodada(Falso([json.dumps(ops, ensure_ascii=False)]), "locacao", "Mude o prazo da locação para 24 meses.")
+    aceito = B.texto_puro(B.aceito(r.blocos))
+    checar(len(r.aplicadas) == 1 and "24 (vinte e quatro) meses" in aceito and "por mais de 30 (trinta) dias" in aceito,
+           "o 24 posto em dias, no parágrafo único, não entra", [a["resumo"] for a in r.aplicadas])
+    texto = AG.resposta(r, "Locação")
+    checar("ficou como estava" in texto and "24 meses" in texto and "não mudei" in texto,
+           "e a resposta diz que ficou como estava, para o advogado decidir", texto)
+    ops = {"operacoes": [{"op": "substituir", "bloco": "b0b0009", "de": "30 (trinta) dias", "para": "60 (sessenta) dias"}]}
+    eventos, r = rodada(Falso([json.dumps(ops, ensure_ascii=False)]), "locacao",
+                        "No parágrafo único da cláusula 2ª, o prazo passa a ser de 60 dias.")
+    checar(len(r.aplicadas) == 1 and not r.sugestoes, "na unidade do pedido, a troca passa", r.sugestoes)
+
+    print("pedaços separados no mesmo bloco")
+    junto = {"operacoes": [{"op": "substituir", "bloco": "b0c0005", "de": "confessar, renunciar ao direito sobre o qual se "
+                            "funda a ação", "para": ""}]}
+    separado = {"operacoes": [{"op": "substituir", "bloco": "b0c0005", "de": "confessar, ", "para": ""},
+                              {"op": "substituir", "bloco": "b0c0005", "de": "renunciar ao direito sobre o qual se funda a "
+                               "ação, ", "para": ""}]}
+    falso = Falso([json.dumps(junto, ensure_ascii=False), json.dumps(separado, ensure_ascii=False)])
+    eventos, r = rodada(falso, "procuracao", "Retire os poderes para confessar e para renunciar ao direito.")
+    checar(len(falso.lido) == 2 and "os pedaços estão no bloco, mas separados" in falso.lido[1][-1]["content"],
+           "a correção diz que os pedaços existem, mas não juntos")
+    aceito = B.texto_puro(B.aceito(r.blocos))
+    checar(len(r.aplicadas) == 2 and "confessar" not in aceito and "renunciar ao direito" not in aceito,
+           "e as duas retiradas entram, cada uma no seu lugar", [a["resumo"] for a in r.aplicadas])
+
+    print("a mesma troca duas vezes não vira “ALVES ALVES”")
+    troca = {"op": "substituir", "bloco": "b0b0003", "de": "MARIANA COSTA RIBEIRO", "para": "MARIANA COSTA RIBEIRO ALVES"}
+    em_tudo = {"op": "substituir_em_tudo", "de": "MARIANA COSTA RIBEIRO", "para": "MARIANA COSTA RIBEIRO ALVES"}
+    falso = Falso([json.dumps({"operacoes": [troca, troca, em_tudo]}, ensure_ascii=False)])
+    eventos, r = rodada(falso, "locacao", "A locatária se chama Mariana Costa Ribeiro Alves, corrija o nome dela.")
+    aceito = B.texto_puro(B.aceito(r.blocos))
+    checar("ALVES ALVES" not in aceito and "MARIANA COSTA RIBEIRO ALVES, brasileira" in aceito
+           and aceito.count("MARIANA COSTA RIBEIRO ALVES") == aceito.count("MARIANA COSTA RIBEIRO"),
+           "o trecho que já está como o novo não é trocado de novo", aceito[:200])
+    checar(not r.falhas and len(falso.lido) == 1, "e não é falha: nada de correção à toa", [f["motivo"] for f in r.falhas])
+
+    print("o dado novo do pedido que não entrou")
+    checar([d[0] for d in AG.dados_do_pedido("O comprador é casado com Juliana Torres Pereira; o preço passa a "
+                                             "R$ 900.000,00 em 12 parcelas, a partir de 20 de agosto de 2026.")]
+           == ["Juliana Torres Pereira", "R$ 900.000,00", "20 de agosto de 2026", "12 parcelas"], "os dados do pedido")
+    checar([d[0] for d in AG.dados_do_pedido("Troque Belo Horizonte por Contagem.")] == ["Belo Horizonte"],
+           "a maiúscula do começo da frase não vira nome")
+    checar(AG.dados_do_pedido("No Parágrafo Único da Cláusula Segunda, cite a Lei do Inquilinato.") == [],
+           "o que aponta o lugar ou a lei não é dado para escrever")
+    pedido_cv = "O comprador é casado sob comunhão parcial com Juliana Torres Pereira, ajuste a qualificação dele."
+    sem_nome = {"operacoes": [{"op": "substituir", "bloco": "b0a0003", "de": "solteiro",
+                               "para": "casado sob o regime da comunhão parcial de bens"}]}
+    com_nome = {"operacoes": [{"op": "substituir", "bloco": "b0a0003", "de": "comunhão parcial de bens",
+                               "para": "comunhão parcial de bens com JULIANA TORRES PEREIRA"}]}
+    falso = Falso([json.dumps(sem_nome, ensure_ascii=False), json.dumps(com_nome, ensure_ascii=False)])
+    eventos, r = rodada(falso, "compra_venda", pedido_cv)
+    checar(len(falso.lido) == 2 and "“Juliana Torres Pereira”" in falso.lido[1][-1]["content"],
+           "o nome que não entrou volta ao modelo")
+    checar("com JULIANA TORRES PEREIRA" in B.texto_puro(B.aceito(r.blocos)) and not r.nao_fiz,
+           "e entra no texto, marcado", r.nao_fiz)
+    falso = Falso([json.dumps(sem_nome, ensure_ascii=False), json.dumps({"operacoes": []})])
+    eventos, r = rodada(falso, "compra_venda", pedido_cv)
+    checar("o pedido traz “Juliana Torres Pereira”, que não entrou no texto" in AG.resposta(r, "Compra e venda"),
+           "se nem assim entra, a resposta diz", AG.resposta(r, "Compra e venda"))
+
     print("a segunda leitura (Max)")
     rev = {"ok": False, "problemas": ["a data de término não acompanhou o prazo"],
            "operacoes": [{"op": "substituir", "bloco": "b0b0008", "de": "30 de abril de 2029", "para": "31 de outubro de 2028"}]}
@@ -302,6 +369,23 @@ def teste_rota() -> None:
            fim)
     checar("dia 10 (dez)" in B.texto_puro(B.aceito(B.ler(local.get(f"/api/documentos/{did}").json()["corpo"]))),
            "e a mudança entra do mesmo jeito, marcada")
+
+    print("o jeito do escritório (E7)")
+    api.estado.clausulas.gravar("Foro do escritório", "Fica eleito o foro da Comarca de Belo Horizonte/MG, com renúncia "
+                                "expressa a qualquer outro, por mais privilegiado que seja.")
+    antes_n = len(chamadas)
+    respostas.append(json.dumps({"operacoes": []}))
+    editar("use a cláusula de foro do escritório")
+    lido = json.dumps(chamadas[antes_n:], ensure_ascii=False)
+    checar("CLÁUSULAS DO ESCRITÓRIO" in lido and "renúncia expressa a qualquer outro" in lido,
+           "a cláusula da casa vai ao modelo quando o pedido a chama")
+    antes_n = len(chamadas)
+    respostas.append(json.dumps({"operacoes": []}))
+    editar("Mude o vencimento para o dia 15.")
+    checar("CLÁUSULAS DO ESCRITÓRIO" not in json.dumps(chamadas[antes_n:], ensure_ascii=False),
+           "e não vai quando o pedido não chama")
+    checar("O QUE JÁ FOI PEDIDO E DECIDIDO NESTE DOCUMENTO" in json.dumps(chamadas[antes_n:], ensure_ascii=False),
+           "a memória do documento (as rodadas de antes) vai junto")
 
     print("a pergunta pela rota")
     respostas.append("O aluguel é de R$ 2.400,00 [b0b0011].")

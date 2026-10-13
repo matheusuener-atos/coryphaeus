@@ -18,8 +18,10 @@ C5 - as outras superficies de IA.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -27,6 +29,12 @@ from pathlib import Path
 RAIZ = Path(__file__).parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
 sys.path.insert(0, str(RAIZ / "tests"))
+
+# A pasta de dados do teste, e nao a desta maquina: com a pasta de verdade, o
+# editor ia para a IA da nuvem do plano (a chave e o sim estao la) e a conversa
+# e os documentos do teste paravam na Lixeira do escritorio.
+os.environ.setdefault("PAULUS_DADOS", tempfile.mkdtemp(prefix="paulus-c5-"))
+os.environ.setdefault("PAULUS_SEM_AVISOS", "1")
 
 from test_c1_execucao import _ler_eventos, _pedir, executar_devagar  # noqa: E402
 
@@ -50,9 +58,45 @@ class ClienteLento:
         return self.texto
 
     def ask_json(self, *a, **k):
-        # O editor sem trecho selecionado pede o que trocar ou o que acrescentar no fim (api.py, documentos_assistente).
         time.sleep(self.segundos)
         return {"trocas": [], "acrescentar": self.texto}
+
+    def _chat(self, mensagens, fmt=None, stream=False, on_token=None, tarefa="", **k):
+        # O agente de edição (src/agente_de_edicao.py): operações sobre os
+        # blocos com nome - aqui, inserir o texto depois do primeiro bloco.
+        import json as _json
+
+        time.sleep(self.segundos)
+        m = re.search(r"\[(b[0-9a-f]{4,8})", mensagens[-1]["content"])
+        texto = _json.dumps({"operacoes": [{"op": "inserir", "depois_de": m.group(1) if m else "",
+                                            "blocos": [{"texto": self.texto}]}]}, ensure_ascii=False)
+        if on_token:
+            on_token(texto)
+        return texto
+
+
+class ClienteEmDuasVezes:
+    """O modelo que escreve devagar: uma operação depois de `primeiro` s, a outra `segundo` s depois."""
+
+    def __init__(self, primeiro: float, segundo: float) -> None:
+        self.primeiro, self.segundo, self.model = primeiro, segundo, "simulado"
+
+    def _chat(self, mensagens, fmt=None, stream=False, on_token=None, tarefa="", **k):
+        import json as _json
+
+        m = re.search(r"\[(b[0-9a-f]{4,8})", mensagens[-1]["content"])
+        ancora = m.group(1) if m else ""
+        um = {"op": "inserir", "depois_de": ancora, "blocos": [{"texto": "Primeira mudança, chegou com o B aberto."}]}
+        dois = {"op": "inserir", "depois_de": ancora, "blocos": [{"texto": "Segunda mudança, chegou com o A de volta."}]}
+        inicio = '{"operacoes": [' + _json.dumps(um, ensure_ascii=False)
+        resto = ", " + _json.dumps(dois, ensure_ascii=False) + "]}"
+        time.sleep(self.primeiro)
+        if on_token:
+            on_token(inicio)
+        time.sleep(self.segundo)
+        if on_token:
+            on_token(resto)
+        return inicio + resto
 
 
 def test_leitor_unico() -> None:
@@ -170,9 +214,51 @@ def test_tela(base: str, api, parecer: dict) -> None:
             b_servidor = _pedir(base, "GET", f"/api/documentos/{b['id']}")
             checar("Cláusula nova" not in b_servidor.get("corpo", ""), "nem no servidor")
             pag.evaluate(f"() => abrirDocumento({a['id']})")
-            pag.wait_for_selector("#ed-folha .ed-novo", timeout=10000)
-            checar("Cláusula nova" in pag.evaluate("() => document.querySelector('#ed-folha .ed-novo').textContent"),
-                   "ao abrir o A, a sugestão aparece marcada nele, com Manter e Descartar")
+            pag.wait_for_selector("#ed-folha [data-sug='ins']", timeout=10000)
+            folha_a = pag.evaluate("() => document.getElementById('ed-folha').innerHTML")
+            checar("Cláusula nova" in pag.evaluate("() => document.querySelector(\"#ed-folha [data-sug='ins']\").textContent"),
+                   "ao abrir o A, a sugestão aparece marcada nele, para aceitar ou recusar", folha_a[:400])
+
+            # Voltar ao A no meio da resposta: a primeira mudança chegou com o B
+            # aberto (ficou só no servidor), a segunda com o A de volta; no meio,
+            # a pessoa escreveu em outro parágrafo. No fim, nada se perde.
+            c = _pedir(base, "POST", "/api/documentos", {"titulo": "Teste C5 — documento C", "tipo": "texto",
+                                                         "corpo": "<p>Texto do C.</p><p>Outro parágrafo do C.</p>"})
+            antes_cliente = api.estado.cliente_para
+            api.estado.cliente_para = lambda tarefa, **k: ClienteEmDuasVezes(1.0, 3.0)
+            try:
+                pag.evaluate(f"() => abrirDocumento({c['id']})")
+                pag.wait_for_selector("#ed-folha", timeout=10000)
+                pag.wait_for_timeout(400)
+                pag.evaluate("() => { pedirNoEditor('acrescente duas cláusulas'); }")
+                pag.wait_for_timeout(300)
+                pag.evaluate(f"() => abrirDocumento({b['id']})")
+                pag.wait_for_timeout(1500)
+                pag.evaluate(f"() => abrirDocumento({c['id']})")
+                pag.wait_for_timeout(500)
+                pag.evaluate("() => { const p = [...document.querySelectorAll('#ed-folha p')].find((x) => x.textContent.includes('Outro parágrafo'));"
+                             " p.append(' Escrito no meio da resposta.'); p.dispatchEvent(new Event('input', { bubbles: true })); }")
+                try:
+                    pag.wait_for_function("() => { const t = (document.getElementById('ed-folha') || {}).textContent || '';"
+                                          " return t.includes('Primeira mudança') && t.includes('Segunda mudança'); }",
+                                          timeout=12000)
+                except Exception:  # noqa: BLE001 - a checagem abaixo diz o que ficou na folha
+                    pass
+                pag.wait_for_timeout(2500)
+                folha_c = pag.evaluate("() => document.getElementById('ed-folha').textContent")
+                servidor_c = _pedir(base, "GET", f"/api/documentos/{c['id']}").get("corpo", "")
+                checar(all(t in folha_c for t in ("Primeira mudança", "Segunda mudança", "Escrito no meio da resposta")),
+                       "voltar ao documento no meio da resposta: a folha fica com as duas mudanças e com o que foi escrito",
+                       folha_c[:300])
+                checar(all(t in servidor_c for t in ("Primeira mudança", "Segunda mudança", "Escrito no meio da resposta"))
+                       and servidor_c.count("Primeira mudança") == 1,
+                       "e o servidor também, sem nada repetido", servidor_c[:400])
+            finally:
+                api.estado.cliente_para = antes_cliente
+                try:
+                    _pedir(base, "DELETE", f"/api/documentos/{c['id']}")
+                except Exception:  # noqa: BLE001
+                    pass
             # o parecer guardado volta ao abrir o Financeiro
             ex = parecer and api.estado.execucoes  # o id do primeiro parecer foi para o disco
             ids = [x.stem for x in api.estado.execucoes.pasta.glob("*.jsonl")]

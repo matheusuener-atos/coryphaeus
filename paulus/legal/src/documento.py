@@ -1577,6 +1577,17 @@ class Documentos:
         return {"id": id_, "versao": self.ultima_versao(id_), "nova_versao": nova,
                 "revisao": int(atual["revisao"] or 0) + (1 if sobe else 0)}
 
+    def guardar_no_historico(self, id_: int, corpo: str, nota: str) -> int:
+        """
+        Uma versão no Histórico sem mexer no documento: o que estava numa tela
+        quando outra janela gravou antes dela. O documento fica com o que foi
+        gravado; o da tela não se perde.
+        """
+        atual = self.base.um("SELECT tipo FROM documentos WHERE id = ?", (id_,))
+        if not atual:
+            raise ValueError("documento nao encontrado")
+        return self._gravar_versao(id_, corpo_normal(atual["tipo"], corpo), nota)
+
     def _vale_versao(self, id_: int, nota: str, versao: bool | None) -> bool:
         if versao is not None:
             return bool(versao)

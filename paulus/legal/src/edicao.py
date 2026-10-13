@@ -60,6 +60,24 @@ class _Falhou(Exception):
     pass
 
 
+# A operação pede o que o texto já diz ("RIBEIRO" → "RIBEIRO ALVES" onde já
+# está "RIBEIRO ALVES"): nada a fazer, e não é falha - não vira correção.
+_JA_ESTAVA = object()
+
+
+def _fora_do_que_ja_trocou(texto: str, lugares: list, de: str, para: str) -> list:
+    """
+    As ocorrências de `de` que ainda não estão como `para`. "RIBEIRO" dentro de
+    "RIBEIRO ALVES" (a mesma troca pedida duas vezes, ou já feita) não é
+    trocado de novo: daria "RIBEIRO ALVES ALVES".
+    """
+    k = para.lower().find(de.lower())
+    if k < 0 or len(para) <= len(de):
+        return lugares
+    return [(ini, fim) for ini, fim in lugares
+            if ini - k < 0 or texto[ini - k:ini - k + len(para)].lower() != para.lower()]
+
+
 def de_rotulo(rotulo: str) -> str:
     """"da Cláusula 4ª", "do preâmbulo", "das Assinaturas" - a preposição com o artigo certo."""
     r = str(rotulo or "").strip()
@@ -115,6 +133,8 @@ def aplicar(blocos_entrada: list, operacoes: list, *, rodada: int, escopo: list 
             feito = _UMA[tipo](blocos, op, ctx)
         except _Falhou as exc:
             res.falhas.append({"op": i, "tipo": tipo, "motivo": str(exc)})
+            continue
+        if feito is _JA_ESTAVA:
             continue
         if feito is None:
             res.falhas.append({"op": i, "tipo": tipo, "motivo": "não mudou nada (o texto novo é igual ao de antes)"})
@@ -227,6 +247,9 @@ def _substituir(blocos, op, ctx):
                           (f" (aparece em {len(candidatos)} blocos)" if candidatos else ""))
     if b.tipo == "table":
         return _trocar_no_quadro(blocos, b, de, para, ctx)
+    lugares = _fora_do_que_ja_trocou(b.texto, lugares, de, para)
+    if not lugares:
+        return _JA_ESTAVA
     novo = b.texto
     for ini, fim in sorted(lugares, reverse=True):
         novo = novo[:ini] + para + novo[fim:]
@@ -296,11 +319,13 @@ def _substituir_em_tudo(blocos, op, ctx):
     if not ctx.em_tudo and not termo:
         raise _Falhou(f"trocar “{_curto(de, 40)}” em todo o documento não foi pedido; diga onde, ou peça "
                       "“em todo o documento”")
-    sids, ids, total = [], [], 0
+    sids, ids, total, ja = [], [], 0, 0
     for b in blocos:
         if b.sug == "del" or b.tipo == "table" or (ctx.permitido is not None and b.id not in ctx.permitido):
             continue
-        lugares = B.ocorrencias(b.texto, de)
+        achados = B.ocorrencias(b.texto, de)
+        lugares = _fora_do_que_ja_trocou(b.texto, achados, de, para)
+        ja += len(achados) - len(lugares)
         if not lugares:
             continue
         novo = b.texto
@@ -311,6 +336,8 @@ def _substituir_em_tudo(blocos, op, ctx):
             sids.append(sid)
             ids.append(b.id)
             total += len(lugares)
+    if not sids and ja:
+        return _JA_ESTAVA
     if not sids:
         raise _Falhou(f"não achei “{_curto(de, 50)}” no documento")
     return {"sids": sids, "ids": ids, "rotulo": ctx.rotulo(ids[0]) if len(ids) == 1 else "o documento",

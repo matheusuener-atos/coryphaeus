@@ -101,18 +101,70 @@ e número no banco de provas.
 
 ## Etapas
 
-| Etapa | O quê | Estado | Teste |
+| Etapa | O quê | Estado (13/10/2026) | Teste |
 | --- | --- | --- | --- |
-| E0 | Banco de provas de edição e a linha de base (medir antes de mudar) | a fazer | `tests/test_editor_bench.py`, `tools/medir_editor.py` |
-| E1 | Documento da conversa: vínculo, ciclo de vida, formatos sem conversão automática, importação fiel de DOCX e PDF limpo, conclusão explícita | a fazer | `tests/test_e1_documento_da_conversa.py` |
-| E2 | Blocos com identidade (`data-b`), HTML saneado, o assistente lendo a tela, versões por rodada | a fazer | `tests/test_e2_blocos.py` |
-| E3 | Sugestões marcadas de verdade: operações aplicadas no servidor, `ins`/`del` por mudança, aceitar e rejeitar uma a uma, desfazer por rodada | a fazer | `tests/test_e3_sugestoes.py` |
-| E4 | Seleção fixa e o Paulus apontando: atalhos sobre a seleção, citação de parágrafo, ir até lá, coluna com abas | a fazer | `tests/test_e4_selecao.py` |
-| E5 | O agente de edição: entender, localizar, planejar, editar, aplicar, conferir, responder, ao vivo e com a profundidade | a fazer | `tests/test_e5_agente.py` + banco de provas |
-| E6 | Conferência jurídica: motor de regras e a segunda leitura | a fazer | `tests/test_e6_conferencia.py` |
-| E7 | O jeito do escritório e a memória do documento: regras de redação, cláusulas da casa, o histórico de pedidos | a fazer | `tests/test_e7_escritorio.py` |
-| E8 | Acabamento da tela: painel de mudanças, linha do tempo, comentários na margem, atalhos de teclado, celular | a fazer | `tests/test_e8_tela.py` |
-| E9 | Afinação contínua: o banco de provas como portão, 👍/👎 por edição virando caso de teste | contínuo | `tools/medir_editor.py` |
+| E0 | Banco de provas de edição e a linha de base (medir antes de mudar) | feita | `tests/test_editor_bench.py`, `tools/medir_editor.py` |
+| E1 | Documento da conversa: vínculo, ciclo de vida, formatos sem conversão automática, importação fiel de DOCX e PDF limpo, conclusão explícita | feita, menos a pasta pela regra de cliente/serviço | `tests/test_editor_documento_da_conversa.py` |
+| E2 | Blocos com identidade (`data-b`), HTML saneado, o assistente lendo a tela, versões por rodada | feita | `tests/test_editor_blocos.py` |
+| E3 | Sugestões marcadas de verdade: operações aplicadas no servidor, `ins`/`del` por mudança, aceitar e rejeitar uma a uma, desfazer por rodada | feita | `tests/test_editor_blocos.py`, `tests/test_editor_agente.py`, `tests/test_editor_tela.py` |
+| E4 | Seleção fixa e o Paulus apontando: atalhos sobre a seleção, citação de parágrafo, ir até lá, coluna com abas | em parte: falta a coluna com abas | `tests/test_editor_tela.py` |
+| E5 | O agente de edição: entender, localizar, planejar, editar, aplicar, conferir, responder, ao vivo e com a profundidade | feita, sem o "planejar" como passo à parte | `tests/test_editor_agente.py` + banco de provas |
+| E6 | Conferência jurídica: motor de regras e a segunda leitura | feita; os avisos ficam no painel, não na margem | `tests/test_editor_conferencia.py` |
+| E7 | O jeito do escritório e a memória do documento: regras de redação, cláusulas da casa, o histórico de pedidos | feita | `tests/test_editor_agente.py` |
+| E8 | Acabamento da tela: painel de mudanças, linha do tempo, comentários na margem, atalhos de teclado, celular | em parte: cabeçalho e painel feitos | `tests/test_editor_tela.py` |
+| E9 | Afinação contínua: o banco de provas como portão, 👍/👎 por edição virando caso de teste | começou | `tools/medir_editor.py` |
+
+## Como ficou e o que falta (13/10/2026)
+
+**Onde está cada parte:**
+
+- **Servidor:**
+  - `src/blocos.py`: os blocos com nome e as sugestões;
+  - `src/esboco.py`: o mapa do documento;
+  - `src/edicao.py`: aplica as operações;
+  - `src/agente_de_edicao.py`: a rodada;
+  - `src/conferencia_juridica.py`: a conferência;
+  - `src/docx_ida_e_volta.py` e `src/pdf_em_texto.py`: os formatos.
+- **Rotas:** `/api/documentos/{id}/editar`, `/sugestoes`, `/conferencia`, `/concluir`, `/reabrir`, `/rodadas`.
+- **Tela:** `frontend/js/95-editor-inteligente.js` e `css/59-editor-inteligente.css`.
+- **Banco de provas:** `tools/bancada_editor/`. Os resultados ficam em `tools/bancada_editor/resultados/`.
+
+**Diferenças em relação ao texto das etapas abaixo:**
+
+- **E1:**
+  - A conclusão propõe a pasta do original, com o nome " - revisado", ou Acervo › Editor. A pasta pela regra de cliente ou serviço ficou para depois.
+  - Assinar passa pela conclusão em PDF.
+  - O editor lateral não envia por e-mail nem por WhatsApp. O envio sai do arquivo concluído no Acervo, e o rascunho da conversa não vai ao Word nem ao Acervo por fora da conclusão (`_so_concluido`).
+- **E2:**
+  - O editor ao lado da conversa confere a revisão. Em conflito, o que estava na tela vai só para o Histórico (`so_historico`), e a tela passa a mostrar o que está gravado.
+  - O editor de tela cheia (Documentos) ainda grava sem a revisão: o último vence.
+  - No fim da rodada, o servidor junta o que a tela gravou no meio; o remendo que já estava lá não entra de novo.
+  - Quem volta ao documento no meio da rodada recebe, no fim, o documento inteiro do servidor. O que foi digitado e não estava salvo fica no Histórico.
+- **E3:** quando uma operação não bate com o texto, o agente tenta corrigir uma vez; nos níveis Max e Ultra, duas vezes.
+- **E5:**
+  - Não há um passo "planejar" à parte. O modelo diz o que entendeu numa frase (o campo `entendi`), e a frase aparece no bastidor da conversa.
+  - **O programa confere o modelo:**
+    - o número do pedido posto em outra unidade ("24 meses" virando "24 dias" em outro parágrafo) não entra e vira sugestão;
+    - o dado novo do pedido (nome, valor, data, quantidade) que não entrou no texto volta ao modelo uma vez; se ainda faltar, a resposta diz;
+    - o trecho pedido em pedaços separados do bloco: a correção diz isso ao modelo;
+    - a mesma troca pedida duas vezes não vira "ALVES ALVES".
+- **E6:**
+  - Os avisos aparecem no painel de alterações (botão Conferir), não na margem.
+  - A única correção que vira sugestão sozinha é a renumeração.
+- **E9:**
+  - A nota (👍/👎) de cada rodada é gravada em `data/medicao/editor-avaliacoes.jsonl`.
+  - Transformar uma nota em tarefa do banco ainda é feito à mão.
+
+**O que falta:**
+
+- **E2:** o editor de tela cheia conferir a revisão, como o editor ao lado da conversa já faz.
+- **E4:** a coluna da direita com abas (Documento | Original | Planilha).
+- **E8:**
+  - a linha do tempo por rodada, com a diferença;
+  - comentários na margem do editor lateral;
+  - atalhos de teclado e "anterior/próxima" no painel;
+  - o acabamento no celular.
+- **E9:** o banco rodado como portão a cada mudança no agente e a medida com o Claude, que depende da chave.
 
 **Ordem:**
 - **Alicerce, nesta ordem:** E0 → E1 → E2 → E3.
@@ -148,8 +200,11 @@ etapa.
   - toda mudança está marcada;
   - o que a resposta diz bate com o que foi aplicado.
 - **Ferramentas:**
-  - `tools/medir_editor.py --modelo local|nuvem:<modelo>` roda as tarefas
-    e grava o resultado em `data/medicao/editor-<data>.json`.
+  - `tools/medir_editor.py --adaptador agente|hoje|gabarito|troca_global|no_fim
+    --modelo nuvem|local --nivel <nível> [--so <ids>]` roda as tarefas e
+    grava o resultado em
+    `tools/bancada_editor/resultados/<data>-<adaptador>-<modelo>-<nível>.json`.
+    Só entram documentos fictícios; nada sai de `data/`.
   - `tests/test_editor_bench.py` confere o próprio banco (as checagens
     pegam erro de verdade) com um modelo falso.
 - **Linha de base:** o sistema de hoje simulado fielmente (trocas globais,
@@ -365,6 +420,10 @@ contradição entre cláusulas e pedido não cumprido.
 ## E9 — Afinação contínua
 
 - **O banco de provas como portão:** nenhuma etapa entra com piora.
+  - Rodar: `PYTHONIOENCODING=utf-8 venv/Scripts/python.exe tools/medir_editor.py --adaptador agente --modelo nuvem --nivel advogado`.
+    Leva de 11 a 14 minutos e gasta uns 190 mil tokens do plano.
+  - Comparar com o último resultado em `tools/bancada_editor/resultados/`: nenhuma categoria cai sem explicação.
+  - O modelo varia de uma rodada para outra. A tarefa que falha uma vez se confere com `--so <id>` três vezes antes de mexer no agente.
 - **👍/👎 por rodada de edição**, como na L1. A 👎 com "o que deveria ter
   feito" vira tarefa nova no banco.
 - **Medir por modelo** (Llama 70B, Mistral, Claude) e escolher, por tipo de
@@ -372,15 +431,32 @@ contradição entre cláusulas e pedido não cumprido.
 
 ## Metas do banco de provas
 
-| Medida | Linha de base (hoje) | Meta com o Llama 70B | Meta com o Claude |
-| --- | --- | --- | --- |
-| Tarefa de edição única feita no lugar certo | a medir (E0) | ≥ 90% | ≥ 97% |
-| Tarefa de vários pontos completa | a medir | ≥ 80% | ≥ 92% |
-| Dano colateral (bloco mudado sem pedido) | a medir | 0 nas tarefas de lugar único | 0 |
-| Toda mudança marcada e reversível uma a uma | não | 100% (é do programa) | 100% |
-| Resposta que diz só o que foi aplicado | não | 100% (é do programa) | 100% |
-| Numeração e referências válidas depois da edição | a medir | 100% (regra) | 100% |
-| Primeira mudança visível no editor | ~40–60 s, nada antes | < 8 s | < 6 s |
+Medido em 13/10/2026 com o Llama 3.3 70B da nuvem, no nível Advogado, nas 62 tarefas. Os dois rodaram com as mesmas checagens. Os arquivos estão em `tools/bancada_editor/resultados/`: `2026-10-13-1749-hoje-…` (editor antigo) e `2026-10-13-1909-agente-…` (agente).
+
+| Medida | Editor antigo (medido) | Agente (medido) | Meta com o Llama 70B | Meta com o Claude |
+| --- | --- | --- | --- | --- |
+| Acerto geral | 53,2% | 98,4% | — | — |
+| Tarefa de lugar único feita no lugar certo | 56,9% | 98,0% | ≥ 90% | ≥ 97% |
+| Tarefa de vários pontos completa | 1 de 2 | 2 de 2 | ≥ 80% | ≥ 92% |
+| Sem dano colateral | 96,4% | 100% | 100% nas tarefas de lugar único | 100% |
+| Toda mudança marcada e reversível uma a uma | 32,3% | 100% | 100% (é do programa) | 100% |
+| Resposta que diz só o que foi aplicado | 100%¹ | 100% | 100% (é do programa) | 100% |
+| Numeração e referências válidas depois da edição | 81,8% | 100% | 100% (regra) | 100% |
+| Tempo da rodada inteira | 9,0 s em média | 18,1 s em média; mediana 12 s, p90 37,5 s | — | — |
+| Primeira mudança visível no editor | só no fim | não medido pelo banco | < 8 s | < 6 s |
+
+¹ A resposta do editor antigo era genérica ("escrevi no fim do documento") e não afirmava nada que a checagem pudesse pegar.
+
+**Como ler estes números:**
+
+- **Evolução do agente no dia:**
+  - 82,3% na primeira rodada, com as checagens mais duras;
+  - 95,2% depois de corrigidas as checagens que reprovavam respostas certas;
+  - 96,8% e 96,8% nas duas rodadas seguintes;
+  - 98,4% com as conferências do programa (unidade do número, dado novo do pedido, pedaços separados, troca repetida).
+- **Pode estar otimista.** As checagens foram corrigidas olhando as respostas do agente. A comparação com o editor antigo vale, porque os dois usam as mesmas checagens. O número absoluto, não necessariamente: o banco precisa crescer com tarefas novas, inclusive as que vierem das notas 👎.
+- **A falha que resta (cv-10):** o modelo não pôs o nome da esposa na qualificação do comprador e explicou por quê. A resposta diz isso ao advogado.
+- **O tempo** da rodada inteira inclui as chamadas de correção e de complemento. A mais longa levou 97 s. As mudanças entram no editor enquanto o modelo escreve, mas o banco não mede a primeira.
 
 ## O que depende do dono
 

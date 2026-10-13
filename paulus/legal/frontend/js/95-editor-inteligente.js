@@ -380,26 +380,68 @@ function desenharPainelDeAlteracoes() {
   });
 }
 
+/* A conferência jurídica (E6) no mesmo painel: cada aviso com o lugar. */
+async function abrirConferenciaNoPainel() {
+  const folha = $("dp-folha");
+  const lugar = $("dp-abaixo");
+  if (!folha || !lugar || !dupla.doc) return;
+  let painel = $("ei-painel");
+  if (!painel) {
+    painel = document.createElement("div");
+    painel.className = "ei-painel";
+    painel.id = "ei-painel";
+    lugar.before(painel);
+  }
+  painel.innerHTML = '<p class="explica">conferindo…</p>';
+  nomearBlocos(folha);
+  const r = await fetch("/api/documentos/" + dupla.doc.id + "/conferencia", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ corpo: htmlDaFolha() }),
+  }).catch(() => null);
+  if (!r || !r.ok) { painel.innerHTML = '<p class="explica">Não consegui conferir agora.</p>'; return; }
+  const d = await r.json();
+  const avisos = d.avisos || [];
+  painel.innerHTML = '<div class="ei-painel-topo"><b>Conferência</b><span class="rotulo">' +
+    (avisos.length ? plural(avisos.length, "ponto") + " para olhar" : "nada a apontar") + "</span>" +
+    '<span class="cresce"></span><button class="botao-icone" data-ei-painel="fechar" aria-label="Fechar">' + ic("close", 16) + "</button></div>" +
+    (avisos.length
+      ? '<div class="ei-painel-lista">' + avisos.map((a) => {
+        const classe = "ei-aviso" + (a.grau === "impede" ? " ei-impede" : "");
+        return '<button class="' + classe + '" data-ed-ir="' + esc(a.bloco) + '"><span class="rotulo">' +
+          esc((a.rotulo ? a.rotulo + " · " : "") + a.titulo) + "</span>" + esc(a.detalhe) + "</button>";
+      }).join("") + "</div>"
+      : '<p class="explica">Numeração, referências cruzadas, termos definidos, valores e extensos, datas, CPF/CNPJ, ' +
+        "lacunas e artigos de lei: nada a apontar.</p>");
+  painel.querySelector('[data-ei-painel="fechar"]').onclick = () => painel.remove();
+}
+
 /* ------------------------------------------------ a seleção (E4) */
+
+/* O trecho selecionado numa folha: os blocos que ele toca e o texto. */
+function selecaoDaFolha(folha) {
+  const sel = window.getSelection();
+  if (!folha || !sel || !sel.rangeCount || sel.isCollapsed || !folha.contains(sel.anchorNode) || !folha.contains(sel.focusNode)) return null;
+  const faixa = sel.getRangeAt(0).cloneRange();
+  const texto = faixa.toString().replace(RE_ESPACOS_EI, " ").trim();
+  if (texto.length < 2) return null;
+  nomearBlocos(folha);
+  const doBloco = (no) => { const el = no.nodeType === 1 ? no : no.parentElement; return el && el.closest("[data-b]"); };
+  const ini = doBloco(faixa.startContainer);
+  const fim = doBloco(faixa.endContainer);
+  if (!ini || !fim) return null;
+  const todos = blocosComNome(folha);
+  const a = todos.indexOf(ini), b = todos.indexOf(fim);
+  const blocos = a >= 0 && b >= a ? todos.slice(a, b + 1).map((x) => x.getAttribute("data-b")) : [ini.getAttribute("data-b")];
+  return { faixa: faixa, selecao: { bloco: blocos[0], blocos: blocos, texto: texto.slice(0, 4000) } };
+}
 
 /* O trecho selecionado na folha fica marcado (Highlight API) enquanto a
    pessoa escreve o pedido na caixa - e vai junto com ele. */
 function guardarSelecaoDaFolha() {
-  const folha = $("dp-folha");
-  const sel = window.getSelection();
-  if (!folha || !sel || !sel.rangeCount || sel.isCollapsed || !folha.contains(sel.anchorNode) || !folha.contains(sel.focusNode)) return;
-  const faixa = sel.getRangeAt(0).cloneRange();
-  const texto = faixa.toString().replace(RE_ESPACOS_EI, " ").trim();
-  if (texto.length < 2) return;
-  const doBloco = (no) => { const el = no.nodeType === 1 ? no : no.parentElement; return el && el.closest("[data-b]"); };
-  const ini = doBloco(faixa.startContainer);
-  const fim = doBloco(faixa.endContainer);
-  if (!ini || !fim) return;
-  const todos = blocosComNome(folha);
-  const a = todos.indexOf(ini), b = todos.indexOf(fim);
-  const blocos = a >= 0 && b >= a ? todos.slice(a, b + 1).map((x) => x.getAttribute("data-b")) : [ini.getAttribute("data-b")];
+  const achado = selecaoDaFolha($("dp-folha"));
+  if (!achado) return;
+  const faixa = achado.faixa;
   ei.faixa = faixa;
-  ei.selecao = { bloco: blocos[0], blocos: blocos, texto: texto.slice(0, 4000) };
+  ei.selecao = achado.selecao;
   if (window.CSS && CSS.highlights && window.Highlight) CSS.highlights.set("paulus-selecao", new Highlight(faixa));
   desenharChipDaSelecao();
   mostrarBarrinha(faixa);
@@ -710,12 +752,13 @@ document.addEventListener("click", async (e) => {
    gravado, e o que estava aqui fica no Histórico. */
 async function resolverConflitoDaFolha(d) {
   if (!dupla.doc || !$("dp-folha")) return;
+  // Só no Histórico: gravar a tela por cima apagaria o que a outra janela gravou.
   await fetch("/api/documentos/" + dupla.doc.id, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: htmlDaFolha(), nota: "o que estava nesta tela quando outra janela gravou", versao: true, revisao: d.revisao }),
+    body: JSON.stringify({ corpo: htmlDaFolha(), nota: "o que estava nesta tela quando outra janela gravou", so_historico: true }),
   }).catch(() => null);
   const novo = await fetch("/api/documentos/" + dupla.doc.id).then((x) => (x.ok ? x.json() : null));
-  if (!novo) return;
+  if (!novo || !dupla.doc || !$("dp-folha")) return;
   dupla.doc = Object.assign(dupla.doc, novo);
   $("dp-folha").innerHTML = novo.corpo || "<p><br></p>";
   contarAlteracoes();

@@ -290,7 +290,8 @@ function desenharEditorAoLado() {
     '<button class="edl-texto" id="dp-qualificar" title="Qualificação das partes">Qualificar</button>' +
     '<button class="edl-texto" id="dp-citar" title="Citar a lei">Citar a lei</button>' +
     '<span class="cresce"></span>' +
-    '<button class="edl-texto" id="dp-alteracoes" title="Ir até a alteração">Alterações <span class="edl-conta" id="dp-alteracoes-n">0</span></button>' +
+    '<button class="edl-texto" id="dp-conferir" title="Conferir numeração, referências, valores, datas, lacunas e leis">Conferir</button>' +
+    '<button class="edl-texto" id="dp-alteracoes" title="As mudanças do Paulus esperando você">Alterações <span class="edl-conta" id="dp-alteracoes-n">0</span></button>' +
     "</div>" +
     '<div class="edl-mesa" id="dp-mesa"><div class="edl-papel">' +
     '<div class="edl-folhas" id="dp-folhas" aria-hidden="true"></div>' +
@@ -594,6 +595,7 @@ function ligarDupla() {
     return guardarNaBiblioteca(dupla.doc.id);
   };
   $("dp-alteracoes").onclick = () => alternarPainelDeAlteracoes();
+  $("dp-conferir").onclick = () => abrirConferenciaNoPainel();
 
   lado.querySelectorAll("[data-cmd]").forEach((b) => {
     b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); marcarDuplaSuja(); };

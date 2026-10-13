@@ -217,6 +217,15 @@ def main() -> int:
     r = local.post(f"/api/documentos/{did}", json={"corpo": corpo2.replace("Rua B", "Rua C"), "revisao": rev})
     checar(r.status_code == 409 and r.json().get("conflito") and "Rua B" in r.json()["corpo"],
            "a gravação de uma tela velha não passa por cima (409 com o gravado)", r.text[:200])
+    # O que estava na tela velha vai só para o Histórico (js/95: resolverConflitoDaFolha).
+    r = local.post(f"/api/documentos/{did}", json={"corpo": corpo2.replace("Rua B", "Rua C"), "so_historico": True,
+                                                   "nota": "o que estava nesta tela quando outra janela gravou"})
+    agora = local.get(f"/api/documentos/{did}").json()
+    ultima = local.get(f"/api/documentos/{did}/versoes").json()["versoes"]
+    checar(r.status_code == 200 and "Rua B" in agora["corpo"] and agora["revisao"] == rev + 1,
+           "só no Histórico: o documento fica com o que foi gravado", r.text[:200])
+    checar(any("outra janela" in (v.get("nota") or "") for v in ultima), "e a versão da tela fica guardada lá",
+           [v.get("nota") for v in ultima][:3])
     r = local.post(f"/api/documentos/{did}", json={"corpo": corpo2.replace("Rua B", "Rua D"), "nota": "rua corrigida"})
     checar(r.json()["nova_versao"], "com nota, versão nova")
 

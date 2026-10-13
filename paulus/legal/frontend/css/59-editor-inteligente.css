@@ -65,6 +65,15 @@
 }
 .ei-mudanca-texto .rotulo { font-size: 11px; }
 
+/* A conferência: cada aviso leva ao lugar; o que impede tem a marca vinho. */
+.ei-aviso {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left;
+  border: 0; border-left: 3px solid var(--ink-a15); background: none; padding: 6px 10px; border-radius: 0 8px 8px 0;
+  color: var(--ink2); font: 500 13px/1.45 var(--sans); cursor: pointer; overflow-wrap: anywhere;
+}
+.ei-aviso:hover { background: var(--fill); }
+.ei-impede { border-left-color: var(--papel-acc); }
+
 /* O trecho selecionado, logo acima da caixa do pedido. */
 .ei-chip-selecao {
   display: flex; align-items: center; gap: 8px; max-width: 100%; margin: 0 0 6px; padding: 4px 6px 4px 10px;

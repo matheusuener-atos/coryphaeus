@@ -1,0 +1,1276 @@
+{
+ "adaptador": "hoje",
+ "modelo": "meta-llama/Llama-3.3-70B-Instruct",
+ "nivel": "advogado",
+ "quando": "2026-10-13T16:41:56",
+ "resumo": {
+  "tarefas": 62,
+  "acerto": 46.8,
+  "acerto_edicao": 51.8,
+  "lugar_unico": 51.0,
+  "varios": 50.0,
+  "sem_dano": 92.9,
+  "marcado": 29.0,
+  "honesto": 100.0,
+  "numeracao": 63.6,
+  "erros": 0,
+  "segundos_medio": 6.4,
+  "tokens": 68351,
+  "por_categoria": {
+   "apagar": {
+    "n": 4,
+    "acerto": 50.0
+   },
+   "estilo": {
+    "n": 4,
+    "acerto": 75.0
+   },
+   "inserir_clausula": {
+    "n": 3,
+    "acerto": 0.0
+   },
+   "inserir_paragrafo": {
+    "n": 6,
+    "acerto": 0.0
+   },
+   "mover": {
+    "n": 4,
+    "acerto": 0.0
+   },
+   "nome_em_tudo": {
+    "n": 3,
+    "acerto": 66.7
+   },
+   "pergunta": {
+    "n": 6,
+    "acerto": 0.0
+   },
+   "reescrever": {
+    "n": 6,
+    "acerto": 66.7
+   },
+   "selecao": {
+    "n": 2,
+    "acerto": 100.0
+   },
+   "troca_local": {
+    "n": 18,
+    "acerto": 77.8
+   },
+   "troca_valor": {
+    "n": 4,
+    "acerto": 25.0
+   },
+   "varios": {
+    "n": 2,
+    "acerto": 50.0
+   }
+  }
+ },
+ "tarefas": [
+  {
+   "id": "loc-01",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "Troquei por regra, em todas as ocorrências.",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "24 (vinte e quatro) meses"
+    ],
+    "sobrando": [
+     "30 (trinta) meses"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "loc-02",
+   "categoria": "troca_valor",
+   "erro": "",
+   "segundos": 11.9,
+   "tokens": 1489,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "R$ 2.600,00 (dois mil e seiscentos reais)"
+    ],
+    "sobrando": [
+     "dois mil e quatrocentos"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "loc-03",
+   "categoria": "nome_em_tudo",
+   "erro": "",
+   "segundos": 7.9,
+   "tokens": 1485,
+   "resposta": "Mudei 1 trecho(s) (2 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "IPCA/IBGE"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "loc-04",
+   "categoria": "nome_em_tudo",
+   "erro": "",
+   "segundos": 8.0,
+   "tokens": 1496,
+   "resposta": "Mudei 1 trecho(s) (2 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "loc-05",
+   "categoria": "inserir_clausula",
+   "erro": "",
+   "segundos": 9.9,
+   "tokens": 1567,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 30,
+     "depois": 8,
+     "antes": 9
+    },
+    "numeracao": {
+     "numeros": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      2
+     ],
+     "quebradas": []
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": false,
+   "acerto": false
+  },
+  {
+   "id": "loc-06",
+   "categoria": "inserir_paragrafo",
+   "erro": "",
+   "segundos": 5.0,
+   "tokens": 1521,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "caderneta de poupança"
+    ],
+    "ordem": {
+     "onde": -1,
+     "depois": 18,
+     "antes": 19
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "loc-07",
+   "categoria": "apagar",
+   "erro": "",
+   "segundos": 6.2,
+   "tokens": 1488,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "loc-08",
+   "categoria": "reescrever",
+   "erro": "",
+   "segundos": 6.2,
+   "tokens": 1589,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "loc-09",
+   "categoria": "mover",
+   "erro": "",
+   "segundos": 15.4,
+   "tokens": 1535,
+   "resposta": "Mudei 2 trecho(s) (2 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 22,
+     "depois": 21,
+     "antes": 22
+    },
+    "danos": [
+     "b0b0023",
+     "b0b0025"
+    ],
+    "numeracao": {
+     "numeros": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      7,
+      6
+     ],
+     "quebradas": []
+    }
+   },
+   "ordem": false,
+   "sem_dano": false,
+   "numeracao": false,
+   "acerto": false
+  },
+  {
+   "id": "loc-10",
+   "categoria": "pergunta",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "(ia para a conversa, que não apontava o lugar no documento)",
+   "marcado": true,
+   "honesto": true,
+   "intacto": true,
+   "aponta": false,
+   "acerto": false,
+   "sem_dano": true
+  },
+  {
+   "id": "loc-11",
+   "categoria": "estilo",
+   "erro": "",
+   "segundos": 9.3,
+   "tokens": 1592,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "loc-12",
+   "categoria": "varios",
+   "erro": "",
+   "segundos": 6.0,
+   "tokens": 1610,
+   "resposta": "Mudei 4 trecho(s) (5 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "danos": [
+     "b0b0024"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": false,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "loc-13",
+   "categoria": "selecao",
+   "erro": "",
+   "segundos": 3.6,
+   "tokens": 365,
+   "resposta": "Troquei o trecho que você selecionou.",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-01",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 35.7,
+   "tokens": 1750,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-02",
+   "categoria": "troca_valor",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "Troquei por regra, em todas as ocorrências.",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "nao_mudaram": [
+     "b0a0010",
+     "b0a0011"
+    ],
+    "faltando": [
+     "R$ 900.000,00",
+     "R$ 180.000,00",
+     "R$ 720.000,00"
+    ],
+    "sobrando": [
+     "850.000",
+     "170.000",
+     "680.000"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "cv-03",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 2.8,
+   "tokens": 1722,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-04",
+   "categoria": "inserir_clausula",
+   "erro": "",
+   "segundos": 6.5,
+   "tokens": 1788,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "DA DOCUMENTAÇÃO"
+    ],
+    "ordem": {
+     "onde": -1,
+     "depois": 16,
+     "antes": 17
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "cv-05",
+   "categoria": "apagar",
+   "erro": "",
+   "segundos": 5.5,
+   "tokens": 1746,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-06",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 4.7,
+   "tokens": 1724,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-07",
+   "categoria": "reescrever",
+   "erro": "",
+   "segundos": 4.5,
+   "tokens": 1760,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-08",
+   "categoria": "inserir_paragrafo",
+   "erro": "",
+   "segundos": 4.1,
+   "tokens": 1729,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "III – o Imposto de Transmissão"
+    ],
+    "ordem": {
+     "onde": 29,
+     "depois": 10,
+     "antes": 11
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "cv-09",
+   "categoria": "pergunta",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "(ia para a conversa, que não apontava o lugar no documento)",
+   "marcado": true,
+   "honesto": true,
+   "intacto": true,
+   "aponta": false,
+   "acerto": false,
+   "sem_dano": true
+  },
+  {
+   "id": "cv-10",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.3,
+   "tokens": 1741,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "JULIANA TORRES PEREIRA"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "cv-11",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "Troquei por regra, em todas as ocorrências.",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "danos": [
+     "b0a0002",
+     "b0a0003",
+     "b0a0006"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": false,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "cv-12",
+   "categoria": "estilo",
+   "erro": "",
+   "segundos": 6.5,
+   "tokens": 1754,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "cv-13",
+   "categoria": "mover",
+   "erro": "",
+   "segundos": 15.6,
+   "tokens": 1857,
+   "resposta": "Mudei 3 trecho(s) (3 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 17,
+     "depois": 12,
+     "antes": 13
+    },
+    "numeracao": {
+     "numeros": [
+      1,
+      2,
+      4,
+      5,
+      3,
+      6
+     ],
+     "quebradas": []
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": false,
+   "acerto": false
+  },
+  {
+   "id": "pr-01",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.7,
+   "tokens": 999,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pr-02",
+   "categoria": "reescrever",
+   "erro": "",
+   "segundos": 4.0,
+   "tokens": 1011,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "vedado o substabelecimento"
+    ],
+    "sobrando": [
+     "é permitido o substabelecimento"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pr-03",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 8.8,
+   "tokens": 1037,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pr-04",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.9,
+   "tokens": 1063,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pr-05",
+   "categoria": "inserir_paragrafo",
+   "erro": "",
+   "segundos": 4.2,
+   "tokens": 1050,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 10,
+     "depois": 4,
+     "antes": 5
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pr-06",
+   "categoria": "pergunta",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "(ia para a conversa, que não apontava o lugar no documento)",
+   "marcado": true,
+   "honesto": true,
+   "intacto": true,
+   "aponta": false,
+   "acerto": false,
+   "sem_dano": true
+  },
+  {
+   "id": "pr-07",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.9,
+   "tokens": 1018,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pr-08",
+   "categoria": "reescrever",
+   "erro": "",
+   "segundos": 5.3,
+   "tokens": 1085,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "quaisquer medidas de cobrança"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pr-09",
+   "categoria": "apagar",
+   "erro": "",
+   "segundos": 5.2,
+   "tokens": 1008,
+   "resposta": "Mudei 1 trecho(s) (0 ocorrências).",
+   "marcado": true,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "nao_mudaram": [
+     "b0c0008"
+    ],
+    "sobrando": [
+     "VALIDADE:"
+    ],
+    "nada_mudou": true
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pe-01",
+   "categoria": "troca_valor",
+   "erro": "",
+   "segundos": 4.2,
+   "tokens": 1242,
+   "resposta": "Mudei 2 trecho(s) (6 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pe-02",
+   "categoria": "inserir_paragrafo",
+   "erro": "",
+   "segundos": 5.0,
+   "tokens": 1198,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 21,
+     "depois": 11,
+     "antes": 16
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pe-03",
+   "categoria": "reescrever",
+   "erro": "",
+   "segundos": 14.7,
+   "tokens": 1426,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pe-04",
+   "categoria": "inserir_paragrafo",
+   "erro": "",
+   "segundos": 6.7,
+   "tokens": 1261,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 21,
+     "depois": 8,
+     "antes": 11
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pe-05",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.3,
+   "tokens": 1205,
+   "resposta": "Não achei no documento o trecho a mudar.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "nao_mudaram": [
+     "b0d0007"
+    ],
+    "sobrando": [
+     "notificada extrajudicialmente"
+    ],
+    "nada_mudou": true
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pe-06",
+   "categoria": "pergunta",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "(ia para a conversa, que não apontava o lugar no documento)",
+   "marcado": true,
+   "honesto": true,
+   "intacto": true,
+   "aponta": false,
+   "acerto": false,
+   "sem_dano": true
+  },
+  {
+   "id": "pe-07",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 49.8,
+   "tokens": 1198,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pe-08",
+   "categoria": "estilo",
+   "erro": "",
+   "segundos": 4.4,
+   "tokens": 1246,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "20% (vinte por cento)"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pe-09",
+   "categoria": "nome_em_tudo",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "Troquei por regra, em todas as ocorrências.",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pe-10",
+   "categoria": "mover",
+   "erro": "",
+   "segundos": 32.0,
+   "tokens": 2070,
+   "resposta": "Mudei 4 trecho(s) (3 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 4,
+     "depois": 7,
+     "antes": 8
+    },
+    "danos": [
+     "b0d0005",
+     "b0d0009",
+     "b0d0011"
+    ]
+   },
+   "ordem": false,
+   "sem_dano": false,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pa-01",
+   "categoria": "troca_valor",
+   "erro": "",
+   "segundos": 2.7,
+   "tokens": 1225,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": false,
+   "por_que": {
+    "faltando": [
+     "R$ 760.000,00 (setecentos e sessenta mil reais)"
+    ]
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pa-02",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 2.7,
+   "tokens": 1219,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pa-03",
+   "categoria": "inserir_clausula",
+   "erro": "",
+   "segundos": 4.5,
+   "tokens": 1270,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 22,
+     "depois": 16,
+     "antes": 17
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "pa-04",
+   "categoria": "reescrever",
+   "erro": "",
+   "segundos": 4.2,
+   "tokens": 1261,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pa-05",
+   "categoria": "apagar",
+   "erro": "",
+   "segundos": 8.9,
+   "tokens": 1380,
+   "resposta": "Mudei 4 trecho(s) (2 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "numeracao": {
+     "numeros": [
+      1,
+      2,
+      4,
+      5
+     ],
+     "quebradas": []
+    }
+   },
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": false,
+   "acerto": false
+  },
+  {
+   "id": "pa-06",
+   "categoria": "pergunta",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "(ia para a conversa, que não apontava o lugar no documento)",
+   "marcado": true,
+   "honesto": true,
+   "intacto": true,
+   "aponta": false,
+   "acerto": false,
+   "sem_dano": true
+  },
+  {
+   "id": "pa-07",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.2,
+   "tokens": 1227,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pa-08",
+   "categoria": "varios",
+   "erro": "",
+   "segundos": 5.8,
+   "tokens": 1294,
+   "resposta": "Mudei 3 trecho(s) (3 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "pa-09",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.2,
+   "tokens": 1223,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "no-01",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 2.9,
+   "tokens": 889,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "no-02",
+   "categoria": "estilo",
+   "erro": "",
+   "segundos": 3.6,
+   "tokens": 918,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "no-03",
+   "categoria": "inserir_paragrafo",
+   "erro": "",
+   "segundos": 3.5,
+   "tokens": 908,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 11,
+     "depois": 5,
+     "antes": 6
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  },
+  {
+   "id": "no-04",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 3.1,
+   "tokens": 879,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "no-05",
+   "categoria": "pergunta",
+   "erro": "",
+   "segundos": 0.0,
+   "tokens": 0,
+   "resposta": "(ia para a conversa, que não apontava o lugar no documento)",
+   "marcado": true,
+   "honesto": true,
+   "intacto": true,
+   "aponta": false,
+   "acerto": false,
+   "sem_dano": true
+  },
+  {
+   "id": "no-06",
+   "categoria": "troca_local",
+   "erro": "",
+   "segundos": 2.5,
+   "tokens": 889,
+   "resposta": "Mudei 1 trecho(s) (1 ocorrências).",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "no-07",
+   "categoria": "selecao",
+   "erro": "",
+   "segundos": 3.7,
+   "tokens": 374,
+   "resposta": "Troquei o trecho que você selecionou.",
+   "marcado": false,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {},
+   "ordem": true,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": true
+  },
+  {
+   "id": "no-08",
+   "categoria": "mover",
+   "erro": "",
+   "segundos": 5.9,
+   "tokens": 970,
+   "resposta": "Escrevi no fim do documento.",
+   "marcado": true,
+   "honesto": true,
+   "lugar": true,
+   "por_que": {
+    "ordem": {
+     "onde": 7,
+     "depois": 5,
+     "antes": 6
+    }
+   },
+   "ordem": false,
+   "sem_dano": true,
+   "numeracao": true,
+   "acerto": false
+  }
+ ]
+}

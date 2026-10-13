@@ -203,7 +203,8 @@ Só um objeto JSON, nesta ordem de campos:
 AS OPERAÇÕES
 - {"op": "substituir", "bloco": "b12", "de": "trecho EXATO do bloco", "para": "texto novo"}
   Troca um trecho dentro de UM bloco. "de" é copiado do bloco letra por letra: o menor trecho que identifica o lugar, \
-mas completo (o número junto com o extenso: "30 (trinta) meses").
+mas completo (o número junto com o extenso: "30 (trinta) meses"). "de" é um pedaço CONTÍNUO do texto: dois pontos \
+separados do mesmo bloco pedem uma operação para cada um. Para tirar um trecho, "para" fica "" (cuide da vírgula).
 - {"op": "reescrever", "bloco": "b12", "texto": "o bloco inteiro, já reescrito"}
   Para mudar o parágrafo como um todo (mais formal, mais claro, mais curto, outra redação). Mantenha o que não precisa mudar.
 - {"op": "inserir", "depois_de": "b12", "blocos": [{"texto": "..."}, {"texto": "..."}]}   (ou "antes_de")
@@ -239,7 +240,8 @@ texto e vai em "lacunas". Cite artigo de lei só com certeza absoluta de que ele
 
 SISTEMA_PERGUNTA = """Você é o Paulus, assistente de um escritório de advocacia no Brasil, conversando com o advogado sobre \
 o documento aberto no editor ao lado. Responda à pergunta como um colega advogado: direto, curto, com a informação \
-exata do documento. Cite o bloco de onde tirou cada informação, com o nome dele entre colchetes, assim: [b0b0008]. Se o \
+exata do documento. Cite o bloco de onde tirou cada informação, com o nome dele entre colchetes, assim: [b0b0008]. O \
+documento nem sempre usa o nome técnico do que se pergunta: procure pelo instituto jurídico, não só pela palavra. Se o \
 documento não traz a resposta, diga isso. Não invente. Português do Brasil, sem markdown."""
 
 SISTEMA_REVISAO = """Você é o revisor do escritório. Um assistente acabou de mudar um documento jurídico a pedido do \
@@ -254,7 +256,8 @@ FORMATO_OPERACOES = ('{"entendi": "...", "operacoes": [{"op": "substituir", "blo
 
 
 def mensagens_de_edicao(blocos: list, ent: Entendimento, pedido: str, *, titulo: str = "", selecao: dict | None = None,
-                        regras: str = "", memoria: str = "", artigos: str = "", limite: int = 90000) -> list[dict]:
+                        regras: str = "", memoria: str = "", artigos: str = "", casa: str = "",
+                        limite: int = 90000) -> list[dict]:
     """O que o modelo lê: o esboço, o documento com os nomes, o foco, a seleção e o pedido."""
     rotulos = E.rotulos(blocos)
     inteiro = B.para_modelo([b for b in blocos if b.sug != "del"], rotulos=rotulos)
@@ -281,8 +284,11 @@ def mensagens_de_edicao(blocos: list, ent: Entendimento, pedido: str, *, titulo:
         partes += ["", "REGRAS DE REDAÇÃO DO ESCRITÓRIO:", regras.strip()[:4000]]
     if memoria.strip():
         partes += ["", "O QUE JÁ FOI PEDIDO E DECIDIDO NESTE DOCUMENTO:", memoria.strip()[:3000]]
+    if casa.strip():
+        partes += ["", "CLÁUSULAS DO ESCRITÓRIO (quando o pedido mandar usar a da casa, use esta, adaptada às partes "
+                       "e aos termos deste documento):", casa.strip()[:6000]]
     if artigos.strip():
-        partes += ["", "LEI (texto oficial, para citar se precisar):", artigos.strip()[:6000]]
+        partes += ["", "LEI (texto oficial da base instalada; cite só daqui, com o número exato):", artigos.strip()[:6000]]
     partes += ["", f"PEDIDO: {pedido}", "",
                "ANTES DE RESPONDER, CONFIRA:",
                "- Mudo só os blocos de que o pedido fala? Outro ponto que talvez devesse mudar vai em \"sugestoes\".",
@@ -413,6 +419,7 @@ class Rodada:
     nao_fiz: list = field(default_factory=list)
     lacunas: list = field(default_factory=list)
     sugestoes: list = field(default_factory=list)   # o que talvez devesse mudar junto (o modelo não mudou)
+    conferencia: list = field(default_factory=list)  # os avisos que a rodada criou (src/conferencia_juridica.py)
     avisos: list = field(default_factory=list)
     comentarios: list = field(default_factory=list)
     resposta: str = ""
@@ -450,8 +457,126 @@ def _aplicar_uma(atual: list, op: dict, rodada: int, original: list, ent: Entend
     return r.blocos, feito, falha, r.comentarios
 
 
+# "30 (trinta) dias", "24 meses", "3 (três) aluguéis": o número, o extenso e a unidade.
+RE_QUANTIDADE = re.compile(
+    r"(?i)(?<![\d.,])(\d{1,4})\s*(?:\([^)]{1,60}\)\s*)?"
+    r"(dias?|m[eê]s(?:es)?|anos?|semanas?|horas?|parcelas?|presta[cç](?:[aã]o|[oõ]es)|alugu(?:el|[eé]is)|sal[aá]rios?)\b")
+_UNIDADES = (("dia", "dia", "dias"), ("m", "mes", "meses"), ("ano", "ano", "anos"), ("semana", "semana", "semanas"),
+             ("hora", "hora", "horas"), ("parcela", "parcela", "parcelas"), ("presta", "prestacao", "prestações"),
+             ("alugu", "aluguel", "aluguéis"), ("sal", "salario", "salários"))
+
+
+def _quantidades(texto: str) -> set[tuple[int, str]]:
+    saida = set()
+    for numero, unidade in RE_QUANTIDADE.findall(texto or ""):
+        u = unidade.lower()
+        saida.add((int(numero), next(nome for inicio, nome, _ in _UNIDADES if u.startswith(inicio))))
+    return saida
+
+
+def _numero_em_outra_unidade(op: dict, atual: list, pedidas: set, rotulos: dict) -> str:
+    """
+    A regra 2 do SISTEMA, conferida pelo programa: número igual não é o mesmo
+    dado. O pedido fala de "24 meses" e a operação põe o 24 em outra unidade
+    ("24 dias", no parágrafo seguinte): ela não entra e vira sugestão, para o
+    advogado decidir. Devolve a sugestão ("" quando a operação passa).
+    """
+    if not pedidas or op.get("op") not in ("substituir", "substituir_em_tudo", "reescrever"):
+        return ""
+    if op.get("op") == "reescrever":
+        bloco = B.por_id(atual).get(str(op.get("bloco") or ""))
+        de, para = (bloco.texto if bloco else ""), str(op.get("texto") or "")
+    else:
+        de, para = str(op.get("de") or ""), str(op.get("para") or "")
+    unidades: dict[int, set] = {}
+    for n, u in pedidas:
+        unidades.setdefault(n, set()).add(u)
+    for n, u in sorted(_quantidades(para) - _quantidades(de)):
+        if n in unidades and u not in unidades[n]:
+            pedida = next(plural for _, nome, plural in _UNIDADES if nome in unidades[n])
+            onde = rotulos.get(str(op.get("bloco") or ""), "")
+            de_curto, _ = ED._o_que_mudou(de, para)
+            return (f"{onde + ': ' if onde else ''}“{de_curto}” ficou como estava - o pedido fala de {n} {pedida}, "
+                    "e este é outro dado")
+    return ""
+
+
+# ------------------------------------------- o dado novo que o pedido traz
+
+# Nome próprio: duas palavras com maiúscula ou mais ("Juliana Torres Pereira", "Rua da Bahia").
+RE_NOME_PROPRIO = re.compile(r"[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ][\wÀ-ÿ'’-]*(?:\s+(?:(?:de|da|do|dos|das|e)\s+)?"
+                             r"[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ][\wÀ-ÿ'’-]*)+")
+RE_REAIS = re.compile(r"R\$\s*(\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d+(?:,\d{2})?)")
+RE_DATA_POR_EXTENSO = re.compile(r"(?i)\b(\d{1,2})º?\s+de\s+(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|"
+                                 r"setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})\b")
+_LIGA_NOME = ("de", "da", "do", "dos", "das", "e")
+# "Cláusula Segunda", "Parágrafo Único", "Lei do Inquilinato": com maiúscula,
+# mas apontam o lugar ou a lei - não são dado para escrever (a lei vai pelo número).
+_REFERENCIA = {"clausula", "paragrafo", "inciso", "alinea", "item", "capitulo", "secao", "titulo", "anexo", "lei",
+               "codigo", "constituicao", "sumula", "decreto", "resolucao", "estatuto", "portaria", "instrucao",
+               "emenda", "medida", "tema"}
+
+
+def _plano(texto: str) -> str:
+    return " ".join(E.plano(texto).split())
+
+
+def _reais(numero: str) -> float:
+    return float(numero.replace(".", "").replace(",", "."))
+
+
+def dados_do_pedido(pedido: str) -> list[tuple[str, str, object]]:
+    """
+    Os dados que o pedido traz - nomes próprios, valores em reais, datas por
+    extenso e quantidades com unidade -, como (o jeito de dizer, o tipo, a chave
+    para comparar com o texto).
+    """
+    pedido = pedido or ""
+    dados: list[tuple[str, str, object]] = []
+    for m in RE_NOME_PROPRIO.finditer(pedido):
+        palavras = m.group(0).split()
+        # No começo da frase, a primeira maiúscula pode ser só a do começo
+        # ("Troque", "Em"): fica o resto, se o resto ainda é nome.
+        antes = pedido[:m.start()].rstrip()
+        if not antes or antes[-1] in ".!?:;“\"(":
+            palavras = palavras[1:]
+            while palavras and palavras[0].lower() in _LIGA_NOME:
+                palavras = palavras[1:]
+        if sum(1 for p in palavras if p[:1].isupper()) >= 2 and _plano(palavras[0]) not in _REFERENCIA:
+            nome = " ".join(palavras)
+            dados.append((nome, "nome", _plano(nome)))
+    for m in RE_REAIS.finditer(pedido):
+        dados.append((m.group(0), "reais", _reais(m.group(1))))
+    for m in RE_DATA_POR_EXTENSO.finditer(pedido):
+        dados.append((m.group(0), "data", (int(m.group(1)), _plano(m.group(2)), int(m.group(3)))))
+    for n, u in sorted(_quantidades(pedido)):
+        dados.append((f"{n} {next(pl for _, nome, pl in _UNIDADES if nome == u)}", "quantidade", (n, u)))
+    return dados
+
+
+def _tem(texto: str, tipo: str, chave) -> bool:
+    if tipo == "nome":
+        return chave in _plano(texto)
+    if tipo == "reais":
+        return chave in {_reais(v) for v in RE_REAIS.findall(texto)}
+    if tipo == "data":
+        return chave in {(int(d), _plano(m), int(a)) for d, m, a in RE_DATA_POR_EXTENSO.findall(texto)}
+    return chave in _quantidades(texto)
+
+
+def faltou_do_pedido(pedido: str, antes: str, depois: str) -> list[str]:
+    """
+    O dado novo do pedido (que o documento não tinha) e que ainda não está no
+    texto depois da edição: "casado com Juliana Torres Pereira" e o nome dela
+    não entrou. O que o documento já tinha não conta - pode ser o que saiu.
+    """
+    return list(dict.fromkeys(dizer for dizer, tipo, chave in dados_do_pedido(pedido)
+                              if not _tem(antes, tipo, chave) and not _tem(depois, tipo, chave)))
+
+
 def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", selecao: dict | None = None,
-          nivel: str = "advogado", regras: str = "", memoria: str = "", artigos: str = "", parar=None):
+          nivel: str = "advogado", regras: str = "", memoria: str = "", artigos: str = "", parar=None,
+          fichas=None, leis=None, casa: str = ""):
     """
     A rodada inteira, como eventos:
       ("etapa", {"id", "titulo", "estado"})
@@ -468,6 +593,14 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
     atual = copy.deepcopy(blocos)
     ent = entender(blocos, pedido, selecao)
     r.tipo = ent.tipo
+    pedidas = _quantidades(pedido)
+    rotulos_de_antes = E.rotulos(original) if pedidas else {}
+
+    def barrar(op: dict) -> str:
+        barrado = _numero_em_outra_unidade(op, atual, pedidas, rotulos_de_antes)
+        if barrado:
+            r.sugestoes.insert(0, barrado)
+        return barrado
 
     yield ("etapa", {"id": "entender", "titulo": "Entender o pedido", "estado": "concluido"})
     if ent.rotulos:
@@ -526,7 +659,7 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
         # ---------------------------------------------- o modelo, ao vivo
         yield ("etapa", {"id": "editar", "titulo": "Editar o documento", "estado": "executando"})
         msgs = mensagens_de_edicao(blocos, ent, pedido, titulo=titulo, selecao=selecao, regras=regras, memoria=memoria,
-                                   artigos=artigos)
+                                   artigos=artigos, casa=casa)
         teto = {"estagiario": 2500, "bacharel": 3500, "advogado": 5000, "juiz": 6000, "ministro": 7000}.get(nivel, 5000)
         leitor = LeitorDeOperacoes()
         ponte = Ponte(lambda empurrar: chamar(msgs, json_mode=True, max_tokens=teto, on_token=empurrar), parar=parar)
@@ -536,6 +669,9 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
                 if primeira:
                     yield ("nota", {"texto": f"a primeira mudança chegou em {time.time() - inicio:.1f} s"})
                     primeira = False
+                if barrar(op):
+                    yield ("nota", {"texto": "uma troca ficou de fora: punha o número do pedido em outro dado"})
+                    continue
                 antes = atual
                 atual, feito, falha, comentarios = _aplicar_uma(atual, op, rodada, original, ent, selecao)
                 r.comentarios += comentarios
@@ -553,7 +689,7 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
         r.sugestoes += [" ".join(str(x).split()) for x in (dados.get("sugestoes") or []) if str(x).strip()][:6]
         # O que o leitor ao vivo não pegou (JSON torto no meio) entra agora.
         for op in (dados.get("operacoes") or [])[leitor.lidas:]:
-            if isinstance(op, dict):
+            if isinstance(op, dict) and not barrar(op):
                 antes = atual
                 atual, feito, falha, comentarios = _aplicar_uma(atual, op, rodada, original, ent, selecao)
                 r.comentarios += comentarios
@@ -579,7 +715,7 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
             r.chamadas += 1
             r.falhas = [f for f in r.falhas if not f.get("operacao")]
             for op in (ler_json(bruto).get("operacoes") or []):
-                if not isinstance(op, dict):
+                if not isinstance(op, dict) or barrar(op):
                     continue
                 antes = atual
                 atual, feito, falha, comentarios = _aplicar_uma(atual, op, rodada, original, ent, selecao)
@@ -590,6 +726,29 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
                                        "sids": feito["sids"]})
                 elif falha:
                     r.falhas.append({**falha, "operacao": op})
+
+        # ----------------------- o dado novo do pedido que não entrou
+        texto_de_antes = B.texto_puro(original)
+        faltam = faltou_do_pedido(pedido, texto_de_antes, B.texto_puro(B.aceito(atual))) if r.aplicadas else []
+        if faltam and not (parar and parar()):
+            yield ("nota", {"texto": "faltou do pedido: " + "; ".join(faltam) + " - pedindo o que falta"})
+            bruto = chamar(_mensagens_do_que_faltou(msgs, atual, faltam, r.aplicadas), json_mode=True, max_tokens=3000,
+                           on_token=None)
+            r.chamadas += 1
+            complemento = ler_json(bruto)
+            r.nao_fiz += [" ".join(str(x).split()) for x in (complemento.get("nao_fiz") or []) if str(x).strip()][:3]
+            for op in (complemento.get("operacoes") or []):
+                if not isinstance(op, dict) or barrar(op):
+                    continue
+                antes = atual
+                atual, feito, falha, comentarios = _aplicar_uma(atual, op, rodada, original, ent, selecao)
+                r.comentarios += comentarios
+                if feito:
+                    r.aplicadas.append(feito)
+                    yield ("remendo", {"remendos": B.remendos(antes, atual), "resumo": feito["resumo"],
+                                       "sids": feito["sids"]})
+            r.nao_fiz += [f"o pedido traz “{x}”, que não entrou no texto"
+                          for x in faltou_do_pedido(pedido, texto_de_antes, B.texto_puro(B.aceito(atual)))]
         yield ("etapa", {"id": "editar", "titulo": "Editar o documento", "estado": "concluido"})
 
     # --------------------------------------------------------- conferir
@@ -601,7 +760,7 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
         if feito:
             r.aplicadas.append(feito)
             yield ("remendo", {"remendos": B.remendos(antes, atual), "resumo": feito["resumo"], "sids": feito["sids"]})
-    r.avisos += conferir_rodada(original, atual, r)
+    r.avisos += conferir_rodada(original, atual, r, fichas=fichas, leis=leis)
     if r.aplicadas and nivel in ("juiz", "ministro") and not (parar and parar()):
         yield ("nota", {"texto": "segunda leitura: conferindo o que mudou contra o pedido e o resto do documento"})
         try:
@@ -614,7 +773,7 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
             if str(problema).strip():
                 r.avisos.append("revisão: " + " ".join(str(problema).split())[:240])
         for op in (revisao.get("operacoes") or [])[:6]:
-            if not isinstance(op, dict):
+            if not isinstance(op, dict) or barrar(op):
                 continue
             antes = atual
             atual, feito, falha, _ = _aplicar_uma(atual, op, rodada, original, ent, selecao)
@@ -638,9 +797,32 @@ def _mensagens_de_correcao(msgs: list[dict], atual: list, pendentes: list[dict])
         linhas.append(f"- {json.dumps(op, ensure_ascii=False)[:600]}\n  problema: {f['motivo']}")
         if bid in mapa:
             linhas.append(f"  texto EXATO de {bid} agora: \"{mapa[bid].texto[:1500]}\"")
+            # "confessar, renunciar ao direito": cada pedaço está no bloco, mas
+            # não um ao lado do outro - o programa diz isso com todas as letras.
+            pedacos = [p.strip(" .") for p in re.split(r"[,;]|\s+e\s+", str(op.get("de") or "")) if len(p.strip(" .")) >= 4]
+            if len(pedacos) > 1 and all(B.achar(mapa[bid].texto, p) for p in pedacos):
+                linhas.append("  os pedaços estão no bloco, mas separados: faça uma operação para cada um (" +
+                              "; ".join(f"“{p}”" for p in pedacos[:6]) + ")")
     pedido = ("Estas operações não puderam ser aplicadas:\n" + "\n".join(linhas) +
               "\n\nDevolva só as operações corrigidas (copie o trecho \"de\" letra por letra do texto do bloco), no "
-              "mesmo formato: {\"operacoes\": [...]}. Se a correção não for possível, \"operacoes\": [].")
+              "mesmo formato: {\"operacoes\": [...]}. O \"de\" é um pedaço contínuo do bloco: se o que você quer "
+              "mudar ou tirar está em pontos separados, faça uma operação para cada ponto. Se a correção não for "
+              "possível, \"operacoes\": [].")
+    return msgs + [{"role": "assistant", "content": "{\"operacoes\": [...]}"}, {"role": "user", "content": pedido}]
+
+
+def _mensagens_do_que_faltou(msgs: list[dict], atual: list, faltam: list[str], aplicadas: list[dict]) -> list[dict]:
+    """O dado novo do pedido que não entrou: o modelo devolve só as operações que faltam."""
+    mapa = B.por_id(atual)
+    ids = list(dict.fromkeys(i for a in aplicadas for i in a.get("ids", []) if i in mapa))[:6]
+    linhas = [f"[{i}] \"{mapa[i].texto[:1500]}\"" for i in ids]
+    pedido = ("Depois das suas operações, o documento ainda não traz estes dados do pedido: " +
+              "; ".join(f"“{x}”" for x in faltam) + "." +
+              ("\nTexto EXATO, agora, dos blocos que você mudou:\n" + "\n".join(linhas) if linhas else "") +
+              "\n\nO advogado deu esses dados no pedido para que entrem no documento. Devolva as operações que faltam "
+              "para eles entrarem no lugar certo (copie o \"de\" letra por letra do texto do bloco), no formato "
+              "{\"operacoes\": [...], \"nao_fiz\": [...]}. Só deixe de fora o dado que o pedido cita como referência, "
+              "sem mandar escrever, e diga por quê em \"nao_fiz\".")
     return msgs + [{"role": "assistant", "content": "{\"operacoes\": [...]}"}, {"role": "user", "content": pedido}]
 
 
@@ -663,26 +845,22 @@ def _mensagens_de_revisao(pedido: str, antes: list, depois: list) -> list[dict]:
                                         f"\n\nO DOCUMENTO COMO FICOU:\n{contexto}"}]
 
 
-def conferir_rodada(antes: list, depois: list, r: Rodada) -> list[str]:
+def conferir_rodada(antes: list, depois: list, r: Rodada, fichas=None, leis=None) -> list[str]:
     """
-    O que a regra confere depois da rodada (o motor completo é a E6): a
-    referência para cláusula que não existe e a lacuna que entrou.
+    A conferência jurídica (src/conferencia_juridica.py) do documento como
+    ficaria, contra o de antes da rodada: só o que ESTA rodada criou - valor
+    que não bate com o extenso, referência que mudou de cláusula, termo sem
+    definição, artigo que não existe, lacuna nova.
     """
-    import redacao
+    import conferencia_juridica as CJ
 
-    avisos = []
-    aceito = B.aceito(depois)
-    texto = "\n".join(b.texto for b in aceito)
-    for q in redacao.referencias_quebradas(texto)[:4]:
-        avisos.append(f"“{q['texto']}” aponta para cláusula que não existe")
-    novos_ids = {i for a in r.aplicadas for i in a.get("ids", [])}
-    lacunas = []
-    for b in aceito:
-        if b.id in novos_ids:
-            lacunas += re.findall(r"\[[^\]]{0,30}\]", b.texto)
-    if lacunas:
-        avisos.append("ficaram lacunas para preencher: " + ", ".join(dict.fromkeys(lacunas)))
-    return avisos
+    try:
+        novos = CJ.novos(CJ.conferir(antes, fichas=fichas, leis=leis),
+                         CJ.conferir(depois, fichas=fichas, leis=leis, antes=antes))
+    except Exception:  # noqa: BLE001 - a conferência é ajuda; sem ela, a rodada vale
+        return []
+    r.conferencia = novos
+    return [(f"{a['rotulo']}: " if a.get("rotulo") else "") + a["detalhe"].rstrip(".") for a in novos[:6]]
 
 
 # ------------------------------------------------------------ a resposta
@@ -706,14 +884,18 @@ def resposta(r: Rodada, titulo: str = "") -> str:
         linhas.append(("Deixei " if not feitas else "E deixei ") + f"{len(comentadas)} comentário"
                       + ("s" if len(comentadas) > 1 else "") + " na margem.")
     nao = [falha_para_gente(f["motivo"]) for f in r.falhas] + r.nao_fiz
+    def lista(itens) -> str:
+        # "; " entre os itens e um ponto só no fim, mesmo que o item já termine em ponto.
+        return "; ".join(str(x).strip().rstrip(".") for x in itens) + "."
+
     if nao:
-        linhas.append("Não fiz: " + "; ".join(dict.fromkeys(nao)) + ".")
+        linhas.append("Não fiz: " + lista(dict.fromkeys(nao)))
     if r.lacunas:
-        linhas.append("Ficou para preencher: " + "; ".join(r.lacunas[:6]) + ".")
+        linhas.append("Ficou para preencher: " + lista(r.lacunas[:6]))
     if r.sugestoes:
-        linhas.append("Talvez você queira mudar também (não mudei): " + "; ".join(r.sugestoes[:4]).rstrip(".") + ".")
+        linhas.append("Talvez você queira mudar também (não mudei): " + lista(r.sugestoes[:4]))
     if r.avisos:
-        linhas.append("Conferi: " + "; ".join(r.avisos[:6]) + ".")
+        linhas.append("Conferi: " + lista(r.avisos[:6]))
     if feitas:
         linhas.append("Cada mudança está marcada no texto: aceite ou recuse uma a uma, ou todas.")
     if not feitas and not comentadas and not nao:

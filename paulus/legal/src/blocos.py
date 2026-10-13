@@ -1039,6 +1039,12 @@ def aplicar_remendos(blocos: list[Bloco], lista: list[dict]) -> tuple[list[Bloco
                 atual = novos
             continue
         mapa = {b.id: b for b in atual}
+        # A tela já gravou o documento com este remendo (ele foi aplicado ao
+        # vivo): não é conflito, e aplicar de novo duplicaria o que entrou.
+        ja = [mapa.get(b.id) for b in novos]
+        saem = [i for i in ids if i not in {b.id for b in novos}]
+        if all(ja) and not any(i in mapa for i in saem) and (not novos or html(ja) == html(novos)):
+            continue
         if any(i not in mapa for i in ids) or any(normalizar_espacos(mapa[i].texto) !=
                                                     normalizar_espacos(r.get("antes", {}).get(i, mapa[i].texto))
                                                     for i in ids):
