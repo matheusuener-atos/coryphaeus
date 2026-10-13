@@ -65,15 +65,6 @@
     const plano = conta.plano || {};
     const tok = conta.tokens || {};
     const ciclo = conta.ciclo || {};
-    // A nuvem foi ativada por outra conta (ex.: antes de entrar com a Conta Atos): o plano que vale e o dela, e nao o
-    // da conta com que este PAVLVS entra. Passar a nuvem para a conta de agora e ativar de novo com ela.
-    const emailNuvem = String(conta.email || "").toLowerCase();
-    const emailEntrada = String((((cfg.prefs || {}).preferencias || {}).vinculo || {}).email || "").toLowerCase();
-    const avisoContaTrocada = emailNuvem && emailEntrada && emailNuvem !== emailEntrada
-      ? '<p class="cfg-explica">A nuvem deste computador está na conta <b>' + esc(conta.email) + "</b>, e o PAVLVS entra com <b>" + esc(emailEntrada) +
-        "</b>: o plano que vale é o da outra conta.</p>" +
-        '<div class="cfg-botoes"><button class="primario com-icone" data-ia-passar-nuvem="1">' + ic("swap_horiz", 16) + "Passar a nuvem para " + esc(emailEntrada) + "</button></div>"
-      : "";
     const niveis = (((cfg.ia || {}).painel || {}).profundidade || []);
     if (typeof renomearNiveis === "function") renomearNiveis(niveis);
     const ligado = Boolean(s.ollama);
@@ -97,7 +88,7 @@
       '<p class="cfg-explica">' + esc((ciclo.fim ? "Renova em " + dataCurta(ciclo.fim) + ". " : "") +
         "Cada pergunta gasta créditos conforme a profundidade: quanto mais o Paulus confere, mais gasta.") + "</p>" +
       '<div class="cfg-botoes"><button class="primario com-icone" data-ia-upgrade="1">' + ic("arrow_upward", 16) + "Fazer upgrade</button>" +
-      '<button data-ia-ir="consumo">' + ic("speed", 16) + "Ver o consumo</button></div>" + avisoContaTrocada + "</div>";
+      '<button data-ia-ir="consumo">' + ic("speed", 16) + "Ver o consumo</button></div>" + "</div>";
 
     const atualNivel = ler("profundidade", (typeof prof !== "undefined" && (prof.escolhido || prof.padrao)) || "advogado");
     const cartaoProfundidade = escolhas("profundidade", atualNivel, niveis.map((n) => ({
@@ -232,10 +223,6 @@
       lg.classList.toggle("on", on);
       gravar(lg.dataset.iaLiga, on ? "1" : "0");
       if (lg.dataset.iaLiga === "perguntar" && typeof prof !== "undefined") { prof.perguntar = on; try { localStorage.setItem("paulus.perguntar_antes", on ? "1" : "0"); } catch (x) { /* */ } }
-      return;
-    }
-    if (e.target.closest("[data-ia-passar-nuvem]")) {
-      if (typeof ativarNuvemPaulus === "function") ativarNuvemPaulus(async () => { cfg.recarregar = true; await mostrarConfig("assistente"); });
       return;
     }
     /* Fazer upgrade: os planos de Plano e consumo (verUpgrade, js/91). Sem os

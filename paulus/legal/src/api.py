@@ -918,8 +918,22 @@ estado.vinculo.ligar_servicos = lambda tokens, email, nome: estado.contas.ligar_
 # A tela da trava diz se o acesso de fora continua (ele nao passa pela trava).
 estado.vinculo.ligar_tunel = lambda ligado: estado.acesso_de_fora.conexao.ligar(ligado)
 estado.vinculo.situacao_de_fora = lambda: {k: estado.acesso_de_fora.situacao().get(k) for k in ("ligado", "estado", "hostname")}
-estado.vinculo.ao_confirmar = lambda token: estado.acesso_de_fora.conexao.informar_dono(token) \
-    if getattr(estado.acesso_de_fora, "conexao", None) else None
+def _ao_entrar_com_token(token: str) -> None:
+    """A cada login da conta vinculada: o endereço do acesso de fora e a nuvem seguem a conta (a nuvem em segundo plano)."""
+    if getattr(estado.acesso_de_fora, "conexao", None):
+        estado.acesso_de_fora.conexao.informar_dono(token)
+
+    def _nuvem() -> None:
+        # O plano é da conta, não do computador (12/10/2026): a nuvem passa para a conta que entrou.
+        try:
+            nuvem_mod.seguir_conta_de_entrada(estado, token, str((estado.prefs.dados.get("escritorio") or {}).get("nome") or ""))
+        except Exception:  # noqa: BLE001 - a nuvem nao derruba o login; confere de novo no proximo
+            pass
+
+    threading.Thread(target=_nuvem, name="nuvem-segue-a-conta", daemon=True).start()
+
+
+estado.vinculo.ao_confirmar = _ao_entrar_com_token
 vinculo_mod.montar(app, estado.vinculo)
 
 

@@ -376,6 +376,31 @@ def conta_paulus(estado, forcar: bool = False) -> dict | None:
     return d
 
 
+def seguir_conta_de_entrada(estado, id_token: str, nome: str = "") -> bool:
+    """
+    O plano (pago, cortesia ou concedido) é da conta, não do computador (regra de 12/10/2026): a nuvem
+    desta instalação fica sempre na Conta Atos com que o PAVLVS entra. Chamado a cada login com token;
+    se a nuvem está em outra conta (ou em nenhuma), ativa de novo com a de agora. Devolve se trocou.
+    """
+    import segredos
+
+    email = str((estado.prefs.dados.get("vinculo") or {}).get("email") or "").strip().lower()
+    if not email or not id_token or not segredos.disponivel():
+        return False
+    if (config(estado).get("provedor") or "paulus") != "paulus":
+        return False  # a chave própria do escritório não é de conta nenhuma: fica como está
+    if chave(estado, "paulus"):
+        try:
+            atual = str((conta_paulus(estado, forcar=True) or {}).get("email") or "").strip().lower()
+        except ErroNuvem:
+            return False  # sem internet agora: confere no próximo login
+        if atual == email:
+            return False
+    ativar_paulus(estado, id_token, nome)
+    _log.info("a nuvem desta instalação passou para a conta de entrada")
+    return True
+
+
 def sair_paulus(estado) -> None:
     try:
         _paulus(estado, "POST", "/api/ia/sair", {})
