@@ -125,6 +125,9 @@ class Vinculo:
         self.relogio = relogio
         self._trava = threading.Lock()
         self.destravado = False
+        # So em memoria: a nuvem deste computador esta em outra conta (o plano e da conta, 12/10/2026). Pede o
+        # login da conta vinculada uma vez, mesmo com "manter aberto": e nele que a nuvem passa para ela.
+        self.pedir_entrada = False
         self.entrada = None
         self.finalidade = ""
         self.erro = ""
@@ -161,6 +164,8 @@ class Vinculo:
         d = self.dados()
         if not d.get("email") or self.destravado:
             return False
+        if self.pedir_entrada:
+            return True
         # Saiu da conta: trava mesmo com "manter aberto".
         return bool(d.get("saiu")) or not d.get("manter_aberto")
 
@@ -450,6 +455,7 @@ class Vinculo:
         if not token:
             return
         self._id_token, self._id_token_exp = token, _exp_do_id_token(token)
+        self.pedir_entrada = False
         if self.ao_confirmar:
             try:
                 self.ao_confirmar(token)

@@ -401,6 +401,18 @@ def seguir_conta_de_entrada(estado, id_token: str, nome: str = "") -> bool:
     return True
 
 
+def nuvem_em_outra_conta(estado) -> bool:
+    """A nuvem desta instalação está ativada numa conta que não é a de entrada (o PAVLVS precisa de um login para trocar)."""
+    email = str((estado.prefs.dados.get("vinculo") or {}).get("email") or "").strip().lower()
+    if not email or (config(estado).get("provedor") or "paulus") != "paulus" or not chave(estado, "paulus"):
+        return False
+    try:
+        atual = str((conta_paulus(estado, forcar=True) or {}).get("email") or "").strip().lower()
+    except ErroNuvem:
+        return False  # sem internet: não pede login por isso
+    return bool(atual) and atual != email
+
+
 def sair_paulus(estado) -> None:
     try:
         _paulus(estado, "POST", "/api/ia/sair", {})

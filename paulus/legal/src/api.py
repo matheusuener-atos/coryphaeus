@@ -934,6 +934,19 @@ def _ao_entrar_com_token(token: str) -> None:
 
 
 estado.vinculo.ao_confirmar = _ao_entrar_com_token
+
+
+def _conferir_conta_da_nuvem() -> None:
+    """Ao abrir: a nuvem em outra conta pede o login da conta vinculada uma vez (é nele que ela passa para essa conta)."""
+    try:
+        if nuvem_mod.nuvem_em_outra_conta(estado):
+            estado.vinculo.pedir_entrada = True
+    except Exception:  # noqa: BLE001 - a conferencia nao derruba a abertura
+        pass
+
+
+if getattr(estado, "vinculo", None) is not None:
+    threading.Thread(target=_conferir_conta_da_nuvem, name="nuvem-confere-a-conta", daemon=True).start()
 vinculo_mod.montar(app, estado.vinculo)
 
 

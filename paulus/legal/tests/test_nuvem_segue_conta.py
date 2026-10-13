@@ -69,6 +69,41 @@ def main() -> int:
            "chave própria do escritório: não é de conta nenhuma, fica como está")
     checar(rodar(Estado(""), tem_chave=True, conta_email="outro@x.com") == [], "sem conta de entrada: nada muda")
 
+    print("\nao abrir: nuvem em outra conta pede o login uma vez")
+    antes = (nuvem.chave, nuvem.conta_paulus)
+    try:
+        nuvem.chave = lambda _e, _p: "pia_x"
+        nuvem.conta_paulus = lambda _e, forcar=False: {"email": "matheusueners@hotmail.com"}
+        checar(nuvem.nuvem_em_outra_conta(Estado("master@atos.dev.br")), "a nuvem na conta do hotmail e a entrada na master: em outra conta")
+        nuvem.conta_paulus = lambda _e, forcar=False: {"email": "master@atos.dev.br"}
+        checar(not nuvem.nuvem_em_outra_conta(Estado("master@atos.dev.br")), "na mesma conta: não pede nada")
+
+        def sem_rede(_e, forcar=False):
+            raise nuvem.ErroNuvem("sem internet")
+
+        nuvem.conta_paulus = sem_rede
+        checar(not nuvem.nuvem_em_outra_conta(Estado("master@atos.dev.br")), "sem internet: não pede login por isso")
+    finally:
+        nuvem.chave, nuvem.conta_paulus = antes
+
+    import vinculo
+
+    class PrefsVinc:
+        def __init__(self):
+            self.dados = {"vinculo": {"email": "master@atos.dev.br", "manter_aberto": True}}
+
+        def atualizar(self, novo):
+            self.dados.setdefault("vinculo", {}).update(novo.get("vinculo", {}))
+
+    v = vinculo.Vinculo.__new__(vinculo.Vinculo)
+    v.prefs, v.destravado, v.pedir_entrada = PrefsVinc(), False, False
+    v.dados = lambda: v.prefs.dados["vinculo"]
+    checar(not v.travado(), "com 'manter aberto', abre direto")
+    v.pedir_entrada = True
+    checar(v.travado(), "com a nuvem em outra conta, pede o login mesmo com 'manter aberto'")
+    v.destravado = True
+    checar(not v.travado(), "e depois de entrar, abre")
+
     print("\n" + "=" * 55)
     if _falhas:
         print(f"  {len(_falhas)} FALHA(S):")
