@@ -756,6 +756,10 @@ def main() -> int:
         min_size=(900, 620),
         frameless=True,
         easy_drag=False,
+        # Sem ele o pywebview desliga a selecao de texto na janela inteira: nao dava para copiar um
+        # trecho da resposta (o clique parecia cair "no nada"). Quem nao deve ser selecionado (alcas,
+        # linhas de lista) ja tem user-select: none no proprio CSS.
+        text_select=True,
         **_opcoes_da_janela(sys.argv[1:]),
     )
     _JANELA.events.shown += _preparar_janela_nativa

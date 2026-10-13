@@ -14900,7 +14900,7 @@ def _abrir_ao_lado(endereco: str):
     wx, wy, wl, wa = lugar["whatsapp"]
     janela = webview.create_window(
         "WhatsApp Web · Paulus", endereco,
-        x=wx, y=wy, width=wl, height=wa, min_size=(560, 520),
+        x=wx, y=wy, width=wl, height=wa, min_size=(560, 520), text_select=True,
     )
     janela.events.closed += _quando_o_whatsapp_fechar
     return janela
