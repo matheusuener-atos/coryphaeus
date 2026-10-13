@@ -215,11 +215,22 @@
     const col = document.getElementById("conversa-col");
     document.querySelectorAll("[data-rola-borda]").forEach((e) => { if (!corpo || !corpo.contains(e) || !col.classList.contains("tela-cheia")) e.removeAttribute("data-rola-borda"); });
     if (!corpo || !col || !col.classList.contains("tela-cheia")) return;
+    /* Quem rola dentro de um cartao (moldura dos dois lados, como o historico
+       da Trilha) rola no cartao: esticado ate a borda da janela, ele perdia o
+       recuo de dentro e passava da borda do cartao (13/10/2026). */
+    const dentroDeCartao = (e) => {
+      for (let p = e; p && p !== corpo; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (parseFloat(cs.borderLeftWidth) > 0 && parseFloat(cs.borderRightWidth) > 0) return true;
+      }
+      return false;
+    };
     let melhor = null, area = 0;
     corpo.querySelectorAll("*").forEach((e) => {
       if (e.clientHeight < 200) return;
       const oy = getComputedStyle(e).overflowY;
       if (oy !== "auto" && oy !== "scroll") return;
+      if (dentroDeCartao(e)) return;
       // Quem de fato rola vale mais que quem so poderia rolar.
       const a = e.clientWidth * e.clientHeight * (e.scrollHeight > e.clientHeight + 10 ? 10 : 1);
       if (a > area) { area = a; melhor = e; }

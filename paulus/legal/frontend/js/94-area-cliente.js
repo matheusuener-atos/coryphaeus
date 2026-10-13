@@ -138,7 +138,27 @@ function verComoOCliente() {
     '<button type="button" class="dialogo-fechar" data-acp-fechar="1" title="Fechar" aria-label="Fechar">' + ic("close", 18) + "</button></div>" +
     '<div class="acp-celular"><div class="acp-tela" id="acp-tela"></div></div></div>';
   document.body.appendChild(veu);
-  const fechar = () => { document.removeEventListener("keydown", teclas, true); veu.remove(); };
+  /* O celular (400 x 854 com a moldura, 56-area-cliente.css) reduzido ate
+     caber no pop-up: o que sobra da altura (da janela, ate 860 px) depois
+     do cabecalho e dos respiros, e a largura de dentro do pop-up. Nunca maior que 1. */
+  const caixa = veu.querySelector(".acp-previa");
+  const celular = veu.querySelector(".acp-celular");
+  const escalar = () => {
+    if (!veu.isConnected) { window.removeEventListener("resize", escalar); return; }
+    celular.style.setProperty("--acp-escala", "1");
+    if (window.matchMedia("(max-width: 720px)").matches) return;
+    const cs = getComputedStyle(caixa);
+    const vertical = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    const cabeca = caixa.querySelector(".acp-previa-cabeca").getBoundingClientRect().height + parseFloat(cs.rowGap || cs.gap || 0);
+    // O pop-up tem no maximo 860 px de alto (o tamanho de antes): numa janela alta o celular nao vira um poster.
+    const alto = Math.min(window.innerHeight - 40, 860) - vertical - cabeca;
+    const largo = caixa.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const k = Math.max(0.4, Math.min(1, alto / 854, largo / 400));
+    celular.style.setProperty("--acp-escala", k.toFixed(3));
+  };
+  escalar();
+  window.addEventListener("resize", escalar);
+  const fechar = () => { document.removeEventListener("keydown", teclas, true); window.removeEventListener("resize", escalar); veu.remove(); };
   const teclas = (e) => {
     if (e.key === "Escape" && !document.querySelector(".acp-tela .pcl-visor")) { e.preventDefault(); fechar(); }
   };

@@ -295,9 +295,17 @@
     position: absolute; top: 32px; right: 0; bottom: 0; width: var(--lado-alvo);
     display: flex; flex-direction: column; min-height: 0;
   }
-  .lado-contexto { overflow-y: auto; }
+  /* Rola so na vertical: um valor comprido (o modelo da nuvem) fazia a
+     coluna rolar de lado e o conteudo encostava na borda (13/10/2026). */
+  .lado-contexto { overflow-y: auto; overflow-x: hidden; }
   .lado-ferramenta { overflow: hidden; }
-  .lado-topo { flex: none; padding: 16px 16px 0; }
+  /* O respiro da coluna, igual em tudo: 20 px dos lados e 20 px abaixo da
+     barra do alto, com o cartao do Foco ou sem ele. A regra de .lateral-bloco
+     em 04-acervo.css (12/18, depois desta) vencia e deixava "Trechos lidos"
+     a 12 px da barra e o Foco a 16 da borda (13/10/2026). */
+  .lado-topo { flex: none; padding: 20px 20px 4px; }
+  .lado-contexto > .lateral-bloco { padding: 16px 20px; }
+  .lado-contexto > .lateral-bloco:not([hidden]):not(:not([hidden]) ~ *) { padding-top: 20px; }
   .lateral-bloco { flex: none; padding: 20px 22px; border-bottom: 1px solid var(--ink-a08); display: grid; gap: 12px; }
   .lateral-bloco:last-child { border-bottom: none; }
   /* A cabeca de cada parte: titulo, contagem em monoespaco e a seta que
@@ -353,7 +361,12 @@
   .lateral .propriedades > div > span:first-child { font: 400 13px var(--sans); color: var(--ink3); }
   .lateral .valor-prop { font: 400 13px/1.5 var(--sans); }
   .valor-prop.mono { font: 400 12px var(--mono); }
-  .valor-prop.chip { justify-self: start; padding: 2px 8px; border-radius: 5px; background: var(--fill); font: 400 12px var(--mono); }
+  /* O .chip geral (04-acervo.css) e de uma linha e 28 px: aqui a etiqueta
+     cabe na coluna e o modelo comprido quebra em vez de passar da borda. */
+  .valor-prop.chip {
+    justify-self: start; display: block; max-width: 100%; height: auto; padding: 2px 8px; border-radius: 5px; background: var(--fill);
+    font: 400 12px/1.5 var(--mono); white-space: normal; overflow-wrap: anywhere; cursor: default;
+  }
   /* Onde procurei: a pasta numa etiqueta, a conta ao lado e a frase. */
   .lat-onde { display: grid; gap: 12px; }
   .lat-onde-linha { display: flex; align-items: center; gap: 8px; min-width: 0; }

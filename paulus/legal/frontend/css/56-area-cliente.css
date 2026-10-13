@@ -76,14 +76,24 @@
   .acp-previa-veu { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--veu); }
   /* A moldura do celular mora num pop-up do sistema (o mesmo cartao dos dialogos). */
   .acp-previa {
-    display: flex; flex-direction: column; gap: 18px; width: min(480px, 100%); padding: 22px 24px 24px;
+    display: flex; flex-direction: column; gap: 18px; width: min(480px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); padding: 22px 24px 24px;
     background: var(--cartao-fundo); border: 1px solid var(--ink-a1); border-radius: 16px; box-shadow: var(--elev-float);
     animation: dialogo-entra .26s cubic-bezier(.16,1,.3,1);
-    height: min(860px, calc(100vh - 40px)); height: min(860px, calc(100dvh - 40px));
   }
   .acp-previa > .acp-previa-cabeca { padding: 0; }
-  .acp-celular { flex: 1; min-height: 0; width: min(390px, 100%); align-self: center; padding: 4px; border-radius: 30px; background: var(--casca); border: 1px solid var(--ink-a15); }
-  .acp-tela { position: relative; height: 100%; overflow-y: auto; border-radius: 26px; transform: translateZ(0); scrollbar-width: thin; }
+  /* Um celular de verdade: tela de 390 x 844 (largura logica de um iPhone),
+     e o aparelho inteiro reduzido por zoom ate caber no pop-up (--acp-escala,
+     medida em js/94-area-cliente.js). Tudo diminui junto - letra, botao,
+     moldura e raio -, e a pagina por dentro e a mesma do celular. */
+  .acp-celular {
+    flex: none; align-self: center; width: 400px; height: 854px; padding: 4px; border-radius: 30px;
+    background: var(--casca); border: 1px solid var(--ink-a15); zoom: var(--acp-escala, 1);
+  }
+  /* Rola so por dentro da tela, na barra fina do programa (00-tokens.css):
+     o `scrollbar-width: thin` trocava ela pela do Windows, com setas e por
+     cima dos cantos. A trilha comeca e acaba antes do arredondado. */
+  .acp-tela { position: relative; height: 100%; overflow-x: hidden; overflow-y: auto; border-radius: 26px; transform: translateZ(0); }
+  .acp-tela::-webkit-scrollbar-track { margin-block: 22px; }
   .acp-tela .pcl-visor { position: absolute; }
 
   @media (max-width: 720px) {
@@ -92,8 +102,9 @@
     .acp-doc .corta { display: none; }
     .acp-ativ { grid-template-columns: 1fr; gap: 2px; }
     .acp-previa-veu { padding: 0; }
-    .acp-previa { height: 100vh; height: 100dvh; gap: 0; }
+    .acp-previa { height: 100vh; height: 100dvh; max-height: none; gap: 0; }
     .acp-previa > .acp-previa-cabeca { padding: 14px 16px 0; }
-    .acp-celular { padding: 0; border-radius: 0; }
+    /* No celular a previa ja e o celular: a tela inteira, sem moldura nem zoom. */
+    .acp-celular { flex: 1; min-height: 0; width: 100%; height: auto; padding: 0; border-radius: 0; border: none; zoom: 1; }
     .acp-tela { border-radius: 0; }
   }

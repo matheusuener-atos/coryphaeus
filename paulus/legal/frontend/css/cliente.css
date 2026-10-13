@@ -313,6 +313,12 @@ body.pcl-corpo .pcl-barra-site + .pcl-pagina { min-height: calc(100vh - 57px); m
 .pcl-linha .pcl-selo { font-size: 12px; font-weight: 500; padding: 2px 9px; flex: none; }
 .pcl-vazio-linha { margin: 0; padding: 22px 14px; font-size: 13px; color: var(--pcl-ink3); }
 @media (max-width: 900px) { .pcl-coluna.pcl-larga { padding: 40px 16px 64px; } .pcl-duas { grid-template-columns: minmax(0, 1fr); } }
+/* A previa "Ver como o cliente" (56-area-cliente.css) e um celular de 390 px
+   dentro da janela larga do PAULUS: o @media acima olha a janela, nao a
+   previa, e la ela saia com o recuo de 44 px do computador. Fica aqui, junto
+   da regra que ela repete. */
+.acp-tela .pcl-coluna.pcl-larga { padding: 40px 16px 64px; }
+.acp-tela .pcl-duas { grid-template-columns: minmax(0, 1fr); }
 /* --- a pasta na largura do Admin: duas colunas de paineis (1.5fr | 1fr); numa so abaixo de 820 px da propria area (vale na previa tambem). */
 .pcl-pasta-tela { container-type: inline-size; }
 .pcl-pasta-grade { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: start; }

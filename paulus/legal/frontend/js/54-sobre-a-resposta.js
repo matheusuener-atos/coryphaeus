@@ -106,7 +106,9 @@ function desenharSobre(m, pergunta, visor) {
     const p = c.profundidade;
     const etapas = (p.etapas || []).map((e) => ({ analise: "análise", plano: "plano", redacao: "redação", revisao: "revisão",
       reescrita: "reescrita" }[e] || e));
-    linhas.push(["Profundidade", p.nome + (etapas.length ? " · " + etapas.join(", ") : "") +
+    // O nome da tela (Baixo...Ultra, js/92-entrevista.js), e nao o tecnico que vem do servidor (Ministro).
+    const nomeDoNivel = (typeof NOME_DO_NIVEL !== "undefined" && NOME_DO_NIVEL[p.nivel || p.id]) || p.nome;
+    linhas.push(["Profundidade", nomeDoNivel +(etapas.length ? " · " + etapas.join(", ") : "") +
       (p.respostas ? " · " + plural(p.respostas, "ponto definido", "pontos definidos") + " antes" : "")]);
     if (p.tokens) linhas.push(["Tokens", milhar(p.tokens) + " no trabalho todo"]);
   }
