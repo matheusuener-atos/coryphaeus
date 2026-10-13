@@ -630,6 +630,13 @@ async function completar(request, env, ctx, conta) {
     aviso = (MODELOS[modelo] || {}).nome + " libera no 8º dia da assinatura (" + dataBR(travadoAte) + "); até lá, responde o " + (MODELOS[plano.modelos.padrao] || {}).nome;
     modelo = plano.modelos.padrao;
   }
+  // O modelo do plano sem a chave do provedor no Worker (ainda nao esta no ar): responde o Llama 3.3 70B, com o
+  // aviso na conversa, em vez de deixar o plano sem nuvem. Quando a chave entrar, o modelo do plano volta sozinho.
+  const RESERVA_DA_NUVEM = "meta-llama/Llama-3.3-70B-Instruct";
+  if (!env[PROVEDORES[MODELOS[modelo].provedor].chave] && modelo !== RESERVA_DA_NUVEM && env[PROVEDORES.deepinfra.chave]) {
+    aviso = (aviso ? aviso + "; " : "") + MODELOS[modelo].nome + " ainda não está no ar na nuvem do PAULUS; respondeu o " + MODELOS[RESERVA_DA_NUVEM].nome;
+    modelo = RESERVA_DA_NUVEM;
+  }
   const info = MODELOS[modelo];
   const peso = info.peso || 1;
   const mensagens = d.messages

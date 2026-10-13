@@ -593,8 +593,15 @@ checar(usoDoFim("data: {\"usa") === null, "linha partida não quebra");
   await Promise.all(pendentes.splice(0));
   checar(ts.includes("interrompeu esta resposta"), "recusa no meio do stream: a resposta diz que foi interrompida", ts);
   respostaDoClaude = "padrao";
-  checar((await pedir({ ...envReal, ANTHROPIC_KEY: undefined }, "POST", "/api/ia/v1/chat/completions", pergunta, sp)).status === 503,
-    "sem a chave do Anthropic no Worker: 503");
+  // Sem a chave do Anthropic no Worker: responde o Llama 3.3 70B, com o aviso (12/10/2026); sem nenhuma chave, 503.
+  const semClaude = await pedir({ ...envReal, ANTHROPIC_KEY: undefined }, "POST", "/api/ia/v1/chat/completions", { ...pergunta, stream: false }, sp);
+  const avisoSemClaude = decodeURIComponent(semClaude.headers.get("x-paulus-aviso") || "");
+  checar(semClaude.status === 200 && semClaude.headers.get("x-paulus-modelo") === "meta-llama/Llama-3.3-70B-Instruct" && avisoSemClaude.includes("ainda não está no ar"),
+    "sem a chave do Anthropic no Worker: responde o Llama, com o aviso", { status: semClaude.status, modelo: semClaude.headers.get("x-paulus-modelo"), aviso: avisoSemClaude });
+  await semClaude.text();
+  await Promise.all(pendentes.splice(0));
+  checar((await pedir({ ...envReal, ANTHROPIC_KEY: undefined, DEEPINFRA_KEY: undefined }, "POST", "/api/ia/v1/chat/completions", pergunta, sp)).status === 503,
+    "sem a chave do Anthropic nem a do DeepInfra: 503");
 
   // O Advogado: o Llama, e a profundidade só até Advogado.
   const sa = await contaNoPlano("802", "adv@a.br", "advogado");
