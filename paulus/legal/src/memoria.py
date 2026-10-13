@@ -169,12 +169,60 @@ def tem_sujeito_proprio(pergunta: str) -> bool:
     return any(re.match(r"[A-ZÀ-Ý][a-zà-ÿ]", p) for p in palavras if _plano(p) not in ("e",))
 
 
+# O pedido de ação não é pergunta elíptica: "Abre o contrato que fizemos
+# juntos nesta conversa aqui no editor" (caso real de 13/10/2026) virava "qual
+# Abre o contrato que fizemos juntos no contrato aqui no editor conversa aqui
+# no editor?" - o "nesta" trocado pelo sujeito da anterior. O verbo de comando
+# na frente (depois só de gentileza ou abertura) diz que a frase é um pedido.
+GENTILEZA = {
+    "por", "favor", "pfv", "pls", "pode", "podes", "poderia", "consegue", "me", "voce", "vc", "que", "preciso",
+    "quero", "gostaria", "de", "ai", "entao", "so", "ja", "agora", "ok", "certo", "sim", "isso", "mesmo", "eu",
+    "beleza", "perfeito", "otimo", "bom", "oi", "ola", "paulus", "tambem", "agr", "la",
+}
+RE_COMANDO = re.compile(
+    r"^(?:abr[ae]|abrir|crie|cria|criar|cadastr[ae]|cadastrar|agend[ae]|agendar|marqu?e|marca|anot[ae]|mand[ae]|"
+    r"envi[ae]|enviar|redij[ao]|redigir|escrev[ae]|escrever|fa[cz]a|faz|fazer|ger[ae]|gerar|emit[ae]|mostr[ae]|"
+    r"mostrar|exib[ae]|exibir|salv[ae]|salvar|lev[ae]|levar|coloqu?e|coloca|ponha|poe|assin[ae]|assinar|grav[ae]|"
+    r"gravar|apagu?e|apaga|exclu[ai]|mov[ae]|organiz[ae]|traduz[a]?|traduzir|convert[ae]|resum[ae]|resumir|"
+    r"revis[ae]|revisar|corrij[a]|corrig[ae]|troqu?e|troca|substitu[ai]|inclu[ai]|adicion[ae]|registr[ae]|"
+    r"lembr[ae]|elabor[ae]|prepar[ae]|mont[ae]|copi[ae]|imprim[ae]|baix[ae]|compartilh[ae]|leia|ler|procur[ae]|"
+    r"busqu?e|busca|encontr[ae]|list[ae]|explique|explica|calcul[ae]|compar[ae]|analis[ae]|verifiqu?e|"
+    r"confir[ae]|confira|extrai[a]?|extraia|tire|tira|separ[ae]|junt[ae]|edit[ae]|editar|aplique|aplica|"
+    r"atualiz[ae]|preench[ae]|imprimir|digitaliz[ae]|renome[ie]|arquiv[ae]|transcrev[ae]|dit[ae])$")
+
+
+def pede_acao(pergunta: str) -> bool:
+    """A frase começa (depois de gentileza) com um verbo de comando: é pedido, e não pergunta elíptica."""
+    palavras = re.findall(r"[a-z0-9]+", _plano(pergunta))
+    for palavra in palavras[:6]:
+        if palavra in GENTILEZA:
+            continue
+        return bool(RE_COMANDO.match(palavra))
+    return False
+
+
+# Pergunta elíptica pelo pronome: curta, começando por interrogativo, sem um
+# documento seu - "qual o valor dele?". Frase maior que isso já se sustenta.
+MAX_PALAVRAS_PRONOME = 7
+MAX_PALAVRAS_EMENDA = 10
+
+
 def e_continuacao(pergunta: str) -> bool:
+    """
+    A pergunta é elíptica de verdade ("e o prazo?", "e dele?", "qual o valor
+    dele?") e precisa do sujeito da anterior. Pedido de ação e frase completa
+    por si não são: a memória não as reescreve.
+    """
     plano = _plano(pergunta)
-    if not plano:
+    if not plano or pede_acao(pergunta):
         return False
+    palavras = plano.split()
     if RE_EMENDA.match(plano):
-        return not tem_sujeito_proprio(pergunta)
+        return len(palavras) <= MAX_PALAVRAS_EMENDA and not tem_sujeito_proprio(pergunta)
+    if len(palavras) > MAX_PALAVRAS_PRONOME or not (plano.startswith(INTERROGATIVOS) or palavras[0] == "e"):
+        return False
+    if any(re.sub(r"[^a-z]", "", p) in DOCUMENTOS for p in palavras):
+        return False
     return bool(RE_PRONOME.search(pergunta)) and not tem_sujeito_proprio(pergunta)
 
 
@@ -242,7 +290,9 @@ def preparar(mensagens, contexto: dict, pergunta: str) -> tuple[str, list[dict],
         anteriores = anteriores[:-1]
     efetiva = reescrever(pergunta, contexto.get("ultima_pergunta", ""), contexto.get("assunto"))
     continuou = efetiva != pergunta
-    if not continuou:
+    # O pedido de ação não deixa sujeito para a pergunta seguinte: "abra o
+    # contrato aqui no editor" não é o assunto da conversa.
+    if not continuou and not pede_acao(pergunta):
         novo = assunto_de(pergunta)
         if novo:
             contexto["assunto"] = list(novo)

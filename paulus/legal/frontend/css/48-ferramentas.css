@@ -130,9 +130,8 @@
 .edl-atalhos .visoes button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; font-size: 12px; }
 .edl-atalhos .edl-destino { margin-right: 6px; padding-right: 0; }
 .edl-atalhos .edl-atalho { flex: none; height: 30px; padding: 0 11px; font-size: 12px; }
-/* Com uma ferramenta aberta, a linha de cima da caixa ja diz o que a proxima
-   pergunta le; a pilula do escopo sai, como no desenho. */
-.conversa-col.com-lado[data-papel="ferramenta"] .escopo { display: none; }
+/* A pilula de escopo, que saia daqui com uma ferramenta aberta, saiu de vez
+   (13/10/2026); o anexo, que e o que sobrou na caixa, continua a vista. */
 
 /* A planilha ao lado (`Conversa - Planilha` / `Editor de planilha`): a barra
    da formula, a grade em papel (clara nos dois temas, como a pagina do

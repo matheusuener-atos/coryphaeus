@@ -2,16 +2,13 @@
 PAULUS - O que e de cada conversa, e a busca no texto delas (C3). O api.py so
 chama montar().
 
-  POST /api/trabalhos/{id}/escopo   o modo de escopo da conversa ("foco",
-                                    "acervo", "perguntar"): fica no servidor
-                                    porque importa entre maquinas (a mesma
-                                    conversa aberta de fora continua onde
-                                    estava)
   GET  /api/conversas/buscar?termo= os ids das conversas cujo titulo OU o
                                     texto de alguma mensagem tem o termo
 
 Rascunho, anexos pendentes e rolagem sao conveniencia desta janela: ficam no
-localStorage, por id (frontend/js/03-assistente.js).
+localStorage, por id (frontend/js/03-assistente.js). O "modo de escopo" que
+morava aqui saiu em 13/10/2026: onde procurar e decidido pelo servidor, a cada
+pergunta (src/caminho_da_pergunta.py).
 
 Chave: `conversa.painel`.
 """
@@ -20,16 +17,8 @@ from __future__ import annotations
 
 import unicodedata
 
-from fastapi import HTTPException
-from pydantic import BaseModel
-
-MODOS = ("foco", "acervo", "perguntar", "criativo")
 # O resultado da busca: o bastante para a lista, sem varrer para sempre.
 LIMITE_BUSCA = 200
-
-
-class ModoDoEscopo(BaseModel):
-    modo: str
 
 
 def _plano(texto: str) -> str:
@@ -57,17 +46,6 @@ def buscar(trabalhos, termo: str) -> list[dict]:
 
 
 def montar(estado, app) -> None:
-    @app.post("/api/trabalhos/{id_}/escopo")
-    def trabalho_escopo(id_: str, payload: ModoDoEscopo) -> dict:
-        trabalho = estado.trabalhos.obter(id_)
-        if not trabalho:
-            raise HTTPException(status_code=404, detail="conversa não encontrada")
-        if payload.modo not in MODOS:
-            raise HTTPException(status_code=400, detail="modo de escopo desconhecido: " + payload.modo)
-        trabalho.contexto["modo_escopo"] = payload.modo
-        estado.trabalhos.salvar(trabalho)
-        return {"modo": payload.modo}
-
     @app.get("/api/conversas/buscar")
     def conversas_buscar(termo: str = "") -> dict:
         return {"termo": termo, "conversas": buscar(estado.trabalhos, termo)}

@@ -1205,8 +1205,7 @@ function ligarEscopo(caixa, d) {
   });
   const tudo = caixa.querySelector("[data-escopo-tudo]");
   if (tudo) tudo.onclick = () => {
-    estado.modoEscopo = "acervo";
-    desenharEscopo();
+    definirFoco([]);
     escolher("Procurando em todo o Acervo.", { tudo: true });
   };
   const inteiro = caixa.querySelector("[data-escopo-inteiro]");

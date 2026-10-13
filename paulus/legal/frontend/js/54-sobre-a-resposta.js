@@ -9,10 +9,11 @@
    recolhidas, como respondi e onde procurei. Motor, trechos indexados e pasta
    so aparecem no modo de diagnostico (conversa.diagnostico).
 
-   Tambem aqui: a barra acima do campo, que passa a dizer onde a proxima
-   pergunta procura (e, com uma resposta andando, o que ela esta fazendo, com
-   o Parar); e o que e de cada conversa - rascunho, anexos e rolagem nesta
-   janela (localStorage), o modo de escopo no servidor.
+   Tambem aqui: a linha acima do campo, que no painel novo fica escondida
+   (a linha "A proxima pergunta..." saiu em 13/10/2026: onde procurar o
+   Paulus decide pela frase, e o "Como respondi" diz o caminho escolhido); e
+   o que e de cada conversa - rascunho, anexos e rolagem nesta janela
+   (localStorage).
 */
 
 /* painelNovo() e diagnostico() moram em 00-base.js: os arquivos que carregam
@@ -96,6 +97,8 @@ function desenharSobre(m, pergunta, visor) {
   if (c.modelo && !(c.caminho === "nivel0" && c.molde)) linhas.push(["Modelo", c.modelo]);
   if (c.truncou || (m.cobertura || {}).truncou) linhas.push(["Texto", "não coube inteiro na janela do modelo; ele leu o final"]);
   if (c.continuacao) linhas.push(["Pergunta", "entendida como continuação da anterior"]);
+  // O caminho que o Paulus decidiu pela frase (src/caminho_da_pergunta.py).
+  if (c.decisao && c.decisao.porque) linhas.push(["Decisão", c.decisao.porque]);
   if (m.interrompida) linhas.push(["Situação", "parada no meio"]);
   if (c.agente) linhas.push(["Agente", c.agente + (c.agente_versao ? " · versão " + c.agente_versao : "")]);
   // A profundidade (js/92-entrevista.js): o nível, as etapas e os tokens do trabalho.
@@ -130,7 +133,10 @@ function desenharSobre(m, pergunta, visor) {
     const cob = m.cobertura || {};
     const total = cob.total_contratos || 0;
     let chip = "", conta = "", onde = "";
-    if (e && (e.apenas || []).length) {
+    if (c.caminho === "conhecimento" || c.caminho === "criativo" || (e && (e.conhecimento || e.criativo))) {
+      onde = "Não li documento: a pergunta não era sobre um." + ((c.biblioteca || []).length
+        ? " Da Biblioteca: " + c.biblioteca.join("; ") + "." : "");
+    } else if (e && (e.apenas || []).length) {
       chip = e.apenas.length === 1 ? glifo(e.apenas[0]) + esc(e.apenas[0]) : ic("description", 14) + plural(e.apenas.length, "documento");
       onde = "Só " + (e.apenas.length === 1 ? "neste documento" : "nestes documentos") + ".";
     } else if (e && e.sem_anexo) {
@@ -196,48 +202,18 @@ function nomesCurtos(nomes) {
 
 /* ------------------------------------------ a barra acima do campo */
 
-/* O que vai acontecer com a proxima pergunta, em palavras. */
-function textoDoProximo() {
-  if (estado.escopo.length) {
-    return estado.escopo.length === 1 ? "A próxima pergunta lê só “" + estado.escopo[0] + "”" : "A próxima pergunta lê só os " + plural(estado.escopo.length, "anexo");
-  }
-  const modo = modoDoEscopo();
-  if (modo === "foco") return estado.foco.length === 1 ? "A próxima pergunta lê só “" + estado.foco[0] + "”" : "A próxima pergunta lê os " + plural(estado.foco.length, "documento") + " da conversa";
-  if (modo === "perguntar") return "Na próxima pergunta, eu pergunto onde procurar";
-  if (modo === "criativo") return "Modo criativo: a próxima pergunta não lê documento, o Paulus responde pelo que sabe";
-  return "A próxima pergunta procura em todo o Acervo" + (estado.contratos ? " · " + plural(estado.contratos, "documento") : "");
-}
-
+/* A linha acima do campo: no painel novo ela nao diz mais nada (o agente
+   e pilula na caixa, o andamento mora no cartao de trabalho e no botao de
+   enviar, e onde procurar o Paulus decide pela frase). Fica escondida. */
 function desenharBarra() {
   if (!painelNovo()) return;
   // O agente agora e pilula na caixa da pergunta (js/92-entrevista.js).
   if (typeof desenharPilulaAgente === "function") desenharPilulaAgente();
   const caixa = $("registro");
   if (!caixa) return;
-  const agora = $("registro-agora");
-  const ponto = caixa.querySelector(".ponto");
   $("atividade").hidden = true;
   caixa.classList.remove("aberto");
-  caixa.classList.add("barra-escopo");
-  $("registro-cabeca").tabIndex = -1;
-  const seta = caixa.querySelector(".registro-seta");
-  if (seta) seta.hidden = true;
-  if (!estado.trabalhoId) { caixa.hidden = true; return; }
-  caixa.hidden = false;
-  const andando = estado.ocupado && estado.respondendoId === estado.trabalhoId;
-  if (ponto) ponto.classList.toggle("pulsa", andando);
-  caixa.classList.toggle("andando", andando);
-  // Pacote de telas (`Conversa - Carregando`): com a resposta andando, a
-  // barra continua dizendo onde a proxima pergunta procura - o que acontece
-  // agora, e o Parar, moram no cartao de trabalho e no botao de enviar.
-  agora.innerHTML = esc(textoDoProximo());
-  const parar = agora.querySelector("[data-barra-parar]");
-  if (parar) parar.onclick = (e) => { e.stopPropagation(); pararResposta(); };
-  const sel = agora.querySelector("[data-barra-agente]");
-  if (sel) {
-    sel.onclick = (e) => e.stopPropagation();
-    sel.onchange = () => { estado.agenteDecisao = sel.value || "nenhum"; desenharBarra(); $("pedido").focus(); };
-  }
+  caixa.hidden = true;
 }
 
 /* ------------------------------------------ o agente da proxima pergunta (A2) */
@@ -320,7 +296,7 @@ function guardarDaConversa(id) {
   gravarNaConversa(id, { rascunho: $("pedido").value, anexos: estado.escopo.slice(), rolagem: $("fluxo").scrollTop });
 }
 
-/* Ao abrir: o que era dela volta. O modo de escopo vem do servidor. */
+/* Ao abrir: o que era dela volta. */
 function restaurarDaConversa(t) {
   if (!painelNovo() || !t) return null;
   const s = lerDaConversa(t.id);
@@ -329,8 +305,6 @@ function restaurarDaConversa(t) {
   const abertos = new Set((estado.abertos || []).map((d) => d.nome || d.name || d));
   const anexos = (s.anexos || []).filter((n) => !abertos.size || abertos.has(n));
   definirEscopo(anexos);
-  const modo = (t.contexto || {}).modo_escopo;
-  if (modo && (modo !== "foco" || (estado.foco || []).length)) { estado.modoEscopo = modo; desenharEscopo(); }
   return s;
 }
 
@@ -347,13 +321,6 @@ $("pedido").addEventListener("input", () => {
   const id = estado.trabalhoId;
   rascunhoTimer = setTimeout(() => gravarNaConversa(id, { rascunho: $("pedido").value }), 300);
 });
-
-function guardarModoNoServidor() {
-  if (!painelNovo() || !estado.trabalhoId) return;
-  fetch("/api/trabalhos/" + estado.trabalhoId + "/escopo", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modo: modoDoEscopo() }),
-  }).catch(() => { /* fica so nesta janela */ });
-}
 
 /* ------------------------------------------ duas perguntas ao mesmo tempo */
 

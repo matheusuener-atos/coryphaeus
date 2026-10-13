@@ -694,15 +694,8 @@
   .lat-lida { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12px; color: var(--ink2); }
   .lat-lida .cit { flex: 0 0 auto; }
   .lat-onde-texto { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink2); }
-  /* A barra acima do campo: onde a proxima pergunta procura; com uma
-     resposta andando, o que ela faz, com o Parar. */
-  /* Uma linha solta, sem caixa: o ponto verde e a frase em 12,5 px, logo
-     acima da caixa de pedido (pacote de telas, `Conversa`). */
-  .registro.barra-escopo { padding-bottom: 8px; }
-  .registro.barra-escopo .registro-cabeca { cursor: default; user-select: text; gap: 8px; padding: 0 4px; border: none; border-radius: 0; background: none; font: 500 12px var(--sans); }
-  .registro.barra-escopo .registro-cabeca:hover:not(:disabled) { background: none; border: none; }
-  .registro.barra-escopo .registro-agora { color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .registro.barra-escopo.andando .registro-agora { color: var(--ink); }
+  /* A linha "A proxima pergunta..." acima do campo saiu em 13/10/2026 (o
+     Paulus decide onde procurar); o Parar das outras telas fica. */
   .barra-parar { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 8px; border: 1px solid var(--ink-a1);
                  border-radius: 999px; background: var(--botao-fundo); font: 500 12px var(--sans); color: var(--ink2); cursor: pointer; }
   .barra-parar:hover { color: var(--ink); background: var(--botao-sobre); }

@@ -258,7 +258,7 @@
       "prazo em dias uteis"
      ],
      "passos": [
-      "Abra Agenda e clique em To-do, no topo.",
+      "Abra Agenda e clique em Tarefas, no topo.",
       "Clique em Calcular prazo (ou aperte Ctrl+K e escolha Calcular prazo).",
       "Informe a data (da disponibilização ou da intimação), os dias e a contagem, e clique em Calcular.",
       "Confira a conta e, se quiser, clique em Criar a tarefa: ela entra na lista Prazos."
@@ -276,7 +276,7 @@
       "agenda da semana"
      ],
      "passos": [
-      "Abra Agenda e clique em Semana, no topo (ou em Mês, para o mês inteiro, e em To-do, para as tarefas)."
+      "Abra Agenda e clique em Semana, no topo (ou em Mês, para o mês inteiro, e em Tarefas, para as tarefas)."
      ],
      "evidencia": "frontend/js/07-agenda.js:189",
      "c4": true
@@ -363,7 +363,7 @@
     "meu dia"
    ],
    "faz": [
-    "É a visão To-do da Agenda, com os filtros Meu dia, Importante, Planejadas e Concluídas, e Minhas listas.",
+    "É a visão Tarefas da Agenda, com os filtros Meu dia, Importante, Planejadas e Concluídas, e Minhas listas.",
     "Meu dia mostra os compromissos de hoje, as tarefas com prazo até hoje (inclusive as atrasadas) e as que você trouxe para o dia.",
     "Prazos lidos nos documentos sugere tarefas a partir de datas encontradas nos contratos."
    ],
@@ -397,7 +397,7 @@
       "venceu"
      ],
      "passos": [
-      "Abra Agenda e clique em To-do no topo.",
+      "Abra Agenda e clique em Tarefas no topo.",
       "Clique em Meu dia: as tarefas vencidas aparecem ali com “atrasada N dias”.",
       "Ou pergunte aqui: “quais tarefas estão atrasadas?”."
      ],
@@ -413,7 +413,7 @@
       "marcar como feita"
      ],
      "passos": [
-      "Em Agenda › To-do, clique no círculo à esquerda da tarefa.",
+      "Em Agenda › Tarefas, clique no círculo à esquerda da tarefa.",
       "Para várias, selecione-as e clique em Concluir na barra de seleção."
      ],
      "evidencia": "frontend/js/07-agenda.js:638"
@@ -427,7 +427,7 @@
       "urgente"
      ],
      "passos": [
-      "Em Agenda › To-do, clique na estrela da tarefa.",
+      "Em Agenda › Tarefas, clique na estrela da tarefa.",
       "Veja todas as marcadas no filtro Importante."
      ],
      "evidencia": "frontend/js/07-agenda.js:661"
@@ -441,7 +441,7 @@
       "vincular documento"
      ],
      "passos": [
-      "Em Agenda › To-do, clique na tarefa para abrir a ficha.",
+      "Em Agenda › Tarefas, clique na tarefa para abrir a ficha.",
       "Clique em Próxima etapa, escreva e clique em Acrescentar.",
       "Clique em Ligar documento e escolha no Acervo ou em Meu computador."
      ],
@@ -456,7 +456,7 @@
       "prazos dos documentos"
      ],
      "passos": [
-      "Em Agenda › To-do, clique em Prazos lidos nos documentos.",
+      "Em Agenda › Tarefas, clique em Prazos lidos nos documentos.",
       "Clique em Criar ao lado de cada data que quiser, ou em Criar todas."
      ],
      "evidencia": "frontend/js/07-agenda.js:1649"
@@ -487,7 +487,7 @@
       "tarefas de uma lista"
      ],
      "passos": [
-      "Abra Agenda e clique em To-do, no topo.",
+      "Abra Agenda e clique em Tarefas, no topo.",
       "Em Minhas listas, clique no nome da lista. A lista Prazos recebe os prazos criados pela calculadora e pelas publicações.",
       "Para outra lista, clique em Nova lista: ela passa a existir com a primeira tarefa."
      ],
@@ -1915,7 +1915,7 @@
       "Abra Serviços no menu à esquerda.",
       "Clique em Novo serviço.",
       "Preencha Nome, Cliente, Status e O que está sendo feito, e marque a Equipe.",
-      "Clique em Abrir serviço. Pela conversa também dá: “abra um serviço para a Cooperativa”."
+      "Clique em Abrir processo. Pela conversa também dá: “abra um serviço para a Cooperativa”."
      ],
      "evidencia": "frontend/js/10-servicos.js:992"
     },
@@ -2636,7 +2636,7 @@
     "consulta ao djen"
    ],
    "faz": [
-    "Fica em Agenda › To-do, no filtro Publicações (só no computador do escritório).",
+    "Fica em Agenda › Tarefas, no filtro Publicações (só no computador do escritório).",
     "Consulta o Diário de Justiça Eletrônico Nacional (DJEN) pelas OABs acompanhadas: a de Meus dados e as que você acrescentar em OABs.",
     "Com Consultar todo dia ligado, consulta uma vez por dia, com o Paulus aberto; Consultar agora consulta na hora.",
     "Cada comunicação nova aparece em Novas, com o tipo, o processo, o tribunal e a data de disponibilização.",
@@ -2665,7 +2665,7 @@
       "busca no dje"
      ],
      "passos": [
-      "Abra Agenda e clique em To-do, no topo.",
+      "Abra Agenda e clique em Tarefas, no topo.",
       "Na coluna da esquerda, clique em Publicações: as novas ficam em Novas; Lidas e Todas mostram o resto.",
       "Clique numa publicação para ler o texto; Marcar como lida a tira de Novas.",
       "Ou aperte Ctrl+K e escolha Publicações do DJEN."
@@ -2685,7 +2685,7 @@
       "consultar todo dia"
      ],
      "passos": [
-      "Em Agenda › To-do › Publicações, clique em Consultar agora.",
+      "Em Agenda › Tarefas › Publicações, clique em Consultar agora.",
       "Para consultar sozinho uma vez por dia, com o Paulus aberto, ligue Consultar todo dia."
      ],
      "evidencia": "frontend/js/48-publicacoes.js:33",
@@ -2703,7 +2703,7 @@
      ],
      "passos": [
       "A sua OAB vem de Configurações › Meus dados.",
-      "Em Agenda › To-do › Publicações, clique em OABs.",
+      "Em Agenda › Tarefas › Publicações, clique em OABs.",
       "Escreva as outras, uma por linha ou separadas por vírgula (ex.: GO 12345), e clique em Guardar. Só o número e a UF saem deste computador."
      ],
      "evidencia": "frontend/js/48-publicacoes.js:31",
@@ -2719,7 +2719,7 @@
       "prazo de uma publicacao"
      ],
      "passos": [
-      "Em Agenda › To-do › Publicações, clique na publicação para abrir.",
+      "Em Agenda › Tarefas › Publicações, clique na publicação para abrir.",
       "Clique em Criar prazo, confira os dias e a contagem (dias úteis ou corridos) e clique em Criar o prazo.",
       "A tarefa entra na lista Prazos, com a conta na anotação."
      ],
@@ -2737,7 +2737,7 @@
       "feriados do escritorio"
      ],
      "passos": [
-      "Em Agenda › To-do › Publicações, clique em Feriados (ou aperte Ctrl+K e escolha Feriados do escritório).",
+      "Em Agenda › Tarefas › Publicações, clique em Feriados (ou aperte Ctrl+K e escolha Feriados do escritório).",
       "Escreva um por linha, com a data primeiro (ex.: 24/10/2026 Aniversário de Goiânia), e clique em Guardar.",
       "Os nacionais, o Carnaval, a Sexta-feira Santa, Corpus Christi e o recesso de 20/12 a 20/01 o Paulus já conta."
      ],

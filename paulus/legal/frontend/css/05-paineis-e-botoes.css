@@ -164,19 +164,9 @@
     color: var(--ink3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
   }
   .escopo-pilula button:hover:not(:disabled), .chip-pasta button:hover:not(:disabled), .em-anexo-ficha button:hover:not(:disabled) { color: var(--ink); background: var(--fill2); border: none; }
-  .escopo-acervo {
-    display: inline-flex; align-items: center; gap: 6px; max-width: 260px; height: 28px;
-    padding: 0 8px; border-radius: 8px; background: var(--fill);
-    font: 500 12px var(--sans); color: var(--ink);
-  }
-  .escopo-acervo .ic { color: var(--ink3); }
-  .escopo-acervo.escopo-livre { cursor: pointer; }
-  /* No inicio o escopo do Acervo inteiro nao aparece (pacote de telas,
-     `Assistente`): a frase de baixo da saudacao ja diz o que esta lido. O
-     documento anexado aparece, com o x. */
-  .conversa-col.vazia .escopo-acervo { display: none; }
-  .escopo-acervo.escopo-livre:hover { background: var(--fill2); color: var(--ink); }
-  .escopo-acervo b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A pilula de escopo (Acervo / documento da conversa / pergunto onde /
+     Modo criativo) saiu em 13/10/2026: o Paulus decide onde procurar pela
+     frase. Na caixa fica so o anexo, com o x. */
 
   /* A lista que o "/" abre. Sobe por cima da caixa, como todo autocompletar. */
   .mencao {
@@ -245,7 +235,7 @@
   .conversa-col:not(.vazia) .escopo { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
   .conversa-col:not(.vazia) .escopo.com-anexos { flex-wrap: wrap; }
   .conversa-col:not(.vazia) .escopo[hidden] { display: none; }
-  .conversa-col:not(.vazia) :is(.escopo-acervo, .escopo-pilula) { font-weight: 600; }
+  .conversa-col:not(.vazia) .escopo-pilula { font-weight: 600; }
   .conversa-col:not(.vazia) .ditar { width: 30px; height: 30px; margin-left: auto; }
   .conversa-col:not(.vazia) .ditar .ic { font-size: 17px; width: 17px; height: 17px; }
   .conversa-col:not(.vazia) .enviar { width: 32px; height: 32px; margin-left: 0; }

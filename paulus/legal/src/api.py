@@ -60,6 +60,7 @@ import nomes as nomes_mod
 import citacao
 import escritorio
 import ferramentas
+import caminho_da_pergunta
 import conversa_continua
 import instrucao_nuvem
 import intencao
@@ -1242,8 +1243,9 @@ class Pergunta(BaseModel):
     apenas: list[str] = []
     # "olha o acervo inteiro", dito pelo botao em vez de pela frase.
     tudo: bool = False
-    # A pilula da caixa em "pergunto onde procurar": sem documento nomeado, a
-    # conversa pergunta onde antes de sair lendo o acervo inteiro.
+    # Sem documento nomeado, a conversa pergunta onde antes de sair lendo o
+    # acervo inteiro. Era a pilula "pergunto onde procurar", que saiu da tela
+    # em 13/10/2026; fica para quem chama a rota direto (MCP, testes).
     sem_anexo: bool = False
     # O botao Retomar do cartao "Parado": a mesma pergunta de novo, sem
     # repeti-la no historico e trocando a resposta que parou no meio.
@@ -1274,9 +1276,13 @@ class Pergunta(BaseModel):
     # "Perguntar antes de trabalhar", desligado na caixa: o pedido de trabalho
     # executa direto. Nulo: o que esta em Configuracoes (profundidade.entrevista).
     perguntar: bool | None = None
-    # A pilula "Modo criativo": a pergunta nao le documento nenhum - o Paulus
-    # responde pelo que ele mesmo sabe, na nuvem (`_responder_criativo`).
-    criativo: bool = False
+    # A pilula "Modo criativo" saiu em 13/10/2026: o caminho de conhecimento
+    # e decidido pela frase (src/caminho_da_pergunta.py). Um "criativo" que
+    # ainda venha de uma janela antiga e ignorado, como todo campo a mais.
+    # O documento de que a conversa vem falando, como a tela o ve (o que a
+    # resposta leu, o que esta aberto ao lado): indicio, e nao anexo - a frase
+    # que nao e sobre ele nao o le. Vazio, o foco guardado na conversa.
+    foco: list[str] = []
     # O documento aberto no editor ao lado da conversa (id em Documentos):
     # "cadastre as partes" le a qualificacao dele (`_responder_cadastros`).
     editor: int = 0
@@ -3815,7 +3821,7 @@ def _escopo_da_pergunta(trabalho, pergunta: str, payload: Pergunta) -> tuple[lis
     escolhidos, explicito = intencao.escopo(
         pergunta,
         abertos=estado.searcher.documents,
-        em_foco=_em_foco(trabalho),
+        em_foco=[n for n in (payload.foco or []) if n] or _em_foco(trabalho),
         pedidos=payload.apenas,
         tudo=payload.tudo,
         herdar_foco=not payload.sem_anexo,
@@ -3959,7 +3965,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # "Abra o contrato aqui no editor" (caso real de 13/10/2026): o trabalho
     # redigido nesta conversa vai ao editor, como no botão "levar ao editor".
     # Antes da memória (que emendava a frase na pergunta anterior), da leitura
-    # do documento em foco e do modo criativo. Com a entrevista aberta e nada
+    # do documento em foco e do caminho de conhecimento. Com a entrevista aberta e nada
     # para abrir, a frase segue para ela.
     pedido_editor = intencao.pede_no_editor(pergunta) if payload.entrevista is None else None
     if pedido_editor is not None:
@@ -4047,6 +4053,20 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
 
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
                         cadastros=[f["nome"] for f in estado.cadastros.listar()])
+    # O caminho da pergunta, decidido pelo Paulus (src/caminho_da_pergunta.py):
+    # explicar, definir, opinar ou escrever sem relação com documento é
+    # conhecimento - não lê o Acervo, nem o anexo que a frase não cita. Só
+    # regra; na dúvida, o caminho de documento de sempre. "Como funciona a
+    # usucapião?" caía no "o que o programa faz" (intencao.SOBRE).
+    decisao = caminho_da_pergunta.decidir(
+        pergunta, anexos=payload.apenas, explicito=explicito,
+        anterior=caminho_da_pergunta.caminho_anterior(trabalho.mensagens),
+        continua=continuou or conversa_continua.refere_a_anterior(pergunta))
+    conhecimento = (decisao is not None and decisao.caminho == "conhecimento" and agente is None
+                    and not payload.documentos)
+    if conhecimento and lido.tipo == "sobre":
+        lido = intencao.Intencao(tipo="documentos", porque=decisao.porque)
+    conhecimento = conhecimento and lido.tipo == "documentos"
     if lido.tipo == "levar_ao_editor":
         return _responder_no_editor(trabalho, lido.campos, pergunta, payload, request)
     # Bateria de 02/10/2026 (src/intencao.py, fim): o que o programa não faz
@@ -4086,11 +4106,19 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                                        forcar_execucao=payload.perguntar is False)
         trabalho.registrar("O trabalho em etapas ficou para o caminho de sempre: " + motivo,
                            mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
-    # Modo criativo: nada de busca nos documentos - o direito em tese, a
-    # redacao, as ideias, pelo que o modelo da nuvem sabe. As acoes (agenda,
-    # tarefa, e-mail...) e o pedido de trabalho ja passaram acima.
-    if payload.criativo and lido.tipo == "documentos" and agente is None and not payload.apenas:
-        return _responder_criativo(trabalho, request, dono, nivel_prof, envio_nuvem, pergunta, historico)
+    # Conhecimento: nada de busca nos documentos - o direito em tese, a
+    # redacao, as ideias. As acoes (agenda, tarefa, e-mail...) e o pedido de
+    # trabalho ja passaram acima. Com a nuvem, ela responde direto, com os
+    # artigos da Biblioteca; sem ela (ou com o sim a cada envio), o caminho
+    # de lei daqui (habilidades/perguntar.py), lendo a Biblioteca e nao o Acervo.
+    if conhecimento and acao_depois is None:
+        trabalho.registrar("Decidi o caminho: " + decisao.porque, mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
+        if (envio_nuvem is not None and envio_nuvem.vai_sem_pedir() and plano_mod.liberada(estado)
+                and not nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, rotas_do_acesso.pessoa(request), [])):
+            return _responder_criativo(trabalho, request, dono, nivel_prof, envio_nuvem, pergunta, historico, decisao)
+        citado, explicito = [], []
+    else:
+        conhecimento = False
     # "Exiba o referido documento" so vira acao de abrir quando se sabe qual e.
     # `explicito`, e nao `citado`: com o foco herdado, "mostre o valor do
     # adiantamento" abriria o arquivo em vez de responder a pergunta.
@@ -4117,7 +4145,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # inteira seja o nome de uma tela; com um documento nomeado na frase, e
     # dele que se fala. Quem escolheu "Procurar nos documentos" no cartao do
     # programa (documentos=true) ja respondeu que nao e a tela.
-    if lido.tipo == "documentos" and not explicito and not payload.documentos:
+    if lido.tipo == "documentos" and not explicito and not payload.documentos and not conhecimento:
         navegacao = programa.navegar(pergunta, ampliado=consulta_cadastro.ligado(estado.prefs.dados))
         if navegacao:
             return _responder_programa(trabalho, navegacao, pergunta)
@@ -4156,7 +4184,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # conversa, e a resposta escrita no lugar da caixa de pedido.
     if lido.tipo == "email":
         if lido.campos.get("documento"):
-            lido.campos["anexados"] = list(payload.apenas or []) or list(explicito or [])
+            lido.campos["anexados"] = list(payload.apenas or []) or list(explicito or []) or list(citado or [])
         return _responder_email(trabalho, lido, pergunta, request)
     # Varias fichas de uma vez: a qualificacao das partes (na frase, colada
     # sozinha, ou no documento aberto/anexado). O cartao lista as pessoas e
@@ -4206,7 +4234,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # ("Matheus Uener 1.docx" e "qual o CPF do Matheus Uener?"), vale a ficha
     # quando ela existe; sem ficha, segue para aquele documento, e nao para a
     # oferta - ler um documento nomeado nao e ler o acervo.
-    if roteamento and lido.tipo == "documentos" and not payload.documentos and not payload.apenas:
+    if roteamento and lido.tipo == "documentos" and not payload.documentos and not payload.apenas and not conhecimento:
         consulta = _consultar_cadastro(pergunta)
         if consulta and (not explicito or (consulta.fonte in ("cadastros", "meus_dados") and consulta.modo != "nada")):
             return _responder_consulta_cadastro(trabalho, consulta, pergunta)
@@ -4217,7 +4245,7 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # duvida vai ao modelo, como ESCOLHA de uma letra entre o que a regra
     # montou (programa.py, juizo.py). Com documento anexado, a pergunta e
     # sobre ele - a camada nem olha.
-    if lido.tipo == "documentos" and not payload.documentos and not payload.apenas and not explicito:
+    if lido.tipo == "documentos" and not payload.documentos and not payload.apenas and not explicito and not conhecimento:
         leitura = programa.ler(pergunta, dados=estado, juiz=_juiz(), em_foco=citado, ampliado=roteamento)
         if leitura:
             return _responder_programa(trabalho, leitura, pergunta)
@@ -4233,7 +4261,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # artigos que a fundamentam. So quando nada na conversa diz qual
     # documento - anexo, nome na frase ou foco.
     triagem = None
-    if (envio_nuvem is not None and envio_nuvem.vai_sem_pedir() and not payload.apenas and not explicito
+    if conhecimento:
+        # A decisao ja disse: conhecimento. A "triagem" e a da regra - lei,
+        # sem documento -, e a escrita (e-mail, ideias) nem procura artigo.
+        triagem = {"assunto": "lei", "documentos": [], "dispositivos": [], "tokens": 0,
+                   "conhecimento": decisao.tipo, "sem_lei": decisao.tipo == "escrever"}
+    elif (envio_nuvem is not None and envio_nuvem.vai_sem_pedir() and not payload.apenas and not explicito
             and not citado):
         # A pergunta sobre um caso só do escritório, um anexo do e-mail ou uma
         # cópia do Drive não sai nem para a triagem: a busca daqui, rápida,
@@ -4416,6 +4449,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # Opinião e continuidade (src/conversa_continua.py): a revisão como
         # colega, e a última resposta como objeto do pedido.
         extras = []
+        if conhecimento:
+            extras.append(INSTRUCAO_CONHECIMENTO_AQUI)
         if conversa_continua.pede_opiniao(pergunta):
             extras.append(conversa_continua.INSTRUCAO_OPINIAO)
         if conversa_continua.refere_a_anterior(pergunta) and historico:
@@ -4623,7 +4658,12 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
                 # A profundidade com que a nuvem respondeu (src/profundidade.py).
                 _prof = profundidade_mod.obter(envio_nuvem.profundidade, estado.prefs.dados)
                 cobertura["como"]["profundidade"] = {"nivel": _prof.id, "nome": _prof.nome}
-        if triagem:
+        # O caminho que o Paulus decidiu pela frase (src/caminho_da_pergunta.py).
+        if decisao is not None:
+            cobertura["como"]["decisao"] = decisao.como()
+        if conhecimento:
+            cobertura["como"]["caminho"] = "conhecimento"
+        if triagem and not conhecimento:
             cobertura["como"]["triagem"] = {"assunto": triagem["assunto"], "documentos": triagem["documentos"],
                                             "dispositivos": [f"{c}:{n}" for c, n in triagem["dispositivos"]],
                                             "tokens": triagem.get("tokens", 0)}
@@ -6271,7 +6311,7 @@ def _responder_no_editor(trabalho, pedido: dict, pergunta: str, payload, request
     abertos = {d.name for d in documentos}
     anexados = [n for n in (payload.apenas or []) if n in abertos]
     if not anexados and RE_APONTA_O_DOCUMENTO.search(pedido.get("objeto") or ""):
-        anexados = [n for n in _em_foco(trabalho) if n in abertos]
+        anexados = [n for n in (list(payload.foco or []) or _em_foco(trabalho)) if n in abertos]
     if len(anexados) == 1:
         return _abrir_documento_no_editor(trabalho, anexados[0], pergunta)
     for m in reversed(trabalho.mensagens):
@@ -7158,6 +7198,13 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
             yield _sse("parado", {"segundos": segundos, "titulo": trabalho.titulo, "escreveu": bool(escrito)})
             return
         texto = (prefixo + fim["texto"]).strip()
+        # Quem lê é advogado: "consulte um advogado" sai também do trabalho em
+        # etapas (src/conversa_continua.py), como da resposta da conversa.
+        sem_ressalva, tiradas = conversa_continua.sem_ressalva_de_leigo(texto)
+        if tiradas:
+            texto = sem_ressalva
+            registrar("Tirei do texto a recomendação de procurar um advogado: quem pede é o escritório")
+            yield _sse("substituir", {"texto": texto})
         # Os artigos citados conferidos na base de leis (src/citacoes.py): num
         # documento redigido, nada e apagado - o que nao se achou vai para a
         # pessoa conferir.
@@ -7207,30 +7254,44 @@ def _responder_trabalho(trabalho, request, dono: str, nivel, estado_e: dict, *, 
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-INSTRUCAO_CRIATIVO = ("MODO CRIATIVO: nesta pergunta o programa NÃO leu documento nenhum do escritório - de "
-                      "propósito. Responda pelo que você sabe: o direito em tese, a prática, a redação, as ideias e "
-                      "alternativas. Não diga que procurou nos documentos nem cite arquivo; se a resposta depender do "
-                      "que está num documento do escritório, diga que é preciso lê-lo (sair do modo criativo).")
+INSTRUCAO_CONHECIMENTO = ("CONHECIMENTO: o programa decidiu que esta pergunta não é sobre um documento do "
+                          "escritório e NÃO leu nenhum - de propósito. Responda pelo que você sabe: o direito em tese, "
+                          "a prática, a redação, as ideias e alternativas. Não diga que procurou nos documentos nem "
+                          "cite arquivo; se a resposta depender do que está num documento do escritório, diga qual "
+                          "documento seria preciso ler e peça para anexá-lo ou nomeá-lo.")
+
+# O mesmo, para o modelo deste computador: a instrucao dele (llama_client)
+# fala de "documentos abaixo", e aqui nao ha documento nenhum.
+INSTRUCAO_CONHECIMENTO_AQUI = ("ESTA PERGUNTA NAO E SOBRE DOCUMENTO: o programa decidiu nao ler o Acervo. Responda "
+                               "pelo que voce sabe, em tese, e com os artigos de lei que vierem abaixo, quando "
+                               "vierem. Nao diga que procurou em documentos nem que nao achou neles.")
 
 
-def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergunta: str, historico) -> StreamingResponse:
+def _artigos_da_biblioteca(pergunta: str, limite: int = 3) -> list[dict]:
+    """Os artigos da Biblioteca que têm o assunto da pergunta (src/leis.py), ou []."""
+    leis = getattr(estado, "leis", None)
+    if leis is None:
+        return []
+    try:
+        return [a for a in leis.procurar_assunto(pergunta, limite=limite) if not a.get("revogado")]
+    except Exception:  # noqa: BLE001 - sem a Biblioteca, responde pelo que sabe
+        return []
+
+
+def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergunta: str, historico,
+                        decisao=None) -> StreamingResponse:
     """
-    O modo criativo (a pilula de escopo): a pergunta vai direto ao modelo da
-    nuvem, sem busca e sem trecho de documento, com a instrucao da nuvem, o
-    nivel de profundidade e os pares de antes da conversa. Sem a nuvem, diz
-    por que - o modelo deste computador so responde lendo documentos.
+    O caminho de conhecimento na nuvem (src/caminho_da_pergunta.py): a
+    pergunta vai direto ao modelo da nuvem, sem busca e sem trecho de
+    documento, com a instrucao da nuvem, o nivel de profundidade, os pares de
+    antes da conversa e - fora da escrita livre - os artigos da Biblioteca
+    que tem o assunto. Quem chama ja conferiu a nuvem e o plano.
     """
     import time
 
     pessoa = rotas_do_acesso.pessoa(request)
-    if envio_nuvem is None:
-        return _so_dizer(trabalho, "O modo criativo responde pela nuvem, e esta pergunta ficou neste computador. "
-                                   "Ligue a pílula “Nuvem”, ou escolha o Acervo na pílula de escopo.")
-    motivo = nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, pessoa, [])
-    if motivo:
-        return _so_dizer(trabalho, "O modo criativo responde pela nuvem, e " + motivo + ".")
-    if not plano_mod.liberada(estado):
-        return _so_dizer(trabalho, plano_mod.FRASE_SEM_PLANO)
+    tipo = getattr(decisao, "tipo", "") or "explicar"
+    artigos = [] if tipo == "escrever" else _artigos_da_biblioteca(pergunta)
     id_ = trabalho.id
     trabalho.etapas = [Etapa("Responder pelo que sei", estado=EXECUTANDO)]
     trabalho.estado = EXECUTANDO
@@ -7256,17 +7317,25 @@ def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergun
         yield _sse("etapas", {"etapas": [asdict_etapa(x) for x in trabalho.etapas]})
         yield _sse("pensando", {"texto": "Respondendo pelo que sei…"})
         regra = (estado.contextos.bloco() or "").strip()
-        regra = (regra + "\n\n" + INSTRUCAO_CRIATIVO + "\n\n" + profundidade_mod.INSTRUCAO_RESPOSTA[nivel.id]).strip()
+        regra = (regra + "\n\n" + INSTRUCAO_CONHECIMENTO + "\n\n" + profundidade_mod.INSTRUCAO_RESPOSTA[nivel.id]).strip()
         if conversa_continua.pede_opiniao(pergunta):
             regra += "\n\n" + conversa_continua.INSTRUCAO_OPINIAO
         if conversa_continua.refere_a_anterior(pergunta) and historico:
             regra += "\n\n" + conversa_continua.INSTRUCAO_CONTINUIDADE
-        mensagens = instrucao_nuvem.montar_mensagens(pergunta, "", ensinado=regra, historico=historico)
+        # A Biblioteca: os artigos que têm o assunto, rotulados como LEI - o
+        # modelo usa só os que se aplicam (a busca por palavra erra o vizinho).
+        bloco_lei = ""
+        if artigos:
+            bloco_lei = ("LEI — artigos da Biblioteca do programa que podem ter a ver com a pergunta (use só os que se "
+                         "aplicam):\n\n" + "\n\n".join(a["citacao"] + "\n" + (a.get("texto") or "")[:1500] for a in artigos))
+            trabalho.registrar("A Biblioteca trouxe " + ", ".join(a["citacao"] for a in artigos),
+                               mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
+        mensagens = instrucao_nuvem.montar_mensagens(pergunta, bloco_lei, ensinado=regra, historico=historico)
         mascara = nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None
         modelo = profundidade_mod.modelo_do_nivel(estado.prefs.dados, nivel, nuvem_mod.config(estado).get("modelo") or "")
         partes: list[str] = []
         ponte = Ponte(lambda empurrar: nuvem_mod.chamada(
-            estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="criativo", pergunta=pergunta, mascara=mascara,
+            estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="conhecimento", pergunta=pergunta, mascara=mascara,
             on_token=empurrar, max_tokens=profundidade_mod.SAIDA_RESPOSTA.get(nivel.id, 3000), parar=parar.is_set,
             modelo=modelo, profundidade=nivel.id), parar=parar.is_set)
         try:
@@ -7293,11 +7362,13 @@ def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergun
                 texto = sem_ressalva
                 yield _sse("substituir", {"texto": texto})
         _, uso = ponte.resultado or ("", {})
-        como = {"caminho": "criativo", "modelo": f"{uso.get('provedor', 'nuvem')} · {uso.get('modelo', modelo)}",
+        como = {"caminho": "conhecimento", "modelo": f"{uso.get('provedor', 'nuvem')} · {uso.get('modelo', modelo)}",
+                "decisao": decisao.como() if decisao is not None else {},
+                "biblioteca": [a["citacao"] for a in artigos],
                 "profundidade": {"nivel": nivel.id, "nome": nivel.nome},
                 "nuvem": {"onde": "nuvem", "provedor": uso.get("provedor", ""), "modelo": uso.get("modelo", modelo),
                           "tokens_entrada": uso.get("tokens_entrada", 0), "tokens_saida": uso.get("tokens_saida", 0)},
-                "escopo": {"apenas": [], "tudo": False, "sem_anexo": False, "criativo": True}}
+                "escopo": {"apenas": [], "tudo": False, "sem_anexo": False, "conhecimento": True}}
         interrompida = parar.is_set()
         trabalho.etapas[0].estado = PAUSADO if interrompida else CONCLUIDO
         trabalho.estado = PAUSADO if interrompida else CONCLUIDO

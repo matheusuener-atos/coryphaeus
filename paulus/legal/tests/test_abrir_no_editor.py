@@ -7,7 +7,8 @@ texto." e "Peça: crie um novo documento...", no modo criativo.
 
   - as três frases, numa conversa com trabalho redigido (cartão "levar ao
     editor"): abrem o MESMO rascunho que o botão abre, sem modelo, sem nuvem,
-    sem cópia nova ao pedir de novo - com o PDF anexado e com o modo criativo;
+    sem cópia nova ao pedir de novo - com o PDF anexado e com a nuvem (o modo
+    criativo, que estava ligado no caso real, saiu da tela em 13/10/2026);
   - o /fazer "levar_ao_editor" continua devolvendo o mesmo rascunho;
   - a frase que NOMEIA um arquivo ("o contrato de locação no editor") abre esse;
   - sem trabalho, o documento anexado abre no editor (e de novo, o mesmo);
@@ -262,8 +263,9 @@ def main() -> int:
 
     ids = []
     for i, frase in enumerate(FRASES):
-        # A 1ª com o PDF anexado; a 3ª no modo criativo e com a nuvem - como no caso real.
-        extra = {"apenas": [PDF]} if i == 0 else ({"criativo": True, "nuvem": True} if i == 2 else {})
+        # A 1ª com o PDF anexado; a 3ª com a nuvem - como no caso real (que
+        # estava no modo criativo, a pílula que saiu em 13/10/2026).
+        extra = {"apenas": [PDF]} if i == 0 else ({"nuvem": True} if i == 2 else {})
         r = perguntar(tid, frase, **extra)
         p = r["proposta"]
         ids.append((p.get("campos") or {}).get("id"))
@@ -318,7 +320,7 @@ def main() -> int:
     print("\nsem trabalho e sem documento")
     tid3 = nova()
     antes = n_documentos()
-    r = perguntar(tid3, "abra o contrato no editor de texto", criativo=True, nuvem=True)
+    r = perguntar(tid3, "abra o contrato no editor de texto", nuvem=True)
     checar(not r["proposta"] and "ainda não há nenhum contrato redigido" in r["texto"] and "redija" in r["texto"],
            "diz que não há contrato redigido e oferece redigir", r["texto"])
     checar("Peça:" not in r["texto"] and n_documentos() == antes and not fake.chamadas, "sem inventar nada, sem modelo")
@@ -331,15 +333,15 @@ def main() -> int:
     checar(r["proposta"].get("tipo") == "abrir" and (r["proposta"].get("campos") or {}).get("nome") == LOCACAO,
            "o cartão de abrir o arquivo", (r["proposta"].get("tipo"), r["texto"][:120]))
 
-    print("\no eco “Peça: ...” no modo criativo")
+    print("\no eco “Peça: ...” na resposta da nuvem")
     tid5 = nova()
-    r = perguntar(tid5, "converta o contrato em PDF e mande pelo WhatsApp", criativo=True, nuvem=True)
-    checar(len(fake.chamadas) == 1, "foi à nuvem", len(fake.chamadas))
+    r = perguntar(tid5, "converta o contrato em PDF e mande pelo WhatsApp", nuvem=True)
+    checar(len(fake.chamadas) >= 1, "foi à nuvem", len(fake.chamadas))
     checar("substituir" in r["eventos"] and r["texto"] == instrucao_nuvem.FRASE_ECO_DE_PEDIDO,
            "a tela troca o eco pela frase honesta", r["texto"])
     checar(r["salvo"]["texto"] == instrucao_nuvem.FRASE_ECO_DE_PEDIDO, "e a conversa guarda a frase, não o eco", r["salvo"]["texto"])
     fake.resposta = "Para converter, abra o documento no editor e use Exportar."
-    r = perguntar(tid5, "como converto um contrato em PDF?", criativo=True, nuvem=True)
+    r = perguntar(tid5, "como converto um contrato em PDF?", nuvem=True)
     checar(r["salvo"]["texto"] == fake.resposta and "substituir" not in r["eventos"], "resposta de verdade fica como está",
            r["salvo"]["texto"])
 

@@ -49,7 +49,7 @@ async function gravarReuniaoNaConversa(d, caixa) {
     if (caixa) caixa.innerHTML = '<p class="explica">Não comecei a gravar: ' + esc(v.erro || "o microfone não abriu") + "</p>";
     return;
   }
-  // A proxima pergunta le os documentos do caso (a pilula da caixa diz).
+  // Os documentos do caso viram o foco: vao com a proxima pergunta como indicio.
   if (gcv.documentos.length) definirFoco(gcv.documentos);
   montarGravacaoNaConversa();
   if (gcv.documentos.length) carregarPontosDoCaso();

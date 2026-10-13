@@ -111,13 +111,12 @@ async function abrirTrabalho(id) {
   estado.trabalho = await r.json();
   estado.trabalhoId = id;
   if (typeof lembrarConversaAberta === "function") lembrarConversaAberta(id);
-  // A pílula mostra onde a próxima pergunta procura: o documento em foco
-  // desta conversa, quando há. Anexo de outra conversa não vem junto.
+  // O documento em foco desta conversa, quando há: vai com a pergunta como
+  // indício (o servidor decide). Anexo de outra conversa não vem junto.
   const foco = (estado.trabalho.contexto || {}).documento_em_foco || [];
-  estado.modoEscopo = "";
   definirEscopo([]);
   definirFoco(Array.isArray(foco) ? foco : [foco]);
-  // C3: o rascunho, os anexos, o modo de escopo e a rolagem desta conversa.
+  // C3: o rascunho, os anexos e a rolagem desta conversa.
   const guardado = typeof restaurarDaConversa === "function" ? restaurarDaConversa(estado.trabalho) : null;
   desenharTrabalho();
   if (guardado) restaurarRolagem(guardado);
@@ -170,7 +169,6 @@ $("nova").onclick = () => {
   estado.trabalhoId = null;
   estado.trabalho = null;
   estado.escopo = [];
-  estado.modoEscopo = "";
   definirFoco([]);
   $("compositor").hidden = false;
   $("conversa-titulo").textContent = "Nova conversa";

@@ -89,7 +89,7 @@ function abrirDocumentoAoLado(reg, o) {
   va.marca = Math.max(0, Math.min((reg.marcas || []).length - 1, opcoes.foco || 0));
   va.oferta = opcoes.oferta || null;
   va.oferta_d = opcoes.d || null;
-  // A proxima pergunta le so este documento (a linha acima da caixa diz), e
+  // Este documento vira o foco (vai com a proxima pergunta como indicio), e
   // a caixa pergunta sobre ele - como no desenho.
   definirFoco([reg.nome]);
   abrirNoLado("ferramenta", {

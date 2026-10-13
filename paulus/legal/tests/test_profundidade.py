@@ -676,20 +676,28 @@ def main() -> int:
     checar(fake.etapas(n0) == ["entrevista", "plano_secoes"], "texto livre é resposta: nova análise e o plano", fake.etapas(n0))
     checar("receber e dar quitação" in json.dumps(fake.chamadas[n0]["corpo"], ensure_ascii=False), "a explicação vai à análise")
 
-    print("\nmodo criativo: sem ler documento")
+    print("\nconhecimento, decidido pela frase: sem ler documento")
+    # A pílula "Modo criativo" saiu (13/10/2026): o Paulus decide pela frase
+    # (src/caminho_da_pergunta.py).
     n0 = len(fake.chamadas)
     evs, t = perguntar(nova(), {"pergunta": "Quais as teses de defesa mais comuns numa ação de despejo?", "nuvem": True,
-                                "criativo": True, "profundidade": "advogado"})
+                                "profundidade": "advogado"})
     etapas = fake.etapas(n0)
     checar(etapas == ["resposta"], "uma chamada só, sem triagem nem busca", etapas)
     enviado = json.dumps(fake.chamadas[-1]["corpo"], ensure_ascii=False)
-    checar("MODO CRIATIVO" in enviado and "PROFUNDIDADE: Advogado" in enviado and "minuta-anterior" not in enviado,
-           "a instrução do modo criativo e do nível, sem trecho de documento")
+    checar("CONHECIMENTO" in enviado and "PROFUNDIDADE: Advogado" in enviado and "minuta-anterior" not in enviado,
+           "a instrução de conhecimento e do nível, sem trecho de documento")
     ultima = t["mensagens"][-1]
     checar(ultima["autor"] == "paulus" and "Resposta comum da nuvem" in ultima["texto"]
-           and ultima["cobertura"]["como"]["caminho"] == "criativo", "a resposta fica, marcada como criativa", ultima.get("cobertura"))
-    evs, t = perguntar(nova(), {"pergunta": "Quais as teses de defesa numa ação de despejo?", "nuvem": False, "criativo": True})
-    checar("nuvem" in t["mensagens"][-1]["texto"], "sem a nuvem, diz por quê", t["mensagens"][-1]["texto"])
+           and ultima["cobertura"]["como"]["caminho"] == "conhecimento"
+           and ultima["cobertura"]["como"]["decisao"]["caminho"] == "conhecimento",
+           "a resposta fica, marcada como conhecimento, com a decisão", ultima.get("cobertura"))
+    n0 = len(fake.chamadas)
+    evs, t = perguntar(nova(), {"pergunta": "Quais as teses de defesa numa ação de despejo?", "nuvem": False})
+    checar(not fake.chamadas[n0:] and t["mensagens"][-1]["autor"] == "paulus"
+           and (t["mensagens"][-1].get("cobertura") or {}).get("como", {}).get("caminho") == "conhecimento",
+           "sem a nuvem, responde aqui pelo mesmo caminho (sem ir à nuvem)",
+           (fake.etapas(n0), (t["mensagens"][-1].get("cobertura") or {}).get("como")))
 
     print("\npedir o sim a cada envio: o caminho de sempre")
     api.estado.prefs.dados["nuvem"]["pedir_cada_envio"] = True

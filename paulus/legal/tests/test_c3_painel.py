@@ -9,8 +9,9 @@ chaves `conversa.execucao`, `pensando` e `painel` ligadas:
   - a contagem de trechos aparece em no máximo um lugar por resposta, além do
     painel;
   - o rascunho da A não aparece na B, e volta ao reabrir a A;
-  - o escopo "perguntar" escolhido na A continua na A depois de ir à B e
-    voltar (e fica no servidor);
+  - sem a pílula de escopo nem a linha "A próxima pergunta…" (saíram em
+    13/10/2026: o Paulus decide onde procurar); o anexo pendente da A fica
+    na A;
   - em 390 px o painel começa fechado;
   - uma conversa concluída mostra o "Progresso" com as etapas feitas, no
     alto da coluna (pacote de telas de 01/10/2026; antes ele saía);
@@ -181,31 +182,42 @@ def test_tela(base: str, a: dict, b: dict) -> None:
         checar(painel["props"], "motor e trechos indexados só no modo de diagnóstico")
         contas = pag.evaluate(r"""() => [...document.querySelectorAll('#centro .resposta')].map(r => (r.innerText.match(/\d+ trechos?\b/g) || []).length)""")
         checar(contas and max(contas) <= 1, "a contagem de trechos em no máximo um lugar por resposta", contas)
-        barra = pag.evaluate("() => document.getElementById('registro-agora').textContent")
-        checar(barra.startswith(("A próxima pergunta", "Na próxima pergunta")) and "trecho" not in barra,
-               "a barra acima do campo diz onde a próxima pergunta procura, sem contagem de trechos", barra)
+        caixa = pag.evaluate("""() => ({
+          registro: document.getElementById('registro').hidden,
+          texto: document.getElementById('registro-agora').textContent,
+          escopo: document.getElementById('escopo').hidden,
+          pilula: !!document.querySelector('#escopo-modo, .escopo-livre'),
+          criativo: document.getElementById('compositor').innerText.includes('Modo criativo'),
+        })""")
+        checar(caixa["registro"] and "próxima pergunta" not in caixa["texto"].lower(),
+               "a linha \"A próxima pergunta…\" acima do campo saiu", caixa)
+        checar(caixa["escopo"] and not caixa["pilula"] and not caixa["criativo"],
+               "sem anexo, a caixa não tem pílula de escopo nem \"Modo criativo\"", caixa)
 
-        # rascunho e escopo por conversa
+        # rascunho e anexo por conversa
         pag.fill("#pedido", "rascunho que é da A")
         pag.wait_for_timeout(400)
-        pag.evaluate("() => { let n = 0; while (modoDoEscopo() !== 'perguntar' && n++ < 4) alternarModoDoEscopo(); }")
-        pag.wait_for_timeout(400)
+        anexado = pag.evaluate("() => { const d = (estado.abertos || [])[0]; return d ? (d.nome || d.name || d) : 'Contrato A.docx'; }")
+        pag.evaluate("(n) => definirEscopo([n])", anexado)
+        anexo = pag.evaluate("""() => ({ escopo: document.getElementById('escopo').hidden,
+          chip: (document.querySelector('#escopo .escopo-pilula') || {}).innerText || '',
+          tirar: !!document.querySelector('#escopo [data-tirar]') })""")
+        checar(not anexo["escopo"] and anexado in anexo["chip"] and anexo["tirar"],
+               "o chip do anexo fica, com o x para tirar", anexo)
         pag.evaluate(f"() => abrirTrabalho('{b['id']}')")
         pag.wait_for_timeout(800)
-        na_b = pag.evaluate("() => ({ pedido: document.getElementById('pedido').value, modo: modoDoEscopo() })")
-        checar(na_b["pedido"] == "", "o rascunho da A não aparece na B", na_b)
+        na_b = pag.evaluate("() => ({ pedido: document.getElementById('pedido').value, anexos: estado.escopo.slice() })")
+        checar(na_b["pedido"] == "" and not na_b["anexos"], "o rascunho e o anexo da A não aparecem na B", na_b)
         pag.evaluate(f"() => abrirTrabalho('{a['id']}')")
         pag.wait_for_timeout(800)
-        de_volta = pag.evaluate("() => ({ pedido: document.getElementById('pedido').value, modo: modoDoEscopo() })")
-        checar(de_volta["pedido"] == "rascunho que é da A", "e volta ao reabrir a A", de_volta)
-        checar(de_volta["modo"] == "perguntar" and na_b["modo"] != "perguntar",
-               "o escopo \"perguntar\" da A continua na A depois de ir à B", (na_b["modo"], de_volta["modo"]))
+        de_volta = pag.evaluate("() => ({ pedido: document.getElementById('pedido').value, anexos: estado.escopo.slice() })")
+        checar(de_volta["pedido"] == "rascunho que é da A" and de_volta["anexos"] == [anexado],
+               "e voltam ao reabrir a A", de_volta)
         conv = _pedir(base, "GET", f"/api/trabalhos/{a['id']}")
-        checar((conv.get("contexto") or {}).get("modo_escopo") == "perguntar", "e o modo ficou no servidor")
+        checar("modo_escopo" not in (conv.get("contexto") or {}), "nenhum modo de escopo guardado no servidor")
+        pag.evaluate("() => definirEscopo([])")
 
-        # duas perguntas ao mesmo tempo (de volta ao Acervo inteiro: no modo
-        # "perguntar", a pergunta sem documento volta com o cartão de onde)
-        pag.evaluate("() => { let n = 0; while (modoDoEscopo() !== 'acervo' && n++ < 4) alternarModoDoEscopo(); }")
+        # duas perguntas ao mesmo tempo
         pag.fill("#pedido", "")
         pag.evaluate("() => { enviar({ texto: 'qual a multa, devagar?', apenas: ['Contrato A.docx'] }); }")
         pag.wait_for_function("() => estado.ocupado", timeout=5000)

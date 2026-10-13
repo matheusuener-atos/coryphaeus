@@ -144,7 +144,10 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     dispositivos = [tuple(d) for d in triagem.get("dispositivos") or []]
     so_lei = triagem.get("assunto") == "lei" and not lidos
     leis_em_casa = getattr(material, "leis", None) if material is not None else None
-    if so_lei and not dispositivos and leis_em_casa is not None:
+    # O caminho de conhecimento (src/caminho_da_pergunta.py): a escrita livre
+    # ("escreva um e-mail de boas-vindas") nem procura artigo.
+    conhecimento = triagem.get("conhecimento") or ""
+    if so_lei and not dispositivos and leis_em_casa is not None and not triagem.get("sem_lei"):
         dispositivos = [(a["codigo"], a["numero"]) for a in leis_em_casa.procurar_assunto(pergunta, limite=2)]
     do_material = material.consultar(pergunta) if material is not None else []
     bloco_material = ""
@@ -168,6 +171,11 @@ def executar(ctx: Contexto, pergunta: str = "", top: int = 6, apenas=None):
     # Pergunta de lei, sem documento nenhum pedido: os artigos, e não o Acervo.
     # Antes, "qual o prazo para contestar?" lia trechos de 19 documentos e
     # respondia de um PDF sobre confissão (bateria de 02/10/2026).
+    if so_lei and conhecimento:
+        ctx.registrar("Respondi pelo que sei, sem ler o Acervo" + (
+            " - com " + _quantos(len(dispositivos), "artigo") + " da Biblioteca" if dispositivos else ""))
+        yield from _responder(ctx, pergunta, [], orcamento, material=leitura_material, caminho="conhecimento")
+        return
     if so_lei:
         ctx.registrar("A pergunta é de lei: li " + (_quantos(len(dispositivos), "artigo") + " dos códigos guardados"
                                                     if dispositivos else "os códigos guardados") + ", e não o Acervo")

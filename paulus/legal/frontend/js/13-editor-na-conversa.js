@@ -295,7 +295,7 @@ function desenharEditorAoLado() {
   });
   $("conversa-col").classList.add("com-editor");
   if (dupla.oferta) marcarBotaoDaOferta(dupla.oferta, "editar", dupla.nomeOriginal);
-  // A próxima pergunta é sobre este documento (a linha acima da caixa diz).
+  // Este documento vira o foco: vai com a próxima pergunta como indício.
   if (dupla.nomeOriginal) definirFoco([dupla.nomeOriginal]);
 
   desenharAtalhosDoEditor();
