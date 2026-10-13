@@ -331,3 +331,147 @@ def _conferir_na_base(frase: str, nos_trechos: list[dict], leis, pergunta: str, 
             if chave not in [(c["codigo"], c["numero"]) for c in rev.conferidas]:
                 rev.conferidas.append(artigo)
     return ""
+
+
+# ------------------------------------------------------------ cláusula, parágrafo, inciso
+
+# 13/10/2026, conversa "Contrato Obedi Lourenço": a resposta sobre o contrato
+# citava "Cláusula 3ª, Parágrafo 1º", "Cláusula 10ª, Parágrafo 2º",
+# "Cláusula 5ª, Inciso IV" - e o contrato não tinha esses parágrafos. A
+# quarta conferência: a referência a cláusula, parágrafo ou inciso de um
+# documento é conferida contra o TEXTO INTEIRO dos documentos lidos (não só
+# os trechos: a cláusula 10ª pode não ter vindo nos trechos e existir). O
+# que não existe fica marcado na própria resposta - "[não encontrada no
+# documento]" -, e a frase não some: quem lê vê a referência e o aviso.
+_ORDINAIS = ["primeira", "segunda", "terceira", "quarta", "quinta", "sexta", "setima", "oitava", "nona"]
+_ORDINAIS_M = ["primeiro", "segundo", "terceiro", "quarto", "quinto", "sexto", "setimo", "oitavo", "nono"]
+_DEZENAS = {"decima": 10, "vigesima": 20, "trigesima": 30, "decimo": 10, "vigesimo": 20, "trigesimo": 30}
+
+
+def _plano_ref(texto: str) -> str:
+    import unicodedata
+
+    normal = unicodedata.normalize("NFD", texto or "")
+    return "".join(c for c in normal if unicodedata.category(c) != "Mn").lower()
+
+
+def _numero_por_extenso(palavras: str) -> int:
+    """"decima segunda" -> 12, "terceira" -> 3, "unico" -> 0 (parágrafo único); -1 quando não é ordinal."""
+    partes = palavras.split()
+    total = 0
+    for p in partes:
+        if p in _DEZENAS:
+            total += _DEZENAS[p]
+        elif p in _ORDINAIS:
+            total += _ORDINAIS.index(p) + 1
+        elif p in _ORDINAIS_M:
+            total += _ORDINAIS_M.index(p) + 1
+        else:
+            return -1
+    return total
+
+
+_ORD = r"(?:(?:decim[ao]|vigesim[ao]|trigesim[ao])(?:\s+(?:" + "|".join(_ORDINAIS + _ORDINAIS_M) + r"))?|" + \
+    "|".join(_ORDINAIS + _ORDINAIS_M) + r")"
+# Sobre o texto sem acento e em minúscula (mesmo tamanho do original: o NFD
+# só tira os acentos combinantes quando o texto já veio composto - por isso a
+# posição é procurada de novo no original, pelo comprimento).
+RE_CLAUSULA_PLANA = re.compile(r"\bclausula\s+(?:(\d{1,3})\s*(?:ª|a\b|º|°|o\b|\.)?|(" + _ORD + r")\b)")
+RE_PARAGRAFO_PLANO = re.compile(r"(?:\bparagrafo\s+(?:(unico)|(\d{1,2})\s*(?:º|°|o\b)?|(" + _ORD + r")\b)|§\s*(\d{1,2})\s*(?:º|°)?)")
+RE_INCISO = re.compile(r"\b[Ii]nciso\s+([IVXLC]{1,6})\b")
+
+
+def _numero_da_clausula(m: re.Match) -> int:
+    if m.group(1):
+        return int(m.group(1))
+    return _numero_por_extenso(m.group(2))
+
+
+def _numero_do_paragrafo(m: re.Match) -> int:
+    if m.group(1):
+        return 0
+    if m.group(2) or m.group(4):
+        return int(m.group(2) or m.group(4))
+    return _numero_por_extenso(m.group(3))
+
+
+def _clausulas_do_documento(texto: str) -> dict[int, list[str]]:
+    """{número da cláusula: [o texto dela]}, pelos títulos "CLÁUSULA 3ª" no começo de linha."""
+    original = texto or ""
+    plano = _plano_ref(original)
+    if len(plano) != len(original):
+        original = plano                   # sem a mesma medida, confere no texto plano mesmo
+    titulos = [m for m in RE_CLAUSULA_PLANA.finditer(plano)
+               if plano[:m.start()].rstrip(" \t").endswith("\n") or m.start() == 0 or
+               not plano[:m.start()].strip()]
+    if not titulos:
+        # Extração sem quebra de linha antes do título: toda menção conta.
+        titulos = list(RE_CLAUSULA_PLANA.finditer(plano))
+    saida: dict[int, list[str]] = {}
+    for i, m in enumerate(titulos):
+        n = _numero_da_clausula(m)
+        if n <= 0:
+            continue
+        fim = titulos[i + 1].start() if i + 1 < len(titulos) else len(plano)
+        saida.setdefault(n, []).append(original[m.start():fim])
+    return saida
+
+
+def _tem_paragrafo(corpos: list[str], n: int) -> bool:
+    for corpo in corpos:
+        for m in RE_PARAGRAFO_PLANO.finditer(_plano_ref(corpo)):
+            if _numero_do_paragrafo(m) == n:
+                return True
+    return False
+
+
+def _tem_inciso(corpos: list[str], romano: str) -> bool:
+    padrao = re.compile(r"(?:^|\n|\s)" + re.escape(romano) + r"\s*[-–—.)]|\binciso\s+" + re.escape(romano.lower()) + r"\b")
+    return any(padrao.search(c) or padrao.search(c.lower()) for c in corpos)
+
+
+def conferir_clausulas(resposta: str, textos_dos_documentos) -> tuple[str, list[str]]:
+    """
+    (a resposta com as referências que não existem marcadas, o que foi marcado).
+
+    Só confere quando os documentos lidos têm cláusulas numeradas: sem
+    nenhum título "CLÁUSULA", não há com o que conferir, e nada é marcado.
+    """
+    clausulas: dict[int, list[str]] = {}
+    for t in textos_dos_documentos or []:
+        for n, corpos in _clausulas_do_documento(t).items():
+            clausulas.setdefault(n, []).extend(corpos)
+    if not clausulas or not resposta:
+        return resposta, []
+    plano = _plano_ref(resposta)
+    if len(plano) != len(resposta):
+        return resposta, []
+    marcas: list[tuple[int, str, str]] = []          # (posição, aviso, o que foi citado)
+    for m in RE_CLAUSULA_PLANA.finditer(plano):
+        n = _numero_da_clausula(m)
+        if n <= 0:
+            continue
+        citado = resposta[m.start():m.end()].strip()
+        if n not in clausulas:
+            marcas.append((m.end(), " [não encontrada no documento]", citado))
+            continue
+        # O que vem logo depois: ", Parágrafo 1º", " - § 2º", ", inciso IV".
+        depois = plano[m.end():m.end() + 40]
+        mp = re.match(r"\s*(?:[-–—,]\s*|\s)(?:(?:o|seu|no|do)\s+)?", depois)
+        resto_ini = m.end() + (mp.end() if mp else 0)
+        p = RE_PARAGRAFO_PLANO.match(plano, resto_ini)
+        if p:
+            np_ = _numero_do_paragrafo(p)
+            if np_ >= 0 and not _tem_paragrafo(clausulas[n], np_):
+                marcas.append((p.end(), " [esse parágrafo não está no documento]",
+                               resposta[m.start():p.end()].strip()))
+            continue
+        i = RE_INCISO.match(resposta, resto_ini)
+        if i and not _tem_inciso(clausulas[n], i.group(1)):
+            marcas.append((i.end(), " [esse inciso não está no documento]", resposta[m.start():i.end()].strip()))
+    if not marcas:
+        return resposta, []
+    saida = resposta
+    for pos, aviso, _ in sorted(marcas, key=lambda x: -x[0]):
+        saida = saida[:pos] + aviso + saida[pos:]
+    return saida, [f"{citado}: não está no documento" for _, _, citado in marcas]

@@ -946,8 +946,26 @@ function cartaoProposta(d) {
       '<div class="linha-form"><button class="primario" data-prop="mudar">Abrir e fazer a mudança</button></div></div>';
   }
   // "...e salve no editor": a resposta virou um rascunho no Editor de texto.
+  // Os ajustes respondidos (src/conversa_continua.py): o sim abre o rascunho
+  // no editor e pede as mudanças, que ficam marcadas para manter ou descartar.
+  if (d.tipo === "aplicar_ajustes") {
+    const lista = (d.ajustes || []).map((a) => "<li><b>" + esc(a.ponto) + "</b> — " +
+      (a.decida ? "você pediu que eu decida" : esc(a.como)) + "</li>").join("");
+    const alvo = d.alvo || {};
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">' +
+      (d.feito ? "aplicado no editor" : "ajustes para aplicar") + "</span><b>" + esc(d.titulo || "") + "</b></div>" +
+      (lista ? '<ul class="ent-resumo">' + lista + "</ul>" : "") +
+      (d.feito ? "" : alvo.tipo
+        ? '<p class="explica">Abro o rascunho no editor e cada mudança fica marcada, para você manter ou descartar. ' +
+          "O original não muda.</p>" +
+          '<div class="linha-form"><button class="primario" data-prop="aplicar-ajustes">Aplicar no editor</button>' +
+          '<button data-prop="nao">Agora não</button></div>'
+        : '<p class="explica">Sem documento nesta conversa onde aplicar: anexe o contrato ou abra-o no editor.</p>') +
+      "</div>";
+  }
+  // "Abra o contrato no editor": o mesmo cartão, para o que já estava lá (reaberto).
   if (d.tipo === "editor_criado") {
-    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">salvo no editor</span>' +
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">' + (d.reaberto ? "no editor" : "salvo no editor") + "</span>" +
       "<b>" + esc(c.titulo || "") + "</b></div>" +
       '<div class="linha-form"><button class="primario" data-prop="abrir-rascunho">Abrir no editor</button></div></div>';
   }
@@ -1398,6 +1416,32 @@ async function fazerDoCartaoDoEditor(caixa, d) {
   await pedirNoDocumento(c.pedido || "", { jaDito: true });
 }
 
+/* "Aplicar no editor": o servidor abre (ou cria) o rascunho e devolve o
+   pedido; o editor abre ao lado e o assistente dele escreve as mudanças,
+   marcadas para manter ou descartar (js/13-editor-na-conversa.js). */
+function ligarAplicarAjustes(caixa, d) {
+  const sim = caixa.querySelector('[data-prop="aplicar-ajustes"]');
+  const nao = caixa.querySelector('[data-prop="nao"]');
+  if (nao) nao.onclick = () => {
+    caixa.innerHTML = '<p class="explica">Tudo bem — nada foi mudado. Os ajustes ficam aqui na conversa.</p>';
+  };
+  if (!sim) return;
+  sim.onclick = async () => {
+    sim.disabled = true;
+    const r = await fetch("/api/trabalhos/" + estado.trabalhoId + "/fazer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "aplicar_ajustes", campos: d.campos || {} }),
+    });
+    if (!r.ok) { sim.disabled = false; avisoCert(await erroDe(r), { tom: "erro" }); return; }
+    const feito = (await r.json()).proposta || {};
+    const c = feito.campos || {};
+    caixa.innerHTML = '<p class="explica">Abri “' + esc(c.titulo || "") + "” no editor e pedi os ajustes. Cada mudança " +
+      "fica marcada no texto, para você manter ou descartar.</p>";
+    await mostrarDupla(c.id);
+    if (c.pedido && typeof pedirNoDocumento === "function") await pedirNoDocumento(c.pedido, { jaDito: true });
+  };
+}
+
 function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "gravar" && typeof gravarReuniaoNaConversa === "function") return gravarReuniaoNaConversa(d, caixa);
   if (d.tipo === "assinar") return ligarAssinarNaProposta(caixa, d);
@@ -1417,6 +1461,7 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "clausula") return ligarClausula(caixa, d);
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
   if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);
+  if (d.tipo === "aplicar_ajustes") return ligarAplicarAjustes(caixa, d);
   if (d.tipo === "mudar_documento" || d.tipo === "editor_criado") {
     const botao = caixa.querySelector('[data-prop="mudar"], [data-prop="abrir-rascunho"]');
     if (botao) botao.onclick = () => fazerDoCartaoDoEditor(caixa, d);

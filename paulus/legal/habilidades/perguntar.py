@@ -715,6 +715,27 @@ def _responder(ctx: Contexto, pergunta: str, hits, orcamento: int, apenas=None, 
             escrito = [limpo]
             yield evento("revisao", texto=limpo, removidas=["link ou e-mail que não estava nos trechos: " + x for x in fora[:5]])
 
+    # A quarta conferencia (src/citacoes.py, 13/10/2026): "Cláusula 3ª,
+    # Parágrafo 1º" que o documento lido nao tem fica marcada na resposta.
+    if escrito and consultados and not (getattr(ctx, "parar", None) and ctx.parar()):
+        import citacoes
+
+        lidos = [d.text for d in ctx.documentos if d.name in set(consultados)]
+        conferido, marcadas = citacoes.conferir_clausulas("".join(escrito), lidos)
+        if marcadas:
+            ctx.registrar("marquei na resposta o que não está no documento: " + "; ".join(marcadas[:3]))
+            escrito = [conferido]
+            yield evento("revisao", texto=conferido, sem_fonte=0, removidas=marcadas, marcas=0)
+    # Quem lê é advogado: a frase "consulte um advogado" sai (src/conversa_continua.py).
+    if escrito and not (getattr(ctx, "parar", None) and ctx.parar()):
+        import conversa_continua
+
+        sem_ressalva, tiradas = conversa_continua.sem_ressalva_de_leigo("".join(escrito))
+        if tiradas:
+            ctx.registrar("tirei da resposta a recomendação de procurar um advogado: quem pergunta é o escritório")
+            escrito = [sem_ressalva]
+            yield evento("revisao", texto=sem_ressalva, sem_fonte=0, removidas=[], marcas=0)
+
     # Pergunta de consequencia: a frase do documento que decide, literal,
     # quando ela traz o que a resposta deixou de fora (src/verificacao.py).
     import verificacao

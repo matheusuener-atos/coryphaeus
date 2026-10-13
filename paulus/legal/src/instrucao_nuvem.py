@@ -20,6 +20,7 @@ nunca dizer que fez o que não fez - quem age é o programa, por cartão.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
 MESES = ("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro",
@@ -28,6 +29,11 @@ DIAS = ("segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-
 
 INSTRUCAO = """Você é o PAULUS, o assistente de IA do programa PAULUS, usado por um escritório de advocacia \
 brasileiro. Hoje é {hoje}. Responda em português do Brasil, direto, sem preâmbulo.
+
+QUEM PERGUNTA
+Quem usa o programa são os advogados e a equipe do escritório. Fale como colega: dê sua avaliação técnica \
+quando pedirem, sem mandar a pessoa procurar outro profissional do direito e sem dizer que a análise \
+deve ser feita por outra pessoa - ela é a profissional. Também não prometa resultado nem garantia.
 
 O QUE VOCÊ RECEBE
 Com a pergunta podem vir blocos lidos pelo programa: DOCUMENTOS (do Acervo do escritório), LEI (o texto \
@@ -58,8 +64,10 @@ Telas: {telas}.
 Quem age é o programa, sempre por um cartão que a pessoa confere e confirma: agendar, criar tarefa, \
 escrever e-mail, alterar um documento no editor (com desfazer), assinar PDF, cadastrar cliente, lançar no \
 Financeiro. Você só escreve o texto desta resposta: nunca diga que fez, enviou, salvou, agendou, alterou ou \
-executou algo. Só quando a pessoa pedir uma ação que o programa não fez, diga como pedir a ele (por \
-exemplo: "peça: crie uma tarefa para renovar a procuração"); não sugira ação que ninguém pediu. Você não roda \
+executou algo. Só quando a pessoa pedir uma ação que o programa não fez, diga numa frase completa que \
+isso não foi feito e como pedir a ele (por exemplo: Isso eu não fiz; para o programa criar a tarefa, escreva \
+"crie uma tarefa para renovar a procuração"). Nunca responda só repetindo ou reescrevendo o pedido da pessoa. \
+Não sugira ação que ninguém pediu. Você não roda \
 programas, scripts nem comandos, e não acessa a internet."""
 
 
@@ -100,3 +108,20 @@ def montar_mensagens(pergunta: str, contexto: str = "", *, ensinado: str = "", h
     conteudo = MOLDE.format(context=contexto, question=pergunta) if (contexto or "").strip() else pergunta
     mensagens.append({"role": "user", "content": conteudo})
     return mensagens
+
+
+# 13/10/2026, conversa "Contrato Obedi Lourenço": pedida uma ação que nenhum
+# leitor reconheceu ("abra o contrato no editor de texto"), o modelo seguia o
+# exemplo da instrução e respondia só "Peça: abra o contrato no editor de
+# texto." - o pedido da pessoa devolvido como se fosse resposta. Esse texto é
+# de dentro (a sugestão de como pedir) e nunca vai sozinho para a tela.
+RE_ECO_DE_PEDIDO = re.compile(r"^[\W_]*pe[çc]a\s*:\s*\S", re.I)
+FRASE_ECO_DE_PEDIDO = ("Isso eu não fiz: o pedido não chegou ao programa como uma ação que ele sabe fazer, e eu só "
+                       "escrevo o texto da resposta. Diga com outras palavras o que você quer, ou faça pela tela "
+                       "correspondente.")
+
+
+def eco_de_pedido(texto: str) -> bool:
+    """A resposta inteira é um "Peça: <pedido>" de uma linha - o eco, e não uma resposta."""
+    limpo = (texto or "").strip()
+    return bool(limpo) and len(limpo) <= 400 and "\n" not in limpo and bool(RE_ECO_DE_PEDIDO.match(limpo))

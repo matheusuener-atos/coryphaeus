@@ -240,7 +240,7 @@ def ler_aviso(texto: str) -> int:
 class Intencao:
     """O que a frase pede, com os campos já lidos."""
 
-    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | passos | gravar | documentos
+    tipo: str                       # agenda | tarefa | sobre | abrir | servico | cadastro | nota | passos | gravar | levar_ao_editor | documentos
     titulo: str = ""
     campos: dict = field(default_factory=dict)
     resumo: str = ""
@@ -1219,6 +1219,14 @@ def ler(texto: str, hoje: date | None = None, documentos=None, cadastros=None) -
     if varios:
         return varios
 
+    # "Abra o contrato aqui no editor": levar ao Editor de texto o que a
+    # conversa redigiu (ou o documento nomeado/anexado). Antes do "abrir
+    # arquivo" e da leitura: não é pergunta sobre o documento em foco.
+    no_editor = pede_no_editor(texto)
+    if no_editor is not None:
+        return Intencao(tipo="levar_ao_editor", titulo=no_editor["coisa"] or "o documento", campos=no_editor,
+                        porque="“no editor” e o documento desta conversa")
+
     # "Você consegue me dizer qual o valor do contrato?" é pedido, com
     # gentileza na frente - não pergunta sobre o programa.
     if any(p in plano for p in SOBRE) and not RE_SOBRE_E_PEDIDO.search(plano):
@@ -1496,6 +1504,98 @@ def salvar_no_editor(texto: str) -> tuple[bool, str]:
         return False, texto
     resto = (texto[:m.start()] + texto[m.end():]).strip(" ,;")
     return bool(resto), resto or texto
+
+
+# "Abra o contrato aqui no editor", "abre o contrato que fizemos juntos nessa
+# conversa aqui no editor", "leva isso pro editor" (caso real de 13/10/2026,
+# conversa "Contrato Obedi Lourenço"): o pedido é levar ao Editor de texto o
+# que a conversa redigiu - ou o documento que a frase nomeia ou que veio
+# anexado. Ia para a leitura do PDF em foco ("item 3") e para o modo
+# criativo, que devolvia "Peça: abra o contrato no editor de texto".
+# A frase inteira tem que ser o pedido: verbo, o que levar e "no editor", e
+# nada de pedido de mudança no meio ("coloque a cláusula de multa no
+# editor" não é abrir).
+VERBOS_LEVAR_AO_EDITOR = (
+    "abra", "abre", "abrir", "reabra", "reabre", "reabrir", "leve", "leva", "levar", "coloque", "coloca",
+    "colocar", "ponha", "poe", "bote", "bota", "mande", "manda", "mandar", "jogue", "joga", "passe", "passa",
+    "mostre", "mostra", "exiba", "carregue", "carrega", "traga", "traz", "transfira", "envie", "envia",
+)
+# O que pode ser levado: o substantivo e o artigo da resposta ("Abri a minuta no editor").
+COISAS_DO_EDITOR = {
+    "contrato": "o contrato", "minuta": "a minuta", "documento": "o documento", "peca": "a peça",
+    "texto": "o texto", "trabalho": "o trabalho", "peticao": "a petição", "parecer": "o parecer",
+    "procuracao": "a procuração", "rascunho": "o rascunho", "arquivo": "o arquivo", "notificacao": "a notificação",
+    "acordo": "o acordo", "termo": "o termo", "aditivo": "o aditivo", "contestacao": "a contestação",
+    "recurso": "o recurso", "anexo": "o anexo", "instrumento": "o instrumento", "distrato": "o distrato",
+    "declaracao": "a declaração", "requerimento": "o requerimento", "memorial": "o memorial",
+}
+RE_LEVAR_AO_EDITOR = re.compile(
+    r"^(?:(?:" + "|".join(sorted(ENFEITE | {"agora", "ok", "certo", "isso", "mesmo", "eu", "beleza", "otimo",
+                                            "perfeito", "sim", "pronto", "tu", "gentileza"}, key=len, reverse=True))
+    + r")\W+)*"
+    r"(?P<verbo>" + "|".join(VERBOS_LEVAR_AO_EDITOR) + r")(?:\W+(?:me|pra mim|para mim))?"
+    r"(?:\W+(?P<objeto>(?:o|a|os|as|esse|essa|este|esta|aquele|aquela|nosso|nossa|meu|minha|seu|sua|isso|isto|"
+    r"tudo|ele|ela)\b.{0,160}?))?"
+    r"\W+(?:(?:aqui|ai|la)\W+)?(?:no|pro|pra|para o|para|ao|dentro do|num|em um|no meu|no nosso)\W+editor"
+    r"(?:\W+de\W+texto)?"
+    r"(?:\W+(?:aqui|ai|agora|por favor|pfv|pra mim|para mim|de novo|novamente|ao lado|por gentileza|"
+    r"desta conversa|dessa conversa|da conversa))*\W*$")
+# Mudança, e não abrir: "coloque a cláusula de multa no editor", "abra o contrato e corrija ... no editor".
+RE_MUDANCA_NO_OBJETO = re.compile(
+    r"\b(?:corrij\w*|corrig\w*|mud\w*|troqu\w*|troc\w*|alter\w*|acrescent\w*|inclu\w*|resum\w*|traduz\w*|"
+    r"revis\w*|reescrev\w*|adicion\w*|substitu\w*|clausula|paragrafo|trecho)\b")
+# Palavras que só dizem de onde veio o documento - não nomeiam arquivo.
+PALAVRAS_DA_CONVERSA = {
+    "que", "fizemos", "fez", "fiz", "juntos", "junto", "nessa", "nesta", "conversa", "aqui", "voce", "vc",
+    "redigiu", "redigimos", "redigido", "redigida", "escreveu", "escrevemos", "escrito", "escrita", "criou",
+    "criamos", "criado", "criada", "montou", "montamos", "elaborou", "elaboramos", "elaborado", "elaborada",
+    "agora", "pouco", "antes", "ultimo", "ultima", "acabou", "acabamos", "fazer", "com", "mim", "comigo", "para",
+    "pra", "pro", "por", "nos", "dessa", "desta", "nesse", "neste", "isso", "isto", "tudo", "ele", "ela", "de",
+    "do", "da", "em", "um", "uma", "anexado", "anexada", "anexei", "acima", "referido", "referida", "mesmo",
+    "mesma", "novo", "nova", "pronto", "pronta", "final", "inteiro", "inteira", "completo", "completa",
+}
+
+
+def pede_no_editor(texto: str) -> dict | None:
+    """
+    A frase pede para abrir no Editor de texto o documento da conversa.
+
+    Devolve {"coisa": "o contrato" (ou ""), "objeto": o que vem entre o verbo
+    e "no editor", sem acento, "proprias": as palavras do objeto que podem
+    nomear um arquivo}, ou None. Quem decide QUAL documento é a conversa
+    (o trabalho redigido, o nomeado, o anexado) - src/api.py.
+    """
+    plano = " ".join(_plano(texto).split())
+    if "editor" not in plano or len(plano) > 240:
+        return None
+    m = RE_LEVAR_AO_EDITOR.match(plano)
+    if not m:
+        return None
+    objeto = (m.group("objeto") or "").strip()
+    if RE_MUDANCA_NO_OBJETO.search(objeto):
+        return None
+    palavras = re.findall(r"[a-z0-9]+", objeto)
+    nome = next((p for p in palavras if p in COISAS_DO_EDITOR), "")
+    # "o que fizemos", "isso", "tudo": sem substantivo, é o que a conversa fez.
+    if objeto and not nome and palavras[0] not in ("isso", "isto", "tudo", "ele", "ela", "o", "a"):
+        return None
+    if objeto and not nome and palavras[0] in ("o", "a") and (len(palavras) < 2 or palavras[1] != "que"):
+        return None
+    proprias = [p for p in palavras if len(p) >= 3 and p not in COISAS_DO_EDITOR and p not in PALAVRAS_DA_CONVERSA
+                and p not in ENFEITE and p not in GENERICAS and p not in SO_O_DOCUMENTO]
+    return {"coisa": COISAS_DO_EDITOR.get(nome, ""), "objeto": objeto, "proprias": proprias}
+
+
+def documento_no_editor(pedido: dict, documentos=None) -> str:
+    """
+    O arquivo do Acervo que o pedido de abrir no editor NOMEIA ("abra o
+    contrato de locação no editor"). Só com palavra própria do nome: "o
+    contrato" sozinho não escolhe arquivo nenhum - é o da conversa.
+    """
+    if not pedido or not pedido.get("proprias"):
+        return ""
+    objeto = pedido.get("objeto") or ""
+    return documento_citado(objeto, documentos) or _documento_pedido(objeto, documentos)
 
 
 # Uma ação pendurada depois da pergunta: "...está vencida? Se estiver, crie

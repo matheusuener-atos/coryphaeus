@@ -60,6 +60,8 @@ import nomes as nomes_mod
 import citacao
 import escritorio
 import ferramentas
+import conversa_continua
+import instrucao_nuvem
 import intencao
 import juizo
 import modelos as modelos_mod
@@ -3954,6 +3956,34 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     # outro assunto; so a qualificacao colada, sem verbo, ainda pode ser a
     # resposta dela ("quem sao as partes?").
     cadastro_explicito = bool(pendente) and _pede_varios_cadastros(pergunta)
+    # "Abra o contrato aqui no editor" (caso real de 13/10/2026): o trabalho
+    # redigido nesta conversa vai ao editor, como no botão "levar ao editor".
+    # Antes da memória (que emendava a frase na pergunta anterior), da leitura
+    # do documento em foco e do modo criativo. Com a entrevista aberta e nada
+    # para abrir, a frase segue para ela.
+    pedido_editor = intencao.pede_no_editor(pergunta) if payload.entrevista is None else None
+    if pedido_editor is not None:
+        no_editor = _responder_no_editor(trabalho, pedido_editor, pergunta, payload, request, permitir_nada=not pendente)
+        if no_editor is not None:
+            return no_editor
+    # A conversa que continua do que acabou de ser dito (src/conversa_continua.py):
+    # as respostas às perguntas dos ajustes (do cartão ou da caixa), "me
+    # pergunte" sobre os pontos da última resposta e "aplique as sugestões".
+    ajustes = conversa_continua.aberto(trabalho.contexto)
+    id_do_cartao = str((payload.entrevista or {}).get("id") or "")
+    if payload.entrevista is not None and id_do_cartao.startswith("aj"):
+        if ajustes is None or ajustes["id"] != id_do_cartao:
+            return _so_dizer(trabalho, "Essas perguntas já foram respondidas. Se quiser ajustar outra coisa, é só pedir.")
+        return _seguir_ajustes(trabalho, payload, pergunta, ajustes)
+    if (ajustes is not None and payload.entrevista is None and not payload.retomar
+            and conversa_continua.responde_ajustes(pergunta, ajustes)):
+        return _seguir_ajustes(trabalho, payload, pergunta, ajustes)
+    if payload.entrevista is None and not pendente and conversa_continua.pede_perguntas(pergunta):
+        return _comecar_ajustes(trabalho, pergunta, payload, nivel_prof)
+    if payload.entrevista is None and not pendente and conversa_continua.pede_aplicar(pergunta):
+        aplicar = _aplicar_sugestoes(trabalho, pergunta, payload)
+        if aplicar is not None:
+            return aplicar
     if agente is None and not cadastro_explicito and (payload.entrevista is not None or (
             pendente and not payload.retomar and (not payload.apenas or pendente.get("fase") == "preparo")
             and not entrevista_mod.parece_outro_assunto(pergunta, pendente.get("pedido", "")))):
@@ -3967,6 +3997,17 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     continuou = False
     if (estado.prefs.dados.get("ia") or {}).get("memoria", True):
         pergunta, historico, continuou = memoria_mod.preparar(trabalho.mensagens, trabalho.contexto, pergunta)
+        # "Esses pontos", "o que falta", "isso que você sugeriu": o objeto é a
+        # última resposta, inteira - os ~600 tokens de sempre cortavam a lista
+        # (src/conversa_continua.py).
+        if conversa_continua.refere_a_anterior(pergunta):
+            anteriores = trabalho.mensagens[:-1] if trabalho.mensagens and trabalho.mensagens[-1].autor == "pessoa" \
+                else trabalho.mensagens
+            inteira = memoria_mod.historico(anteriores, limite_tokens=3000, pares=1)
+            if inteira:
+                historico = inteira
+                trabalho.registrar("A pergunta continua a minha última resposta: ela vai inteira junto",
+                                   mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
         if continuou:
             trabalho.registrar("Entendi como continuação da anterior: “" + pergunta + "”",
                                mexer_na_ordem=not rotas_execucoes.ligada(estado, "painel"))
@@ -4006,6 +4047,8 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
 
     lido = intencao.ler(pergunta, documentos=estado.searcher.documents,
                         cadastros=[f["nome"] for f in estado.cadastros.listar()])
+    if lido.tipo == "levar_ao_editor":
+        return _responder_no_editor(trabalho, lido.campos, pergunta, payload, request)
     # Bateria de 02/10/2026 (src/intencao.py, fim): o que o programa não faz
     # diz que não faz; "SEMA está errado, o certo é SEMAS - corrija" com o
     # documento anexado vai ao editor, em qualquer posição do verbo; e "...e
@@ -4370,6 +4413,15 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
 
         ctx = _contexto(registrar, parar=parar.is_set, tarefa=(agente.modelo if agente is not None and agente.modelo else "conversa"))
         ctx.historico = historico
+        # Opinião e continuidade (src/conversa_continua.py): a revisão como
+        # colega, e a última resposta como objeto do pedido.
+        extras = []
+        if conversa_continua.pede_opiniao(pergunta):
+            extras.append(conversa_continua.INSTRUCAO_OPINIAO)
+        if conversa_continua.refere_a_anterior(pergunta) and historico:
+            extras.append(conversa_continua.INSTRUCAO_CONTINUIDADE)
+        if extras:
+            ctx.ensinado = ((getattr(ctx, "ensinado", "") or "") + "\n\n" + "\n\n".join(extras)).strip()
         # A2: o corpo do agente, cercado e rotulado, no fim da instrucao de
         # sistema - abaixo das regras do produto (habilidades/perguntar.py).
         if agente is not None:
@@ -4613,6 +4665,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # texto, ligado a esta conversa. "Se estiver vencida, crie uma tarefa":
         # o cartão da tarefa vem embaixo da resposta, e quem confirma é a pessoa.
         escrito_final = "".join(partes).strip()
+        # O eco "Peça: <o pedido>" (src/instrucao_nuvem.py) não é resposta.
+        if instrucao_nuvem.eco_de_pedido(escrito_final):
+            escrito_final = instrucao_nuvem.FRASE_ECO_DE_PEDIDO
+            fontes, oferta = [], None
+            yield _sse("substituir", {"texto": escrito_final})
         feito_no_editor = None
         if salvar_no_editor and escrito_final:
             feito_no_editor = _resposta_no_editor(trabalho, pergunta, escrito_final, request)
@@ -4718,20 +4775,49 @@ def trabalhos_fazer(id_: str, payload: PropostaConfirmada) -> dict:
     # ultima resposta com o cartao "levar ao editor", como rascunho ligado a
     # esta conversa (o mesmo do "...e salve no editor").
     if payload.tipo == "levar_ao_editor":
-        msg = next((m for m in reversed(trabalho.mensagens)
-                    if m.autor == "paulus" and (m.proposta or {}).get("tipo") in ("levar_ao_editor", "editor_criado")), None)
-        if msg is None or not (msg.texto or "").strip():
+        try:
+            criado = _levar_ao_editor(trabalho, str(campos.get("titulo") or ""))
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if criado is None:
             raise HTTPException(status_code=404, detail="não achei o texto do trabalho nesta conversa")
-        if msg.feito and msg.feito.get("tipo") == "editar":
-            return {"proposta": {"tipo": "editor_criado", "titulo": msg.feito.get("nome", ""),
-                                 "campos": {"id": msg.feito["id"], "titulo": msg.feito.get("nome", "")}}}
-        criado = _resposta_no_editor(trabalho, "", msg.texto, None,
-                                     titulo=str(campos.get("titulo") or (msg.proposta or {}).get("titulo") or "Trabalho"))
-        if not criado:
-            raise HTTPException(status_code=500, detail="não consegui criar o rascunho no editor")
-        msg.feito = {"tipo": "editar", "id": criado["campos"]["id"], "nome": criado["campos"]["titulo"]}
-        estado.trabalhos.salvar(trabalho)
         return {"proposta": criado}
+    # Os ajustes respondidos (src/conversa_continua.py): o sim abre o rascunho
+    # no editor - o trabalho redigido aqui, ou a cópia editável do documento
+    # do Acervo - e devolve o pedido que a tela passa ao assistente do editor
+    # (/api/documentos/{id}/assistente), que deixa cada mudança marcada.
+    if payload.tipo == "aplicar_ajustes":
+        estado_a = conversa_continua.respondido(trabalho.contexto, str(campos.get("ajustes_id") or ""))
+        if estado_a is None:
+            raise HTTPException(status_code=404, detail="esses ajustes não estão mais esperando nesta conversa")
+        alvo = estado_a.get("alvo") or {}
+        if alvo.get("tipo") == "documento":
+            id_doc, tipo_doc = _rascunho_do_documento(trabalho, alvo["nome"])
+            if tipo_doc == "planilha":
+                raise HTTPException(status_code=400, detail="ajustes de contrato não se aplicam numa planilha")
+            nome = alvo["nome"]
+        elif alvo.get("tipo") == "trabalho":
+            try:
+                criado = _levar_ao_editor(trabalho)
+            except RuntimeError as exc:
+                raise HTTPException(status_code=500, detail=str(exc)) from exc
+            if criado is None:
+                raise HTTPException(status_code=404, detail="não achei o texto do trabalho nesta conversa")
+            id_doc, nome = criado["campos"]["id"], criado["campos"]["titulo"]
+        else:
+            raise HTTPException(status_code=409, detail="não há documento nesta conversa onde aplicar os ajustes")
+        estado_a["status"] = "aplicada"
+        estado_a["rascunho"] = id_doc
+        for m in reversed(trabalho.mensagens):
+            p = m.proposta or {}
+            if p.get("tipo") == "aplicar_ajustes" and (p.get("campos") or {}).get("ajustes_id") == estado_a["id"]:
+                p["feito"] = True
+                if alvo.get("tipo") == "documento":
+                    m.feito = {"tipo": "editar", "id": id_doc, "nome": nome, "onde": "editor"}
+                break
+        estado.trabalhos.salvar(trabalho)
+        return {"proposta": {"tipo": "aplicar_ajustes", "titulo": nome, "feito": True,
+                             "campos": {"id": id_doc, "titulo": nome, "pedido": conversa_continua.pedido_ao_editor(estado_a)}}}
     try:
         if payload.tipo == "abrir":
             nome = str(campos.get("nome", ""))
@@ -5960,6 +6046,256 @@ def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None, titul
             "porque": "você pediu para salvar no editor", "pergunta": pergunta}
 
 
+def _trabalho_redigido(trabalho):
+    """
+    A última resposta desta conversa que é um trabalho pronto para o editor:
+    o redigido (cartão "levar ao editor", src/elaboracao.py) ou a resposta
+    salva no editor ("...e salve no editor"). As respostas "Abri ... no
+    editor" (`reaberto`) não contam - o texto delas não é o trabalho.
+    """
+    return next((m for m in reversed(trabalho.mensagens)
+                 if m.autor == "paulus" and (m.proposta or {}).get("tipo") in ("levar_ao_editor", "editor_criado")
+                 and not (m.proposta or {}).get("reaberto") and (m.texto or "").strip()), None)
+
+
+def _levar_ao_editor(trabalho, titulo: str = "", request=None) -> dict | None:
+    """
+    O que o cartão "levar ao editor" faz (/fazer `levar_ao_editor`), e o
+    pedido "abra o contrato no editor" pela conversa: o trabalho redigido vira
+    rascunho no Editor de texto, ligado a esta conversa. Já levado, devolve o
+    mesmo rascunho, sem outra cópia; levado e depois apagado, cria de novo.
+    None quando a conversa não tem trabalho; RuntimeError quando não deu para criar.
+    """
+    msg = _trabalho_redigido(trabalho)
+    if msg is None:
+        return None
+    feito = msg.feito or {}
+    proposta = msg.proposta or {}
+    existente, nome = 0, ""
+    if feito.get("tipo") == "editar" and feito.get("id"):
+        existente, nome = int(feito["id"]), feito.get("nome", "")
+    elif proposta.get("tipo") == "editor_criado" and (proposta.get("campos") or {}).get("id"):
+        existente = int(proposta["campos"]["id"])
+        nome = proposta["campos"].get("titulo") or proposta.get("titulo", "")
+    if existente and estado.documentos.obter(existente):
+        return {"tipo": "editor_criado", "titulo": nome, "campos": {"id": existente, "titulo": nome}}
+    criado = _resposta_no_editor(trabalho, "", msg.texto, request,
+                                 titulo=str(titulo or proposta.get("titulo") or "Trabalho"))
+    if not criado:
+        raise RuntimeError("não consegui criar o rascunho no editor")
+    msg.feito = {"tipo": "editar", "id": criado["campos"]["id"], "nome": criado["campos"]["titulo"]}
+    estado.trabalhos.salvar(trabalho)
+    return criado
+
+
+def _dizer_e_abrir_no_editor(trabalho, texto: str, proposta: dict, feito: dict | None = None) -> StreamingResponse:
+    """A resposta curta com o cartão `editor_criado`: a tela abre o editor nele sozinha (js/03-assistente.js)."""
+    return _dizer_com_proposta(trabalho, texto, proposta, feito, etapa="Abrir no editor")
+
+
+def _dizer_com_proposta(trabalho, texto: str, proposta: dict, feito: dict | None = None,
+                        etapa: str = "Responder") -> StreamingResponse:
+    """Uma resposta sem modelo, com o cartão embaixo, gravada na conversa."""
+    def gerar() -> Iterator[str]:
+        trabalho.etapas = [Etapa(etapa, estado=CONCLUIDO)]
+        trabalho.estado = CONCLUIDO
+        trabalho.dizer("paulus", texto, proposta=proposta, **({"feito": feito} if feito else {}))
+        estado.trabalhos.salvar(trabalho)
+        yield _sse("token", {"t": texto})
+        yield _sse("proposta", proposta)
+        yield _sse("fim", {"segundos": 0, "titulo": trabalho.titulo})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _rascunho_do_documento(trabalho, nome: str) -> tuple[int, str]:
+    """
+    (id, tipo) do rascunho editável de um documento do Acervo: o que esta
+    conversa já abriu, ou uma cópia nova (/api/documentos/importar). O
+    original não é tocado. HTTPException quando o arquivo não dá.
+    """
+    for m in reversed(trabalho.mensagens):
+        f = m.feito or {}
+        if f.get("tipo") == "editar" and f.get("nome") == nome and f.get("id"):
+            antigo = estado.documentos.obter(int(f["id"]))
+            if antigo:
+                return antigo["id"], antigo.get("tipo") or "texto"
+    novo = documentos_importar(ImportarParaEditar(nome=nome))
+    return novo["id"], novo.get("tipo") or "texto"
+
+
+def _abrir_documento_no_editor(trabalho, nome: str, pergunta: str) -> StreamingResponse:
+    """
+    Um documento do Acervo (nomeado ou anexado) no editor, como rascunho - o
+    mesmo de "Abrir editor" no cartão do arquivo (/api/documentos/importar).
+    Aberto antes nesta conversa, volta ao mesmo rascunho.
+    """
+    try:
+        id_, tipo = _rascunho_do_documento(trabalho, nome)
+    except HTTPException as exc:
+        return _so_dizer(trabalho, f"Não consegui abrir “{nome}” no editor: {exc.detail}.")
+    titulo = Path(nome).stem
+    proposta = {"tipo": "editor_criado", "titulo": titulo, "campos": {"id": id_, "titulo": titulo}, "reaberto": True,
+                "porque": "você pediu para abrir no editor", "pergunta": pergunta}
+    texto = f"Abri “{nome}” no editor, como rascunho. O arquivo original no Acervo não muda."
+    return _dizer_e_abrir_no_editor(trabalho, texto, proposta,
+                                    {"tipo": "editar", "id": id_, "nome": nome, "onde": "planilha" if tipo == "planilha" else "editor"})
+
+
+def _alvo_dos_ajustes(trabalho, msg, payload) -> dict:
+    """
+    Onde os ajustes vão ser aplicados: o documento de que a resposta com os
+    pontos falava (o escopo dela), o trabalho redigido nesta conversa, ou o
+    documento anexado/em foco. Vazio quando não há nenhum.
+    """
+    abertos = {d.name for d in estado.searcher.documents}
+    cobertura = (getattr(msg, "cobertura", None) or {}) if msg is not None else {}
+    escopo = ((cobertura.get("como") or {}).get("escopo") or {}).get("apenas") or cobertura.get("apenas") or []
+    do_escopo = [n for n in escopo if n in abertos]
+    if len(do_escopo) == 1:
+        return {"tipo": "documento", "nome": do_escopo[0], "titulo": do_escopo[0]}
+    redigido = _trabalho_redigido(trabalho)
+    if redigido is not None:
+        return {"tipo": "trabalho", "titulo": (redigido.proposta or {}).get("titulo") or "o trabalho redigido nesta conversa"}
+    outros = [n for n in (payload.apenas or []) if n in abertos] or [n for n in _em_foco(trabalho) if n in abertos]
+    if len(outros) == 1:
+        return {"tipo": "documento", "nome": outros[0], "titulo": outros[0]}
+    return {}
+
+
+def _comecar_ajustes(trabalho, pergunta: str, payload, nivel) -> StreamingResponse:
+    """
+    "Então vamos ajustar o que falta. Me pergunte aqui" (src/conversa_continua.py):
+    os pontos da última resposta viram perguntas, uma por ponto, no cartão
+    de perguntas da redação. Sem modelo.
+    """
+    msg, pontos = conversa_continua.ultima_com_pontos(trabalho.mensagens[:-1])
+    if not pontos:
+        return _so_dizer(trabalho, "Pergunto, sim — mas a última resposta desta conversa não traz uma lista de pontos "
+                                   "para ajustar. Diga quais pontos você quer resolver, ou peça antes "
+                                   "“o que falta neste contrato?”.")
+    alvo = _alvo_dos_ajustes(trabalho, msg, payload)
+    estado_a = conversa_continua.novo(pontos, alvo, pergunta)
+    trabalho.contexto["ajustes"] = estado_a
+    perguntas = estado_a["perguntas"]
+    onde = (f"Com as respostas, eu proponho a mudança em “{alvo['titulo']}”, no editor" if alvo
+            else "Com as respostas, eu monto os ajustes; para aplicar, anexe o contrato ou abra-o no editor")
+    texto = ("Vamos lá. " + ("São " + str(len(perguntas)) + " pontos" if len(perguntas) > 1 else "É um ponto")
+             + ", da minha última resposta. Diga como cada um deve ficar — no cartão abaixo, ou aqui na caixa, "
+               "numerado (1. …, 2. …).\n\n"
+             + "\n".join(f"{i}. {q['pergunta']}" for i, q in enumerate(perguntas, 1))
+             + f"\n\n{onde}; nada muda sem o seu sim.")
+    return _dizer_com_proposta(trabalho, texto, conversa_continua.proposta_das_perguntas(estado_a, nivel.nome),
+                               etapa="Montar as perguntas")
+
+
+def _propor_ajustes(trabalho, estado_a: dict) -> StreamingResponse:
+    """As respostas viraram ajustes: o cartão de aplicar (nada gravado antes do sim)."""
+    definidos = conversa_continua.ajustes_definidos(estado_a)
+    if not definidos:
+        return _so_dizer(trabalho, "Ainda não há ponto definido para aplicar. Responda ao menos um — ou diga "
+                                   "“decida por mim” — e eu monto os ajustes.")
+    estado_a["status"] = "respondida"
+    alvo = estado_a.get("alvo") or {}
+    linhas = [f"{i}. {a['ponto'].rstrip('.')} — " + ("você pediu que eu decida" if a["decida"] else a["como"])
+              for i, a in enumerate(definidos, 1)]
+    texto = ("Ficou assim:\n\n" + "\n".join(linhas) + "\n\n"
+             + (f"Posso aplicar em “{alvo['titulo']}”: abro o rascunho no editor e cada mudança fica marcada para "
+                "você manter ou descartar. O original não muda." if alvo else
+                "Não há documento nesta conversa onde aplicar. Anexe o contrato (ou abra-o no editor) e peça "
+                "“aplique os ajustes”."))
+    return _dizer_com_proposta(trabalho, texto, conversa_continua.proposta_de_aplicar(estado_a), etapa="Montar os ajustes")
+
+
+def _seguir_ajustes(trabalho, payload, pergunta: str, estado_a: dict) -> StreamingResponse:
+    """As respostas às perguntas dos ajustes - do cartão, ou escritas na caixa."""
+    e = payload.entrevista or {}
+    if payload.entrevista is not None:
+        acao = str(e.get("acao") or "")
+        conversa_continua.juntar(estado_a, e.get("respostas") or [], str(e.get("explicacao") or ""), acao)
+    else:
+        livres = conversa_continua.respostas_livres(pergunta, estado_a)
+        acao = "decidir" if re.match(r"(?i)\s*(?:pode\s+)?decid", pergunta) else ""
+        conversa_continua.juntar(estado_a, livres, "" if livres or acao else pergunta, acao)
+    if acao == "depois":
+        return _so_dizer(trabalho, "Fica para depois. Quando quiser, responda no cartão ou aqui na caixa.")
+    for m in reversed(trabalho.mensagens):
+        p = m.proposta or {}
+        if p.get("tipo") == "entrevista" and p.get("entrevista_id") == estado_a["id"] and not p.get("respondida"):
+            p["respondida"] = True
+            p["acao"] = acao or "responder"
+            break
+    return _propor_ajustes(trabalho, estado_a)
+
+
+def _aplicar_sugestoes(trabalho, pergunta: str, payload) -> StreamingResponse | None:
+    """"Aplique as sugestões": os pontos da última resposta, com "decida por mim" em todos."""
+    msg, pontos = conversa_continua.ultima_com_pontos(trabalho.mensagens[:-1])
+    if not pontos:
+        return None
+    estado_a = conversa_continua.novo(pontos, _alvo_dos_ajustes(trabalho, msg, payload), pergunta)
+    conversa_continua.juntar(estado_a, [], "", "decidir")
+    trabalho.contexto["ajustes"] = estado_a
+    return _propor_ajustes(trabalho, estado_a)
+
+
+RE_APONTA_O_DOCUMENTO = re.compile(r"\b(?:esse|essa|este|esta|anexo|anexad[oa]|referid[oa]|acima|mesmo)\b")
+
+
+def _responder_no_editor(trabalho, pedido: dict, pergunta: str, payload, request=None,
+                         permitir_nada: bool = True) -> StreamingResponse | None:
+    """
+    "Abra o contrato aqui no editor" (intencao.pede_no_editor), nesta ordem:
+    o arquivo que a frase NOMEIA ("o contrato de locação"); o trabalho
+    redigido nesta conversa (o mesmo do botão "levar ao editor"); o documento
+    anexado, ou o da conversa quando a frase aponta para ele ("esse
+    contrato"); o rascunho que a conversa já abriu no editor. Sem nenhum,
+    diz que não há o que levar e oferece redigir - ou None, com
+    `permitir_nada=False` (a entrevista aberta segue com a frase).
+    """
+    coisa = pedido.get("coisa") or ""
+    documentos = estado.searcher.documents
+    nomeado = intencao.documento_no_editor(pedido, documentos)
+    if nomeado:
+        return _abrir_documento_no_editor(trabalho, nomeado, pergunta)
+    try:
+        criado = _levar_ao_editor(trabalho, request=request)
+    except RuntimeError:
+        return _so_dizer(trabalho, "Não consegui criar o rascunho no editor agora. Tente pelo botão do trabalho "
+                                   "pronto, mais acima na conversa.")
+    if criado:
+        texto = f"Abri {coisa} no editor." if coisa else f"Abri “{criado['titulo']}” no editor."
+        proposta = dict(criado, reaberto=True, porque="você pediu para abrir no editor", pergunta=pergunta)
+        return _dizer_e_abrir_no_editor(trabalho, texto, proposta)
+    abertos = {d.name for d in documentos}
+    anexados = [n for n in (payload.apenas or []) if n in abertos]
+    if not anexados and RE_APONTA_O_DOCUMENTO.search(pedido.get("objeto") or ""):
+        anexados = [n for n in _em_foco(trabalho) if n in abertos]
+    if len(anexados) == 1:
+        return _abrir_documento_no_editor(trabalho, anexados[0], pergunta)
+    for m in reversed(trabalho.mensagens):
+        f = m.feito or {}
+        if f.get("tipo") in ("editar", "alteracao") and f.get("id") and f.get("onde", "editor") != "planilha":
+            rascunho = estado.documentos.obter(int(f["id"]))
+            if rascunho:
+                titulo = rascunho.get("titulo") or f.get("nome", "")
+                proposta = {"tipo": "editor_criado", "titulo": titulo, "campos": {"id": rascunho["id"], "titulo": titulo},
+                            "reaberto": True, "porque": "você pediu para abrir no editor", "pergunta": pergunta}
+                return _dizer_e_abrir_no_editor(trabalho, f"Abri “{titulo}” no editor.", proposta)
+    if len(anexados) > 1:
+        return _so_dizer(trabalho, "Há " + str(len(anexados)) + " documentos anexados. Diga qual abrir no editor: "
+                         + ", ".join("“" + n + "”" for n in anexados[:4]) + ".")
+    if not permitir_nada:
+        return None
+    nome = (coisa.split(" ", 1)[1] if " " in coisa else "") or "documento"
+    feminino = coisa.startswith("a ")
+    return _so_dizer(trabalho, f"Nesta conversa ainda não há {'nenhuma' if feminino else 'nenhum'} {nome} "
+                               f"{'redigida' if feminino else 'redigido'} para levar ao editor. Quer que eu redija? "
+                               "Diga o que é e o caso — por exemplo: “redija um contrato de compra e venda de imóvel "
+                               "urbano”. Se é um documento do Acervo, anexe-o ou diga o nome dele.")
+
+
 def _responder_mudar_documento(trabalho, nome: str, pergunta: str) -> StreamingResponse:
     """
     "SEMA está errado. O certo é SEMAS - corrija no documento" com o documento
@@ -6921,6 +7257,10 @@ def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergun
         yield _sse("pensando", {"texto": "Respondendo pelo que sei…"})
         regra = (estado.contextos.bloco() or "").strip()
         regra = (regra + "\n\n" + INSTRUCAO_CRIATIVO + "\n\n" + profundidade_mod.INSTRUCAO_RESPOSTA[nivel.id]).strip()
+        if conversa_continua.pede_opiniao(pergunta):
+            regra += "\n\n" + conversa_continua.INSTRUCAO_OPINIAO
+        if conversa_continua.refere_a_anterior(pergunta) and historico:
+            regra += "\n\n" + conversa_continua.INSTRUCAO_CONTINUIDADE
         mensagens = instrucao_nuvem.montar_mensagens(pergunta, "", ensinado=regra, historico=historico)
         mascara = nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None
         modelo = profundidade_mod.modelo_do_nivel(estado.prefs.dados, nivel, nuvem_mod.config(estado).get("modelo") or "")
@@ -6941,6 +7281,17 @@ def _responder_criativo(trabalho, request, dono: str, nivel, envio_nuvem, pergun
             return
         segundos = round(time.time() - inicio, 1)
         texto = "".join(partes).strip()
+        # "Peça: abra o contrato no editor de texto." - o pedido devolvido
+        # como resposta (src/instrucao_nuvem.py) nunca fica na tela.
+        if instrucao_nuvem.eco_de_pedido(texto):
+            texto = instrucao_nuvem.FRASE_ECO_DE_PEDIDO
+            yield _sse("substituir", {"texto": texto})
+        else:
+            # Quem lê é advogado: "consulte um advogado" sai (src/conversa_continua.py).
+            sem_ressalva, tiradas = conversa_continua.sem_ressalva_de_leigo(texto)
+            if tiradas:
+                texto = sem_ressalva
+                yield _sse("substituir", {"texto": texto})
         _, uso = ponte.resultado or ("", {})
         como = {"caminho": "criativo", "modelo": f"{uso.get('provedor', 'nuvem')} · {uso.get('modelo', modelo)}",
                 "profundidade": {"nivel": nivel.id, "nome": nivel.nome},
