@@ -510,6 +510,7 @@ function cartaoGuardado(m, ultima) {
   if (!(p.tipo === "abrir" || p.tipo === "exibir" || p.tipo === "programa" || p.tipo === "sozinho" || (p.tipo === "escopo" && ultima) ||
         p.tipo === "entrevista" || p.tipo === "levar_ao_editor" || p.tipo === "preparo" || p.tipo === "clausula" ||
         p.tipo === "editor_criado" || (p.tipo === "mudar_documento" && ultima) || p.tipo === "aplicar_ajustes" ||
+        (p.tipo === "editavel_de_pdf" && ultima) || (p.tipo === "concluir_documento" && ultima) ||
         (p.tipo === "assinar" && ultima) || (p.tipo === "email" && ultima) || (p.tipo === "ficha" && ultima) || (p.tipo === "cadastros" && ultima) || (p.tipo === "lancamento" && ultima) || ((p.tipo === "financeiro" || p.tipo === "relatorio") && ultima) || p.tipo === "config" ||
         (p.tipo === "consulta_cadastro" && (p.modo === "achado" || ultima)))) return "";
   propostasGuardadas.push(p);
@@ -535,6 +536,16 @@ function blocoResposta(m, pergunta, ultima, indice) {
   if (m.interrompida) html += etiquetaDeParada();
   if (m.cobertura && m.cobertura.truncou) html += etiquetaDeCorte();
   if (m.inferencia) html += etiquetaDeLeitura();
+  // A resposta do agente de edição (js/95-editor-inteligente.js): cada
+  // mudança leva ao lugar dela no documento, e a rodada se aceita ou desfaz.
+  const doEditor = m.feito && (m.feito.tipo === "alteracao" || m.feito.tipo === "pergunta_no_documento") &&
+    (m.feito.mudancas || m.feito.citados);
+  if (doEditor) {
+    html += '<div class="texto">' + textoDaRespostaDoEditor(m.texto, m.feito) + "</div>";
+    if (m.feito.tipo === "alteracao" && ultima) html += acoesDaRodada(m.feito);
+    html += linhaDoModeloDoEditor({ onde: m.feito.modelo || {} });
+    return html + "</div>";
+  }
   html += '<div class="texto">' + textoComCitacoes(m.texto, m.fontes, pergunta) + "</div>";
   if (m.fontes && m.fontes.length) html += blocoFontes(m.fontes, m.cobertura);
   // N7: os temas e as súmulas ligados aos artigos citados - antes da assinatura, como ao vivo.
@@ -1604,8 +1615,9 @@ async function enviar(opcoes) {
   const pedido = (o.texto || $("pedido").value).trim();
   if (!pedido) return;
 
-  // Com o editor aberto ao lado, pedido de mudança vai para o documento.
-  if (!o.retomar && !o.entrevista && editorNaConversaAberto() && destinoDoPedido(pedido) === "documento") {
+  // Com o editor aberto ao lado, o pedido sobre o documento (mudança ou
+  // pergunta) vai para o agente de edição (js/95-editor-inteligente.js).
+  if (!o.retomar && !o.entrevista && editorNaConversaAberto() && vaiParaODocumento(pedido)) {
     $("pedido").value = "";
     $("pedido").style.height = "auto";
     pedirNoDocumento(pedido);

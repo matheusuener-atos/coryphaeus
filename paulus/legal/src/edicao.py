@@ -83,7 +83,7 @@ def _curto(texto: str, n: int = 60) -> str:
 
 
 def aplicar(blocos_entrada: list, operacoes: list, *, rodada: int, escopo: list | None = None,
-            selecao: dict | None = None, em_tudo: bool = False) -> Resultado:
+            selecao: dict | None = None, em_tudo: bool = False, original: list | None = None) -> Resultado:
     """
     As operações sobre uma cópia do documento.
 
@@ -96,8 +96,11 @@ def aplicar(blocos_entrada: list, operacoes: list, *, rodada: int, escopo: list 
     """
     blocos = copy.deepcopy(blocos_entrada)
     res = Resultado(blocos=blocos)
-    ctx = _Ctx(rotulos=E.rotulos(blocos), original=copy.deepcopy(blocos), rodada=rodada,
-               existentes={b.id for b in blocos}, permitido=set(escopo) if escopo else None,
+    # `original`: o documento como o modelo leu (as operações de uma rodada
+    # chegam uma a uma, e o rótulo "Cláusula 4ª" é o de antes delas).
+    lido = original if original is not None else copy.deepcopy(blocos)
+    ctx = _Ctx(rotulos=E.rotulos(lido), original=lido, rodada=rodada,
+               existentes={b.id for b in blocos} | {b.id for b in lido}, permitido=set(escopo) if escopo else None,
                selecao=selecao, em_tudo=em_tudo)
 
     for i, op in enumerate(operacoes or []):
@@ -232,9 +235,33 @@ def _substituir(blocos, op, ctx):
         return None
     rotulo = ctx.rotulo(b.id)
     vezes = f" ({len(lugares)} vezes)" if len(lugares) > 1 else ""
-    resumo = (f"{rotulo}: “{_curto(de, 50)}” → “{_curto(para, 50)}”{vezes}" if para.strip()
+    de_curto, para_curto = _o_que_mudou(de, para)
+    resumo = (f"{rotulo}: “{de_curto}” → “{para_curto}”{vezes}" if para.strip()
               else f"{rotulo}: tirei “{_curto(de, 60)}”{vezes}")
     return {"sids": [sid], "ids": [b.id], "rotulo": rotulo, "resumo": resumo + nota}
+
+
+def _o_que_mudou(de: str, para: str, n: int = 50) -> tuple[str, str]:
+    """
+    O pedaço que muda de fato, para o resumo: "a contar do recebimento desta,
+    por depósito na conta" → "...por PIX" vira “por depósito na conta” → “por
+    PIX”, e não dois textos cortados iguais no começo.
+    """
+    a, b = " ".join(de.split()), " ".join(para.split())
+    if len(a) <= n and len(b) <= n:
+        return a, b
+    pa, pb = a.split(" "), b.split(" ")
+    ini = 0
+    while ini < min(len(pa), len(pb)) - 1 and pa[ini] == pb[ini]:
+        ini += 1
+    fim = 0
+    while fim < min(len(pa), len(pb)) - ini - 1 and pa[-1 - fim] == pb[-1 - fim]:
+        fim += 1
+    trecho_a = " ".join(pa[ini:len(pa) - fim]) or a
+    trecho_b = " ".join(pb[ini:len(pb) - fim]) or b
+    antes = "…" if ini else ""
+    depois = "…" if fim else ""
+    return antes + _curto(trecho_a, n) + depois, antes + _curto(trecho_b, n) + depois
 
 
 def _trocar_no_quadro(blocos, b, de, para, ctx):
@@ -489,6 +516,9 @@ def _renumerar(blocos, op, ctx):
     return renumerar(blocos, ctx.rodada)
 
 
+RE_LETRA_NA_CLAUSULA = re.compile(r"^(\s*cl[áa]usula\s+\d{1,3}\s*[ªaº°]?)\s*-\s*[A-Z]\b", re.I)
+
+
 def renumerar(blocos: list, rodada: int) -> dict | None:
     """
     As cláusulas em sequência e as referências cruzadas junto (redacao.renumerar),
@@ -498,6 +528,8 @@ def renumerar(blocos: list, rodada: int) -> dict | None:
 
     vivos = [b for b in blocos if b.sug != "del" and b.tipo != "table"]
     textos = [b.texto.replace("\n", " ") for b in vivos]
+    # "CLÁUSULA 2ª-A": a cláusula enfiada sem renumerar. Renumerando, a letra sai.
+    textos = [RE_LETRA_NA_CLAUSULA.sub(r"\1", t) for t in textos]
     resultado = redacao.renumerar("\n".join(textos))
     if not resultado["trocas"]:
         return None

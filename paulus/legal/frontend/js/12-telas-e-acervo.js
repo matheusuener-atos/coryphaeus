@@ -963,6 +963,24 @@ function cartaoProposta(d) {
         : '<p class="explica">Sem documento nesta conversa onde aplicar: anexe o contrato ou abra-o no editor.</p>') +
       "</div>";
   }
+  // PDF continua PDF (docs/PLANO-EDITOR.md, E1): a versão editável só com o sim.
+  if (d.tipo === "editavel_de_pdf") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">PDF continua PDF</span>' +
+      "<b>" + esc(c.nome || "") + "</b></div>" +
+      '<p class="explica">Para mexer no texto, eu crio uma versão editável desta conversa. O PDF original fica como está; ' +
+      "na conclusão você escolhe se o arquivo sai em PDF ou DOCX.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="editavel">' +
+      (c.pedido ? "Criar e fazer a mudança" : "Criar a versão editável") + "</button>" +
+      '<button data-prop="nao">Deixa como está</button></div></div>';
+  }
+  // "Pode concluir": o formato, o nome e a pasta do arquivo, antes de gravar.
+  if (d.tipo === "concluir_documento") {
+    return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">concluir o documento</span>' +
+      "<b>" + esc(d.titulo || c.nome || "") + "</b></div>" +
+      '<p class="explica">O arquivo vai para o Acervo' + (c.pasta_curta ? ", em " + esc(c.pasta_curta) : "") +
+      ", em " + esc(String(c.formato || "docx").toUpperCase()) + ". Até lá, o documento é rascunho desta conversa.</p>" +
+      '<div class="linha-form"><button class="primario" data-prop="concluir">Concluir…</button></div></div>';
+  }
   // "Abra o contrato no editor": o mesmo cartão, para o que já estava lá (reaberto).
   if (d.tipo === "editor_criado") {
     return '<div class="proposta"><div class="proposta-topo"><span class="rotulo">' + (d.reaberto ? "no editor" : "salvo no editor") + "</span>" +
@@ -1461,6 +1479,8 @@ function ligarProposta(caixa, d, ondeResponder) {
   if (d.tipo === "programa") return ligarPrograma(caixa, d);
   if (d.tipo === "consulta_cadastro") return ligarConsultaCadastro(caixa, d);
   if (d.tipo === "aplicar_ajustes") return ligarAplicarAjustes(caixa, d);
+  if (d.tipo === "editavel_de_pdf") return ligarEditavelDePdf(caixa, d);
+  if (d.tipo === "concluir_documento") return ligarConcluirDocumento(caixa, d);
   if (d.tipo === "mudar_documento" || d.tipo === "editor_criado") {
     const botao = caixa.querySelector('[data-prop="mudar"], [data-prop="abrir-rascunho"]');
     if (botao) botao.onclick = () => fazerDoCartaoDoEditor(caixa, d);

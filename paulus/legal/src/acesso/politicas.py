@@ -205,6 +205,12 @@ _declarar(PERMITIDO,
           "POST /api/documentos/{id_}/folha/sugerir", "GET /api/documentos/{id_}/conferir",
           "POST /api/documentos/{id_}/clausulas", "GET /api/documentos/{id_}/conferir-clausulas",
           "GET /api/redacao/qualificacao", "POST /api/documentos/{id_}/assistente",
+          # o editor inteligente (docs/PLANO-EDITOR.md): o agente edita como
+          # sugestão, aceitar e recusar, as rodadas e a nota de cada uma, e o
+          # documento da conversa (listar, reabrir para mexer de novo)
+          "POST /api/documentos/{id_}/editar", "POST /api/documentos/{id_}/sugestoes",
+          "GET /api/documentos/{id_}/rodadas", "POST /api/documentos/{id_}/rodadas/{numero}/avaliar",
+          "POST /api/documentos/{id_}/reabrir", "GET /api/trabalhos/{id_}/documentos", "POST /api/trabalhos/{id_}/lado",
           "GET /api/planilha/{id_}", "POST /api/planilha/{id_}/celula", "POST /api/planilha/{id_}/faixa",
           "POST /api/planilha/{id_}/grafico", "POST /api/planilha/{id_}/lote", "POST /api/planilha/{id_}/estrutura",
           "POST /api/planilha/{id_}/layout", "POST /api/planilha/{id_}/mesclar", "POST /api/planilha/{id_}/congelar",
@@ -349,6 +355,8 @@ _declarar(BLOQUEADO,
           # nao se encaixam com clareza numa linha da tabela: bloqueadas, e
           # listadas no PROGRESSO para o usuario revisar
           "POST /api/upload", "POST /api/documentos/importar", "POST /api/documentos/{id_}/biblioteca",
+          # concluir o documento da conversa grava o arquivo no Acervo, como o "biblioteca"
+          "POST /api/documentos/{id_}/concluir",
           "POST /api/email/anexo/guardar",
           "GET /api/financeiro/folha", "POST /api/financeiro/folha/montar", "POST /api/financeiro/folha/pagar",
           "POST /api/financeiro/folha/recibos", "GET /api/financeiro/papeis", "POST /api/financeiro/papeis",

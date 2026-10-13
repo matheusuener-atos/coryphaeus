@@ -420,6 +420,19 @@ async function editarDocumentoDoAcervo(nome, oferta) {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nome: nome, trabalho_id: estado.trabalhoId || "" }),
   });
+  // PDF continua PDF (docs/PLANO-EDITOR.md, E1): a versão editável só com o sim.
+  if (r.status === 409) {
+    const d = await r.json().catch(() => ({}));
+    if (d.pdf) {
+      const sim = await confirmar({ titulo: "Criar uma versão editável?", contexto: nome,
+        texto: "PDF continua PDF: dá para ler, citar e comentar ao lado. Para mexer no texto eu crio uma versão editável " +
+          "desta conversa — o PDF original fica como está.", confirmar: "Criar a versão editável" });
+      if (!sim) return null;
+      return criarVersaoEditavelDoPdf(nome, "");
+    }
+    avisoNaJanela("Não consegui abrir no editor: " + (d.detail || "não deu certo"), { icone: "error" });
+    return null;
+  }
   if (!r.ok) {
     avisoNaJanela("Não consegui abrir no editor: " + (await erroDe(r)), { icone: "error" });
     return null;

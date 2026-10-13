@@ -121,6 +121,8 @@ async function abrirTrabalho(id) {
   desenharTrabalho();
   if (guardado) restaurarRolagem(guardado);
   carregarTrabalhos();
+  // O documento desta conversa volta ao lado (js/95-editor-inteligente.js).
+  if (typeof reabrirEditorDaConversa === "function" && !editorNaConversaAberto()) reabrirEditorDaConversa(id);
   return true;
 }
 

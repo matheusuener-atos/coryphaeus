@@ -109,16 +109,48 @@ def _numero_da_clausula(texto: str) -> tuple[int, str]:
     return 0, ""
 
 
+RE_SECAO = re.compile(r"^\s*(?:[IVXLC]{1,6}|\d{1,2})?\s*[-–—.)]?\s*(?:d[oa]s?\s|preliminar|pedido|requerimento|fatos|"
+                      r"fundament|m[eé]rito|s[ií]ntese|conclus|tutela|valor\s+da\s+causa|provas?\b|justi[cç]a\s+gratuita|"
+                      r"gratuidade|cabimento|tempestividade|raz[oõ]es|introdu)", re.I)
+
+
 def _e_titulo_de_secao(b, texto: str) -> bool:
-    """Linha curta em maiúsculas, ou bloco de título: "DOS FATOS", "II - DO DIREITO"."""
+    """
+    Linha curta em maiúsculas que abre uma parte da peça: "DOS FATOS", "II -
+    DO DIREITO", "DOS PEDIDOS", "PRELIMINARMENTE". O nome da ação no
+    preâmbulo ("AÇÃO DE COBRANÇA") não é seção.
+    """
     if not texto or len(texto) > 90:
         return False
     letras = [c for c in texto if c.isalpha()]
     if len(letras) < 4:
         return False
+    if not RE_SECAO.match(texto):
+        return False
     if b.tipo in ("h1", "h2", "h3", "h4"):
         return True
     return sum(1 for c in letras if c.isupper()) / len(letras) > 0.85 and not texto.rstrip().endswith((",", ";"))
+
+
+RE_ROTULO_DE_PARTE = re.compile(r"^\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ][A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ ]{2,30})\s*:")
+
+
+def _sem_estrutura(partes: list, blocos: list) -> None:
+    """
+    Documento sem cláusula e sem seção (procuração, notificação, carta): o
+    corpo não é "preâmbulo" de nada. Cada parágrafo ganha o nome que o próprio
+    texto dá ("OUTORGANTE:", "PODERES:") ou a posição ("Parágrafo 3").
+    """
+    if any(p.tipo in ("clausula", "secao") for p in partes):
+        return
+    n = 0
+    for b, p in zip(blocos, partes):
+        if p.tipo != "preambulo":
+            continue
+        n += 1
+        p.tipo = "corpo"
+        m = RE_ROTULO_DE_PARTE.match(b.texto)
+        p.rotulo = m.group(1).strip().capitalize() if m else f"Parágrafo {n}"
 
 
 def rotulo_da_clausula(n: int, estilo: str) -> str:
@@ -145,6 +177,10 @@ def esboco(blocos: list) -> list[Parte]:
             partes.append(Parte(id=b.id, tipo="saindo", rotulo="(saindo)"))
             continue
         texto = b.texto.strip() if b.tipo != "table" else ""
+        # A numeração automática do Word ("5.2", "a)") conta para o esboço como
+        # se estivesse escrita (src/docx_ida_e_volta.py).
+        if getattr(b, "num", "") and texto:
+            texto = b.num + " " + texto
         p = Parte(id=b.id)
         n, est = _numero_da_clausula(texto)
         if not n and b.id in titulos_numerados:
@@ -210,14 +246,22 @@ def esboco(blocos: list) -> list[Parte]:
         elif secao:
             p.secao = secao
             p.rotulo = secao
+            # Dentro da seção da peça, o item dos pedidos ("c) a condenação...")
+            # e o inciso têm nome próprio: é para onde o pedido novo vai.
             m_inc = RE_INCISO.match(texto)
+            m_ali = RE_ALINEA.match(texto)
             if m_inc and romano(m_inc.group(1)):
                 p.tipo = "inciso"
+                p.rotulo = f"{secao}, inciso {m_inc.group(1)}"
+            elif m_ali:
+                p.tipo = "alinea"
+                p.rotulo = f"{secao}, alínea {m_ali.group(1)}"
         elif not houve_clausula and texto:
             p.tipo, p.rotulo = "preambulo", "Preâmbulo"
         if not p.rotulo:
             p.rotulo = f"Parágrafo {i + 1}"
         partes.append(p)
+    _sem_estrutura(partes, blocos)
     return partes
 
 
@@ -312,6 +356,11 @@ _REF_ARTIGO = re.compile(r"\bart(?:igo)?\.?\s*(\d{1,4})\s*[ºo°]?(?!\s*(?:do|da
 _REF_POSICAO = re.compile(r"\b(primeir[oa]|segund[oa]|terceir[oa]|quart[oa]|quint[oa]|[uú]ltim[oa]|pen[uú]ltim[oa])\s+"
                           r"(par[aá]grafo|bloco|linha|item|t[oó]pico)", re.I)
 _POSICOES = {"primeiro": 1, "segundo": 2, "terceiro": 3, "quarto": 4, "quinto": 5, "ultimo": -1, "penultimo": -2}
+# Só a primeira palavra forte, sem consumir o resto da frase: "a cláusula do
+# foro para antes da cláusula de rescisão" tem dois nomes.
+_REF_CLAUSULA_POR_NOME = re.compile(r"cl[aá]usula\s+(?:d[oa]s?|de|sobre\s+(?:o|a|os|as)?)\s+(?=([a-z]{4,}))")
+_VAZIAS = {"para", "pelo", "pela", "como", "sobre", "mais", "menos", "esta", "este", "essa", "esse", "isso", "aqui",
+           "logo", "depois", "antes", "contrato", "documento", "clausula"}
 
 
 def numero_da_referencia(valor: str) -> int:
@@ -406,6 +455,13 @@ def localizar(blocos: list, frase: str) -> dict:
             return {"ids": [], "rotulo": "", "como": "ambiguo",
                     "opcoes": sorted({p.clausula_rotulo for p in achados})}
 
+    # "a cláusula do prazo", "a cláusula das benfeitorias": a cláusula pelo
+    # nome que a cabeça dela tem ("CLÁUSULA 2ª – DO PRAZO").
+    for m_nome in _REF_CLAUSULA_POR_NOME.finditer(baixo):
+        achado = _clausula_pelo_nome(blocos, partes, m_nome.group(1))
+        if achado:
+            return achado
+
     for chave, tipo in (("preambulo", "preambulo"), ("qualificac", "preambulo"), ("titulo", "titulo"),
                         ("fecho", "fecho"), ("encerramento", "fecho"), ("assinatura", "assinatura"),
                         ("local e data", "data"), ("enderecamento", "enderecamento")):
@@ -435,6 +491,62 @@ def localizar(blocos: list, frase: str) -> dict:
             rot = next((p.rotulo for p in partes if p.id == b.id), "")
             return {"ids": [b.id], "rotulo": rot, "como": "posicao"}
     return {"ids": [], "rotulo": "", "como": ""}
+
+
+def _clausula_pelo_nome(blocos: list, partes: list, nome: str) -> dict | None:
+    """A cláusula cuja cabeça tem a primeira palavra forte do nome ("do prazo" → "DO PRAZO")."""
+    palavras = [p for p in re.findall(r"[a-z]{4,}", nome) if p not in _VAZIAS][:3]
+    if not palavras:
+        return None
+    cabecas = [(b, p) for b, p in zip(blocos, partes) if p.tipo == "clausula"
+               and re.search(r"\b" + palavras[0], plano(b.texto))]
+    if len(cabecas) != 1:
+        return None
+    rot = cabecas[0][1].rotulo
+    ids = [p.id for p in partes if p.rotulo == rot or p.clausula_rotulo == rot]
+    return {"ids": ids, "rotulo": rot, "como": "clausula_por_nome"}
+
+
+def localizar_todos(blocos: list, frase: str) -> list[dict]:
+    """
+    Todos os lugares que a frase aponta ("mova a cláusula do foro para antes
+    da cláusula de rescisão": as duas), na ordem em que aparecem nela.
+    """
+    partes = esboco(blocos)
+    baixo = plano(frase or "")
+    achados: list[dict] = []
+    vistos: set = set()
+    candidatos = [(m.start(), m.end()) for m in _REF_CLAUSULA.finditer(baixo)]
+    candidatos += [(m.start(), m.end()) for m in _REF_CLAUSULA_ANTES.finditer(baixo)]
+    candidatos += [(m.start(), m.end()) for m in _REF_ORDINAL_CLAUSULA.finditer(baixo)]
+    candidatos.sort()
+    if len(candidatos) <= 1:
+        # Uma cláusula só: a frase inteira diz o §, o inciso e a alínea dela,
+        # venham antes ou depois ("o inciso III do § 3º da cláusula 3ª").
+        lugar = localizar(blocos, frase)
+        if lugar.get("ids"):
+            vistos.add(tuple(lugar["ids"]))
+            achados.append(lugar)
+    else:
+        fim_anterior = 0
+        for inicio, fim in candidatos:
+            # Cada referência com o pedaço da frase entre ela e a anterior.
+            lugar = localizar(blocos, baixo[fim_anterior:fim + 25])
+            fim_anterior = fim
+            chave = tuple(lugar.get("ids") or [])
+            if chave and chave not in vistos:
+                vistos.add(chave)
+                achados.append(lugar)
+    for m in _REF_CLAUSULA_POR_NOME.finditer(baixo):
+        lugar = _clausula_pelo_nome(blocos, partes, m.group(1))
+        if lugar and tuple(lugar["ids"]) not in vistos:
+            vistos.add(tuple(lugar["ids"]))
+            achados.append(lugar)
+    if not achados:
+        lugar = localizar(blocos, frase)
+        if lugar.get("ids"):
+            achados.append(lugar)
+    return achados
 
 
 def _num(rotulo: str) -> int:

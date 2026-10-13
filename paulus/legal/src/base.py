@@ -1204,6 +1204,49 @@ MIGRACOES: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        "044_documento_da_conversa",
+        """
+        -- O documento da conversa (docs/PLANO-EDITOR.md, E1): o rascunho
+        -- nasce numa conversa e e dela - fora da lista do Editor, fora do
+        -- Acervo - ate a conclusao explicita, que grava o arquivo.
+        --   trabalho_id  a conversa dona ('' = documento solto do Editor)
+        --   origem       JSON: tipo (redigido|acervo|novo|pdf), nome, caminho,
+        --                sha1 e formato do arquivo de onde veio
+        --   situacao     '' (solto), 'conversa' (rascunho) ou 'concluido'
+        --   arquivo      o arquivo que a conclusao gravou no Acervo
+        --   revisao      sobe a cada gravacao: quem grava diz de que revisao
+        --                partiu, e a gravacao de uma tela velha nao passa por
+        --                cima da de outra (409)
+        ALTER TABLE documentos ADD COLUMN trabalho_id TEXT DEFAULT '';
+        ALTER TABLE documentos ADD COLUMN origem TEXT DEFAULT '';
+        ALTER TABLE documentos ADD COLUMN situacao TEXT DEFAULT '';
+        ALTER TABLE documentos ADD COLUMN concluido_em TEXT DEFAULT '';
+        ALTER TABLE documentos ADD COLUMN arquivo TEXT DEFAULT '';
+        ALTER TABLE documentos ADD COLUMN revisao INTEGER NOT NULL DEFAULT 0;
+        CREATE INDEX IF NOT EXISTS idx_documentos_trabalho ON documentos(trabalho_id);
+
+        -- Cada pedido feito ao assistente dentro do documento e uma rodada: o
+        -- pedido, o que foi aplicado e o que nao deu, o modelo, e a nota de
+        -- quem pediu (E9: o polegar e o "o que deveria ter feito").
+        CREATE TABLE IF NOT EXISTS rodadas_do_editor (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            documento_id  INTEGER NOT NULL,
+            numero        INTEGER NOT NULL,
+            pedido        TEXT DEFAULT '',
+            resultado     TEXT DEFAULT '',
+            modelo        TEXT DEFAULT '',
+            nivel         TEXT DEFAULT '',
+            avaliacao     INTEGER NOT NULL DEFAULT 0,
+            comentario    TEXT DEFAULT '',
+            criada_em     TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rodadas_documento ON rodadas_do_editor(documento_id, numero);
+
+        -- O comentario preso ao NOME do bloco (src/blocos.py), alem do texto.
+        ALTER TABLE comentarios ADD COLUMN bloco TEXT DEFAULT '';
+        """,
+    ),
 ]
 
 _RENOMEADAS = {

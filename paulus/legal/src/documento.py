@@ -353,8 +353,8 @@ class Bloco:
 
 
 BLOCOS = {
-    "p": "paragrafo", "div": "paragrafo",
-    "h1": "titulo1", "h2": "titulo2", "h3": "titulo3",
+    "p": "paragrafo", "div": "paragrafo", "blockquote": "paragrafo",
+    "h1": "titulo1", "h2": "titulo2", "h3": "titulo3", "h4": "titulo3",
     "li": "item",
 }
 MARCAS = {
@@ -384,6 +384,11 @@ class _Leitor(HTMLParser):
         self._quadro: list[list[str]] | None = None
         self._linha: list[str] | None = None
         self._celula: str | None = None
+        # As sugestões do editor (src/blocos.py): o texto que uma sugestão
+        # pendente tira não é lido; o que ela põe, é. A leitura é o documento
+        # como ficaria - e o PDF de verdade só sai sem sugestão pendente.
+        self._sugestoes: list[str] = []   # pilha de ins/del: "sai", "entra" ou "" (marca comum)
+        self._saindo: list[str] = []      # blocos inteiros que saem: a tag que abriu
 
     # ---------------------------------------------------------- estrutura
 
@@ -445,6 +450,20 @@ class _Leitor(HTMLParser):
             return
 
         atributos = dict(attrs)
+        # Bloco inteiro saindo (sugestão pendente de apagar): nada dele é lido.
+        if self._saindo:
+            if tag == self._saindo[-1]:
+                self._saindo.append(tag)
+            return
+        if atributos.get("data-sug") == "del" and atributos.get("data-s") and tag in ("p", "h1", "h2", "h3", "h4", "li",
+                                                                                         "blockquote", "table", "div"):
+            self._saindo.append(tag)
+            return
+        if tag in ("ins", "del") and atributos.get("data-s"):
+            self._sugestoes.append("sai" if tag == "del" else "entra")
+            return
+        if tag in ("ins", "del"):
+            self._sugestoes.append("")
         if tag == "table":
             self._abrir_quadro()
             return
@@ -477,6 +496,11 @@ class _Leitor(HTMLParser):
             if tag == "li":
                 tipo = "numerado" if (self._lista and self._lista[-1] == "ol") else "item"
             self._abrir(tipo, _alinhamento(atributos))
+            # A numeração automática do Word (o .docx importado, E1) não é texto
+            # editável, mas sai no PDF.
+            numero = " ".join(str(atributos.get("data-num") or "").split())
+            if numero:
+                self._atual.trechos.append(Trecho(texto=numero + " "))
             return
         if tag in MARCAS:
             self._marcas.append(MARCAS[tag])
@@ -497,6 +521,13 @@ class _Leitor(HTMLParser):
         if tag in ("script", "style"):
             self._ignorar = max(0, self._ignorar - 1)
             return
+        if self._saindo:
+            if tag == self._saindo[-1]:
+                self._saindo.pop()
+            return
+        if tag in ("ins", "del") and self._sugestoes:
+            if self._sugestoes.pop():
+                return          # a sugestão fechou; a marca comum (del tachado) segue abaixo
         if tag == "table":
             self._fechar_quadro()
             return
@@ -520,7 +551,7 @@ class _Leitor(HTMLParser):
                 self._marcas.pop()
 
     def handle_data(self, dados):
-        if self._ignorar:
+        if self._ignorar or self._saindo or "sai" in self._sugestoes:
             return
         self._texto(dados)
 
@@ -1403,34 +1434,91 @@ def _recorte(texto: str, alvo: str, folga: int = 34) -> str:
 # ----------------------------------------------------------- o arquivo
 
 
+class Conflito(Exception):
+    """A gravação partiu de uma revisão que já não é a atual (outra janela gravou antes)."""
+
+    def __init__(self, atual: dict) -> None:
+        super().__init__("o documento mudou em outro lugar desde que esta tela o abriu")
+        self.atual = atual
+
+
+# Gravar sem nota (o autosave) só cria versão quando a última tem pelo menos
+# isto de idade: o histórico guarda o que interessa (cada resposta do
+# assistente, a conclusão, a pessoa escrevendo há dez minutos), e não uma
+# versão a cada pausa de digitação - eram 23 em 70 minutos no doc 28.
+INTERVALO_ENTRE_VERSOES_S = 600
+
+
+def corpo_normal(tipo: str, corpo: str) -> str:
+    """O HTML do documento de texto com os blocos nomeados (src/blocos.py); planilha passa reto."""
+    if tipo != "texto" or not corpo or corpo.lstrip().startswith("{"):
+        return corpo
+    import blocos
+
+    return blocos.normalizar(corpo)
+
+
 class Documentos:
     """
     Documentos e planilhas, com historico.
 
-    Versao nova so quando o conteudo muda de verdade. Gravar a cada tecla
-    encheria o historico de ruido e enterraria a versao que interessa - a
-    tela promete "v6: clausula de vigencia inserida", nao "v418".
+    Versao nova so quando o conteudo muda de verdade - e, gravando sem nota, so
+    de dez em dez minutos. Gravar a cada tecla encheria o historico de ruido e
+    enterraria a versao que interessa - a tela promete "v6: clausula de
+    vigencia inserida", nao "v418".
+
+    O documento da conversa (docs/PLANO-EDITOR.md, E1) tem `trabalho_id` e
+    `situacao` 'conversa': nao aparece na lista do Editor ate ser concluido.
     """
 
     def __init__(self, base) -> None:
         self.base = base
 
-    def listar(self, tipo: str = "") -> list[dict]:
+    def listar(self, tipo: str = "", incluir_da_conversa: bool = False) -> list[dict]:
         sql = (
             "SELECT d.id, d.titulo, d.tipo, d.cadastro_id, d.criado_em, d.atualizado_em, d.criado_por, d.criado_por_conta,"
+            " d.trabalho_id, d.situacao, d.arquivo,"
             " k.nome AS cadastro_nome, LENGTH(d.corpo) AS tamanho,"
             " (SELECT MAX(numero) FROM versoes v WHERE v.documento_id = d.id) AS versao"
             " FROM documentos d LEFT JOIN cadastros k ON k.id = d.cadastro_id"
         )
+        condicoes: list[str] = []
         parametros: tuple = ()
         if tipo:
-            sql += " WHERE d.tipo = ?"
+            condicoes.append("d.tipo = ?")
             parametros = (tipo,)
+        if not incluir_da_conversa:
+            condicoes.append("COALESCE(d.situacao, '') != 'conversa'")
+        if condicoes:
+            sql += " WHERE " + " AND ".join(condicoes)
         sql += " ORDER BY d.atualizado_em DESC"
         itens = self.base.buscar(sql, parametros)
         for i in itens:
             i["versao"] = i["versao"] or 1
         return itens
+
+    def da_conversa(self, trabalho_id: str) -> list[dict]:
+        """Os documentos de uma conversa, o mais recente primeiro."""
+        if not trabalho_id:
+            return []
+        return self.base.buscar(
+            "SELECT id, titulo, tipo, situacao, origem, arquivo, concluido_em, atualizado_em FROM documentos "
+            "WHERE trabalho_id = ? ORDER BY atualizado_em DESC, id DESC", (trabalho_id,))
+
+    def rascunho_de(self, trabalho_id: str, sha1: str) -> dict | None:
+        """O rascunho que esta conversa já fez deste arquivo (pelo conteúdo, não pelo nome)."""
+        import json
+
+        if not trabalho_id or not sha1:
+            return None
+        for d in self.da_conversa(trabalho_id):
+            try:
+                origem = json.loads(d.get("origem") or "{}")
+            except ValueError:
+                continue
+            if origem.get("sha1") == sha1 and d.get("situacao") in ("conversa", "concluido"):
+                return self.obter(int(d["id"]))
+        return None
 
     def obter(self, id_: int) -> dict | None:
         item = self.base.um(
@@ -1443,32 +1531,84 @@ class Documentos:
         return item
 
     def criar(self, titulo: str, tipo: str = "texto", corpo: str = "",
-              cadastro_id: int | None = None) -> int:
+              cadastro_id: int | None = None, *, trabalho_id: str = "", origem: dict | None = None,
+              situacao: str = "") -> int:
+        import json
+
         titulo = " ".join(str(titulo or "").split()) or "Documento sem título"
+        tipo = tipo if tipo in ("texto", "planilha") else "texto"
+        corpo = corpo_normal(tipo, corpo)
         id_ = self.base.escrever(
-            "INSERT INTO documentos (titulo, tipo, corpo, cadastro_id, criado_em, atualizado_em) "
-            "VALUES (?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))",
-            (titulo, tipo if tipo in ("texto", "planilha") else "texto", corpo, cadastro_id),
+            "INSERT INTO documentos (titulo, tipo, corpo, cadastro_id, criado_em, atualizado_em, trabalho_id, origem, "
+            "situacao, revisao) "
+            "VALUES (?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'), ?, ?, ?, 1)",
+            (titulo, tipo, corpo, cadastro_id, str(trabalho_id or ""),
+             json.dumps(origem, ensure_ascii=False) if origem else "", situacao if situacao in ("conversa", "concluido") else ""),
         )
         self._gravar_versao(id_, corpo, "criado")
         return id_
 
-    def salvar(self, id_: int, corpo: str, titulo: str = "", nota: str = "") -> dict:
-        atual = self.base.um("SELECT corpo, titulo FROM documentos WHERE id = ?", (id_,))
+    def salvar(self, id_: int, corpo: str, titulo: str = "", nota: str = "", *, revisao: int | None = None,
+               versao: bool | None = None) -> dict:
+        """
+        Grava o corpo (e o título). Com `revisao`, só grava se o documento
+        ainda está na revisão de que a tela partiu - senão Conflito. Versão
+        nova: com `versao` explícito; com nota; ou dez minutos depois da última.
+        """
+        atual = self.base.um("SELECT corpo, titulo, tipo, revisao FROM documentos WHERE id = ?", (id_,))
         if not atual:
             raise ValueError("documento nao encontrado")
+        if revisao is not None and int(revisao) != int(atual["revisao"] or 0):
+            raise Conflito({"corpo": atual["corpo"], "titulo": atual["titulo"], "revisao": int(atual["revisao"] or 0)})
 
+        corpo = corpo_normal(atual["tipo"], corpo)
         mudou = atual["corpo"] != corpo
         novo_titulo = " ".join(str(titulo).split()) if titulo else atual["titulo"]
+        sobe = mudou or novo_titulo != atual["titulo"]
 
         self.base.escrever(
-            "UPDATE documentos SET corpo = ?, titulo = ?, "
+            "UPDATE documentos SET corpo = ?, titulo = ?, revisao = revisao + ?, "
             "atualizado_em = datetime('now','localtime') WHERE id = ?",
-            (corpo, novo_titulo, id_),
+            (corpo, novo_titulo, 1 if sobe else 0, id_),
         )
-        if mudou:
+        nova = bool(mudou and self._vale_versao(id_, nota, versao))
+        if nova:
             self._gravar_versao(id_, corpo, nota)
-        return {"id": id_, "versao": self.ultima_versao(id_), "nova_versao": mudou}
+        return {"id": id_, "versao": self.ultima_versao(id_), "nova_versao": nova,
+                "revisao": int(atual["revisao"] or 0) + (1 if sobe else 0)}
+
+    def _vale_versao(self, id_: int, nota: str, versao: bool | None) -> bool:
+        if versao is not None:
+            return bool(versao)
+        if nota:
+            return True
+        ultima = self.base.um(
+            "SELECT (julianday('now','localtime') - julianday(criada_em)) * 86400 AS idade FROM versoes "
+            "WHERE documento_id = ? ORDER BY numero DESC LIMIT 1", (id_,))
+        return not ultima or ultima["idade"] is None or float(ultima["idade"]) >= INTERVALO_ENTRE_VERSOES_S
+
+    def marcar(self, id_: int, **campos) -> None:
+        """Muda a situação, o arquivo, a origem ou a conversa do documento."""
+        import json
+
+        permitidos = {"situacao", "arquivo", "concluido_em", "trabalho_id", "origem"}
+        partes, valores = [], []
+        for chave, valor in campos.items():
+            if chave not in permitidos:
+                continue
+            if chave == "origem" and isinstance(valor, dict):
+                valor = json.dumps(valor, ensure_ascii=False)
+            partes.append(f"{chave} = ?")
+            valores.append(valor)
+        if partes:
+            self.base.escrever(f"UPDATE documentos SET {', '.join(partes)} WHERE id = ?", (*valores, id_))
+
+    def versao_agora(self, id_: int, nota: str) -> int:
+        """Uma versão do corpo de agora, com nota (o antes de uma rodada do assistente)."""
+        atual = self.base.um("SELECT corpo FROM documentos WHERE id = ?", (id_,))
+        if not atual:
+            raise ValueError("documento nao encontrado")
+        return self._gravar_versao(id_, atual["corpo"], nota)
 
     def _gravar_versao(self, id_: int, corpo: str, nota: str) -> int:
         numero = self.ultima_versao(id_) + 1

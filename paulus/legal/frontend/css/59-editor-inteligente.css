@@ -1,0 +1,119 @@
+/* O editor inteligente (js/95-editor-inteligente.js, docs/PLANO-EDITOR.md).
+   A sugestão do Paulus no texto, como o controlar alterações do Word: o que
+   entra sublinhado em verde, o que sai riscado em vinho. Fica na folha e é
+   lida pelo leitor de tela como inserção e remoção (ins/del). */
+
+.ed-folha ins[data-s] {
+  text-decoration: underline; text-decoration-color: var(--papel-ok); text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px; background: var(--papel-mudou); color: inherit; cursor: pointer; border-radius: 2px;
+}
+.ed-folha del[data-s] {
+  text-decoration: line-through; text-decoration-color: var(--papel-acc); text-decoration-thickness: 1.5px;
+  color: var(--papel-ink3); background: var(--papel-accbg); cursor: pointer; border-radius: 2px;
+}
+/* O bloco inteiro que entra ou sai: um fio na margem, como no Word. */
+.ed-folha [data-sug="ins"] { box-shadow: -10px 0 0 -7px var(--papel-ok); background: var(--papel-mudou); cursor: pointer; }
+.ed-folha [data-sug="del"] {
+  box-shadow: -10px 0 0 -7px var(--papel-acc); color: var(--papel-ink3); text-decoration: line-through;
+  text-decoration-color: var(--papel-acc); cursor: pointer;
+}
+/* A numeração automática do Word (data-num, o .docx importado): não é texto
+   editável - aparece na frente, como no Word. */
+.ed-folha [data-num]::before { content: attr(data-num) " "; color: var(--papel-ink2); user-select: none; }
+
+/* A mudança que acabou de entrar pisca uma vez. */
+.ei-pisca { animation: ei-pisca 1.5s ease-out; }
+@keyframes ei-pisca {
+  0% { outline: 2px solid var(--papel-ok); outline-offset: 4px; }
+  100% { outline: 2px solid transparent; outline-offset: 8px; }
+}
+
+/* O trecho selecionado continua marcado enquanto a pessoa escreve o pedido. */
+::highlight(paulus-selecao) { background: var(--papel-realce); color: inherit; }
+
+/* O botão Alterações com sugestão esperando. */
+.ei-com-pendentes { color: var(--destaque); }
+.ei-com-pendentes .edl-conta { background: var(--destaque-fundo); color: var(--destaque); }
+
+/* O concluído é só leitura. */
+.ei-concluido .ed-folha { cursor: default; }
+.ei-concluido .edl-barra { opacity: .45; pointer-events: none; }
+
+/* O cartãozinho de uma sugestão, ao clicar nela. */
+.ei-popover {
+  position: fixed; z-index: 70; width: min(320px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 6px;
+  background: var(--cartao-fundo); color: var(--ink); border: 1px solid var(--ink-a1); border-radius: 12px;
+  box-shadow: var(--elev-float); padding: 12px 14px;
+}
+.ei-popover p { margin: 0; font: 500 13px/1.45 var(--sans); color: var(--ink2); overflow-wrap: anywhere; }
+.ei-popover .linha-form { justify-content: flex-end; margin: 4px 0 0; }
+
+/* O painel de alterações, entre a barra e as páginas. */
+.ei-painel {
+  margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 12px; background: var(--cartao-fundo);
+  display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow: auto;
+}
+.ei-painel-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ei-painel-topo b { font: 600 13px var(--sans); }
+.ei-painel-lista { display: flex; flex-direction: column; gap: 2px; }
+.ei-mudanca { display: flex; align-items: center; gap: 4px; border-radius: 8px; }
+.ei-mudanca:hover { background: var(--fill); }
+.ei-mudanca-texto {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  border: 0; background: none; padding: 6px 8px; color: var(--ink2); font: 500 13px/1.4 var(--sans); cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.ei-mudanca-texto .rotulo { font-size: 11px; }
+
+/* O trecho selecionado, logo acima da caixa do pedido. */
+.ei-chip-selecao {
+  display: flex; align-items: center; gap: 8px; max-width: 100%; margin: 0 0 6px; padding: 4px 6px 4px 10px;
+  border-radius: 999px; background: var(--fill); color: var(--ink2); font: 500 12px var(--sans);
+}
+.ei-chip-selecao .corta { flex: 1; min-width: 0; }
+
+/* A barrinha sobre a seleção. */
+.ei-barrinha {
+  position: fixed; z-index: 70; display: flex; flex-wrap: wrap; gap: 2px; max-width: calc(100vw - 16px);
+  padding: 4px; border-radius: 10px; background: var(--cartao-fundo); border: 1px solid var(--ink-a1); box-shadow: var(--elev-float);
+}
+.ei-barrinha button {
+  display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--ink2);
+  font: 500 12px var(--sans); padding: 5px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+}
+.ei-barrinha button:hover, .ei-barrinha button:focus-visible { background: var(--fill); color: var(--ink); outline: none; }
+
+/* O cartão de trabalho e a resposta na conversa. */
+.ei-etapas { display: flex; flex-direction: column; gap: 4px; }
+.ei-bastidor { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.ei-nota { display: flex; align-items: flex-start; gap: 6px; font: 500 12px/1.45 var(--sans); color: var(--ink3); overflow-wrap: anywhere; }
+.ei-nota-mudou { color: var(--ink2); }
+.ei-linha-mudanca, .ei-citado {
+  display: inline-flex; align-items: flex-start; gap: 6px; border: 0; background: none; padding: 1px 0; color: inherit;
+  font: inherit; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--ink-a25);
+  text-underline-offset: 3px; overflow-wrap: anywhere;
+}
+.ei-linha-mudanca:hover, .ei-citado:hover { text-decoration-color: var(--ink2); }
+.ei-citado { padding: 0 6px; border-radius: 6px; background: var(--fill); text-decoration: none; font-size: .92em; }
+.ei-acoes-rodada { margin-top: 10px; flex-wrap: wrap; }
+.ei-avaliar { display: inline-flex; gap: 2px; align-items: center; }
+.ei-assinatura { margin-top: 6px; font: 500 11px var(--sans); color: var(--ink3); }
+
+/* A conclusão: o formato, o nome e a pasta. */
+.ei-concluir { display: flex; flex-direction: column; gap: 12px; }
+.ei-formato { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.ei-opcao {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--ink-a1); border-radius: 10px;
+  cursor: pointer; background: var(--cartao-fundo);
+}
+.ei-opcao:has(input:checked) { border-color: var(--ink2); background: var(--fill); }
+.ei-opcao input { margin: 0; }
+.ei-opcao span { display: flex; flex-direction: column; gap: 2px; }
+.ei-opcao b { font: 600 13px var(--sans); }
+.ei-opcao small { font: 500 12px var(--sans); color: var(--ink3); }
+.dialogo-concluir .campo-form input { max-width: 100%; }
+
+@media (max-width: 760px) {
+  .ei-barrinha { left: 8px !important; right: 8px; }
+  .ei-painel { max-height: 50vh; }
+}

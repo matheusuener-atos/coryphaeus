@@ -3794,6 +3794,13 @@ def trabalhos_remover(id_: str) -> dict:
     movidos = [estado.lixeira.mover_arquivo(caminho)] if caminho.exists() else []
     entrada = estado.lixeira.guardar("conversa", id_, trabalho.titulo, "Assistente", {"id": id_}, movidos)
     estado.trabalhos.remover(id_)
+    # O rascunho da conversa vai junto para a lixeira (E1); o concluído é
+    # arquivo do Acervo, e fica - só deixa de ter conversa.
+    for d in estado.documentos.da_conversa(id_):
+        if d.get("situacao") == "conversa":
+            estado.lixeira.apagar_linha("documento", int(d["id"]), d["titulo"], "Rascunho da conversa · " + trabalho.titulo)
+        else:
+            estado.documentos.marcar(int(d["id"]), trabalho_id="", situacao="")
     return _foi_para_lixeira(entrada, "removido", id_)
 
 
@@ -6064,7 +6071,11 @@ def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None, titul
     import citacoes
 
     limpo = citacoes.RE_MARCA.sub("", texto).replace(citacoes.SEM_FONTE, "")
+    limpo, notas = _sem_notas_do_advogado(limpo)
     paragrafos = [p for p in re.split(r"\n\s*\n|\n", limpo) if p.strip()]
+    # "Segue a minuta..." antes do documento é conversa, não documento.
+    while paragrafos and RE_ABERTURA_DE_CONVERSA.match(paragrafos[0]):
+        paragrafos.pop(0)
     corpo = "".join(_paragrafo_do_editor(p) for p in paragrafos)
     nomes = list(trabalho.contexto.get("documento_em_foco") or [])
     base = Path(nomes[0]).stem if len(nomes) == 1 else ""
@@ -6078,12 +6089,36 @@ def _resposta_no_editor(trabalho, pergunta: str, texto: str, request=None, titul
     else:
         titulo = base or titular(pergunta)
     try:
-        id_ = estado.documentos.criar(titulo[:120], "texto", corpo, None)
+        # O documento da conversa (docs/PLANO-EDITOR.md, E1): é dela até a
+        # conclusão - fora da lista do Editor e do Acervo.
+        id_ = estado.documentos.criar(titulo[:120], "texto", corpo, None, trabalho_id=getattr(trabalho, "id", ""),
+                                      origem={"tipo": "redigido", "notas": notas[:4000]} if notas else {"tipo": "redigido"},
+                                      situacao="conversa" if getattr(trabalho, "id", "") else "")
         equipe.marcar_autor(estado.base, "documentos", id_, equipe.quem(request, estado.prefs.dados))
     except Exception:  # noqa: BLE001 - sem o rascunho, a resposta vale igual
         return None
     return {"tipo": "editor_criado", "titulo": titulo, "campos": {"id": id_, "titulo": titulo},
             "porque": "você pediu para salvar no editor", "pergunta": pergunta}
+
+
+RE_ABERTURA_DE_CONVERSA = re.compile(
+    r"(?i)^\s*(?:segue|seguem|aqui est[aá]|abaixo|confira|eis|conforme solicitado|claro[!,.]|certo[!,.]|pronto[!,.])"
+    r"[^\n]{0,160}[:.!]\s*$")
+RE_NOTAS_DO_ADVOGADO = re.compile(r"(?im)^\s*(?:-{3,}\s*\n\s*)?(?:#+\s*)?\**notas?\s+(?:para|ao)\s+(?:o\s+)?advogad[oa]\**\s*:?\s*$")
+
+
+def _sem_notas_do_advogado(texto: str) -> tuple[str, str]:
+    """
+    O trabalho redigido sem a seção "Notas para o advogado" do fim
+    (src/elaboracao.py) - ela é conversa com quem pediu, e não texto do
+    contrato. Devolve (o documento, as notas).
+    """
+    m = RE_NOTAS_DO_ADVOGADO.search(texto or "")
+    if not m:
+        return texto, ""
+    corpo = texto[:m.start()].rstrip()
+    corpo = re.sub(r"\n\s*-{3,}\s*$", "", corpo).rstrip()
+    return corpo, texto[m.end():].strip()
 
 
 def _trabalho_redigido(trabalho):
@@ -6161,18 +6196,39 @@ def _rascunho_do_documento(trabalho, nome: str) -> tuple[int, str]:
             antigo = estado.documentos.obter(int(f["id"]))
             if antigo:
                 return antigo["id"], antigo.get("tipo") or "texto"
-    novo = documentos_importar(ImportarParaEditar(nome=nome))
+    doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+    if not doc or not Path(doc.path).exists():
+        raise HTTPException(status_code=404, detail="nao achei esse documento")
+    # PdfSemPedido sobe: PDF não vira editável sem o pedido (o cartão pergunta).
+    novo = _importar_para_editar(Path(doc.path), doc, trabalho, anotar=False)
     return novo["id"], novo.get("tipo") or "texto"
+
+
+def _oferecer_versao_editavel(trabalho, nome: str, pergunta: str, pedido: str = "") -> StreamingResponse:
+    """
+    PDF não se edita: ele continua PDF. O cartão oferece criar a versão
+    editável (o original fica) - e, com `pedido`, fazer a mudança nela em
+    seguida. Nada é convertido sem o sim (docs/PLANO-EDITOR.md, E1).
+    """
+    texto = (f"“{nome}” é PDF, e PDF continua PDF: dá para ler, citar e comentar aqui ao lado. Para mexer no texto, "
+             "eu crio uma versão editável desta conversa — o PDF original fica como está. "
+             + ("Com ela criada, faço a mudança que você pediu." if pedido else "Quer que eu crie?"))
+    proposta = {"tipo": "editavel_de_pdf", "titulo": nome, "porque": "PDF só vira texto editável com o seu pedido",
+                "pergunta": pergunta, "campos": {"nome": nome, "pedido": pedido}}
+    return _dizer_com_proposta(trabalho, texto, proposta, etapa="Entender o pedido")
 
 
 def _abrir_documento_no_editor(trabalho, nome: str, pergunta: str) -> StreamingResponse:
     """
     Um documento do Acervo (nomeado ou anexado) no editor, como rascunho - o
     mesmo de "Abrir editor" no cartão do arquivo (/api/documentos/importar).
-    Aberto antes nesta conversa, volta ao mesmo rascunho.
+    Aberto antes nesta conversa, volta ao mesmo rascunho. PDF: o cartão que
+    oferece a versão editável, sem converter sozinho.
     """
     try:
         id_, tipo = _rascunho_do_documento(trabalho, nome)
+    except PdfSemPedido:
+        return _oferecer_versao_editavel(trabalho, nome, pergunta)
     except HTTPException as exc:
         return _so_dizer(trabalho, f"Não consegui abrir “{nome}” no editor: {exc.detail}.")
     titulo = Path(nome).stem
@@ -6343,12 +6399,15 @@ def _responder_mudar_documento(trabalho, nome: str, pergunta: str) -> StreamingR
     para manter ou descartar (js/13-editor-na-conversa.js). O arquivo do
     Acervo não é tocado - o editor trabalha numa cópia.
     """
-    if not any(d.name == nome for d in estado.searcher.documents):
+    doc = next((d for d in estado.searcher.documents if d.name == nome), None)
+    if doc is None:
         return _so_dizer(trabalho, f"“{nome}” não está entre os documentos abertos, então não tenho onde mudar.")
+    # PDF sem versão editável nesta conversa: o cartão pergunta antes (E1).
+    if nome.lower().endswith(".pdf") and not estado.documentos.rascunho_de(trabalho.id, getattr(doc, "sha1", "")):
+        return _oferecer_versao_editavel(trabalho, nome, pergunta, pedido=pergunta)
     trocas = intencao.trocas_do_pedido(pergunta)
-    texto = (f"Vou abrir “{nome}” no editor, como rascunho, e "
-             + (f"trocar “{trocas[0][0]}” por “{trocas[0][1]}”" if len(trocas) == 1 else "fazer a mudança")
-             + ". A alteração fica marcada para você manter ou descartar; o arquivo original no Acervo não muda.")
+    texto = (f"Vou abrir “{nome}” no editor, como rascunho desta conversa, e fazer a mudança que você pediu. "
+             "Cada alteração fica marcada para você aceitar ou recusar; o arquivo original no Acervo não muda.")
     proposta = {"tipo": "mudar_documento", "titulo": nome, "porque": "um pedido de mudança e o documento desta conversa",
                 "pergunta": pergunta, "campos": {"nome": nome, "pedido": pergunta, "trocas": [list(t) for t in trocas]}}
 
@@ -11386,6 +11445,10 @@ class GravarDocumento(BaseModel):
     corpo: str = ""
     titulo: str = ""
     nota: str = ""
+    # A revisão de que a tela partiu: se outra janela gravou depois, 409 em vez
+    # de passar por cima (docs/PLANO-EDITOR.md, E2). Sem ela, como antes.
+    revisao: int | None = None
+    versao: bool | None = None
 
 
 class PedidoAoAssistente(BaseModel):
@@ -11438,17 +11501,33 @@ class ImportarParaEditar(BaseModel):
     # Vindo de uma conversa: o rascunho fica ligado a ela, e abrir para
     # editar de novo volta ao mesmo rascunho em vez de criar outra copia.
     trabalho_id: str = ""
+    # O PDF so vira documento editavel com o pedido explicito de quem esta
+    # usando (docs/PLANO-EDITOR.md, E1): "criar a versao editavel".
+    de_pdf: bool = False
+
+
+class PdfSemPedido(Exception):
+    pass
 
 
 @app.post("/api/documentos/importar")
-def documentos_importar(payload: ImportarParaEditar) -> dict:
+def documentos_importar(payload: ImportarParaEditar):
     """
     Traz um documento da biblioteca para o editor, como rascunho.
 
     O arquivo original NAO e tocado. O que nasce aqui e uma copia editavel: a
     pessoa pediu para abrir para editar, e editar o .docx de origem no lugar
     seria mexer no documento que ja foi assinado, enviado ou protocolado.
+
+    O .docx entra com a estrutura (src/docx_ida_e_volta.py): titulos, negrito,
+    quadros no lugar, a numeracao do Word - e a conclusao devolve um .docx
+    remendado do original. O PDF continua PDF: so vira texto editavel com
+    `de_pdf` (409 sem ele), e o texto entra limpo (src/pdf_em_texto.py).
+    Vindo de uma conversa, o rascunho e dela; abrir de novo o mesmo arquivo
+    (o mesmo conteudo, nao so o mesmo nome) volta ao mesmo rascunho.
     """
+    from fastapi.responses import JSONResponse
+
     alvo = Path(payload.caminho) if payload.caminho else None
     if not alvo or not alvo.exists():
         doc = next((d for d in estado.searcher.documents if d.name == payload.nome), None)
@@ -11463,12 +11542,36 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
         raise HTTPException(status_code=400, detail="esse arquivo ainda nao foi lido")
 
     trabalho = estado.trabalhos.obter(payload.trabalho_id) if payload.trabalho_id else None
+    try:
+        return _importar_para_editar(alvo, lido, trabalho, payload.de_pdf)
+    except PdfSemPedido:
+        return JSONResponse(status_code=409, content={
+            "detail": f"“{lido.name}” é PDF: ele continua PDF. Para mexer no texto, crie a versão editável — o PDF "
+                      "original fica como está.", "pdf": True, "nome": lido.name})
+
+
+def _importar_para_editar(alvo: Path, lido, trabalho, de_pdf: bool = False, anotar: bool = True) -> dict:
+    import docx_ida_e_volta
+    import pdf_em_texto
+    from extract import file_sha1
+
+    sufixo = alvo.suffix.lower()
+    sha1 = getattr(lido, "sha1", "") or file_sha1(alvo)
     if trabalho:
+        ja = estado.documentos.rascunho_de(trabalho.id, sha1)
+        if ja:
+            return {"id": ja["id"], "titulo": ja["titulo"], "de": lido.name, "paragrafos": 0, "reaberto": True,
+                    "tipo": ja.get("tipo", "texto"), "situacao": ja.get("situacao", "")}
         for m in reversed(trabalho.mensagens):
             feito = m.feito or {}
             if feito.get("tipo") == "editar" and feito.get("nome") == lido.name:
                 rascunho = estado.documentos.obter(int(feito.get("id") or 0))
                 if rascunho:
+                    # O rascunho de antes de 13/10/2026 passa a ser desta conversa.
+                    if not rascunho.get("trabalho_id") and rascunho.get("tipo") == "texto":
+                        estado.documentos.marcar(rascunho["id"], trabalho_id=trabalho.id, situacao="conversa",
+                                                 origem={"tipo": "acervo", "nome": lido.name, "caminho": str(alvo),
+                                                         "sha1": sha1, "formato": sufixo.lstrip(".")})
                     return {"id": rascunho["id"], "titulo": rascunho["titulo"], "de": lido.name,
                             "paragrafos": 0, "reaberto": True, "tipo": rascunho.get("tipo", "texto")}
 
@@ -11488,18 +11591,39 @@ def documentos_importar(payload: ImportarParaEditar) -> dict:
         return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name, "paragrafos": 0,
                 "reaberto": False, "tipo": "planilha"}
 
-    # Paragrafo por paragrafo: o texto extraido vem com quebras de linha, e
-    # jogar tudo num <p> so daria um bloco unico impossivel de editar.
-    paragrafos = [p.strip() for p in lido.text.splitlines() if p.strip()]
-    corpo = "".join(f"<p>{_escapar(p)}</p>" for p in paragrafos) or "<p><br></p>"
+    if sufixo == ".pdf" and not de_pdf:
+        raise PdfSemPedido()
+    origem = {"tipo": "pdf" if sufixo == ".pdf" else "acervo", "nome": lido.name, "caminho": str(alvo), "sha1": sha1,
+              "formato": sufixo.lstrip(".")}
+    avisos: list[str] = []
+    corpo = ""
+    if sufixo == ".docx":
+        try:
+            lido_docx = docx_ida_e_volta.ler(alvo.read_bytes())
+            corpo = lido_docx["html"]
+            avisos = lido_docx["avisos"]
+            origem.update(cabecalho=lido_docx["cabecalho"], rodape=lido_docx["rodape"])
+        except Exception:  # noqa: BLE001 - .docx que o python-docx não abre: o texto, como antes
+            avisos.append("não consegui ler a estrutura deste .docx; entrou só o texto")
+            origem["formato"] = "texto"
+    elif sufixo == ".pdf":
+        corpo = pdf_em_texto.para_html(lido.text)
+    if not corpo:
+        # Paragrafo por paragrafo: o texto extraido vem com quebras de linha, e
+        # jogar tudo num <p> so daria um bloco unico impossivel de editar.
+        corpo = "".join(f"<p>{_escapar(p.strip())}</p>" for p in lido.text.splitlines() if p.strip())
+    corpo = corpo or "<p><br></p>"
 
-    id_ = estado.documentos.criar(Path(lido.name).stem, "texto", corpo, None)
-    if trabalho:
-        trabalho.dizer("paulus", f"Abri “{lido.name}” para editar.",
-                       feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "editor"})
+    id_ = estado.documentos.criar(Path(lido.name).stem, "texto", corpo, None, trabalho_id=trabalho.id if trabalho else "",
+                                  origem=origem, situacao="conversa" if trabalho else "")
+    if trabalho and anotar:
+        frase = (f"Criei uma versão editável de “{lido.name}”. O PDF original continua como está." if sufixo == ".pdf"
+                 else f"Abri “{lido.name}” para editar. O original continua como está no Acervo.")
+        trabalho.dizer("paulus", frase, feito={"tipo": "editar", "id": id_, "nome": lido.name, "onde": "editor"})
         estado.trabalhos.salvar(trabalho)
-    return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name,
-            "paragrafos": len(paragrafos), "reaberto": False, "tipo": "texto"}
+    blocos_n = len(documento.ler_html(corpo))
+    return {"id": id_, "titulo": Path(lido.name).stem, "de": lido.name, "paragrafos": blocos_n, "reaberto": False,
+            "tipo": "texto", "situacao": "conversa" if trabalho else "", "avisos": avisos}
 
 
 def _escapar(texto: str) -> str:
@@ -11553,6 +11677,22 @@ def documentos_apagar_modelo(id_: str) -> dict:
     return {"clausulas": estado.clausulas.listar()}
 
 
+def _origem(item: dict) -> dict:
+    try:
+        return json.loads(item.get("origem") or "{}") or {}
+    except ValueError:
+        return {}
+
+
+def _pendentes(item: dict) -> int:
+    """Quantas sugestões do assistente esperam aceitar ou recusar neste documento."""
+    if item.get("tipo") != "texto" or "data-s=" not in (item.get("corpo") or ""):
+        return 0
+    import blocos as blocos_mod
+
+    return len(blocos_mod.sugestoes(blocos_mod.ler(item["corpo"])))
+
+
 @app.get("/api/documentos/{id_}")
 def documentos_obter(id_: int) -> dict:
     item = _documento_ou_404(id_)
@@ -11565,19 +11705,79 @@ def documentos_obter(id_: int) -> dict:
             blocos, timbre=_timbre_do_documento(item.get("formato")), formato=item.get("formato"))
         item["formato"] = documento.normalizar_formato(item.get("formato"))
         item["folha"] = _folha_para_tela(item)
+        item["pendentes"] = _pendentes(item)
+    # O documento da conversa (E1): de onde veio e em que pé está.
+    item["origem"] = _origem(item)
+    item["da_conversa"] = item.get("situacao") in ("conversa", "concluido") and bool(item.get("trabalho_id"))
+    item["revisao"] = int(item.get("revisao") or 0)
     return item
 
 
 @app.post("/api/documentos/{id_}")
-def documentos_gravar(id_: int, payload: GravarDocumento) -> dict:
+def documentos_gravar(id_: int, payload: GravarDocumento):
+    from fastapi.responses import JSONResponse
+
+    item = _documento_ou_404(id_)
+    if item.get("situacao") == "concluido" and payload.corpo and payload.corpo != item.get("corpo"):
+        raise HTTPException(status_code=409, detail="este documento foi concluído; para mexer de novo, reabra-o")
     try:
-        resultado = estado.documentos.salvar(id_, payload.corpo, payload.titulo, payload.nota)
+        resultado = estado.documentos.salvar(id_, payload.corpo, payload.titulo, payload.nota, revisao=payload.revisao,
+                                             versao=payload.versao)
+    except documento.Conflito as exc:
+        return JSONResponse(status_code=409, content={"detail": str(exc), "conflito": True, **exc.atual})
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     if payload.corpo and not payload.corpo.lstrip().startswith("{"):
         resultado["contagem"] = documento.contar(documento.ler_html(payload.corpo))
     return resultado
+
+
+class DecidirSugestoes(BaseModel):
+    acao: str = "aceitar"          # aceitar | recusar
+    sids: list[str] = []           # vazio: todas (ou as da rodada)
+    rodada: int | None = None
+    corpo: str | None = None       # o que está na tela agora (sem ele, o gravado)
+    revisao: int | None = None
+
+
+@app.post("/api/documentos/{id_}/sugestoes")
+def documentos_sugestoes(id_: int, payload: DecidirSugestoes):
+    """
+    Aceitar ou recusar sugestões do assistente - uma, as de uma rodada, ou
+    todas. Grava e devolve o corpo novo e os remendos para a tela.
+    """
+    import blocos as blocos_mod
+    from fastapi.responses import JSONResponse
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+    antes = blocos_mod.ler(payload.corpo if payload.corpo is not None else item["corpo"])
+    depois = blocos_mod.decidir(antes, payload.acao != "recusar", set(payload.sids) if payload.sids else None,
+                                payload.rodada)
+    corpo = blocos_mod.html(depois)
+    nota = ("aceitou" if payload.acao != "recusar" else "recusou") + (" todas as sugestões" if not payload.sids else
+                                                                          f" {len(payload.sids)} sugestão(ões)")
+    try:
+        r = estado.documentos.salvar(id_, corpo, nota=nota, revisao=payload.revisao)
+    except documento.Conflito as exc:
+        return JSONResponse(status_code=409, content={"detail": str(exc), "conflito": True, **exc.atual})
+    return {"corpo": corpo, "revisao": r["revisao"], "versao": r["versao"], "remendos": blocos_mod.remendos(antes, depois),
+            "pendentes": len(blocos_mod.sugestoes(depois))}
+
+
+def _sem_sugestao_pendente(item: dict) -> None:
+    """
+    PDF, DOCX, impressão, assinatura e Acervo só saem do documento sem
+    sugestão pendente: o texto que ninguém aceitou não vai para fora
+    (docs/PLANO-EDITOR.md, E3).
+    """
+    n = _pendentes(item)
+    if n:
+        raise HTTPException(status_code=409, detail=(
+            f"há {n} {'sugestão' if n == 1 else 'sugestões'} do assistente esperando você aceitar ou recusar - "
+            "decida antes de gerar o arquivo"))
 
 
 @app.delete("/api/documentos/{id_}")
@@ -11869,6 +12069,7 @@ def documentos_pdf(id_: int):
     from fastapi.responses import Response
 
     item = _documento_ou_404(id_)
+    _sem_sugestao_pendente(item)
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
     return Response(
@@ -11895,6 +12096,7 @@ def documentos_imprimir(id_: int, payload: dict) -> dict:
     import impressao
 
     item = _documento_ou_404(id_)
+    _sem_sugestao_pendente(item)
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX para imprimir")
     try:
@@ -11924,6 +12126,7 @@ def documentos_pdf_com_senha(id_: int, payload: PdfProtegido):
     from fastapi.responses import Response
 
     item = _documento_ou_404(id_)
+    _sem_sugestao_pendente(item)
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
     try:
@@ -11956,6 +12159,8 @@ def word_abrir_documento(id_: int, request: Request) -> dict:
     if not instalacao.instalado():
         raise HTTPException(status_code=409, detail="ative o PAVLVS no Word primeiro (Configurações › Word)")
     item = _documento_ou_404(id_)
+    _sem_sugestao_pendente(item)
+    _so_concluido(item)
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="só documento de texto abre no Word")
     if instalacao.precisa_fechar_o_word():
@@ -11984,6 +12189,7 @@ def documentos_docx(id_: int):
     from fastapi.responses import Response
 
     item = _documento_ou_404(id_)
+    _sem_sugestao_pendente(item)
     if item["tipo"] != "texto":
         raise HTTPException(status_code=400, detail="isso é uma planilha - baixe em XLSX ou CSV")
 
@@ -12133,6 +12339,8 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
     arquivo que alguem mudou por fora (_arquivo_do_editor_no_acervo).
     """
     item = _documento_ou_404(id_)
+    _sem_sugestao_pendente(item)
+    _so_concluido(item)
     formato = str((payload or {}).get("formato", "pdf")).lower()
     senha = str((payload or {}).get("senha", ""))
 
@@ -12164,6 +12372,159 @@ def documentos_para_biblioteca(id_: int, payload: dict | None = None) -> dict:
         "caminho": str(destino),
         "documentos": estado.recarregar(),
     }
+
+
+def _so_concluido(item: dict) -> None:
+    """
+    O rascunho da conversa não vai para o Acervo nem para o Word por fora da
+    conclusão: é dela até a pessoa dizer que está pronto (E1).
+    """
+    if item.get("situacao") == "conversa" and item.get("trabalho_id"):
+        raise HTTPException(status_code=409, detail=(
+            "este é o rascunho da conversa: para gravar o arquivo no Acervo (e abrir no Word, assinar ou anexar), "
+            "conclua o documento primeiro"))
+
+
+# ------------------------------------------------- o documento da conversa (E1)
+
+
+class ConcluirDocumento(BaseModel):
+    formato: str = ""        # docx | pdf; vazio: o do original (documento novo: docx)
+    nome: str = ""           # o nome do arquivo, sem a extensão
+    pasta: str = ""          # dentro do Acervo; vazio: ao lado do original, ou Acervo › Editor
+    decisoes: dict = {}      # o nome que já existe (src/nomes.py): substituir ou renomear
+
+
+def _dentro_do_acervo(pasta: Path) -> bool:
+    try:
+        alvo = pasta.resolve()
+    except OSError:
+        return False
+    for raiz in estado.pastas_do_acervo():
+        try:
+            alvo.relative_to(Path(raiz).resolve())
+            return True
+        except (ValueError, OSError):
+            continue
+    return False
+
+
+def _conclusao_padrao(item: dict) -> dict:
+    """O formato, o nome e a pasta que o cartão de conclusão propõe."""
+    origem = _origem(item)
+    formato = origem.get("formato") if origem.get("formato") in ("docx", "pdf") else "docx"
+    caminho = Path(origem["caminho"]) if origem.get("caminho") else None
+    if caminho and caminho.parent.is_dir() and _dentro_do_acervo(caminho.parent):
+        pasta = caminho.parent
+        # Ao lado do original, com outro nome: o original nunca é trocado sem pedir.
+        nome = f"{caminho.stem} - revisado"
+    else:
+        pasta = Path(estado.pasta) / "Editor"
+        nome = _arquivo(item.get("titulo") or "documento")
+    return {"formato": formato, "nome": nome, "pasta": str(pasta),
+            "pasta_curta": " › ".join(pasta.parts[-2:]) if len(pasta.parts) >= 2 else str(pasta)}
+
+
+def _bytes_da_conclusao(item: dict, formato: str) -> tuple[bytes, str]:
+    """(o arquivo, como foi feito). O .docx de um .docx do Acervo é o original remendado."""
+    import blocos as blocos_mod
+    import docx_ida_e_volta
+    from extract import file_sha1
+
+    if formato == "pdf":
+        return _pdf_do_documento(item), "pdf"
+    origem = _origem(item)
+    caminho = Path(origem["caminho"]) if origem.get("caminho") else None
+    if origem.get("formato") == "docx" and caminho and caminho.exists():
+        if file_sha1(caminho) == origem.get("sha1"):
+            try:
+                dados = docx_ida_e_volta.escrever(caminho.read_bytes(), blocos_mod.ler(item["corpo"]))
+                return _docx_com_pavlvs(dados), "docx remendado do original"
+            except Exception:  # noqa: BLE001 - o remendo falhou: o .docx montado do documento, como antes
+                pass
+    dados = documento.para_docx(documento.ler_html(item["corpo"]), item["titulo"], formato=item.get("formato"))
+    return _docx_com_pavlvs(dados), "docx montado do documento"
+
+
+@app.post("/api/documentos/{id_}/concluir")
+def documentos_concluir(id_: int, payload: ConcluirDocumento, request: Request = None) -> dict:
+    """
+    A conclusão explícita do documento da conversa: o arquivo vai para o
+    Acervo, no formato escolhido (o do original por padrão; documento novo,
+    DOCX), ao lado do original ou em Acervo › Editor. Antes disso nada sai.
+    Sugestão pendente impede (409); nome repetido pergunta (src/nomes.py).
+    """
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="só documento de texto se conclui por aqui")
+    _sem_sugestao_pendente(item)
+    padrao = _conclusao_padrao(item)
+    formato = (payload.formato or padrao["formato"]).lower()
+    if formato not in ("docx", "pdf"):
+        raise HTTPException(status_code=400, detail="o formato é DOCX ou PDF")
+    pasta = Path(payload.pasta) if payload.pasta else Path(padrao["pasta"])
+    if not _dentro_do_acervo(pasta):
+        raise HTTPException(status_code=400, detail="a pasta tem de estar dentro do Acervo")
+    pasta.mkdir(parents=True, exist_ok=True)
+    nome = nomes_mod.limpar(payload.nome or padrao["nome"], "." + formato) or f"{_arquivo(item['titulo'])}.{formato}"
+    pendentes: list[dict] = []
+    destino = nomes_mod.destino(pasta, nome, nomes_mod.do_pedido({"decisoes": payload.decisoes}), pendentes)
+    nomes_mod.conferir(pendentes)
+    dados, como = _bytes_da_conclusao(item, formato)
+    destino.write_bytes(dados)
+    agora = datetime.now().isoformat(timespec="seconds")
+    estado.documentos.marcar(id_, situacao="concluido" if item.get("trabalho_id") else "", arquivo=str(destino),
+                             concluido_em=agora)
+    estado.documentos.versao_agora(id_, f"concluído: {destino.name}")
+    total = estado.recarregar()
+    trabalho = estado.trabalhos.obter(item.get("trabalho_id") or "") if item.get("trabalho_id") else None
+    if trabalho:
+        trabalho.dizer("paulus", f"Concluí “{item['titulo']}”: o arquivo {destino.name} está no Acervo, em "
+                                 f"{destino.parent.name}.",
+                       feito={"tipo": "concluido", "id": id_, "nome": destino.name, "caminho": str(destino)})
+        estado.trabalhos.salvar(trabalho)
+    return {"arquivo": str(destino), "nome": destino.name, "pasta": str(destino.parent), "formato": formato,
+            "como": como, "documentos": total}
+
+
+@app.post("/api/documentos/{id_}/reabrir")
+def documentos_reabrir(id_: int) -> dict:
+    """Mexer de novo no documento concluído: volta a ser o rascunho da conversa (o arquivo gravado fica)."""
+    item = _documento_ou_404(id_)
+    if item.get("situacao") == "concluido":
+        estado.documentos.marcar(id_, situacao="conversa")
+    return {"id": id_, "situacao": "conversa" if item.get("situacao") == "concluido" else item.get("situacao", "")}
+
+
+@app.get("/api/trabalhos/{id_}/documentos")
+def trabalhos_documentos(id_: str) -> dict:
+    """Os documentos desta conversa: rascunhos e concluídos, o mais recente primeiro."""
+    if not estado.trabalhos.obter(id_):
+        raise HTTPException(status_code=404, detail="trabalho nao encontrado")
+    saida = []
+    for d in estado.documentos.da_conversa(id_):
+        saida.append({**d, "origem": _origem(d)})
+    trabalho = estado.trabalhos.obter(id_)
+    return {"documentos": saida, "aberto": int((trabalho.contexto or {}).get("editor_aberto") or 0)}
+
+
+class LadoDaConversa(BaseModel):
+    editor: int = 0
+
+
+@app.post("/api/trabalhos/{id_}/lado")
+def trabalhos_lado(id_: str, payload: LadoDaConversa) -> dict:
+    """O documento aberto ao lado desta conversa: reabrir a conversa reabre o editor nele."""
+    trabalho = estado.trabalhos.obter(id_)
+    if not trabalho:
+        raise HTTPException(status_code=404, detail="trabalho nao encontrado")
+    if payload.editor:
+        _documento_ou_404(payload.editor)
+        trabalho.contexto["editor_aberto"] = int(payload.editor)
+    else:
+        trabalho.contexto.pop("editor_aberto", None)
+    estado.trabalhos.salvar(trabalho)
+    return {"editor": int(trabalho.contexto.get("editor_aberto") or 0)}
 
 
 EDITOR_NO_ACERVO_PATH = DADOS_DIR / "editor_no_acervo.json"
@@ -12363,6 +12724,310 @@ def redacao_qualificacao(cadastro_id: int) -> dict:
         "nome": ficha["nome"],
         "cadastro_id": cadastro_id,
     }
+
+
+# ------------------------------------------- o agente de edição (E5)
+
+
+class PedidoDeEdicao(BaseModel):
+    pedido: str = ""
+    corpo: str | None = None        # o que está na tela agora (gravado antes de começar)
+    revisao: int | None = None      # a revisão de que a tela partiu
+    selecao: dict | None = None     # {"bloco", "texto", "blocos"}: o trecho que a pessoa selecionou
+    trabalho_id: str = ""
+    ja_dito: bool = False           # o pedido já está na conversa (veio de uma pergunta)
+    profundidade: str = ""
+    nuvem: bool | None = None       # False: este computador (a pílula "Aqui"); None: a regra
+
+
+def _modelo_do_editor(trabalho, pessoa, nivel, caminhos, so_aqui: bool = False):
+    """
+    `chamar(mensagens, json_mode=, max_tokens=, on_token=)` para o agente, e o
+    registro de onde ele escreveu. A IA da nuvem do plano, no modelo do nível,
+    é o padrão; este computador é a reserva - sem internet, sem crédito, o caso
+    que não sai do escritório, ou a pessoa pediu "Aqui".
+    """
+    onde = {"onde": "", "modelo": "", "provedor": "", "motivo": ""}
+    motivo = "você pediu para escrever neste computador" if so_aqui else \
+        nuvem_mod.motivo_para_trabalhar_aqui(estado, trabalho, pessoa, caminhos)
+    if not motivo and not nuvem_mod.ligada(estado):
+        motivo = "a IA da nuvem não está ativada nesta instalação"
+    onde["motivo"] = motivo
+    mascara = nuvem_mod.Mascara() if nuvem_mod.config(estado).get("mascarar", True) else None
+    modelo_nuvem = profundidade_mod.modelo_do_nivel(estado.prefs.dados, nivel,
+                                                    nuvem_mod.config(estado).get("modelo") or "")
+
+    def local(mensagens, json_mode, on_token):
+        cliente = estado.cliente_para("redacao", local=True)
+        onde.update(onde="computador", modelo=cliente.model, provedor="")
+        return cliente._chat(mensagens, fmt="json" if json_mode else None, stream=bool(on_token), on_token=on_token,
+                             tarefa="redacao")
+
+    def chamar(mensagens, *, json_mode=False, max_tokens=4000, on_token=None):
+        if onde["motivo"]:
+            return local(mensagens, json_mode, on_token)
+        chegou = []
+
+        def entrou(t):
+            chegou.append(t)
+            if on_token:
+                on_token(t)
+
+        try:
+            texto, uso = nuvem_mod.chamada(estado, mensagens, pessoa=pessoa, trabalho=trabalho, etapa="editor",
+                                           pergunta=next((m["content"] for m in reversed(mensagens)
+                                                          if m["role"] == "user"), "")[-140:],
+                                           mascara=mascara, on_token=entrou, desmascarar=True, json_mode=json_mode,
+                                           max_tokens=max_tokens, modelo=modelo_nuvem, profundidade=nivel.id)
+        except nuvem_mod.ErroNuvem as exc:
+            if chegou:
+                raise
+            # Sem internet ou sem crédito: a reserva é este computador (regra de 12/10/2026).
+            onde["motivo"] = str(exc)
+            return local(mensagens, json_mode, on_token)
+        onde.update(onde="nuvem", modelo=uso.get("modelo", ""), provedor=uso.get("provedor", ""))
+        return texto
+
+    return chamar, onde
+
+
+def _rodadas(id_: int) -> list[dict]:
+    return estado.base.buscar("SELECT * FROM rodadas_do_editor WHERE documento_id = ? ORDER BY numero", (id_,))
+
+
+def _memoria_do_documento(id_: int) -> str:
+    """O que já foi pedido e feito neste documento: as rodadas de antes, em uma linha cada (E7)."""
+    linhas = []
+    for r in _rodadas(id_)[-8:]:
+        try:
+            feito = json.loads(r.get("resultado") or "{}")
+        except ValueError:
+            feito = {}
+        resumo = "; ".join(feito.get("resumos") or [])[:300] or "nada aplicado"
+        linhas.append(f"rodada {r['numero']}: pediu “{(r.get('pedido') or '')[:160]}” → {resumo}")
+    return "\n".join(linhas)
+
+
+@app.get("/api/documentos/{id_}/rodadas")
+def documentos_rodadas(id_: int) -> dict:
+    """As rodadas do assistente neste documento: o pedido, o que mudou, o modelo e a nota de quem pediu."""
+    _documento_ou_404(id_)
+    saida = []
+    for r in _rodadas(id_):
+        try:
+            resultado = json.loads(r.get("resultado") or "{}")
+        except ValueError:
+            resultado = {}
+        saida.append({**r, "resultado": resultado})
+    return {"rodadas": saida}
+
+
+class AvaliacaoDaRodada(BaseModel):
+    nota: int = 0                   # 1 (boa), -1 (ruim), 0 (sem nota)
+    comentario: str = ""            # o que deveria ter feito
+
+
+@app.post("/api/documentos/{id_}/rodadas/{numero}/avaliar")
+def documentos_avaliar_rodada(id_: int, numero: int, payload: AvaliacaoDaRodada) -> dict:
+    """
+    O polegar da rodada (E9). A nota ruim com "o que deveria ter feito" vira
+    tarefa candidata do banco de provas (tools/bancada_editor), gravada em
+    data/medicao/editor-avaliacoes.jsonl.
+    """
+    _documento_ou_404(id_)
+    nota = max(-1, min(1, int(payload.nota)))
+    feito = estado.base.escrever("UPDATE rodadas_do_editor SET avaliacao = ?, comentario = ? WHERE documento_id = ? "
+                                 "AND numero = ?", (nota, payload.comentario[:2000], id_, numero))
+    if not feito:
+        raise HTTPException(status_code=404, detail="essa rodada não existe")
+    if nota < 0:
+        r = estado.base.um("SELECT * FROM rodadas_do_editor WHERE documento_id = ? AND numero = ?", (id_, numero)) or {}
+        pasta = DADOS_DIR / "medicao"
+        pasta.mkdir(parents=True, exist_ok=True)
+        with (pasta / "editor-avaliacoes.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"documento": id_, "rodada": numero, "pedido": r.get("pedido"), "nota": nota,
+                                "deveria": payload.comentario[:2000], "resultado": r.get("resultado"),
+                                "modelo": r.get("modelo"), "quando": datetime.now().isoformat(timespec="seconds")},
+                               ensure_ascii=False) + "\n")
+    return {"ok": True, "nota": nota}
+
+
+@app.post("/api/documentos/{id_}/editar")
+def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None):
+    """
+    O assistente edita o documento aberto ao lado da conversa (src/agente_de_edicao.py).
+
+    Eventos: etapas, nota (o bastidor), remendo (cada mudança, enquanto o modelo
+    escreve - a tela aplica no lugar), token (a resposta de uma pergunta),
+    concluir (o cartão de conclusão), fim (a resposta, a revisão e o que
+    ficou pendente). Toda mudança é sugestão marcada; nada sai do documento.
+    """
+    import agente_de_edicao as agente_mod
+    import blocos as blocos_mod
+    from fastapi.responses import JSONResponse
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+    if item.get("situacao") == "concluido":
+        raise HTTPException(status_code=409, detail="este documento foi concluído; para mexer de novo, reabra-o")
+    pedido = " ".join((payload.pedido or "").split())
+    if not pedido:
+        raise HTTPException(status_code=400, detail="diga o que você quer que eu faça no documento")
+    if payload.corpo is not None:
+        try:
+            estado.documentos.salvar(id_, payload.corpo, revisao=payload.revisao)
+        except documento.Conflito as exc:
+            return JSONResponse(status_code=409, content={"detail": str(exc), "conflito": True, **exc.atual})
+        item = _documento_ou_404(id_)
+
+    trabalho = estado.trabalhos.obter(payload.trabalho_id or item.get("trabalho_id") or "") \
+        if (payload.trabalho_id or item.get("trabalho_id")) else None
+    pessoa = rotas_do_acesso.pessoa(request) if request is not None else None
+    nivel = profundidade_mod.limitar(profundidade_mod.obter(payload.profundidade, estado.prefs.dados),
+                                     recursos_do_plano.nivel_max(estado))
+    origem = _origem(item)
+    caminhos = [origem["caminho"]] if origem.get("caminho") else []
+    chamar, onde = _modelo_do_editor(trabalho, pessoa, nivel, caminhos, so_aqui=payload.nuvem is False)
+    numero = int((estado.base.um("SELECT MAX(numero) AS n FROM rodadas_do_editor WHERE documento_id = ?", (id_,))
+                  or {}).get("n") or 0) + 1
+    inicio_blocos = blocos_mod.ler(item["corpo"])
+    titulo = item.get("titulo") or "documento"
+    parar = threading.Event()
+
+    def gerar() -> Iterator[str]:
+        agora = time.time()
+        if trabalho:
+            if not payload.ja_dito:
+                trabalho.dizer("pessoa", pedido)
+            trabalho.etapas = [Etapa("Entender o pedido", estado=EXECUTANDO)]
+            trabalho.estado = EXECUTANDO
+            estado.trabalhos.salvar(trabalho)
+            estado.respondendo[trabalho.id] = parar
+            estado.andamento[trabalho.id] = {"fase": "documento", "inicio": agora, "desde": agora, "previsao_s": 0,
+                                             "palavras": 0, "documentos": 1, "caracteres": len(item["corpo"])}
+        r = None
+        etapas: dict[str, Etapa] = {}
+        try:
+            for tipo, dados in agente_mod.rodar(chamar, inicio_blocos, pedido, rodada=numero, titulo=titulo,
+                                                selecao=payload.selecao, nivel=nivel.id,
+                                                regras=estado.contextos.bloco(["Regras de redação"]),
+                                                memoria=_memoria_do_documento(id_), parar=parar.is_set):
+                if tipo == "fim":
+                    r = dados["rodada"]
+                elif tipo == "etapa":
+                    e = etapas.get(dados["id"]) or Etapa(dados["titulo"])
+                    e.estado = CONCLUIDO if dados["estado"] == "concluido" else EXECUTANDO
+                    etapas[dados["id"]] = e
+                    if trabalho:
+                        trabalho.etapas = list(etapas.values())
+                    yield _sse("etapa", dados)
+                else:
+                    yield _sse(tipo, dados)
+        except Exception as exc:  # noqa: BLE001 - a conversa diz o que houve; o documento ficou como estava
+            texto = f"Não consegui mexer em “{titulo}”: {exc}"
+            if trabalho:
+                estado.andamento.pop(trabalho.id, None)
+                estado.respondendo.pop(trabalho.id, None)
+                trabalho.estado = "falhou"
+                trabalho.dizer("paulus", texto)
+                estado.trabalhos.salvar(trabalho)
+            yield _sse("erro", {"texto": texto})
+            return
+
+        corpo_final = None
+        concluir = None
+        if r.tipo in ("desfazer", "aceitar", "recusar"):
+            atual = blocos_mod.ler(estado.documentos.obter(id_)["corpo"])
+            pendentes = blocos_mod.sugestoes(atual)
+            if r.tipo == "desfazer":
+                ultima = max((s["rodada"] for s in pendentes), default=0)
+                depois = blocos_mod.decidir(atual, False, rodada=ultima) if ultima else atual
+                n = sum(1 for s in pendentes if s["rodada"] == ultima) if ultima else 0
+                texto = (f"Desfiz a última resposta: {n} mudança{'s' if n != 1 else ''} recusada{'s' if n != 1 else ''}."
+                         if n else "Não há mudança pendente para desfazer. O que já foi aceito volta pelo Histórico.")
+            else:
+                aceitar = r.tipo == "aceitar"
+                depois = blocos_mod.decidir(atual, aceitar)
+                n = len(pendentes)
+                texto = (f"{'Aceitei' if aceitar else 'Recusei'} {n} sugest{'ões' if n != 1 else 'ão'}." if n else
+                         "Não há sugestão pendente no documento.")
+            if n:
+                corpo_final = blocos_mod.html(depois)
+                yield _sse("remendo", {"remendos": blocos_mod.remendos(atual, depois), "resumo": texto, "sids": []})
+        elif r.tipo == "concluir":
+            concluir = _conclusao_padrao(item)
+            if _pendentes(item):
+                texto = (f"Antes de concluir, decida as {_pendentes(item)} sugestões que estão marcadas no texto - "
+                         "aceite ou recuse. Depois é só pedir de novo.")
+                concluir = None
+            else:
+                texto = "Para concluir, confirme no cartão o formato, o nome e a pasta do arquivo."
+                yield _sse("concluir", {**concluir, "id": id_})
+        else:
+            texto = agente_mod.resposta(r, titulo)
+            if r.aplicadas:
+                corpo_final = blocos_mod.html(r.blocos)
+
+        revisao = int(item.get("revisao") or 0)
+        conflitos: list = []
+        if corpo_final is not None:
+            # Por cima do que está gravado AGORA: se a pessoa mexeu num bloco
+            # enquanto o modelo escrevia, aquele remendo não passa por cima.
+            agora_blocos = blocos_mod.ler(estado.documentos.obter(id_)["corpo"])
+            if r.tipo == "editar" and blocos_mod.html(agora_blocos) != blocos_mod.html(inicio_blocos):
+                final, conflitos = blocos_mod.aplicar_remendos(agora_blocos,
+                                                               blocos_mod.remendos(inicio_blocos, r.blocos))
+                corpo_final = blocos_mod.html(final)
+            estado.documentos.versao_agora(id_, f"antes da rodada {numero}: {pedido[:80]}")
+            gravado = estado.documentos.salvar(id_, corpo_final, nota=f"rodada {numero}: {pedido[:90]}", versao=True)
+            revisao = gravado["revisao"]
+        for c in (r.comentarios if r else []):
+            try:
+                novo = estado.comentarios.criar(id_, c["trecho"], c["texto"], origem="assistente")
+                estado.base.escrever("UPDATE comentarios SET bloco = ? WHERE id = ?", (c["bloco"], novo))
+            except ValueError:
+                pass
+        if conflitos:
+            texto += (f"\n{len(conflitos)} mudança{'s' if len(conflitos) > 1 else ''} não entr"
+                      f"{'aram' if len(conflitos) > 1 else 'ou'}: você mexeu no mesmo parágrafo enquanto eu escrevia.")
+        mudancas = [{"resumo": a["resumo"], "ids": a.get("ids", []), "sids": a.get("sids", []), "tipo": a.get("tipo", "")}
+                    for a in (r.aplicadas if r else [])]
+        estado.base.escrever(
+            "INSERT INTO rodadas_do_editor (documento_id, numero, pedido, resultado, modelo, nivel, criada_em) "
+            "VALUES (?, ?, ?, ?, ?, ?, datetime('now','localtime'))",
+            (id_, numero, pedido[:2000], json.dumps({
+                "tipo": r.tipo, "resumos": [m["resumo"] for m in mudancas], "falhas": [f["motivo"] for f in r.falhas],
+                "nao_fiz": r.nao_fiz, "sugestoes": r.sugestoes, "lacunas": r.lacunas, "avisos": r.avisos,
+                "chamadas": r.chamadas, "segundos": round(r.segundos, 1), "onde": onde}, ensure_ascii=False),
+             onde.get("modelo", ""), nivel.id))
+        pendentes = len(blocos_mod.sugestoes(blocos_mod.ler(estado.documentos.obter(id_)["corpo"])))
+        rotulos = {}
+        if r.citados or mudancas:
+            import esboco as esboco_mod
+
+            rotulos = esboco_mod.rotulos(blocos_mod.ler(estado.documentos.obter(id_)["corpo"]))
+        if trabalho:
+            estado.andamento.pop(trabalho.id, None)
+            estado.respondendo.pop(trabalho.id, None)
+            for e in trabalho.etapas:
+                e.estado = CONCLUIDO
+            trabalho.estado = CONCLUIDO
+            trabalho.dizer("paulus", texto, feito={
+                "tipo": "alteracao" if mudancas else ("pergunta_no_documento" if r.tipo == "pergunta" else "editor"),
+                "id": id_, "nome": titulo, "onde": "editor", "rodada": numero, "mudancas": mudancas,
+                "citados": [{"id": c, "rotulo": rotulos.get(c, "")} for c in r.citados],
+                "modelo": {"onde": onde.get("onde"), "modelo": onde.get("modelo"), "motivo": onde.get("motivo")}},
+                **({"proposta": {"tipo": "concluir_documento", "titulo": titulo, "campos": {**concluir, "id": id_}}}
+                   if concluir else {}))
+            estado.trabalhos.salvar(trabalho)
+        yield _sse("fim", {"texto": texto, "revisao": revisao, "pendentes": pendentes, "rodada": numero,
+                           "tipo": r.tipo, "mudancas": mudancas,
+                           "citados": [{"id": c, "rotulo": rotulos.get(c, "")} for c in r.citados],
+                           "conflitos": len(conflitos), "onde": onde, "segundos": round(r.segundos, 1)})
+
+    return StreamingResponse(gerar(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/documentos/{id_}/assistente")

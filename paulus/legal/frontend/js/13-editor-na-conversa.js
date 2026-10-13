@@ -209,6 +209,16 @@ function textoDaCaixaDaFerramenta() {
 }
 
 async function mostrarDupla(id, opcoes) {
+  // Abrindo: a conversa que abrir no caminho não reabre outro documento ao lado.
+  dupla.abrindo = id;
+  try {
+    return await mostrarDuplaAgora(id, opcoes);
+  } finally {
+    dupla.abrindo = null;
+  }
+}
+
+async function mostrarDuplaAgora(id, opcoes) {
   /* O editor mora ao lado de uma conversa. Vindo de outra tela (Documentos),
      a conversa é a última aberta no Assistente — ou uma nova, com o nome do
      documento. */
@@ -254,14 +264,17 @@ function desenharEditorAoLado() {
   const botao = (cmd, icone, titulo) =>
     '<button class="botao-icone" data-cmd="' + cmd + '" title="' + titulo + '" aria-label="' + titulo + '">' + ic(icone, 18) + "</button>";
   const word = typeof wordInstaladoAqui === "function" && wordInstaladoAqui();
+  // A extensão de verdade (E8): o .docx que veio do Acervo, o PDF de que se
+  // fez a versão editável - e o documento redigido aqui sai em DOCX.
+  const formato = (d.origem && d.origem.formato) || "docx";
   const html = '<div class="fl" data-fl-tipo="editor" id="editor-lado">' +
     topoDaFerramenta({
-      nome: d.titulo + ".docx",
+      nome: d.titulo + "." + (formato === "pdf" ? "pdf" : "docx"),
       tituloHtml: '<span class="edl-titulo" id="dp-titulo" contenteditable="true" spellcheck="false">' + esc(d.titulo) + "</span>",
       linhaHtml: '<small id="dp-linha">' + esc(linhaDoRascunho(d)) + "</small>",
       acoes: (word ? '<button id="dp-windows" title="Abrir no Word, com o PAVLVS">No Windows' + ic("open_in_new", 14) + "</button>" : "") +
         '<button id="dp-assinar">Assinar</button>' +
-        '<button class="primario" id="dp-guardar">Salvar na biblioteca</button>',
+        '<button class="primario" id="dp-guardar">' + (d.da_conversa ? "Concluir" : "Salvar na biblioteca") + "</button>",
     }) +
     '<div class="fl-quadro">' +
     '<div class="fl-barra edl-barra">' +
@@ -301,29 +314,27 @@ function desenharEditorAoLado() {
   desenharAtalhosDoEditor();
   ligarDupla();
   atualizarPostura();
-  const marcada = $("dp-folha").querySelector(".ed-novo");
-  if (marcada) {
-    const sem = $("dp-folha").cloneNode(true);
-    sem.querySelectorAll(".ed-novo").forEach((m) => {
-      const pai = m.parentNode;
-      m.remove();
-      if (pai !== sem && !pai.textContent.trim()) pai.remove();
-    });
-    dupla.antes = sem.innerHTML;
-    dupla.pendente = {
-      aviso: "Escrita enquanto o editor estava fechado, por um modelo pequeno nesta máquina. Confira nomes, datas e valores antes de manter.",
-      resumo: marcada.textContent.slice(0, 120),
-    };
-    desenharCartaoDaAlteracao();
-  }
+  // Os blocos com nome, as sugestões que esperam decisão e o pé do documento
+  // (js/95-editor-inteligente.js). A conversa lembra que ele está aberto.
+  nomearBlocos($("dp-folha"));
+  contarAlteracoes();
+  desenharEstadoDoDocumento();
+  avisarLadoDaConversa(d.id);
   desenharPaginas();
   // A coluna ainda está se alargando: as páginas se medem de novo no fim.
   setTimeout(() => { if (editorNaConversaAberto()) desenharPaginas(); }, LADO_DURA_MS + 40);
   pedirPaginasDaFolha(true);
 }
 
+/* A linha de baixo do cabeçalho diz o que o documento é, sem prometer o que
+   não há: "o original não é alterado" só quando existe um original. */
 function linhaDoRascunho(d) {
-  return "rascunho · versão " + d.versao + " · o original não é alterado";
+  if (d.situacao === "concluido") return "concluído · " + nomeDe(d.arquivo || "") + " no Acervo";
+  const origem = d.origem || {};
+  const partes = [d.da_conversa ? "rascunho desta conversa" : "rascunho", "versão " + d.versao];
+  if (origem.tipo === "acervo") partes.push("o original não muda");
+  if (origem.tipo === "pdf") partes.push("versão editável do PDF");
+  return partes.join(" · ");
 }
 
 window.addEventListener("resize", () => {
@@ -339,6 +350,12 @@ async function fecharEditorNaConversa(opcoes) {
   const o = opcoes || {};
   clearTimeout(dupla.relogio);
   clearTimeout(dupla.relogioPaginas);
+  // Fechado pela pessoa (o X): a conversa esquece o editor. Trocar de
+  // conversa não: voltando a ela, o documento reabre ao lado.
+  if (o.pelaPessoa) avisarLadoDaConversa(0);
+  esquecerSelecaoDaFolha();
+  const painel = $("ei-painel");
+  if (painel) painel.remove();
   // Gravar lê a folha agora e manda: pode seguir enquanto a coluna sai.
   const salvando = $("dp-folha") ? gravarDupla() : Promise.resolve();
   const faixa = $("edl-atalhos");
@@ -408,9 +425,10 @@ const A4_ALTURA_POR_LARGURA = 297 / 210;
 const ESPACO_ENTRE_PAGINAS = 24;
 
 function htmlDaFolha() {
-  // O cartão da alteração é da tela, não do documento.
+  // O cartão da alteração e o piscar são da tela, não do documento.
   const folha = $("dp-folha").cloneNode(true);
   folha.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
+  folha.querySelectorAll(".ei-pisca").forEach((c) => c.classList.remove("ei-pisca"));
   return folha.innerHTML;
 }
 
@@ -518,13 +536,26 @@ function redesenharPaginas() {
 
 function ligarDupla() {
   const lado = $("editor-lado");
-  lado.querySelector('[data-fl="fechar"]').onclick = () => fecharEditorNaConversa({ animar: true });
+  lado.querySelector('[data-fl="fechar"]').onclick = () => fecharEditorNaConversa({ animar: true, pelaPessoa: true });
   lado.querySelector('[data-fl="mais"]').onclick = (e) => menuNaLinha(e.currentTarget, [
     { rotulo: "Salvar agora", acao: () => gravarDupla() },
-    { rotulo: "Exportar PDF", acao: () => { window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf"; } },
+    { rotulo: "Alterações do Paulus", acao: () => alternarPainelDeAlteracoes() },
+    { rotulo: "Exportar PDF", acao: async () => {
+      await gravarDupla();
+      if (contarAlteracoes()) { avisoNaJanela("Decida as sugestões marcadas antes de gerar o PDF"); alternarPainelDeAlteracoes(); return; }
+      window.location.href = "/api/documentos/" + dupla.doc.id + "/pdf";
+    } },
     { rotulo: "Abrir no Editor, em tela cheia", acao: async () => { const id = dupla.doc.id; await fecharEditorNaConversa(); abrirDocumento(id); } },
   ]);
-  if ($("dp-windows")) $("dp-windows").onclick = async () => { await gravarDupla(); abrirWordComPavlvs("/api/word/abrir-documento/" + dupla.doc.id); };
+  if ($("dp-windows")) $("dp-windows").onclick = async () => {
+    await gravarDupla();
+    // O rascunho da conversa não sai dela antes da conclusão (E1).
+    if (dupla.doc.da_conversa && dupla.doc.situacao !== "concluido") {
+      avisoNaJanela("Conclua o documento (em DOCX) para abrir no Word: o rascunho é desta conversa até lá");
+      return;
+    }
+    abrirWordComPavlvs("/api/word/abrir-documento/" + dupla.doc.id);
+  };
   $("dp-bloco").onchange = (e) => {
     const folha = $("dp-folha");
     folha.focus();
@@ -532,11 +563,23 @@ function ligarDupla() {
     marcarDuplaSuja();
   };
   // Assina ESTE documento, como o Ctrl+Shift+S do editor: grava o que está na
-  // folha, guarda o PDF no Acervo e abre a Assinatura nele. Antes só abria a
-  // lista, e a pessoa tinha de achar o arquivo de novo.
+  // folha, guarda o PDF no Acervo e abre a Assinatura nele. O rascunho da
+  // conversa passa antes pela conclusão, em PDF (E1) - nunca calado.
   $("dp-assinar").onclick = async () => {
     const id = dupla.doc.id;
     await gravarDupla();
+    if (dupla.doc.da_conversa) {
+      if (dupla.doc.situacao === "concluido" && /\.pdf$/i.test(dupla.doc.arquivo || "")) {
+        assinarAoLado({ caminho: dupla.doc.arquivo, nome: nomeDe(dupla.doc.arquivo) });
+        return;
+      }
+      if (dupla.doc.situacao === "concluido") await reabrirDocumento();
+      await mostrarCartaoDeConclusao({ id: id, formato: "pdf", nome: dupla.doc.titulo });
+      if (dupla.doc && dupla.doc.situacao === "concluido" && /\.pdf$/i.test(dupla.doc.arquivo || "")) {
+        assinarAoLado({ caminho: dupla.doc.arquivo, nome: nomeDe(dupla.doc.arquivo) });
+      }
+      return;
+    }
     const alvo = await guardarNaBiblioteca(id);
     if (!alvo) return;
     // T3: a assinatura abre na propria conversa, com o PDF ao lado.
@@ -545,12 +588,12 @@ function ligarDupla() {
   $("dp-citar").onclick = painelCodigosNaDupla;
   $("dp-numerar").onclick = renumerarClausulas;
   $("dp-qualificar").onclick = inserirQualificacao;
-  $("dp-guardar").onclick = () => guardarNaBiblioteca(dupla.doc.id);
-  $("dp-alteracoes").onclick = () => {
-    const m = $("dp-folha").querySelector(".ed-novo");
-    if (m) m.scrollIntoView({ behavior: "smooth", block: "center" });
+  $("dp-guardar").onclick = () => {
+    if (dupla.doc.situacao === "concluido") return reabrirDocumento();
+    if (dupla.doc.da_conversa) return mostrarCartaoDeConclusao({ id: dupla.doc.id });
+    return guardarNaBiblioteca(dupla.doc.id);
   };
-  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
+  $("dp-alteracoes").onclick = () => alternarPainelDeAlteracoes();
 
   lado.querySelectorAll("[data-cmd]").forEach((b) => {
     b.onmousedown = (e) => { e.preventDefault(); document.execCommand(b.dataset.cmd, false, null); marcarDuplaSuja(); };
@@ -559,254 +602,12 @@ function ligarDupla() {
   $("dp-titulo").oninput = () => marcarDuplaSuja();
 }
 
-/* O pedido vira alteração no documento, marcada — e a conversa registra o
-   pedido e o que foi feito, como qualquer outra coisa dita nela. */
-async function pedirNoDocumento(pedido, opcoes) {
-  if (!pedido || dupla.ocupada || !dupla.doc) return;
-  dupla.ocupada = true;
-  const o = opcoes || {};
-  const titulo = dupla.doc.titulo;
-  const tid = estado.trabalhoId;
-  const centro = $("centro");
-  // Vindo de uma pergunta que abriu o editor, o pedido já está na conversa.
-  if (!o.jaDito) centro.insertAdjacentHTML("beforeend", bolhaPessoa(pedido));
-  const resposta = document.createElement("div");
-  resposta.className = "resposta";
-  resposta.innerHTML = cartaoDoPedidoNoDocumento(titulo);
-  centro.appendChild(resposta);
-  atualizarPostura();
-  rolar();
-  seloDoRascunho("escrevendo…", "sujo");
-  const acompanhar = acompanharPedidoNoDocumento(resposta, tid);
-
-  // Antes de mexer, guarda o documento inteiro: é isso que o "Desfazer" devolve.
-  const antes = htmlDaFolha();
-  const docId = dupla.doc.id;
-  try {
-    const r = await fetch("/api/documentos/" + docId + "/assistente", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido: pedido, trecho: trechoSelecionadoNaDupla(), trabalho_id: tid || "", ja_dito: Boolean(o.jaDito) }),
-    });
-    if (!r.ok) throw new Error(await erroDe(r));
-    const sugestao = await r.json();
-
-    /* O editor foi fechado (ou trocou de documento) enquanto o modelo
-       escrevia: a alteração não se perde — entra no documento, marcada, e o
-       cartão de manter ou descartar aparece quando ele for aberto. */
-    if (!dupla.doc || dupla.doc.id !== docId) {
-      await guardarAlteracaoNoDocumento(docId, sugestao);
-      resposta.innerHTML = '<div class="texto">Escrevi em “' + esc(titulo) + "”. O editor estava fechado, então a " +
-        "alteração ficou marcada no documento — abra o editor para manter ou descartar.</div>" +
-        '<div class="linha-form"><button data-edl-abrir="1">Abrir editor</button></div>';
-      resposta.querySelector("[data-edl-abrir]").onclick = () => mostrarDupla(docId);
-      return;
-    }
-
-    dupla.antes = antes;
-    const aplicadas = aplicarNaDupla(sugestao);
-    const frase = (sugestao.trocas || []).length
-      ? (aplicadas ? sugestao.frase || ("Troquei " + plural(aplicadas, "trecho") + " em “" + titulo + "”.")
-        : "Não achei no texto do editor o trecho a trocar. Selecione o trecho e peça de novo.")
-      : sugestao.sobre
-        ? "Troquei o trecho que você selecionou em “" + titulo + "”. A alteração está marcada no documento."
-        : "Escrevi no fim de “" + titulo + "”. A alteração está marcada — confira antes de manter.";
-    resposta.innerHTML = '<div class="texto">' + esc(frase) + "</div>" +
-      '<blockquote class="edl-trecho">' + esc(sugestao.sugestao.slice(0, 180)) + "</blockquote>" +
-      '<div class="linha-form"><button data-edl-ver="1">Ver no documento</button>' +
-      '<button data-edl-desfazer="1">Desfazer</button></div>';
-    resposta.querySelector("[data-edl-ver]").onclick = () => {
-      const marca = $("dp-folha") && $("dp-folha").querySelector(".ed-novo");
-      if (marca) marca.scrollIntoView({ behavior: "smooth", block: "center" });
-      else avisoNaJanela("Essa alteração já foi aceita e virou parte do texto");
-    };
-    resposta.querySelector("[data-edl-desfazer]").onclick = () => {
-      if (!dupla.doc || dupla.doc.id !== docId) { avisoNaJanela("Abra o documento de novo para desfazer"); return; }
-      $("dp-folha").innerHTML = antes;
-      dupla.pendente = null;
-      gravarDupla();
-      marcarDuplaSuja();
-      resposta.innerHTML = '<div class="texto">Desfeito. “' + esc(titulo) + "” voltou ao que era antes dessa alteração.</div>";
-    };
-  } catch (err) {
-    resposta.innerHTML = '<div class="texto">Não consegui: ' + esc(String((err && err.message) || err)) + "</div>";
-  } finally {
-    clearInterval(acompanhar);
-    dupla.ocupada = false;
-    if ($("dp-selo") && $("dp-selo").textContent === "escrevendo…") seloDoRascunho("alterações não salvas", "sujo");
-    // Quem saiu e voltou para a conversa enquanto isso vê a conversa redesenhada
-    // do servidor: o cartão que esta função preenchia já não está na tela.
-    if (!resposta.isConnected && estado.trabalhoId === tid && tid) {
-      const t = await fetch("/api/trabalhos/" + tid).then((x) => (x.ok ? x.json() : null));
-      if (t && estado.trabalhoId === tid) { estado.trabalho = t; desenharTrabalho(); }
-    } else {
-      rolar();
-    }
-  }
-}
-
-/* O cartão de trabalho, o mesmo das perguntas: etapas, a coroa andando e o
-   tempo. Sem previsão, só a coroa anda; a barra aparece quando o servidor
-   diz a previsão desta máquina. */
-function cartaoDoPedidoNoDocumento(titulo) {
-  return '<div class="cartao"><div class="cartao-topo">' + coroa(20) +
-    '<span class="quem">Trabalhando · etapa 2 de 2</span><span class="tempo" data-edl-tempo="1">0 s</span></div>' +
-    '<div class="cartao-corpo">' +
-    linhaEtapa({ titulo: "Entender o pedido", estado: "concluido" }) +
-    linhaEtapa({ titulo: "Escrever em “" + titulo + "”", estado: "executando" }) +
-    '<div class="edl-andamento" data-edl-andamento="1"></div>' +
-    "</div></div>";
-}
-
-function acompanharPedidoNoDocumento(resposta, tid) {
-  const inicio = Date.now();
-  let perguntou = false;
-  return setInterval(async () => {
-    const tempo = resposta.querySelector("[data-edl-tempo]");
-    if (tempo) tempo.textContent = segundosCurtos((Date.now() - inicio) / 1000);
-    if (perguntou || Date.now() - inicio < 900) return;
-    perguntou = true;
-    try {
-      const agora = await (await fetch("/api/agora")).json();
-      const item = (agora.executando || []).find((x) => x.id === tid);
-      const lugar = resposta.querySelector("[data-edl-andamento]");
-      if (item && item.andamento && item.andamento.previsao_s && lugar) lugar.innerHTML = andamentoDoCartao(item);
-    } catch (err) { /* sem previsão, só a coroa anda; a barra aparece quando o servidor diz a previsão */ }
-  }, 500);
-}
-
-async function guardarAlteracaoNoDocumento(id, sugestao) {
-  const d = await (await fetch("/api/documentos/" + id)).json();
-  let corpo;
-  if ((sugestao.trocas || []).length) {
-    const caixa = document.createElement("div");
-    caixa.innerHTML = d.corpo || "";
-    aplicarTrocas(caixa, sugestao.trocas);
-    corpo = caixa.innerHTML;
-  } else {
-    const marca = document.createElement("mark");
-    marca.className = "ed-novo";
-    marca.textContent = sugestao.sugestao;
-    corpo = (d.corpo || "") + "<p>" + marca.outerHTML + "</p>";
-  }
-  await fetch("/api/documentos/" + id, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: corpo, titulo: d.titulo }),
-  });
-}
-
-/* As trocas no lugar ("SEMA" por "SEMAS", em todas as ocorrências), cada uma
-   marcada. "SEMA" não conta dentro de "SEMAS": só a palavra inteira. Um
-   trecho que atravessa negrito ou outra marcação não é achado num nó de texto
-   só - fica de fora, e a conta devolvida diz quantas trocas entraram. */
-function aplicarTrocas(raiz, trocas) {
-  let feitas = 0;
-  (trocas || []).forEach((t) => {
-    const de = String(t.de || "").trim();
-    if (!de) return;
-    const partes = de.split(/\s+/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    const antes = /[\p{L}\p{N}]/u.test(de[0]) ? "(?<![\\p{L}\\p{N}_])" : "";
-    const depois = /[\p{L}\p{N}]/u.test(de[de.length - 1]) ? "(?![\\p{L}\\p{N}_])" : "";
-    const padrao = new RegExp(antes + partes.join("\\s+") + depois, "gu");
-    const andar = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
-    const nos = [];
-    while (andar.nextNode()) nos.push(andar.currentNode);
-    nos.forEach((no) => {
-      if (no.parentNode && no.parentNode.closest && no.parentNode.closest(".ed-novo")) return;
-      const texto = no.nodeValue;
-      padrao.lastIndex = 0;
-      if (!padrao.test(texto)) return;
-      padrao.lastIndex = 0;
-      const pedacos = document.createDocumentFragment();
-      let desde = 0;
-      let m;
-      while ((m = padrao.exec(texto))) {
-        pedacos.appendChild(document.createTextNode(texto.slice(desde, m.index)));
-        const marca = document.createElement("mark");
-        marca.className = "ed-novo";
-        marca.textContent = String(t.para || "");
-        pedacos.appendChild(marca);
-        desde = m.index + m[0].length;
-        feitas += 1;
-      }
-      pedacos.appendChild(document.createTextNode(texto.slice(desde)));
-      no.parentNode.replaceChild(pedacos, no);
-    });
-  });
-  return feitas;
-}
-
-function aplicarNaDupla(sugestao) {
-  const folha = $("dp-folha");
-  folha.querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
-
-  if ((sugestao.trocas || []).length) {
-    const feitas = aplicarTrocas(folha, sugestao.trocas);
-    if (!feitas) return 0;
-    dupla.pendente = { aviso: sugestao.aviso, resumo: sugestao.frase || sugestao.sugestao.slice(0, 120) };
-    desenharCartaoDaAlteracao();
-    marcarDuplaSuja();
-    const primeira = folha.querySelector(".ed-novo");
-    if (primeira) primeira.scrollIntoView({ behavior: "smooth", block: "center" });
-    return feitas;
-  }
-
-  const marca = document.createElement("mark");
-  marca.className = "ed-novo";
-  marca.textContent = sugestao.sugestao;
-
-  const sel = window.getSelection();
-  if (sugestao.sobre && sel && sel.rangeCount && !sel.isCollapsed &&
-      folha.contains(sel.anchorNode)) {
-    const faixa = sel.getRangeAt(0);
-    faixa.deleteContents();
-    faixa.insertNode(marca);
-  } else {
-    const bloco = document.createElement("p");
-    bloco.appendChild(marca);
-    folha.appendChild(bloco);
-  }
-
-  dupla.pendente = { aviso: sugestao.aviso, resumo: sugestao.sugestao.slice(0, 120) };
-  desenharCartaoDaAlteracao();
-  marcarDuplaSuja();
-  marca.scrollIntoView({ behavior: "smooth", block: "center" });
-  return 1;
-}
-
-function desenharCartaoDaAlteracao() {
-  const antigo = $("dp-cartao");
-  if (antigo) antigo.remove();
-  if (!dupla.pendente) return;
-
-  const marca = $("dp-folha").querySelector(".ed-novo");
-  if (!marca) return;
-
-  const cartao = document.createElement("div");
-  cartao.className = "dupla-cartao";
-  cartao.id = "dp-cartao";
-  cartao.contentEditable = "false";
-  cartao.innerHTML = '<span class="rotulo-cartao">Alteração sugerida agora</span>' +
-    "<p>" + esc(dupla.pendente.resumo) + "</p>" +
-    '<p class="explica">' + esc(dupla.pendente.aviso) + "</p>" +
-    '<div class="linha-form"><button id="dp-descartar">Descartar</button>' +
-    '<button class="primario" id="dp-manter">Manter</button></div>';
-  marca.closest("p, li, h1, h2, h3, div").after(cartao);
-
-  $("dp-manter").onclick = () => {
-    $("dp-folha").querySelectorAll(".ed-novo").forEach((m) => desmarcar(m));
-    dupla.pendente = null;
-    cartao.remove();
-    marcarDuplaSuja();
-    gravarDupla();
-  };
-  $("dp-descartar").onclick = () => {
-    if (dupla.antes !== null) $("dp-folha").innerHTML = dupla.antes;
-    dupla.pendente = null;
-    const c = $("dp-cartao");
-    if (c) c.remove();
-    marcarDuplaSuja();
-    gravarDupla();
-  };
+/* O pedido vira mudança no documento, marcada - pelo agente de edição
+   (js/95-editor-inteligente.js e src/agente_de_edicao.py): no lugar certo,
+   como sugestão que se aceita ou recusa uma a uma, e ao vivo. A conversa
+   registra o pedido e o que foi feito, como qualquer outra coisa dita nela. */
+function pedirNoDocumento(pedido, opcoes) {
+  return editarComOPaulus(pedido, opcoes);
 }
 
 /* Tirar a marca sem tirar o texto: o conteúdo fica, o destaque sai. */
@@ -816,31 +617,38 @@ function desmarcar(marca) {
   pai.removeChild(marca);
 }
 
-function trechoSelecionadoNaDupla() {
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed) return "";
-  const folha = $("dp-folha");
-  return folha && folha.contains(sel.anchorNode) ? sel.toString().trim().slice(0, 2500) : "";
-}
-
 function marcarDuplaSuja() {
   if (!$("dp-folha")) return;
+  contarAlteracoes();
+  redesenharPaginas();
+  // Enquanto o Paulus escreve, o que a pessoa digita espera: a gravação sai
+  // no fim da rodada, por cima do que ele gravou (js/95-editor-inteligente.js).
+  if (dupla.ocupada) { dupla.sujaDuranteAEdicao = true; return; }
   seloDoRascunho("alterações não salvas", "sujo");
-  $("dp-alteracoes-n").textContent = $("dp-folha").querySelectorAll(".ed-novo").length;
   clearTimeout(dupla.relogio);
   dupla.relogio = setTimeout(gravarDupla, 1600);
-  redesenharPaginas();
 }
 
+/* Grava o que está na folha, dizendo de que revisão a tela partiu: se outra
+   janela gravou depois, o servidor recusa (409) em vez de passar por cima, e
+   a tela mostra o que está gravado - o que estava aqui fica no Histórico. */
 async function gravarDupla() {
-  if (!dupla.doc || !$("dp-folha")) return;
+  if (!dupla.doc || !$("dp-folha") || dupla.doc.situacao === "concluido") return;
   clearTimeout(dupla.relogio);
+  if (dupla.ocupada) { dupla.sujaDuranteAEdicao = true; return; }
   const id = dupla.doc.id;
+  nomearBlocos($("dp-folha"));
   const r = await fetch("/api/documentos/" + id, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ corpo: htmlDaFolha(), titulo: $("dp-titulo").textContent.trim() }),
+    body: JSON.stringify({ corpo: htmlDaFolha(), titulo: $("dp-titulo").textContent.trim(), revisao: dupla.doc.revisao }),
   });
   if (!$("dp-selo") || !dupla.doc || dupla.doc.id !== id) return;
+  if (r.status === 409) {
+    const d = await r.json().catch(() => ({}));
+    if (d.conflito) { await resolverConflitoDaFolha(d); return; }
+    seloDoRascunho("não consegui salvar", "erro");
+    return;
+  }
   if (!r.ok) { seloDoRascunho("não consegui salvar", "erro"); return; }
 
   const d = await r.json();
@@ -872,11 +680,10 @@ async function painelCodigosNaDupla() {
 
   const a = achados[0];
   if (a.revogado && !(await confirmar({ titulo: "Artigo revogado", contexto: a.citacao, texto: "O " + a.citacao + " está revogado: continua no texto compilado por referência histórica, mas não está em vigor.", confirmar: "Inserir mesmo assim", perigo: true }))) return;
-  aplicarNaDupla({
-    sugestao: "Nos termos do " + a.citacao + ": “" + a.texto.replace(/\s+/g, " ").slice(0, 700) + "”",
-    sobre: "",
-    aviso: "Texto oficial do código instalado — confira se é o artigo que você quer citar.",
-  });
+  // Depois do parágrafo do cursor, como sugestão (js/95-editor-inteligente.js).
+  inserirNaFolhaComoSugestao($("dp-folha"), "Nos termos do " + a.citacao + ": “" +
+    a.texto.replace(/\s+/g, " ").slice(0, 700) + "”", "Citação do " + a.citacao + " (texto oficial do código instalado)");
+  marcarDuplaSuja();
 }
 
 
@@ -1641,10 +1448,8 @@ async function preverQualificacao(id, folha, caixa) {
     "</div></div>";
 
   $("qual-inserir").onclick = () => {
-    const bloco = document.createElement("p");
-    bloco.textContent = q.texto;
-    folha.appendChild(bloco);
-    bloco.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Depois do parágrafo do cursor, e não no fim (js/95-editor-inteligente.js).
+    inserirNaFolhaComoSugestao(folha, q.texto, "Qualificação de " + q.nome);
     caixa.remove();
     salvarOndeEstiver();
   };

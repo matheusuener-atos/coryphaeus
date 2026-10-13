@@ -500,10 +500,14 @@ def test_pela_api() -> None:
                    "\"abra o documento\" com anexo vira o cartão de abrir", p)
             checar(len(leituras) == chamadas_antes, "sem ler nem escrever o documento na conversa")
 
-            st, r1 = c.pedir("POST", "/api/documentos/importar", {"nome": doc.name, "trabalho_id": t3["id"]})
+            # PDF só vira editável com o pedido explícito (docs/PLANO-EDITOR.md, E1).
+            pedido_pdf = doc.name.lower().endswith(".pdf")
+            st, r1 = c.pedir("POST", "/api/documentos/importar", {"nome": doc.name, "trabalho_id": t3["id"],
+                                                                  "de_pdf": pedido_pdf})
             if r1.get("id"):
                 criados["rascunhos"].append(r1["id"])
-            st, r2 = c.pedir("POST", "/api/documentos/importar", {"nome": doc.name, "trabalho_id": t3["id"]})
+            st, r2 = c.pedir("POST", "/api/documentos/importar", {"nome": doc.name, "trabalho_id": t3["id"],
+                                                                  "de_pdf": pedido_pdf})
             checar(r1.get("id") and r2.get("id") == r1["id"] and r2.get("reaberto") is True,
                    "abrir para editar de novo volta ao mesmo rascunho", (r1, r2))
 
