@@ -5,18 +5,32 @@
 
 .ed-folha ins[data-s] {
   text-decoration: underline; text-decoration-color: var(--papel-ok); text-decoration-thickness: 1.5px;
-  text-underline-offset: 2px; background: var(--papel-mudou); color: inherit; cursor: pointer; border-radius: 2px;
+  text-underline-offset: 3px; background: color-mix(in oklch, var(--papel-mudou) 70%, transparent); color: inherit;
+  cursor: pointer; border-radius: 2px;
 }
 .ed-folha del[data-s] {
   text-decoration: line-through; text-decoration-color: var(--papel-acc); text-decoration-thickness: 1.5px;
-  color: var(--papel-ink3); background: var(--papel-accbg); cursor: pointer; border-radius: 2px;
+  color: var(--papel-ink3); background: var(--papel-accbg2); cursor: pointer; border-radius: 2px;
 }
-/* O bloco inteiro que entra ou sai: um fio na margem, como no Word. */
-.ed-folha [data-sug="ins"] { box-shadow: -10px 0 0 -7px var(--papel-ok); background: var(--papel-mudou); cursor: pointer; }
+/* O parágrafo que tem mudança: um fio fino na margem, longe da letra, como no
+   Word - verde o que entra, vinho o que sai, âmbar o que mudou por dentro. (O
+   fio colado no texto parecia o cursor - 13/10/2026.) */
+.ed-folha [data-sug], .ed-folha [data-b]:has(ins[data-s], del[data-s]) { position: relative; }
+.ed-folha [data-sug]::after, .ed-folha [data-b]:has(ins[data-s], del[data-s])::after {
+  content: ""; position: absolute; left: -18px; top: .25em; bottom: .25em; width: 3px; border-radius: 2px;
+  background: var(--papel-marca-linha); pointer-events: none;
+}
+.ed-folha [data-sug="ins"] { background: color-mix(in oklch, var(--papel-mudou) 45%, transparent); cursor: pointer; }
+.ed-folha [data-sug="ins"]::after { background: var(--papel-ok); }
 .ed-folha [data-sug="del"] {
-  box-shadow: -10px 0 0 -7px var(--papel-acc); color: var(--papel-ink3); text-decoration: line-through;
-  text-decoration-color: var(--papel-acc); cursor: pointer;
+  color: var(--papel-ink3); text-decoration: line-through; text-decoration-color: var(--papel-acc); cursor: pointer;
 }
+.ed-folha [data-sug="del"]::after { background: var(--papel-acc); }
+/* Passar o mouse numa sugestão acende as partes dela; a da vez, na revisão, fica marcada. */
+.ed-folha .ei-realce { box-shadow: 0 0 0 2px color-mix(in oklch, var(--papel-ok) 30%, transparent); }
+.ed-folha [data-sug].ei-realce { background: var(--papel-mudou); }
+.ed-folha .ei-atual { box-shadow: 0 0 0 2px var(--papel-ok); border-radius: 3px; }
+.ed-folha [data-sug="del"].ei-atual, .ed-folha del.ei-atual { box-shadow: 0 0 0 2px var(--papel-acc); }
 /* A numeração automática do Word (data-num, o .docx importado): não é texto
    editável - aparece na frente, como no Word. */
 .ed-folha [data-num]::before { content: attr(data-num) " "; color: var(--papel-ink2); user-select: none; }
@@ -47,6 +61,39 @@
 }
 .ei-popover p { margin: 0; font: 500 13px/1.45 var(--sans); color: var(--ink2); overflow-wrap: anywhere; }
 .ei-popover .linha-form { justify-content: flex-end; margin: 4px 0 0; }
+/* O ícone é bloco (01-casca.css): sem flex no botão, ele ia para cima do texto. */
+.ei-popover .linha-form button { display: inline-flex; align-items: center; gap: 6px; }
+.ei-pop-resumo { color: var(--ink) !important; }
+.ei-pop-dif del { text-decoration: line-through; text-decoration-color: var(--acc); color: var(--ink3); margin-right: 6px; }
+.ei-pop-dif ins { text-decoration: none; color: var(--okt); background: var(--okbg); border-radius: 4px; padding: 0 3px; }
+/* Escolher mais a fundo: só este parágrafo, só este trecho. */
+.ei-pop-fino { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--ink-a08); }
+.ei-pop-linha { display: flex; align-items: center; gap: 2px; font: 500 12.5px var(--sans); color: var(--ink2); }
+.ei-pop-linha span { flex: 1; }
+
+/* Revisar uma a uma: a barra acima das páginas, que fica à vista ao rolar. */
+.ei-revisao {
+  position: sticky; top: 8px; z-index: 6; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  width: min(100%, 760px); margin: 0 auto 12px; padding: 8px 8px 8px 14px; border-radius: 12px;
+  background: var(--cartao-fundo); border: 1px solid var(--ink-a1); box-shadow: var(--elev-float);
+  font: 500 13px/1.4 var(--sans); color: var(--ink2);
+}
+.ei-revisao:focus { outline: none; box-shadow: var(--elev-float), 0 0 0 2px var(--ink-a2); }
+.ei-rev-conta { font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; }
+.ei-rev-resumo { flex: 1; min-width: 160px; overflow-wrap: anywhere; }
+.ei-rev-botoes { display: flex; align-items: center; gap: 4px; }
+.ei-rev-botoes button:not(.botao-icone) { display: inline-flex; align-items: center; gap: 4px; }
+
+/* O rascunho que veio do PDF linha a linha: o aviso com as duas saídas. */
+.ei-aviso-pdf {
+  display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start;
+  width: min(100%, 760px); margin: 0 auto 14px; padding: 12px 14px; border-radius: 12px;
+  background: var(--warnbg); color: var(--warnt); font: 500 13px/1.45 var(--sans);
+}
+.ei-aviso-pdf b { font-weight: 600; }
+.ei-ap-txt { color: var(--warnt); }
+.ei-ap-acoes { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
+.ei-aviso-pdf small { grid-column: 2; font: 500 12px/1.4 var(--sans); color: var(--warnt); opacity: .85; }
 
 /* O painel de alterações, entre a barra e as páginas. */
 .ei-painel {
@@ -104,9 +151,60 @@
 }
 .ei-linha-mudanca:hover, .ei-citado:hover { text-decoration-color: var(--ink2); }
 .ei-citado { padding: 0 6px; border-radius: 6px; background: var(--fill); text-decoration: none; font-size: .92em; }
-.ei-acoes-rodada { margin-top: 10px; flex-wrap: wrap; }
 .ei-avaliar { display: inline-flex; gap: 2px; align-items: center; }
-.ei-assinatura { margin-top: 6px; font: 500 11px var(--sans); color: var(--ink3); }
+.ei-assinatura { font: 500 11.5px var(--sans); color: var(--ink3); }
+
+/* O cartão da rodada na conversa: a abertura, as mudanças (cada uma com o
+   lugar, o antes e o depois, e as duas decisões), o que ficou para o
+   advogado, e as ações da rodada. */
+.ei-cartao { display: flex; flex-direction: column; gap: 12px; font: 500 14px/1.5 var(--sans); color: var(--ink); }
+.ei-c-abertura { margin: 0; font: 500 14px/1.5 var(--sans); color: var(--ink); }
+.ei-c-limpeza {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  background: var(--okbg); color: var(--okt); font: 500 13px/1.45 var(--sans);
+}
+.ei-c-limpeza span:not(.ic) { flex: 1; }
+.ei-c-limpeza button {
+  border: 0; background: none; color: inherit; font: 600 12.5px var(--sans); padding: 2px 6px; border-radius: 6px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.ei-c-lista {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--ink-a1); border-radius: 12px; overflow: hidden;
+}
+.ei-c-mud, .ei-c-ponto { display: flex; align-items: center; gap: 2px; padding-right: 6px; border-top: 1px solid var(--ink-a08); }
+.ei-c-mud:first-child, .ei-c-ponto:first-child { border-top: 0; }
+.ei-c-ir {
+  flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border: 0; background: none;
+  text-align: left; color: var(--ink2); font: 500 13px/1.45 var(--sans);
+}
+button.ei-c-ir { cursor: pointer; }
+button.ei-c-ir:hover { background: var(--fill); }
+.ei-c-ic { flex: 0 0 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: var(--fill); color: var(--ink2); }
+.ei-c-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ei-c-onde { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font: 600 12.5px var(--sans); color: var(--ink); }
+.ei-c-acao { font: 500 12px var(--sans); color: var(--ink3); }
+.ei-c-dif { overflow-wrap: anywhere; color: var(--ink2); }
+.ei-c-dif b { font-weight: 600; color: var(--ink); }
+.ei-c-dif del { text-decoration: line-through; text-decoration-color: var(--acc); color: var(--ink3); }
+.ei-c-dif ins { text-decoration: none; color: var(--okt); background: var(--okbg); border-radius: 4px; padding: 0 3px; }
+.ei-c-seta { display: inline-flex; vertical-align: -3px; margin: 0 4px; color: var(--ink3); }
+.ei-c-dec { display: flex; gap: 2px; }
+.ei-c-estado { font: 500 11.5px var(--sans); color: var(--ink3); white-space: nowrap; }
+.ei-c-decidida .ei-c-dec { display: none; }
+.ei-c-decidida .ei-c-ir { opacity: .55; }
+.ei-c-impede { box-shadow: inset 3px 0 0 var(--acc); }
+.ei-c-secao { display: flex; flex-direction: column; gap: 6px; }
+.ei-c-rotulo { font: 600 11px/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink3); }
+.ei-c-notas { display: flex; flex-direction: column; gap: 4px; }
+.ei-c-notas p { margin: 0; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
+.ei-c-notas .ei-c-rotulo { margin-right: 8px; }
+.ei-c-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ei-c-acoes > button { display: inline-flex; align-items: center; gap: 6px; }
+.ei-c-nota {
+  border: 0; background: none; color: var(--ink3); font: 500 12px var(--sans); padding: 4px 8px; border-radius: 6px; cursor: pointer;
+}
+.ei-c-nota:hover, .ei-c-nota:focus-visible { color: var(--ink); background: var(--fill); outline: none; }
 
 /* A conclusão: o formato, o nome e a pasta. */
 .ei-concluir { display: flex; flex-direction: column; gap: 12px; }

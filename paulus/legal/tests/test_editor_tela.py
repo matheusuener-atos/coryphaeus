@@ -171,15 +171,18 @@ def main() -> int:
             del: (document.querySelector("#dp-folha [data-b='b0b0008'] del[data-s]") || {}).textContent,
             outro: document.querySelector("#dp-folha [data-b='b0b0009']").textContent,
             conta: document.querySelector('#dp-alteracoes-n').textContent,
-            linha: [...document.querySelectorAll('.ei-linha-mudanca')].map(x => x.textContent).pop() || '',
-            resposta: [...document.querySelectorAll('.resposta .texto')].map(x => x.textContent).pop() || ''})""")
+            linha: [...document.querySelectorAll('.ei-cartao .ei-c-mud .ei-c-onde')].map(x => x.textContent).pop() || '',
+            botoes: document.querySelectorAll('.ei-cartao .ei-c-mud [data-ei-c]').length,
+            resposta: [...document.querySelectorAll('.ei-cartao')].map(x => x.textContent).pop() || ''})""")
         checar("24 (vinte e quatro" in (estado_m["ins"] or "") and "30 (trinta" in (estado_m["del"] or ""),
                "o que entra sublinhado, o que sai riscado (palavra por palavra)", estado_m)
         checar("30 (trinta) dias" in estado_m["outro"], "o parágrafo vizinho não mudou")
         checar(estado_m["conta"] == "1", "o contador de alterações sobe", estado_m["conta"])
-        checar("Cláusula 2ª" in estado_m["linha"], "a resposta leva ao lugar (Cláusula 2ª)", estado_m["linha"])
-        checar("caução" in estado_m["resposta"] and "não mudei" in estado_m["resposta"], "e diz o que talvez devesse mudar",
-               estado_m["resposta"][-200:])
+        checar("Cláusula 2ª" in estado_m["linha"], "o cartão da resposta: a mudança com o lugar (Cláusula 2ª)",
+               estado_m["linha"])
+        checar(estado_m["botoes"] == 2, "e aceitar e recusar só aquela", estado_m["botoes"])
+        checar("caução" in estado_m["resposta"] and "Vale olhar também" in estado_m["resposta"],
+               "e diz o que talvez devesse mudar", estado_m["resposta"][-200:])
 
         print("\naceitar pelo cartãozinho")
         pag.click("#dp-folha [data-b='b0b0008'] ins[data-s]")
@@ -191,6 +194,8 @@ def main() -> int:
         checar("<ins" not in bloco["html"] and "<del" not in bloco["html"] and "24 (vinte e quatro) meses" in bloco["html"],
                "aceito: o texto novo fica, sem marca", bloco["html"][:200])
         checar(bloco["conta"] == "0", "o contador volta a zero")
+        estado_linha = pag.evaluate("() => [...document.querySelectorAll('.ei-cartao .ei-c-mud .ei-c-estado')].map(x => x.textContent).pop()")
+        checar(estado_linha == "aceita", "o cartão da conversa diz que a mudança foi aceita", estado_linha)
         pag.wait_for_timeout(2200)
         gravado = e.documentos.obter(did)["corpo"]
         checar("24 (vinte e quatro) meses" in gravado and "data-s=" not in gravado, "e o aceite foi gravado")
@@ -203,7 +208,7 @@ def main() -> int:
         pag.click("#enviar")
         try:
             pag.wait_for_selector("#dp-folha [data-sug='ins']", timeout=15000)
-            pag.wait_for_selector(".ei-acoes-rodada [data-ed-acao='recusar']", timeout=15000)
+            pag.wait_for_selector(".ei-cartao [data-ed-acao='recusar']", timeout=15000)
         except Exception:  # noqa: BLE001
             pass
         ordem = pag.evaluate("""() => [...document.querySelectorAll('#dp-folha > *')].map(x => (x.textContent || '').slice(0, 60))""")
@@ -213,7 +218,7 @@ def main() -> int:
         renum = pag.evaluate("() => (document.querySelector(\"#dp-folha [data-b='b0b0010'] ins[data-s]\") || {}).textContent || ''")
         checar("4" in renum, "a cláusula seguinte renumerada (sugestão)", renum)
         # A resposta desta rodada é a última da conversa.
-        pag.locator(".ei-acoes-rodada [data-ed-acao='recusar']").last.click()
+        pag.locator(".ei-cartao [data-ed-acao='recusar']").last.click()
         pag.wait_for_timeout(500)
         depois = pag.evaluate("""() => ({nova: !!document.querySelector("#dp-folha [data-sug='ins']"),
             texto: document.querySelector("#dp-folha [data-b='b0b0010']").textContent,

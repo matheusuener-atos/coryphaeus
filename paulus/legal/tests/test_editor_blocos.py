@@ -227,14 +227,15 @@ def teste_operacoes() -> None:
     ], rodada=1)
     resumos = [a["resumo"] for a in r.aplicadas]
     checar(resumos[0] == "Cláusula 2ª: “30 (trinta)” → “24 (vinte e quatro)”", "resumo da troca", resumos[0])
-    checar(resumos[1] == "Inseri a cláusula “CLÁUSULA QUARTA – DA MULTA” depois da Cláusula 3ª", "resumo da inserção",
+    checar(resumos[1] == "Incluí a cláusula “CLÁUSULA QUARTA – DA MULTA” depois da Cláusula 3ª", "resumo da inserção",
            resumos[1])
     novo = B.por_id(r.blocos)[r.aplicadas[1]["ids"][0]]
     posicao = B.indice(r.blocos, novo.id)
     checar(r.blocos[posicao - 1].id == ids[13], "a cláusula nova entra depois do ÚLTIMO bloco da 3ª (a alínea)")
     checar(novo.corridas[0].marcas == ("b",), "a cabeça nova copia o negrito das outras cabeças")
     checar("em 3 lugares" in resumos[2], "troca de termo em todo o documento", resumos[2])
-    checar(resumos[3] == "Reescrevi Cláusula 4ª" and resumos[4] == "Comentei Cláusula 3ª", "reescrever e comentar")
+    checar(resumos[3] == "Reescrevi a Cláusula 4ª" and resumos[4] == "Comentei a Cláusula 3ª", "reescrever e comentar",
+           resumos[3:5])
     checar(r.comentarios and r.comentarios[0]["texto"] == "Falta o índice de reajuste.", "comentário devolvido à parte")
     motivos = [f["motivo"] for f in r.falhas]
     checar(len(motivos) == 3 and "não achei “Rua dos Lírios”" in motivos[0], "trecho que não está lá é recusado", motivos)
@@ -270,7 +271,8 @@ def teste_operacoes() -> None:
     r = ED.aplicar(bs, [{"op": "substituir_em_tudo", "de": "prazo", "para": "período"}], rodada=1)
     checar(r.falhas and "não foi pedido" in r.falhas[0]["motivo"], "troca em tudo de palavra comum sem pedido: recusa")
     r = ED.aplicar(bs, [{"op": "substituir_em_tudo", "de": "prazo", "para": "período"}], rodada=1, em_tudo=True)
-    checar(r.aplicadas and "3 lugares (2 blocos)" in r.aplicadas[0]["resumo"], "com “em todo o documento”, troca",
+    checar(r.aplicadas and "3 lugares do documento" in r.aplicadas[0]["resumo"] and len(r.aplicadas[0]["ids"]) == 2,
+           "com “em todo o documento”, troca",
            r.aplicadas)
     sel = {"bloco": ids[3], "texto": "Rua das Flores, nº 100"}
     r = ED.aplicar(bs, [{"op": "substituir", "bloco": ids[3], "de": "LOCATÁRIA", "para": "X"}], rodada=1,

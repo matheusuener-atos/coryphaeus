@@ -536,14 +536,18 @@ function blocoResposta(m, pergunta, ultima, indice) {
   if (m.interrompida) html += etiquetaDeParada();
   if (m.cobertura && m.cobertura.truncou) html += etiquetaDeCorte();
   if (m.inferencia) html += etiquetaDeLeitura();
-  // A resposta do agente de edição (js/95-editor-inteligente.js): cada
-  // mudança leva ao lugar dela no documento, e a rodada se aceita ou desfaz.
+  // A resposta do agente de edição (js/95-editor-inteligente.js): o cartão
+  // da rodada - cada mudança com o lugar dela, aceitar e recusar, o que ficou
+  // para o advogado. A pergunta sobre o documento: o texto, com os atalhos.
   const doEditor = m.feito && (m.feito.tipo === "alteracao" || m.feito.tipo === "pergunta_no_documento") &&
     (m.feito.mudancas || m.feito.citados);
   if (doEditor) {
-    html += '<div class="texto">' + textoDaRespostaDoEditor(m.texto, m.feito) + "</div>";
-    if (m.feito.tipo === "alteracao" && ultima) html += acoesDaRodada(m.feito);
-    html += linhaDoModeloDoEditor({ onde: m.feito.modelo || {} });
+    if (m.feito.tipo === "alteracao") {
+      html += cartaoDaRodada(Object.assign({}, m.feito, { texto: m.texto }), m.feito.id);
+    } else {
+      html += '<div class="texto">' + textoDaRespostaDoEditor(m.texto, m.feito) + "</div>";
+      html += linhaDoModeloDoEditor(m.feito);
+    }
     return html + "</div>";
   }
   html += '<div class="texto">' + textoComCitacoes(m.texto, m.fontes, pergunta) + "</div>";

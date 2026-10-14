@@ -190,9 +190,11 @@ def conferir(blocos: list, *, fichas: list | None = None, leis=None, antes: list
     rotulos = {p.id: p.rotulo for p in partes}
     avisos: list[dict] = []
 
-    def aviso(grau, b, titulo, detalhe, regra):
+    def aviso(grau, b, titulo, detalhe, regra, **conserto):
+        # `conserto`: o que a revisão do agente precisa para corrigir sozinha
+        # (os blocos do trecho repetido, a cláusula e o fecho antes do qual ela vai).
         avisos.append({"grau": grau, "bloco": b.id if hasattr(b, "id") else b, "rotulo": rotulos.get(getattr(b, "id", b), ""),
-                       "titulo": titulo, "detalhe": detalhe, "regra": regra})
+                       "titulo": titulo, "detalhe": detalhe, "regra": regra, **conserto})
 
     # numeração
     clausulas = E.clausulas(vivos)
@@ -227,10 +229,15 @@ def conferir(blocos: list, *, fichas: list | None = None, leis=None, antes: list
                 aviso("impede", b, "Referência para cláusula que não existe",
                       f"“{m.group(0)}” — o documento não tem cláusula {n}.", "referencia")
 
-    # a referência que mudou de alvo (apagar ou inserir cláusula)
+    # a referência que mudou de alvo (apagar ou inserir cláusula). O alvo é a
+    # cabeça da cláusula - o bloco -, não o título: o título que ganhou
+    # palavras continua sendo a mesma cláusula.
     if antes is not None:
         antes_vivos = B.aceito(antes)
-        titulo_antes = {c["numero"]: _titulo_da_cabeca(c["titulo"]) for c in E.clausulas(antes_vivos)}
+        clausulas_antes = E.clausulas(antes_vivos)
+        cabeca_antes = {c["numero"]: c["cabeca"] for c in clausulas_antes}
+        titulo_antes = {c["numero"]: _titulo_da_cabeca(c["titulo"]) for c in clausulas_antes}
+        cabeca_agora = {c["numero"]: c["cabeca"] for c in clausulas}
         titulo_agora = {c["numero"]: _titulo_da_cabeca(c["titulo"]) for c in clausulas}
         textos_antes = {x.id: x.texto for x in antes_vivos}
         for b, p in zip(vivos, partes):
@@ -239,10 +246,14 @@ def conferir(blocos: list, *, fichas: list | None = None, leis=None, antes: list
             refs_antes = {int(m.group("numero")) for m in redacao.RE_REFERENCIA.finditer(textos_antes.get(b.id, ""))}
             for m in redacao.RE_REFERENCIA.finditer(b.texto):
                 n = int(m.group("numero"))
-                if n in refs_antes and titulo_antes.get(n) and titulo_agora.get(n) and titulo_antes[n] != titulo_agora[n]:
+                if (n in refs_antes and cabeca_antes.get(n) and cabeca_agora.get(n)
+                        and cabeca_antes[n] != cabeca_agora[n]):
                     aviso("impede", b, "Referência que mudou de cláusula",
-                          f"“{m.group(0)}” apontava para “{titulo_antes[n]}”; agora a cláusula {n} é “{titulo_agora[n]}”.",
-                          "referencia")
+                          f"“{m.group(0)}” apontava para a cláusula “{titulo_antes[n].capitalize()}”; agora a {n}ª é "
+                          f"“{titulo_agora[n].capitalize()}”. Confira se a referência deve acompanhar.", "referencia")
+
+    # estrutura: o que ficou repetido, fora do lugar ou colado
+    _estrutura(vivos, partes, aviso)
 
     # termos: papel em maiúsculas sem definição
     definidos = _termos_definidos(vivos)
@@ -322,6 +333,82 @@ def conferir(blocos: list, *, fichas: list | None = None, leis=None, antes: list
                   "Este parágrafo é conversa de assistente, não texto do documento — apague-o antes de concluir.",
                   "conversa")
     return avisos
+
+
+def _curto(texto: str, n: int = 70) -> str:
+    t = " ".join(str(texto or "").split())
+    return t if len(t) <= n else t[: n - 1].rsplit(" ", 1)[0] + "…"
+
+
+def _estrutura(vivos: list, partes: list, aviso) -> None:
+    """
+    O que um revisor vê de longe: o parágrafo que aparece duas vezes (o fecho e
+    as assinaturas em dobro), a cláusula que ficou depois do fecho, os itens
+    "12.1" dentro da Cláusula 13ª, a cabeça que leva o corpo junto.
+    """
+    rotulo = {p.id: p.rotulo for p in partes}
+    lista = [(b, " ".join(_plano(b.texto).split())) for b in vivos if b.tipo != "table"]
+    primeira: dict[str, int] = {}
+    i = 0
+    while i < len(lista):
+        b, chave = lista[i]
+        j = primeira.get(chave)
+        if j is not None and len(chave) >= 25 and not RE_LACUNA.search(b.texto):
+            # O trecho repetido inteiro: enquanto o seguinte daqui repete o seguinte de lá
+            # (o fecho e as assinaturas em dobro são um aviso só).
+            n = 1
+            while i + n < len(lista) and j + n < i and lista[i + n][1] and lista[i + n][1] == lista[j + n][1]:
+                n += 1
+            trecho = [x for x, _ in lista[i:i + n]]
+            onde = rotulo.get(lista[j][0].id) or "outro lugar"
+            if n == 1:
+                aviso("confira", b, "Parágrafo repetido", f"O mesmo texto já está em {onde}: “{_curto(b.texto)}”.",
+                      "repetido", blocos=[b.id])
+            else:
+                aviso("confira", b, "Trecho repetido",
+                      f"De “{_curto(b.texto, 40)}” a “{_curto(trecho[-1].texto, 40)}”: {n} parágrafos que já estão "
+                      f"em {onde}.", "repetido", blocos=[x.id for x in trecho])
+            i += n
+            continue
+        if chave and chave not in primeira:
+            primeira[chave] = i
+        i += 1
+
+    fecho = ""
+    cabecas = {c["cabeca"]: c for c in E.clausulas(vivos)}
+    for b, p in zip(vivos, partes):
+        if p.tipo in ("fecho", "data", "assinatura") and not fecho:
+            fecho = b.id
+        elif p.tipo == "clausula" and fecho:
+            aviso("impede", b, "Cláusula depois do fecho",
+                  f"A {p.rotulo} está depois do fecho e das assinaturas; o lugar dela é antes deles.", "estrutura",
+                  blocos=cabecas.get(b.id, {}).get("blocos", [b.id]), antes_de=fecho)
+
+    fora: dict[str, list] = {}
+    for b, p in zip(vivos, partes):
+        m = E.RE_SUBITEM.match(b.texto)
+        if p.clausula and p.tipo != "clausula" and m and int(m.group(1)) != p.clausula:
+            fora.setdefault(p.clausula_rotulo, []).append((b, m))
+    for nome, itens in fora.items():
+        primeiro, ultimo = itens[0][1], itens[-1][1]
+        aqui = int(re.sub(r"\D", "", nome) or 0)
+        de, ate = f"{primeiro.group(1)}.{primeiro.group(2)}", f"{ultimo.group(1)}.{ultimo.group(2)}"
+        if len(itens) == 1:
+            detalhe = f"O item “{de}” está na {nome}: seria {aqui}.{primeiro.group(2)}."
+        else:
+            detalhe = (f"Os itens “{de}” a “{ate}” estão na {nome}: seriam {aqui}.{primeiro.group(2)} a "
+                       f"{aqui}.{ultimo.group(2)}.")
+        aviso("confira", itens[0][0], "Itens com o número de outra cláusula", detalhe, "numeracao",
+              itens=[{"bloco": b.id, "texto": re.sub(r"^(\s*)\d{1,3}\.", rf"\g<1>{aqui}.", b.texto, count=1)}
+                     for b, _ in itens])
+
+    for b, p in zip(vivos, partes):
+        if p.tipo == "clausula" and "\n" in b.texto.strip():
+            cabeca, resto = b.texto.strip().split("\n", 1)
+            if len(resto.strip()) > 20:
+                aviso("confira", b, "Cabeça com o corpo junto",
+                      f"A cabeça da {p.rotulo} leva junto “{_curto(resto, 60)}”; o corpo deveria ser um parágrafo próprio.",
+                      "estrutura", cabeca=cabeca.strip(), corpo=[x.strip() for x in resto.split("\n") if x.strip()])
 
 
 def _titulo_da_cabeca(cabeca: str) -> str:

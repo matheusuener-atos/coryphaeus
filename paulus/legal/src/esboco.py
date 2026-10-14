@@ -63,13 +63,19 @@ RE_ARTIGO = re.compile(r"^\s*art(?:igo)?\.?\s*(\d{1,4})\s*[ºo°]?", re.I)
 RE_SUBITEM = re.compile(r"^\s*(\d{1,3})\.(\d{1,3})(?:\.(\d{1,3}))?\s*[.)\-–—]?\s+\S")
 RE_PARAGRAFO_NUM = re.compile(r"^\s*§\s*(\d{1,3})\s*[ºo°]?", re.I)
 RE_PARAGRAFO_UNICO = re.compile(r"^\s*par[aá]grafo\s+[uú]nico", re.I)
+# "Parágrafo 1º:", "Parágrafo primeiro -": o "º" colado no número não é fim de
+# palavra para o \b, e era assim que o estilo mais comum ficava sem nome.
 RE_PARAGRAFO_EXTENSO = re.compile(r"^\s*paragrafo\s+(" + "|".join(sorted(ORDINAIS_MASC, key=len, reverse=True))
-                                  + r"|\d{1,3})\b")
+                                  + r"|\d{1,3})(?:\s*[ºo°ª])?(?=[\s:.,;\-–—)]|$)")
 RE_INCISO = re.compile(r"^\s*([IVXLC]{1,7})\s*[-–—.)]\s+\S")
 RE_ALINEA = re.compile(r"^\s*([a-z])\)\s+\S")
 RE_FECHO = re.compile(r"^\s*(?:e,?\s+)?(?:por\s+)?(?:estarem|estando)\s+(?:assim\s+)?(?:justos|justas|de\s+acordo|"
                       r"cientes)|justas\s+e\s+contratadas|justos\s+e\s+contratados|"
-                      r"^\s*e,?\s+por\s+estarem|^\s*nestes\s+termos|^\s*termos\s+em\s+que", re.I)
+                      r"^\s*e,?\s+por\s+estarem|^\s*nestes\s+termos|^\s*termos\s+em\s+que|"
+                      r"^\s*assinad[oa]s?\s+(?:em|neste|nesta|aos?)\b|"
+                      r"\bem\s+(?:duas|tr[eê]s|quatro|\d)\s+(?:\(\w+\)\s+)?vias\s+de\s+igual\s+teor", re.I)
+# A linha da assinatura sem traço: o nome em maiúsculas, sozinho ("HUGO MAGALHÃES SILVA").
+RE_NOME_DE_ASSINATURA = re.compile(r"^[A-ZÁÉÍÓÚÂÊÔÃÕÀÇ][A-ZÁÉÍÓÚÂÊÔÃÕÀÇ'.\- ]{3,70}$")
 RE_DATA = re.compile(r"^[^\n]{0,60},\s*(?:\d{1,2}|\[[^\]]*\])\s+de\s+(?:janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|"
                      r"agosto|setembro|outubro|novembro|dezembro|\[[^\]]*\])\s+de\s+(?:\d{4}|\[[^\]]*\])", re.I)
 RE_ASSINATURA = re.compile(r"_{5,}|^\s*testemunhas?\s*:?\s*$|^\s*assinatura", re.I)
@@ -153,6 +159,25 @@ def _sem_estrutura(partes: list, blocos: list) -> None:
         p.rotulo = m.group(1).strip().capitalize() if m else f"Parágrafo {n}"
 
 
+def _inicio_da_cauda(blocos: list) -> int:
+    """
+    Onde começa a cauda do documento: os blocos curtos do fim, sem cabeça de
+    cláusula (nomes, cargos, CPF, testemunhas). Só nela um nome em maiúsculas
+    sozinho conta como assinatura.
+    """
+    i = len(blocos)
+    while i > 0:
+        b = blocos[i - 1]
+        texto = (b.texto or "").strip() if getattr(b, "tipo", "") != "table" else ""
+        if getattr(b, "sug", "") == "del" or not texto:
+            i -= 1
+            continue
+        if len(texto) >= 90 or _numero_da_clausula(texto)[0]:
+            break
+        i -= 1
+    return i
+
+
 def rotulo_da_clausula(n: int, estilo: str) -> str:
     if estilo == "artigo":
         return f"Art. {n}º" if n < 10 else f"Art. {n}"
@@ -169,6 +194,7 @@ def esboco(blocos: list) -> list[Parte]:
     houve_clausula = False
     titulos_numerados = _titulos_numerados(blocos)
     fim = False             # depois do fecho/data: assinaturas
+    cauda = _inicio_da_cauda(blocos)
 
     for i, b in enumerate(blocos):
         # O bloco marcado para sair (sugestão pendente) não conta no esboço:
@@ -186,25 +212,38 @@ def esboco(blocos: list) -> list[Parte]:
         if not n and b.id in titulos_numerados:
             n, est = titulos_numerados[b.id], "clausula"
         if fim and texto and not n:
-            p.tipo = "assinatura"
-            p.rotulo = "Assinaturas"
+            if RE_DATA.match(texto) and len(texto) < 120:
+                p.tipo, p.rotulo = "data", "Local e data"
+            else:
+                p.tipo, p.rotulo = "assinatura", "Assinaturas"
             partes.append(p)
             continue
         if n:
+            # Cláusula depois do fecho: o documento está fora de ordem (a revisão
+            # aponta), mas cláusula é cláusula - e o que vem depois é dela.
+            fim = False
             clausula, estilo = n, est
             clausula_rot = rotulo_da_clausula(n, est)
             paragrafo, inciso, alinea, subitem = "", 0, "", ""
             houve_clausula = True
             p.tipo, p.rotulo = "clausula", clausula_rot
-        elif RE_FECHO.search(texto[:120]) and (houve_clausula or i > 2):
+        elif RE_FECHO.search(texto[:160]) and (houve_clausula or i > 2):
             p.tipo, p.rotulo = "fecho", "Fecho"
             clausula, clausula_rot = 0, ""
+            fim = True
         elif RE_DATA.match(texto) and len(texto) < 120:
             p.tipo, p.rotulo = "data", "Local e data"
             clausula, clausula_rot = 0, ""
             fim = True
         elif texto and RE_ASSINATURA.search(texto) and len(texto) < 160 and (houve_clausula or i > 2):
             p.tipo, p.rotulo = "assinatura", "Assinaturas"
+            fim = True
+        elif (texto and houve_clausula and i >= cauda and RE_NOME_DE_ASSINATURA.match(texto)
+              and len(texto.split()) >= 2):
+            # Os nomes em maiúsculas no fim, sem traço nem fecho: são as assinaturas,
+            # não o corpo da última cláusula.
+            p.tipo, p.rotulo = "assinatura", "Assinaturas"
+            clausula, clausula_rot = 0, ""
             fim = True
         elif not titulo_visto and not houve_clausula and i <= 1 and texto and (
                 b.tipo in ("h1", "h2") or _e_titulo_de_secao(b, texto)) and not RE_ENDERECAMENTO.match(texto):

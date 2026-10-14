@@ -429,7 +429,7 @@ function htmlDaFolha() {
   // O cartão da alteração e o piscar são da tela, não do documento.
   const folha = $("dp-folha").cloneNode(true);
   folha.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
-  folha.querySelectorAll(".ei-pisca").forEach((c) => c.classList.remove("ei-pisca"));
+  tirarMarcasDaTela(folha);
   return folha.innerHTML;
 }
 

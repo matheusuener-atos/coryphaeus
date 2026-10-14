@@ -65,12 +65,32 @@ RE_EM_TUDO = re.compile(r"(?i)em\s+todo\s+o\s+(?:documento|contrato|texto|instru
 RE_TROCA_ENTRE_ASPAS = re.compile(r"(?i)(?:troqu?e|troca|substitua|mude|altere|corrija|trocar|substituir)\s+"
                                   r"[\"“'‘]([^\"”'’]{1,160})[\"”'’]\s+(?:por|para|pelo|pela)\s+[\"“'‘]([^\"”'’]{0,240})[\"”'’]")
 RE_SO_NA = re.compile(r"(?i)\bs[oó]\s+(?:na|no|nas|nos|dentro\s+d[aeo])\s+")
+# "Dê uma revisada", "como está ficando?", "confira o contrato", "arrume a
+# formatação": a revisão - a conferência por regra, as correções seguras como
+# sugestão e a leitura do modelo. Antes (13/10/2026) virava "Não fiz: revisão".
+RE_REVISAR = re.compile(
+    r"(?i)\b(?:revis(?:e|ar|ão|ao|ada|ando)\b|d[eê]\s+uma\s+(?:olhada|revisada|conferida|lida|geral|repassada|checada)|"
+    r"confir(?:a|e|ir)\s+(?:o\s+|a\s+|todo\s+o\s+)?(?:documento|contrato|texto|minuta|tudo)|"
+    r"como\s+(?:o\s+(?:documento|contrato|texto)\s+)?(?:est[aá]\s+ficando|ficou)|o\s+que\s+(?:voc[eê]\s+)?acha|"
+    r"analis(?:e|ar)\s+(?:o\s+|a\s+)?(?:documento|contrato|texto|minuta|tudo)|"
+    r"(?:arrum|organiz|limp|ajust)(?:e|ar)\s+(?:a\s+|o\s+)?(?:formata[cç][aã]o|visual|apar[eê]ncia|texto|documento|layout)|"
+    r"junt(?:e|ar)\s+as\s+linhas|forma\s+visual|visualmente)")
+# Revisão com instrução ("revise a cláusula 5ª para incluir multa") é edição.
+RE_INSTRUCAO = re.compile(r"(?i)\b(?:para\s+(?:que|ficar|incluir|tirar|prever|constar|deixar)|deixando|incluindo|"
+                          r"acrescentando|mais\s+(?:formal|curt|clar|objetiv|simples|t[eé]cnic)|por\s+[\"“'])")
+# "Isso mesmo", "pode fazer", "sim": o que a última resposta deixou para fazer.
+RE_CONFIRMA = re.compile(
+    r"(?i)^\s*(?:sim|isso|isso\s+mesmo|exato|exatamente|pode|pode\s+(?:sim|fazer|seguir|ir|mandar)|"
+    r"fa[cç]a(?:\s+isso)?|faz(?:\s+isso)?|ok|okay|beleza|perfeito|manda(?:\s+ver)?|vai|vamos|aplique|aplica|"
+    r"concordo|de\s+acordo|certo|claro|positivo|prossiga|segue)"
+    r"(?:[\s,.!]+(?:sim|isso|pode|por\s+favor|pf|pfv|obrigad[oa]|mesmo|fa[cç]a|claro))*[\s.!]*$")
 RE_CITACAO = re.compile(r"\[(b[0-9a-f]{4,8})(?:\s*[·|-][^\]\n]{0,60})?\]")
 
 
 @dataclass
 class Entendimento:
-    tipo: str = "editar"          # editar | pergunta | concluir | desfazer | aceitar | recusar | renumerar
+    # editar | pergunta | concluir | desfazer | aceitar | recusar | renumerar | revisar | confirmar | texto_colado
+    tipo: str = "editar"
     foco: list = field(default_factory=list)       # os blocos que o pedido aponta
     rotulos: list = field(default_factory=list)
     restrito: bool = False        # o foco é limite (seleção, "só na cláusula X")
@@ -88,6 +108,23 @@ def _pergunta(pedido: str) -> bool:
         return not re.match(r"(?i)^\s*(?:pode|poderia|consegue|você\s+pode|da\s+para|dá\s+para)\s+"
                             + _VERBO_DE_MUDANCA, texto)
     return bool(RE_PERGUNTA.match(texto)) and not re.search(r"\b" + _VERBO_DE_MUDANCA + r"\b", texto, re.I)
+
+
+def texto_colado(blocos: list, pedido: str) -> bool:
+    """
+    O texto do próprio documento colado na conversa, sem instrução (13/10/2026:
+    o contrato inteiro colado virou seis mudanças a esmo). É comparar e marcar
+    as diferenças, não editar. Longo, sem verbo de mudança no começo e com as
+    palavras do documento.
+    """
+    texto = " ".join((pedido or "").split())
+    if len(texto) < 350 or re.search(r"\b" + _VERBO_DE_MUDANCA + r"\b", texto[:90], re.I):
+        return False
+    if re.match(r"(?i)\s*(?:compare|comparar|use|usar|considere|veja|segue|aqui\s+est[aá])\b", texto):
+        return True
+    palavras = {p for p in re.findall(r"[a-z0-9]{4,}", E.plano(texto))}
+    do_documento = {p for p in re.findall(r"[a-z0-9]{4,}", E.plano(B.texto_puro(blocos)))}
+    return bool(palavras) and len(palavras & do_documento) / len(palavras) >= 0.6
 
 
 def entender(blocos: list, pedido: str, selecao: dict | None = None) -> Entendimento:
@@ -109,6 +146,12 @@ def entender(blocos: list, pedido: str, selecao: dict | None = None) -> Entendim
     if RE_RENUMERAR.match(texto):
         ent.tipo, ent.porque = "renumerar", "renumerar é regra, não precisa de modelo"
         return ent
+    if RE_CONFIRMA.match(texto):
+        ent.tipo, ent.porque = "confirmar", "confirmação do que a última resposta deixou para fazer"
+        return ent
+    if texto_colado(blocos, pedido):
+        ent.tipo, ent.porque = "texto_colado", "texto do documento colado na conversa: comparar e marcar"
+        return ent
     ent.em_tudo = bool(RE_EM_TUDO.search(texto))
     if selecao and (selecao.get("blocos") or selecao.get("bloco")):
         ids = list(selecao.get("blocos") or [selecao["bloco"]])
@@ -127,6 +170,9 @@ def entender(blocos: list, pedido: str, selecao: dict | None = None) -> Entendim
             ent.foco += [i for i in l["ids"] if i not in ent.foco]
             ent.rotulos.append(l["rotulo"])
         ent.restrito = bool(ent.foco) and bool(RE_SO_NA.search(texto))
+    if RE_REVISAR.search(texto) and not RE_INSTRUCAO.search(texto) and not RE_TROCA_ENTRE_ASPAS.search(texto):
+        ent.tipo, ent.porque = "revisar", "pedido de revisão"
+        return ent
     if _pergunta(texto):
         ent.tipo, ent.porque = "pergunta", "pergunta sobre o documento"
         return ent
@@ -196,9 +242,11 @@ O QUE VOCÊ DEVOLVE
 Só um objeto JSON, nesta ordem de campos:
 {"entendi": "o que você vai fazer, numa frase",
  "operacoes": [ ... ],
- "nao_fiz": ["parte do pedido que você não fez, e por quê"],
- "sugestoes": ["outro ponto do documento que talvez devesse mudar junto, e por quê - sem mudar"],
- "lacunas": ["dado que falta e ficou como [●] no texto"]}
+ "nao_fiz": ["parte DO PEDIDO que ficou sem fazer, e por quê - [] quando fez tudo"],
+ "sugestoes": ["outro ponto do documento que talvez devesse mudar junto, e por quê - sem mudar; [] quando não há"],
+ "lacunas": ["dado que falta e ficou como [●] no texto - [] quando não há"]}
+Nesses três campos você fala com o advogado: frase curta, com o rótulo do lugar (Cláusula 3ª, § 1º), nunca o nome do \
+bloco (b12). Nada de "nenhuma lacuna" ou "não alterei o que não foi pedido": campo sem nada a dizer fica [].
 
 AS OPERAÇÕES
 - {"op": "substituir", "bloco": "b12", "de": "trecho EXATO do bloco", "para": "texto novo"}
@@ -244,6 +292,15 @@ exata do documento. Cite o bloco de onde tirou cada informação, com o nome del
 documento nem sempre usa o nome técnico do que se pergunta: procure pelo instituto jurídico, não só pela palavra. Se o \
 documento não traz a resposta, diga isso. Não invente. Português do Brasil, sem markdown."""
 
+SISTEMA_LEITURA = """Você é o revisor sênior de um escritório de advocacia no Brasil. Leia o documento inteiro, como o \
+advogado que vai assinar, e aponte o que um colega experiente apontaria antes de mandar ao cliente: contradição entre \
+cláusulas, valor ou prazo incoerente, obrigação sem prazo ou sem consequência, cláusula essencial que falta para este \
+tipo de documento, redação ambígua que pode virar litígio, parte qualificada de um jeito numa cláusula e de outro em \
+outra. Não aponte numeração, repetição, lacuna [●], CPF ou CNPJ - o programa já conferiu. Seja específico e curto, \
+como numa nota de revisão: o problema e o que fazer. Responda só com JSON:
+{"pontos": [{"bloco": "b12", "texto": "o problema e o que fazer, em uma ou duas frases"}]}
+No máximo 6, os mais importantes primeiro. Documento bom: "pontos": []. Português do Brasil, sem markdown."""
+
 SISTEMA_REVISAO = """Você é o revisor do escritório. Um assistente acabou de mudar um documento jurídico a pedido do \
 advogado. Confira como um revisor rigoroso: (1) o pedido foi cumprido por inteiro? (2) mudou algo além do pedido? (3) \
 alguma mudança contradiz outra parte do documento (datas, valores em número e por extenso, prazos, referências a \
@@ -257,7 +314,7 @@ FORMATO_OPERACOES = ('{"entendi": "...", "operacoes": [{"op": "substituir", "blo
 
 def mensagens_de_edicao(blocos: list, ent: Entendimento, pedido: str, *, titulo: str = "", selecao: dict | None = None,
                         regras: str = "", memoria: str = "", artigos: str = "", casa: str = "",
-                        limite: int = 90000) -> list[dict]:
+                        conversa: str = "", limite: int = 90000) -> list[dict]:
     """O que o modelo lê: o esboço, o documento com os nomes, o foco, a seleção e o pedido."""
     rotulos = E.rotulos(blocos)
     inteiro = B.para_modelo([b for b in blocos if b.sug != "del"], rotulos=rotulos)
@@ -289,6 +346,9 @@ def mensagens_de_edicao(blocos: list, ent: Entendimento, pedido: str, *, titulo:
                        "e aos termos deste documento):", casa.strip()[:6000]]
     if artigos.strip():
         partes += ["", "LEI (texto oficial da base instalada; cite só daqui, com o número exato):", artigos.strip()[:6000]]
+    if conversa.strip():
+        partes += ["", "A CONVERSA ATÉ AQUI (para entender “isso”, “aquela cláusula”, “o que você sugeriu”):",
+                   conversa.strip()[:3000]]
     partes += ["", f"PEDIDO: {pedido}", "",
                "ANTES DE RESPONDER, CONFIRA:",
                "- Mudo só os blocos de que o pedido fala? Outro ponto que talvez devesse mudar vai em \"sugestoes\".",
@@ -427,6 +487,11 @@ class Rodada:
     blocos: list = field(default_factory=list)
     chamadas: int = 0
     segundos: float = 0.0
+    # a revisão: o que a regra achou e ficou para o advogado ({bloco, rotulo, titulo, detalhe, grau}),
+    # e o que a leitura do modelo apontou ({bloco, rotulo, texto})
+    pontos: list = field(default_factory=list)
+    leitura: list = field(default_factory=list)
+    colado: dict = field(default_factory=dict)      # a comparação com o texto colado (edicao.comparar_com_texto)
 
     @property
     def sids(self) -> list[str]:
@@ -446,6 +511,114 @@ def falha_para_gente(motivo: str) -> str:
         if re.match(padrao, motivo):
             return re.sub(padrao, troca, motivo)
     return motivo
+
+
+# ------------------------------------------ o que o modelo escreve, limpo
+
+# "Nenhuma lacuna identificada", "Não há", "N/A": item que não diz nada.
+RE_ITEM_VAZIO = re.compile(r"(?i)^\s*(?:n[aã]o\s+h[aá]\b|nenhum[a]?\b|sem\s+(?:lacunas?|pend[eê]ncias?|sugest)|"
+                           r"nada\s+(?:a\s+|mais\s+)?(?:declarar|apontar|sugerir|alterar|mais)|n/?a\b|-+$|\.+$)")
+# "Não fiz ajustes em outras cláusulas que não foram mencionadas", "apenas a ordem foi
+# modificada": o modelo se justificando pelo que ninguém pediu.
+RE_ITEM_GENERICO = re.compile(r"(?i)n[aã]o\s+(?:foram|foi)\s+(?:especificamente\s+|expressamente\s+)?"
+                              r"(?:mencionad|solicitad|pedid)|al[eé]m\s+do\s+(?:que\s+foi\s+)?(?:pedido|solicitado)|"
+                              r"apenas\s+(?:a|o|as|os)\s+[^.]{0,60}\s+(?:foi|foram)\s+(?:modificad|alterad)|"
+                              r"nada\s+mais\s+(?:foi|ser[aá])|conforme\s+(?:o\s+)?solicitado|"
+                              r"sem\s+(?:solicitar|pedir)\s+(?:altera|mudan)|o\s+pedido\s+(?:apenas|s[oó])\s+(?:forneceu|trouxe)")
+RE_NOME_DE_BLOCO = re.compile(r"\b(?:(do|da|dos|das|de|no|na|nos|nas|o|a|os|as)\s+)?(?:blocos?\s+)?"
+                              r"(b(?=[0-9a-f]*\d)[0-9a-f]{6,7})\b", re.I)
+
+
+def _rotulo_no_lugar(m: re.Match, rotulos: dict) -> str:
+    """"do bloco b0b0008" → "da Cláusula 2ª"; "no bloco" → "na"; "o bloco" → "a": a preposição com o artigo do rótulo."""
+    rotulo = rotulos.get(m.group(2), "")
+    if not rotulo:
+        return "outro trecho" if not m.group(1) else m.group(1) + " outro trecho"
+    prep = (m.group(1) or "").lower()
+    if prep in ("do", "da", "dos", "das", "de"):
+        return ED.de_rotulo(rotulo)
+    if prep in ("no", "na", "nos", "nas"):
+        return "n" + ED.de_rotulo(rotulo)[1:]
+    if prep in ("o", "a", "os", "as"):
+        return ED.a_rotulo(rotulo)
+    return rotulo
+
+
+def _limpar_texto_do_modelo(texto: str, rotulos: dict) -> str:
+    """O nome interno do bloco (b0b0008) vira o rótulo (Cláusula 2ª); espaços e pontas arrumados."""
+    t = " ".join(str(texto or "").split()).strip(" ;")
+    t = RE_NOME_DE_BLOCO.sub(lambda m: _rotulo_no_lugar(m, rotulos), t)
+    t = re.sub(r"(Cláusula \d+ª|Preâmbulo|Fecho|Assinaturas)(?:\s+e\s+\1)+", r"\1", t)
+    return t[:1].upper() + t[1:] if t else ""
+
+
+def _limpar_itens(itens: list, rotulos: dict, rotulo: str = "") -> list[str]:
+    """
+    Os "não fiz", "lacunas" e "talvez" do modelo, só com o que diz alguma
+    coisa: sem o item vazio ("Nenhuma lacuna identificada"), sem a justificativa
+    pelo que não foi pedido, sem o rótulo repetido ("Não fiz: Não fiz..." e
+    "Talvez você queira...: Talvez seja necessário...") e sem nome de bloco.
+    """
+    saida: list[str] = []
+    for x in itens or []:
+        t = _limpar_texto_do_modelo(str(x), rotulos)
+        t = re.sub(r"(?i)^n[aã]o\s+fiz\s*[:,\-–]?\s*", "", t)
+        t = re.sub(r"(?i)^talvez\s+(?:seja\s+(?:necess[aá]rio|bom|preciso|interessante)|voc[eê]\s+queira|devesse(?:\s+ser)?|"
+                   r"fosse\s+(?:bom|o\s+caso\s+de))\s*", "", t)
+        t = re.sub(r"(?i)^(?:verificar|conferir)\s+se\s+", "conferir se ", t)
+        t = t.strip(" .;")
+        if not t or RE_ITEM_VAZIO.match(t) or RE_ITEM_GENERICO.search(t):
+            continue
+        t = t[:1].upper() + t[1:]
+        if t not in saida:
+            saida.append(t)
+    return saida
+
+
+# ------------------------------------------------------------- a revisão
+
+def _consertos(a: dict, mapa: dict, rotulos: dict) -> list[tuple[dict, str]]:
+    """
+    As correções seguras do que a conferência achou, como sugestão: tirar a
+    cópia repetida, pôr a cláusula antes do fecho, acertar o número dos itens,
+    separar o corpo da cabeça. O resto (valor, referência, lei) fica para o
+    advogado decidir.
+    """
+    def curto(bid: str, n: int = 40) -> str:
+        t = " ".join((mapa[bid].texto if bid in mapa else "").split())
+        return t if len(t) <= n else t[: n - 1].rsplit(" ", 1)[0] + "…"
+
+    regra, titulo, blocos_ = a.get("regra"), a.get("titulo"), [b for b in a.get("blocos") or [] if b in mapa]
+    if regra == "repetido" and blocos_:
+        if len(blocos_) > 1:
+            return [({"op": "apagar", "blocos": blocos_},
+                     f"Tirei a cópia repetida, de “{curto(blocos_[0])}” a “{curto(blocos_[-1])}” ({len(blocos_)} parágrafos)")]
+        if len(mapa[blocos_[0]].texto) >= 120:
+            return [({"op": "apagar", "bloco": blocos_[0]}, f"Tirei o parágrafo repetido “{curto(blocos_[0], 60)}”")]
+        return []
+    if titulo == "Cláusula depois do fecho" and blocos_ and a.get("antes_de") in mapa:
+        return [({"op": "mover", "blocos": blocos_, "antes_de": a["antes_de"]},
+                 f"Pus a {a.get('rotulo') or 'cláusula'} antes do fecho e das assinaturas")]
+    if titulo == "Itens com o número de outra cláusula":
+        return [({"op": "reescrever", "bloco": i["bloco"], "texto": i["texto"]}, "")
+                for i in a.get("itens") or [] if i.get("bloco") in mapa]
+    if titulo == "Cabeça com o corpo junto" and a.get("bloco") in mapa and a.get("cabeca") and a.get("corpo"):
+        # Os itens do corpo seguem o número da cláusula ("2.1" na Cláusula 3ª vira "3.1").
+        n = E._numero_da_clausula(a["cabeca"])[0]
+        corpo = [re.sub(r"^(\s*)\d{1,3}\.(?=\d)", rf"\g<1>{n}.", t) if n else t for t in a["corpo"]]
+        return [({"op": "reescrever", "bloco": a["bloco"], "texto": a["cabeca"]}, ""),
+                ({"op": "inserir", "depois_de": a["bloco"], "blocos": [{"texto": t} for t in corpo]}, "")]
+    return []
+
+
+def _mensagens_de_leitura(blocos: list, pedido: str, titulo: str, foco: list | None = None) -> list[dict]:
+    rotulos = E.rotulos(blocos)
+    vivos = [b for b in blocos if b.sug != "del"]
+    inteiro = B.para_modelo(vivos, rotulos=rotulos, limite=90000)
+    onde = f"\nO PEDIDO É SOBRE: {', '.join(rotulos.get(i, '') for i in foco or [] if rotulos.get(i))}" if foco else ""
+    return [{"role": "system", "content": SISTEMA_LEITURA},
+            {"role": "user", "content": f"DOCUMENTO: {titulo}\n\nESBOÇO:\n{E.resumo(vivos)}\n\n{inteiro}\n\n"
+                                        f"PEDIDO DO ADVOGADO: {pedido}{onde}"}]
 
 
 def _aplicar_uma(atual: list, op: dict, rodada: int, original: list, ent: Entendimento,
@@ -576,7 +749,7 @@ def faltou_do_pedido(pedido: str, antes: str, depois: str) -> list[str]:
 
 def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", selecao: dict | None = None,
           nivel: str = "advogado", regras: str = "", memoria: str = "", artigos: str = "", parar=None,
-          fichas=None, leis=None, casa: str = ""):
+          fichas=None, leis=None, casa: str = "", conversa: str = ""):
     """
     A rodada inteira, como eventos:
       ("etapa", {"id", "titulo", "estado"})
@@ -602,10 +775,126 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
             r.sugestoes.insert(0, barrado)
         return barrado
 
+    def aplicar(op: dict, resumo: str = ""):
+        """Aplica uma operação e manda o remendo; devolve o que foi feito (ou None)."""
+        nonlocal atual
+        antes = atual
+        atual, feito, falha, comentarios = _aplicar_uma(atual, op, rodada, original, ent, selecao)
+        r.comentarios += comentarios
+        if feito:
+            if resumo:
+                feito["resumo"] = resumo
+            r.aplicadas.append(feito)
+            yield ("remendo", {"remendos": B.remendos(antes, atual), "resumo": feito["resumo"], "sids": feito["sids"]})
+        elif falha:
+            r.falhas.append({**falha, "operacao": op})
+        return feito
+
+    def renumerar_se_precisar():
+        nonlocal atual
+        if ED.precisa_renumerar(atual):
+            antes = copy.deepcopy(atual)
+            feito = ED.renumerar(atual, rodada)
+            if feito:
+                r.aplicadas.append(feito)
+                yield ("remendo", {"remendos": B.remendos(antes, atual), "resumo": feito["resumo"], "sids": feito["sids"]})
+
     yield ("etapa", {"id": "entender", "titulo": "Entender o pedido", "estado": "concluido"})
     if ent.rotulos:
         yield ("nota", {"texto": "o pedido aponta para " + ", ".join(ent.rotulos)})
-    if ent.tipo in ("concluir", "desfazer", "aceitar", "recusar"):
+    if ent.tipo in ("concluir", "desfazer", "aceitar", "recusar", "confirmar"):
+        r.blocos = atual
+        r.segundos = time.time() - inicio
+        yield ("fim", {"rodada": r})
+        return
+
+    if ent.tipo == "revisar":
+        import conferencia_juridica as CJ
+
+        yield ("etapa", {"id": "revisar", "titulo": "Revisar o documento", "estado": "executando"})
+        avisos = CJ.conferir(atual, fichas=fichas, leis=leis)
+        if ent.foco:
+            avisos = [a for a in avisos if a.get("bloco") in set(ent.foco)]
+        mapa, rotulos = B.por_id(atual), E.rotulos(atual)
+        consertados: set[int] = set()
+        # A ordem importa: tirar o repetido, depois mover (pelos blocos de antes),
+        # depois acertar o número dos itens e separar o corpo da cabeça.
+        ordem = {"repetido": 0, "Cláusula depois do fecho": 1, "Itens com o número de outra cláusula": 2,
+                 "Cabeça com o corpo junto": 3}
+        # Mover cria a cópia no lugar novo (e marca a original para sair): o
+        # conserto seguinte da mesma cláusula vai na cópia.
+        novos_nomes: dict[str, str] = {}
+
+        def traduzir(op: dict) -> dict:
+            t = dict(op)
+            for k in ("bloco", "depois_de", "antes_de"):
+                if t.get(k) in novos_nomes:
+                    t[k] = novos_nomes[t[k]]
+            if isinstance(t.get("blocos"), list) and all(isinstance(x, str) for x in t["blocos"]):
+                t["blocos"] = [novos_nomes.get(x, x) for x in t["blocos"]]
+            return t
+
+        for i, a in sorted(enumerate(avisos), key=lambda x: ordem.get(x[1].get("regra"), ordem.get(x[1].get("titulo"), 9))):
+            feitos = []
+            for op, resumo in _consertos(a, mapa, rotulos):
+                feito = yield from aplicar(traduzir(op), resumo)
+                if feito:
+                    feitos.append(feito)
+                    if feito.get("tipo") == "mover":
+                        ids = feito.get("ids", [])
+                        novos_nomes.update(zip(ids[:len(ids) // 2], ids[len(ids) // 2:]))
+                    mapa = B.por_id(atual)
+            if len(feitos) > 1:
+                # Os itens renumerados, o corpo separado: uma mudança só, para aceitar ou recusar junto.
+                juntos = {**feitos[0], "sids": [s for f in feitos for s in f["sids"]],
+                          "ids": list(dict.fromkeys(i for f in feitos for i in f.get("ids", []))),
+                          "resumo": (f"Acertei o número dos itens da {a.get('rotulo')}: agora são "
+                                     + re.split(r": seriam? ", a.get("detalhe", ""))[-1].rstrip(".")
+                                     if a.get("titulo", "").startswith("Itens") else
+                                     f"Separei da cabeça da {a.get('rotulo')} o corpo dela ({len(a.get('corpo') or [])} "
+                                     f"parágrafo{'s' if len(a.get('corpo') or []) != 1 else ''})")}
+                r.aplicadas = [x for x in r.aplicadas if x not in feitos] + [juntos]
+            if feitos:
+                consertados.add(i)
+        yield from renumerar_se_precisar()
+        r.pontos = [{k: a.get(k, "") for k in ("bloco", "rotulo", "titulo", "detalhe", "grau")}
+                    for i, a in enumerate(avisos) if i not in consertados]
+        if not (parar and parar()):
+            yield ("nota", {"texto": "lendo o documento inteiro, como revisor"})
+            try:
+                bruto = chamar(_mensagens_de_leitura(atual, pedido, titulo, ent.foco), json_mode=True, max_tokens=1800,
+                               on_token=None)
+                r.chamadas += 1
+                vivos_ids, rot = {b.id for b in atual}, E.rotulos(atual)
+                for p in (ler_json(bruto).get("pontos") or [])[:6]:
+                    if not isinstance(p, dict):
+                        continue
+                    texto_p = _limpar_texto_do_modelo(p.get("texto") or "", rot)
+                    bid = str(p.get("bloco") or "")
+                    if texto_p and not RE_ITEM_VAZIO.match(texto_p):
+                        r.leitura.append({"bloco": bid if bid in vivos_ids else "", "rotulo": rot.get(bid, ""),
+                                          "texto": texto_p})
+            except Exception as exc:  # noqa: BLE001 - a leitura é ajuda; sem ela, a revisão por regra vale
+                yield ("nota", {"texto": f"a leitura do modelo não veio ({str(exc)[:80]})"})
+        yield ("etapa", {"id": "revisar", "titulo": "Revisar o documento", "estado": "concluido"})
+        r.blocos = atual
+        r.segundos = time.time() - inicio
+        yield ("fim", {"rodada": r})
+        return
+
+    if ent.tipo == "texto_colado":
+        yield ("etapa", {"id": "comparar", "titulo": "Comparar com o texto colado", "estado": "executando"})
+        ops, info = ED.comparar_com_texto(atual, pedido)
+        r.colado = info
+        rot = E.rotulos(atual)
+        for op in ops:
+            nome = rot.get(op.get("bloco") or op.get("depois_de") or "", "")
+            resumo = {"reescrever": f"{nome}: como no texto colado",
+                      "apagar": f"{nome}: não está no texto colado",
+                      "inserir": f"Trecho do texto colado que não estava no documento, depois da {nome}"}.get(op["op"], "")
+            yield from aplicar(op, resumo)
+        yield from renumerar_se_precisar()
+        yield ("etapa", {"id": "comparar", "titulo": "Comparar com o texto colado", "estado": "concluido"})
         r.blocos = atual
         r.segundos = time.time() - inicio
         yield ("fim", {"rodada": r})
@@ -659,7 +948,7 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
         # ---------------------------------------------- o modelo, ao vivo
         yield ("etapa", {"id": "editar", "titulo": "Editar o documento", "estado": "executando"})
         msgs = mensagens_de_edicao(blocos, ent, pedido, titulo=titulo, selecao=selecao, regras=regras, memoria=memoria,
-                                   artigos=artigos, casa=casa)
+                                   artigos=artigos, casa=casa, conversa=conversa)
         teto = {"estagiario": 2500, "bacharel": 3500, "advogado": 5000, "juiz": 6000, "ministro": 7000}.get(nivel, 5000)
         leitor = LeitorDeOperacoes()
         ponte = Ponte(lambda empurrar: chamar(msgs, json_mode=True, max_tokens=teto, on_token=empurrar), parar=parar)
@@ -684,9 +973,12 @@ def rodar(chamar, blocos: list, pedido: str, *, rodada: int, titulo: str = "", s
         r.chamadas += 1
         dados = ler_json(ponte.resultado if isinstance(ponte.resultado, str) else leitor.texto)
         r.entendi = " ".join(str(dados.get("entendi") or "").split())[:300]
-        r.nao_fiz += [str(x) for x in (dados.get("nao_fiz") or []) if str(x).strip()][:8]
-        r.lacunas += [str(x) for x in (dados.get("lacunas") or []) if str(x).strip()][:12]
-        r.sugestoes += [" ".join(str(x).split()) for x in (dados.get("sugestoes") or []) if str(x).strip()][:6]
+        # O que o modelo escreve para o advogado, limpo: sem o item vazio ("Nenhuma lacuna"),
+        # sem a justificativa pelo que não foi pedido e sem nome de bloco (13/10/2026).
+        rotulos_ = E.rotulos(atual)
+        r.nao_fiz += _limpar_itens(dados.get("nao_fiz"), rotulos_)[:6]
+        r.lacunas += _limpar_itens(dados.get("lacunas"), rotulos_)[:12]
+        r.sugestoes += _limpar_itens(dados.get("sugestoes"), rotulos_)[:6]
         # O que o leitor ao vivo não pegou (JSON torto no meio) entra agora.
         for op in (dados.get("operacoes") or [])[leitor.lidas:]:
             if isinstance(op, dict) and not barrar(op):
@@ -865,39 +1157,78 @@ def conferir_rodada(antes: list, depois: list, r: Rodada, fichas=None, leis=None
 
 # ------------------------------------------------------------ a resposta
 
+def titulo_legivel(titulo: str) -> str:
+    """“CONTRATO DE COMPRA E VENDA” → “Contrato de compra e venda”: o título em maiúsculas lido como frase."""
+    t = " ".join(str(titulo or "").split())
+    letras = [c for c in t if c.isalpha()]
+    if letras and sum(1 for c in letras if c.isupper()) / len(letras) > 0.8:
+        t = t.lower()
+        t = t[:1].upper() + t[1:]
+    return t
+
+
 def resposta(r: Rodada, titulo: str = "") -> str:
     """
-    A frase da conversa, montada do que a rodada aplicou de fato - o lugar de
-    cada mudança, o que não deu e por quê, as lacunas e os avisos.
+    A frase da conversa, montada do que a rodada fez de fato - o lugar de cada
+    mudança, o que não deu e por quê, o que ficou para o advogado. É o texto
+    guardado na conversa e lido pelo leitor de tela; a tela desenha o cartão da
+    rodada (js/95-editor-inteligente.js) com os mesmos dados.
     """
     if r.tipo == "pergunta":
         return r.resposta or "Não achei a resposta no documento."
+    doc = f"“{titulo_legivel(titulo)}”" if titulo else "o documento"
     linhas: list[str] = []
     feitas = [a for a in r.aplicadas if a.get("tipo") != "comentar"]
     comentadas = [a for a in r.aplicadas if a.get("tipo") == "comentar"]
-    if feitas:
-        n = len(feitas)
-        linhas.append(f"Fiz {n} mudança{'s' if n > 1 else ''} em “{titulo}”:" if titulo else
-                      f"Fiz {n} mudança{'s' if n > 1 else ''}:")
-        linhas += [f"- {a['resumo']}" for a in feitas]
-    if comentadas:
-        linhas.append(("Deixei " if not feitas else "E deixei ") + f"{len(comentadas)} comentário"
-                      + ("s" if len(comentadas) > 1 else "") + " na margem.")
-    nao = [falha_para_gente(f["motivo"]) for f in r.falhas] + r.nao_fiz
+    n = len(feitas)
+    mudancas = f"{n} mudança{'s' if n != 1 else ''}"
+
     def lista(itens) -> str:
         # "; " entre os itens e um ponto só no fim, mesmo que o item já termine em ponto.
         return "; ".join(str(x).strip().rstrip(".") for x in itens) + "."
 
+    if r.tipo == "revisar":
+        pontos = len(r.pontos) + len(r.leitura)
+        if feitas:
+            linhas.append(f"Revisei {doc} e corrigi {n} ponto{'s' if n != 1 else ''}, como sugestão:")
+        elif pontos:
+            linhas.append(f"Revisei {doc}. Não mudei nada; ficaram {pontos} ponto{'s' if pontos != 1 else ''} "
+                          "para você decidir.")
+        else:
+            linhas.append(f"Revisei {doc} e não achei problema: numeração, referências, valores e extensos, datas, "
+                          "CPF e CNPJ, lacunas e estrutura em ordem.")
+    elif r.tipo == "texto_colado":
+        c = r.colado or {}
+        if not feitas:
+            return ("Esse texto não parece uma versão deste documento, então não mudei nada. Diga o que fazer com "
+                    "ele - por exemplo, “insira isto depois da Cláusula 5ª”." if c.get("parecido", 0) < 0.5 else
+                    "Comparei com o texto que você colou: é igual ao documento, não há diferença para marcar.")
+        cobre = "" if c.get("cobre_tudo") or not c.get("de") else (
+            f" O texto colado vai de {c.get('de')} a {c.get('ate')}; o resto do documento ficou como estava.")
+        linhas.append(f"Comparei com o texto que você colou e marquei as diferenças: {mudancas}.{cobre}")
+    elif feitas:
+        linhas.append(f"Fiz {mudancas} em {doc}:")
+    linhas += [f"- {a['resumo']}" for a in feitas]
+    if comentadas:
+        linhas.append(("Deixei " if not feitas else "E deixei ") + f"{len(comentadas)} comentário"
+                      + ("s" if len(comentadas) > 1 else "") + " na margem.")
+    if r.pontos:
+        linhas.append("Para você conferir:")
+        linhas += [f"- {p['rotulo'] + ': ' if p.get('rotulo') else ''}{p['titulo']}. {p['detalhe']}" for p in r.pontos]
+    if r.leitura:
+        linhas.append("Na leitura, como revisor:")
+        linhas += [f"- {p['rotulo'] + ': ' if p.get('rotulo') else ''}{p['texto']}" for p in r.leitura]
+    nao = [falha_para_gente(f["motivo"]) for f in r.falhas] + r.nao_fiz
     if nao:
         linhas.append("Não fiz: " + lista(dict.fromkeys(nao)))
     if r.lacunas:
         linhas.append("Ficou para preencher: " + lista(r.lacunas[:6]))
     if r.sugestoes:
-        linhas.append("Talvez você queira mudar também (não mudei): " + lista(r.sugestoes[:4]))
+        linhas.append("Vale olhar também (não mudei): " + lista(r.sugestoes[:4]))
     if r.avisos:
         linhas.append("Conferi: " + lista(r.avisos[:6]))
     if feitas:
-        linhas.append("Cada mudança está marcada no texto: aceite ou recuse uma a uma, ou todas.")
-    if not feitas and not comentadas and not nao:
+        linhas.append("Cada mudança está marcada no texto: aceite ou recuse uma a uma, ou todas de uma vez.")
+    if not feitas and not comentadas and not nao and r.tipo not in ("revisar", "texto_colado"):
         linhas.append("Não mudei nada: não achei no documento o que o pedido manda mudar.")
     return "\n".join(linhas)

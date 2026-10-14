@@ -96,8 +96,19 @@ def de_rotulo(rotulo: str) -> str:
 
 
 def _curto(texto: str, n: int = 60) -> str:
+    """O texto em até `n` letras, cortado entre palavras ("IMÓVEL UR…" não diz nada)."""
     t = " ".join(str(texto or "").split())
-    return t if len(t) <= n else t[: n - 1].rstrip() + "…"
+    if len(t) <= n:
+        return t
+    corte = t[: n - 1]
+    if " " in corte[n // 2:]:
+        corte = corte.rsplit(" ", 1)[0]
+    return corte.rstrip(" ,;:–-") + "…"
+
+
+def a_rotulo(rotulo: str) -> str:
+    """"a Cláusula 4ª", "o preâmbulo", "as Assinaturas" - o rótulo com o artigo."""
+    return de_rotulo(rotulo).replace("da ", "a ", 1).replace("das ", "as ", 1).replace("do ", "o ", 1).replace("de ", "", 1)
 
 
 def aplicar(blocos_entrada: list, operacoes: list, *, rodada: int, escopo: list | None = None,
@@ -259,9 +270,19 @@ def _substituir(blocos, op, ctx):
     rotulo = ctx.rotulo(b.id)
     vezes = f" ({len(lugares)} vezes)" if len(lugares) > 1 else ""
     de_curto, para_curto = _o_que_mudou(de, para)
-    resumo = (f"{rotulo}: “{de_curto}” → “{para_curto}”{vezes}" if para.strip()
-              else f"{rotulo}: tirei “{_curto(de, 60)}”{vezes}")
-    return {"sids": [sid], "ids": [b.id], "rotulo": rotulo, "resumo": resumo + nota}
+    a_, p_ = " ".join(de.split()), " ".join(para.split())
+    if p_ and len(p_) > len(a_) and p_.lower().startswith(a_.lower()):
+        # "DO OBJETO" → "DO OBJETO DO CONTRATO...": é um acréscimo, e é assim que se diz.
+        acao, antes_, depois_ = "acréscimo", "", _curto(p_[len(a_):], 70)
+        resumo = f"{rotulo}: acrescentei “{depois_}”{vezes}"
+    elif not p_:
+        acao, antes_, depois_ = "retirada", _curto(a_, 70), ""
+        resumo = f"{rotulo}: tirei “{antes_}”{vezes}"
+    else:
+        acao, antes_, depois_ = "troca", de_curto, para_curto
+        resumo = f"{rotulo}: “{de_curto}” → “{para_curto}”{vezes}"
+    return {"sids": [sid], "ids": [b.id], "rotulo": rotulo, "resumo": resumo + nota, "acao": acao, "antes": antes_,
+            "depois": depois_}
 
 
 def _o_que_mudou(de: str, para: str, n: int = 50) -> tuple[str, str]:
@@ -284,7 +305,13 @@ def _o_que_mudou(de: str, para: str, n: int = 50) -> tuple[str, str]:
     trecho_b = " ".join(pb[ini:len(pb) - fim]) or b
     antes = "…" if ini else ""
     depois = "…" if fim else ""
-    return antes + _curto(trecho_a, n) + depois, antes + _curto(trecho_b, n) + depois
+
+    def junta(trecho: str) -> str:
+        # O corte do _curto já põe "…": duas reticências seguidas não dizem nada a mais.
+        miolo = _curto(trecho, n)
+        return antes + miolo + ("" if miolo.endswith("…") else depois)
+
+    return junta(trecho_a), junta(trecho_b)
 
 
 def _trocar_no_quadro(blocos, b, de, para, ctx):
@@ -306,7 +333,8 @@ def _trocar_no_quadro(blocos, b, de, para, ctx):
     blocos.insert(B.indice(blocos, b.id) + 1, novo)
     rotulo = ctx.rotulo(b.id)
     return {"sids": [sid], "ids": [b.id, novo.id], "rotulo": rotulo,
-            "resumo": f"{rotulo} (quadro): “{_curto(de, 40)}” → “{_curto(para, 40)}”"}
+            "resumo": f"{rotulo} (quadro): “{_curto(de, 40)}” → “{_curto(para, 40)}”", "acao": "troca no quadro",
+            "antes": _curto(de, 60), "depois": _curto(para, 60)}
 
 
 def _substituir_em_tudo(blocos, op, ctx):
@@ -342,7 +370,8 @@ def _substituir_em_tudo(blocos, op, ctx):
         raise _Falhou(f"não achei “{_curto(de, 50)}” no documento")
     return {"sids": sids, "ids": ids, "rotulo": ctx.rotulo(ids[0]) if len(ids) == 1 else "o documento",
             "resumo": f"“{_curto(de, 40)}” → “{_curto(para, 40)}” em {total} lugar{'es' if total > 1 else ''} "
-                      f"({len(ids)} bloco{'s' if len(ids) > 1 else ''})"}
+                      f"do documento", "acao": f"troca em {total} lugar{'es' if total > 1 else ''}",
+            "antes": _curto(de, 60), "depois": _curto(para, 60)}
 
 
 def _reescrever(blocos, op, ctx):
@@ -362,7 +391,10 @@ def _reescrever(blocos, op, ctx):
             atual = b.texto
             if not B.reescrever(b, atual[:lugar[0]] + partes[0] + atual[lugar[1]:], sid, ctx.rodada):
                 return None
-            return {"sids": [sid], "ids": [b.id], "rotulo": rotulo, "resumo": f"{rotulo}: reescrevi o trecho selecionado"}
+            antes_, depois_ = _o_que_mudou(sel["texto"], partes[0], 70)
+            return {"sids": [sid], "ids": [b.id], "rotulo": rotulo, "resumo": f"{rotulo}: reescrevi o trecho selecionado",
+                    "acao": "reescrita do trecho", "antes": antes_, "depois": depois_}
+    velho = b.texto
     mudou = B.reescrever(b, partes[0], sid, ctx.rodada)
     ids = [b.id]
     i = B.indice(blocos, b.id)
@@ -374,8 +406,10 @@ def _reescrever(blocos, op, ctx):
         mudou = True
     if not mudou:
         return None
+    antes_, depois_ = _o_que_mudou(velho, partes[0], 70)
     return {"sids": [sid], "ids": ids, "rotulo": rotulo,
-            "resumo": f"Reescrevi {rotulo}" + (f" (agora em {len(partes)} parágrafos)" if len(partes) > 1 else "")}
+            "resumo": f"Reescrevi {a_rotulo(rotulo)}" + (f" (agora em {len(partes)} parágrafos)" if len(partes) > 1 else ""),
+            "acao": "reescrita", "antes": antes_, "depois": depois_}
 
 
 def _molde(blocos: list, texto: str, perto: int) -> dict:
@@ -441,6 +475,7 @@ def _inserir(blocos, op, ctx):
     i = B.indice(blocos, ancora_id)
     ancora = blocos[i]
     pos = _fim_da_clausula(blocos, i) + 1 if chave == "depois_de" else i
+    pos = _antes_do_fecho(blocos, pos, [t for _, t in textos])
     sid = B.nova_sugestao()
     ids = []
     for k, (tipo, texto) in enumerate(textos):
@@ -453,12 +488,36 @@ def _inserir(blocos, op, ctx):
         blocos.insert(pos + k, novo)
         ids.append(novo.id)
     primeiro = textos[0][1]
-    if E._numero_da_clausula(primeiro)[0] or E.RE_TITULO_NUMERADO.match(primeiro):
-        o_que = f"a cláusula “{_curto(primeiro, 50)}”"
+    clausula = bool(E._numero_da_clausula(primeiro)[0] or E.RE_TITULO_NUMERADO.match(primeiro))
+    if clausula:
+        o_que, acao = f"a cláusula “{_curto(primeiro, 50)}”", "cláusula nova"
     else:
         o_que = f"{len(textos)} parágrafo{'s' if len(textos) > 1 else ''}"
+        acao = "parágrafo novo" if len(textos) == 1 else f"{len(textos)} parágrafos novos"
     onde = ("depois " if chave == "depois_de" else "antes ") + de_rotulo(ctx.rotulo(ancora_id))
-    return {"sids": [sid], "ids": ids, "rotulo": ctx.rotulo(ancora_id), "resumo": f"Inseri {o_que} {onde}"}
+    # Na tela, a linha é a do que entrou ("Cláusula nova"), não a da âncora: "Cláusula 2ª · cláusula
+    # nova" se lia como se a 2ª fosse a nova.
+    return {"sids": [sid], "ids": ids, "rotulo": ctx.rotulo(ancora_id), "resumo": f"Incluí {o_que} {onde}",
+            "acao": acao, "depois": _curto(primeiro, 80), "onde": onde,
+            "titulo_tela": acao[:1].upper() + acao[1:], "texto_tela": f"“{_curto(primeiro, 70)}”, {onde}"}
+
+
+def _antes_do_fecho(blocos: list, pos: int, textos: list[str]) -> int:
+    """
+    Cláusula e parágrafo do corpo não entram depois do fecho e das assinaturas
+    ("ponha a cláusula 11 no fim" acabava depois das assinaturas, 13/10/2026):
+    a posição volta para antes do fecho. O que é do fim - outro fecho, data,
+    assinatura, testemunha, anexo - pode ir depois.
+    """
+    partes = E.esboco(blocos)
+    fecho = next((k for k, p in enumerate(partes) if p.tipo in ("fecho", "data", "assinatura")), None)
+    if fecho is None or pos <= fecho:
+        return pos
+    do_fim = re.compile(r"(?i)^\s*(?:anexo|testemunha|ap[eê]ndice)\b")
+    if any(E.RE_FECHO.search(t[:160]) or E.RE_DATA.match(t) or E.RE_ASSINATURA.search(t) or do_fim.match(t)
+           or E.RE_NOME_DE_ASSINATURA.match(t.strip()) for t in textos):
+        return pos
+    return fecho
 
 
 def _alvos(op: dict, blocos: list, ctx: _Ctx) -> list[str]:
@@ -487,9 +546,11 @@ def _apagar(blocos, op, ctx):
         r = ctx.rotulo(b.id)
         if r not in rotulos:
             rotulos.append(r)
+    primeiro = next((x for x in blocos if x.id == ids[0]), None)
     return {"sids": [sid], "ids": ids, "rotulo": rotulos[0],
-            "resumo": "Apaguei " + (rotulos[0] if len(rotulos) == 1 else ", ".join(rotulos[:3]))
-                      + (f" ({len(ids)} blocos)" if len(ids) > 1 else "")}
+            "resumo": "Retirei " + (a_rotulo(rotulos[0]) if len(rotulos) == 1 else ", ".join(rotulos[:3]))
+                      + (f" ({len(ids)} parágrafos)" if len(ids) > 1 else ""),
+            "acao": "retirada", "antes": _curto(primeiro.texto if primeiro else "", 80)}
 
 
 def _apagar_trecho(blocos, op, ctx):
@@ -518,11 +579,13 @@ def _mover(blocos, op, ctx):
         copias.append(copia)
     i = B.indice(blocos, destino_id)
     pos = _fim_da_clausula(blocos, i) + 1 if chave == "depois_de" else i
+    pos = _antes_do_fecho(blocos, pos, [c.texto for c in copias])
     for k, c in enumerate(copias):
         blocos.insert(pos + k, c)
     rotulo = ctx.rotulo(movidos[0].id)
     return {"sids": [sid], "ids": [m.id for m in movidos] + [c.id for c in copias], "rotulo": rotulo,
-            "resumo": f"Movi {rotulo} para " + ("depois " if chave == "depois_de" else "antes ")
+            "acao": "mudança de lugar", "depois": ("depois " if chave == "depois_de" else "antes ") + de_rotulo(ctx.rotulo(destino_id)),
+            "resumo": f"Movi {a_rotulo(rotulo)} para " + ("depois " if chave == "depois_de" else "antes ")
                       + de_rotulo(ctx.rotulo(destino_id))}
 
 
@@ -535,7 +598,8 @@ def _comentar(blocos, op, ctx):
     if trecho and not B.achar(b.texto, trecho):
         trecho = ""
     rotulo = ctx.rotulo(b.id)
-    return {"sids": [], "ids": [b.id], "rotulo": rotulo, "resumo": f"Comentei {rotulo}",
+    return {"sids": [], "ids": [b.id], "rotulo": rotulo, "resumo": f"Comentei {a_rotulo(rotulo)}", "acao": "comentário",
+            "depois": _curto(texto, 120),
             "comentario": {"bloco": b.id, "trecho": trecho or b.texto[:600], "texto": texto[:1500], "rotulo": rotulo}}
 
 
@@ -563,6 +627,7 @@ def renumerar(blocos: list, rodada: int) -> dict | None:
     novos = resultado["texto"].split("\n")
     if len(novos) != len(vivos):
         return None
+    antes = E.clausulas(vivos)
     sid = B.nova_sugestao()
     ids = []
     for b, novo in zip(vivos, novos):
@@ -571,11 +636,35 @@ def renumerar(blocos: list, rodada: int) -> dict | None:
             ids.append(b.id)
     if not ids:
         return None
+    # Os itens da cláusula ("12.1", "12.2") seguem o número novo dela: a 12ª
+    # que virou 13ª não fica com "12.1" dentro (13/10/2026).
+    depois = {c["cabeca"]: c["numero"] for c in E.clausulas(vivos)}
+    mapa = {b.id: b for b in vivos}
+    itens = 0
+    for c in antes:
+        novo_n = depois.get(c["cabeca"])
+        if not novo_n or novo_n == c["numero"]:
+            continue
+        for bid in c["blocos"][1:]:
+            b = mapa.get(bid)
+            m = E.RE_SUBITEM.match(b.texto) if b else None
+            if m and int(m.group(1)) == c["numero"]:
+                novo = re.sub(r"^(\s*)\d{1,3}\.", rf"\g<1>{novo_n}.", b.texto, count=1)
+                if B.reescrever(b, novo, sid, rodada):
+                    itens += 1
+                    if b.id not in ids:
+                        ids.append(b.id)
     clausulas = sum(1 for t in resultado["trocas"] if t["tipo"] == "clausula")
     refs = len(resultado["referencias"])
+    extras = []
+    if refs:
+        extras.append(f"{refs} referência{'s' if refs != 1 else ''} cruzada{'s' if refs != 1 else ''}")
+    if itens:
+        extras.append(f"{itens} ite{'ns' if itens != 1 else 'm'} numerado{'s' if itens != 1 else ''}")
     resumo = f"Renumerei {clausulas} cláusula{'s' if clausulas != 1 else ''}" + (
-        f" e {refs} referência{'s' if refs != 1 else ''} cruzada{'s' if refs != 1 else ''}" if refs else "")
-    return {"sids": [sid], "ids": ids, "rotulo": "Numeração", "resumo": resumo, "tipo": "renumerar"}
+        " e " + " e ".join(extras) if extras else "")
+    return {"sids": [sid], "ids": ids, "rotulo": "Numeração", "resumo": resumo, "tipo": "renumerar",
+            "acao": "numeração"}
 
 
 _UMA = {
@@ -583,6 +672,93 @@ _UMA = {
     "inserir": _inserir, "apagar": _apagar, "apagar_trecho": _apagar_trecho, "mover": _mover,
     "comentar": _comentar, "renumerar": _renumerar,
 }
+
+
+_ASPAS_IGUAIS = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'", "–": "-", "—": "-"})
+
+
+def comparar_com_texto(blocos: list, texto: str) -> tuple[list[dict], dict]:
+    """
+    O texto colado na conversa como versão do documento: as operações que
+    levam o documento até ele - "reescrever" o parágrafo que mudou (a
+    diferença sai marcada palavra por palavra), "inserir" o trecho novo e
+    longo, "apagar" o parágrafo que sumiu -, só na faixa que o texto cobre: o
+    pedaço colado não apaga o resto. O "comparar documentos" do Word, sem
+    modelo. `info["parecido"]` abaixo de 0,5: não é versão deste documento, e
+    nada é proposto.
+    """
+    import difflib
+
+    vivos = [b for b in blocos if b.sug != "del" and b.tipo != "table"]
+    doc: list[str] = []
+    dono: list[int] = []
+    for k, b in enumerate(vivos):
+        ws = b.texto.split()
+        doc += ws
+        dono += [k] * len(ws)
+    novo = (texto or "").split()
+    info = {"parecido": 0.0, "mudados": 0, "novos": 0, "apagados": 0, "de": "", "ate": ""}
+    if not doc or not novo:
+        return [], info
+    chave = lambda w: w.translate(_ASPAS_IGUAIS)  # noqa: E731
+    a, b_ = [chave(w) for w in doc], [chave(w) for w in novo]
+    casam = [m for m in difflib.SequenceMatcher(None, a, b_, autojunk=False).get_matching_blocks() if m.size >= 3]
+    info["parecido"] = round(sum(m.size for m in casam) / len(b_), 2)
+    if not casam or info["parecido"] < 0.5:
+        return [], info
+    ini, fim = casam[0].a, casam[-1].a + casam[-1].size
+    # O que vem antes do primeiro trecho igual, no texto colado, entra antes dele.
+    ini_novo, fim_novo = 0, len(novo)
+    sm = difflib.SequenceMatcher(None, a[ini:fim], b_[ini_novo:fim_novo], autojunk=False)
+
+    palavras: dict[int, list[str]] = {k: [] for k in range(dono[ini], dono[fim - 1] + 1)}
+    novos_blocos: list[tuple[int, list[str]]] = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        i1, i2 = i1 + ini, i2 + ini
+        trecho = novo[j1:j2]
+        if tag == "equal":
+            for i in range(i1, i2):
+                palavras[dono[i]].append(doc[i])
+        elif tag in ("replace", "delete"):
+            # As palavras novas repartidas pelos blocos das que saem, na proporção
+            # de cada um: a troca que atravessa dois parágrafos fica em cada um.
+            segmentos: list[tuple[int, int]] = []
+            for i in range(i1, i2):
+                if segmentos and segmentos[-1][0] == dono[i]:
+                    segmentos[-1] = (dono[i], segmentos[-1][1] + 1)
+                else:
+                    segmentos.append((dono[i], 1))
+            posto = 0
+            for n, (k, quantas) in enumerate(segmentos):
+                ate = len(trecho) if n == len(segmentos) - 1 else posto + round(len(trecho) * quantas / (i2 - i1))
+                palavras[k] += trecho[posto:ate]
+                posto = ate
+        else:   # insert
+            if i1 >= fim:
+                palavras[dono[fim - 1]] += trecho
+            elif i1 == ini or dono[i1] == dono[i1 - 1]:
+                palavras[dono[i1]] += trecho
+            elif len(trecho) >= 12:
+                novos_blocos.append((dono[i1 - 1], trecho))
+            else:
+                palavras[dono[i1 - 1]] += trecho
+
+    ops: list[dict] = []
+    for k, ws in palavras.items():
+        b = vivos[k]
+        if not ws:
+            ops.append({"op": "apagar", "bloco": b.id})
+            info["apagados"] += 1
+        elif " ".join(ws) != " ".join(b.texto.split()):
+            ops.append({"op": "reescrever", "bloco": b.id, "texto": " ".join(ws)})
+            info["mudados"] += 1
+    for k, ws in novos_blocos:
+        ops.append({"op": "inserir", "depois_de": vivos[k].id, "blocos": [{"texto": " ".join(ws)}]})
+        info["novos"] += 1
+    rotulos = E.rotulos(blocos)
+    info["de"], info["ate"] = rotulos.get(vivos[dono[ini]].id, ""), rotulos.get(vivos[dono[fim - 1]].id, "")
+    info["cobre_tudo"] = dono[ini] == 0 and dono[fim - 1] == len(vivos) - 1
+    return ops, info
 
 
 def precisa_renumerar(blocos: list) -> bool:

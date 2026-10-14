@@ -91,7 +91,7 @@ def teste_erros() -> None:
     ED.renumerar(depois, 1)
     novos = C.novos(C.conferir(antes), C.conferir(depois, antes=antes))
     mudou = next((a for a in novos if a["titulo"] == "Referência que mudou de cláusula"), None)
-    checar(mudou and mudou["bloco"] == "b0b0024" and "DO PRAZO" in mudou["detalhe"],
+    checar(mudou and mudou["bloco"] == "b0b0024" and "do prazo" in mudou["detalhe"].lower(),
            "apagar a cláusula do prazo: “conforme a cláusula 2ª” passou a apontar para outra", mudou)
 
     bs = bancada.documento("compra_venda")

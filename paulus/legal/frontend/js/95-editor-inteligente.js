@@ -16,7 +16,11 @@
      - o pedido ao agente (/api/documentos/{id}/editar), ao vivo;
      - o painel de alterações, o cartão de conclusão e o do PDF. */
 
-const ei = { selecao: null, faixa: null, barrinha: null, mudancas: {}, ultimaRodada: 0 };
+/* `decisoes`: o que a pessoa fez com cada sugestão (aceita/recusada), para o
+   cartão da conversa mostrar; `desfazer`: a folha antes de cada decisão;
+   `revisao`: a revisão uma a uma aberta (o índice da mudança da vez). */
+const ei = { selecao: null, faixa: null, barrinha: null, mudancas: {}, ultimaRodada: 0, decisoes: {}, desfazer: [],
+  revisao: null };
 
 const RE_ESPACOS_EI = /[ \t\r\n\f\v      　]+/g;
 
@@ -90,6 +94,15 @@ function textoVisivelDoBloco(el) {
   t = t.replace(/ *\n */g, "\n").replace(/^ +| +$/g, "");
   // O <br> que o navegador põe no fim de bloco vazio não é texto.
   return t.replace(/\n$/, "");
+}
+
+/* As classes da tela (o pisca da mudança, o realce do mouse, a mudança da
+   vez na revisão) não vão para o documento gravado. */
+function tirarMarcasDaTela(raiz) {
+  raiz.querySelectorAll("[class]").forEach((el) => {
+    [...el.classList].filter((c) => c.startsWith("ei-")).forEach((c) => el.classList.remove(c));
+    if (!el.classList.length) el.removeAttribute("class");
+  });
 }
 
 function textoNormal(t) {
@@ -220,11 +233,17 @@ function desembrulhar(el) {
 
 /* Aceitar ou recusar, no próprio texto: o que entra fica (ou sai), o que sai
    some (ou volta). Bloco que fica sem texto nenhum sai junto. `filtro`:
-   {sid}, {rodada} ou nada (todas). Devolve quantas sugestões decidiu. */
+   {sid} ou {sids: [...]} (as mudanças), {rodada}, {bloco: el} (só os pedaços
+   dentro deste parágrafo), {els: [...]} (só este trecho), ou nada (todas).
+   Devolve quantas sugestões decidiu; a folha de antes fica para desfazer. */
 function decidirNaFolha(folha, aceitar, filtro) {
   const f = filtro || {};
-  const vale = (el) => (!f.sid || el.getAttribute("data-s") === f.sid) &&
-    (!f.rodada || Number(el.getAttribute("data-r") || 0) === Number(f.rodada));
+  const sids = f.sids ? new Set(f.sids) : (f.sid ? new Set([f.sid]) : null);
+  const so = f.els ? new Set(f.els) : null;
+  const vale = (el) => (!sids || sids.has(el.getAttribute("data-s"))) &&
+    (!f.rodada || Number(el.getAttribute("data-r") || 0) === Number(f.rodada)) &&
+    (!so || so.has(el)) && (!f.bloco || el === f.bloco || f.bloco.contains(el));
+  const antes = folha.innerHTML;
   const decididas = new Set();
   folha.querySelectorAll("ins[data-s], del[data-s]").forEach((el) => {
     if (!vale(el)) return;
@@ -245,17 +264,67 @@ function decidirNaFolha(folha, aceitar, filtro) {
   });
   folha.querySelectorAll("ul, ol").forEach((l) => { if (!l.querySelector("li")) l.remove(); });
   folha.normalize();
+  if (decididas.size) {
+    ei.desfazer.push({ folha: folha.id, html: antes });
+    if (ei.desfazer.length > 30) ei.desfazer.shift();
+    // A mudança está decidida quando nada dela ficou na folha (só um parágrafo dela: ainda não).
+    decididas.forEach((sid) => {
+      if (!folha.querySelector('[data-s="' + CSS.escape(sid) + '"]')) ei.decisoes[sid] = aceitar ? "aceita" : "recusada";
+    });
+  }
   return decididas.size;
 }
 
-/* Depois de decidir: grava, atualiza o contador e o cartão. */
+/* Depois de decidir: grava, atualiza o contador, o cartão da conversa e a
+   revisão uma a uma - e a decisão se desfaz pelo aviso. */
 function depoisDeDecidir(quantas, verbo) {
   if (!quantas) { avisoNaJanela("Não há sugestão pendente aqui: já foram decididas"); return; }
   if ($("dp-folha")) { contarAlteracoes(); marcarDuplaSuja(); gravarDupla(); }
   else salvarOndeEstiver();
   fecharPopoverDeSugestao();
   if ($("ei-painel")) desenharPainelDeAlteracoes();
-  avisoNaJanela(verbo + " " + plural(quantas, "sugestão", "sugestões"));
+  atualizarCartoesDaRodada();
+  if (ei.revisao) mostrarRevisaoUmaAUma(ei.revisao.indice);
+  avisoNaJanela(verbo + " " + plural(quantas, "sugestão", "sugestões"), { acao: { rotulo: "Desfazer", fazer: desfazerDecisao } });
+}
+
+/* A última decisão volta: a folha como estava antes dela. */
+function desfazerDecisao() {
+  const ultimo = ei.desfazer.pop();
+  const folha = ultimo && $(ultimo.folha);
+  if (!folha) { avisoNaJanela("Não há decisão para desfazer"); return; }
+  folha.innerHTML = ultimo.html;
+  Object.keys(ei.decisoes).forEach((sid) => {
+    if (folha.querySelector('[data-s="' + CSS.escape(sid) + '"]')) delete ei.decisoes[sid];
+  });
+  if ($("dp-folha")) { contarAlteracoes(); marcarDuplaSuja(); gravarDupla(); redesenharPaginas(); }
+  else salvarOndeEstiver();
+  if ($("ei-painel")) desenharPainelDeAlteracoes();
+  atualizarCartoesDaRodada();
+  if (ei.revisao) mostrarRevisaoUmaAUma(ei.revisao.indice);
+}
+
+/* O trecho de uma sugestão em linha: o pedaço clicado e o par dele (a troca
+   é <del>velho</del><ins>novo</ins> lado a lado, com o mesmo nome). */
+function trechoDaSugestao(el) {
+  if (!el || el.hasAttribute("data-sug") || (el.tagName !== "INS" && el.tagName !== "DEL")) return null;
+  const sid = el.getAttribute("data-s");
+  const par = el.tagName === "INS" ? "DEL" : "INS";
+  const vizinho = (lado) => {
+    let n = el[lado];
+    while (n && n.nodeType === 3 && !n.nodeValue.trim()) n = n[lado === "previousSibling" ? "previousSibling" : "nextSibling"];
+    return n && n.nodeType === 1 && n.tagName === par && n.getAttribute("data-s") === sid ? n : null;
+  };
+  const outro = vizinho("previousSibling") || vizinho("nextSibling");
+  return outro ? [el, outro] : [el];
+}
+
+/* O resumo de uma sugestão quando a rodada não deixou o dela: o que sai e o que entra. */
+function resumoDaSugestao(s) {
+  const info = ei.mudancas[s.sid] || {};
+  if (info.resumo) return info.resumo;
+  if (s.sai && s.entra) return "“" + s.sai.slice(0, 70) + "” → “" + s.entra.slice(0, 70) + "”";
+  return s.entra ? "entra: “" + s.entra.slice(0, 120) + "”" : "sai: “" + s.sai.slice(0, 120) + "”";
 }
 
 function contarAlteracoes() {
@@ -265,6 +334,7 @@ function contarAlteracoes() {
   const botao = $("dp-alteracoes");
   if (botao) botao.classList.toggle("ei-com-pendentes", n > 0);
   if (dupla.doc) dupla.doc.pendentes = n;
+  atualizarCartoesDaRodada();
   return n;
 }
 
@@ -272,30 +342,148 @@ function contarAlteracoes() {
    e os dois botões. */
 function abrirPopoverDeSugestao(el) {
   fecharPopoverDeSugestao();
+  const folha = folhaAberta();
   const sid = el.getAttribute("data-s");
-  const s = sugestoesNaFolha(folhaAberta()).find((x) => x.sid === sid);
+  const s = sugestoesNaFolha(folha).find((x) => x.sid === sid);
   if (!s) return;
-  const info = ei.mudancas[sid] || {};
+  // Mais a fundo, quando a mudança tem mais de um parágrafo, ou mais de um
+  // pedaço no parágrafo clicado: escolher só este parágrafo, ou só este trecho.
+  const bloco = el.closest("[data-b]") || el;
+  const paragrafos = new Set(s.els.map((x) => x.closest("[data-b]") || x));
+  const trecho = trechoDaSugestao(el);
+  const pedacosNoBloco = bloco.querySelectorAll('ins[data-s="' + CSS.escape(sid) + '"], del[data-s="' + CSS.escape(sid) + '"]').length;
+  const fino = (paragrafos.size > 1 ? linhaDoPopover("Só este parágrafo", "bloco") : "") +
+    (trecho && pedacosNoBloco > trecho.length ? linhaDoPopover("Só este trecho", "trecho") : "");
+  const sai = trecho ? trecho.filter((x) => x.tagName === "DEL").map((x) => x.textContent).join(" ") : "";
+  const entra = trecho ? trecho.filter((x) => x.tagName === "INS").map((x) => x.textContent).join(" ") : "";
   const caixa = document.createElement("div");
   caixa.className = "ei-popover";
   caixa.id = "ei-popover";
-  caixa.innerHTML = '<span class="rotulo">' + (s.rodada ? "Paulus · resposta " + s.rodada : "Paulus") + "</span>" +
-    "<p>" + esc(info.resumo || (s.sai && s.entra ? "“" + s.sai.slice(0, 80) + "” → “" + s.entra.slice(0, 80) + "”"
-      : s.entra ? "entra: “" + s.entra.slice(0, 140) + "”" : "sai: “" + s.sai.slice(0, 140) + "”")) + "</p>" +
+  caixa.setAttribute("role", "dialog");
+  caixa.setAttribute("aria-label", "Sugestão do Paulus");
+  caixa.innerHTML = '<span class="rotulo">' + (s.rodada ? "Sugestão da resposta " + s.rodada : "Sugestão") + "</span>" +
+    '<p class="ei-pop-resumo">' + esc(resumoDaSugestao(s)) + "</p>" +
+    (trecho && (sai || entra) && paragrafos.size === 1 && pedacosNoBloco > trecho.length
+      ? '<p class="ei-pop-dif">' + (sai ? "<del>" + esc(sai.slice(0, 90)) + "</del>" : "") + (entra ? "<ins>" + esc(entra.slice(0, 90)) + "</ins>" : "") + "</p>" : "") +
     '<div class="linha-form"><button data-ei-dec="recusar">' + ic("close", 16) + "Recusar</button>" +
-    '<button class="primario" data-ei-dec="aceitar">' + ic("check", 16) + "Aceitar</button></div>";
+    '<button class="primario" data-ei-dec="aceitar">' + ic("check", 16) + "Aceitar</button></div>" +
+    (fino ? '<div class="ei-pop-fino"><span class="rotulo">Escolher mais a fundo</span>' + fino + "</div>" : "");
   document.body.appendChild(caixa);
   const r = el.getBoundingClientRect();
-  const largura = Math.min(320, window.innerWidth - 24);
+  const largura = Math.min(340, window.innerWidth - 24);
   caixa.style.left = Math.max(12, Math.min(window.innerWidth - largura - 12, r.left)) + "px";
-  caixa.style.top = Math.min(window.innerHeight - caixa.offsetHeight - 12, r.bottom + 8) + "px";
+  caixa.style.top = Math.max(12, Math.min(window.innerHeight - caixa.offsetHeight - 12, r.bottom + 8)) + "px";
   caixa.querySelectorAll("[data-ei-dec]").forEach((b) => {
     b.onclick = () => {
       const aceitar = b.dataset.eiDec === "aceitar";
-      depoisDeDecidir(decidirNaFolha(folhaAberta(), aceitar, { sid }), aceitar ? "Aceitei" : "Recusei");
+      const alcance = b.dataset.eiAlcance;
+      const filtro = alcance === "bloco" ? { sid, bloco } : alcance === "trecho" ? { sid, els: trecho } : { sid };
+      depoisDeDecidir(decidirNaFolha(folha, aceitar, filtro), aceitar ? "Aceitei" : "Recusei");
     };
   });
+  const primeiro = caixa.querySelector('[data-ei-dec="aceitar"]');
+  if (primeiro) primeiro.focus({ preventScroll: true });
 }
+
+function linhaDoPopover(rotulo, alcance) {
+  return '<div class="ei-pop-linha"><span>' + rotulo + "</span>" +
+    '<button class="botao-icone" data-ei-dec="recusar" data-ei-alcance="' + alcance + '" title="Recusar ' + rotulo.toLowerCase() +
+    '" aria-label="Recusar ' + rotulo.toLowerCase() + '">' + ic("close", 16) + "</button>" +
+    '<button class="botao-icone" data-ei-dec="aceitar" data-ei-alcance="' + alcance + '" title="Aceitar ' + rotulo.toLowerCase() +
+    '" aria-label="Aceitar ' + rotulo.toLowerCase() + '">' + ic("check", 16) + "</button></div>";
+}
+
+/* ------------------------------------------- revisar uma a uma (E8) */
+
+/* A barra que passa pelas mudanças, uma por vez: mostra no texto, e a pessoa
+   aceita, recusa ou pula. Teclado (com a barra em foco): → próxima, ← anterior,
+   A aceitar, R recusar, Esc fechar. */
+function abrirRevisaoUmaAUma() {
+  if (!$("dp-folha")) { avisoNaJanela("Abra o documento ao lado para revisar as mudanças"); return; }
+  mostrarRevisaoUmaAUma(0);
+}
+
+function mostrarRevisaoUmaAUma(indice) {
+  const folha = $("dp-folha");
+  const mesa = $("dp-mesa");
+  if (!folha || !mesa) { fecharRevisaoUmaAUma(); return; }
+  folha.querySelectorAll(".ei-atual").forEach((x) => x.classList.remove("ei-atual"));
+  const lista = sugestoesNaFolha(folha);
+  if (!lista.length) {
+    fecharRevisaoUmaAUma();
+    avisoNaJanela("Pronto: todas as mudanças foram decididas");
+    return;
+  }
+  const k = Math.max(0, Math.min(indice, lista.length - 1));
+  ei.revisao = { indice: k };
+  const s = lista[k];
+  s.els.forEach((x) => x.classList.add("ei-atual"));
+  const alvo = s.els[0].closest("[data-b]") || s.els[0];
+  alvo.scrollIntoView({ behavior: animacoesLigadas() ? "smooth" : "auto", block: "center" });
+  let barra = $("ei-revisao");
+  if (!barra) {
+    barra = document.createElement("div");
+    barra.id = "ei-revisao";
+    barra.className = "ei-revisao";
+    barra.tabIndex = -1;
+    barra.setAttribute("role", "toolbar");
+    barra.setAttribute("aria-label", "Revisar as mudanças uma a uma");
+    mesa.prepend(barra);
+    barra.addEventListener("keydown", teclaDaRevisao);
+  }
+  barra.innerHTML = '<span class="ei-rev-conta">' + (k + 1) + " de " + lista.length + "</span>" +
+    '<span class="ei-rev-resumo">' + esc(resumoDaSugestao(s)) + "</span>" +
+    '<span class="ei-rev-botoes">' +
+    '<button class="botao-icone" data-ei-rev="anterior" title="Anterior (←)" aria-label="Anterior"' + (k === 0 ? " disabled" : "") + ">" + ic("chevron_left", 18) + "</button>" +
+    '<button class="botao-icone" data-ei-rev="proxima" title="Próxima (→)" aria-label="Próxima"' + (k === lista.length - 1 ? " disabled" : "") + ">" + ic("chevron_right", 18) + "</button>" +
+    '<button data-ei-rev="recusar" title="Recusar (R)">' + ic("close", 16) + "Recusar</button>" +
+    '<button class="primario" data-ei-rev="aceitar" title="Aceitar (A)">' + ic("check", 16) + "Aceitar</button>" +
+    '<button class="botao-icone" data-ei-rev="fechar" title="Fechar (Esc)" aria-label="Fechar a revisão">' + ic("close", 16) + "</button>" +
+    "</span>";
+  barra.querySelectorAll("[data-ei-rev]").forEach((b) => { b.onclick = () => acaoDaRevisao(b.dataset.eiRev); });
+  barra.focus({ preventScroll: true });
+}
+
+function acaoDaRevisao(acao) {
+  const folha = $("dp-folha");
+  if (!folha || !ei.revisao) return;
+  const lista = sugestoesNaFolha(folha);
+  const s = lista[ei.revisao.indice];
+  if (acao === "fechar") { fecharRevisaoUmaAUma(); return; }
+  if (acao === "anterior") { mostrarRevisaoUmaAUma(ei.revisao.indice - 1); return; }
+  if (acao === "proxima") { mostrarRevisaoUmaAUma(ei.revisao.indice + 1); return; }
+  if (!s) return;
+  const aceitar = acao === "aceitar";
+  depoisDeDecidir(decidirNaFolha(folha, aceitar, { sid: s.sid }), aceitar ? "Aceitei" : "Recusei");
+}
+
+function teclaDaRevisao(e) {
+  const mapa = { ArrowRight: "proxima", ArrowLeft: "anterior", a: "aceitar", A: "aceitar", r: "recusar", R: "recusar", Escape: "fechar" };
+  const acao = mapa[e.key];
+  if (!acao || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  acaoDaRevisao(acao);
+}
+
+function fecharRevisaoUmaAUma() {
+  ei.revisao = null;
+  const barra = $("ei-revisao");
+  if (barra) barra.remove();
+  const folha = folhaAberta();
+  if (folha) folha.querySelectorAll(".ei-atual").forEach((x) => x.classList.remove("ei-atual"));
+}
+
+/* Passar o mouse numa sugestão acende as partes dela (a troca de dois
+   pedaços, os parágrafos da cláusula nova): o que se decide junto. */
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest && e.target.closest("#dp-folha [data-s], #ed-folha [data-s]");
+  const sid = el ? el.getAttribute("data-s") : "";
+  if (sid === ei.realce) return;
+  const folha = folhaAberta();
+  if (folha) folha.querySelectorAll(".ei-realce").forEach((x) => x.classList.remove("ei-realce"));
+  ei.realce = sid;
+  if (sid && folha) folha.querySelectorAll('[data-s="' + CSS.escape(sid) + '"]').forEach((x) => x.classList.add("ei-realce"));
+});
 
 function fecharPopoverDeSugestao() {
   const p = $("ei-popover");
@@ -306,18 +494,156 @@ document.addEventListener("click", (e) => {
   const alvo = e.target.closest && e.target.closest("#dp-folha [data-s], #ed-folha [data-s]");
   if (alvo) { abrirPopoverDeSugestao(alvo); return; }
   if (!(e.target.closest && e.target.closest("#ei-popover"))) fecharPopoverDeSugestao();
-  // "ir para" e "aceitar/recusar as desta resposta", na conversa.
+  // No cartão da rodada, na conversa: ir até o lugar, decidir uma ou todas,
+  // revisar uma a uma, desfazer a limpeza do PDF.
+  const um = e.target.closest && e.target.closest("[data-ei-c]");
+  if (um) {
+    e.preventDefault();
+    const linha = um.closest(".ei-c-mud");
+    decidirPeloCartao(um, um.dataset.eiC === "aceitar", (linha && linha.dataset.eiSids || "").split(" ").filter(Boolean));
+    return;
+  }
   const ir = e.target.closest && e.target.closest("[data-ed-ir]");
-  if (ir) { e.preventDefault(); irParaBloco(ir.dataset.edIr); return; }
+  if (ir) { e.preventDefault(); if (ir.dataset.edIr) irParaBloco(ir.dataset.edIr); return; }
   const rod = e.target.closest && e.target.closest("[data-ed-rodada]");
   if (rod) {
     e.preventDefault();
-    const folha = $("dp-folha");
-    if (!folha) { avisoNaJanela("Abra o documento ao lado para decidir"); return; }
-    const aceitar = rod.dataset.edAcao === "aceitar";
-    depoisDeDecidir(decidirNaFolha(folha, aceitar, { rodada: Number(rod.dataset.edRodada) }), aceitar ? "Aceitei" : "Recusei");
+    decidirPeloCartao(rod, rod.dataset.edAcao === "aceitar", null);
+    return;
   }
+  if (e.target.closest && e.target.closest("[data-ei-revisar]")) { e.preventDefault(); abrirRevisaoUmaAUma(); return; }
+  const limpa = e.target.closest && e.target.closest("[data-ei-desfazer-limpeza]");
+  if (limpa) { e.preventDefault(); desfazerLimpeza(limpa); }
 });
+
+/* Decidir pelo cartão da conversa: com o documento aberto ao lado, na folha
+   (e grava); sem ele, o servidor decide no que está gravado. `sids`: as
+   mudanças de uma linha; null: a rodada inteira. */
+async function decidirPeloCartao(botao, aceitar, sids) {
+  const cartao = botao.closest(".ei-cartao");
+  const doc = Number(cartao && cartao.dataset.eiCartaoDoc) || 0;
+  const rodada = Number((cartao && cartao.dataset.eiCartaoRodada) || botao.dataset.edRodada) || 0;
+  const verbo = aceitar ? "Aceitei" : "Recusei";
+  const folha = $("dp-folha");
+  if (folha && dupla.doc && dupla.doc.id === doc) {
+    depoisDeDecidir(decidirNaFolha(folha, aceitar, sids ? { sids } : { rodada }), verbo);
+    return;
+  }
+  if (!doc) return;
+  const r = await fetch("/api/documentos/" + doc + "/sugestoes", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ acao: aceitar ? "aceitar" : "recusar", sids: sids || [], rodada: sids ? null : rodada }),
+  }).catch(() => null);
+  if (!r || !r.ok) { avisoNaJanela(r ? await erroDe(r) : "Não consegui decidir agora", { icone: "error" }); return; }
+  const linhas = sids ? [botao.closest(".ei-c-mud")] : [...cartao.querySelectorAll(".ei-c-mud[data-ei-sids]")];
+  linhas.forEach((linha) => {
+    if (!linha) return;
+    linha.dataset.eiSids.split(" ").filter(Boolean).forEach((sid) => { ei.decisoes[sid] = aceitar ? "aceita" : "recusada"; });
+    linha.classList.add("ei-c-decidida");
+    const estado = linha.querySelector(".ei-c-estado");
+    if (estado) estado.textContent = aceitar ? "aceita" : "recusada";
+  });
+  if (!cartao.querySelector(".ei-c-mud[data-ei-sids]:not(.ei-c-decidida)")) {
+    cartao.querySelectorAll("[data-ed-rodada], [data-ei-revisar]").forEach((b) => { b.hidden = true; });
+  }
+  avisoNaJanela(verbo + (sids ? " a mudança" : " as mudanças desta resposta") + " no documento gravado");
+}
+
+/* A limpeza do PDF desfeita: a versão de antes volta do Histórico. */
+async function desfazerLimpeza(botao) {
+  const cartao = botao.closest(".ei-cartao");
+  const doc = Number(cartao && cartao.dataset.eiCartaoDoc) || 0;
+  const r = await fetch("/api/documentos/" + doc + "/restaurar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ numero: Number(botao.dataset.eiDesfazerLimpeza) }),
+  }).catch(() => null);
+  if (!r || !r.ok) { avisoNaJanela("Não consegui desfazer a limpeza", { icone: "error" }); return; }
+  const d = await r.json();
+  if ($("dp-folha") && dupla.doc && dupla.doc.id === doc && d.documento) trocarFolhaInteira(d.documento);
+  const caixa = botao.closest(".ei-c-limpeza");
+  if (caixa) caixa.innerHTML = ic("undo", 18) + "<span>Desfeito: o texto voltou como estava antes de juntar as linhas.</span>";
+}
+
+/* O rascunho que veio do PDF linha a linha (a importação de antes de
+   13/10/2026): frases partidas no meio, "[pagina 3]" e o rodapé no corpo - e
+   o Paulus errando o lugar das mudanças por causa disso. O aviso oferece
+   juntar as linhas (palavra nenhuma muda) ou recomeçar do PDF original. */
+function desenharAvisoDoPdf() {
+  const velho = $("ei-aviso-pdf");
+  const d = dupla.doc;
+  const marcas = d && d.marcas_pdf;
+  const mesa = $("dp-mesa");
+  if (!d || !mesa || !marcas || !marcas.limpar || d.situacao === "concluido") { if (velho) velho.remove(); return; }
+  const caixa = velho || document.createElement("div");
+  caixa.id = "ei-aviso-pdf";
+  caixa.className = "ei-aviso-pdf";
+  const quanto = plural(marcas.blocos, "linha") + (marcas.paginas ? " e " + plural(marcas.paginas, "marca de página", "marcas de página") : "");
+  caixa.innerHTML = ic("info", 18) +
+    '<div class="ei-ap-txt"><b>Este rascunho veio do PDF linha a linha.</b> São ' + esc(quanto) +
+    ": as frases estão partidas, e isso faz o Paulus errar o lugar das mudanças.</div>" +
+    '<div class="ei-ap-acoes"><button class="primario" data-ei-pdf="limpar">Juntar as linhas</button>' +
+    (d.origem && d.origem.caminho ? '<button data-ei-pdf="recomecar">Recomeçar do original</button>' : "") + "</div>" +
+    (d.origem && d.origem.caminho
+      ? "<small>Juntar não muda palavra nenhuma; recomeçar faz uma cópia limpa do arquivo original. Nos dois casos, a versão de agora fica no Histórico.</small>"
+      : "<small>Juntar não muda palavra nenhuma, e a versão de agora fica no Histórico.</small>");
+  if (!velho) mesa.prepend(caixa);
+  caixa.querySelectorAll("[data-ei-pdf]").forEach((b) => { b.onclick = () => limparTextoDoPdf(b.dataset.eiPdf); });
+}
+
+async function limparTextoDoPdf(acao) {
+  const d = dupla.doc;
+  if (!d || !$("dp-folha")) return;
+  if (acao === "recomecar" && !(await confirmar({
+    titulo: "Recomeçar do original?", contexto: "Documento › " + d.titulo,
+    texto: "O rascunho ganha uma cópia limpa do arquivo de onde veio. O que você e o Paulus mudaram até aqui não se perde: fica no Histórico, de onde volta com um clique.",
+    confirmar: "Recomeçar",
+  }))) return;
+  if (blocosComNome($("dp-folha")).some((b) => b.hasAttribute("data-sug")) || $("dp-folha").querySelector("ins[data-s], del[data-s]")) {
+    if (acao === "limpar") { avisoNaJanela("Antes de juntar as linhas, decida as sugestões marcadas no texto"); return; }
+  }
+  await gravarDupla();
+  const r = await fetch("/api/documentos/" + d.id + "/" + (acao === "recomecar" ? "recomecar" : "limpar-pdf"), {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revisao: d.revisao }),
+  }).catch(() => null);
+  if (!r) { avisoNaJanela("Não consegui agora", { icone: "error" }); return; }
+  const res = await r.json().catch(() => ({}));
+  if (r.status === 409 && res.conflito) { await resolverConflitoDaFolha(res); return; }
+  if (!r.ok) { avisoNaJanela(res.detail || "Não consegui agora", { icone: "error" }); return; }
+  d.marcas_pdf = { limpar: false };
+  if (!res.nada) trocarFolhaInteira({ corpo: res.corpo, revisao: res.revisao, versao: res.versao });
+  desenharAvisoDoPdf();
+  avisoNaJanela(res.frase, res.versao_antes ? { acao: { rotulo: "Desfazer", fazer: () => restaurarVersaoDaFolha(res.versao_antes) } } : {});
+}
+
+async function restaurarVersaoDaFolha(numero) {
+  const d = dupla.doc;
+  if (!d) return;
+  const r = await fetch("/api/documentos/" + d.id + "/restaurar", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ numero: numero }),
+  }).catch(() => null);
+  if (!r || !r.ok) { avisoNaJanela("Não consegui voltar à versão de antes", { icone: "error" }); return; }
+  const res = await r.json();
+  if (res.documento) trocarFolhaInteira(res.documento);
+  // A marca do PDF é conta do servidor: a versão que voltou pode ter as linhas partidas de novo.
+  const novo = await fetch("/api/documentos/" + d.id).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  if (novo && dupla.doc && dupla.doc.id === d.id) { dupla.doc.marcas_pdf = novo.marcas_pdf; desenharAvisoDoPdf(); }
+  avisoNaJanela("Voltei à versão de antes");
+}
+
+/* A folha trocada inteira pelo que o servidor gravou (a limpeza do PDF, o
+   recomeço do original, a versão restaurada). */
+function trocarFolhaInteira(novo) {
+  const folha = $("dp-folha");
+  if (!folha || !dupla.doc) return;
+  folha.innerHTML = novo.corpo || "<p><br></p>";
+  ["revisao", "versao", "marcas_pdf", "origem"].forEach((k) => { if (novo[k] !== undefined) dupla.doc[k] = novo[k]; });
+  if (novo.corpo !== undefined) dupla.doc.corpo = novo.corpo;
+  nomearBlocos(folha);
+  contarAlteracoes();
+  redesenharPaginas();
+  desenharAvisoDoPdf();
+  if ($("dp-linha")) $("dp-linha").textContent = linhaDoRascunho(dupla.doc);
+}
 
 /* ------------------------------------------- o painel de alterações (E8) */
 
@@ -558,12 +884,19 @@ window.addEventListener("scroll", () => {
 const RE_ACAO_DO_PROGRAMA = /\b(agend|tarefa|lembr[ae]|e-?mail|envi[ae]|mand[ae] para|whatsapp|cadastr|ficha|pesquis|jurisprud|sumula|procure no acervo|busque no acervo|financeiro|lancamento|nota fiscal|assin[ae]|grav[ae] a reuni|abra o |abrir o |mostre o |crie uma? (?:tarefa|pasta|compromisso))/;
 const RE_SOBRE_O_DOCUMENTO = /\b(clausula|paragrafo|inciso|alinea|contrato|documento|minuta|texto|peticao|procuracao|notificacao|item|prazo|valor|aluguel|multa|preco|parte|partes|foro|vigencia|garantia|objeto|pagamento|qualificac|assinatura|testemunha|isso|isto|este|esta|esse|essa|aqui)\b/;
 
+// "Dê uma revisada geral", "arrume a formatação", "como está ficando?" - e, com
+// o documento aberto, "sim", "isso mesmo", "pode fazer" respondem à última
+// resposta dele (13/10/2026: iam para a conversa comum, que fechava o editor).
+const RE_REVISAO_DO_DOCUMENTO = /\b(revis\w*|confir[ae]|confer\w*|analis\w*|formata\w*|visual\w*|arrum\w*|limp[ae]|junt[ae] as linhas|ficando|ficou)\b/;
+const RE_CONFIRMACAO_NO_DOCUMENTO = /^\s*(sim|isso|isso mesmo|exato|exatamente|pode|pode fazer|pode sim|faca|faca isso|faz isso|ok|okay|beleza|perfeito|manda ver|aplique|aplica|concordo|de acordo|certo|claro|prossiga)\b[\s,.!]*([a-z ]{0,20})$/;
+
 function vaiParaODocumento(texto) {
   const plano = String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   if (!plano.trim()) return false;
   if (ei.selecao) return true;
   if (RE_ACAO_DO_PROGRAMA.test(plano) && !RE_PEDIDO_DE_MUDANCA.test(plano)) return false;
   if (destinoDoPedido(texto) === "documento") return true;
+  if (RE_CONFIRMACAO_NO_DOCUMENTO.test(plano) || RE_REVISAO_DO_DOCUMENTO.test(plano)) return true;
   return RE_SOBRE_O_DOCUMENTO.test(plano) || /\?\s*$/.test(plano);
 }
 
@@ -650,6 +983,15 @@ async function editarComOPaulus(pedido, opcoes) {
         let viva = resposta.querySelector("[data-ei-viva]");
         if (!viva) { resposta.insertAdjacentHTML("beforeend", '<div class="texto" data-ei-viva="1"></div>'); viva = resposta.querySelector("[data-ei-viva]"); }
         viva.textContent = textoAoVivo.replace(/\[(b[0-9a-f]{4,8})(?:\s*[·|-][^\]\n]{0,60})?\]/g, "");
+      } else if (ev.tipo === "documento") {
+        // A revisão de um rascunho que veio do PDF linha a linha começou juntando
+        // as linhas: a folha inteira é a nova (palavra nenhuma mudou).
+        if ($("dp-folha") && dupla.doc && dupla.doc.id === docId) {
+          dupla.doc.marcas_pdf = { limpar: false };
+          trocarFolhaInteira({ corpo: d.corpo, revisao: d.revisao, versao: d.versao });
+        }
+        const b = resposta.querySelector("[data-ei-bastidor]");
+        if (b && d.frase) b.insertAdjacentHTML("beforeend", '<div class="ei-nota ei-nota-mudou">' + ic("task_alt", 14) + esc(d.frase) + "</div>");
       } else if (ev.tipo === "concluir") {
         mostrarCartaoDeConclusao(Object.assign({}, d, { id: docId }));
       } else if (ev.tipo === "fim") {
@@ -665,9 +1007,9 @@ async function editarComOPaulus(pedido, opcoes) {
     }
     (fim.mudancas || []).forEach((m) => (m.sids || []).forEach((sid) => { ei.mudancas[sid] = { resumo: m.resumo }; }));
     ei.ultimaRodada = fim.rodada;
-    resposta.innerHTML = '<div class="texto">' + textoDaRespostaDoEditor(fim.texto, fim) + "</div>" +
-      acoesDaRodada(fim, docId) + linhaDoModeloDoEditor(fim);
+    resposta.innerHTML = cartaoDaRodada(fim, docId);
     contarAlteracoes();
+    atualizarCartoesDaRodada();
   } catch (err) {
     resposta.innerHTML = '<div class="texto">Não consegui: ' + esc(String((err && err.message) || err)) + "</div>";
   } finally {
@@ -701,26 +1043,151 @@ function textoDaRespostaDoEditor(texto, d) {
   }).join("<br>");
 }
 
-function acoesDaRodada(d, docId) {
-  const n = (d.mudancas || []).filter((m) => (m.sids || []).length).length;
-  if (!n || !d.rodada) return "";
+/* O cartão da rodada na conversa (o pedido do dono de 13/10/2026: "melhore o
+   visual e a liberdade de escolher mais a fundo"). Em vez da parede de texto:
+
+     - a frase de abertura (o que a rodada fez) e, quando houve, a limpeza do
+       PDF com o Desfazer dela;
+     - cada mudança numa linha: onde, o quê, o antes riscado e o depois em
+       verde - o clique leva ao lugar; aceitar e recusar só aquela;
+     - o que ficou para o advogado: os pontos da conferência, a leitura de
+       revisor, o que não deu, as lacunas, o que vale olhar;
+     - as ações da rodada: aceitar todas, recusar todas, revisar uma a uma; a
+       nota (foi útil / não era isso) e de onde veio a resposta.
+
+   `d`: o "fim" da rodada (ou o `feito` guardado na conversa, com o texto). */
+const ICONE_DA_MUDANCA = {
+  substituir: "swap_horiz", substituir_em_tudo: "swap_horiz", reescrever: "edit_note", inserir: "add",
+  apagar: "remove", apagar_trecho: "remove", mover: "open_with", renumerar: "format_list_numbered", comentar: "rate_review",
+};
+
+function cartaoDaRodada(d, docId) {
   const doc = docId || d.id || (dupla.doc && dupla.doc.id) || 0;
-  return '<div class="linha-form ei-acoes-rodada"><button data-ed-rodada="' + d.rodada + '" data-ed-acao="recusar">' +
-    ic("undo", 16) + "Desfazer esta resposta</button>" +
-    '<button class="primario" data-ed-rodada="' + d.rodada + '" data-ed-acao="aceitar">' + ic("done_all", 16) +
-    (n > 1 ? "Aceitar as " + n : "Aceitar") + "</button>" +
-    '<span class="cresce"></span><span class="ei-avaliar" data-ei-doc="' + doc + '" data-ei-rodada="' + d.rodada + '">' +
-    '<button class="botao-icone" data-ei-nota="1" title="Boa resposta" aria-label="Boa resposta">' + ic("check", 16) +
-    '</button><button class="botao-icone" data-ei-nota="-1" title="Não era isso" aria-label="Não era isso">' +
-    ic("close", 16) + "</button></span></div>";
+  const mudancas = d.mudancas || [];
+  const linhas = String(d.texto || "").split("\n");
+  const limpeza = d.limpeza || null;
+  // A abertura é a primeira frase que não é a da limpeza nem item de lista.
+  const abertura = linhas.find((l) => l.trim() && !l.startsWith("- ") && (!limpeza || l !== limpeza.frase) &&
+    !/^(Para você conferir|Na leitura, como revisor|Não fiz|Ficou para preencher|Vale olhar também|Conferi|Cada mudança está marcada)/.test(l)) || "";
+  let html = '<div class="ei-cartao" data-ei-cartao-doc="' + doc + '" data-ei-cartao-rodada="' + (d.rodada || 0) + '">';
+  if (limpeza) {
+    html += '<div class="ei-c-limpeza">' + ic("task_alt", 18) + '<span>' + esc(limpeza.frase) + "</span>" +
+      (limpeza.versao_antes ? '<button data-ei-desfazer-limpeza="' + limpeza.versao_antes + '">Desfazer</button>' : "") + "</div>";
+  }
+  if (abertura) html += '<p class="ei-c-abertura">' + esc(abertura) + "</p>";
+  if (mudancas.length) html += '<ul class="ei-c-lista">' + mudancas.map(linhaDaMudanca).join("") + "</ul>";
+  const pontos = (d.pontos || []).map((p) => itemDoCartao(p.bloco, p.rotulo, p.titulo, p.detalhe, p.grau === "impede"));
+  if (pontos.length) html += secaoDoCartao("Para você conferir", pontos);
+  const leitura = (d.leitura || []).map((p) => itemDoCartao(p.bloco, p.rotulo, "", p.texto, false));
+  if (leitura.length) html += secaoDoCartao("Na leitura, como revisor", leitura);
+  const notas = [];
+  [...(d.falhas || []), ...(d.nao_fiz || [])].forEach((t) => notas.push(["Não fiz", t]));
+  (d.lacunas || []).forEach((t) => notas.push(["Para preencher", t]));
+  (d.sugestoes || []).forEach((t) => notas.push(["Vale olhar também", t]));
+  (d.avisos || []).forEach((t) => notas.push(["Conferi", t]));
+  if (d.nao_fiz === undefined && d.sugestoes === undefined) {
+    // A resposta guardada antes do cartão (13/10/2026): as notas estão só no texto.
+    const rotulos = [[/^Não fiz:\s*/, "Não fiz"], [/^Ficou para preencher:\s*/, "Para preencher"],
+      [/^Talvez você queira mudar também \(não mudei\):\s*/, "Vale olhar também"], [/^Conferi:\s*/, "Conferi"]];
+    linhas.forEach((l) => {
+      const r = rotulos.find(([re]) => re.test(l));
+      if (r) notas.push([r[1], l.replace(r[0], "")]);
+    });
+  }
+  if (notas.length) {
+    html += '<div class="ei-c-notas">' + notas.map(([rotulo, t]) =>
+      '<p><span class="ei-c-rotulo">' + esc(rotulo) + "</span>" + esc(String(t).replace(/\.$/, "")) + ".</p>").join("") + "</div>";
+  }
+  // A rodada sem cartão próprio (pergunta, conclusão, nada pendente): o texto dela.
+  if (!mudancas.length && !pontos.length && !leitura.length && !notas.length && !limpeza) {
+    html += '<div class="texto">' + textoDaRespostaDoEditor(d.texto, d) + "</div>";
+  }
+  const decidiveis = mudancas.filter((m) => (m.sids || []).length).length;
+  html += '<div class="ei-c-acoes">' +
+    (decidiveis ? '<button class="primario" data-ed-rodada="' + d.rodada + '" data-ed-acao="aceitar">' + ic("done_all", 16) +
+      (decidiveis > 1 ? "Aceitar todas" : "Aceitar") + "</button>" +
+      '<button data-ed-rodada="' + d.rodada + '" data-ed-acao="recusar">' + ic("undo", 16) +
+      (decidiveis > 1 ? "Recusar todas" : "Recusar") + "</button>" +
+      (decidiveis > 1 ? '<button data-ei-revisar="1">' + ic("rule", 16) + "Revisar uma a uma</button>" : "") : "") +
+    '<span class="cresce"></span>' +
+    (d.rodada ? '<span class="ei-avaliar" data-ei-doc="' + doc + '" data-ei-rodada="' + d.rodada + '">' +
+      '<button class="ei-c-nota" data-ei-nota="1">Foi útil</button><button class="ei-c-nota" data-ei-nota="-1">Não era isso</button></span>' : "") +
+    "</div>" + linhaDoModeloDoEditor(d) + "</div>";
+  return html;
+}
+
+function linhaDaMudanca(m) {
+  const sids = (m.sids || []).join(" ");
+  const acao = m.acao && m.acao.toLowerCase() !== String(m.rotulo || "").toLowerCase() ? m.acao : "";
+  const comDiferenca = ["substituir", "substituir_em_tudo", "reescrever", "apagar_trecho"].includes(m.tipo) && (m.antes || m.depois);
+  const corpo = comDiferenca
+    ? (m.antes ? "<del>" + esc(m.antes) + "</del>" : "") +
+      (m.antes && m.depois ? '<span class="ei-c-seta">' + ic("arrow_forward", 14) + "</span>" : "") +
+      (m.depois ? "<ins>" + esc(m.depois) + "</ins>" : "")
+    : esc(m.texto_tela || m.resumo || "");
+  // A cláusula nova tem a linha dela ("Cláusula nova"), não a da âncora.
+  const titulo = m.titulo_tela || m.rotulo || "Documento";
+  return '<li class="ei-c-mud" data-ei-sids="' + esc(sids) + '">' +
+    '<button class="ei-c-ir" data-ed-ir="' + esc((m.ids || [])[0] || "") + '" title="Ver no documento">' +
+    '<span class="ei-c-ic">' + ic(ICONE_DA_MUDANCA[m.tipo] || "edit", 16) + "</span>" +
+    '<span class="ei-c-txt"><span class="ei-c-onde">' + esc(titulo) +
+    (acao && !m.titulo_tela ? '<span class="ei-c-acao">' + esc(acao) + "</span>" : "") + "</span>" +
+    '<span class="ei-c-dif">' + corpo + "</span></span></button>" +
+    (sids ? '<span class="ei-c-dec"><button class="botao-icone" data-ei-c="recusar" title="Recusar esta" aria-label="Recusar esta mudança">' +
+      ic("close", 16) + '</button><button class="botao-icone" data-ei-c="aceitar" title="Aceitar esta" aria-label="Aceitar esta mudança">' +
+      ic("check", 16) + "</button></span>" : "") +
+    '<span class="ei-c-estado"></span></li>';
+}
+
+function itemDoCartao(bloco, rotulo, titulo, detalhe, impede) {
+  const conteudo = (rotulo ? '<span class="ei-c-onde">' + esc(rotulo) + "</span>" : "") +
+    '<span class="ei-c-dif">' + (titulo ? "<b>" + esc(titulo) + ".</b> " : "") + esc(detalhe || "") + "</span>";
+  return '<li class="ei-c-ponto' + (impede ? " ei-c-impede" : "") + '">' +
+    (bloco ? '<button class="ei-c-ir" data-ed-ir="' + esc(bloco) + '" title="Ver no documento">' + '<span class="ei-c-txt">' +
+      conteudo + "</span></button>" : '<div class="ei-c-ir"><span class="ei-c-txt">' + conteudo + "</span></div>") + "</li>";
+}
+
+function secaoDoCartao(titulo, itens) {
+  return '<div class="ei-c-secao"><span class="ei-c-rotulo">' + esc(titulo) + '</span><ul class="ei-c-lista">' + itens.join("") + "</ul></div>";
+}
+
+/* O cartão acompanha o documento: a mudança decidida (na folha, pelo
+   cartãozinho, pela revisão) deixa de oferecer aceitar e recusar e diz o que
+   foi feito; as ações da rodada somem quando nada dela espera. */
+function atualizarCartoesDaRodada() {
+  const folha = $("dp-folha");
+  const doc = dupla.doc && dupla.doc.id;
+  if (!folha || !doc) return;
+  document.querySelectorAll('.ei-cartao[data-ei-cartao-doc="' + doc + '"]').forEach((cartao) => {
+    let pendentes = 0;
+    cartao.querySelectorAll(".ei-c-mud[data-ei-sids]").forEach((linha) => {
+      const sids = linha.dataset.eiSids.split(" ").filter(Boolean);
+      if (!sids.length) return;
+      const viva = sids.some((sid) => folha.querySelector('[data-s="' + CSS.escape(sid) + '"]'));
+      linha.classList.toggle("ei-c-decidida", !viva);
+      const estado = linha.querySelector(".ei-c-estado");
+      if (estado) {
+        const feito = sids.map((sid) => ei.decisoes[sid]).find(Boolean);
+        estado.textContent = viva ? "" : feito === "aceita" ? "aceita" : feito === "recusada" ? "recusada" : "decidida";
+      }
+      if (viva) pendentes += 1;
+    });
+    cartao.querySelectorAll("[data-ed-rodada], [data-ei-revisar]").forEach((b) => { b.hidden = !pendentes; });
+  });
+}
+
+/* "Llama-3.3-70B-Instruct" → "Llama 3.3 70B": o nome do modelo como se lê. */
+function nomeDoModelo(m) {
+  return String(m || "").split("/").pop().replace(/-?instruct.*$/i, "").replace(/[-_]+/g, " ").replace(/\b(\d+)b\b/i, "$1B").trim();
 }
 
 function linhaDoModeloDoEditor(d) {
-  const o = (d && d.onde) || {};
+  // No "fim" ao vivo, `onde` é {onde, modelo}; na conversa guardada, `modelo` (lá, `onde` é "editor").
+  const o = (d && d.onde && typeof d.onde === "object" ? d.onde : d && d.modelo) || {};
   if (!o.onde) return "";
-  const onde = o.onde === "nuvem" ? "IA da nuvem" + (o.modelo ? " · " + String(o.modelo).split("/").pop() : "")
-    : "modelo deste computador" + (o.motivo ? " · " + o.motivo : "");
-  return '<div class="ei-assinatura">' + esc(onde) + (d.segundos ? " · " + String(d.segundos).replace(".", ",") + " s" : "") + "</div>";
+  const onde = o.onde === "nuvem" ? "Nuvem" + (o.modelo ? " · " + nomeDoModelo(o.modelo) : "")
+    : "Este computador" + (o.modelo ? " · " + nomeDoModelo(o.modelo) : "") + (o.motivo ? " · " + o.motivo : "");
+  return '<div class="ei-assinatura">' + esc(onde) + (d.segundos ? " · " + segundosCurtos(d.segundos) : "") + "</div>";
 }
 
 /* O polegar da resposta (E9): "não era isso" pede o que deveria ter feito -
@@ -865,6 +1332,7 @@ function desenharEstadoDoDocumento() {
   }
   const editor = $("editor-lado");
   if (editor) editor.classList.toggle("ei-concluido", concluido);
+  desenharAvisoDoPdf();
 }
 
 async function reabrirDocumento() {

@@ -111,7 +111,7 @@ e número no banco de provas.
 | E5 | O agente de edição: entender, localizar, planejar, editar, aplicar, conferir, responder, ao vivo e com a profundidade | feita, sem o "planejar" como passo à parte | `tests/test_editor_agente.py` + banco de provas |
 | E6 | Conferência jurídica: motor de regras e a segunda leitura | feita; os avisos ficam no painel, não na margem | `tests/test_editor_conferencia.py` |
 | E7 | O jeito do escritório e a memória do documento: regras de redação, cláusulas da casa, o histórico de pedidos | feita | `tests/test_editor_agente.py` |
-| E8 | Acabamento da tela: painel de mudanças, linha do tempo, comentários na margem, atalhos de teclado, celular | em parte: cabeçalho e painel feitos | `tests/test_editor_tela.py` |
+| E8 | Acabamento da tela: painel de mudanças, linha do tempo, comentários na margem, atalhos de teclado, celular | em boa parte: cartão da rodada, escolher mais a fundo, revisar uma a uma (com teclado), marcas; faltam linha do tempo, comentários na margem e celular | `tests/test_editor_tela.py`, `tests/test_editor_revisao.py` |
 | E9 | Afinação contínua: o banco de provas como portão, 👍/👎 por edição virando caso de teste | começou | `tools/medir_editor.py` |
 
 ## Como ficou e o que falta (13/10/2026)
@@ -155,6 +155,28 @@ e número no banco de provas.
   - A nota (👍/👎) de cada rodada é gravada em `data/medicao/editor-avaliacoes.jsonl`.
   - Transformar uma nota em tarefa do banco ainda é feito à mão.
 
+**O documento de verdade (13/10/2026, noite).** O dono testou no "Contrato Obedi Lourenço" e viu muitos erros. Cada
+um virou regra e teste (`tests/test_editor_revisao.py`, com dados fictícios):
+
+| O que se viu | A causa | O que mudou |
+| --- | --- | --- |
+| "[pagina 1]", "CONTRATO… página 6" e frases partidas no corpo | Rascunho da importação antiga (uma linha do PDF por parágrafo), adotado pela conversa | `pdf_em_texto.limpar_blocos`: junta as linhas, tira marcas, cabeçalho e rodapé; palavra nenhuma muda (conferido). Rotas `/limpar-pdf` e `/recomecar` (cópia limpa do original); aviso no editor com as duas saídas e o Desfazer |
+| O contrato colado na conversa virou 6 mudanças a esmo | Texto colado tratado como pedido | Tipo `texto_colado`: compara com o documento e marca as diferenças, parágrafo por parágrafo, só na faixa colada (`edicao.comparar_com_texto`, sem modelo) |
+| "Dê uma revisada…" → "Não fiz: revisão visual" | Não havia revisão | Tipo `revisar`: a conferência, as correções seguras como sugestão (trecho repetido, cláusula depois do fecho, itens com número de outra cláusula, corpo grudado na cabeça) e a leitura de revisor do modelo. Rascunho do PDF: junta as linhas antes |
+| "isso mesmo" → "não entendi a pergunta" | Sem contexto da conversa | Tipo `confirmar`: faz o que a última resposta deixou (sugestões, pontos, leitura); sem nada pendente, diz isso. O modelo lê as últimas falas da conversa |
+| A cláusula "para o fim" foi parar depois das assinaturas | O esboço não via "Assinado em…, em duas vias" nem os nomes como fecho | Esboço com esse fecho e com a cauda de nomes; cláusula e corpo não entram depois do fecho (`_antes_do_fecho`) |
+| "CLÁUSULA 12ª13ª" riscado dentro da cláusula nova; itens "12.1" na 13ª | A renumeração marcava dentro do que ainda é sugestão e não levava os itens | Mexer dentro de inserção pendente muda a inserção (como no Word); a renumeração leva os itens ("12.1" → "13.1") |
+| "Não fiz: nada mais foi alterado", "Ficou para preencher: nenhuma lacuna", nomes de bloco (bb9096a) | O texto do modelo ia cru | `_limpar_itens`: sem item vazio, sem justificativa pelo que não foi pedido, rótulo no lugar do nome do bloco; o prompt pede [] quando não há |
+| Aviso falso "referência que mudou de cláusula" | Comparava o título, que tinha ganhado palavras | Compara a cabeça (o bloco) da cláusula |
+| Parede de texto, botões com o ícone em cima do texto, ✓ e ✕ ambíguos | — | O cartão da rodada (abaixo) |
+
+**A tela (E8, em boa parte):**
+
+- **O cartão da rodada na conversa:** cada mudança com onde, o quê, o antes riscado e o depois em verde, aceitar e recusar só aquela, e o clique leva ao lugar; o que ficou para o advogado em seções; aceitar todas, recusar todas, revisar uma a uma; a nota em texto ("Foi útil" / "Não era isso"); o modelo e o tempo legíveis ("Nuvem · Llama 3.3 70B · 12 s"). O cartão acompanha as decisões ("aceita", "recusada").
+- **Escolher mais a fundo:** o cartãozinho da sugestão decide a mudança inteira, só este parágrafo ou só este trecho; toda decisão se desfaz pelo aviso.
+- **Revisar uma a uma:** a barra acima das páginas passa pelas mudanças, com o teclado (→ ← A R Esc).
+- **As marcas no papel:** o fio na margem (verde entra, vinho sai, âmbar mudou por dentro), longe da letra; passar o mouse acende as partes da mesma mudança.
+
 **O que falta:**
 
 - **E2:** o editor de tela cheia conferir a revisão, como o editor ao lado da conversa já faz.
@@ -162,9 +184,9 @@ e número no banco de provas.
 - **E8:**
   - a linha do tempo por rodada, com a diferença;
   - comentários na margem do editor lateral;
-  - atalhos de teclado e "anterior/próxima" no painel;
-  - o acabamento no celular.
-- **E9:** o banco rodado como portão a cada mudança no agente e a medida com o Claude, que depende da chave.
+  - o acabamento no celular;
+  - o cartão da rodada no editor de tela cheia (lá a resposta ainda é o texto).
+- **E9:** o banco rodado como portão a cada mudança no agente e a medida com o Claude, que depende da chave; tarefas de revisão, de confirmação e de texto colado no banco.
 
 **Ordem:**
 - **Alicerce, nesta ordem:** E0 → E1 → E2 → E3.

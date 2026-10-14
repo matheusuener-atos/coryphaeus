@@ -11709,6 +11709,12 @@ def documentos_obter(id_: int) -> dict:
         item["formato"] = documento.normalizar_formato(item.get("formato"))
         item["folha"] = _folha_para_tela(item)
         item["pendentes"] = _pendentes(item)
+        # O rascunho que veio do PDF linha a linha (a importação de antes): a
+        # tela oferece juntar as linhas ou recomeçar do original.
+        import blocos as blocos_mod
+        import pdf_em_texto
+
+        item["marcas_pdf"] = pdf_em_texto.marcas_do_pdf(blocos_mod.ler(item["corpo"]))
     # O documento da conversa (E1): de onde veio e em que pé está.
     item["origem"] = _origem(item)
     item["da_conversa"] = item.get("situacao") in ("conversa", "concluido") and bool(item.get("trabalho_id"))
@@ -12502,6 +12508,144 @@ def documentos_reabrir(id_: int) -> dict:
     return {"id": id_, "situacao": "conversa" if item.get("situacao") == "concluido" else item.get("situacao", "")}
 
 
+def _pedido_da_confirmacao(id_: int) -> str:
+    """
+    "Isso mesmo", "pode fazer": o que a última resposta neste documento deixou
+    para fazer - o que ela sugeriu mudar junto, o que a revisão apontou e não
+    corrigiu sozinha, o que a leitura do revisor achou. Vazio: não ficou nada
+    (e a resposta diz isso, em vez de "não entendi a pergunta").
+    """
+    ultima = estado.base.um("SELECT resultado FROM rodadas_do_editor WHERE documento_id = ? ORDER BY numero DESC LIMIT 1",
+                            (id_,))
+    try:
+        res = json.loads((ultima or {}).get("resultado") or "{}")
+    except ValueError:
+        return ""
+    itens = [str(s) for s in res.get("sugestoes") or [] if str(s).strip()]
+    itens += [f"{p.get('rotulo') + ': ' if p.get('rotulo') else ''}{p.get('titulo')} - {p.get('detalhe')}"
+              for p in res.get("pontos") or [] if isinstance(p, dict)]
+    itens += [f"{p.get('rotulo') + ': ' if p.get('rotulo') else ''}{p.get('texto')}"
+              for p in res.get("leitura") or [] if isinstance(p, dict)]
+    if not itens:
+        return ""
+    return ("O advogado confirmou: faça agora o que você apontou na resposta anterior, cada ponto no lugar certo "
+            "do documento: " + " | ".join(itens[:8]))
+
+
+def _conversa_recente(trabalho, pedido: str, quantas: int = 4) -> str:
+    """As últimas falas da conversa, para o agente entender "isso", "aquela cláusula", "a de cima"."""
+    msgs = [m for m in (trabalho.mensagens or []) if (getattr(m, "texto", "") or "").strip()]
+    if msgs and msgs[-1].autor == "pessoa" and " ".join(msgs[-1].texto.split()) == pedido:
+        msgs = msgs[:-1]
+    return "\n".join(f"{'Advogado' if m.autor == 'pessoa' else 'Paulus'}: {' '.join(m.texto.split())[:500]}"
+                     for m in msgs[-quantas:])
+
+
+class LimparDocumento(BaseModel):
+    revisao: int | None = None      # a revisão de que a tela partiu (sem ela, como está gravado)
+
+
+def _frase_da_limpeza(r: dict) -> str:
+    tirei = []
+    if r["paginas"]:
+        tirei.append(f"{r['paginas']} marca{'s' if r['paginas'] > 1 else ''} de página")
+    if r["margens"]:
+        tirei.append(f"{r['margens']} linha{'s' if r['margens'] > 1 else ''} de cabeçalho e rodapé")
+    if r["numeros"]:
+        tirei.append(f"{r['numeros']} número{'s' if r['numeros'] > 1 else ''} de página solto{'s' if r['numeros'] > 1 else ''}")
+    partes = []
+    if r["juntadas"]:
+        partes.append(f"juntei as {r['antes']} linhas do PDF em {r['depois']} parágrafos")
+    if tirei:
+        partes.append("tirei " + (", ".join(tirei[:-1]) + " e " + tirei[-1] if len(tirei) > 1 else tirei[0]))
+    frase = " e ".join(partes)
+    return (frase[:1].upper() + frase[1:] + ". Nenhuma palavra do texto mudou; a versão de antes ficou no Histórico."
+            if frase else "O texto já está em parágrafos: não havia o que juntar.")
+
+
+@app.post("/api/documentos/{id_}/limpar-pdf")
+def documentos_limpar_pdf(id_: int, payload: LimparDocumento):
+    """
+    O rascunho que veio do PDF linha a linha (a importação de antes de
+    13/10/2026): as linhas juntadas em parágrafos, a cabeça de cláusula partida
+    reunida, e fora as marcas de página, o cabeçalho e o rodapé repetidos
+    (src/pdf_em_texto.py). Palavra nenhuma muda - é conferido -, e a versão de
+    antes fica no Histórico e volta com um clique.
+    """
+    import blocos as blocos_mod
+    import pdf_em_texto
+    from fastapi.responses import JSONResponse
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+    if item.get("situacao") == "concluido":
+        raise HTTPException(status_code=409, detail="este documento foi concluído; para mexer de novo, reabra-o")
+    try:
+        novos, relatorio = pdf_em_texto.limpar_blocos(blocos_mod.ler(item["corpo"]))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if not (relatorio["juntadas"] or relatorio["paginas"] or relatorio["margens"] or relatorio["numeros"]):
+        return {"nada": True, "frase": _frase_da_limpeza(relatorio), "relatorio": relatorio,
+                "revisao": int(item.get("revisao") or 0)}
+    antes = estado.documentos.versao_agora(id_, "antes de juntar as linhas do PDF")
+    try:
+        gravado = estado.documentos.salvar(id_, blocos_mod.html(novos), nota="as linhas do PDF juntadas em parágrafos",
+                                           versao=True, revisao=payload.revisao)
+    except documento.Conflito as exc:
+        return JSONResponse(status_code=409, content={"detail": str(exc), "conflito": True, **exc.atual})
+    return {"corpo": estado.documentos.obter(id_)["corpo"], "revisao": gravado["revisao"], "versao_antes": antes,
+            "versao": estado.documentos.ultima_versao(id_), "relatorio": relatorio, "frase": _frase_da_limpeza(relatorio)}
+
+
+@app.post("/api/documentos/{id_}/recomecar")
+def documentos_recomecar(id_: int, payload: LimparDocumento):
+    """
+    Recomeçar do original: uma cópia editável nova e limpa do arquivo de onde
+    o rascunho veio - o PDF ou o .docx do Acervo, que nunca muda. O rascunho de
+    agora vai inteiro para o Histórico; nada se perde.
+    """
+    import docx_ida_e_volta
+    import pdf_em_texto
+    from extract import extract_pdf, file_sha1
+    from fastapi.responses import JSONResponse
+
+    item = _documento_ou_404(id_)
+    if item["tipo"] != "texto":
+        raise HTTPException(status_code=400, detail="isso é uma planilha")
+    if item.get("situacao") == "concluido":
+        raise HTTPException(status_code=409, detail="este documento foi concluído; para mexer de novo, reabra-o")
+    origem = _origem(item)
+    caminho = Path(origem.get("caminho") or "")
+    if not origem.get("caminho") or not caminho.is_file():
+        raise HTTPException(status_code=409, detail="o arquivo de onde este rascunho veio não está mais no Acervo")
+    sufixo = caminho.suffix.lower()
+    if sufixo == ".pdf":
+        texto, _ = extract_pdf(caminho)
+        corpo = pdf_em_texto.para_html(texto)
+        origem.update(tipo="pdf", formato="pdf")
+    elif sufixo == ".docx":
+        lido = docx_ida_e_volta.ler(caminho.read_bytes())
+        corpo = lido["html"]
+        origem.update(formato="docx", cabecalho=lido["cabecalho"], rodape=lido["rodape"])
+    else:
+        raise HTTPException(status_code=409, detail="só dá para recomeçar de um PDF ou de um .docx")
+    if not documento.ler_html(corpo):
+        raise HTTPException(status_code=409, detail="não consegui ler o texto do original")
+    antes = estado.documentos.versao_agora(id_, "antes de recomeçar do original")
+    try:
+        gravado = estado.documentos.salvar(id_, corpo, nota="recomeçado do original", versao=True,
+                                           revisao=payload.revisao)
+    except documento.Conflito as exc:
+        return JSONResponse(status_code=409, content={"detail": str(exc), "conflito": True, **exc.atual})
+    estado.documentos.marcar(id_, origem={**origem, "sha1": file_sha1(caminho)})
+    n = len(documento.ler_html(corpo))
+    return {"corpo": estado.documentos.obter(id_)["corpo"], "revisao": gravado["revisao"], "versao_antes": antes,
+            "versao": estado.documentos.ultima_versao(id_),
+            "frase": f"Recomecei do original “{origem.get('nome') or caminho.name}”: {n} parágrafos, limpos. "
+                     "O rascunho de antes, com tudo o que tinha, ficou no Histórico."}
+
+
 @app.get("/api/trabalhos/{id_}/documentos")
 def trabalhos_documentos(id_: str) -> dict:
     """Os documentos desta conversa: rascunhos e concluídos, o mais recente primeiro."""
@@ -12952,7 +13096,9 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
         raise HTTPException(status_code=400, detail="isso é uma planilha")
     if item.get("situacao") == "concluido":
         raise HTTPException(status_code=409, detail="este documento foi concluído; para mexer de novo, reabra-o")
-    pedido = " ".join((payload.pedido or "").split())
+    # O pedido como veio (o texto colado guarda os parágrafos) e numa linha (para registrar).
+    pedido_bruto = (payload.pedido or "").strip()
+    pedido = " ".join(pedido_bruto.split())
     if not pedido:
         raise HTTPException(status_code=400, detail="diga o que você quer que eu faça no documento")
     if payload.corpo is not None:
@@ -12974,10 +13120,16 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
                   or {}).get("n") or 0) + 1
     inicio_blocos = blocos_mod.ler(item["corpo"])
     titulo = item.get("titulo") or "documento"
-    artigos, casa = _apoio_do_editor(pedido, titulo)
+    previa = agente_mod.entender(inicio_blocos, pedido_bruto, payload.selecao)
+    # "Isso mesmo", "pode fazer": o que a última resposta deixou para fazer.
+    confirmado = _pedido_da_confirmacao(id_) if previa.tipo == "confirmar" else ""
+    pedido_do_agente = confirmado or pedido_bruto
+    artigos, casa = _apoio_do_editor(pedido_do_agente, titulo)
+    conversa = _conversa_recente(trabalho, pedido) if trabalho else ""
     parar = threading.Event()
 
     def gerar() -> Iterator[str]:
+        nonlocal inicio_blocos
         agora = time.time()
         if trabalho:
             if not payload.ja_dito:
@@ -12990,13 +13142,34 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
                                              "palavras": 0, "documentos": 1, "caracteres": len(item["corpo"])}
         r = None
         etapas: dict[str, Etapa] = {}
+        # A revisão de um rascunho que veio do PDF linha a linha começa juntando
+        # as linhas (palavra nenhuma muda; a versão de antes fica no Histórico):
+        # é a bagunça visual que a pessoa está vendo, e o resto da revisão só
+        # faz sentido nos parágrafos de verdade.
+        limpeza = None
+        if previa.tipo == "revisar" and not blocos_mod.tem_sugestoes(inicio_blocos):
+            import pdf_em_texto
+
+            if pdf_em_texto.marcas_do_pdf(inicio_blocos)["limpar"]:
+                try:
+                    novos, relatorio = pdf_em_texto.limpar_blocos(inicio_blocos)
+                    versao_antes = estado.documentos.versao_agora(id_, "antes de juntar as linhas do PDF")
+                    gravado = estado.documentos.salvar(id_, blocos_mod.html(novos), versao=True,
+                                                       nota="as linhas do PDF juntadas em parágrafos")
+                    inicio_blocos = blocos_mod.ler(estado.documentos.obter(id_)["corpo"])
+                    limpeza = {"frase": _frase_da_limpeza(relatorio), "versao_antes": versao_antes,
+                               "relatorio": relatorio}
+                    yield _sse("documento", {"corpo": blocos_mod.html(inicio_blocos), "revisao": gravado["revisao"],
+                                             "versao": estado.documentos.ultima_versao(id_), **limpeza})
+                except ValueError:
+                    limpeza = None
         try:
-            for tipo, dados in agente_mod.rodar(chamar, inicio_blocos, pedido, rodada=numero, titulo=titulo,
+            for tipo, dados in agente_mod.rodar(chamar, inicio_blocos, pedido_do_agente, rodada=numero, titulo=titulo,
                                                 selecao=payload.selecao, nivel=nivel.id,
                                                 regras=estado.contextos.bloco(["Regras de redação"]),
                                                 memoria=_memoria_do_documento(id_), parar=parar.is_set,
                                                 fichas=estado.cadastros.listar(), leis=estado.leis,
-                                                artigos=artigos, casa=casa):
+                                                artigos=artigos, casa=casa, conversa=conversa):
                 if tipo == "fim":
                     r = dados["rodada"]
                 elif tipo == "etapa":
@@ -13048,10 +13221,15 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
             else:
                 texto = "Para concluir, confirme no cartão o formato, o nome e a pasta do arquivo."
                 yield _sse("concluir", {**concluir, "id": id_})
+        elif r.tipo == "confirmar":
+            texto = ("Não ficou nada pendente da minha última resposta neste documento. Diga o que você quer que eu "
+                     "faça - por exemplo, “revise o documento” ou “mude o prazo para 24 meses”.")
         else:
             texto = agente_mod.resposta(r, titulo)
             if r.aplicadas:
                 corpo_final = blocos_mod.html(r.blocos)
+        if limpeza:
+            texto = limpeza["frase"] + ("\n" + texto if texto else "")
 
         revisao = int(item.get("revisao") or 0)
         conflitos: list = []
@@ -13059,7 +13237,8 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
             # Por cima do que está gravado AGORA: se a pessoa mexeu num bloco
             # enquanto o modelo escrevia, aquele remendo não passa por cima.
             agora_blocos = blocos_mod.ler(estado.documentos.obter(id_)["corpo"])
-            if r.tipo == "editar" and blocos_mod.html(agora_blocos) != blocos_mod.html(inicio_blocos):
+            if r.tipo in ("editar", "revisar", "texto_colado") and \
+                    blocos_mod.html(agora_blocos) != blocos_mod.html(inicio_blocos):
                 final, conflitos = blocos_mod.aplicar_remendos(agora_blocos,
                                                                blocos_mod.remendos(inicio_blocos, r.blocos))
                 corpo_final = blocos_mod.html(final)
@@ -13075,14 +13254,22 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
         if conflitos:
             texto += (f"\n{len(conflitos)} mudança{'s' if len(conflitos) > 1 else ''} não entr"
                       f"{'aram' if len(conflitos) > 1 else 'ou'}: você mexeu no mesmo parágrafo enquanto eu escrevia.")
-        mudancas = [{"resumo": a["resumo"], "ids": a.get("ids", []), "sids": a.get("sids", []), "tipo": a.get("tipo", "")}
+        # Cada mudança, para o cartão da conversa: onde, o que (troca, cláusula nova,
+        # retirada...), o pedaço de antes e o de depois, e o nome das sugestões.
+        mudancas = [{"resumo": a["resumo"], "ids": a.get("ids", []), "sids": a.get("sids", []), "tipo": a.get("tipo", ""),
+                     **{k: a[k] for k in ("rotulo", "acao", "antes", "depois", "titulo_tela", "texto_tela") if a.get(k)}}
                     for a in (r.aplicadas if r else [])]
+        extras = {"pontos": r.pontos, "leitura": r.leitura, "colado": r.colado, "limpeza": limpeza,
+                  "nao_fiz": r.nao_fiz, "lacunas": r.lacunas, "sugestoes": r.sugestoes,
+                  "falhas": [agente_mod.falha_para_gente(f["motivo"]) for f in r.falhas],
+                  "avisos": r.avisos, "confirmado": bool(confirmado)}
         estado.base.escrever(
             "INSERT INTO rodadas_do_editor (documento_id, numero, pedido, resultado, modelo, nivel, criada_em) "
             "VALUES (?, ?, ?, ?, ?, ?, datetime('now','localtime'))",
             (id_, numero, pedido[:2000], json.dumps({
                 "tipo": r.tipo, "resumos": [m["resumo"] for m in mudancas], "falhas": [f["motivo"] for f in r.falhas],
                 "nao_fiz": r.nao_fiz, "sugestoes": r.sugestoes, "lacunas": r.lacunas, "avisos": r.avisos,
+                "pontos": r.pontos, "leitura": r.leitura, "colado": r.colado, "limpeza": bool(limpeza),
                 "chamadas": r.chamadas, "segundos": round(r.segundos, 1), "onde": onde}, ensure_ascii=False),
              onde.get("modelo", ""), nivel.id))
         pendentes = len(blocos_mod.sugestoes(blocos_mod.ler(estado.documentos.obter(id_)["corpo"])))
@@ -13097,16 +13284,20 @@ def documentos_editar(id_: int, payload: PedidoDeEdicao, request: Request = None
             for e in trabalho.etapas:
                 e.estado = CONCLUIDO
             trabalho.estado = CONCLUIDO
+            # "alteracao": o cartão da rodada na conversa (js/95: cartaoDaRodada) - também a
+            # revisão sem mudança, que tem os pontos para conferir.
+            do_editor = mudancas or limpeza or r.pontos or r.leitura or r.tipo in ("revisar", "texto_colado", "confirmar")
             trabalho.dizer("paulus", texto, feito={
-                "tipo": "alteracao" if mudancas else ("pergunta_no_documento" if r.tipo == "pergunta" else "editor"),
+                "tipo": "alteracao" if do_editor else ("pergunta_no_documento" if r.tipo == "pergunta" else "editor"),
                 "id": id_, "nome": titulo, "onde": "editor", "rodada": numero, "mudancas": mudancas,
+                "tipo_rodada": r.tipo, **extras, "segundos": round(r.segundos, 1),
                 "citados": [{"id": c, "rotulo": rotulos.get(c, "")} for c in r.citados],
                 "modelo": {"onde": onde.get("onde"), "modelo": onde.get("modelo"), "motivo": onde.get("motivo")}},
                 **({"proposta": {"tipo": "concluir_documento", "titulo": titulo, "campos": {**concluir, "id": id_}}}
                    if concluir else {}))
             estado.trabalhos.salvar(trabalho)
         yield _sse("fim", {"texto": texto, "revisao": revisao, "pendentes": pendentes, "rodada": numero,
-                           "tipo": r.tipo, "mudancas": mudancas,
+                           "tipo": r.tipo, "tipo_rodada": r.tipo, "mudancas": mudancas, **extras,
                            "citados": [{"id": c, "rotulo": rotulos.get(c, "")} for c in r.citados],
                            "conflitos": len(conflitos), "onde": onde, "segundos": round(r.segundos, 1)})
 

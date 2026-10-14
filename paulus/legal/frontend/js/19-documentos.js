@@ -1531,10 +1531,7 @@ function marcarSujo() {
 function htmlDaFolhaCheia() {
   const copia = $("ed-folha").cloneNode(true);
   copia.querySelectorAll(".dupla-cartao").forEach((c) => c.remove());
-  copia.querySelectorAll(".ei-pisca").forEach((el) => {
-    el.classList.remove("ei-pisca");
-    if (!el.classList.length) el.removeAttribute("class");
-  });
+  tirarMarcasDaTela(copia);
   return copia.innerHTML;
 }
 
@@ -1610,6 +1607,13 @@ async function pedirNoEditor(pedido) {
         const feito = aplicarRemendosNaFolha(f, d.remendos);
         (d.sids || []).forEach((sid) => { ei.mudancas[sid] = { resumo: d.resumo }; });
         if (feito.primeiros[0]) piscarNaFolha(feito.primeiros[0]);
+      } else if (ev.tipo === "documento") {
+        // A revisão juntou as linhas do PDF antes de revisar: a folha inteira é a nova.
+        const f = $("ed-folha");
+        if (!f || !escr.doc || escr.doc.id !== docId) { perdeu = true; continue; }
+        f.innerHTML = d.corpo || "<p><br></p>";
+        nomearBlocos(f);
+        pedirPaginacao();
       } else if (ev.tipo === "token") {
         resposta += d.t || "";
       } else if (ev.tipo === "concluir") {

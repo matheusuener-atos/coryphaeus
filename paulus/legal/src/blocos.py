@@ -886,6 +886,11 @@ def reescrever(b: Bloco, novo: str, sid: str, rodada: int, marcas_novas: tuple |
             corridas.append(Corrida(ch, marcas, sug, s, r))
     b.corridas = corridas
     _limpar_corridas(b)
+    if b.sug == "ins":
+        # O bloco inteiro ainda é sugestão de entrar (a cláusula nova, a movida):
+        # mexer nele muda o que vai entrar, como no Word. Riscar "12ª" dentro do
+        # que nem entrou era ruído ("CLÁUSULA 12ª13ª", 13/10/2026).
+        b.corridas = decidir([b], True, sids={sid})[0].corridas
     return True
 
 
