@@ -932,6 +932,81 @@ def marcar_bloco(b: Bloco, sug: str, sid: str, rodada: int) -> None:
     b.sug, b.sid, b.rodada = sug, sid, rodada
 
 
+# A marcação de rascunho que o modelo deixa no texto: "* item", "- item", "• item",
+# "**negrito**", "# Título".
+RE_MARCA_DE_ITEM = re.compile(r"^\s*(?:[*•●▪◦]|[-–](?=\s))\s+(?=\S)")
+RE_MARCA_DE_TITULO = re.compile(r"^\s*#{1,4}\s+(?=\S)")
+RE_NEGRITO_MD = re.compile(r"\*\*(.+?)\*\*")
+# "* * *", "---": o separador fica como está.
+RE_SEPARADOR = re.compile(r"^[\s*•●▪◦–—_=-]*$")
+
+
+def marcas_de_rascunho(blocos: list[Bloco]) -> int:
+    """Quantos parágrafos trazem marcação de rascunho (asterisco de lista, "**", "#")."""
+    return sum(1 for b in blocos if b.tipo in ("p", "li") and not b.sug and not RE_SEPARADOR.match(b.texto) and (
+        RE_MARCA_DE_ITEM.match(b.texto) or RE_MARCA_DE_TITULO.match(b.texto) or RE_NEGRITO_MD.search(b.texto)))
+
+
+def _tirar_do_comeco(b: Bloco, n: int) -> None:
+    for c in b.corridas:
+        if n <= 0:
+            break
+        tira = min(n, len(c.texto))
+        c.texto, n = c.texto[tira:], n - tira
+
+
+def sem_marcacao_de_rascunho(blocos: list[Bloco]) -> tuple[list[Bloco], dict]:
+    """
+    O texto com a marcação de rascunho do modelo arrumada (a ata da cooperativa,
+    14/10/2026): "* item" vira item de lista de verdade, "**x**" vira negrito,
+    "# Título" vira título. Palavra nenhuma muda - é conferido. Com sugestão
+    pendente, ValueError: decidir antes.
+    """
+    if any(b.sug or b.tem_sugestao() for b in blocos):
+        raise ValueError("há sugestões esperando decisão: aceite ou recuse antes de arrumar a formatação")
+    saida: list[Bloco] = []
+    itens = titulos = negritos = 0
+    for b in blocos:
+        b = copy.deepcopy(b)
+        if b.tipo in ("p", "li") and b.corridas and not RE_SEPARADOR.match(b.texto):
+            # A marca pode vir numa corrida só dela ("*" sem negrito, o texto em negrito).
+            comeco = "".join(c.texto for c in b.corridas)
+            m = RE_MARCA_DE_ITEM.match(comeco)
+            t = RE_MARCA_DE_TITULO.match(comeco)
+            if m and b.tipo == "p":
+                _tirar_do_comeco(b, m.end())
+                b.tipo, b.lista, b.nivel = "li", "ul", 0
+                itens += 1
+            elif t and b.tipo == "p":
+                _tirar_do_comeco(b, t.end())
+                b.tipo = "h2"
+                titulos += 1
+            novas: list[Corrida] = []
+            for c in b.corridas:
+                if c.sug or not RE_NEGRITO_MD.search(c.texto):
+                    novas.append(c)
+                    continue
+                pos = 0
+                for mm in RE_NEGRITO_MD.finditer(c.texto):
+                    if mm.start() > pos:
+                        novas.append(Corrida(c.texto[pos:mm.start()], c.marcas))
+                    novas.append(Corrida(mm.group(1), tuple(m for m in MARCAS_ORDEM if m in c.marcas or m == "b")))
+                    negritos += 1
+                    pos = mm.end()
+                if pos < len(c.texto):
+                    novas.append(Corrida(c.texto[pos:], c.marcas))
+            b.corridas = novas
+            _limpar_corridas(b)
+        saida.append(b)
+
+    def letras(lista) -> str:
+        return re.sub(r"[\s*#•●▪◦–-]", "", "".join(x.texto for x in lista if x.tipo != "table"))
+
+    if letras(saida) != letras(blocos):
+        raise ValueError("arrumar a formatação mudaria o texto; o documento ficou como estava")
+    return saida, {"itens": itens, "titulos": titulos, "negritos": negritos}
+
+
 def bloco_novo(tipo: str, texto: str, existentes: set, sid: str = "", rodada: int = 0, *, lista: str = "",
                nivel: int = 0, alinhar: str = "", marcas: tuple = ()) -> Bloco:
     """Um bloco que entra inteiro, marcado como sugestão."""

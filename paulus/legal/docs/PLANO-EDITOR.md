@@ -170,6 +170,26 @@ um virou regra e teste (`tests/test_editor_revisao.py`, com dados fictícios):
 | Aviso falso "referência que mudou de cláusula" | Comparava o título, que tinha ganhado palavras | Compara a cabeça (o bloco) da cláusula |
 | Parede de texto, botões com o ícone em cima do texto, ✓ e ✕ ambíguos | — | O cartão da rodada (abaixo) |
 
+**A ata da cooperativa (14/10/2026).** "O Paulus ainda está muito burro": numa ata redigida pela conversa, o
+pedido "Não precisa dizer que o 'Cotovelo' foi advertido por falta de companherismo, ele será advertido pelo
+abandono ao serviço" deu "Não mudei nada"; com a linha selecionada, "E isso aqui é o que?" deu uma resposta
+genérica, repetida e com os nomes dos blocos à mostra; e o texto tinha "* " no lugar da lista. Os casos estão em
+`tests/test_editor_ata.py`, com dados fictícios:
+
+| O que se viu | A causa | O que mudou |
+| --- | --- | --- |
+| "Não mudei nada: não achei no documento…" | O "de" com o erro de digitação não batia; a correção vazia apagava o motivo; nada mais era tentado | A palavra com erro conta como a do documento mais parecida (`relevantes`); a correção que não traz nada mantém o motivo; uma tentativa pelo sentido, com o texto exato dos trechos prováveis, pedindo o bloco reescrito; sem nada feito, a resposta mostra o trecho mais parecido e o "sim" (ou o botão "É este: fazer aqui") faz ali |
+| "por sua abandono" | A troca do substantivo sem a palavra de antes | Concordância na emenda (`edicao._concordancia`): a contração, o possessivo e o artigo antes do trecho vão para o gênero da palavra nova ("por seu abandono", "pelo seu comportamento", "o outro valor"); sem certeza do gênero, nada muda. A segunda leitura confere o português da frase mudada |
+| "E isso aqui é o que?" respondido no geral | A pergunta não lia a seleção nem a conversa | A seleção é o assunto da pergunta, e a conversa vai junto; logo depois de um pedido que não mudou nada, "e isso aqui?", "é aqui" ou "é esse" com a seleção é o lugar do pedido ("Era este o trecho do seu pedido anterior - agora achei."), e a seleção da pessoa vale mais que o trecho sugerido; com verbo de mudança, é pedido novo |
+| O "2 aluguéis" da caução também na multa da rescisão (banco, loc-12) | O número do pedido posto em outro assunto, com a mesma unidade | Conferência do programa (`_numero_em_outro_assunto`): a troca que põe o número num bloco que não fala do assunto do pedido não entra e vira sugestão - só quando o lugar certo existe em outro bloco |
+| A resposta duas vezes, uma com "[b1d2653]" | O cartão repetia a abertura com o texto cru | Sem mudança nem nota, o cartão é só o texto, com o bloco citado virando atalho |
+| "Reescrevi o preâmbulo" quatro vezes | Documento sem cláusula era todo "Preâmbulo"; a cauda de assinaturas engolia seções curtas | Ata, parecer, relatório: as linhas em maiúsculas são seções, os parágrafos e os itens contados dentro delas ("PROVIDÊNCIAS, 1º item"); o nome do documento na primeira linha é o título; a cauda para numa frase de verdade |
+| "* " e "**" no texto | O texto do modelo entrava como parágrafos | Na criação, "* item" vira lista e "**x**" negrito (`_corpo_do_editor`); no documento que já tem, o aviso "Arrumar a formatação", a revisão e "tire os asteriscos" arrumam por regra, sem modelo (`blocos.sem_marcacao_de_rascunho`, palavra nenhuma muda) |
+| "a mudança pedida não foi feita" na segunda leitura | A segunda leitura não via a mudança e o aviso ia como fato | O que ela acha vai para "Na segunda leitura, vale conferir", com o lugar; a frase de quem não viu a mudança não entra; a correção dela escrita com outros nomes ("texto"/"por", sem o bloco) entra |
+| "Tire os asteriscos" fechava o editor | O roteador da tela não conhecia "tire" nem "não precisa dizer" | O roteador (tela e servidor) conhece "tire", "coloque", "ponha" e "não precisa dizer…" |
+| O pedido seguinte à limpeza dava conflito | A resposta devolvia à tela a revisão de antes da limpeza | O fim da rodada devolve a revisão gravada agora |
+| "nenhum documento aberto" ao lado da ata aberta | O subtítulo contava a base de busca | Com o documento ao lado, o subtítulo diz qual |
+
 **A tela (E8, em boa parte):**
 
 - **O cartão da rodada na conversa:** cada mudança com onde, o quê, o antes riscado e o depois em verde, aceitar e recusar só aquela, e o clique leva ao lugar; o que ficou para o advogado em seções; aceitar todas, recusar todas, revisar uma a uma; a nota em texto ("Foi útil" / "Não era isso"); o modelo e o tempo legíveis ("Nuvem · Llama 3.3 70B · 12 s"). O cartão acompanha as decisões ("aceita", "recusada").
@@ -186,7 +206,7 @@ um virou regra e teste (`tests/test_editor_revisao.py`, com dados fictícios):
   - comentários na margem do editor lateral;
   - o acabamento no celular;
   - o cartão da rodada no editor de tela cheia (lá a resposta ainda é o texto).
-- **E9:** o banco rodado como portão a cada mudança no agente e a medida com o Claude, que depende da chave; tarefas de revisão, de confirmação e de texto colado no banco.
+- **E9:** o banco rodado como portão a cada mudança no agente e a medida com o Claude, que depende da chave; tarefas de revisão, de confirmação, de texto colado e de documento sem cláusula (ata) no banco. As de pedido com outras palavras entraram em 14/10 (`par-01` a `par-03`).
 
 **Ordem:**
 - **Alicerce, nesta ordem:** E0 → E1 → E2 → E3.
@@ -476,9 +496,11 @@ Medido em 13/10/2026 com o Llama 3.3 70B da nuvem, no nível Advogado, nas 62 ta
   - 95,2% depois de corrigidas as checagens que reprovavam respostas certas;
   - 96,8% e 96,8% nas duas rodadas seguintes;
   - 98,4% com as conferências do programa (unidade do número, dado novo do pedido, pedaços separados, troca repetida);
-  - 98,4% de novo em 14/10, depois das correções do documento de verdade (revisão, confirmação, texto colado, esboço do fecho, renumeração dos itens): nenhuma categoria caiu (`2026-10-14-1726-agente-…`).
+  - 98,4% de novo em 14/10, depois das correções do documento de verdade (revisão, confirmação, texto colado, esboço do fecho, renumeração dos itens): nenhuma categoria caiu (`2026-10-14-1726-agente-…`);
+  - 98,4% em 14/10, noite, depois da ata (`2026-10-14-1824-agente-…`): a cv-10 passou e a falha foi a loc-12 - o modelo pôs o "2 aluguéis" da caução também na multa da rescisão. Virou conferência do programa (o número do pedido no lugar de outro assunto, só quando o lugar certo existe em outro bloco), com teste. As tarefas com número no pedido e as 3 novas de paráfrase (`par-01` a `par-03`: erro de digitação, "não precisa dizer…", troca de gênero) rodaram de novo: 10 de 10.
 - **Pode estar otimista.** As checagens foram corrigidas olhando as respostas do agente. A comparação com o editor antigo vale, porque os dois usam as mesmas checagens. O número absoluto, não necessariamente: o banco precisa crescer com tarefas novas, inclusive as que vierem das notas 👎.
-- **A falha que resta (cv-10):** o modelo não pôs o nome da esposa na qualificação do comprador e explicou por quê. A resposta diz isso ao advogado.
+- **A falha que volta e meia aparece (cv-10):** o modelo não pôs o nome da esposa na qualificação do comprador e explicou por quê. A resposta diz isso ao advogado.
+- **O banco tem 65 tarefas desde 14/10** (a categoria `parafrase`, o pedido com outras palavras ou erro de digitação). A próxima rodada inteira mede as 65.
 - **O tempo** da rodada inteira inclui as chamadas de correção e de complemento. A mais longa levou 97 s. As mudanças entram no editor enquanto o modelo escreve, mas o banco não mede a primeira.
 
 ## O que depende do dono

@@ -1424,12 +1424,14 @@ def cita_lei(texto: str) -> bool:
 # errado. O certo é SEMAS - corrija no documento pra mim".
 RE_MUDANCA = re.compile(
     r"\b(corrija|troque|substitua|altere|mude|acrescente|inclua|insira|remova|retire|apague|reescreva|conserte|"
-    r"arrume|ajuste)\b")
+    r"arrume|ajuste|tire|coloque|ponha)\b|"
+    # "Não precisa dizer que ele foi advertido por X, ele será advertido por Y" (a ata, 14/10/2026).
+    r"\bnao\s+precisa\s+(?:dizer|falar|mencionar|constar|citar|colocar|por|escrever)\b")
 # As que são também a 3a pessoa ("a multa muda depois de 30 dias?"): só valem
 # fora de pergunta.
 RE_MUDANCA_AMBIGUA = re.compile(
     r"\b(corrige|troca|substitui|altera|muda|acrescenta|insere|remove|retira|apaga|reescreve|conserta|arruma|"
-    r"ajusta)\b")
+    r"ajusta|tira|coloca|poe)\b")
 RE_ERRADO_CERTO = re.compile(r"\bestao? errad[oa]s?\b.{0,40}\b(?:o|a)\s+(?:certo|certa|correto|correta)\s+(?:e|seria)\b")
 RE_PERGUNTA_DE_CAPACIDADE = re.compile(r"\bvoce\s+(?:consegue|pode|sabe|faz|poderia)\b")
 

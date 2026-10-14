@@ -120,24 +120,31 @@ RE_SECAO = re.compile(r"^\s*(?:[IVXLC]{1,6}|\d{1,2})?\s*[-–—.)]?\s*(?:d[oa]s
                       r"gratuidade|cabimento|tempestividade|raz[oõ]es|introdu)", re.I)
 
 
-def _e_titulo_de_secao(b, texto: str) -> bool:
+def _e_titulo_de_secao(b, texto: str, qualquer: bool = False) -> bool:
     """
     Linha curta em maiúsculas que abre uma parte da peça: "DOS FATOS", "II -
     DO DIREITO", "DOS PEDIDOS", "PRELIMINARMENTE". O nome da ação no
-    preâmbulo ("AÇÃO DE COBRANÇA") não é seção.
+    preâmbulo ("AÇÃO DE COBRANÇA") não é seção. `qualquer`: no documento sem
+    cláusula que não é petição (ata, parecer), qualquer linha assim é seção
+    ("OBJETIVO DA REUNIÃO", "PROVIDÊNCIAS") - menos o nome em maiúsculas da
+    assinatura, que é da cauda.
     """
     if not texto or len(texto) > 90:
         return False
     letras = [c for c in texto if c.isalpha()]
     if len(letras) < 4:
         return False
-    if not RE_SECAO.match(texto):
+    if not RE_SECAO.match(texto) and not (qualquer and len(texto) <= 60 and not texto.rstrip().endswith((".", ":"))):
         return False
     if b.tipo in ("h1", "h2", "h3", "h4"):
         return True
     return sum(1 for c in letras if c.isupper()) / len(letras) > 0.85 and not texto.rstrip().endswith((",", ";"))
 
 
+# O nome do documento na primeira linha da ata, do parecer, do termo: é o título, não seção.
+RE_NOME_DO_DOCUMENTO = re.compile(r"(?i)^\s*(?:ata|parecer|relat[oó]rio|termo|contrato|declara[cç][aã]o|procura[cç][aã]o|"
+                                  r"notifica[cç][aã]o|requerimento|estatuto|regimento|memorando|laudo|certid[aã]o|"
+                                  r"of[ií]cio|edital|convoca[cç][aã]o|recibo|acordo|distrato|aditivo|minuta)\b")
 RE_ROTULO_DE_PARTE = re.compile(r"^\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ][A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ ]{2,30})\s*:")
 
 
@@ -174,6 +181,12 @@ def _inicio_da_cauda(blocos: list) -> int:
             continue
         if len(texto) >= 90 or _numero_da_clausula(texto)[0]:
             break
+        # Uma frase de verdade ("A cooperativa está comprometida em...") é corpo, não
+        # cauda - a não ser o fecho e a data. Sem isso, na ata de parágrafos curtos,
+        # "OBJETIVO DA REUNIÃO" virava nome de quem assina (14/10/2026).
+        if sum(1 for w in texto.split() if w.isalpha() and w.islower()) >= 3 and not RE_DATA.match(texto) \
+                and not RE_FECHO.search(texto):
+            break
         i -= 1
     return i
 
@@ -193,6 +206,15 @@ def esboco(blocos: list) -> list[Parte]:
     titulo_visto = False
     houve_clausula = False
     titulos_numerados = _titulos_numerados(blocos)
+    # Documento sem cláusula e que não é petição (ata, parecer, relatório): toda
+    # linha curta em maiúsculas é seção ("OBJETIVO DA REUNIÃO", "PROVIDÊNCIAS"),
+    # e cada parágrafo tem número dentro dela. Antes, a ata inteira era
+    # "Preâmbulo" e a resposta dizia "Reescrevi o preâmbulo" quatro vezes.
+    textos_ = [(x.texto or "").strip() for x in blocos if getattr(x, "tipo", "") != "table"]
+    generico = (not any(_numero_da_clausula(x)[0] for x in textos_)
+                and not any(RE_ENDERECAMENTO.match(x) for x in textos_[:3]) and not titulos_numerados)
+    no_corpo = 0             # o número do parágrafo, na seção (ou fora dela) do documento genérico
+    na_lista = 0             # e o do item de lista, contado à parte
     fim = False             # depois do fecho/data: assinaturas
     cauda = _inicio_da_cauda(blocos)
 
@@ -238,7 +260,7 @@ def esboco(blocos: list) -> list[Parte]:
         elif texto and RE_ASSINATURA.search(texto) and len(texto) < 160 and (houve_clausula or i > 2):
             p.tipo, p.rotulo = "assinatura", "Assinaturas"
             fim = True
-        elif (texto and houve_clausula and i >= cauda and RE_NOME_DE_ASSINATURA.match(texto)
+        elif (texto and (houve_clausula or generico) and i >= cauda and RE_NOME_DE_ASSINATURA.match(texto)
               and len(texto.split()) >= 2):
             # Os nomes em maiúsculas no fim, sem traço nem fecho: são as assinaturas,
             # não o corpo da última cláusula.
@@ -246,14 +268,17 @@ def esboco(blocos: list) -> list[Parte]:
             clausula, clausula_rot = 0, ""
             fim = True
         elif not titulo_visto and not houve_clausula and i <= 1 and texto and (
-                b.tipo in ("h1", "h2") or _e_titulo_de_secao(b, texto)) and not RE_ENDERECAMENTO.match(texto):
+                b.tipo in ("h1", "h2") or _e_titulo_de_secao(b, texto)
+                or (generico and RE_NOME_DO_DOCUMENTO.match(texto) and _e_titulo_de_secao(b, texto, qualquer=True))) \
+                and not RE_ENDERECAMENTO.match(texto) and not (generico and RE_SECAO.match(texto)):
             p.tipo, p.rotulo = "titulo", "Título"
             titulo_visto = True
         elif texto and RE_ENDERECAMENTO.match(texto) and i <= 2 and not houve_clausula:
             p.tipo, p.rotulo = "enderecamento", "Endereçamento"
-        elif not houve_clausula and _e_titulo_de_secao(b, texto) and i > 0:
+        elif not houve_clausula and _e_titulo_de_secao(b, texto, qualquer=generico) and (i > 0 or generico):
             secao = " ".join(texto.split())[:60]
             p.tipo, p.rotulo, p.secao = "secao", secao, secao
+            no_corpo = na_lista = 0
         elif clausula:
             p.clausula, p.clausula_rotulo = clausula, clausula_rot
             m_sub = RE_SUBITEM.match(texto)
@@ -295,6 +320,18 @@ def esboco(blocos: list) -> list[Parte]:
             elif m_ali:
                 p.tipo = "alinea"
                 p.rotulo = f"{secao}, alínea {m_ali.group(1)}"
+            elif generico and texto and b.tipo == "li":
+                na_lista += 1
+                p.rotulo = f"{secao}, {na_lista}º item"
+            elif generico and texto:
+                no_corpo += 1
+                p.rotulo = f"{secao}, {no_corpo}º parágrafo"
+        elif generico and not houve_clausula and texto and (titulo_visto or i > 0):
+            no_corpo += 1
+            # O nome que o próprio texto dá ("OUTORGANTE:", "PODERES:"), ou a posição.
+            m_parte = RE_ROTULO_DE_PARTE.match(b.texto)
+            p.tipo = "corpo"
+            p.rotulo = m_parte.group(1).strip().capitalize() if m_parte else f"Parágrafo {no_corpo}"
         elif not houve_clausula and texto:
             p.tipo, p.rotulo = "preambulo", "Preâmbulo"
         if not p.rotulo:

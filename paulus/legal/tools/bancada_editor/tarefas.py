@@ -55,6 +55,7 @@ CATEGORIAS = {
     "estilo": "estilo (formal, curto, claro)",
     "varios": "vários pontos de uma vez",
     "pergunta": "pergunta sobre o documento",
+    "parafrase": "pedido com outras palavras ou com erro de digitação",
 }
 
 T = Tarefa
@@ -336,6 +337,22 @@ TAREFAS: list[Tarefa] = [
     T("no-08", "notificacao", "Coloque o parágrafo do contato antes das consequências.", "mover",
       gabarito=[{"op": "mover", "bloco": "b0f0008", "antes_de": "b0f0007"}],
       ordem=("Para tratar do assunto", "b0f0006", "b0f0007")),
+
+    # --------------------------- o pedido com outras palavras (a ata, 14/10/2026)
+    # O advogado resume o texto, escreve com erro de digitação e diz o que NÃO quer.
+    T("par-01", "locacao", "Não precisa dizer que a locatária recebe o imovel em perfeito estado de conservassão, ela "
+      "recebe em bom estado", "parafrase",
+      gabarito=[{"op": "substituir", "bloco": "b0b0021", "de": "em perfeito estado de conservação",
+                 "para": "em bom estado de conservação"}],
+      mudam=["b0b0021"], contem=["bom estado"], nao_contem=["perfeito estado"]),
+    T("par-02", "locacao", "Nao precisa citar o laudo de vistoria, a locatária recebe conforme a vistoria fotográfica "
+      "anexa", "parafrase",
+      gabarito=[{"op": "substituir", "bloco": "b0b0021", "de": "o laudo de vistoria anexo",
+                 "para": "a vistoria fotográfica anexa"}],
+      mudam=["b0b0021"], contem=["vistoria fotográfica anexa"], nao_contem=["laudo de vistoria", "o vistoria"]),
+    T("par-03", "notificacao", "o prazo de dez dias tá curto, poe quinze", "parafrase",
+      gabarito=[{"op": "substituir", "bloco": "b0f0006", "de": "10 (dez) dias", "para": "15 (quinze) dias"}],
+      mudam=["b0f0006"], contem=["15 (quinze) dias"], nao_contem=["10 (dez) dias"]),
 ]
 
 

@@ -264,6 +264,11 @@ def main() -> int:
             pass
         citado = pag.evaluate("() => [...document.querySelectorAll('.ei-citado')].map(x => x.textContent)")
         checar(citado and citado[0] == "Cláusula 3ª", "a resposta cita o bloco pelo nome dele", citado)
+        pag.wait_for_timeout(600)
+        ultima = pag.evaluate("() => { const c = [...document.querySelectorAll('#centro .ei-cartao')].pop(); "
+                              "return c ? c.textContent : ''; }")
+        checar(ultima.count("O aluguel é de R$ 2.400,00") == 1 and "[b0b0011" not in ultima,
+               "a resposta aparece uma vez só, sem o nome interno do bloco (14/10/2026)", ultima[:300])
 
         print("\nconcluir")
         pag.wait_for_timeout(1800)

@@ -230,11 +230,124 @@ def _paragrafos(texto) -> list[str]:
 
 # ---------------------------------------------------------- operações
 
+# A concordância na emenda: o artigo, a contração ou o possessivo logo antes do
+# trecho trocado vai para o gênero da palavra nova - "por sua falta de empenho"
+# com "falta de empenho" → "abandono" fica "por seu abandono", e não "por sua
+# abandono" (a ata da cooperativa, 14/10/2026). O "a" no meio da frase fica de
+# fora: também é preposição ("equivalente a").
+_PARA_MASCULINO = {"da": "do", "das": "dos", "na": "no", "nas": "nos", "pela": "pelo", "pelas": "pelos",
+                   "uma": "um", "umas": "uns", "sua": "seu", "suas": "seus", "esta": "este", "estas": "estes",
+                   "essa": "esse", "essas": "esses", "aquela": "aquele", "aquelas": "aqueles", "nossa": "nosso",
+                   "nossas": "nossos", "minha": "meu", "minhas": "meus", "dessa": "desse", "dessas": "desses",
+                   "desta": "deste", "destas": "destes", "nessa": "nesse", "nessas": "nesses", "nesta": "neste",
+                   "nestas": "nestes", "daquela": "daquele", "naquela": "naquele", "à": "ao", "às": "aos",
+                   "referida": "referido", "referidas": "referidos", "citada": "citado", "citadas": "citados",
+                   "mencionada": "mencionado", "mencionadas": "mencionados", "aludida": "aludido",
+                   "respectiva": "respectivo", "respectivas": "respectivos", "outra": "outro", "outras": "outros",
+                   "nenhuma": "nenhum", "alguma": "algum", "algumas": "alguns", "toda": "todo", "todas": "todos",
+                   "mesma": "mesmo", "mesmas": "mesmos", "própria": "próprio", "próprias": "próprios",
+                   "nova": "novo", "novas": "novos", "primeira": "primeiro", "segunda": "segundo",
+                   "última": "último", "últimas": "últimos"}
+# O artigo só no começo da frase, onde "A" não é preposição: "A multa será..." → "O valor será...".
+_ARTIGO_NO_COMECO = {"A": "O", "As": "Os", "O": "A", "Os": "As"}
+_PARA_FEMININO = {m: f for f, m in _PARA_MASCULINO.items()}
+_POSSESSIVOS = {"sua", "suas", "seu", "seus", "nossa", "nossas", "nosso", "nossos", "minha", "minhas", "meu", "meus"}
+# Os que vêm depois do artigo: "a outra", "a referida", "a mesma".
+_PEDEM_ARTIGO = {w for par in _PARA_MASCULINO.items() for w in par
+                 if w.startswith(("outr", "mesm", "própri", "referid", "citad", "mencionad", "aludid", "respectiv",
+                                  "nov", "primeir", "segund", "últim"))}
+_MASCULINOS_EM_A = {"problema", "sistema", "tema", "dia", "mapa", "clima", "programa", "esquema", "dilema", "idioma",
+                    "diploma", "poema", "teorema", "planeta", "cometa", "telefonema", "lema", "drama", "cinema",
+                    "panorama", "trauma", "dogma", "estigma", "enigma", "paradigma", "axioma", "fantasma", "pijama"}
+_FEMININOS = {"tribo", "foto", "moto", "libido", "mão", "mulher", "questão", "razão", "opinião", "região", "religião",
+              "legião", "lição", "cascavel"}
+_MASCULINOS = {"coração", "irmão", "cidadão", "patrão", "padrão", "órgão", "pão", "chão", "grão", "caminhão",
+               "algodão", "feijão", "verão", "talão", "salão", "cartão", "tabelião", "escrivão"}
+
+
+def _genero(palavra: str) -> str:
+    """O gênero pela terminação - só o que é seguro; "" quando não dá para dizer."""
+    w = palavra.lower().strip(".,;:!?\"'“”‘’()[]")
+    if len(w) < 3 or not w.isalpha():
+        return ""
+    singulares = {w, w[:-1] if w.endswith("s") else w, w[:-2] if w.endswith("es") else w,
+                  w[:-3] + "ão" if w.endswith(("ões", "ães", "ãos")) else w}
+    if singulares & (_MASCULINOS_EM_A | _MASCULINOS):
+        return "m"
+    if singulares & _FEMININOS:
+        return "f"
+    if w.endswith(("idão", "idões")):
+        return "f"
+    if w.endswith(("ção", "ções", "são", "sões", "dade", "dades", "tude", "tudes", "agem", "agens", "eza", "ezas",
+                   "ura", "uras", "ência", "ências", "ância", "âncias")):
+        return "f"
+    if w.endswith(("ista", "istas", "ante", "antes", "ente", "entes", "ão", "ões")):
+        return ""                       # os dois gêneros, ou não dá para saber pela terminação
+    if w.endswith(("a", "as")):
+        return "f"
+    if w.endswith(("o", "os", "or", "ores", "er", "eres", "el", "éis", "mento", "mentos", "ismo", "ismos")):
+        return "m"
+    return ""
+
+
+def _concordancia(texto: str, ini: int, trecho: str, para: str) -> tuple[int, str, str]:
+    """
+    Onde a troca começa e o texto que entra, com a palavra de antes do trecho
+    no gênero da palavra nova; e a palavra de antes como era ("" se ficou).
+    Sem certeza do gênero das duas, ou com número diferente, nada muda.
+    """
+    m = re.search(r"(\S+)(\s+)$", texto[:ini])
+    velho, novo = (trecho.split() or [""])[0], (para.split() or [""])[0]
+    if not m or not novo:
+        return ini, para, ""
+    g_velho, g_novo = _genero(velho), _genero(novo)
+    if not g_velho or not g_novo or g_velho == g_novo or velho.lower().endswith("s") != novo.lower().endswith("s"):
+        return ini, para, ""
+    tabela = _PARA_MASCULINO if g_velho == "f" else _PARA_FEMININO
+
+    def trocada(palavra: str) -> str:
+        t = tabela.get(palavra.lower(), "")
+        return t[:1].upper() + t[1:] if t and palavra[:1].isupper() else t
+
+    antes = m.group(1)
+    troca = trocada(antes)
+    if not troca and antes in _ARTIGO_NO_COMECO and re.search(r"(?:^|[.!?:;]\s*)$", texto[:m.start(1)]) \
+            and (antes in ("A", "As")) == (g_velho == "f"):
+        troca = _ARTIGO_NO_COMECO[antes]
+    if not troca and antes in ("o", "os") and g_velho == "m":
+        # "o" no meio da frase é artigo ("conforme o laudo" → "conforme a vistoria"); já
+        # "a" pode ser preposição ("equivalente a"), e fica.
+        troca = "a" if antes == "o" else "as"
+    if not troca:
+        return ini, para, ""
+    comeco, entra, era = m.start(1), troca + m.group(2) + para, antes
+    if antes.lower() in _POSSESSIVOS or antes.lower() in _PEDEM_ARTIGO:
+        # "pela sua conduta" → "pelo seu comportamento", "a outra multa" → "o outro valor": o
+        # artigo antes do possessivo vai junto (ali, "a" só pode ser artigo).
+        m2 = re.search(r"(\S+)(\s+)$", texto[:comeco])
+        artigo = m2 and _ARTIGO_NO_COMECO.get(m2.group(1)[:1].upper() + m2.group(1)[1:])
+        if m2 and (trocada(m2.group(1)) or artigo):
+            nova = trocada(m2.group(1)) or (artigo if m2.group(1)[:1].isupper() else artigo.lower())
+            comeco, entra, era = m2.start(1), nova + m2.group(2) + entra, m2.group(1) + m2.group(2) + era
+    return comeco, entra, era
+
+
 def _substituir(blocos, op, ctx):
+    if not op.get("de") and op.get("para") is None:
+        # {"texto": "sua abandono", "por": "seu abandono"}: o mesmo pedido com outros nomes
+        # (a segunda leitura escreveu assim em 14/10/2026, e a correção se perdia).
+        op = {**op, "de": op.get("trecho") or op.get("texto") or op.get("antes") or "",
+              "para": next((op[k] for k in ("por", "novo", "depois") if op.get(k) is not None), None)}
     de = str(op.get("de") or "")
     para = str(op.get("para") if op.get("para") is not None else "")
     if not de.strip():
         raise _Falhou("faltou o trecho a trocar")
+    if not str(op.get("bloco") or "").strip():
+        # Sem o nome do bloco: o trecho num bloco só (e permitido) diz qual é.
+        com = [x for x in blocos if x.sug != "del" and x.tipo != "table"
+               and (ctx.permitido is None or x.id in ctx.permitido) and _achar_no_bloco(x, de, None)]
+        if len(com) == 1:
+            op = {**op, "bloco": com[0].id}
     varios = _ids_da_referencia(op.get("bloco"), blocos, ctx)
     if len(varios) > 1:
         # "na Cláusula 2ª": o trecho está num dos blocos dela.
@@ -262,13 +375,20 @@ def _substituir(blocos, op, ctx):
     if not lugares:
         return _JA_ESTAVA
     novo = b.texto
+    emenda = ("", "")
     for ini, fim in sorted(lugares, reverse=True):
-        novo = novo[:ini] + para + novo[fim:]
+        comeco, entra, antes = _concordancia(novo, ini, novo[ini:fim], para)
+        if antes:
+            emenda = (antes, entra[:len(entra) - len(para)].strip())
+        novo = novo[:comeco] + entra + novo[fim:]
     sid = B.nova_sugestao()
     if not B.reescrever(b, novo, sid, ctx.rodada):
         return None
     rotulo = ctx.rotulo(b.id)
     vezes = f" ({len(lugares)} vezes)" if len(lugares) > 1 else ""
+    if emenda[0]:
+        # O resumo mostra a palavra de antes que mudou junto: “sua falta…” → “seu abandono…”.
+        de, para = f"{emenda[0]} {de}", f"{emenda[1]} {para}"
     de_curto, para_curto = _o_que_mudou(de, para)
     a_, p_ = " ".join(de.split()), " ".join(para.split())
     if p_ and len(p_) > len(a_) and p_.lower().startswith(a_.lower()):
@@ -358,7 +478,8 @@ def _substituir_em_tudo(blocos, op, ctx):
             continue
         novo = b.texto
         for ini, fim in sorted(lugares, reverse=True):
-            novo = novo[:ini] + para + novo[fim:]
+            comeco, entra, _ = _concordancia(novo, ini, novo[ini:fim], para)
+            novo = novo[:comeco] + entra + novo[fim:]
         sid = B.nova_sugestao()
         if B.reescrever(b, novo, sid, ctx.rodada):
             sids.append(sid)

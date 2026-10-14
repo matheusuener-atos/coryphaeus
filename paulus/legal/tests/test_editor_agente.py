@@ -230,7 +230,9 @@ def teste_rodada() -> None:
     checar(len(falso.lido) == 2 and "revisor" in falso.lido[1][0]["content"], "no nível Juiz, a segunda leitura")
     checar(any(a["resumo"].startswith("Revisão:") for a in r.aplicadas) and "31 de outubro de 2028" in
            B.texto_puro(B.aceito(r.blocos)), "a correção da revisão entra marcada")
-    checar(any("revisão:" in a for a in r.avisos), "e o problema que ela achou é dito")
+    checar(any("data de término" in p["texto"] for p in r.segunda_leitura)
+           and "Na segunda leitura, vale conferir:" in AG.resposta(r, "Locação"),
+           "e o problema que ela achou fica para conferir, com o lugar", r.segunda_leitura)
     falso = Falso([json.dumps(um, ensure_ascii=False)])
     rodada(falso, "locacao", "prazo de 24 meses", nivel="advogado")
     checar(len(falso.lido) == 1, "no Advogado, sem segunda leitura")

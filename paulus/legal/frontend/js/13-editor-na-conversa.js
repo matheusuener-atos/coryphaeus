@@ -251,6 +251,7 @@ async function mostrarDuplaAgora(id, opcoes) {
   dupla.oferta = o.oferta || null;
   dupla.nomeOriginal = o.nome || "";
   desenharEditorAoLado();
+  escreverMetaDaConversa();
 }
 
 /* Pacote de telas de 01/10/2026 (T3, `Conversa - Editor`): o editor é uma
@@ -367,6 +368,7 @@ async function fecharEditorNaConversa(opcoes) {
   dupla.destino = "";
   dupla.oferta = null;
   $("conversa-col").classList.remove("com-editor");
+  escreverMetaDaConversa();
   if (faixa) {
     if (o.animar !== false && animacoesLigadas()) sairDoAr(faixa); else faixa.remove();
   }
@@ -386,14 +388,15 @@ const RE_PEDIDO_DE_MUDANCA = new RegExp(
   "(deix[ae]|torn[ae]|reescrev[ae]|escrev[ae]|redij[ao]|redige|troqu?e|troca|substitu[ai]|acrescent[ae]|" +
   "adicion[ae]|inclu[ai]|insir[ao]|insere|alter[ae]|mud[ae]|corrij[ao]|corrige|remov[ae]|retir[ae]|" +
   "apagu?e|apaga|resum[ae]|encurt[ae]|melhor[ae]|formaliz[ae]|cit[ae]|numer[ae]|renumer[ae]|revis[ae]|" +
-  "ajust[ae]|complet[ae]|traduz[ae]?)\\b");
+  "ajust[ae]|complet[ae]|traduz[ae]?|tir[ae]|coloqu?e|coloca|ponha)\\b");
 
 /* E também o imperativo em qualquer lugar da frase, e o "X está errado, o
    certo é Y" (bateria de 02/10/2026: "SEMA está errado. O certo é SEMAS -
    corrija no documento" ia para a conversa). A mesma regra de
    src/intencao.py (pedido_de_mudanca). Antes havia a pílula "No documento /
    Na conversa" para a pessoa corrigir o destino; ela saiu. */
-const RE_MUDANCA_NO_MEIO = /\b(corrija|troque|substitua|altere|mude|acrescente|inclua|insira|remova|retire|apague|reescreva|conserte|arrume|ajuste)\b/;
+// "Não precisa dizer que ele foi advertido por X, ele será advertido por Y" (a ata, 14/10/2026).
+const RE_MUDANCA_NO_MEIO = /\b(corrija|troque|substitua|altere|mude|acrescente|inclua|insira|remova|retire|apague|reescreva|conserte|arrume|ajuste|tire|coloque|ponha)\b|\bnao precisa (dizer|falar|mencionar|constar|citar|colocar|por|escrever)\b/;
 const RE_ERRADO_CERTO = /\besta(o)? errad[oa]s?\b.{0,40}\b(o|a) (certo|certa|correto|correta) (e|seria)\b/;
 const RE_PERGUNTA_DE_CAPACIDADE = /\bvoce (consegue|pode|sabe|faz|poderia)\b/;
 

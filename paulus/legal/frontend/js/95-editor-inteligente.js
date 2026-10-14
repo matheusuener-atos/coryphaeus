@@ -513,7 +513,17 @@ document.addEventListener("click", (e) => {
   }
   if (e.target.closest && e.target.closest("[data-ei-revisar]")) { e.preventDefault(); abrirRevisaoUmaAUma(); return; }
   const limpa = e.target.closest && e.target.closest("[data-ei-desfazer-limpeza]");
-  if (limpa) { e.preventDefault(); desfazerLimpeza(limpa); }
+  if (limpa) { e.preventDefault(); desfazerLimpeza(limpa); return; }
+  const cand = e.target.closest && e.target.closest("[data-ei-candidato]");
+  if (cand) {
+    e.preventDefault();
+    // "Sim, é este": o servidor refaz o pedido de antes no trecho que a resposta mostrou.
+    const cartao = cand.closest(".ei-cartao");
+    const doc = Number(cartao && cartao.dataset.eiCartaoDoc) || 0;
+    if (!$("dp-folha") || !dupla.doc || dupla.doc.id !== doc) { avisoNaJanela("Abra o documento ao lado para o Paulus fazer ali"); return; }
+    cand.disabled = true;
+    editarComOPaulus("Sim, é este", { semSelecao: true });
+  }
 });
 
 /* Decidir pelo cartão da conversa: com o documento aberto ao lado, na folha
@@ -561,7 +571,7 @@ async function desfazerLimpeza(botao) {
   const d = await r.json();
   if ($("dp-folha") && dupla.doc && dupla.doc.id === doc && d.documento) trocarFolhaInteira(d.documento);
   const caixa = botao.closest(".ei-c-limpeza");
-  if (caixa) caixa.innerHTML = ic("undo", 18) + "<span>Desfeito: o texto voltou como estava antes de juntar as linhas.</span>";
+  if (caixa) caixa.innerHTML = ic("undo", 18) + "<span>Desfeito: o texto voltou como estava antes da limpeza.</span>";
 }
 
 /* O rascunho que veio do PDF linha a linha (a importação de antes de
@@ -572,11 +582,24 @@ function desenharAvisoDoPdf() {
   const velho = $("ei-aviso-pdf");
   const d = dupla.doc;
   const marcas = d && d.marcas_pdf;
+  const rascunho = (d && d.marcas_rascunho) || 0;
   const mesa = $("dp-mesa");
-  if (!d || !mesa || !marcas || !marcas.limpar || d.situacao === "concluido") { if (velho) velho.remove(); return; }
+  if (!d || !mesa || !((marcas && marcas.limpar) || rascunho) || d.situacao === "concluido") { if (velho) velho.remove(); return; }
   const caixa = velho || document.createElement("div");
   caixa.id = "ei-aviso-pdf";
   caixa.className = "ei-aviso-pdf";
+  if (!(marcas && marcas.limpar)) {
+    // A marcação de rascunho que o modelo deixou no texto (a ata de 14/10/2026: "* " no lugar da lista).
+    caixa.innerHTML = ic("info", 18) +
+      '<div class="ei-ap-txt"><b>Este texto tem marcas de rascunho.</b> ' +
+      (rascunho === 1 ? "Um parágrafo tem" : "São " + rascunho + " parágrafos com") +
+      " “*”, “**” ou “#” no lugar de lista, negrito e título.</div>" +
+      '<div class="ei-ap-acoes"><button class="primario" data-ei-pdf="limpar">Arrumar a formatação</button></div>' +
+      "<small>Nenhuma palavra muda, e a versão de agora fica no Histórico.</small>";
+    if (!velho) mesa.prepend(caixa);
+    caixa.querySelectorAll("[data-ei-pdf]").forEach((b) => { b.onclick = () => limparTextoDoPdf(b.dataset.eiPdf); });
+    return;
+  }
   const quanto = plural(marcas.blocos, "linha") + (marcas.paginas ? " e " + plural(marcas.paginas, "marca de página", "marcas de página") : "");
   caixa.innerHTML = ic("info", 18) +
     '<div class="ei-ap-txt"><b>Este rascunho veio do PDF linha a linha.</b> São ' + esc(quanto) +
@@ -599,7 +622,7 @@ async function limparTextoDoPdf(acao) {
     confirmar: "Recomeçar",
   }))) return;
   if (blocosComNome($("dp-folha")).some((b) => b.hasAttribute("data-sug")) || $("dp-folha").querySelector("ins[data-s], del[data-s]")) {
-    if (acao === "limpar") { avisoNaJanela("Antes de juntar as linhas, decida as sugestões marcadas no texto"); return; }
+    if (acao === "limpar") { avisoNaJanela("Antes de arrumar o texto, decida as sugestões marcadas nele"); return; }
   }
   await gravarDupla();
   const r = await fetch("/api/documentos/" + d.id + "/" + (acao === "recomecar" ? "recomecar" : "limpar-pdf"), {
@@ -610,6 +633,7 @@ async function limparTextoDoPdf(acao) {
   if (r.status === 409 && res.conflito) { await resolverConflitoDaFolha(res); return; }
   if (!r.ok) { avisoNaJanela(res.detail || "Não consegui agora", { icone: "error" }); return; }
   d.marcas_pdf = { limpar: false };
+  d.marcas_rascunho = 0;
   if (!res.nada) trocarFolhaInteira({ corpo: res.corpo, revisao: res.revisao, versao: res.versao });
   desenharAvisoDoPdf();
   avisoNaJanela(res.frase, res.versao_antes ? { acao: { rotulo: "Desfazer", fazer: () => restaurarVersaoDaFolha(res.versao_antes) } } : {});
@@ -626,7 +650,11 @@ async function restaurarVersaoDaFolha(numero) {
   if (res.documento) trocarFolhaInteira(res.documento);
   // A marca do PDF é conta do servidor: a versão que voltou pode ter as linhas partidas de novo.
   const novo = await fetch("/api/documentos/" + d.id).then((x) => (x.ok ? x.json() : null)).catch(() => null);
-  if (novo && dupla.doc && dupla.doc.id === d.id) { dupla.doc.marcas_pdf = novo.marcas_pdf; desenharAvisoDoPdf(); }
+  if (novo && dupla.doc && dupla.doc.id === d.id) {
+    dupla.doc.marcas_pdf = novo.marcas_pdf;
+    dupla.doc.marcas_rascunho = novo.marcas_rascunho;
+    desenharAvisoDoPdf();
+  }
   avisoNaJanela("Voltei à versão de antes");
 }
 
@@ -636,7 +664,7 @@ function trocarFolhaInteira(novo) {
   const folha = $("dp-folha");
   if (!folha || !dupla.doc) return;
   folha.innerHTML = novo.corpo || "<p><br></p>";
-  ["revisao", "versao", "marcas_pdf", "origem"].forEach((k) => { if (novo[k] !== undefined) dupla.doc[k] = novo[k]; });
+  ["revisao", "versao", "marcas_pdf", "marcas_rascunho", "origem"].forEach((k) => { if (novo[k] !== undefined) dupla.doc[k] = novo[k]; });
   if (novo.corpo !== undefined) dupla.doc.corpo = novo.corpo;
   nomearBlocos(folha);
   contarAlteracoes();
@@ -887,7 +915,7 @@ const RE_SOBRE_O_DOCUMENTO = /\b(clausula|paragrafo|inciso|alinea|contrato|docum
 // "Dê uma revisada geral", "arrume a formatação", "como está ficando?" - e, com
 // o documento aberto, "sim", "isso mesmo", "pode fazer" respondem à última
 // resposta dele (13/10/2026: iam para a conversa comum, que fechava o editor).
-const RE_REVISAO_DO_DOCUMENTO = /\b(revis\w*|confir[ae]|confer\w*|analis\w*|formata\w*|visual\w*|arrum\w*|limp[ae]|junt[ae] as linhas|ficando|ficou)\b/;
+const RE_REVISAO_DO_DOCUMENTO = /\b(revis\w*|confir[ae]|confer\w*|analis\w*|formata\w*|visual\w*|arrum\w*|limp[ae]|junt[ae] as linhas|ficando|ficou|asteriscos?|markdown|negrito|rascunho)\b/;
 const RE_CONFIRMACAO_NO_DOCUMENTO = /^\s*(sim|isso|isso mesmo|exato|exatamente|pode|pode fazer|pode sim|faca|faca isso|faz isso|ok|okay|beleza|perfeito|manda ver|aplique|aplica|concordo|de acordo|certo|claro|prossiga)\b[\s,.!]*([a-z ]{0,20})$/;
 
 function vaiParaODocumento(texto) {
@@ -988,6 +1016,7 @@ async function editarComOPaulus(pedido, opcoes) {
         // as linhas: a folha inteira é a nova (palavra nenhuma mudou).
         if ($("dp-folha") && dupla.doc && dupla.doc.id === docId) {
           dupla.doc.marcas_pdf = { limpar: false };
+          dupla.doc.marcas_rascunho = 0;
           trocarFolhaInteira({ corpo: d.corpo, revisao: d.revisao, versao: d.versao });
         }
         const b = resposta.querySelector("[data-ei-bastidor]");
@@ -1068,8 +1097,22 @@ function cartaoDaRodada(d, docId) {
   const limpeza = d.limpeza || null;
   // A abertura é a primeira frase que não é a da limpeza nem item de lista.
   const abertura = linhas.find((l) => l.trim() && !l.startsWith("- ") && (!limpeza || l !== limpeza.frase) &&
-    !/^(Para você conferir|Na leitura, como revisor|Não fiz|Ficou para preencher|Vale olhar também|Conferi|Cada mudança está marcada)/.test(l)) || "";
+    !/^(Para você conferir|Na leitura, como revisor|Na segunda leitura|Não fiz|Ficou para preencher|Vale olhar também|Conferi|Cada mudança está marcada|O trecho mais parecido)/.test(l)) || "";
   let html = '<div class="ei-cartao" data-ei-cartao-doc="' + doc + '" data-ei-cartao-rodada="' + (d.rodada || 0) + '">';
+  // A rodada sem mudança, sem ponto e sem nota (a pergunta, a conclusão, nada
+  // pendente): só o texto dela, com os atalhos - a abertura aqui era a mesma
+  // frase de novo, com os nomes internos dos blocos à mostra (14/10/2026).
+  const temCartao = mudancas.length || limpeza || (d.pontos || []).length || (d.leitura || []).length ||
+    (d.segunda_leitura || []).length || (d.candidatos || []).length || (d.nao_fiz || []).length || (d.falhas || []).length ||
+    (d.lacunas || []).length || (d.sugestoes || []).length || (d.avisos || []).length ||
+    (d.nao_fiz === undefined && /^(Não fiz|Ficou para preencher|Talvez você queira|Conferi):/m.test(d.texto || ""));
+  if (!temCartao) {
+    return html + '<div class="texto">' + textoDaRespostaDoEditor(d.texto, d) + "</div>" +
+      '<div class="ei-c-acoes"><span class="cresce"></span>' +
+      (d.rodada ? '<span class="ei-avaliar" data-ei-doc="' + doc + '" data-ei-rodada="' + d.rodada + '">' +
+        '<button class="ei-c-nota" data-ei-nota="1">Foi útil</button><button class="ei-c-nota" data-ei-nota="-1">Não era isso</button></span>' : "") +
+      "</div>" + linhaDoModeloDoEditor(d) + "</div>";
+  }
   if (limpeza) {
     html += '<div class="ei-c-limpeza">' + ic("task_alt", 18) + '<span>' + esc(limpeza.frase) + "</span>" +
       (limpeza.versao_antes ? '<button data-ei-desfazer-limpeza="' + limpeza.versao_antes + '">Desfazer</button>' : "") + "</div>";
@@ -1080,6 +1123,11 @@ function cartaoDaRodada(d, docId) {
   if (pontos.length) html += secaoDoCartao("Para você conferir", pontos);
   const leitura = (d.leitura || []).map((p) => itemDoCartao(p.bloco, p.rotulo, "", p.texto, false));
   if (leitura.length) html += secaoDoCartao("Na leitura, como revisor", leitura);
+  const segunda = (d.segunda_leitura || []).map((p) => itemDoCartao(p.bloco || "", p.rotulo || "", "", p.texto || p, false));
+  if (segunda.length) html += secaoDoCartao("Na segunda leitura, vale conferir", segunda);
+  // O pedido que não mudou nada: o trecho mais parecido, para ver no documento e confirmar com um clique.
+  const candidatos = (d.candidatos || []).slice(0, 1).map((c) => itemDoCartao(c.bloco || "", c.rotulo || "", "", "“" + (c.texto || "") + "”", false));
+  if (candidatos.length) html += secaoDoCartao("O trecho mais parecido com o que você pediu", candidatos);
   const notas = [];
   [...(d.falhas || []), ...(d.nao_fiz || [])].forEach((t) => notas.push(["Não fiz", t]));
   (d.lacunas || []).forEach((t) => notas.push(["Para preencher", t]));
@@ -1098,10 +1146,6 @@ function cartaoDaRodada(d, docId) {
     html += '<div class="ei-c-notas">' + notas.map(([rotulo, t]) =>
       '<p><span class="ei-c-rotulo">' + esc(rotulo) + "</span>" + esc(String(t).replace(/\.$/, "")) + ".</p>").join("") + "</div>";
   }
-  // A rodada sem cartão próprio (pergunta, conclusão, nada pendente): o texto dela.
-  if (!mudancas.length && !pontos.length && !leitura.length && !notas.length && !limpeza) {
-    html += '<div class="texto">' + textoDaRespostaDoEditor(d.texto, d) + "</div>";
-  }
   const decidiveis = mudancas.filter((m) => (m.sids || []).length).length;
   html += '<div class="ei-c-acoes">' +
     (decidiveis ? '<button class="primario" data-ed-rodada="' + d.rodada + '" data-ed-acao="aceitar">' + ic("done_all", 16) +
@@ -1109,6 +1153,7 @@ function cartaoDaRodada(d, docId) {
       '<button data-ed-rodada="' + d.rodada + '" data-ed-acao="recusar">' + ic("undo", 16) +
       (decidiveis > 1 ? "Recusar todas" : "Recusar") + "</button>" +
       (decidiveis > 1 ? '<button data-ei-revisar="1">' + ic("rule", 16) + "Revisar uma a uma</button>" : "") : "") +
+    (candidatos.length ? '<button class="primario" data-ei-candidato="1">' + ic("check", 16) + "É este: fazer aqui</button>" : "") +
     '<span class="cresce"></span>' +
     (d.rodada ? '<span class="ei-avaliar" data-ei-doc="' + doc + '" data-ei-rodada="' + d.rodada + '">' +
       '<button class="ei-c-nota" data-ei-nota="1">Foi útil</button><button class="ei-c-nota" data-ei-nota="-1">Não era isso</button></span>' : "") +
@@ -1184,6 +1229,8 @@ function nomeDoModelo(m) {
 function linhaDoModeloDoEditor(d) {
   // No "fim" ao vivo, `onde` é {onde, modelo}; na conversa guardada, `modelo` (lá, `onde` é "editor").
   const o = (d && d.onde && typeof d.onde === "object" ? d.onde : d && d.modelo) || {};
+  // Desfazer, aceitar, renumerar, arrumar a formatação: a regra fez, nenhum modelo foi chamado.
+  if (d && d.chamadas === 0) return '<div class="ei-assinatura">Feito por regra, sem modelo' + (d.segundos ? " · " + segundosCurtos(d.segundos) : "") + "</div>";
   if (!o.onde) return "";
   const onde = o.onde === "nuvem" ? "Nuvem" + (o.modelo ? " · " + nomeDoModelo(o.modelo) : "")
     : "Este computador" + (o.modelo ? " · " + nomeDoModelo(o.modelo) : "") + (o.motivo ? " · " + o.motivo : "");

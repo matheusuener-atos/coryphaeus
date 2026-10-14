@@ -2321,6 +2321,19 @@ function atualizarSelo(trabalhando) {
   document.documentElement.classList.toggle("trabalhando", Boolean(trabalhando));
 }
 
+/* O subtitulo e de quem esta na tela. O status chega de tempos em tempos e
+   escrevia por cima de qualquer tela aberta: a Agenda dizia "17 documentos
+   abertos" no lugar da semana, o Foco no lugar do tempo ativo. Com o documento
+   aberto ao lado, o subtitulo fala dele: "nenhum documento aberto" do lado da
+   ata aberta parecia que o Paulus nao a via (14/10/2026). */
+function escreverMetaDaConversa() {
+  if (String(troca.tela || "").startsWith("tela:") || (typeof cfgNoLado === "function" && cfgNoLado())) return;
+  const s = estado.status || {};
+  $("conversa-meta").textContent = typeof editorNaConversaAberto === "function" && editorNaConversaAberto()
+    ? "“" + dupla.doc.titulo + "” aberto ao lado"
+    : s.contratos ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos" : "nenhum documento aberto";
+}
+
 async function carregarStatus() {
   try {
     const s = await (await fetch("/api/status")).json();
@@ -2329,14 +2342,8 @@ async function carregarStatus() {
     estado.trechos = s.trechos || 0;
     estado.motor = s.motor && s.motor.host ? "Ollama · " + s.motor.host + (s.motor.rodando ? "" : " (desligado)") : "";
     estado.pasta = s.pasta || "";
-    /* O subtitulo e de quem esta na tela. O status chega de tempos em tempos e
-       escrevia por cima de qualquer tela aberta: a Agenda dizia "17 documentos
-       abertos" no lugar da semana, o Foco no lugar do tempo ativo. */
-    if (!String(troca.tela || "").startsWith("tela:") && !(typeof cfgNoLado === "function" && cfgNoLado())) {
-      $("conversa-meta").textContent = s.contratos
-        ? plural(s.contratos, "documento") + " abertos · " + s.trechos + " trechos"
-        : "nenhum documento aberto";
-    }
+    estado.status = s;
+    escreverMetaDaConversa();
     desenharAvisoDoMotor(s);
     desenharEscopo();
     if ($("conversa-col").classList.contains("vazia")) desenharRecentes();
