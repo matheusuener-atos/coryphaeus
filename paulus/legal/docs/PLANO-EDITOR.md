@@ -475,7 +475,8 @@ Medido em 13/10/2026 com o Llama 3.3 70B da nuvem, no nível Advogado, nas 62 ta
   - 82,3% na primeira rodada, com as checagens mais duras;
   - 95,2% depois de corrigidas as checagens que reprovavam respostas certas;
   - 96,8% e 96,8% nas duas rodadas seguintes;
-  - 98,4% com as conferências do programa (unidade do número, dado novo do pedido, pedaços separados, troca repetida).
+  - 98,4% com as conferências do programa (unidade do número, dado novo do pedido, pedaços separados, troca repetida);
+  - 98,4% de novo em 14/10, depois das correções do documento de verdade (revisão, confirmação, texto colado, esboço do fecho, renumeração dos itens): nenhuma categoria caiu (`2026-10-14-1726-agente-…`).
 - **Pode estar otimista.** As checagens foram corrigidas olhando as respostas do agente. A comparação com o editor antigo vale, porque os dois usam as mesmas checagens. O número absoluto, não necessariamente: o banco precisa crescer com tarefas novas, inclusive as que vierem das notas 👎.
 - **A falha que resta (cv-10):** o modelo não pôs o nome da esposa na qualificação do comprador e explicou por quê. A resposta diz isso ao advogado.
 - **O tempo** da rodada inteira inclui as chamadas de correção e de complemento. A mais longa levou 97 s. As mudanças entram no editor enquanto o modelo escreve, mas o banco não mede a primeira.
