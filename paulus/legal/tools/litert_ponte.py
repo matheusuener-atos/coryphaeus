@@ -35,12 +35,26 @@ import litert_lm as lm
 OLLAMA = "http://127.0.0.1:11434"
 
 
+# O template embutido no qwen3_4b_instruct_2507 do litert-community não roda na
+# 0.18.1 ("+ operator on string and sequence"): o modelo recebe a vez sem a
+# pergunta. --template chatml usa o formato padrão do Qwen no lugar dele.
+TEMPLATES = {
+    "chatml": (
+        "{% for m in messages %}<|im_start|>{{ m.role }}\n"
+        "{% if m.content is string %}{{ m.content }}{% else %}{% for c in m.content %}{{ c.text }}{% endfor %}{% endif %}"
+        "<|im_end|>\n{% endfor %}"
+        "{% if add_generation_prompt %}<|im_start|>assistant\n{% endif %}"
+    ),
+}
+
+
 class Motor:
     """Um modelo carregado e uma chamada por vez, como a fila do PAULUS."""
 
-    def __init__(self, caminho: str, nome: str, backend: str, janela: int) -> None:
+    def __init__(self, caminho: str, nome: str, backend: str, janela: int, template: str = "") -> None:
         self.nome = nome
         self.janela = janela
+        self.template = TEMPLATES.get(template)
         comeco = time.time()
         self.engine = lm.Engine(caminho, backend=lm.Backend.GPU() if backend == "gpu" else lm.Backend.CPU(),
                                 max_num_tokens=janela)
@@ -79,7 +93,7 @@ class Motor:
         conversa = self.engine.create_conversation(
             messages=historia or None, system_message=sistema or None, sampler_config=amostra,
             constrained_decoding_config=restringir, max_output_tokens=maximo,
-            thinking_config=lm.ThinkingConfig(enable_thinking=False))
+            thinking_config=lm.ThinkingConfig(enable_thinking=False), chat_template=self.template)
         try:
             for msg in conversa.send_message_async(ultima, response_format=resposta,
                                                    thinking_config=lm.ThinkingConfig(enable_thinking=False)):
@@ -98,7 +112,8 @@ class Motor:
         sai no formato `top_logprobs` que o juizo.py já lê.
         """
         sistema, historia, ultima = self._separar(mensagens)
-        conversa = self.engine.create_conversation(messages=historia or None, system_message=sistema or None)
+        conversa = self.engine.create_conversation(messages=historia or None, system_message=sistema or None,
+                                                   chat_template=self.template)
         try:
             prompt = conversa.render_message_to_string({"role": "user", "content": ultima})
         finally:
@@ -233,7 +248,7 @@ class Atendente(BaseHTTPRequestHandler):
                         "prompt_eval_duration": int(((primeiro or fim) - comeco) * 1e9),
                         "eval_duration": int((fim - (primeiro or fim)) * 1e9)})
                 self.wfile.write(b"0\r\n\r\n")
-            except (BrokenPipeError, ConnectionResetError):
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 pass  # quem pediu apertou parar
 
 
@@ -245,9 +260,10 @@ def main() -> None:
     p.add_argument("--backend", default="cpu", choices=["cpu", "gpu"])
     p.add_argument("--janela", type=int, default=8192)
     p.add_argument("--porta", type=int, default=11435)
+    p.add_argument("--template", default="", choices=["", *TEMPLATES])
     a = p.parse_args()
     lm.set_min_log_severity(lm.LogSeverity.ERROR)
-    MOTOR = Motor(a.modelo, a.nome, a.backend, a.janela)
+    MOTOR = Motor(a.modelo, a.nome, a.backend, a.janela, a.template)
     servidor = ThreadingHTTPServer(("127.0.0.1", a.porta), Atendente)
     print(f"[ponte] escutando em http://127.0.0.1:{a.porta}", flush=True)
     try:
