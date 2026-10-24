@@ -1,155 +1,151 @@
-# QUICKSTART - PAULUS Legal
+# Instalação e execução do PAVLVS
 
-Do zero ao primeiro "pergunta e resposta" sobre seus contratos.
+Este guia é para executar o código-fonte no Windows. Para usar um instalador
+publicado, acesse as [releases do projeto](https://github.com/matheusuener-atos/coryphaeus/releases).
+O código da `main` pode estar à frente do último instalador.
 
-## 1. Pre-requisitos
+## 1. Preparar o ambiente
 
-- Python 3.10 ou superior
-- [Ollama](https://ollama.ai/download) instalado
+Use Windows 10/11, Python e o runtime WebView2 para a janela desktop. O
+ambiente local consultado nesta revisão usa Python 3.14.3; as dependências
+estão em [requirements.txt](../requirements.txt). Esse arquivo tem limites
+mínimos de versões, não um lockfile de ambiente reproduzível. A lista inclui
+componentes específicos do Windows, como OCR e proteção de credenciais; não
+é um roteiro validado de instalação completa para Linux ou macOS.
 
-```bash
-ollama pull llama3.2:3b     # ~2 GB, roda em CPU
-```
+No PowerShell, a partir da raiz do repositório:
 
-> Modelos maiores (`llama3.1:8b`, `qwen2.5:7b-instruct`) respondem melhor, mas
-> ficam bem mais lentos em CPU. Comece com o 3b.
-
-## 2. Instalar
-
-```bash
-cd paulus/legal
-
+```powershell
+cd paulus\legal
 python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # Mac/Linux
-
-pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-## 3. Testar com os contratos de exemplo
+Os comandos usam o executável do venv diretamente, sem depender de ativar
+scripts no PowerShell.
 
-Os arquivos em `data/samples/` sao ficticios e servem para validar a instalacao:
+Para usar a inferência local, instale o Ollama e baixe um modelo compatível:
 
-```bash
-python src/main.py --contracts data/samples --ask "Qual e o prazo de vigencia de cada contrato?"
+```powershell
+ollama pull llama3.2:3b
 ```
 
-## 4. Abrir o programa
+Esse é o modelo padrão de `src/llama_client.py`, salvo configuração diferente.
+O desempenho e a memória necessária variam conforme modelo, contexto e
+hardware. O download do modelo requer rede; a inferência local não exige
+uma API de nuvem.
 
-```bash
-python src/desktop.py
+## 2. Conferir extração e busca
+
+Ainda em `paulus/legal`:
+
+```powershell
+.\venv\Scripts\python.exe tests\test_pipeline.py
 ```
 
-Abre uma janela do Windows com a interface. E o formato para usar no dia a dia
-e para demonstrar - sem barra de endereco, sem cara de site. A janela tambem da
-acesso ao seletor de pasta do proprio Windows, que o navegador nao permite.
+Esse teste usa documentos fictícios e não depende de Ollama nem de rede.
+Para as demais verificações essenciais, veja
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
-Se preferir o navegador (ou se o pywebview nao instalar), a mesma interface
-roda em <http://localhost:8000>:
+## 3. Abrir a janela ou o navegador
 
-## 5. Interface no navegador
+Para a janela Windows:
 
-```bash
-python src/api.py
+```powershell
+.\venv\Scripts\python.exe src\desktop.py
 ```
 
-Abra <http://localhost:8000>. Pela tela voce adiciona contratos (botao
-"Adicionar contratos"), pergunta na aba **Analise** e faz busca instantanea na
-aba **Busca**.
+Para a interface no navegador:
 
-O servidor escuta so em `127.0.0.1` de proposito: ninguem na rede local
-alcanca os documentos. Para parar, Ctrl+C no terminal.
-
-```bash
-python src/api.py --contracts data/samples   # abrir com os exemplos
-python src/api.py --port 8080                # outra porta
-python src/api.py --model llama3.1:8b        # outro modelo
+```powershell
+.\venv\Scripts\python.exe src\api.py
 ```
 
-Toda resposta traz **"Trechos que o modelo leu"**. Abra antes de confiar: e o
-texto exato que o modelo recebeu. Se um contrato nao tiver trecho relevante
-para a pergunta, a tela avisa quais ficaram de fora - a resposta nao fala por
-eles.
+O servidor imprime um endereço como
+`http://127.0.0.1:8000/entrar-local?chave=...`. Use o endereço completo
+impresso, cuja chave só vale uma vez. Não publique essa chave. A janela
+desktop cuida da entrada local; sua porta pode ser diferente.
 
-## 6. Organizar o acervo
+Não execute as duas entradas simultaneamente sobre a mesma pasta de dados.
+O servidor fica em `127.0.0.1`; não exponha a porta diretamente para oferecer
+acesso remoto. Esse acesso tem fluxo próprio de identidade e permissões.
 
-A aba **Organizar** varre suas pastas, le cada documento e monta a estrutura de
-pastas que voce definir.
+A entrada web aceita estas opções:
 
-1. **Onde procurar** - marque as pastas sugeridas ou digite um caminho
-   (`D:\Escritorio\Contratos`). Pastas de sistema sao puladas: nao ha contrato
-   dentro de `Windows/` ou `AppData/`.
-2. **Classificar** - tipo, partes, data, valor e CPF/CNPJ. Data e valor saem por
-   regra, instantaneos. O modelo entra so quando a regra nao decide o tipo ou
-   nao acha as partes, e ai custa ~20s por documento. O resultado fica em cache
-   por conteudo: reclassificar o mesmo acervo e instantaneo.
-3. **Conferir** - a tabela e editavel. Cliente e tipo sao palpite do programa;
-   corrija o que estiver errado e desmarque o que nao deve entrar. **Nada foi
-   movido ate aqui.**
-4. **Estrutura** - escolha o padrao (`{cliente}/{tipo_rotulo}`,
-   `{ano}/{mes_nome}/{tipo_rotulo}`, e por ai) e a pasta de destino. "Ver o
-   plano" mostra exatamente quais pastas serao criadas.
-5. **Aplicar** - so aqui os arquivos se movem.
-
-Campos disponiveis no padrao: `{cliente}`, `{tipo}`, `{tipo_rotulo}`, `{ano}`,
-`{mes}`, `{mes_nome}`, `{confianca}`. Texto fixo tambem vale:
-`Contratos/{ano}/{cliente}`.
-
-Documento sem o campo do padrao (sem data, sem cliente) cai numa pasta
-`_A revisar` em vez de sumir no meio do acervo.
-
-### Desfazer
-
-Todo lote aplicado vira um diario em `data/diarios/`. O botao **Desfazer**
-devolve cada arquivo exatamente ao caminho de origem e limpa as pastas que
-ficaram vazias. Nada e apagado e nada e sobrescrito: se ja existir arquivo com
-o mesmo nome no destino, o novo entra como `nome (2).pdf`.
-
-## 7. Usar com seus contratos (pelo terminal)
-
-```bash
-# Copie PDFs/DOCXs para data/test_contracts/  (essa pasta NAO vai para o git)
-python src/main.py
+```powershell
+.\venv\Scripts\python.exe src\api.py --contracts data\samples
+.\venv\Scripts\python.exe src\api.py --port 8080
+.\venv\Scripts\python.exe src\api.py --model llama3.2:3b
 ```
 
-## 8. Comandos do chat (CLI)
+## 4. Testar a interface com dados fictícios
 
-| Comando | O que faz |
-|---|---|
-| `/docs` | lista os contratos carregados |
-| `/buscar TEXTO` | busca por palavra-chave, sem chamar o LLM (instantaneo) |
-| `/trechos` | mostra os trechos usados na ultima resposta |
-| `/top N` | quantos trechos vao para o LLM (padrao 5) |
-| `/reindex` | reextrai a pasta (use depois de adicionar arquivos) |
-| `/sair` | encerra |
-
-## 9. Flags do CLI
-
-```bash
-python src/main.py --contracts ../outra/pasta   # outra pasta de contratos
-python src/main.py --model llama3.1:8b          # outro modelo
-python src/main.py --ask "pergunta"             # uma pergunta e sai
-python src/main.py --reindex                    # ignora o cache de extracao
-python src/main.py --no-stream                  # nao imprime token a token
+```powershell
+.\tools\demo\abrir_demo.bat
 ```
 
-Tambem da para fixar o modelo por variavel de ambiente:
+O atalho cria a base `data/demo` na primeira vez e abre o aplicativo com
+`PAULUS_DADOS` apontando para ela. Para criar a demonstração sem abrir a
+janela:
 
-```bash
-set PAULUS_MODEL=llama3.1:8b        # Windows
-export PAULUS_MODEL=llama3.1:8b     # Mac/Linux
+```powershell
+.\venv\Scripts\python.exe tools\demo\criar_demo.py
 ```
 
-## Problemas comuns
+Não use `--refazer` para uma base que precise preservar. O roteiro está em
+[ROTEIRO-DEMONSTRACAO.md](ROTEIRO-DEMONSTRACAO.md). Confirme modelo, conta e
+configuração antes de testar envios à nuvem.
 
-**"Ollama nao respondeu"** - rode `ollama serve` em outro terminal.
+## 5. Escolher dados e modo de processamento
 
-**"sem texto extraivel (PDF escaneado?)"** - o PDF e uma imagem. Precisa de OCR
-(fora do escopo do MVP; por ora converta o arquivo antes).
+A aplicação web/desktop usa `PAULUS_DADOS`, ou `data/` quando a variável não
+está definida. Para um teste separado, antes de abrir:
 
-**Resposta demorou minutos** - normal em CPU. Reduza com `/top 3`, use um modelo
-menor, ou rode em maquina com GPU.
+```powershell
+$env:PAULUS_DADOS = Join-Path $env:TEMP 'pavlvs-teste'
+.\venv\Scripts\python.exe src\desktop.py
+```
 
-**Resposta errada ou inventada** - confira com `/trechos` se o trecho certo
-chegou ao modelo. Se nao chegou, o problema e a busca (tente outras palavras).
-Se chegou e a resposta esta errada, o problema e o modelo (tente um maior).
+Escolha uma pasta exclusiva e não reutilize dados de cliente em experimentos.
+Em outro terminal, a variável não estará definida, a menos que tenha sido
+configurada de forma persistente. `PAULUS_MODELOS` define separadamente os
+modelos baixados de voz/tradução; o padrão no código-fonte é `data/modelos`.
+
+O aplicativo pode usar a nuvem do plano ou a chave de API do escritório.
+**Com a nuvem do plano ativada e consentida, ela tem preferência** nas tarefas
+habilitadas; o interruptor da chave própria não desliga esse modo. A retirada
+do consentimento tem tratamento próprio. Leia
+[ESTADO-ATUAL.md](ESTADO-ATUAL.md#dados-e-nuvem) antes de trabalhar com documentos reais.
+
+## 6. Terminal de perguntas
+
+O CLI é uma entrada de consulta via Ollama, distinta dos fluxos completos da
+interface. Ele usa `data/test_contracts` por padrão; escolha a pasta
+explicitamente com `--contracts`:
+
+```powershell
+.\venv\Scripts\python.exe src\main.py --contracts data\samples --ask "Qual é o prazo de vigência de cada contrato?"
+```
+
+A pergunta acima exige Ollama disponível e o modelo baixado. Use
+`--model`, `--top`, `--reindex` e `--no-stream` conforme necessário.
+O modo interativo oferece `/docs`, `/buscar TEXTO`, `/trechos`, `/top N`
+e `/sair`. Confira as fontes antes de usar a resposta.
+
+## Problemas comuns e suporte
+
+- **Ollama indisponível:** confirme o serviço e o modelo instalado. Se o
+  aplicativo estiver usando nuvem, confira também a conta, o consentimento,
+  a cota e a mensagem que explica eventual retorno ao modelo local.
+- **PDF escaneado:** o OCR existe, usa o Windows e depende do idioma instalado.
+  Confira a qualidade do original e as marcações do texto extraído.
+- **Janela não abre:** confira WebView2 e as dependências. Execute
+  `src/api.py` pelo terminal para distinguir falha da janela de falha do
+  servidor e consulte os logs/diagnóstico.
+- **Resposta lenta ou incorreta:** confira modelo, recursos disponíveis,
+  documentos recuperados e fontes. Registre um caso fictício reproduzível.
+
+A tela Saúde nas Configurações oferece diagnóstico para suporte.
+Informe versão do programa, modo de processamento, passos e erro observado.
+Não envie documentos de cliente ou credenciais em issues públicas. O
+contato do produto está no [site](https://paulus.ia.br/).

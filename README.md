@@ -1,37 +1,55 @@
-# Coryphaeus
+# Coryphaeus · PAVLVS
 
-Agent OS for orchestrating local AI agents and tools.
+Repositório da Atos que reúne o **PAVLVS**, assistente e ferramentas para
+escritórios jurídicos, sua tecnologia de execução e os serviços do produto.
+No código e nos caminhos, o nome também aparece como PAULUS/`paulus`.
 
-```
-ATOS (empresa)
-  └── CORYPHAEUS (Agent OS / engine de orquestracao)
-      └── PAULUS (produto vertical)
-          └── legal (escritorios juridicos)
-```
+O produto já inclui aplicativo Windows, acervo e busca de documentos,
+conversa, editor, serviços por cliente, tarefas, agenda, financeiro e
+integrações. A descrição antiga de “MVP — semana 1” não representa o estado
+atual. Código implementado ainda precisa de validação no ambiente de uso.
 
-> Atos builds Coryphaeus. Coryphaeus powers PAULUS.
+## Como se encaixa na Atos
 
-## Produtos
+| Parte | Responsabilidade |
+| --- | --- |
+| Atos | Empresa e plataforma compartilhada de identidade e cobrança |
+| Coryphaeus | Nome da base tecnológica e deste repositório |
+| [PAVLVS](paulus/README.md) | Produto jurídico e aplicação de escritório |
+| `paulus/legal/` | Aplicativo Python, interface, dados de exemplo e testes |
+| `site/` e `worker/` | Site do produto, acesso, medição de uso e serviços em nuvem |
 
-| Produto | Vertical | Status |
-|---|---|---|
-| [PAULUS Legal](paulus/legal/) | Escritorios juridicos | MVP - Semana 1 concluida |
+A base tecnológica e o produto estão no mesmo repositório. Essa organização
+não comprova um motor genérico reutilizado por outras verticais.
 
-## Comecando
+## Começar
 
-```bash
-cd paulus/legal
-python -m venv venv && venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-ollama pull llama3.2:3b
+- [Instalação e execução pelo código-fonte](paulus/legal/docs/QUICKSTART.md).
+- [Recursos e uso do aplicativo](paulus/legal/README.md).
+- [Estado atual, limites e próxima entrega](paulus/legal/docs/ESTADO-ATUAL.md).
+- [Contribuição e verificações essenciais](paulus/legal/CONTRIBUTING.md).
 
-python src/main.py --contracts data/samples --ask "Qual o prazo de vigencia de cada contrato?"
-```
+A versão distribuída está no [site do produto](https://paulus.ia.br/) e os
+instaladores publicados ficam nas
+[releases](https://github.com/matheusuener-atos/coryphaeus/releases).
+A `main` pode conter mudanças posteriores ao último instalador.
 
-Guia completo: [paulus/legal/docs/QUICKSTART.md](paulus/legal/docs/QUICKSTART.md)
+## Processamento e dados
 
-## Principios
+O aplicativo e seu acervo funcionam na máquina do escritório, com caminhos
+de inferência local e em nuvem. **“Nenhum dado sai” não descreve todas as
+configurações do produto.**
 
-- **Local por padrao.** Nenhum dado de cliente sai da infraestrutura de quem usa.
-- **Sem dependencia de nuvem.** Inferencia via Ollama, na maquina do cliente.
-- **Resposta rastreavel.** Toda afirmacao cita o documento de origem.
+Com a nuvem do plano ativada e o consentimento registrado, ela tem
+preferência nas funcionalidades habilitadas; o modelo local serve de
+reserva quando aplicável. Existem também provedores com chave de API do
+escritório. O código registra inclusive o consentimento pela assinatura do
+plano e permite retirá-lo.
+
+E-mail, Drive, acesso remoto, atualizações e consultas externas têm seus
+próprios fluxos de dados. Veja as exclusões e os limites no
+[estado atual](paulus/legal/docs/ESTADO-ATUAL.md#dados-e-nuvem).
+
+As respostas oferecem fontes e mecanismos de conferência; isso não garante
+correção de toda afirmação. O texto gerado precisa ser revisado no contexto
+do documento e do trabalho do escritório.
