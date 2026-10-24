@@ -358,6 +358,9 @@ def obter_prompt_ferramentas(hoje: date | None = None) -> str:
         "- Use só o que está escrito no pedido. Nunca invente nome, número, data ou valor.",
         "- Parâmetro que o pedido não diz fica de fora do objeto.",
         "- Datas em AAAA-MM-DD, contadas a partir de hoje. Horas em HH:MM.",
+        '- Quando a data sai de uma conta ("daqui a", "depois de", "antes de"), escreva também '
+        '"conta_da_data": {"a_partir_de": "AAAA-MM-DD", "dias": <quantos dias somar, negativo para antes>} '
+        "e a data com a conta já feita.",
         "- Valores em reais como texto, do jeito que foram escritos.",
         "",
         'Exemplo: "cadastre a cliente Maria Souza, telefone 11 98888-7777"',
@@ -430,7 +433,35 @@ def interpretar_resposta(bruto, hoje: date | None = None) -> Chamada:
         for n, v in parametros.items()
     }
     limpos, erros = normalizar(ferramenta, como_texto, hoje)
+    if "data" in declarados:
+        _conferir_conta_da_data(dados.get("conta_da_data"), limpos, erros, hoje)
     return Chamada(tipo="acao", ferramenta=ferramenta, parametros=limpos, mensagem=mensagem, erros=erros)
+
+
+def _conferir_conta_da_data(conta, limpos: dict, erros: dict, hoje: date | None) -> None:
+    """
+    A conta que o modelo mostrou, refeita aqui. O modelo pequeno acerta o
+    "quantos dias" e erra a soma; com a conta à vista (Google AI Edge Gallery
+    pede o mesmo), a soma é do programa: data que não bate com a própria conta
+    é trocada pela soma certa, sem perguntar de novo. Data sem conta segue
+    como antes; conta que não dá para ler é ignorada. Se a data tinha caído na
+    normalização, a conta a refaz e o erro sai.
+    """
+    if not isinstance(conta, dict):
+        return
+    from datetime import timedelta
+
+    hoje = hoje or date.today()
+    try:
+        bruto = str(conta.get("a_partir_de") or "hoje").strip().lower()
+        base = hoje if bruto in ("hoje", hoje.isoformat()) else date.fromisoformat(bruto[:10])
+        dias = int(conta.get("dias"))
+    except (TypeError, ValueError):
+        return
+    if abs(dias) > 3660:
+        return
+    limpos["data"] = (base + timedelta(days=dias)).isoformat()
+    erros.pop("data", None)
 
 
 # --------------------------------------------------------- com o modelo

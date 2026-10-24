@@ -142,6 +142,41 @@ def _ano_provavel(dia: int, mes: int, hoje: date) -> int:
     return hoje.year if neste_ano >= hoje else hoje.year + 1
 
 
+NUMERO_ESCRITO = {
+    "um": 1, "uma": 1, "dois": 2, "duas": 2, "tres": 3, "quatro": 4, "cinco": 5, "seis": 6, "sete": 7,
+    "oito": 8, "nove": 9, "dez": 10, "onze": 11, "doze": 12, "quinze": 15, "vinte": 20, "trinta": 30,
+    "quarenta": 40, "sessenta": 60, "noventa": 90,
+}
+RE_DATA_RELATIVA = re.compile(
+    r"\b(?:daqui a|daqui|em|dentro de|apos|depois de)\s+(\d{1,3}|" + "|".join(NUMERO_ESCRITO) + r")\s+"
+    r"(dias?|semanas?|mes|meses)\b(?!\s+uteis)")
+
+
+def _data_relativa(plano: str, hoje: date) -> tuple[str, str]:
+    """
+    "daqui a duas semanas", "em 10 dias", "daqui a 3 meses": a conta feita
+    aqui, e não pelo modelo, que erra a soma (Google AI Edge Gallery pede ao
+    modelo para mostrar a conta; aqui ela nem chega a ele). "Dias úteis" fica
+    de fora: sem o calendário de feriados, a conta corrida daria o dia errado.
+    """
+    achado = RE_DATA_RELATIVA.search(plano)
+    if not achado:
+        return "", ""
+    bruto, unidade = achado.group(1), achado.group(2)
+    n = int(bruto) if bruto.isdigit() else NUMERO_ESCRITO[bruto]
+    if unidade.startswith("dia"):
+        alvo = hoje + timedelta(days=n)
+    elif unidade.startswith("semana"):
+        alvo = hoje + timedelta(days=7 * n)
+    else:
+        meses = hoje.month - 1 + n
+        ano, mes = hoje.year + meses // 12, meses % 12 + 1
+        # 31/01 + 1 mês: o último dia de fevereiro, não 03/03.
+        ultimo = (date(ano + (mes == 12), mes % 12 + 1, 1) - timedelta(days=1)).day
+        alvo = date(ano, mes, min(hoje.day, ultimo))
+    return alvo.isoformat(), achado.group(0)
+
+
 def ler_data(texto: str, hoje: date | None = None) -> tuple[str, str]:
     """
     A data que a frase contém, em ISO — e o trecho que a produziu.
@@ -183,6 +218,10 @@ def ler_data(texto: str, hoje: date | None = None) -> tuple[str, str]:
                 return date(_ano_provavel(dia, mes, hoje), mes, dia).isoformat(), achado.group(0)
             except ValueError:
                 return "", ""
+
+    relativa = _data_relativa(plano, hoje)
+    if relativa[0]:
+        return relativa
 
     # "na segunda", "sexta-feira": o próximo dia com esse nome, nunca hoje —
     # quem diz "na segunda" numa segunda quer a semana que vem.

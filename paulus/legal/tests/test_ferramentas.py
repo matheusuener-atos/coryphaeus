@@ -248,8 +248,16 @@ def test_regra_da_agenda() -> None:
     checar(l.falta and not l.precisa_modelo, "só a hora, sem dia: não pergunta ao modelo (ele inventaria)", l)
     l = intencao.ler("marque uma reunião com o cliente", HOJE)
     checar(not l.precisa_modelo, "sem indício de data: não pergunta")
-    l = intencao.ler("marque uma reunião daqui a duas semanas", HOJE)
+    l = intencao.ler("marque uma reunião no dia seguinte ao feriado de novembro", HOJE)
     checar(l.falta and l.precisa_modelo, "data que a regra não lê: pergunta", l)
+    l = intencao.ler("marque uma reunião daqui a duas semanas", HOJE)
+    checar(l.campos.get("data") == "2026-09-25" and not l.falta and not l.precisa_modelo,
+           "daqui a duas semanas: a conta é da regra, sem modelo", l)
+    for frase, esperado in (("audiência em 10 dias", "2026-09-21"), ("prazo em 15 dias úteis", ""),
+                            ("vencimento daqui a 3 meses", "2026-12-11"), ("reunião semana que vem", "")):
+        checar(intencao.ler_data(frase, HOJE)[0] == esperado, f"{frase!r}: {esperado or 'sem data (não inventa)'}",
+               intencao.ler_data(frase, HOJE))
+    checar(intencao.ler_data("daqui a 1 mês", date(2026, 1, 31))[0] == "2026-02-28", "31/01 mais 1 mês: 28/02")
     l = intencao.ler("anote uma reunião dia 20/09 às 13:40", HOJE)
     checar(l.campos.get("data") == "2026-09-20" and not l.precisa_modelo, "com data: a regra basta")
 
@@ -298,7 +306,7 @@ def test_completar_com_modelo() -> None:
         checar(ferramentas.completar_com_modelo(l, frase, perguntar, HOJE) == [] and l.falta,
                f"{porque}: o cartão fica como a regra fez")
 
-    frase = "marque uma reunião daqui a duas semanas"
+    frase = "marque uma reunião no dia seguinte ao feriado de novembro"
     l = intencao.ler(frase, HOJE)
     perguntar, _ = modelo('{"tipo": "acao", "ferramenta": "criar_compromisso", '
                           '"parametros": {"titulo": "Reunião", "data": "2026-09-25"}, "mensagem": "ok"}')
@@ -347,15 +355,34 @@ def test_completar_com_modelo() -> None:
     checar(ferramentas.completar_com_modelo(l, frase, perguntar, HOJE) == [] and len(chamadas) == 1,
            "nome que não está na frase: não ganha segunda chance (seria pedir para inventar)", len(chamadas))
 
-    frase = "marque uma reunião daqui a duas semanas"
+    frase = "marque uma reunião no dia seguinte ao feriado de novembro"
     l = intencao.ler(frase, HOJE)
     perguntar, chamadas = em_sequencia(
-        {"tipo": "acao", "ferramenta": "criar_compromisso", "parametros": {"titulo": "Reunião", "data": "daqui a 2 semanas"}},
+        {"tipo": "acao", "ferramenta": "criar_compromisso", "parametros": {"titulo": "Reunião", "data": "no feriado"}},
         {"tipo": "acao", "ferramenta": "criar_compromisso", "parametros": {"data": "2026-09-25"}})
     ajuda = ferramentas.completar_com_modelo(l, frase, perguntar, HOJE)
     checar(ajuda == ["data"] and l.campos["data"] == "2026-09-25" and len(chamadas) == 2
            and "o parâmetro data não serviu" in chamadas[1] and "AAAA-MM-DD" in chamadas[1],
            "a data que não é data: a segunda chance diz o formato", (ajuda, chamadas[1:]))
+
+    print("\na conta da data, refeita pelo programa")
+    c = ferramentas.interpretar_resposta({"tipo": "acao", "ferramenta": "criar_compromisso",
+                                          "parametros": {"titulo": "Reunião", "data": "2026-11-04"},
+                                          "conta_da_data": {"a_partir_de": "2026-11-02", "dias": 1}}, HOJE)
+    checar(c.parametros.get("data") == "2026-11-03" and not c.erros, "a soma errada do modelo é trocada pela certa", c)
+    c = ferramentas.interpretar_resposta({"tipo": "acao", "ferramenta": "criar_compromisso",
+                                          "parametros": {"titulo": "Reunião"},
+                                          "conta_da_data": {"a_partir_de": "hoje", "dias": 14}}, HOJE)
+    checar(c.parametros.get("data") == "2026-09-25", "só a conta, sem a data: o programa faz a soma", c)
+    c = ferramentas.interpretar_resposta({"tipo": "acao", "ferramenta": "criar_compromisso",
+                                          "parametros": {"titulo": "Reunião", "data": "no feriado"},
+                                          "conta_da_data": {"a_partir_de": "hoje", "dias": 1}}, HOJE)
+    checar(c.parametros.get("data") == "2026-09-12" and "data" not in c.erros, "data torta com conta legível: vale a conta", c)
+    c = ferramentas.interpretar_resposta({"tipo": "acao", "ferramenta": "criar_compromisso",
+                                          "parametros": {"titulo": "Reunião", "data": "2026-11-03"},
+                                          "conta_da_data": {"a_partir_de": "ontem", "dias": "uns dois"}}, HOJE)
+    checar(c.parametros.get("data") == "2026-11-03", "conta ilegível: fica a data, como antes", c)
+    checar("conta_da_data" in ferramentas.obter_prompt_ferramentas(HOJE), "o prompt pede a conta")
 
     print("\no nome da ferramenta")
     checar(ferramentas.nome_da_ferramenta("Criar Compromisso") == "criar_compromisso"
