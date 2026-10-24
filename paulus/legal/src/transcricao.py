@@ -72,6 +72,40 @@ def _e_falta_de_memoria(exc: BaseException) -> bool:
     return isinstance(exc, MemoryError) or any(p in str(exc).lower() for p in RE_FALTOU_MEMORIA)
 
 
+def ler_audio(caminho) -> "np.ndarray":
+    """
+    O arquivo de audio em float32 mono a 16 kHz, pronto para o Whisper.
+
+    E o `decode_audio` do faster-whisper sem o `metadata_errors="ignore"`, que
+    o PyAV tirou (a 19 do instalador recusa: "open() got an unexpected keyword
+    argument 'metadata_errors'") e o faster-whisper 1.2.1 ainda passa. Com o
+    arquivo dado direto ao Whisper, toda gravacao importada falhava ali; o
+    modo ao vivo escapava porque ja entrega o audio decodificado.
+    """
+    import gc
+
+    import av
+    import numpy as np
+
+    resampler = av.audio.resampler.AudioResampler(format="s16", layout="mono", rate=TAXA)
+    partes = []
+    with av.open(str(caminho), mode="r") as container:
+        for quadro in container.decode(audio=0):
+            try:
+                novos = resampler.resample(quadro)
+            except av.error.InvalidDataError:
+                # Quadro estragado no meio do arquivo: o faster-whisper tambem pula.
+                continue
+            partes += [q.to_ndarray().reshape(-1) for q in novos]
+        partes += [q.to_ndarray().reshape(-1) for q in resampler.resample(None)]
+    # O faster-whisper faz o mesmo: o resampler so solta a memoria assim.
+    del resampler
+    gc.collect()
+    if not partes:
+        return np.zeros(0, dtype=np.float32)
+    return np.concatenate(partes).astype(np.float32) / 32768.0
+
+
 class SessaoAoVivo:
     """O audio de uma gravacao em andamento, chegando aos pedacos."""
 
@@ -232,7 +266,7 @@ class Transcritor:
         modelo = self.carregar()
         comeco = time.time()
         segmentos, info = modelo.transcribe(
-            str(caminho), language=idioma or None, beam_size=5, vad_filter=True,
+            ler_audio(caminho), language=idioma or None, beam_size=5, vad_filter=True,
             vad_parameters={"min_silence_duration_ms": 500}, condition_on_previous_text=False,
         )
         trechos = []

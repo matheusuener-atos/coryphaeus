@@ -24,6 +24,7 @@ apagado no fim.
 from __future__ import annotations
 
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -457,6 +458,11 @@ def test_transcricao(c: Cliente, criados: dict, audio: bytes, segundos: int) -> 
     checar(g["transcricao_estado"] in ("fila", "transcrevendo"), "importar com o modelo baixado entra na fila sozinho", g["transcricao_estado"])
     comeco = time.time()
     g = esperar_transcricao(c, g["id"])
+    # Sem memoria para o modelo de voz, o programa recusa e diz o que fazer -
+    # o certo. O teste nao tem como medir a transcricao assim: pula, dizendo.
+    if g["transcricao_estado"] == "erro" and "memória livre insuficiente" in (g.get("transcricao_erro") or ""):
+        pular("transcrever pela fila", "pouca memória livre nesta máquina agora: " + g["transcricao_erro"][:70])
+        return
     checar(g["transcricao_estado"] == "pronta", f"transcricao pronta em {round(time.time() - comeco)} s", g.get("transcricao_erro"))
     texto = " ".join(t["texto"] for t in g.get("trechos", [])).lower()
     checar(len(g.get("trechos", [])) >= 5 and "aditivo" in texto and "renova" in texto, f"texto em portugues com {len(g.get('trechos', []))} trechos", texto[:200])
@@ -494,6 +500,10 @@ def test_ao_vivo(c: Cliente, criados: dict, pcm: bytes, audio: bytes, segundos: 
     chegados = 0
     for i in range(0, len(pcm), pedaco):
         st, r = c.pedir("POST", f"/api/voz/ao-vivo/{sid}/audio", bruto=pcm[i:i + pedaco])
+        if st == 503 and "memória livre insuficiente" in str((r or {}).get("detail", "")):
+            pular("transcrever ao vivo", "pouca memória livre nesta máquina agora")
+            c.pedir("DELETE", f"/api/voz/ao-vivo/{sid}")
+            return
         if st != 200:
             checar(False, "pedaco aceito", (st, r))
             break
@@ -559,9 +569,21 @@ def test_planilha_trazer(c: Cliente, criados: dict) -> None:
     valores = [v for k, v in celulas.items() if k.startswith("D") and k != "D1"]
     checar(any(v.startswith("=SOMA(") for v in valores), "e uma linha de total em formula", valores)
     calculado = d["calculado"][d["aba_nova"]]
-    total = next((celula["texto"] for ref, celula in calculado.items() if ref.startswith("D") and "R$" in celula.get("texto", "") and ref != "D1"), "")
-    checar("2.000,50" in " ".join(x.get("texto", "") for x in calculado.values()),
-           "o total soma os lancamentos trazidos", total)
+    # A aba traz TODOS os honorarios do Financeiro (a demonstracao e os dados
+    # reais tem os seus), e nao so os dois deste teste: o total certo e a soma
+    # das linhas trazidas, com as duas do teste entre elas.
+    ref_total = next(k for k, v in celulas.items() if k.startswith("D") and str(v).startswith("=SOMA("))
+    linhas = [k for k in celulas if k.startswith("D") and k not in ("D1", ref_total)]
+
+    def centavos(texto: str) -> int:
+        limpo = re.sub(r"[^\d,]", "", texto or "")
+        return int(round(float(limpo.replace(",", ".")) * 100)) if limpo else 0
+
+    soma = sum(centavos(calculado.get(k, {}).get("texto", "")) for k in linhas)
+    checar(centavos(calculado.get(ref_total, {}).get("texto", "")) == soma and soma >= 200050
+           and {"Teste — honorários de setembro", "Teste — honorários de outubro"} <= set(celulas.values()),
+           "o total soma os lancamentos trazidos (e os do teste estão lá)",
+           (calculado.get(ref_total), soma, len(linhas)))
     checar(any("a receber" == v for v in celulas.values()) and any("recebido" == v for v in celulas.values()),
            "e cada linha diz se ja foi recebida")
 

@@ -316,7 +316,7 @@ def test_parar_resposta() -> None:
         eventos: list[str] = []
         comeco = time.time()
         with sessao.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
-                           json={"pergunta": "qual o prazo do contrato?"}, stream=True) as r:
+                           json={"pergunta": "qual o prazo de aviso do contrato de transporte?"}, stream=True) as r:
             pediu = False
             for linha in r.iter_lines(decode_unicode=True):
                 if linha.startswith("event: "):
@@ -338,7 +338,7 @@ def test_parar_resposta() -> None:
         # Retomar: a mesma pergunta de novo nao se repete no historico, e a
         # resposta que tinha parado no meio da lugar a nova.
         with sessao.post(f"{base}/api/trabalhos/{criado['id']}/perguntar",
-                           json={"pergunta": "qual o prazo do contrato?", "retomar": True}, stream=True) as r:
+                           json={"pergunta": "qual o prazo de aviso do contrato de transporte?", "retomar": True}, stream=True) as r:
             pediu = False
             for linha in r.iter_lines(decode_unicode=True):
                 if linha == "event: token" and not pediu:
