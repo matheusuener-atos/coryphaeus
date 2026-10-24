@@ -1,5 +1,11 @@
 # Arquitetura - PAULUS Legal (MVP)
 
+> Este documento registra decisões e a evolução da arquitetura desde o MVP.
+> Alguns fluxos e afirmações sobre processamento exclusivamente local são
+> históricos. Para o escopo e os caminhos atuais de nuvem, consulte
+> [ESTADO-ATUAL.md](ESTADO-ATUAL.md); para executar, use
+> [QUICKSTART.md](QUICKSTART.md).
+
 ## Onde isso se encaixa
 
 ```

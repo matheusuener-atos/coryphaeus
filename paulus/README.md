@@ -1,71 +1,46 @@
-# PAULUS — Primeiro Produto Vertical da Atos
+# PAVLVS · Produto jurídico da Atos
 
-**PAULUS** e o primeiro produto vertical construido sobre o
-[**Coryphaeus**](../README.md) (Agent OS).
+O **PAVLVS** reúne assistente de IA, documentos e rotinas de escritório na
+máquina do cliente, com integrações e processamento em nuvem conforme a
+configuração. PAULUS é o nome preservado nos arquivos, comandos e versões.
 
-Um co-worker de IA que roda na infraestrutura do proprio cliente,
-especializado por vertical. Nenhum dado sai do servidor.
+O aplicativo está em [`legal/`](legal/). A base Coryphaeus e os serviços do
+produto permanecem no [mesmo repositório](../README.md).
 
-## Estrutura
+## Recursos implementados
 
-```
-Coryphaeus (Agent OS)
-    └── PAULUS (Produto Vertical)
-        └── Legal (Vertical Inicial: Escritorios Juridicos)
-```
+| Área | Implementação presente |
+| --- | --- |
+| Documentos | Acervo, importação, organização, extração e OCR do Windows |
+| Assistente | Busca, conversa sobre documentos e rotas locais ou de nuvem |
+| Produção | Editor, geração de documentos e assinatura de PDF |
+| Escritório | Clientes, serviços, equipe, tarefas, agenda, horas e financeiro |
+| Consulta e conexões | Biblioteca jurídica, processos/publicações, e-mail, Drive, acesso remoto e MCP |
+| Operação | Instalador Windows, atualização, backup, restauração e diagnóstico |
 
-## Verticais
+“Implementado” indica código e testes existentes, não homologação de todas
+as integrações nem prova de uso por clientes. Veja o
+[estado atual e os limites](legal/docs/ESTADO-ATUAL.md).
 
-| Vertical | Status | Pasta |
-|---|---|---|
-| **Legal** — escritorios juridicos | MVP: Semana 1 concluida | [legal/](legal/) |
+## Tecnologia e privacidade
 
-### Legal
+Backend Python/FastAPI, interface web compartilhada com a janela Windows
+(pywebview/WebView2), persistência local em SQLite e arquivos. A recuperação
+de documentos combina regras e índices; Ollama é um caminho de inferência
+local. Os serviços do produto usam Cloudflare Workers.
 
-**Capacidades:**
+A nuvem do plano tem preferência quando ativada e consentida, e há opções
+com chave própria. Portanto, “100% local” não descreve todas as configurações.
+Os provedores, as funcionalidades habilitadas, os bloqueios por origem do
+documento e o registro dos envios dependem da configuração do escritório.
 
-| Capacidade | Status |
-|---|---|
-| Analise de contratos (pergunta e resposta com citacao da fonte) | Pronto |
-| Busca por palavra-chave nos contratos | Pronto |
-| Gestao de prazos e vencimentos (planilha) | Semana 2 |
-| Interface web | Semana 3 |
-| Criacao de documentos juridicos | Backlog |
-| Assinatura digital (ICP-Brasil) | Backlog |
+## Executar e acompanhar
 
-**Stack:**
+- [Guia de instalação e execução](legal/docs/QUICKSTART.md).
+- [Aplicativo e demonstração](legal/README.md).
+- [Testes essenciais e contribuição](legal/CONTRIBUTING.md).
+- [Piloto delimitado no portfólio](https://github.com/matheusuener-atos/coryphaeus/issues/1).
 
-- LLM: Llama local via Ollama (`llama3.2:3b` por padrao, configuravel)
-- Backend: Python; FastAPI a partir da Semana 3
-- Busca: BM25 sobre trechos; busca semantica so se a acuracia medida exigir
-- Persistencia: cache em JSON no MVP; SQLite quando houver estado a guardar
-
-**Timeline:** 4-6 semanas ate a primeira venda.
-
-## Quick Start
-
-```bash
-cd legal
-
-python -m venv venv
-venv\Scripts\activate         # Windows
-source venv/bin/activate      # Mac/Linux
-pip install -r requirements.txt
-
-# Instalar Ollama: https://ollama.ai/download
-ollama pull llama3.2:3b
-
-# Testar com os contratos ficticios de exemplo
-python src/main.py --contracts data/samples --ask "Qual o prazo de vigencia de cada contrato?"
-
-# Usar com seus contratos (essa pasta fica fora do git)
-mkdir -p data/test_contracts
-python src/main.py
-```
-
-Veja [legal/docs/QUICKSTART.md](legal/docs/QUICKSTART.md) para detalhes e
-[legal/docs/ARCHITECTURE.md](legal/docs/ARCHITECTURE.md) para as decisoes de projeto.
-
----
-
-**Mantra:** *"Atos builds Coryphaeus. Coryphaeus powers PAULUS."*
+A próxima entrega proposta é validar um fluxo completo em um escritório,
+com instalação reproduzível, documentos de teste, conferência das fontes e
+registro de tempo e falhas. Não há prazo de primeira venda inferido do código.

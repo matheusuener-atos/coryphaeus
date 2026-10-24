@@ -1,101 +1,99 @@
-# PAULUS Legal
+# PAVLVS · Aplicativo de escritório
 
-Co-worker de IA para escritorios juridicos. Le seus contratos, responde
-perguntas sobre eles e cita a fonte. **100% local** - nenhum documento sai da
-sua maquina.
+Assistente e ferramentas para escritórios jurídicos, parte do
+[PAVLVS](../README.md) da [Atos/Coryphaeus](../../README.md).
+Lê documentos, oferece busca e conversa com fontes e reúne editor,
+serviços, tarefas, agenda e financeiro.
 
-Parte do [PAULUS](../README.md), produto vertical construido sobre o
-[Coryphaeus](../../README.md).
+O aplicativo roda no computador do escritório. A resposta pode ser escrita
+pelo modelo local ou pela nuvem configurada. A nuvem do plano tem
+preferência quando ativada e consentida; “100% local” não descreve esse modo.
 
-## Em 30 segundos
+## Abrir pelo código-fonte
 
-```bash
-cd paulus/legal
-python -m venv venv && venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-ollama pull llama3.2:3b
+Após preparar o ambiente Windows pelo [QUICKSTART](docs/QUICKSTART.md),
+na pasta `paulus/legal`:
 
-python src/desktop.py      # janela do programa
-python src/api.py          # ou a interface no navegador (localhost:8000)
-python src/main.py         # ou o chat no terminal
+```powershell
+.\venv\Scripts\python.exe src\desktop.py
 ```
 
-Detalhes em [docs/QUICKSTART.md](docs/QUICKSTART.md).
+Para a interface no navegador:
 
-### Demonstração
-
-Um escritório fictício, com documentos, agenda, tarefas, financeiro e
-serviços, numa pasta separada (`data/demo`) - os dados de verdade não são
-tocados:
-
-```bash
-tools\demo\abrir_demo.bat                          # cria a base na primeira vez e abre
-venv\Scripts\python.exe tools\demo\roteiro.py      # as perguntas da demonstração, medidas
+```powershell
+.\venv\Scripts\python.exe src\api.py
 ```
 
-A pasta de dados vem de `PAULUS_DADOS`; sem ela, é `data/`.
+Abra o endereço completo impresso no terminal, incluindo a chave de acesso
+local de uso único. O servidor escuta em `127.0.0.1`; acesso remoto é uma
+funcionalidade separada, com configuração e permissões próprias.
 
-## O que ele faz hoje
+## O que existe no código
 
-- **Organiza o acervo**: varre as pastas que voce escolher, le cada documento,
-  classifica por conteudo (tipo, partes, data, valor) e monta a arvore de
-  pastas que voce definir - `{cliente}/{tipo}`, `{ano}/{mes}/{tipo}`, o que for.
-  Voce confere e corrige a tabela antes de qualquer arquivo sair do lugar, e
-  todo lote pode ser desfeito.
-- **Janela do Windows**, nao aba de navegador
-- Adicionar contratos, perguntar, buscar
-- Le contratos em **PDF, DOCX, TXT e MD**
-- Indexa por **BM25** com tokenizacao de portugues (acento e stopwords tratados)
-- Responde perguntas com **Llama local via Ollama**, citando o arquivo de origem
-- Mostra os trechos que o modelo leu, e **avisa quais contratos ficaram de fora**
-  da analise
-- Chat no terminal, para quem prefere
+- **Acervo:** importação de PDF, DOCX, TXT e MD, leitura de páginas escaneadas
+  pelo OCR do Windows, classificação, busca e organização com plano e desfazer.
+- **Conversa e produção:** resposta sobre documentos, fontes para conferir,
+  editor, geração/exportação e assinatura de PDF com certificado.
+- **Escritório:** clientes, serviços, equipe e permissões, tarefas, agenda,
+  horas e financeiro.
+- **Biblioteca e integrações:** consulta jurídica, acompanhamento de processos
+  e publicações, e-mail, Drive, acesso remoto e ferramentas MCP.
+- **Operação:** instalação, atualização, backup/restauração e diagnóstico.
 
-## O que ele ainda nao faz
+Disponibilidade depende de configuração, plataforma, modelo, permissões e
+contas externas. O [estado atual](docs/ESTADO-ATUAL.md) distingue código
+implementado, experimentos e validação pendente.
 
-- OCR de PDF escaneado
-- Planilha de vencimentos
+## Demonstração e testes
 
-## Organizar o acervo
+O roteiro usa um escritório fictício em `data/demo`, separado dos dados de
+uso normal. O atalho abaixo cria a base na primeira vez e abre o aplicativo:
 
-1. **Onde procurar** - marque as pastas (Documentos, Desktop, um caminho seu)
-2. **Classificar** - regra resolve data, valor e CPF/CNPJ na hora; o modelo so
-   entra no que sobra (~20s por documento nesses casos)
-3. **Conferir** - tabela editavel: corrija cliente e tipo, desmarque o que nao
-   deve entrar. Nada foi movido ate aqui
-4. **Estrutura** - escolha o padrao de pastas e o destino, e veja o plano
-5. **Aplicar** - so agora os arquivos se movem, com diario e botao de desfazer
-
-Nada e apagado. Nada e sobrescrito - colisao de nome ganha sufixo.
-
-## Exemplos de pergunta
-
-```
-Voce: Quais sao as clausulas de penalidade?
-Voce: Qual e o prazo de vigencia do contrato da ACME?
-Voce: Quanto e a multa por rescisao antecipada?
-Voce: Quem sao as partes de cada contrato?
-Voce: /buscar rescisao
+```powershell
+.\tools\demo\abrir_demo.bat
 ```
 
-## Seus dados
+Para verificar extração e busca sem depender do Ollama:
 
-- `data/test_contracts/` - seus contratos reais. **Ignorada pelo git.**
-- `data/samples/` - contratos ficticios, versionados, so para teste.
-- `data/extractions/` - cache de texto extraido. Ignorada pelo git.
+```powershell
+.\venv\Scripts\python.exe tests\test_pipeline.py
+```
 
-O `.gitignore` bloqueia commit acidental de documento de cliente. Confira com
-`git status` antes de qualquer push.
+Os comandos complementares estão em [CONTRIBUTING.md](CONTRIBUTING.md).
+Uma suíte aprovada não comprova a qualidade de respostas de um modelo nem
+o funcionamento de serviços reais.
 
-## Aviso
+## Dados e processamento
 
-PAULUS localiza e resume o que esta escrito nos documentos. Nao presta
-consultoria juridica e pode errar - toda resposta deve ser conferida contra o
-contrato original. Use `/trechos` para ver exatamente o que o modelo leu.
+No código-fonte, `PAULUS_DADOS` define a pasta da aplicação web/desktop;
+sem ela, usa `data/`. O instalador usa pastas no perfil do Windows, descritas
+no [guia do instalador](docs/instalador.md).
 
-## Documentacao
+`data/samples/` contém documentos fictícios versionados. Contratos reais,
+cache e dados de operação devem ficar fora do Git. O `.gitignore` reduz o
+risco de inclusão acidental, mas é preciso conferir o que será enviado.
 
-- [ETAPAS.md](docs/ETAPAS.md) - o caminho ate as 20 telas do manual, etapa por etapa
-- [QUICKSTART.md](docs/QUICKSTART.md) - instalacao e uso
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - como funciona e por que
-- [CONTRIBUTING.md](CONTRIBUTING.md) - como contribuir
+Na nuvem, o texto permitido pela configuração pode sair da máquina.
+Mascaramento não é anonimização. A origem dos arquivos e as exclusões são
+descritas em [dados e nuvem](docs/ESTADO-ATUAL.md#dados-e-nuvem).
+
+## Suporte e próxima entrega
+
+Para diagnóstico, use a tela Saúde nas Configurações e o arquivo gerado
+para suporte. Uma issue de defeito deve informar versão, modo local/nuvem,
+passos e resultado esperado, com exemplo fictício. Não inclua documentos,
+tokens, certificados ou dados de clientes. O contato do produto está em
+[paulus.ia.br](https://paulus.ia.br/).
+
+A próxima entrega proposta é o [piloto delimitado](https://github.com/matheusuener-atos/coryphaeus/issues/1):
+importar documentos, localizar informação com fonte, revisar um rascunho e
+medir conclusão, tempo e falhas antes de ampliar o escopo.
+
+## Documentação
+
+- [QUICKSTART](docs/QUICKSTART.md): ambiente, execução e problemas comuns.
+- [ESTADO-ATUAL](docs/ESTADO-ATUAL.md): escopo, evidências e limites.
+- [CONTRIBUTING](CONTRIBUTING.md): verificações e contribuição.
+- [ARCHITECTURE](docs/ARCHITECTURE.md): decisões e evolução da arquitetura.
+- [PLANO-PRODUTO](docs/PLANO-PRODUTO.md) e [PLANO-PILOTO](docs/PLANO-PILOTO.md):
+  histórico de entregas; estados e medições pertencem às datas registradas.
