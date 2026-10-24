@@ -21,6 +21,7 @@ import tempfile
 import subprocess
 import sys
 import queue
+import logging
 import threading
 import time
 import uuid
@@ -4010,6 +4011,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
     continuou = False
     if (estado.prefs.dados.get("ia") or {}).get("memoria", True):
         pergunta, historico, continuou = memoria_mod.preparar(trabalho.mensagens, trabalho.contexto, pergunta)
+        # Com esta resposta, mais um par sai da janela: se o resumo nao o
+        # cobre, ele e refeito em segundo plano, depois dela.
+        anteriores_pares = memoria_mod.pares_respondidos(trabalho.mensagens[:-1])
+        if memoria_mod.precisa_resumir(trabalho.contexto, anteriores_pares, janela=memoria_mod.PARES - 1):
+            _resumir_em_fundo(trabalho)
         # "Esses pontos", "o que falta", "isso que você sugeriu": o objeto é a
         # última resposta, inteira - os ~600 tokens de sempre cortavam a lista
         # (src/conversa_continua.py).
@@ -7002,6 +7008,53 @@ def _seguir_clausulas(trabalho, payload: Pergunta, pergunta: str, estado_e: dict
 
 def _curto_txt(v, n: int) -> str:
     return " ".join(str(v or "").split())[:n].strip()
+
+
+def _caminhos_da_conversa(trabalho) -> list[str]:
+    """Os arquivos de onde vieram as respostas: o resumo delas so sai se eles puderem sair."""
+    nomes = {f.get("documento", "") for m in trabalho.mensagens for f in (m.fontes or []) if f.get("documento")}
+    return [str(d.path) for d in estado.searcher.documents if d.name in nomes and getattr(d, "path", None)]
+
+
+_resumindo: set[str] = set()
+
+
+def _resumir_em_fundo(trabalho) -> None:
+    """
+    O resumo da conversa longa (src/memoria.py), depois da resposta e com a vez
+    de segundo plano: a pergunta de agora nao espera por ele, e a seguinte ja
+    o encontra pronto.
+    """
+    id_ = trabalho.id
+    if id_ in _resumindo:
+        return
+    _resumindo.add(id_)
+
+    def trabalhar() -> None:
+        try:
+            # A resposta desta pergunta ainda nem comecou: espera ela entrar e
+            # sair. E repete: a pergunta seguinte pode ter empurrado mais um par
+            # enquanto este resumo era escrito - e ela nao abre outra thread.
+            time.sleep(2)
+            for _ in range(memoria_mod.NOVOS_POR_VEZ):
+                fim = time.time() + 900
+                while id_ in estado.respondendo and time.time() < fim:
+                    time.sleep(1)
+                estado.fila_modelo.ceder(limite_s=600)
+                pares = memoria_mod.pares_respondidos(trabalho.mensagens)
+                if not memoria_mod.precisa_resumir(trabalho.contexto, pares):
+                    return
+                cliente = estado.cliente_para("resumos", caminhos=_caminhos_da_conversa(trabalho))
+                gravou = memoria_mod.resumir(trabalho.contexto, pares, cliente)
+                estado.trabalhos.salvar(trabalho)
+                if not gravou:
+                    return
+        except Exception:  # noqa: BLE001 - o resumo e um extra: a conversa segue sem ele
+            logging.getLogger("paulus.memoria").exception("o resumo da conversa %s falhou", id_)
+        finally:
+            _resumindo.discard(id_)
+
+    threading.Thread(target=trabalhar, name="resumo-da-conversa", daemon=True).start()
 
 
 def _historico_antes(trabalho, ate: int) -> list[dict]:

@@ -53,19 +53,16 @@ def _cortar(texto: str, limite: int) -> str:
     return (pedaco[:espaco] if espaco > limite // 2 else pedaco).rstrip(",;: ") + " …"
 
 
-def historico(mensagens, limite_tokens: int = LIMITE_TOKENS, pares: int = PARES) -> list[dict]:
+def pares_respondidos(mensagens) -> list[tuple[str, str]]:
     """
-    Os ultimos `pares` pares (pessoa, paulus) ja respondidos, como mensagens
-    do chat, cabendo em `limite_tokens`.
-
-    `mensagens` sao as da conversa ANTES da pergunta de agora (objetos com
-    `autor` e `texto`). Resposta parada no meio nao entra: ela nao e o que o
-    PAULUS respondeu, e o que ele tinha escrito ate ali.
+    Todos os pares (pergunta, resposta) ja respondidos, do mais antigo ao mais
+    novo. Resposta parada no meio nao entra: ela nao e o que o PAULUS
+    respondeu, e o que ele tinha escrito ate ali.
     """
     achados: list[tuple[str, str]] = []
     lista = list(mensagens or [])
     i = len(lista) - 1
-    while i >= 1 and len(achados) < pares:
+    while i >= 1:
         resposta, pergunta = lista[i], lista[i - 1]
         if (getattr(resposta, "autor", "") == "paulus" and getattr(pergunta, "autor", "") == "pessoa"
                 and (getattr(resposta, "texto", "") or "").strip()
@@ -75,8 +72,22 @@ def historico(mensagens, limite_tokens: int = LIMITE_TOKENS, pares: int = PARES)
         else:
             i -= 1
     achados.reverse()
+    return achados
+
+
+def historico(mensagens, limite_tokens: int = LIMITE_TOKENS, pares: int = PARES, resumo: str = "") -> list[dict]:
+    """
+    Os ultimos `pares` pares (pessoa, paulus) ja respondidos, como mensagens
+    do chat, cabendo em `limite_tokens`.
+
+    `mensagens` sao as da conversa ANTES da pergunta de agora (objetos com
+    `autor` e `texto`). `resumo` e o que ficou para tras dessas trocas (ver
+    "o resumo da conversa longa", abaixo): vai na frente, como um par, fora
+    da conta do limite - ele ja tem o teto dele.
+    """
+    achados = pares_respondidos(mensagens)[-pares:] if pares > 0 else []
     if not achados:
-        return []
+        return _com_resumo([], resumo)
 
     orcamento = limite_tokens * CHARS_POR_TOKEN
     # As perguntas vao inteiras (sao curtas: cortar a pergunta e perder o
@@ -92,7 +103,15 @@ def historico(mensagens, limite_tokens: int = LIMITE_TOKENS, pares: int = PARES)
     while saida and sum(len(m["content"]) for m in saida) > orcamento:
         maior = max(range(1, len(saida), 2), key=lambda k: len(saida[k]["content"]))
         saida[maior]["content"] = _cortar(saida[maior]["content"], len(saida[maior]["content"]) - 40)
-    return saida
+    return _com_resumo(saida, resumo)
+
+
+def _com_resumo(saida: list[dict], resumo: str) -> list[dict]:
+    # Um par, como as outras mensagens: pergunta e resposta se alternam, e ha
+    # modelo (e provedor da nuvem) que recusa duas falas seguidas da pessoa.
+    if not resumo:
+        return saida
+    return [{"role": "user", "content": PEDIDO_DO_RESUMO}, {"role": "assistant", "content": resumo}] + saida
 
 
 def tokens(mensagens: list[dict]) -> int:
@@ -274,6 +293,149 @@ def reescrever(pergunta: str, anterior: str = "", assunto: tuple[str, str] | lis
     return texto + "?"
 
 
+# ----------------------------------------------- o resumo da conversa longa
+#
+# Os dois ultimos pares nao bastam numa conversa longa: o que foi combinado
+# na terceira pergunta some na sexta. O resumo guarda o que saiu da janela, e
+# nao custa uma chamada por pergunta (o motivo de nao haver resumo antes):
+#
+# - so e refeito quando um par SAI da janela, e em segundo plano, depois da
+#   resposta - a pergunta de agora usa o resumo que ja existe e nao espera;
+# - e incremental: o resumo anterior mais os pares que sairam, nunca a
+#   conversa inteira de novo;
+# - nao inventa: resumo com numero que nao esta no texto de onde veio e
+#   descartado (o modelo pequeno troca "10 dias" por uma data);
+# - falhou, pula as 3 vezes seguintes antes de tentar de novo - modelo fora do
+#   ar nao vira uma chamada perdida a cada pergunta.
+#
+# Ideia do Google AI Edge Gallery (SummarizationContextCompactor), com as
+# regras daqui. Fica em `trabalho.contexto["resumo_conversa"]`.
+
+PEDIDO_DO_RESUMO = "Antes destas últimas mensagens, sobre o que conversamos? (resumo, para contexto)"
+RESUMO_MAX = 700          # caracteres: ~230 tokens, perto de um par da janela
+PULAR_DEPOIS_DE_FALHA = 3
+NOVOS_POR_VEZ = 10        # pares de uma vez; mais que isso, os mais velhos ficam so no resumo de antes
+SISTEMA_DO_RESUMO = (
+    "Você guarda a memória de uma conversa de um escritório de advocacia brasileiro. Escreva o resumo "
+    "atualizado em português do Brasil, em até 110 palavras, em frases curtas, sem listas nem títulos. "
+    "Guarde os documentos, pessoas e empresas citados, os números, valores, prazos e datas exatamente como "
+    "aparecem, o que foi pedido, o que foi respondido e o que ficou pendente. Não acrescente nada que não "
+    "esteja no texto e não dê opinião."
+)
+_RE_NUMERO = re.compile(r"\d[\d.,/]*")
+
+
+def _marca(par: tuple[str, str]) -> str:
+    """O que identifica um par: a conversa reaberta ou a resposta retomada mudam os pares."""
+    pergunta, resposta = par
+    return _plano(pergunta)[:80] + "|" + _plano(resposta)[:80]
+
+
+def _estado_do_resumo(contexto: dict) -> dict:
+    return contexto.get("resumo_conversa") or {}
+
+
+def resumo_vigente(contexto: dict, pares: list[tuple[str, str]]) -> str:
+    """O resumo guardado, se ainda descreve o comeco destes pares; "" se nao."""
+    r = _estado_do_resumo(contexto)
+    cobertos = int(r.get("pares") or 0)
+    if not r.get("texto") or cobertos <= 0 or cobertos > len(pares):
+        return ""
+    if r.get("marca") != _marca(pares[cobertos - 1]):
+        return ""
+    return r["texto"]
+
+
+def fora_da_janela(pares: list[tuple[str, str]], janela: int = PARES) -> int:
+    return max(0, len(pares) - janela)
+
+
+def precisa_resumir(contexto: dict, pares: list[tuple[str, str]], janela: int = PARES) -> bool:
+    """Ha par fora da janela que o resumo ainda nao cobre (e nao estamos pulando por falha)."""
+    fora = fora_da_janela(pares, janela)
+    if fora == 0:
+        return False
+    r = _estado_do_resumo(contexto)
+    if int(r.get("pular") or 0) > 0:
+        return False
+    cobertos = int(r.get("pares") or 0) if resumo_vigente(contexto, pares) else 0
+    return cobertos < fora
+
+
+def pedido_de_resumo(contexto: dict, pares: list[tuple[str, str]], janela: int = PARES) -> dict | None:
+    """
+    O que mandar ao modelo para cobrir os pares que sairam da janela: o
+    resumo de antes (se ainda vale) e os pares novos. Devolve None quando nao
+    ha o que resumir. `fonte` e o texto contra o qual o resultado e conferido.
+    """
+    fora = fora_da_janela(pares, janela)
+    anterior = resumo_vigente(contexto, pares)
+    cobertos = int(_estado_do_resumo(contexto).get("pares") or 0) if anterior else 0
+    if cobertos >= fora:
+        return None
+    novos = pares[cobertos:fora][-NOVOS_POR_VEZ:]
+    trocas = "\n\n".join(f"Pessoa: {_cortar(p, 400)}\nPAULUS: {_cortar(r, 900)}" for p, r in novos)
+    partes = []
+    if anterior:
+        partes.append("RESUMO ATÉ AQUI:\n" + anterior)
+    partes.append(("TROCAS QUE SE SEGUIRAM:\n" if anterior else "TROCAS:\n") + trocas)
+    partes.append("Escreva o resumo atualizado da conversa inteira.")
+    return {"sistema": SISTEMA_DO_RESUMO, "texto": "\n\n".join(partes), "fonte": anterior + "\n" + trocas,
+            "pares": fora, "marca": _marca(pares[fora - 1])}
+
+
+def _numeros(texto: str) -> set[str]:
+    # "R$ 19.980,00" e "19.980" sao o mesmo numero: os centavos zerados saem.
+    return {re.sub(r",0+$", "", n.rstrip(".,/")).replace(".", "").replace(",", "")
+            for n in _RE_NUMERO.findall(texto or "")} - {""}
+
+
+def aceitar_resumo(texto: str, fonte: str) -> str | None:
+    """
+    O resumo que o modelo escreveu, se der para confiar nele: sem numero que
+    nao esteja na fonte, nao vazio, cortado no teto. None descarta.
+    """
+    texto = " ".join((texto or "").split())
+    if len(texto) < 20:
+        return None
+    if _numeros(texto) - _numeros(fonte):
+        return None
+    return _cortar(texto, RESUMO_MAX)
+
+
+def guardar_resumo(contexto: dict, pedido: dict, texto: str | None) -> bool:
+    """Grava o resumo aceito, ou conta a falha (e o pulo). Devolve se gravou."""
+    r = dict(_estado_do_resumo(contexto))
+    if texto:
+        contexto["resumo_conversa"] = {"texto": texto, "pares": pedido["pares"], "marca": pedido["marca"]}
+        return True
+    r["pular"] = PULAR_DEPOIS_DE_FALHA
+    contexto["resumo_conversa"] = r
+    return False
+
+
+def contar_pergunta(contexto: dict) -> None:
+    """Cada pergunta desconta um pulo da falha."""
+    r = _estado_do_resumo(contexto)
+    if int(r.get("pular") or 0) > 0:
+        contexto["resumo_conversa"] = dict(r, pular=int(r["pular"]) - 1)
+
+
+def resumir(contexto: dict, pares: list[tuple[str, str]], cliente, janela: int = PARES) -> bool:
+    """
+    Faz o resumo com `cliente` (ask(question, context, sistema=...)) e grava em
+    `contexto`. Para o segundo plano: quem chama ja cedeu a vez as perguntas.
+    """
+    pedido = pedido_de_resumo(contexto, pares, janela)
+    if pedido is None:
+        return False
+    try:
+        bruto = cliente.ask(pedido["texto"], sistema=pedido["sistema"], tarefa="resumos")
+    except Exception:  # noqa: BLE001 - modelo fora do ar: conta como falha, a conversa segue
+        bruto = ""
+    return guardar_resumo(contexto, pedido, aceitar_resumo(bruto, pedido["fonte"]))
+
+
 # ------------------------------------------------------------- a conversa
 
 def preparar(mensagens, contexto: dict, pergunta: str) -> tuple[str, list[dict], bool]:
@@ -297,7 +459,9 @@ def preparar(mensagens, contexto: dict, pergunta: str) -> tuple[str, list[dict],
         if novo:
             contexto["assunto"] = list(novo)
     contexto["ultima_pergunta"] = efetiva
-    return efetiva, historico(anteriores), continuou
+    contar_pergunta(contexto)
+    resumo = resumo_vigente(contexto, pares_respondidos(anteriores))
+    return efetiva, historico(anteriores, resumo=resumo), continuou
 
 
 def escopo_anterior(mensagens) -> list[str]:
