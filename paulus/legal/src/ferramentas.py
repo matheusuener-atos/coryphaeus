@@ -388,6 +388,16 @@ def _objeto_json(bruto) -> dict:
     return dados
 
 
+def nome_da_ferramenta(bruto) -> str:
+    """
+    "Criar Compromisso", "criar-compromisso" e "criar_compromisso" são a mesma
+    ferramenta: o modelo pequeno troca o separador e a caixa (visto no Google
+    AI Edge Gallery, que normaliza o nome da skill do mesmo jeito). O que não
+    vira um nome do catálogo continua sem ferramenta.
+    """
+    return re.sub(r"[\s\-]+", "_", _plano(str(bruto or ""))).strip("_")
+
+
 def interpretar_resposta(bruto, hoje: date | None = None) -> Chamada:
     """
     O JSON do modelo, conferido contra o contrato.
@@ -404,7 +414,7 @@ def interpretar_resposta(bruto, hoje: date | None = None) -> Chamada:
     if tipo != "acao":
         raise ContratoInvalido("tipo precisa ser \"acao\" ou \"resposta\"")
 
-    ferramenta = str(dados.get("ferramenta") or "").strip()
+    ferramenta = nome_da_ferramenta(dados.get("ferramenta"))
     if ferramenta not in CATALOGO_FERRAMENTAS:
         raise ContratoInvalido(f"não existe a ferramenta {ferramenta!r}")
     parametros = dados.get("parametros") or {}
@@ -490,6 +500,11 @@ def o_que_falta(ferramenta: str, campos: dict) -> str:
     return f"não achei {juntos} nessa frase"
 
 
+TENTATIVAS_DO_MODELO = 2
+_FORMATO = ('Responda só com o objeto JSON do formato pedido, com "tipo": "acao", '
+            '"ferramenta": "{ferramenta}" e os parâmetros que o pedido diz')
+
+
 def completar_com_modelo(lido, pergunta: str, perguntar_json, hoje: date | None = None) -> list[str]:
     """
     Pede ao modelo o que a regra não conseguiu preencher.
@@ -500,28 +515,52 @@ def completar_com_modelo(lido, pergunta: str, perguntar_json, hoje: date | None 
     se o modelo achar que é outra, a resposta dele é ignorada inteira.
     Devolve os campos que o modelo preencheu — a tela diz quais foram.
 
-    `perguntar_json(instrucao, sistema)` é quem fala com o modelo; qualquer
-    erro dele (Ollama fechado, JSON torto) deixa o cartão como a regra fez.
+    `perguntar_json(instrucao, sistema)` é quem fala com o modelo. Resposta
+    fora do contrato (JSON torto, outra ferramenta, campo que não normaliza)
+    ganha UMA segunda chance, com o erro e a dica de como acertar - o modelo
+    pequeno erra o formato mais do que o conteúdo (Google AI Edge Gallery:
+    o erro volta como dado, não como exceção). Valor que não está na frase
+    não ganha segunda chance: pedir de novo seria pedir para inventar. Modelo
+    fora do ar também não: tentar de novo só gastaria o tempo da pessoa. Em
+    qualquer desses casos, o cartão fica como a regra fez.
     """
     ferramenta = POR_PROPOSTA.get(lido.tipo)
     if not ferramenta:
         return []
-    try:
-        chamada = interpretar_resposta(perguntar_json(pergunta, obter_prompt_ferramentas(hoje)), hoje)
-    except Exception:  # noqa: BLE001 - o modelo falhar nunca pode derrubar a proposta
-        return []
-    if chamada.tipo != "acao" or chamada.ferramenta != ferramenta:
-        return []
-
     declarados = CATALOGO_FERRAMENTAS[ferramenta]["parametros"]
+    sistema = obter_prompt_ferramentas(hoje)
     preenchidos: list[str] = []
-    for nome, valor in chamada.parametros.items():
-        if lido.campos.get(nome):
-            continue
-        if not ancorado(declarados[nome]["tipo"], valor, pergunta):
-            continue
-        lido.campos[nome] = valor
-        preenchidos.append(nome)
+    instrucao = pergunta
+    for tentativa in range(TENTATIVAS_DO_MODELO):
+        try:
+            bruto = perguntar_json(instrucao, sistema)
+        except Exception:  # noqa: BLE001 - o modelo falhar nunca pode derrubar a proposta
+            break
+        try:
+            chamada = interpretar_resposta(bruto, hoje)
+        except ContratoInvalido as exc:
+            problema = f"{exc}. {_FORMATO.format(ferramenta=ferramenta)}"
+        else:
+            if chamada.tipo != "acao" or chamada.ferramenta != ferramenta:
+                problema = (f"o pedido é uma ação da ferramenta {ferramenta}, e a resposta veio "
+                            f"{'como resposta' if chamada.tipo != 'acao' else 'com a ferramenta ' + chamada.ferramenta}. "
+                            + _FORMATO.format(ferramenta=ferramenta))
+            else:
+                for nome, valor in chamada.parametros.items():
+                    if lido.campos.get(nome) or not ancorado(declarados[nome]["tipo"], valor, pergunta):
+                        continue
+                    lido.campos[nome] = valor
+                    preenchidos.append(nome)
+                # Só o campo que ainda está vazio merece a segunda chance.
+                tortos = {n: m for n, m in chamada.erros.items() if not lido.campos.get(n)}
+                problema = "; ".join(
+                    f"o parâmetro {n} não serviu ({m}): use {declarados[n]['descricao']}" for n, m in tortos.items())
+                if problema:
+                    problema += ". Se o pedido não diz, deixe o parâmetro de fora"
+        if not problema or tentativa + 1 >= TENTATIVAS_DO_MODELO:
+            break
+        instrucao = (f"{pergunta}\n\nA sua resposta anterior não serviu: {problema}.\n"
+                     "Responda de novo, só com o objeto JSON.")
 
     if preenchidos:
         lido.falta = o_que_falta(ferramenta, lido.campos)

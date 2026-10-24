@@ -306,6 +306,65 @@ def test_completar_com_modelo() -> None:
     checar(ajuda == ["data"] and l.campos["data"] == "2026-09-25" and not l.falta,
            "a data que a regra não leu vem do modelo", (ajuda, l.campos, l.falta))
 
+    print("\no erro volta com a dica, uma vez só")
+
+    def em_sequencia(*respostas):
+        chamadas = []
+
+        def perguntar(instrucao, sistema):
+            chamadas.append(instrucao)
+            r = respostas[min(len(chamadas), len(respostas)) - 1]
+            if isinstance(r, Exception):
+                raise r
+            return r
+        return perguntar, chamadas
+
+    frase = "cadastre um cliente com cpf 529.982.247-25 que se chama bruno pereira"
+    certo = {"tipo": "acao", "ferramenta": "cadastrar_cliente", "parametros": {"nome": "Bruno Pereira"}}
+    for primeira, porque in (("isso não é JSON", "JSON torto"),
+                             ({"tipo": "acao", "ferramenta": "emitir_nfse", "parametros": {}}, "outra ferramenta"),
+                             ({"tipo": "resposta", "mensagem": "não entendi"}, "respondeu em vez de agir")):
+        l = intencao.ler(frase, HOJE)
+        perguntar, chamadas = em_sequencia(primeira, certo)
+        ajuda = ferramentas.completar_com_modelo(l, frase, perguntar, HOJE)
+        checar(ajuda == ["nome"] and len(chamadas) == 2 and "não serviu" in chamadas[1]
+               and "cadastrar_cliente" in chamadas[1] and chamadas[1].startswith(frase),
+               f"{porque}: a segunda chance leva o erro e a dica, e acerta", (ajuda, chamadas[1:]))
+
+    l = intencao.ler(frase, HOJE)
+    perguntar, chamadas = em_sequencia("isso não é JSON")
+    checar(ferramentas.completar_com_modelo(l, frase, perguntar, HOJE) == [] and len(chamadas) == 2 and l.falta,
+           "errou de novo: para na segunda, e o cartão fica como a regra fez", len(chamadas))
+
+    l = intencao.ler(frase, HOJE)
+    perguntar, chamadas = em_sequencia(ConnectionError("Ollama fechado"), certo)
+    checar(ferramentas.completar_com_modelo(l, frase, perguntar, HOJE) == [] and len(chamadas) == 1,
+           "modelo fora do ar: não tenta de novo", len(chamadas))
+
+    l = intencao.ler(frase, HOJE)
+    perguntar, chamadas = em_sequencia({"tipo": "acao", "ferramenta": "cadastrar_cliente",
+                                        "parametros": {"nome": "Carlos Andrade"}}, certo)
+    checar(ferramentas.completar_com_modelo(l, frase, perguntar, HOJE) == [] and len(chamadas) == 1,
+           "nome que não está na frase: não ganha segunda chance (seria pedir para inventar)", len(chamadas))
+
+    frase = "marque uma reunião daqui a duas semanas"
+    l = intencao.ler(frase, HOJE)
+    perguntar, chamadas = em_sequencia(
+        {"tipo": "acao", "ferramenta": "criar_compromisso", "parametros": {"titulo": "Reunião", "data": "daqui a 2 semanas"}},
+        {"tipo": "acao", "ferramenta": "criar_compromisso", "parametros": {"data": "2026-09-25"}})
+    ajuda = ferramentas.completar_com_modelo(l, frase, perguntar, HOJE)
+    checar(ajuda == ["data"] and l.campos["data"] == "2026-09-25" and len(chamadas) == 2
+           and "o parâmetro data não serviu" in chamadas[1] and "AAAA-MM-DD" in chamadas[1],
+           "a data que não é data: a segunda chance diz o formato", (ajuda, chamadas[1:]))
+
+    print("\no nome da ferramenta")
+    checar(ferramentas.nome_da_ferramenta("Criar Compromisso") == "criar_compromisso"
+           and ferramentas.nome_da_ferramenta("criar-compromisso") == "criar_compromisso"
+           and ferramentas.nome_da_ferramenta(None) == "", "caixa e separador não importam")
+    c = ferramentas.interpretar_resposta({"tipo": "acao", "ferramenta": "Cadastrar Cliente",
+                                          "parametros": {"nome": "Bruno"}}, HOJE)
+    checar(c.ferramenta == "cadastrar_cliente", "e a resposta do modelo vale com o nome escrito torto", c)
+
 
 # ------------------------------------------------------- exibir documento
 
