@@ -523,7 +523,8 @@ def montar_base(host: str, modelos_para_medir: list[str]) -> dict:
         if nome not in instalados:
             print(f"  {nome}: não está instalado, pulei")
             continue
-        modelos_mod.medir(host, nome)  # a primeira carrega o modelo; a segunda vale
+        # As rodadas da medida ja separam a fria (que carrega o modelo) das
+        # outras, e a leitura e a escrita saem da mediana delas.
         medida = modelos_mod.medir(host, nome)
         guardar_amostra(BASE_PATH, amostra(maq, instalados[nome], medida))
         print(f"  {nome}: escreve {medida['tokens_por_segundo']} e lê {medida['leitura_tokens_por_segundo']} tokens/s")

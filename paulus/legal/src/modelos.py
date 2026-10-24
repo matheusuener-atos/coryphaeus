@@ -154,31 +154,87 @@ def remover(host: str, nome: str) -> None:
     r.raise_for_status()
 
 
-def medir(host: str, nome: str, timeout: int = 300) -> dict:
-    """
-    Um texto fixo para ler e uma resposta curta para escrever; o Ollama
-    devolve os tempos de cada parte. Carregar é a primeira espera (o modelo sai
-    do disco para a memória); ler é o que pesa na primeira pergunta sobre um
-    documento; escrever é o ritmo da resposta.
+RODADAS_DA_MEDIDA = 3
 
-    A marca no começo muda a cada medida: o Ollama guarda o começo do último
-    texto lido, e medir de novo leria em meio segundo o que não foi lido.
+
+def _uma_rodada(host: str, nome: str, timeout: int, postar) -> dict:
+    """
+    Uma leitura e uma escrita, com o relógio na primeira palavra. A marca no
+    começo muda a cada rodada: o Ollama guarda o começo do último texto lido,
+    e ler de novo levaria meio segundo para o que não foi lido.
+    """
+    prompt = f"[medida {time.time_ns()}]\n{TEXTO_DA_MEDIDA}\n\n{PROMPT_DA_MEDIDA}"
+    comeco = time.time()
+    r = postar(f"{host}/api/generate", timeout=timeout, stream=True, json={
+        "model": nome, "prompt": prompt, "stream": True,
+        "options": {"temperature": 0, "num_predict": 60, "num_ctx": 4096},
+    })
+    r.raise_for_status()
+    primeira = 0.0
+    fim: dict = {}
+    for linha in r.iter_lines():
+        if not linha:
+            continue
+        try:
+            d = json.loads(linha)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if d.get("error"):
+            raise requests.RequestException(str(d["error"]))
+        if d.get("response") and not primeira:
+            primeira = time.time() - comeco
+        if d.get("done"):
+            fim = d
+            break
+    escreveu = (fim.get("eval_duration") or 0) / 1e9
+    leu = (fim.get("prompt_eval_duration") or 0) / 1e9
+    return {
+        "escrita": (fim.get("eval_count") or 0) / escreveu if escreveu else 0.0,
+        "leitura": (fim.get("prompt_eval_count") or 0) / leu if leu else 0.0,
+        "primeira_palavra": primeira or (time.time() - comeco),
+        "carregar": (fim.get("load_duration") or 0) / 1e9,
+        "lidos": fim.get("prompt_eval_count") or 0,
+    }
+
+
+def _mediana_e_faixa(valores: list[float], casas: int = 1) -> tuple[float, list[float]]:
+    """A mediana e a faixa do meio (25% a 75%): um número sozinho esconde a rodada que travou."""
+    import statistics
+
+    if not valores:
+        return 0.0, []
+    if len(valores) == 1:
+        return round(valores[0], casas), [round(valores[0], casas)] * 2
+    q1, _, q3 = statistics.quantiles(valores, n=4, method="inclusive")
+    return round(statistics.median(valores), casas), [round(q1, casas), round(q3, casas)]
+
+
+def medir(host: str, nome: str, timeout: int = 300, rodadas: int = RODADAS_DA_MEDIDA, postar=None) -> dict:
+    """
+    Um texto fixo para ler e uma resposta curta para escrever, em `rodadas`
+    rodadas; o Ollama devolve os tempos de cada parte. Carregar é a primeira
+    espera (o modelo sai do disco para a memória); ler é o que pesa na
+    primeira pergunta sobre um documento; escrever é o ritmo da resposta; a
+    primeira palavra é a espera que a pessoa sente.
+
+    Do jeito do Google AI Edge Gallery: várias rodadas, mediana com a faixa
+    do meio, e a primeira (fria, que carrega o modelo) separada das outras.
+    As chaves de antes continuam (com a mediana): a tela, a calibração e o
+    servidor leem as mesmas.
     """
     import fila_modelo
 
-    prompt = f"[medida {time.time_ns()}]\n{TEXTO_DA_MEDIDA}\n\n{PROMPT_DA_MEDIDA}"
+    postar = postar or requests.post
+    comeco = time.time()
     # F1: a medida espera a vez como qualquer chamada - e sai mais certa, sem
-    # outra resposta dividindo o processador.
+    # outra resposta dividindo o processador. Uma vez só para as rodadas todas.
     with fila_modelo.vez_para_o_modelo():
-        comeco = time.time()
-        r = requests.post(f"{host}/api/generate", timeout=timeout, json={
-            "model": nome, "prompt": prompt, "stream": False,
-            "options": {"temperature": 0, "num_predict": 60, "num_ctx": 4096},
-        })
-    r.raise_for_status()
-    d = r.json()
-    escreveu = (d.get("eval_duration") or 0) / 1e9
-    leu = (d.get("prompt_eval_duration") or 0) / 1e9
+        medidas = [_uma_rodada(host, nome, timeout, postar) for _ in range(max(1, rodadas))]
+    escrita, faixa_escrita = _mediana_e_faixa([m["escrita"] for m in medidas])
+    leitura, faixa_leitura = _mediana_e_faixa([m["leitura"] for m in medidas])
+    # A primeira palavra da rodada fria inclui carregar; as mornas, não.
+    mornas = medidas[1:] or medidas
+    primeira, faixa_primeira = _mediana_e_faixa([m["primeira_palavra"] for m in mornas])
     # Com o modelo ainda carregado: quanto dele o Ollama pôs na placa de vídeo.
     # É isto, e não a lista de placas, que diz se a placa é usada aqui.
     import maquina
@@ -186,10 +242,15 @@ def medir(host: str, nome: str, timeout: int = 300) -> dict:
     fracao = maquina.na_placa(host, nome)
     return {
         **({"na_placa": fracao} if fracao is not None else {}),
-        "tokens_por_segundo": round((d.get("eval_count") or 0) / escreveu, 1) if escreveu else 0.0,
-        "leitura_tokens_por_segundo": round((d.get("prompt_eval_count") or 0) / leu, 1) if leu else 0.0,
-        "tokens_lidos": d.get("prompt_eval_count") or 0,
-        "carregar_s": round((d.get("load_duration") or 0) / 1e9, 1),
+        "tokens_por_segundo": escrita,
+        "leitura_tokens_por_segundo": leitura,
+        "tokens_lidos": medidas[0]["lidos"],
+        "carregar_s": round(medidas[0]["carregar"], 1),
+        "carregar_morno_s": round(max(m["carregar"] for m in mornas), 1) if len(medidas) > 1 else None,
+        "primeira_palavra_s": primeira,
+        "primeira_palavra_fria_s": round(medidas[0]["primeira_palavra"], 1),
+        "faixas": {"escrita": faixa_escrita, "leitura": faixa_leitura, "primeira_palavra": faixa_primeira},
+        "rodadas": len(medidas),
         "total_s": round(time.time() - comeco, 1),
         "quando": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }

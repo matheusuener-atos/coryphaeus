@@ -146,7 +146,11 @@ function secaoModelos() {
   const instalados = (d.instalados || []).map((m) => {
     const md = m.medida;
     const medida = md ? " · " + String(md.tokens_por_segundo).replace(".", ",") + " palavras/s, carrega em " +
-      String(md.carregar_s).replace(".", ",") + " s (medido em " + esc(md.quando.slice(8, 10) + "/" + md.quando.slice(5, 7)) + ")" +
+      String(md.carregar_s).replace(".", ",") + " s" +
+      /* A espera que a pessoa sente, com o modelo já carregado (mediana das rodadas). */
+      (md.primeira_palavra_s ? ", primeira palavra em " + String(md.primeira_palavra_s).replace(".", ",") + " s" : "") +
+      " (medido em " + esc(md.quando.slice(8, 10) + "/" + md.quando.slice(5, 7)) +
+      (md.rodadas > 1 ? ", " + md.rodadas + " rodadas" : "") + ")" +
       /* Onde o Ollama pôs o modelo, pela medida (ideia F): a placa só conta se ele usa. */
       (md.na_placa === undefined ? "" : md.na_placa >= 0.5 ? " · na placa de vídeo" : md.na_placa > 0 ? " · em parte na placa" : " · no processador") : "";
     const estimativa = textoDaEstimativa(m);
@@ -154,7 +158,7 @@ function secaoModelos() {
     const marcas = (m.recomendado ? '<span class="etiqueta">recomendado</span>' : "") + (m.padrao ? '<span class="etiqueta">padrão</span>' : "") +
       (m.tarefas || []).map((t) => '<span class="etiqueta">' + esc(ROTULO_TAREFA[t] || t) + "</span>").join("");
     const medir = mod.medindo === m.nome
-      ? '<button disabled>medindo…</button>'
+      ? '<button disabled title="Três rodadas: sem placa de vídeo, pode levar alguns minutos">medindo…</button>'
       : '<button data-mod-medir="' + esc(m.nome) + '"' + (mod.medindo ? " disabled" : "") + ">Medir</button>";
     return '<div class="cfg-servico mod-linha"><span class="caixa-tipo">' + ic("memory", 18) + "</span>" +
       '<span class="duas-linhas cresce"><b>' + esc(m.nome) + "</b><small>" + esc(sub) + "</small>" +
