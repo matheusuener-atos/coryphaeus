@@ -71,11 +71,27 @@ TIPOS = {
 
 MAXIMO = 30
 
+# "ACORDAM os Desembargadores", "Acordam, por unanimidade" e acordao; "As
+# partes acordam que..." e o verbo acordar de todo contrato, e nao decide nada
+# (achado nos contratos reais do acervo: compra e venda, partilha).
+RE_ACORDAM_DE_CONTRATO = re.compile(
+    r"\b(partes|contratantes|contratados?|outorgantes|outorgados?|signat[áa]rios|c[ôo]njug(?:u)?es|ambos|ambas"
+    r"|locador(?:es)?|locat[áa]rios?|vendedor(?:es)?|compradores?|herdeiros)\b[^.;:]{0,40}$",
+    re.IGNORECASE)
+
+
+def _acordam_de_contrato(texto: str, inicio: int, fim: int) -> bool:
+    if re.match(r"\s+que\b", texto[fim:fim + 8], re.IGNORECASE):
+        return True
+    return bool(RE_ACORDAM_DE_CONTRATO.search(texto[max(0, inicio - 60):inicio]))
+
 
 def achar(texto: str) -> list[dict]:
     achados: list[dict] = []
     for encontro in RE_DECISAO.finditer(texto or ""):
         inicio = encontro.start()
+        if encontro.group(1).lower() == "acordam" and _acordam_de_contrato(texto, inicio, encontro.end()):
+            continue
         fim = frases.fim_da_clausula(texto, inicio)
         trecho = texto[inicio:fim]
         # "Publique-se. Registre-se. Intime-se." fecha toda sentenca do pais e

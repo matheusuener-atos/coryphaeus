@@ -108,7 +108,18 @@ def test_o_que_esta_em_ordem_nao_muda() -> None:
     com_clausula = [d for d in docs if redacao.achar_clausulas(d.text)]
     checar(bool(com_clausula), f"há contratos com cláusula para testar ({len(com_clausula)})")
 
+    # A pasta é a do escritório (fora do git), e nem todo documento dela está
+    # em ordem: o de partilha pula da 7ª para a 11ª, e renumerar para 8ª é o
+    # certo. A propriedade vale para o que já está em ordem.
+    fora_de_ordem = [d for d in com_clausula
+                     if [c["numero"] for c in redacao.achar_clausulas(d.text)]
+                     != list(range(1, len(redacao.achar_clausulas(d.text)) + 1))]
+    if fora_de_ordem:
+        print(f"  ({len(fora_de_ordem)} fora de ordem na pasta, não entram aqui: "
+              + ", ".join(d.name[:30] for d in fora_de_ordem) + ")")
     for d in com_clausula:
+        if d in fora_de_ordem:
+            continue
         r = redacao.renumerar(d.text)
         checar(r["texto"] == d.text,
                f"{d.name[:38]}: {r['clausulas']} cláusulas, texto intacto",

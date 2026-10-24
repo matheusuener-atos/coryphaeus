@@ -285,6 +285,14 @@ def test_decisoes() -> None:
            textos)
     checar(ancorados(itens, SENTENCA), "e cada uma aponta para onde está no documento")
 
+    for frase, decide in (
+            ("ACORDAM os Desembargadores da 2ª Câmara Cível, por unanimidade, em dar provimento ao recurso.", True),
+            ("Acordam, por unanimidade, os membros da Turma em negar provimento ao apelo.", True),
+            ("As partes acordam que, em caso de descumprimento, a outra parte poderá rescindir.", False),
+            ("Os CONJUGUES acordam em manter a guarda compartilhada dos filhos.", False)):
+        checar(bool(regras_decisoes.achar(frase)) == decide,
+               f"{'acórdão decide' if decide else 'acordar de contrato não decide'}: {frase[:45]!r}")
+
     docs = index_all_contracts(ACERVO, CACHE, verbose=False)
     total = sum(len(regras_decisoes.extrair(Pedido(texto=d.text)).itens) for d in docs)
     checar(total == 0,

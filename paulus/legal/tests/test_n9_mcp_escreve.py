@@ -20,6 +20,7 @@ N9 - o MCP com escopo por cliente e com ferramentas que escrevem (src/mcp_leis.p
 from __future__ import annotations
 
 import json
+import re
 import os
 import sys
 import tempfile
@@ -106,7 +107,7 @@ def main() -> int:
     texto = chamar(t_w, "criar_rascunho", {"titulo": "Notificação à Beta", "texto": "Prezados,\n\nNotificamos o atraso.\n\nAtenciosamente."})
     doc = base.um("SELECT * FROM documentos ORDER BY id DESC LIMIT 1") or {}
     checar("Rascunho criado" in texto and doc.get("titulo") == "Notificação à Beta (rascunho do assistente)"
-           and "Rascunho criado pelo" in (doc.get("corpo") or "") and "<p>Notificamos o atraso.</p>" in (doc.get("corpo") or ""),
+           and "Rascunho criado pelo" in (doc.get("corpo") or "") and re.search(r"<p[^>]*>Notificamos o atraso\.</p>", doc.get("corpo") or ""),
            "criar_rascunho: documento novo no editor, marcado", texto)
     antes_t = base.contar("tarefas")
     texto = chamar(t_w, "propor_tarefa", {"titulo": "Ligar para a Beta", "prazo": "2026-10-10"})
