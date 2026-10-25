@@ -101,7 +101,150 @@ CODIGOS = {
         "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9503compilado.htm",
         "pistas": ("9503", "transito brasileiro", "ctb-"),
     },
+    # O acervo de 25/10/2026: as leis que o escritorio usa fora dos codigos
+    # (familia, imoveis, rural no Para, processo, o proprio advogado).
+    # Enderecos conferidos no Planalto em 25/10/2026; texto compilado onde ha
+    # (Improbidade com a reforma de 2021, Estatuto da Terra, ACP). Estas nao
+    # sao "gerais": a busca por assunto so vai a elas quando a frase as nomeia
+    # (CODIGO_NA_FRASE) - medido em tools/medir_leis.py.
+    "oab": {
+        "nome": "Estatuto da Advocacia e da OAB",
+        "lei": "Lei nº 8.906, de 4 de julho de 1994",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8906.htm",
+        "pistas": ("8906", "estatuto da advocacia", "oab-"),
+    },
+    "lgpd": {
+        "nome": "Lei Geral de Proteção de Dados Pessoais",
+        "lei": "Lei nº 13.709, de 14 de agosto de 2018",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm",
+        "pistas": ("13709", "protecao de dados pessoais", "lgpd-"),
+    },
+    "lindb": {
+        "nome": "Lei de Introdução às Normas do Direito Brasileiro",
+        "lei": "Decreto-Lei nº 4.657, de 4 de setembro de 1942",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del4657compilado.htm",
+        "pistas": ("4657", "introducao as normas", "lindb-"),
+    },
+    "alimentos": {
+        "nome": "Lei de Alimentos",
+        "lei": "Lei nº 5.478, de 25 de julho de 1968",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l5478.htm",
+        "pistas": ("5478", "acao de alimentos", "alimentos-"),
+    },
+    "bem_de_familia": {
+        "nome": "Lei do Bem de Família",
+        "lei": "Lei nº 8.009, de 29 de março de 1990",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8009.htm",
+        "pistas": ("8009", "impenhorabilidade do bem de familia", "bem_de_familia-"),
+        "minimo": 6,
+    },
+    "registros": {
+        "nome": "Lei de Registros Públicos",
+        "lei": "Lei nº 6.015, de 31 de dezembro de 1973",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l6015compilada.htm",
+        "pistas": ("6015", "registros publicos", "registros-"),
+    },
+    "terra": {
+        "nome": "Estatuto da Terra",
+        "lei": "Lei nº 4.504, de 30 de novembro de 1964",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l4504compilada.htm",
+        "pistas": ("4504", "estatuto da terra", "terra-"),
+    },
+    "florestal": {
+        "nome": "Código Florestal",
+        "lei": "Lei nº 12.651, de 25 de maio de 2012",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12651compilado.htm",
+        "pistas": ("12651", "protecao da vegetacao nativa", "florestal-"),
+    },
+    "ambientais": {
+        "nome": "Lei de Crimes Ambientais",
+        "lei": "Lei nº 9.605, de 12 de fevereiro de 1998",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9605.htm",
+        "pistas": ("9605", "lesivas ao meio ambiente", "ambientais-"),
+    },
+    "juizados": {
+        "nome": "Lei dos Juizados Especiais",
+        "lei": "Lei nº 9.099, de 26 de setembro de 1995",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9099.htm",
+        "pistas": ("9099", "juizados especiais civeis e criminais", "juizados-"),
+    },
+    "ms": {
+        "nome": "Lei do Mandado de Segurança",
+        "lei": "Lei nº 12.016, de 7 de agosto de 2009",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2009/lei/l12016.htm",
+        "pistas": ("12016", "mandado de seguranca individual e coletivo", "ms-"),
+    },
+    "acp": {
+        "nome": "Lei da Ação Civil Pública",
+        "lei": "Lei nº 7.347, de 24 de julho de 1985",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l7347compilada.htm",
+        "pistas": ("7347", "acao civil publica", "acp-"),
+    },
+    "arbitragem": {
+        "nome": "Lei de Arbitragem",
+        "lei": "Lei nº 9.307, de 23 de setembro de 1996",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9307.htm",
+        "pistas": ("9307", "dispoe sobre a arbitragem", "arbitragem-"),
+    },
+    "mediacao": {
+        "nome": "Lei de Mediação",
+        "lei": "Lei nº 13.140, de 26 de junho de 2015",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13140.htm",
+        "pistas": ("13140", "mediacao entre particulares", "mediacao-"),
+    },
+    "custeio": {
+        "nome": "Lei de Custeio da Seguridade Social",
+        "lei": "Lei nº 8.212, de 24 de julho de 1991",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8212cons.htm",
+        "pistas": ("8212", "plano de custeio", "custeio-"),
+    },
+    "beneficios": {
+        "nome": "Lei de Benefícios da Previdência Social",
+        "lei": "Lei nº 8.213, de 24 de julho de 1991",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm",
+        "pistas": ("8213", "planos de beneficios", "beneficios-"),
+    },
+    "falencia": {
+        "nome": "Lei de Recuperação Judicial e Falência",
+        "lei": "Lei nº 11.101, de 9 de fevereiro de 2005",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2005/lei/l11101.htm",
+        "pistas": ("11101", "recuperacao judicial", "falencia-"),
+    },
+    "idoso": {
+        "nome": "Estatuto da Pessoa Idosa",
+        "lei": "Lei nº 10.741, de 1º de outubro de 2003",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm",
+        "pistas": ("10741", "estatuto da pessoa idosa", "idoso-"),
+    },
+    "maria_da_penha": {
+        "nome": "Lei Maria da Penha",
+        "lei": "Lei nº 11.340, de 7 de agosto de 2006",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
+        "pistas": ("11340", "violencia domestica e familiar contra a mulher", "maria_da_penha-"),
+    },
+    "licitacoes": {
+        "nome": "Lei de Licitações e Contratos Administrativos",
+        "lei": "Lei nº 14.133, de 1º de abril de 2021",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm",
+        "pistas": ("14133", "licitacoes e contratos administrativos", "licitacoes-"),
+    },
+    "improbidade": {
+        "nome": "Lei de Improbidade Administrativa",
+        "lei": "Lei nº 8.429, de 2 de junho de 1992",
+        "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8429compilada.htm",
+        "pistas": ("8429", "improbidade administrativa", "improbidade-"),
+    },
 }
+
+# Os codigos de sempre: a busca por assunto sem lei nomeada fica neles, como
+# antes do acervo de 25/10 - com 32 leis, "prazo para contestar" achava a lei
+# de outro procedimento antes do CPC.
+GERAIS = ("cc", "cpc", "cp", "clt", "cdc", "cf", "ctn", "eca", "inquilinato", "cpp", "ctb")
+
+
+def minimo_de_artigos(codigo: str) -> int:
+    """Abaixo disto o arquivo nao e a lei inteira (a pagina mudou, ou e outro texto)."""
+    return int(CODIGOS.get(codigo, {}).get("minimo", 20))
 
 # O identificador de cada codigo na camada de inteligencia
 # (src/inteligencia/extratores/regras_leis.py): e por ele que uma citacao
@@ -110,6 +253,12 @@ INSTRUMENTO = {
     "cc": "lei_10406_2002", "cpc": "lei_13105_2015", "cp": "decreto_lei_2848_1940", "clt": "decreto_lei_5452_1943",
     "cdc": "lei_8078_1990", "cf": "constituicao_1988", "ctn": "lei_5172_1966", "eca": "lei_8069_1990",
     "inquilinato": "lei_8245_1991", "cpp": "decreto_lei_3689_1941", "ctb": "lei_9503_1997",
+    "oab": "lei_8906_1994", "lgpd": "lei_13709_2018", "lindb": "decreto_lei_4657_1942", "alimentos": "lei_5478_1968",
+    "bem_de_familia": "lei_8009_1990", "registros": "lei_6015_1973", "terra": "lei_4504_1964",
+    "florestal": "lei_12651_2012", "ambientais": "lei_9605_1998", "juizados": "lei_9099_1995", "ms": "lei_12016_2009",
+    "acp": "lei_7347_1985", "arbitragem": "lei_9307_1996", "mediacao": "lei_13140_2015", "custeio": "lei_8212_1991",
+    "beneficios": "lei_8213_1991", "falencia": "lei_11101_2005", "idoso": "lei_10741_2003",
+    "maria_da_penha": "lei_11340_2006", "licitacoes": "lei_14133_2021", "improbidade": "lei_8429_1992",
 }
 CODIGO_DO_INSTRUMENTO = {v: k for k, v in INSTRUMENTO.items()}
 
@@ -130,6 +279,27 @@ TITULOS = {
     "inquilinato": r"lei n\S{0,2}\s*8\.?245",
     "cpp": r"decreto-lei n\S{0,2}\s*3\.?689",
     "ctb": r"lei n\S{0,2}\s*9\.?503",
+    "oab": r"lei n\S{0,2}\s*8\.?906",
+    "lgpd": r"lei n\S{0,2}\s*13\.?709",
+    "lindb": r"decreto-lei n\S{0,2}\s*4\.?657",
+    "alimentos": r"lei n\S{0,2}\s*5\.?478",
+    "bem_de_familia": r"lei n\S{0,2}\s*8\.?009",
+    "registros": r"lei n\S{0,2}\s*6\.?015",
+    "terra": r"lei n\S{0,2}\s*4\.?504",
+    "florestal": r"lei n\S{0,2}\s*12\.?651",
+    "ambientais": r"lei n\S{0,2}\s*9\.?605",
+    "juizados": r"lei n\S{0,2}\s*9\.?099",
+    "ms": r"lei n\S{0,2}\s*12\.?016",
+    "acp": r"lei n\S{0,2}\s*7\.?347",
+    "arbitragem": r"lei n\S{0,2}\s*9\.?307",
+    "mediacao": r"lei n\S{0,2}\s*13\.?140",
+    "custeio": r"lei n\S{0,2}\s*8\.?212",
+    "beneficios": r"lei n\S{0,2}\s*8\.?213",
+    "falencia": r"lei n\S{0,2}\s*11\.?101",
+    "idoso": r"lei n\S{0,2}\s*10\.?741",
+    "maria_da_penha": r"lei n\S{0,2}\s*11\.?340",
+    "licitacoes": r"lei n\S{0,2}\s*14\.?133",
+    "improbidade": r"lei n\S{0,2}\s*8\.?429",
 }
 
 # Os artigos do ADCT recomecam do 1o dentro do texto da Constituicao. Ficam no
@@ -262,7 +432,14 @@ class Artigo:
 
 
 SIGLAS = {"cc": "CC", "cpc": "CPC", "cp": "CP", "clt": "CLT", "cdc": "CDC", "cf": "CF", "ctn": "CTN", "eca": "ECA",
-          "inquilinato": "Lei 8.245/1991", "cpp": "CPP", "ctb": "CTB"}
+          "inquilinato": "Lei 8.245/1991", "cpp": "CPP", "ctb": "CTB",
+          "oab": "EAOAB", "lgpd": "LGPD", "lindb": "LINDB", "alimentos": "Lei 5.478/1968",
+          "bem_de_familia": "Lei 8.009/1990", "registros": "Lei 6.015/1973", "terra": "Estatuto da Terra",
+          "florestal": "Código Florestal", "ambientais": "Lei 9.605/1998", "juizados": "Lei 9.099/1995",
+          "ms": "Lei 12.016/2009", "acp": "Lei 7.347/1985", "arbitragem": "Lei 9.307/1996",
+          "mediacao": "Lei 13.140/2015", "custeio": "Lei 8.212/1991", "beneficios": "Lei 8.213/1991",
+          "falencia": "Lei 11.101/2005", "idoso": "Estatuto da Pessoa Idosa", "maria_da_penha": "Lei 11.340/2006",
+          "licitacoes": "Lei 14.133/2021", "improbidade": "Lei 8.429/1992"}
 
 
 def citar(codigo: str, numero: str) -> str:
@@ -281,16 +458,21 @@ def _texto_do_html(bruto: bytes) -> str:
     HTML do Planalto virando texto, um bloco por linha.
 
     A codificação vem declarada como windows-1252 e é isso mesmo: decodificar
-    como UTF-8 falha no primeiro acento.
+    como UTF-8 falha no primeiro acento. Algumas páginas antigas do FrontPage
+    vêm em UTF-16, com a marca no começo (a Lei Maria da Penha): lidas como
+    windows-1252, eram um zero no meio de cada letra e nenhum artigo.
     """
-    achado = re.search(rb'charset=["\']?([\w-]+)', bruto[:4000], re.IGNORECASE)
-    codificacao = (achado.group(1).decode("ascii", "ignore") if achado else "cp1252").lower()
-    if codificacao in ("iso-8859-1", "latin-1", "windows-1252", "cp1252"):
-        codificacao = "cp1252"
-    try:
-        texto = bruto.decode(codificacao, errors="replace")
-    except LookupError:
-        texto = bruto.decode("cp1252", errors="replace")
+    if bruto[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        texto = bruto.decode("utf-16", errors="replace")
+    else:
+        achado = re.search(rb'charset=["\']?([\w-]+)', bruto[:4000], re.IGNORECASE)
+        codificacao = (achado.group(1).decode("ascii", "ignore") if achado else "cp1252").lower()
+        if codificacao in ("iso-8859-1", "latin-1", "windows-1252", "cp1252"):
+            codificacao = "cp1252"
+        try:
+            texto = bruto.decode(codificacao, errors="replace")
+        except LookupError:
+            texto = bruto.decode("cp1252", errors="replace")
 
     texto = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", texto, flags=re.S | re.I)
     # A quebra de linha do codigo-fonte e espaco, como no navegador. O
@@ -354,6 +536,7 @@ def ler_codigo(caminho: Path | str, codigo: str) -> tuple[list[Artigo], dict]:
 
 # Uma linha de dispositivo: paragrafo, inciso, alinea. Nunca e nome de
 # Titulo ou Capitulo, mesmo curta.
+RE_A_SEGUIR = re.compile(r"(seguinte reda[çc][ãa]o|passa(?:m)? a vigorar[^:]*):\s*$", re.IGNORECASE)
 RE_DISPOSITIVO = re.compile(r"^(?:§|Par[áa]grafo|[IVXLCDM]{1,7}\s*[-–—]|[a-z]\)|\(Revogad|\(Vetad|\(Inclu)")
 
 
@@ -420,9 +603,29 @@ def ler_linhas(linhas: list[str], codigo: str) -> tuple[list[Artigo], dict]:
         if junto:
             artigos.append(atual)
 
+    entre_aspas = False
+    linha_anterior = ""
     for linha in linhas:
         linha = (linha or "").strip()
         if not linha or re.fullmatch(r"\[pagina \d+\]", linha):
+            continue
+        anterior_redacao = bool(RE_A_SEGUIR.search(linha_anterior))
+        linha_anterior = linha
+
+        # A lei que muda outra cita o texto novo entre aspas, e a citação pode
+        # abrir antes do "Art.": o art. 178 da Lei 14.133 traz “CAPÍTULO II-B
+        # ... Art. 337-E ... Art. 337-P ...” para o Código Penal. Lido como
+        # artigo, o 337-P virava o maior número da lei, e do 179 ao 194 tudo
+        # passava por citação e sumia. Entre a aspa que abre e a que fecha,
+        # tudo é corpo do artigo que está citando.
+        if entre_aspas or linha.startswith("“"):
+            if RE_ARTIGO.match(linha.lstrip("“ ")):
+                fora["citados"] += 1
+            if atual is not None:
+                corpo.append(linha)
+            abre, fecha = linha.rfind("“"), linha.rfind("”")
+            if abre != fecha:   # sem aspa nenhuma na linha (-1 e -1), a citação continua como estava
+                entre_aspas = abre > fecha
             continue
 
         if codigo == "cf" and not no_preambulo and not base_ordem and RE_ADCT.match(linha):
@@ -467,7 +670,12 @@ def ler_linhas(linhas: list[str], codigo: str) -> tuple[list[Artigo], dict]:
                     maior = max(maior, maior_pendente)
                 pendentes = None
 
-            if not no_preambulo and ordem <= maior:
+            # Sem aspas, a lei antiga diz "o artigo 921 do Código de Processo
+            # Civil ... passa a vigorar com a seguinte redação:" e o artigo vem
+            # na linha de baixo (Lei de Alimentos, de 1968). Logo depois dessa
+            # fórmula, um número muito à frente é o artigo da outra lei.
+            citado_sem_aspas = bool(anterior_redacao and maior and ordem > maior + 50 * 1_000_000)
+            if (not no_preambulo and ordem <= maior) or citado_sem_aspas:
                 # Artigo de outra lei, citado aqui dentro: o texto é do artigo
                 # que está citando, e não de um artigo novo deste código.
                 fora["citados"] += 1
@@ -504,6 +712,14 @@ def ler_linhas(linhas: list[str], codigo: str) -> tuple[list[Artigo], dict]:
     if no_preambulo:
         # Texto sem cabeçalho de estrutura nenhum: tudo o que há são artigos.
         fora["preambulo"] = 0
+    # A página que não é compilada (Lei de Alimentos, do Mandado de Segurança)
+    # traz a redação antiga riscada e, logo depois, a de agora "(Redação dada
+    # pela Lei ...)": o mesmo artigo duas vezes. Fica a última, a vigente - e
+    # a base, que tem um artigo por número, deixa de recusar a lei inteira.
+    ultima = {a.ordem: i for i, a in enumerate(artigos)}
+    if len(ultima) < len(artigos):
+        fora["redacao_antiga"] = len(artigos) - len(ultima)
+        artigos = [a for i, a in enumerate(artigos) if ultima[a.ordem] == i]
     return artigos, fora
 
 
@@ -591,7 +807,7 @@ class Leis:
         return self._gravar(codigo, artigos, fora, arquivo, "arquivo entregue: " + Path(arquivo or "").name)
 
     def _gravar(self, codigo: str, artigos: list[Artigo], fora: dict, arquivo: str, fonte: str) -> dict:
-        if len(artigos) < 20:
+        if len(artigos) < minimo_de_artigos(codigo):
             raise ValueError(
                 f"só achei {len(artigos)} artigo(s) neste arquivo. Ele parece não ser o "
                 "texto compilado da lei — salve a página do Planalto como HTML completo."
@@ -758,6 +974,9 @@ class Leis:
                 radicais.append(radical)
         if not radicais:
             return []
+        # Sem lei nomeada, so os codigos de sempre (GERAIS): as leis de 25/10
+        # entram quando a frase as nomeia. Medido em tools/medir_leis.py.
+        codigos = codigos or list(GERAIS)
         onde = "artigos_busca MATCH ?"
         parametros: list = [" OR ".join(f'"{r}"*' for r in radicais)]
         if codigos:
@@ -806,6 +1025,32 @@ def _plano(texto: str) -> str:
 
 # O código que a frase nomeia ("no CPC", "segundo o Código Civil").
 CODIGO_NA_FRASE = (
+    # As leis de 25/10 vem antes: quem pega o primeiro achado (citacoes.py)
+    # nao pode cair no Codigo Civil quando a frase nomeia a Lei do Bem de
+    # Familia. Assunto que tambem esta num codigo (alimentos e bem de familia
+    # no CC, mediacao no CPC) so conta com o nome da lei ou o numero.
+    ("oab", r"estatuto da (advocacia|oab)|\beaoab\b|\b8\.?906\b"),
+    ("lgpd", r"\blgpd\b|protecao de dados|\b13\.?709\b"),
+    ("lindb", r"\blindb\b|introducao as normas|\b4\.?657\b"),
+    ("alimentos", r"lei de alimentos|\b5\.?478\b"),
+    ("bem_de_familia", r"lei do bem de familia|\b8\.?009\b"),
+    ("registros", r"registros? publicos|registro de imoveis|\b6\.?015\b"),
+    ("terra", r"estatuto da terra|arrendamento rural|parceria rural|\b4\.?504\b"),
+    ("florestal", r"codigo florestal|reserva legal|preservacao permanente|\b12\.?651\b"),
+    ("ambientais", r"crimes? ambienta|\b9\.?605\b"),
+    ("juizados", r"juizados? especia|\b9\.?099\b"),
+    ("ms", r"mandado de seguranca|\b12\.?016\b"),
+    ("acp", r"acao civil publica|\b7\.?347\b"),
+    ("arbitragem", r"arbitragem|sentenca arbitral|\b9\.?307\b"),
+    ("mediacao", r"lei de mediacao|\b13\.?140\b"),
+    ("custeio", r"lei de custeio|contribuic\w* previdenciari|\b8\.?212\b"),
+    ("beneficios", r"lei de beneficios|aposentadoria|auxilio[- ]doenca|auxilio por incapacidade|pensao por morte"
+                   r"|salario[- ]maternidade|beneficio previdenciario|\binss\b|\b8\.?213\b"),
+    ("falencia", r"falencia|recuperacao (judicial|extrajudicial)|\b11\.?101\b"),
+    ("idoso", r"estatuto d[ao] (pessoa )?idos|\b10\.?741\b"),
+    ("maria_da_penha", r"maria da penha|violencia domestica|medidas? protetivas?|\b11\.?340\b"),
+    ("licitacoes", r"licitac|\bpregao\b|\b14\.?133\b"),
+    ("improbidade", r"improbidade|\b8\.?429\b"),
     ("cpc", r"\bcpc\b|processo civil"), ("cc", r"\bcc\b|codigo civil"), ("cf", r"\bcf\b|constituicao"),
     ("clt", r"\bclt\b|trabalhist"), ("cdc", r"\bcdc\b|defesa do consumidor"), ("cpp", r"\bcpp\b|processo penal"),
     ("cp", r"\bcp\b|codigo penal"), ("ctn", r"\bctn\b|tributario nacional"), ("eca", r"\beca\b|crianca e do adolescente"),

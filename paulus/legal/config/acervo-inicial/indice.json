@@ -1,5 +1,5 @@
 {
-  "montado_em": "2026-09-30",
+  "montado_em": "2026-10-24",
   "codigos": {
     "cc": {
       "arquivo": "l10406compilada.htm.gz",
@@ -55,6 +55,111 @@
       "arquivo": "l9503compilado.htm.gz",
       "artigos": 391,
       "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9503compilado.htm"
+    },
+    "oab": {
+      "arquivo": "l8906.htm.gz",
+      "artigos": 96,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8906.htm"
+    },
+    "lgpd": {
+      "arquivo": "l13709compilado.htm.gz",
+      "artigos": 79,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm"
+    },
+    "lindb": {
+      "arquivo": "del4657compilado.htm.gz",
+      "artigos": 30,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del4657compilado.htm"
+    },
+    "alimentos": {
+      "arquivo": "l5478.htm.gz",
+      "artigos": 29,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l5478.htm"
+    },
+    "bem_de_familia": {
+      "arquivo": "l8009.htm.gz",
+      "artigos": 8,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8009.htm"
+    },
+    "registros": {
+      "arquivo": "l6015compilada.htm.gz",
+      "artigos": 321,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l6015compilada.htm"
+    },
+    "terra": {
+      "arquivo": "l4504compilada.htm.gz",
+      "artigos": 129,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l4504compilada.htm"
+    },
+    "florestal": {
+      "arquivo": "l12651compilado.htm.gz",
+      "artigos": 91,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12651compilado.htm"
+    },
+    "ambientais": {
+      "arquivo": "l9605.htm.gz",
+      "artigos": 87,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9605.htm"
+    },
+    "juizados": {
+      "arquivo": "l9099.htm.gz",
+      "artigos": 99,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9099.htm"
+    },
+    "ms": {
+      "arquivo": "l12016.htm.gz",
+      "artigos": 29,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2009/lei/l12016.htm"
+    },
+    "acp": {
+      "arquivo": "l7347compilada.htm.gz",
+      "artigos": 23,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l7347compilada.htm"
+    },
+    "arbitragem": {
+      "arquivo": "l9307.htm.gz",
+      "artigos": 47,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l9307.htm"
+    },
+    "mediacao": {
+      "arquivo": "l13140.htm.gz",
+      "artigos": 48,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13140.htm"
+    },
+    "custeio": {
+      "arquivo": "l8212cons.htm.gz",
+      "artigos": 112,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8212cons.htm"
+    },
+    "beneficios": {
+      "arquivo": "l8213cons.htm.gz",
+      "artigos": 183,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm"
+    },
+    "falencia": {
+      "arquivo": "l11101.htm.gz",
+      "artigos": 261,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2005/lei/l11101.htm"
+    },
+    "idoso": {
+      "arquivo": "l10.741.htm.gz",
+      "artigos": 118,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm"
+    },
+    "maria_da_penha": {
+      "arquivo": "l11340.htm.gz",
+      "artigos": 57,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm"
+    },
+    "licitacoes": {
+      "arquivo": "l14133.htm.gz",
+      "artigos": 196,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm"
+    },
+    "improbidade": {
+      "arquivo": "l8429compilada.htm.gz",
+      "artigos": 35,
+      "fonte": "https://www.planalto.gov.br/ccivil_03/leis/l8429compilada.htm"
     }
   },
   "sumulas": {

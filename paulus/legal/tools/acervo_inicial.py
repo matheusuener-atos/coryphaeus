@@ -58,9 +58,25 @@ def sumulas_do_stj(pdf: bytes) -> tuple[str, int, int]:
 
 
 def main() -> None:
+    """
+    Acrescenta ao pacote as leis de leis.CODIGOS que ainda nao estao nele. O
+    indice.json tem mais do que este script faz (sumulas do STF, temas,
+    vigencia - stf_pacote.py, temas_stj.py, vigencia_pacote.py): ele e lido e
+    regravado com o que ja tinha. Antes, rodar de novo apagava aquilo tudo.
+
+        --tudo   baixa de novo todas as leis (o Planalto mudou o texto)
+        --stj    refaz as sumulas do STJ
+    """
     DESTINO.mkdir(parents=True, exist_ok=True)
-    indice = {"montado_em": date.today().isoformat(), "codigos": {}, "sumulas": {}}
+    caminho = DESTINO / "indice.json"
+    indice = json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {"codigos": {}, "sumulas": {}}
+    indice.setdefault("codigos", {})
+    indice.setdefault("sumulas", {})
+    indice["montado_em"] = date.today().isoformat()
+    tudo = "--tudo" in sys.argv
     for codigo, dados in leis.CODIGOS.items():
+        if codigo in indice["codigos"] and not tudo:
+            continue
         r = requests.get(dados["fonte"], timeout=120, headers=CABECA)
         r.raise_for_status()
         nome = Path(dados["fonte"]).name + ".gz"
@@ -70,11 +86,16 @@ def main() -> None:
             artigos, _ = leis.ler_codigo(provisorio, codigo)
         finally:
             provisorio.unlink(missing_ok=True)
-        if len(artigos) < 20:
+        if len(artigos) < leis.minimo_de_artigos(codigo):
             raise SystemExit(f"{codigo}: só {len(artigos)} artigos - o Planalto mudou a página?")
         (DESTINO / nome).write_bytes(gzip.compress(r.content, 9, mtime=0))
         indice["codigos"][codigo] = {"arquivo": nome, "artigos": len(artigos), "fonte": dados["fonte"]}
         print(f"{codigo}: {len(artigos)} artigos")
+        # Grava a cada lei: o Planalto cai no meio, e o que ja veio fica.
+        caminho.write_text(json.dumps(indice, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if "stj" in indice["sumulas"] and "--stj" not in sys.argv:
+        caminho.write_text(json.dumps(indice, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return
     r = requests.get(STJ, timeout=120, headers=CABECA)
     r.raise_for_status()
     texto, n, canceladas = sumulas_do_stj(r.content)

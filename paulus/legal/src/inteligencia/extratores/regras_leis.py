@@ -71,11 +71,21 @@ RE_ARTIGO = re.compile(
     r"(?P<resto>(?:\s*[,;]?\s*(?:§+\s*\d+[ºo°]?|par[áa]grafo\s+[úu]nico|"
     r"inciso\s+[IVXLCDM]+|al[íi]nea\s+[a-z]\b|[IVXLCDM]{1,6}\b)){0,3})"
     r"(?P<lei>(?:\s*,?\s*(?:d[aoe]s?\s+)?(?:CPC|CC|CF|CLT|CP|CPP|CDC|CTN|CTB|ECA|"
-    r"Lei\s*n?[º°.]?\s*[\d.]+\s*/\s*\d{4}|C[óo]digo[^.;\n]{0,40}|Constitui[çc][ãa]o[^.;\n]{0,30}))?)",
+    r"Lei\s*n?[º°.]?\s*[\d.]+\s*/\s*(?:\d{4}|\d{2})(?!\d)|C[óo]digo[^.;\n]{0,40}|Constitui[çc][ãa]o[^.;\n]{0,30}))?)",
     re.IGNORECASE)
 
 RE_LEI = re.compile(
-    r"\bLei\s*(?:Complementar\s*)?n?[º°.]?\s*([\d]{1,3}(?:\.\d{3})*)\s*/\s*(\d{4})", re.IGNORECASE)
+    r"\bLei\s*(?:Complementar\s*)?n?[º°.]?\s*([\d]{1,3}(?:\.\d{3})*)\s*/\s*(\d{4}|\d{2})(?!\d)", re.IGNORECASE)
+
+
+def _ano(bruto: str) -> str:
+    """"95" e "21", como o advogado escreve a lei ("Lei 9.099/95"), viram 1995 e 2021."""
+    if len(bruto) == 4:
+        return bruto
+    from datetime import date
+
+    yy = int(bruto)
+    return str(2000 + yy if yy <= date.today().year % 100 else 1900 + yy)
 
 RE_SUMULA = re.compile(
     r"\bS[úu]mula\s*(?:Vinculante\s*)?n?[º°.]?\s*(\d+)"
@@ -97,8 +107,8 @@ def _instrumento(bruto: str) -> tuple[str, str, str]:
     plano = _plano(bruto)
     lei = RE_LEI.search(bruto or "")
     if lei:
-        numero = lei.group(1).replace(".", "")
-        return ("", f"lei_{numero}_{lei.group(2)}", f"Lei {lei.group(1)}/{lei.group(2)}")
+        numero, ano = lei.group(1).replace(".", ""), _ano(lei.group(2))
+        return ("", f"lei_{numero}_{ano}", f"Lei {lei.group(1)}/{ano}")
 
     for nome, sigla in POR_EXTENSO.items():
         if nome in plano:
@@ -146,11 +156,11 @@ def achar(texto: str) -> list[dict]:
         # A lei que ja foi citada colada a um artigo nao vira item separado.
         if any(a["inicio"] <= encontro.start() < a["fim"] for a in achados):
             continue
-        numero = encontro.group(1).replace(".", "")
+        numero, ano = encontro.group(1).replace(".", ""), _ano(encontro.group(2))
         achados.append({
-            "dados": {"kind": "law", "instrument_id": f"lei_{numero}_{encontro.group(2)}",
-                      "instrument": f"Lei {encontro.group(1)}/{encontro.group(2)}",
-                      "instrument_name": f"Lei {encontro.group(1)}/{encontro.group(2)}"},
+            "dados": {"kind": "law", "instrument_id": f"lei_{numero}_{ano}",
+                      "instrument": f"Lei {encontro.group(1)}/{ano}",
+                      "instrument_name": f"Lei {encontro.group(1)}/{ano}"},
             "inicio": encontro.start(), "fim": encontro.end(),
         })
 

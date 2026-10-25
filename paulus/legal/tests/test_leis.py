@@ -25,6 +25,7 @@ download para passar.
 
 from __future__ import annotations
 
+import re
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -377,6 +378,69 @@ def test_oficiais(tmp: Path) -> None:
 
 
 
+def _lei_curta(corpo: str) -> str:
+    """Uma lei sem cabeçalho de estrutura, como as do acervo de 25/10."""
+    return '<html><head><meta charset="utf-8"></head><body><p>LEI Nº 9.999, DE 1990</p>' + corpo + "".join(
+        f"<p>Art. {n}. Artigo de enchimento {n}.</p>" for n in range(30, 52)) + "</body></html>"
+
+
+def test_paginas_do_acervo_novo(tmp: Path) -> None:
+    """O que as leis de 25/10/2026 trouxeram de novo para o leitor."""
+    print("\nas páginas das leis de 25/10")
+    pagina = tmp / "utf16.htm"
+    pagina.write_bytes(_lei_curta("<p>Art. 1º Constatada a prática de violência, o juiz poderá aplicar medidas.</p>"
+                                  ).encode("utf-16"))
+    artigos, _ = leis.ler_codigo(pagina, "maria_da_penha")
+    checar(artigos and artigos[0].numero == "1º" and "prática" in artigos[0].texto,
+           "página em UTF-16 (a Lei Maria da Penha no Planalto) é lida, com acento",
+           artigos[0].texto[:60] if artigos else "nenhum artigo")
+
+    citado = (_lei_curta("<p>Art. 1º Esta lei trata de licitação.</p>"
+                         "<p>Art. 2º O Código Penal passa a vigorar acrescido do seguinte Capítulo II-B:</p>"
+                         "<p>“CAPÍTULO II-B</p><p>DOS CRIMES</p><p>Art. 337-E. Admitir contratação direta.</p>"
+                         "<p>Art. 337-P. A pena de multa.”</p>"
+                         "<p>Art. 3º Esta lei entra em vigor na data da publicação.</p>"))
+    (tmp / "aspas.htm").write_text(citado, encoding="utf-8")
+    artigos, fora = leis.ler_codigo(tmp / "aspas.htm", "licitacoes")
+    numeros = [a.numero for a in artigos]
+    checar("337-E" not in numeros and "3º" in numeros and "337-E" in artigos[1].texto,
+           "o capítulo citado entre aspas fica no artigo que cita, e o seguinte não some", numeros[:5])
+
+    antiga = _lei_curta("<p>Art. 1º Da decisão caberá agravo de petição.</p>"
+                        "<p>Art. 1º Da sentença caberá apelação. (Redação dada pela Lei nº 6.014, de 1973)</p>"
+                        "<p>Art. 2º O artigo 921 do Código de Processo Civil passa a vigorar com a seguinte redação:</p>"
+                        "<p>Art. 921. O cumprimento da pena não exime o devedor.</p>"
+                        "<p>Art. 3º Revogam-se as disposições em contrário.</p>")
+    (tmp / "antiga.htm").write_text(antiga, encoding="utf-8")
+    artigos, fora = leis.ler_codigo(tmp / "antiga.htm", "alimentos")
+    numeros = [a.numero for a in artigos]
+    checar(numeros.count("1º") == 1 and "apelação" in artigos[0].texto and fora.get("redacao_antiga") == 1,
+           "redação antiga e nova do mesmo artigo: fica a vigente", (numeros[:3], fora))
+    checar("921" not in numeros and "3º" in numeros, "artigo de outra lei depois de 'seguinte redação:' é citação",
+           numeros[:5])
+    checar(leis.minimo_de_artigos("bem_de_familia") < 20 <= leis.minimo_de_artigos("cc"),
+           "a Lei do Bem de Família (8 artigos) tem o mínimo dela")
+
+    base = Base(tmp / "assunto.db")
+    L = leis.Leis(base)
+    (tmp / "juiz.htm").write_text(_lei_curta(
+        "<p>Art. 1º O prazo para contestar no juizado é de quinze dias.</p>"), encoding="utf-8")
+    L.importar(tmp / "juiz.htm", "juizados")
+    checar(L.procurar_assunto("qual o prazo para contestar?") == [],
+           "sem lei nomeada, a busca por assunto fica nos códigos gerais")
+    achados = L.procurar_assunto("qual o prazo para contestar no juizado especial?")
+    checar(achados and achados[0]["codigo"] == "juizados" and achados[0]["citacao"] == "Lei 9.099/1995, art. 1º",
+           "com a lei nomeada, ela entra", achados[:1])
+    checar(not any(re.search(p, "quanto de alimentos o pai paga?") for c, p in leis.CODIGO_NA_FRASE
+                   if c == "alimentos"), "'alimentos' sozinho continua no Código Civil")
+    from inteligencia.extratores import regras_leis
+
+    base.fechar()
+    ids = [a["dados"].get("instrument_id") for a in regras_leis.achar("art. 42 da Lei 9.099/95 e a Lei nº 14.133/21")]
+    checar(ids == ["lei_9099_1995", "lei_14133_2021"] and leis.CODIGO_DO_INSTRUMENTO.get(ids[0]) == "juizados",
+           "'Lei 9.099/95', com o ano em dois dígitos, chega à lei guardada", ids)
+
+
 def main() -> int:
     print("=" * 55)
     print("PAULUS - códigos de lei")
@@ -390,6 +454,7 @@ def main() -> int:
         test_base(tmp)
         test_recusa(tmp)
         test_oficiais(tmp)
+        test_paginas_do_acervo_novo(tmp)
 
     print("\n" + "=" * 55)
     if _falhas:
