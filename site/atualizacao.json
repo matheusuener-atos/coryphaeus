@@ -1,11 +1,22 @@
 {
-  "versao": "0.9.37",
-  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.37/PAULUS-0.9.37-instalador.exe",
-  "sha256": "27f3d842f279fa55dbef850e1470df9ff0d8ad4798b6f8c60568ff76030e3ed7",
-  "tamanho": 102791894,
-  "publicada": "2026-10-12",
-  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.37",
+  "versao": "0.9.38",
+  "url": "https://github.com/matheusuener-atos/coryphaeus/releases/download/v0.9.38/PAULUS-0.9.38-instalador.exe",
+  "sha256": "93ad3071c67d13ee763b2016c6695fa251dbc88c3c70fd9094e8dc41b925584a",
+  "tamanho": 102909485,
+  "publicada": "2026-10-24",
+  "notas": "https://github.com/matheusuener-atos/coryphaeus/releases/tag/v0.9.38",
   "novidades": [
-    "A IA da nuvem do plano e o padrao (regra de 12/10/2026): com a conta da nuvem do PAVLVS ativada nesta instalacao, ela responde sem interruptor - o \"ligado\" das preferencias so vale para a chave propria. O sim ao termo vem com a assinatura (nuvem.sim_pela_assinatura, registrado com a origem \"pela ass"
+    "Transcricao de audio importado voltava erro em toda gravacao (PyAV 19 x faster-whisper 1.2.1)",
+    "Tres testes que falhavam: um defeito de verdade e dois testes desatualizados",
+    "Medida do modelo: tres rodadas, mediana com a faixa do meio, primeira palavra e carga fria a parte",
+    "Datas: a conta relativa passa para a regra, e a do modelo e refeita pelo programa",
+    "Ferramentas: o erro do modelo volta com a dica, e ele tem uma segunda chance",
+    "Resumo da conversa longa (src/memoria.py): o que sai da janela dos dois ultimos pares fica num resumo",
+    "Editor diante da ata da cooperativa (\"O Paulus ainda está muito burro\")",
+    "Editor diante do documento de verdade: revisar, confirmar, texto colado, limpar o PDF e o cartao da rodada",
+    "Editor inteligente E6 e E7, e o programa conferindo o modelo (docs/PLANO-EDITOR.md)",
+    "Editor inteligente E0-E5 e parte da E8 (docs/PLANO-EDITOR.md). Banco de provas: 6 documentos ficticios com blocos de nome fixo e 62 tarefas com gabarito e checagens automaticas (lugar, ordem, dano colateral, numeracao, marcado e reversivel, honestidade, aponta), o editor de antes simulado como linha",
+    "Editor inteligente, a base (PLANO-EDITOR E2/E3, servidor): src/blocos.py le o HTML do editor como blocos com nome (data-b), saneia (script e estilo colado saem, texto nunca), e escreve a mudanca marcada palavra por palavra (ins/del com data-s e data-r, o negrito preservado, sugestao sobre sugestao p",
+    "Ajustes de tela: coluna lateral do Assistente com o mesmo respiro em cima e dos lados (20 px), nada passando da largura (o modelo comprido no \"Como respondi\" quebra dentro da etiqueta; antes a coluna rolava de lado) e a profundidade com o nome da tela (Ultra, nao Ministro). Trilha: o ajuste da rolag"
   ]
 }
