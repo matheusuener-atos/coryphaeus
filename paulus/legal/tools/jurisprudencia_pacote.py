@@ -158,6 +158,8 @@ def montar_tst(indice: dict, rtf: bytes | None = None) -> None:
             raise SystemExit(f"{nome}: só {n} verbetes vigentes - o livro do TST mudou de formato?")
         (DESTINO / arquivo).write_bytes(gzip.compress(texto.encode("utf-8"), 9, mtime=0))
         indice["sumulas"][chave] = {"arquivo": arquivo, "nome": nome, "enunciados": n, "fonte": TST_PAGINA,
+                                    "autor": "Tribunal Superior do Trabalho",
+                                    "areas": ["trabalho", "processo do trabalho"],
                                     "baixado_em": datetime.now().isoformat(timespec="seconds")}
         print(f"{nome}: {n} vigentes")
     indice["sumulas"]["tst"]["canceladas_fora"] = contas["canceladas_fora"]
@@ -185,6 +187,12 @@ CJF_GRUPOS = {
                      r"Processual Civil$|Processo Civil$", ["processo civil"]),
     "cjf_comercial": ("enunciados-cjf-comercial.txt.gz", "Enunciados das Jornadas de Direito Comercial (CJF)",
                       r"Direito Comercial$|Empresarial$", ["empresarial"]),
+    # As jornadas de um tema só (Notarial e Registral, Seguridade Social,
+    # Tributário...): juntas, cada enunciado com a jornada dele.
+    "cjf_outras": ("enunciados-cjf-outras.txt.gz", "Enunciados de outras Jornadas do CJF",
+                   r"Notarial|Seguridade|Tribut[áa]rio|Administrativo|Penal|Extrajudicial|Sa[úu]de|Desportivo"
+                   r"|Ambientais|Patrim[ôo]nio|Equidade",
+                   ["imobiliário", "previdenciário", "tributário", "administrativo", "penal", "processo penal", "outra"]),
 }
 
 
@@ -233,18 +241,20 @@ def coletar_cjf(cache: Path, ate: int = 4000, buraco: int = 400, pausa: float = 
 
 def montar_cjf(indice: dict, cache: Path) -> None:
     enunciados = coletar_cjf(cache)
-    for chave, (arquivo, nome, padrao, _areas) in CJF_GRUPOS.items():
+    for chave, (arquivo, nome, padrao, areas) in CJF_GRUPOS.items():
         deste = sorted((e for e in enunciados if re.search(padrao, e["jornada"])), key=lambda e: (e["numero"], e["id"]))
         vistos, partes = set(), []
         for e in deste:
-            if e["numero"] in vistos:
+            # Cada jornada de tema proprio recomeca do 1: a chave e a jornada e o numero.
+            if (e["jornada"], e["numero"]) in vistos:
                 continue
-            vistos.add(e["numero"])
+            vistos.add((e["jornada"], e["numero"]))
             partes.append(f"Enunciado {e['numero']} da {e['jornada']} (CJF)\n{e['texto']}\n\n")
         if len(partes) < 50:
             raise SystemExit(f"{nome}: só {len(partes)} enunciados - a base do CJF mudou?")
         (DESTINO / arquivo).write_bytes(gzip.compress("".join(partes).encode("utf-8"), 9, mtime=0))
         indice["sumulas"][chave] = {"arquivo": arquivo, "nome": nome, "enunciados": len(partes), "fonte": CJF_FONTE,
+                                    "autor": "Conselho da Justiça Federal", "areas": areas,
                                     "baixado_em": datetime.now().isoformat(timespec="seconds")}
         print(f"{nome}: {len(partes)} enunciados")
     outras = sorted({e["jornada"] for e in enunciados} - {e["jornada"] for e in enunciados

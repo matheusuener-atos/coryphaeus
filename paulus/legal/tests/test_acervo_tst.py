@@ -134,6 +134,30 @@ def test_so_do_trabalho() -> None:
            "pergunta do trabalho: entra", [h.doc_name for h in trabalho])
 
 
+def test_cjf() -> None:
+    print("\nos enunciados do CJF")
+    pagina = ("<html><body><h1>Enunciado 547</h1><p>Jornada</p><p>VI Jornada de Direito Civil</p>"
+              "<p>Coordenador-Geral</p><p>Ministro Ruy Rosado de Aguiar</p><p>Número</p><p>547</p><p>Enunciado</p>"
+              "<p>Na hipótese de alteração da obrigação principal sem o consentimento do fiador, a exoneração "
+              "deste é automática.</p><p>Referência Legislativa</p><p>Código Civil 2002 ART: 835</p>"
+              "<script>var x = 'Enunciado 999 Jornada falsa';</script></body></html>")
+    m = jp.RE_CJF.search(jp._texto_da_pagina(pagina))
+    checar(m and m.group(1) == "547" and m.group(2) == "VI Jornada de Direito Civil"
+           and m.group(3).endswith("exoneração deste é automática."),
+           "a página vira número, jornada e texto (sem a referência nem o script)", m and m.groups())
+    from biblioteca import nativo
+
+    for nome, autor in (("Enunciados das Jornadas de Direito Civil (CJF)", "Conselho da Justiça Federal"),
+                        ("Súmulas do TST", "Tribunal Superior do Trabalho")):
+        ficha = nativo.ficha_das_sumulas(nome)
+        checar(ficha["autor"] == autor and ficha["areas"] and ficha["origem"] == "oficial",
+               f"a ficha de '{nome}' vem do índice do pacote", ficha)
+    civil = set(nativo.ficha_das_sumulas("Enunciados das Jornadas de Direito Civil (CJF)")["areas"])
+    import material as material_mod
+
+    checar(not civil <= material_mod.AREAS_DO_TRABALHO, "o CJF não é só do trabalho: não passa pelo filtro do TST")
+
+
 def main() -> int:
     print("=" * 55)
     print("  a jurisprudência do TST no acervo")
@@ -142,6 +166,7 @@ def main() -> int:
         test_rtf()
         test_livro_do_tst()
         test_so_do_trabalho()
+        test_cjf()
     finally:
         shutil.rmtree(TMP, ignore_errors=True)
     print("\n" + "=" * 55)

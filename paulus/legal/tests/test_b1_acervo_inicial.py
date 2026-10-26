@@ -64,7 +64,7 @@ def test_acervo(pasta: Path) -> None:
         finally:
             if antes is not None:
                 os.environ["PAULUS_SEM_AVISOS"] = antes
-        checar(len(feito["codigos"]) == len(leis_mod.CODIGOS) and feito["sumulas"] == ["stj", "stf", "stf_vinculantes", "tst", "tst_ojs", "tst_pns"] and not feito["erros"],
+        checar(len(feito["codigos"]) == len(leis_mod.CODIGOS) and feito["sumulas"][:3] == ["stj", "stf", "stf_vinculantes"] and set(feito["sumulas"]) == set(nativo.indice()["sumulas"]) and not feito["erros"],
                f"na primeira abertura entra tudo, sem rede ({gasto:.0f} s)", feito)
         checar(all(c["instalado"] for c in L.instalados()), "todos os códigos ficam instalados")
         cf5 = L.artigo("cf", "5") or {}

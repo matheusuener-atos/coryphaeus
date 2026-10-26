@@ -195,21 +195,89 @@
       "fonte": "https://www.tst.jus.br/livro-de-sumulas-ojs-e-pns",
       "baixado_em": "2026-10-24T22:11:12",
       "canceladas_fora": 523,
-      "irr_juntos": 57
+      "irr_juntos": 57,
+      "autor": "Tribunal Superior do Trabalho",
+      "areas": [
+        "trabalho",
+        "processo do trabalho"
+      ]
     },
     "tst_ojs": {
       "arquivo": "ojs-tst.txt.gz",
       "nome": "Orientações Jurisprudenciais do TST",
       "enunciados": 380,
       "fonte": "https://www.tst.jus.br/livro-de-sumulas-ojs-e-pns",
-      "baixado_em": "2026-10-24T22:11:12"
+      "baixado_em": "2026-10-24T22:11:12",
+      "autor": "Tribunal Superior do Trabalho",
+      "areas": [
+        "trabalho",
+        "processo do trabalho"
+      ]
     },
     "tst_pns": {
       "arquivo": "pns-tst.txt.gz",
       "nome": "Precedentes Normativos do TST",
       "enunciados": 74,
       "fonte": "https://www.tst.jus.br/livro-de-sumulas-ojs-e-pns",
-      "baixado_em": "2026-10-24T22:11:12"
+      "baixado_em": "2026-10-24T22:11:12",
+      "autor": "Tribunal Superior do Trabalho",
+      "areas": [
+        "trabalho",
+        "processo do trabalho"
+      ]
+    },
+    "cjf_civil": {
+      "arquivo": "enunciados-cjf-civil.txt.gz",
+      "nome": "Enunciados das Jornadas de Direito Civil (CJF)",
+      "enunciados": 690,
+      "fonte": "https://www.cjf.jus.br/enunciados/",
+      "baixado_em": "2026-10-26T15:24:56",
+      "autor": "Conselho da Justiça Federal",
+      "areas": [
+        "civil",
+        "família e sucessões",
+        "imobiliário",
+        "consumidor"
+      ]
+    },
+    "cjf_processo": {
+      "arquivo": "enunciados-cjf-processo-civil.txt.gz",
+      "nome": "Enunciados das Jornadas de Direito Processual Civil (CJF)",
+      "enunciados": 237,
+      "fonte": "https://www.cjf.jus.br/enunciados/",
+      "baixado_em": "2026-10-26T15:24:56",
+      "autor": "Conselho da Justiça Federal",
+      "areas": [
+        "processo civil"
+      ]
+    },
+    "cjf_comercial": {
+      "arquivo": "enunciados-cjf-comercial.txt.gz",
+      "nome": "Enunciados das Jornadas de Direito Comercial (CJF)",
+      "enunciados": 115,
+      "fonte": "https://www.cjf.jus.br/enunciados/",
+      "baixado_em": "2026-10-26T15:24:56",
+      "autor": "Conselho da Justiça Federal",
+      "areas": [
+        "empresarial"
+      ]
+    },
+    "cjf_outras": {
+      "arquivo": "enunciados-cjf-outras.txt.gz",
+      "nome": "Enunciados de outras Jornadas do CJF",
+      "enunciados": 735,
+      "fonte": "https://www.cjf.jus.br/enunciados/",
+      "baixado_em": "2026-10-26T15:24:56",
+      "autor": "Conselho da Justiça Federal",
+      "areas": [
+        "imobiliário",
+        "previdenciário",
+        "tributário",
+        "administrativo",
+        "penal",
+        "processo penal",
+        "outra"
+      ]
     }
   },
   "temas": {
