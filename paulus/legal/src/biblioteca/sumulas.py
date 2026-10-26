@@ -13,7 +13,7 @@ import re
 from trechos import Fatia, _ajustar
 
 RE_ENUNCIADO = re.compile(
-    r"^[ \t]*(?:S[ÚU]MULA|S[úu]mula|ENUNCIADO|Enunciado|OJ|Orienta[çc][ãa]o Jurisprudencial)"
+    r"^[ \t]*(?:S[ÚU]MULA|S[úu]mula|ENUNCIADO|Enunciado|OJ|Orienta[çc][ãa]o Jurisprudencial|Precedente Normativo)"
     r"(?:\s+Vinculante)?\s*(?:n[º°o.]*\s*)?(\d{1,4})\b", re.M)
 
 

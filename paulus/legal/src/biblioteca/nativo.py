@@ -48,6 +48,10 @@ def ficha_das_sumulas(nome: str) -> dict:
 
     tribunal = {"Súmulas do STJ": "Superior Tribunal de Justiça", "Súmulas do STF": "Supremo Tribunal Federal",
                 "Súmulas vinculantes do STF": "Supremo Tribunal Federal"}.get(nome, "")
+    # O TST (tools/jurisprudencia_pacote.py, 25/10/2026): só do trabalho.
+    if nome in ("Súmulas do TST", "Orientações Jurisprudenciais do TST", "Precedentes Normativos do TST"):
+        return {**ficha_mod.vazia("sumulas"), "titulo": nome, "autor": "Tribunal Superior do Trabalho",
+                "origem": "oficial", "areas": ["trabalho", "processo do trabalho"], "confirmada": True}
     # O STJ uniformiza a lei federal: as súmulas dele são destas áreas (o
     # trabalho é do TST, e a Constituição, do STF). Os enunciados quase não
     # citam lei, e a regra das áreas por citação (ficha.areas_sugeridas) só

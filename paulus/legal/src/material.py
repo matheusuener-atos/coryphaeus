@@ -49,6 +49,24 @@ MIN_DA_MELHOR = 0.35
 
 RE_PAGINA = re.compile(r"\[pagina (\d+)\]")
 
+# A pergunta que é do trabalho, por regra (sem acento, em minúsculas): só ela
+# leva o material que é só do trabalho (Material._da_area).
+AREAS_DO_TRABALHO = {"trabalho", "processo do trabalho"}
+RE_PERGUNTA_DO_TRABALHO = re.compile(
+    r"\b(trabalh\w*|emprega\w*|clt|salari\w*|jornada|ferias|fgts|aviso previo|justa causa|horas? extras?"
+    r"|sindica\w*|reclamatori\w*|reclamante|insalubr\w*|periculos\w*|gestante|terceiriza\w*|rescis\w* indireta"
+    r"|verbas rescisorias|ctps|carteira de trabalho|acordos? coletivos?|convenc\w* coletiva|dissidio|\btst\b"
+    r"|orientac\w* jurisprudencia\w*|precedentes? normativos?|intervalo intrajornada|adicional noturno"
+    r"|equiparac\w* salarial|banco de horas|sobreaviso|vinculo empregaticio|estabilidade provisoria|cipa"
+    r"|acidente de trabalho|horas in itinere|teletrabalho|domestica\b|domestico\b)")
+
+
+def _plano(texto: str) -> str:
+    import unicodedata
+
+    normal = unicodedata.normalize("NFD", (texto or "").lower())
+    return "".join(c for c in normal if unicodedata.category(c) != "Mn")
+
 # O jeito de perguntar, e não o assunto: fica fora da conta da cobertura.
 # "Em quanto tempo devemos responder o e-mail" tem três palavras de assunto;
 # contando "quanto" e "devemos", o trecho certo cobria só um terço e ficava
@@ -419,9 +437,30 @@ class Material:
         """
         if self.hibrida:
             indice = self._montar_hibrido()
-            return indice.consultar(pergunta, top=top, extras=self.listas_do_dispositivo(pergunta))
+            return self._da_area(pergunta, indice.consultar(pergunta, top=top, extras=self.listas_do_dispositivo(pergunta)))
         if not self.buscador.chunks:
             return []
+        return self._da_area(pergunta, self._consultar_lexico(pergunta, top))
+
+    def _da_area(self, pergunta: str, hits: list[Hit]) -> list[Hit]:
+        """
+        O material que é só do trabalho (o TST: súmulas, OJs, precedentes
+        normativos) entra na pergunta que é do trabalho. Medido em 25/10/2026:
+        "qual a multa por atraso no aluguel da Clínica?" - o contrato não tem
+        multa - trazia o Precedente Normativo 72, multa por atraso de SALÁRIO,
+        e o modelo pequeno lê isso como a multa do aluguel.
+        """
+        if not hits or RE_PERGUNTA_DO_TRABALHO.search(_plano(pergunta)):
+            return hits
+        saida = []
+        for h in hits:
+            areas = set(((self.item_por_nome(h.doc_name) or {}).get("ficha") or {}).get("areas") or [])
+            if areas and areas <= AREAS_DO_TRABALHO:
+                continue
+            saida.append(h)
+        return saida
+
+    def _consultar_lexico(self, pergunta: str, top: int) -> list[Hit]:
         from search import tokenize
 
         # Nome próprio não casa: o material é de regras, não de partes. Mas

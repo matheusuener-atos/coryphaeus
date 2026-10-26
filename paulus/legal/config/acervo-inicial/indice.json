@@ -187,6 +187,29 @@
       "canceladas_fora": 1,
       "fonte": "https://portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=26",
       "baixado_em": "2026-09-30T22:17:29"
+    },
+    "tst": {
+      "arquivo": "sumulas-tst.txt.gz",
+      "nome": "Súmulas do TST",
+      "enunciados": 300,
+      "fonte": "https://www.tst.jus.br/livro-de-sumulas-ojs-e-pns",
+      "baixado_em": "2026-10-24T22:11:12",
+      "canceladas_fora": 523,
+      "irr_juntos": 57
+    },
+    "tst_ojs": {
+      "arquivo": "ojs-tst.txt.gz",
+      "nome": "Orientações Jurisprudenciais do TST",
+      "enunciados": 380,
+      "fonte": "https://www.tst.jus.br/livro-de-sumulas-ojs-e-pns",
+      "baixado_em": "2026-10-24T22:11:12"
+    },
+    "tst_pns": {
+      "arquivo": "pns-tst.txt.gz",
+      "nome": "Precedentes Normativos do TST",
+      "enunciados": 74,
+      "fonte": "https://www.tst.jus.br/livro-de-sumulas-ojs-e-pns",
+      "baixado_em": "2026-10-24T22:11:12"
     }
   },
   "temas": {
