@@ -289,9 +289,15 @@ def test_oficiais(tmp: Path) -> None:
         # Pelo menos o número do último artigo: o CDC termina no 119, a Lei
         # do Inquilinato no 90 - menos de 300 artigos não é erro nelas.
         ultimo = {"cdc": 119, "ctn": 218, "inquilinato": 90, "eca": 267, "cf": 250}
+        # As leis de 25/10/2026 (32 no pacote) são menores: a referência é a
+        # conta do pacote do instalador, tirada da mesma página do Planalto.
+        from biblioteca import nativo
+
+        do_pacote = {c: d.get("artigos", 0) for c, d in nativo.indice().get("codigos", {}).items()}
         for codigo, arquivo in arquivos.items():
             r = L.importar(arquivo, codigo)
-            checar(r["artigos"] >= ultimo.get(codigo, 300), f"{r['nome']}: {r['artigos']} artigos")
+            minimo = ultimo.get(codigo) or (do_pacote.get(codigo) if codigo not in leis.GERAIS else 0) or 300
+            checar(r["artigos"] >= minimo, f"{r['nome']}: {r['artigos']} artigos")
 
         esperado = {
             ("cc", "1º"): "Toda pessoa é capaz",
@@ -359,11 +365,13 @@ def test_oficiais(tmp: Path) -> None:
 
         # O contexto sai ao lado da citação; frase inteira ali é sinal de que
         # uma linha de texto foi lida como cabeçalho.
+        # Cada parte ("TÍTULO VI ... · CAPÍTULO III ... · Seção II ..."), e não
+        # a soma: a Lei de Custeio tem Título, Capítulo e Seção de nome longo, e
+        # os três juntos passam de 110 sem nenhuma frase de texto no meio.
         for codigo in arquivos:
-            longos = base.buscar(
-                "SELECT numero, contexto FROM artigos WHERE codigo = ? "
-                "AND length(contexto) > 110 ORDER BY length(contexto) DESC LIMIT 3",
-                (codigo,))
+            longos = [l for l in base.buscar(
+                "SELECT numero, contexto FROM artigos WHERE codigo = ? AND length(contexto) > 110", (codigo,))
+                if any(len(parte) > 110 for parte in l["contexto"].split(" · "))][:3]
             checar(not longos,
                    f"{codigo}: nenhum contexto é frase de texto",
                    "; ".join(f"art. {l['numero']}: {l['contexto'][:60]}" for l in longos))

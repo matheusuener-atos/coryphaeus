@@ -89,7 +89,13 @@ def ler_audio(caminho) -> "np.ndarray":
 
     resampler = av.audio.resampler.AudioResampler(format="s16", layout="mono", rate=TAXA)
     partes = []
-    with av.open(str(caminho), mode="r") as container:
+    try:
+        container = av.open(str(caminho), mode="r")
+    except av.error.FFmpegError as exc:
+        # "[Errno 1094995529] Invalid data found when processing input" não diz
+        # nada a quem gravou: a gravação mostra esta frase.
+        raise ValueError("não consegui ler este áudio: o arquivo parece corrompido ou não é de áudio") from exc
+    with container:
         for quadro in container.decode(audio=0):
             try:
                 novos = resampler.resample(quadro)

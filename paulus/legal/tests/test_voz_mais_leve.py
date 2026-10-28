@@ -56,6 +56,14 @@ class _Memoria:
         return types.SimpleNamespace(available=self.livre_mb * 1024 * 1024)
 
 
+def _erro_de(funcao) -> str:
+    try:
+        funcao()
+    except Exception as exc:  # noqa: BLE001
+        return str(exc)
+    return ""
+
+
 def _whisper_falso(erro: BaseException | None = None, erro_ao_transcrever: BaseException | None = None):
     class Modelo:
         def __init__(self, *a, **k) -> None:
@@ -122,6 +130,14 @@ def test_no_meio(pasta: Path) -> None:
         t = transcricao.Transcritor(pasta, "turbo")
         audio = pasta / "a.wav"
         audio.write_bytes(b"RIFF")
+        # O áudio é lido pelo PAULUS antes do modelo (transcricao.ler_audio): o
+        # arquivo de mentira não é áudio, e o que se mede aqui é o modelo.
+        checar(_erro_de(lambda: transcricao.ler_audio(audio)).startswith("não consegui ler este áudio"),
+               "arquivo que não é áudio: a frase diz isso, sem o código do FFmpeg")
+        import numpy as np
+
+        ler_de_verdade = transcricao.ler_audio
+        transcricao.ler_audio = lambda caminho: np.zeros(16000, dtype=np.float32)
         try:
             t.transcrever(audio)
             checar(False, "bad_alloc ao transcrever vira falta de memória")
@@ -135,6 +151,7 @@ def test_no_meio(pasta: Path) -> None:
             checar(False, "outro erro ao transcrever continua sendo o erro dele")
         except ValueError:
             checar(True, "outro erro ao transcrever continua sendo o erro dele")
+        transcricao.ler_audio = ler_de_verdade
     finally:
         psutil.virtual_memory = antes_mem
         if antes_fw is not None:
