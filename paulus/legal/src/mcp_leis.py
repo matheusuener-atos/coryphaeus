@@ -398,7 +398,7 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
         from biblioteca.rotas import procurar_sumulas
 
         achadas = [x for x in procurar_sumulas(estado.material, termo=str(argumentos.get("termo") or ""),
-                                               numero=str(argumentos.get("numero") or ""), limite=40)
+                                               numero=str(argumentos.get("numero") or ""), limite=40, tribunal="STJ")
                    if "do STJ" in x["titulo"]][:8]
         if not achadas:
             return "Nenhuma súmula do STJ com isso nas guardadas neste Paulus.", False
@@ -408,7 +408,7 @@ def chamar_escritorio(estado, conexao: dict, nome: str, argumentos: dict) -> tup
 
         so_vinculantes = bool(argumentos.get("vinculante"))
         achadas = [x for x in procurar_sumulas(estado.material, termo=str(argumentos.get("termo") or ""),
-                                               numero=str(argumentos.get("numero") or ""), limite=40)
+                                               numero=str(argumentos.get("numero") or ""), limite=40, tribunal="STF")
                    if "do STF" in x["titulo"] and (not so_vinculantes or "Vinculante" in x["titulo"])][:8]
         if not achadas:
             return "Nenhuma súmula do STF com isso nas guardadas neste Paulus.", False

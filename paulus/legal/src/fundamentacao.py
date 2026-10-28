@@ -312,8 +312,13 @@ def sugerir(estado, trecho: str) -> dict:
         from biblioteca.rotas import procurar_sumulas
 
         vistos = set()
+        # O material só do trabalho (o TST) fica fora da pergunta que não é do
+        # trabalho - a mesma regra da busca do material (material._da_area).
+        import material as material_mod
+
+        fora = () if material_mod.RE_PERGUNTA_DO_TRABALHO.search(material_mod._plano(trecho)) else ("do TST",)
         for termo in (" ".join(chaves[:2]), chaves[0]):
-            for s in procurar_sumulas(material, termo=termo, limite=6):
+            for s in procurar_sumulas(material, termo=termo, limite=6, fora=fora):
                 if s["numero"] not in vistos:
                     vistos.add(s["numero"])
                     sumulas.append({"numero": s["numero"], "titulo": s["titulo"], "texto": s["texto"][:600], "porque": "tem " + termo})
@@ -387,7 +392,11 @@ def relacionados(estado, pergunta: str, resposta: str, fontes=None) -> dict | No
             vinculante = bool(m.group(1))
             tribunal = (m.group(3) or ("stf" if vinculante else "stj")).upper()
             # O título de cada enunciado diz o tribunal: "Súmula 7 do STJ", "Súmula Vinculante 13 do STF" (N8).
-            achadas = [x for x in procurar_sumulas(material, numero=numero, limite=6)
+            # O tribunal filtra ANTES do limite: com o TST e o CJF no acervo
+            # (25/10/2026), o número 13 tem a Súmula do TST, as OJs de quatro
+            # seções, o PN e o enunciado de cada jornada - e os 6 primeiros
+            # acabavam antes do STF (tests/test_n8_stf.py).
+            achadas = [x for x in procurar_sumulas(material, numero=numero, limite=20, tribunal=tribunal)
                        if f"do {tribunal}" in x["titulo"] and ("Vinculante" in x["titulo"]) == vinculante]
             for x in achadas[:1]:
                 if any(y["titulo"] == x["titulo"] for y in saida_sumulas):

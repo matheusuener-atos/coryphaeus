@@ -157,6 +157,21 @@ def test_cjf() -> None:
 
     checar(not civil <= material_mod.AREAS_DO_TRABALHO, "o CJF não é só do trabalho: não passa pelo filtro do TST")
 
+    print("\no número repetido em muitos tribunais")
+    from biblioteca.rotas import procurar_sumulas
+
+    m = material_mod.Material(TMP / "material-13")
+    for nome, cabeca in (("Súmulas do TST", "Súmula 13 do TST"),
+                         ("Enunciados das Jornadas de Direito Civil (CJF)", "Enunciado 13 da I Jornada de Direito Civil (CJF)"),
+                         ("Orientações Jurisprudenciais do TST", "OJ 13 da SBDI-1 do TST"),
+                         ("Súmulas vinculantes do STF", "Súmula Vinculante 13 do STF")):
+        corpo = "".join(f"{cabeca.replace(' 13 ', f' {n} ')}\nTexto {n}.\n\n" for n in range(10, 16))
+        m.absorver_texto(nome, corpo, {**nativo.ficha_das_sumulas(nome), "titulo": nome, "tipo": "sumulas"})
+    sem_filtro = [x["titulo"] for x in procurar_sumulas(m, numero="13", limite=2)]
+    com_filtro = [x["titulo"] for x in procurar_sumulas(m, numero="13", limite=2, tribunal="STF")]
+    checar("Súmula Vinculante 13 do STF" not in sem_filtro and com_filtro == ["Súmula Vinculante 13 do STF"],
+           "com muitos '13', o filtro do tribunal vem antes do limite (a Súmula Vinculante 13 aparece)", (sem_filtro, com_filtro))
+
 
 def main() -> int:
     print("=" * 55)

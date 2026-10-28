@@ -286,7 +286,13 @@ def _plano(texto: str) -> str:
     return "".join(c for c in normal if unicodedata.category(c) != "Mn").lower()
 
 
-def procurar_sumulas(material, termo: str = "", numero: str = "", limite: int = 30) -> list[dict]:
+def procurar_sumulas(material, termo: str = "", numero: str = "", limite: int = 30, tribunal: str = "",
+                     fora: tuple[str, ...] = ()) -> list[dict]:
+    """
+    `tribunal` ("STJ", "STF") e `fora` filtram pela obra ANTES do limite: com o
+    TST e o CJF no acervo (25/10/2026), o número 13 e o termo "prescrição" têm
+    dezenas de verbetes de outros tribunais, e o limite acabava antes do pedido.
+    """
     from biblioteca import sumulas
 
     palavras = [p for p in re.findall(r"\w+", _plano(termo)) if len(p) > 2]
@@ -296,6 +302,9 @@ def procurar_sumulas(material, termo: str = "", numero: str = "", limite: int = 
     achados = []
     for item in material.listar():
         if (item.get("ficha") or {}).get("tipo") != "sumulas":
+            continue
+        obra = (item.get("ficha") or {}).get("titulo") or item["nome"]
+        if (tribunal and tribunal not in obra) or any(f in obra for f in fora):
             continue
         texto = material.texto_de(item["id"])
         marcas = list(sumulas.RE_ENUNCIADO.finditer(texto))
