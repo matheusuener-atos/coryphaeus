@@ -154,6 +154,24 @@ def test_na_conversa() -> None:
     api.estado.client = falso
     api.estado.cliente_para = lambda tarefa, **k: falso
     api.estado.saber.ligada = False
+
+    print("  só pela nuvem")
+    from jobs import Trabalho
+
+    t0 = Trabalho(id="x", titulo="x")
+    checar(api._cliente_do_resumo(t0) is None, "sem a nuvem ligada para os resumos: não há resumo (não ocupa o modelo daqui)")
+    import nuvem as nuvem_mod
+
+    usa = nuvem_mod.usa
+    nuvem_mod.usa = lambda estado, tarefa: True
+    try:
+        t0.contexto["resumo_so_aqui"] = True
+        checar(api._cliente_do_resumo(t0) is None, "conversa com pergunta que ficou neste computador: não há resumo")
+    finally:
+        nuvem_mod.usa = usa
+    # Daqui em diante, a nuvem dos resumos é o modelo falso.
+    real = api._cliente_do_resumo
+    api._cliente_do_resumo = lambda trabalho: falso
     pasta = Path(api.estado.pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     (pasta / "transporte.txt").write_text(
@@ -178,10 +196,13 @@ def test_na_conversa() -> None:
     checar((t.contexto.get("resumo_conversa") or {}).get("pares") == 2,
            "quatro perguntas: os dois pares que saíram estão no resumo, gravado na conversa", t.contexto)
 
+    checar(t.contexto.get("resumo_so_aqui"), "a pergunta sem nuvem marca a conversa (o resumo real não sairia dela)")
+
     perguntar(id_, "qual o foro do contrato de transporte, de novo?")
     h = falso.pedidos[-1]["historico"]
     checar(len(h) == 6 and h[0]["content"] == __import__("memoria").PEDIDO_DO_RESUMO and "18.500" in h[1]["content"],
            "a pergunta seguinte leva o resumo e os dois últimos pares", [m["content"][:40] for m in h])
+    api._cliente_do_resumo = real
 
 
 def main() -> int:

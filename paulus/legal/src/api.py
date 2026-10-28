@@ -4014,6 +4014,11 @@ def trabalhos_perguntar(id_: str, payload: Pergunta, request: Request = None) ->
         # Com esta resposta, mais um par sai da janela: se o resumo nao o
         # cobre, ele e refeito em segundo plano, depois dela.
         anteriores_pares = memoria_mod.pares_respondidos(trabalho.mensagens[:-1])
+        # A pergunta que ficou neste computador deixa a conversa toda assim
+        # para o resumo: ele junta o texto de varias perguntas, e uma delas a
+        # pessoa nao quis mandar para fora (tests/test_paulus_autonomo.py).
+        if not payload.nuvem:
+            trabalho.contexto["resumo_so_aqui"] = True
         if memoria_mod.precisa_resumir(trabalho.contexto, anteriores_pares, janela=memoria_mod.PARES - 1):
             _resumir_em_fundo(trabalho)
         # "Esses pontos", "o que falta", "isso que você sugeriu": o objeto é a
@@ -7019,14 +7024,42 @@ def _caminhos_da_conversa(trabalho) -> list[str]:
 _resumindo: set[str] = set()
 
 
+class _SemReserva:
+    """O 'modelo deste computador' do resumo: nao ha. A nuvem que falha nao cai aqui."""
+
+    def ask(self, *a, **k):
+        raise RuntimeError("o resumo da conversa e feito so pela nuvem")
+
+
+def _cliente_do_resumo(trabalho):
+    """
+    O cliente que escreve o resumo, ou None quando nao ha resumo.
+
+    So a nuvem: neste computador o resumo ocupava o modelo de 10 a 30 s logo
+    depois de cada resposta, e a pergunta seguinte da pessoa esperava por ele
+    (tests/test_c1_execucao.py e test_f1_fila.py pegaram em 26/10/2026). Sem a
+    nuvem para os resumos - desligada, sem chave, a conversa marcada para ficar
+    aqui, um documento so do escritorio - a conversa segue com os dois ultimos
+    pares, como antes do resumo. E a nuvem que falha no meio nao cai para o
+    modelo daqui: conta como falha do resumo.
+    """
+    if trabalho.contexto.get("resumo_so_aqui") or not nuvem_mod.usa(estado, "resumos"):
+        return None
+    cliente = estado.cliente_para("resumos", caminhos=_caminhos_da_conversa(trabalho))
+    if not isinstance(cliente, nuvem_mod.ClienteNuvem) or cliente._motivo():
+        return None
+    cliente.local = _SemReserva()
+    return cliente
+
+
 def _resumir_em_fundo(trabalho) -> None:
     """
-    O resumo da conversa longa (src/memoria.py), depois da resposta e com a vez
-    de segundo plano: a pergunta de agora nao espera por ele, e a seguinte ja
-    o encontra pronto.
+    O resumo da conversa longa (src/memoria.py), depois da resposta e pela
+    nuvem (_cliente_do_resumo): a pergunta de agora nao espera por ele, e a
+    seguinte ja o encontra pronto.
     """
     id_ = trabalho.id
-    if id_ in _resumindo:
+    if id_ in _resumindo or _cliente_do_resumo(trabalho) is None:
         return
     _resumindo.add(id_)
 
@@ -7044,7 +7077,9 @@ def _resumir_em_fundo(trabalho) -> None:
                 pares = memoria_mod.pares_respondidos(trabalho.mensagens)
                 if not memoria_mod.precisa_resumir(trabalho.contexto, pares):
                     return
-                cliente = estado.cliente_para("resumos", caminhos=_caminhos_da_conversa(trabalho))
+                cliente = _cliente_do_resumo(trabalho)
+                if cliente is None:
+                    return
                 gravou = memoria_mod.resumir(trabalho.contexto, pares, cliente)
                 estado.trabalhos.salvar(trabalho)
                 if not gravou:

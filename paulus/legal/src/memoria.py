@@ -301,6 +301,10 @@ def reescrever(pergunta: str, anterior: str = "", assunto: tuple[str, str] | lis
 #
 # - so e refeito quando um par SAI da janela, e em segundo plano, depois da
 #   resposta - a pergunta de agora usa o resumo que ja existe e nao espera;
+# - so pela nuvem (api._cliente_do_resumo): neste computador ele ocupava o
+#   modelo de 10 a 30 s depois de cada resposta, e a pergunta seguinte
+#   esperava. Sem a nuvem para os resumos, a conversa fica com os dois ultimos
+#   pares, como antes;
 # - e incremental: o resumo anterior mais os pares que sairam, nunca a
 #   conversa inteira de novo;
 # - nao inventa: resumo com numero que nao esta no texto de onde veio e

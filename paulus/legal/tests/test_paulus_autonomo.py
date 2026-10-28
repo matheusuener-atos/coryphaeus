@@ -346,6 +346,14 @@ def main() -> int:
            "a pergunta seguinte, sobre o documento, volta a ele", r["como"].get("caminho"))
 
     print("\nsem a nuvem")
+    # O resumo da conversa longa (src/memoria.py) das conversas de cima roda em
+    # segundo plano, e elas podiam ir à nuvem: espera ele acabar, ou a chamada
+    # dele cai na conta desta pergunta, que não pode ir.
+    import time
+
+    fim = time.time() + 60
+    while api._resumindo and time.time() < fim:
+        time.sleep(0.2)
     n0 = len(fake.chamadas)
     ollama.pedidos.clear()
     r = perguntar(nova(), "explique a usucapião", apenas=[PDF], nuvem=False)
