@@ -76,6 +76,34 @@ NOVAS = [
 ]
 
 
+# Escritas ANTES do mapa de assuntos (src/mapa_de_assuntos.py, 26/10/2026), do
+# jeito que o advogado pergunta - para o mapa nao ser medido pelas palavras dele.
+PRAZOS = [
+    ("tenho quantos dias para apelar da sentença?", "cpc", {"1003", "1.003", "1009", "1.009"}),
+    ("qual o prazo do agravo de instrumento?", "cpc", {"1003", "1.003", "1016", "1.016"}),
+    ("em quanto tempo o réu responde à inicial?", "cpc", {"335"}),
+    ("qual o prazo para o autor se manifestar sobre a contestação?", "cpc", {"350", "351"}),
+    ("os prazos processuais contam dias úteis ou corridos?", "cpc", {"219"}),
+    ("a fazenda pública tem prazo em dobro?", "cpc", {"183"}),
+    ("depois da intimação, quanto tempo o devedor tem para pagar no cumprimento de sentença?", "cpc", {"523"}),
+    ("qual o prazo para impugnar o cumprimento de sentença?", "cpc", {"525"}),
+    ("qual o prazo para opor embargos à execução?", "cpc", {"915"}),
+    ("até quando posso entrar com ação rescisória?", "cpc", {"975"}),
+    ("em quanto tempo deve ser aberto o inventário?", "cpc", {"611"}),
+    ("os prazos ficam suspensos no fim do ano?", "cpc", {"220"}),
+    ("qual o prazo do recurso ordinário trabalhista?", "clt", {"895"}),
+    ("em quantos dias a empresa paga as verbas rescisórias?", "clt", {"477"}),
+    ("qual o prazo de prescrição dos créditos trabalhistas?", "clt", {"11"}),
+    ("os embargos de declaração na justiça do trabalho têm que prazo?", "clt", {"897-A"}),
+    ("qual o prazo do recurso inominado?", "juizados", {"42"}),
+    ("qual o prazo para pedir indenização por dano, a prescrição?", "cc", {"206"}),
+    ("quantos anos para a usucapião especial urbana?", "cc", {"1240", "1.240"}),
+    ("quais requisitos a petição inicial deve ter?", "cpc", {"319"}),
+    ("quais poderes especiais a procuração precisa ter para desistir?", "cpc", {"105"}),
+    ("qual o prazo para o inquilino desocupar depois do despejo?", "inquilinato", {"63"}),
+]
+
+
 def montar(pasta: Path) -> "leis_mod.Leis":
     base = Base(pasta / "leis.db")
     L = leis_mod.Leis(base)
@@ -113,7 +141,8 @@ def main() -> int:
         L = montar(pasta)
         instalados = sorted(l["codigo"] for l in L.instalados() if l["instalado"])
         print(f"{len(instalados)} leis no pacote: {', '.join(instalados)}\n")
-        for rotulo, perguntas in (("GERAIS (não nomeiam a lei)", GERAIS), ("NOVAS (leis de 25/10)", NOVAS)):
+        for rotulo, perguntas in (("GERAIS (não nomeiam a lei)", GERAIS), ("NOVAS (leis de 25/10)", NOVAS),
+                                  ("PRAZOS (escritas antes do mapa de assuntos)", PRAZOS)):
             c, a, linhas = medir(L, perguntas)
             print(rotulo)
             print("\n".join(linhas))

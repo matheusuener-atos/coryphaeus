@@ -963,6 +963,17 @@ class Leis:
         palavra acerta o artigo vizinho mais do que o certo ("prazo para
         contestar" trouxe o art. 679 antes do 335). Por isso só os primeiros.
         """
+        # O mapa de assuntos (src/mapa_de_assuntos.py) vem primeiro: o assunto
+        # que ele conhece aponta o artigo; a busca por palavra completa.
+        import mapa_de_assuntos
+
+        do_mapa: list[dict] = []
+        for codigo, numero, _rotulo in mapa_de_assuntos.artigos_do_assunto(pergunta):
+            a = self.artigo(codigo, numero)
+            if a and not a["revogado"] and a not in do_mapa:
+                do_mapa.append(a)
+        if len(do_mapa) >= limite:
+            return do_mapa[:limite]
         plano = _plano(pergunta)
         codigos = [c for c, padrao in CODIGO_NA_FRASE if re.search(padrao, plano)]
         radicais: list[str] = []
@@ -973,7 +984,7 @@ class Leis:
             if radical not in radicais:
                 radicais.append(radical)
         if not radicais:
-            return []
+            return do_mapa
         # Sem lei nomeada, so os codigos de sempre (GERAIS): as leis de 25/10
         # entram quando a frase as nomeia. Medido em tools/medir_leis.py.
         codigos = codigos or list(GERAIS)
@@ -987,8 +998,10 @@ class Leis:
                 f"SELECT a.* FROM artigos_busca b JOIN artigos a ON a.id = b.rowid WHERE {onde} "
                 f"ORDER BY bm25(artigos_busca) LIMIT ?", tuple(parametros) + (limite,))
         except Exception:  # noqa: BLE001 - FTS recusou a consulta: sem reserva
-            return []
-        return [self._enfeitar(l) for l in linhas]
+            return do_mapa
+        vistos = {(a["codigo"], a["numero"]) for a in do_mapa}
+        por_palavra = [self._enfeitar(l) for l in linhas if (l["codigo"], l["numero"]) not in vistos]
+        return (do_mapa + por_palavra)[:limite]
 
     def vizinhos(self, codigo: str, ordem: int, quantos: int = 3) -> list[dict]:
         """Os artigos ao redor — ler o anterior costuma resolver a dúvida."""
